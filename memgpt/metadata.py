@@ -3,14 +3,18 @@ from typing import TYPE_CHECKING
 import uuid
 from typing import List, Optional
 from humps import pascalize
+from sqlalchemy.exc import NoResultFound
 
 from memgpt.log import get_logger
 from memgpt.orm.utilities import get_db_session
 from memgpt.orm.token import Token
 from memgpt.orm.agent import Agent
 from memgpt.orm.job import Job
+from memgpt.orm.source import Source
 from memgpt.orm.preset import Preset
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
+from memgpt.orm.user import User
+from memgpt.orm.tool import Tool
 
 
 if TYPE_CHECKING:
@@ -19,17 +23,28 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 from memgpt.data_types import (
-    AgentState,
-    Preset,
-    Source,
-    Token,
-    User,
+    AgentState as DataAgentState,
+    Preset as DataPreset,
+    Source as DataSource,
+    Token as DataToken,
+    User as DataUser,
 )
 from memgpt.models.pydantic_models import (
     HumanModel,
     PersonaModel,
 )
 from memgpt.orm.enums import JobStatus
+from memgpt.config import MemGPTConfig
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.api_key import APIKey
+from memgpt.schemas.block import Block, Human, Persona
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.job import JobStatus
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memory import Memory
+from memgpt.schemas.source import Source
+from memgpt.schemas.tool import Tool
+from memgpt.schemas.user import User
 
 class MetadataStore:
     """Metadatastore acts as a bridge between the ORM and the rest of the application. Ideally it will be removed in coming PRs and
@@ -95,49 +110,80 @@ class MetadataStore:
         """Get the user associated with a given API key"""
         return Token.get_by_api_key(self.db_session, api_key).user.to_record()
 
-    def create_agent(self, agent: AgentState):
+    def create_agent(self, agent: DataAgentState):
         "here is one example longhand to demonstrate the meta pattern"
         return Agent.create(self.db_session, agent.model_dump(exclude_none=True))
 
-    def __getattr__(self, name, *args, **kwargs):
+    def list_agents(self, user_id: uuid.UUID) -> List[DataAgentState]:
+        return [a.to_record() for a in User.read(self.db_session, user_id).agents]
+
+    def list_tools(self) -> List[DataAgentState]:
+        return [a.to_record() for a in Tool.list(self.db_session)]
+
+    def get_tool(self, name: str, user_id: uuid.UUID) -> Optional[DataAgentState]:
+        return Tool.read(self.db_session, name=name).to_record()
+
+
+    def __getattr__(self, name):
         """temporary metaprogramming to clean up all the getters and setters here.
 
         __getattr__ is always the last-ditch effort, so you can override it by declaring any method (ie `get_hamburger`) to handle the call instead.
         """
         action, raw_model_name = name.split("_",1)
-        Model = globals().get(pascalize(raw_model_name)) # gross, but nessary for now
+        Model = globals().get(pascalize(raw_model_name).capitalize()) # gross, but nessary for now
+        if Model is None:
+            raise AttributeError(f"Model {raw_model_name} action {action} not found")
+
+        def pluralize(name):
+            return name if name[-1] == "s" else name + "s"
+
         match action:
             case "add":
                 return self.getattr("_".join(["create",raw_model_name]))
             case "get":
                 # this has no support for scoping, but we won't keep this pattern long
-                return Model.read(self.db_session, args[0]).to_record()
+                try:
+                    def get(id, user_id = None):
+                        return Model.read(self.db_session, id).to_record()
+                    return get
+                except IndexError:
+                    raise NoResultFound(f"No {raw_model_name} found with id {id}")
             case "create":
-                splatted_pydantic = args[0].model_dump(exclude_none=True)
-                return Model.create(self.db_session, splatted_pydantic).to_record()
+                def create(schema):
+                    splatted_pydantic = schema.model_dump(exclude_none=True)
+                    return Model.create(self.db_session, splatted_pydantic).to_record()
+                return create
             case "update":
-                instance = Model.read(self.db_session, args[0].id)
-                splatted_pydantic = args[0].model_dump(exclude_none=True, exclude=["id"])
-                for k,v in splatted_pydantic.items():
-                    setattr(instance, k, v)
-                instance.update(self.db_session)
-                return instance.to_record()
+                def update(schema):
+                    instance = Model.read(self.db_session, schema.id)
+                    splatted_pydantic = schema.model_dump(exclude_none=True, exclude=["id"])
+                    for k,v in splatted_pydantic.items():
+                        setattr(instance, k, v)
+                    instance.update(self.db_session)
+                    return instance.to_record()
+                return update
             case "delete":
+                def delete(*args):
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org and delete by name
-                if user_uuid := (args[1] if len(args) > 1 else None):
-                    org = User.read(user_uuid).organization
-                    related_set = getattr(org, (raw_model_name + "s"))
-                    related_set.filter(name=name).scalar().delete()
-                    return
-                instance = Model.read(self.db_session, args[0])
-                instance.delete(self.db_session)
+                    if user_uuid := (args[1] if len(args) > 1 else None):
+                        org = User.read(self.db_session, user_uuid).organization
+                        related_set = getattr(org, pluralize(raw_model_name)) or []
+                        related_set.filter(name=name).scalar().delete()
+                        return
+                    instance = Model.read(self.db_session, args[0])
+                    instance.delete(self.db_session)
+                return delete
             case "list":
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org
-                if user_uuid := (args[1] if len(args) > 1 else None):
-                    org = User.read(user_uuid).organization
-                    return [r.to_record() for r in getattr(org, (raw_model_name + "s"))]
-                # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
-                return [r.to_record() for r in Model.list(self.db_session)]
+                def list(*args, **kwargs):
+                    if user_uuid := kwargs.get("id"):
+                        org = User.read(self.db_session, user_uuid).organization
+                        return [r.to_record() for r in getattr(org, pluralize(raw_model_name)) or []]
+                    # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
+                    return [r.to_record() for r in Model.list(self.db_session)]
+                return list
+            case _:
+                raise AttributeError(f"Method {name} not found")
 
     def get_preset(
         self, preset_id: Optional[uuid.UUID] = None, name: Optional[str] = None, user_id: Optional[uuid.UUID] = None

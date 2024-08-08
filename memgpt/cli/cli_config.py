@@ -1,8 +1,9 @@
 import builtins
+import ast
 import os
 import uuid
 from enum import Enum
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 
 import questionary
 import typer
@@ -10,11 +11,9 @@ from prettytable.colortable import ColorTable, Themes
 from tqdm import tqdm
 
 from memgpt import utils
-from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import LLM_MAX_TOKENS, MEMGPT_DIR
 from memgpt.credentials import SUPPORTED_AUTH_TYPES, MemGPTCredentials
-from memgpt.data_types import EmbeddingConfig, LLMConfig, Source, User
 from memgpt.llm_api.anthropic import (
     anthropic_get_model_list,
     antropic_get_model_context_window,
@@ -38,7 +37,10 @@ from memgpt.local_llm.constants import (
 )
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import PersonaModel
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.source import Source
+from memgpt.schemas.user import User
 from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
@@ -1096,18 +1098,16 @@ class ListChoice(str, Enum):
 def list(arg: Annotated[ListChoice, typer.Argument]):
     from memgpt.client.client import create_client
 
-    config = MemGPTConfig.load()
-    ms = MetadataStore(config)
-    user_id = uuid.UUID(config.anon_clientid)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     table = ColorTable(theme=Themes.OCEAN)
     if arg == ListChoice.agents:
         """List all agents"""
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
-        for agent in tqdm(ms.list_agents(user_id=user_id)):
-            source_ids = ms.list_attached_sources(agent_id=agent.id)
+        for agent in tqdm(client.list_agents()):
+            # TODO: add this function
+            source_ids = client.list_attached_sources(agent_id=agent.id)
             assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in source_ids])
-            sources = [ms.get_source(source_id=source_id) for source_id in source_ids]
+            sources = [client.get_source(source_id=source_id) for source_id in source_ids]
             assert all([source is not None and isinstance(source, Source)] for source in sources)
             source_names = [source.name for source in sources if source is not None]
             table.add_row(
@@ -1116,8 +1116,8 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                     agent.llm_config.model,
                     agent.embedding_config.embedding_model,
                     agent.embedding_config.embedding_dim,
-                    agent.persona,
-                    agent.human,
+                    agent._metadata.get("persona", ""),
+                    agent._metadata.get("human", ""),
                     ",".join(source_names),
                     utils.format_datetime(agent.created_at),
                 ]
@@ -1132,39 +1132,96 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     elif arg == ListChoice.personas:
         """List all personas"""
         table.field_names = ["Name", "Text"]
-        for persona in ms.list_personas(user_id=user_id):
+        for persona in client.list_personas():
             table.add_row([persona.name, persona.text.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""
 
         # create table
-        table.field_names = ["Name", "Description", "Embedding Model", "Embedding Dim", "Created At", "Agents"]
+        table.field_names = ["Name", "Description", "Embedding Model", "Embedding Dim", "Created At"]
         # TODO: eventually look accross all storage connections
         # TODO: add data source stats
         # TODO: connect to agents
 
         # get all sources
-        for source in ms.list_sources(user_id=user_id):
+        for source in client.list_sources():
             # get attached agents
-            agent_ids = ms.list_attached_agents(source_id=source.id)
-            agent_states = [ms.get_agent(agent_id=agent_id) for agent_id in agent_ids]
-            agent_names = [agent_state.name for agent_state in agent_states if agent_state is not None]
-
             table.add_row(
                 [
                     source.name,
                     source.description,
-                    source.embedding_model,
-                    source.embedding_dim,
+                    source.embedding_config.embedding_model,
+                    source.embedding_config.embedding_dim,
                     utils.format_datetime(source.created_at),
-                    ",".join(agent_names),
                 ]
             )
 
         print(table)
     else:
         raise ValueError(f"Unknown argument {arg}")
+    return table
+
+
+@app.command()
+def add_tool(
+    filename: str = typer.Option(..., help="Path to the Python file containing the function"),
+    name: Optional[str] = typer.Option(None, help="Name of the tool"),
+    update: bool = typer.Option(True, help="Update the tool if it already exists"),
+    tags: Optional[List[str]] = typer.Option(None, help="Tags for the tool"),
+):
+    """Add or update a tool from a Python file."""
+    from memgpt.client.client import create_client
+
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+
+    # 1. Parse the Python file
+    with open(filename, "r", encoding="utf-8") as file:
+        source_code = file.read()
+
+    # 2. Parse the source code to extract the function
+    # Note: here we assume it is one function only in the file.
+    module = ast.parse(source_code)
+    func_def = None
+    for node in module.body:
+        if isinstance(node, ast.FunctionDef):
+            func_def = node
+            break
+
+    if not func_def:
+        raise ValueError("No function found in the provided file")
+
+    # 3. Compile the function to make it callable
+    # Explanation courtesy of GPT-4:
+    # Compile the AST (Abstract Syntax Tree) node representing the function definition into a code object
+    # ast.Module creates a module node containing the function definition (func_def)
+    # compile converts the AST into a code object that can be executed by the Python interpreter
+    # The exec function executes the compiled code object in the current context,
+    # effectively defining the function within the current namespace
+    exec(compile(ast.Module([func_def], []), filename, "exec"))
+    # Retrieve the function object by evaluating its name in the current namespace
+    # eval looks up the function name in the current scope and returns the function object
+    func = eval(func_def.name)
+
+    # 4. Add or update the tool
+    tool = client.create_tool(func=func, name=name, tags=tags, update=update)
+    print(tool)
+
+    tools = client.list_tools()
+    for tool in tools:
+        print(f"Tool: {tool.name}")
+
+
+@app.command()
+def list_tools():
+    """List all available tools."""
+    from memgpt.client.client import create_client
+
+    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+
+    tools = client.list_tools()
+    for tool in tools:
+        print(f"Tool: {tool.name}")
 
 
 @app.command()
@@ -1177,25 +1234,20 @@ def add(
     """Add a person/human"""
     from memgpt.client.client import create_client
 
-    config = MemGPTConfig.load()
-    user_id = uuid.UUID(config.anon_clientid)
-    ms = MetadataStore(config)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
     if filename:  # read from file
         assert text is None, "Cannot specify both text and filename"
         with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
     if option == "persona":
-        persona = ms.get_persona(name=name)
+        persona = client.get_persona(name)
         if persona:
             # config if user wants to overwrite
             if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
                 return
-            persona.text = text
-            ms.update_persona(persona)
+            client.update_persona(name=name, text=text)
         else:
-            persona = PersonaModel(name=name, text=text, user_id=user_id)
-            ms.add_persona(persona)
+            client.create_persona(name=name, text=text)
 
     elif option == "human":
         human = client.get_human(name=name)
@@ -1203,10 +1255,9 @@ def add(
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
                 return
-            human.text = text
-            client.update_human(human)
+            client.update_human(name=name, text=text)
         else:
-            human = client.create_human(name=name, human=text)
+            human = client.create_human(name=name, text=text)
     else:
         raise ValueError(f"Unknown kind {option}")
 
@@ -1216,53 +1267,26 @@ def delete(option: str, name: str):
     """Delete a source from the archival memory."""
     from memgpt.client.client import create_client
 
-    config = MemGPTConfig.load()
-    user_id = uuid.UUID(config.anon_clientid)
     client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_API_KEY"))
-    ms = MetadataStore(config)
-    assert ms.get_user(user_id=user_id), f"User {user_id} does not exist"
-
     try:
         # delete from metadata
         if option == "source":
             # delete metadata
-            source = ms.get_source(source_name=name, user_id=user_id)
+            source = client.get_source(name)
             assert source is not None, f"Source {name} does not exist"
-            ms.delete_source(source_id=source.id)
-
-            # delete from passages
-            conn = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id=user_id)
-            conn.delete({"data_source": name})
-
-            assert (
-                conn.get_all({"data_source": name}) == []
-            ), f"Expected no passages with source {name}, but got {conn.get_all({'data_source': name})}"
-
-            # TODO: should we also delete from agents?
+            client.delete_source(source_id=source.id)
         elif option == "agent":
-            agent = ms.get_agent(agent_name=name, user_id=user_id)
-            assert agent is not None, f"Agent {name} for user_id {user_id} does not exist"
-
-            # recall memory
-            recall_conn = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-            recall_conn.delete({"agent_id": agent.id})
-
-            # archival memory
-            archival_conn = StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id=user_id, agent_id=agent.id)
-            archival_conn.delete({"agent_id": agent.id})
-
-            # metadata
-            ms.delete_agent(agent_id=agent.id)
-
+            agent = client.get_agent(agent_name=name)
+            assert agent is not None, f"Agent {name} does not exist"
+            client.delete_agent(agent_id=agent.id)
         elif option == "human":
             human = client.get_human(name=name)
             assert human is not None, f"Human {name} does not exist"
             client.delete_human(name=name)
         elif option == "persona":
-            persona = ms.get_persona(name=name)
+            persona = client.get_persona(name=name)
             assert persona is not None, f"Persona {name} does not exist"
-            ms.delete_persona(name=name)
-            assert ms.get_persona(name=name) is None, f"Persona {name} still exists"
+            client.delete_persona(name=name)
         else:
             raise ValueError(f"Option {option} not implemented")
 

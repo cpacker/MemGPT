@@ -7,7 +7,7 @@ import requests
 
 from memgpt.cli.cli import QuickstartChoice, quickstart
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.data_types import Document
+from memgpt.schemas.document import Document
 from tests import TEST_MEMGPT_CONFIG
 
 from .constants import TIMEOUT

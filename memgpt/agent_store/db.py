@@ -1,14 +1,12 @@
 import base64
 import os
-import uuid
 from datetime import datetime
-from typing import Dict, Iterator, List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 from sqlalchemy import (
     BIGINT,
     BINARY,
-    CHAR,
     JSON,
     Column,
     DateTime,
@@ -18,12 +16,10 @@ from sqlalchemy import (
     asc,
     create_engine,
     desc,
-    func,
     or_,
     select,
     text,
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import declarative_base, mapped_column, sessionmaker
 from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
@@ -33,32 +29,12 @@ from tqdm import tqdm
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import MAX_EMBEDDING_DIM
-from memgpt.data_types import Message, Passage, Record, RecordType, ToolCall
+
+# from memgpt.schemas.message import Message, Passage, Record, RecordType, ToolCall
+from memgpt.schemas.message import Message
+from memgpt.schemas.openai.chat_completion_request import ToolCall, ToolCallFunction
+from memgpt.schemas.passage import Passage
 from memgpt.settings import settings
-
-
-# Custom UUID type
-class CommonUUID(TypeDecorator):
-    impl = CHAR
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        if dialect.name == "postgresql":
-            return dialect.type_descriptor(UUID(as_uuid=True))
-        else:
-            return dialect.type_descriptor(CHAR())
-
-    def process_bind_param(self, value, dialect):
-        if dialect.name == "postgresql" or value is None:
-            return value
-        else:
-            return str(value)  # Convert UUID to string for SQLite
-
-    def process_result_value(self, value, dialect):
-        if dialect.name == "postgresql" or value is None:
-            return value
-        else:
-            return uuid.UUID(value)
 
 
 class CommonVector(TypeDecorator):
@@ -93,26 +69,6 @@ class CommonVector(TypeDecorator):
 # Custom serialization / de-serialization for JSON columns
 
 
-class ToolCallColumn(TypeDecorator):
-    """Custom type for storing List[ToolCall] as JSON"""
-
-    impl = JSON
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
-
-    def process_bind_param(self, value, dialect):
-        if value:
-            return [vars(v) for v in value]
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value:
-            return [ToolCall(**v) for v in value]
-        return value
-
-
 Base = declarative_base()
 
 
@@ -120,8 +76,8 @@ def get_db_model(
     config: MemGPTConfig,
     table_name: str,
     table_type: TableType,
-    user_id: uuid.UUID,
-    agent_id: Optional[uuid.UUID] = None,
+    user_id: str,
+    agent_id: Optional[str] = None,
     dialect="postgresql",
 ):
     # Define a helper function to create or get the model class
@@ -140,13 +96,11 @@ def get_db_model(
             __abstract__ = True  # this line is necessary
 
             # Assuming passage_id is the primary key
-            # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-            id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-            # id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-            user_id = Column(CommonUUID, nullable=False)
+            id = Column(String, primary_key=True)
+            user_id = Column(String, nullable=False)
             text = Column(String)
-            doc_id = Column(CommonUUID)
-            agent_id = Column(CommonUUID)
+            doc_id = Column(String)
+            agent_id = Column(String)
             data_source = Column(String)  # agent_name if agent, data_source name if from data source
 
             # vector storage
@@ -194,11 +148,9 @@ def get_db_model(
             __abstract__ = True  # this line is necessary
 
             # Assuming message_id is the primary key
-            # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-            id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
-            # id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-            user_id = Column(CommonUUID, nullable=False)
-            agent_id = Column(CommonUUID, nullable=False)
+            id = Column(String, primary_key=True)
+            user_id = Column(String, nullable=False)
+            agent_id = Column(String, nullable=False)
 
             # openai info
             role = Column(String, nullable=False)
@@ -210,30 +162,28 @@ def get_db_model(
             # if role == "assistant", this MAY be specified
             # if role != "assistant", this must be null
             # TODO align with OpenAI spec of multiple tool calls
-            tool_calls = Column(ToolCallColumn)
+            # tool_calls = Column(ToolCallColumn)
+            tool_calls = Column(JSON)
 
             # tool call response info
             # if role == "tool", then this must be specified
             # if role != "tool", this must be null
             tool_call_id = Column(String)
 
-            # vector storage
-            if dialect == "sqlite":
-                embedding = Column(CommonVector)
-            else:
-                from pgvector.sqlalchemy import Vector
-
-                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
-            embedding_dim = Column(BIGINT)
-            embedding_model = Column(String)
-
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True))
 
             def __repr__(self):
-                return f"<Message(message_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
+                return f"<Message(message_id='{self.id}', text='{self.text}')>"
 
             def to_record(self):
+                calls = (
+                    [ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls]
+                    if self.tool_calls
+                    else None
+                )
+                if calls:
+                    assert isinstance(calls[0], ToolCall)
                 return Message(
                     user_id=self.user_id,
                     agent_id=self.agent_id,
@@ -241,11 +191,9 @@ def get_db_model(
                     name=self.name,
                     text=self.text,
                     model=self.model,
+                    # tool_calls=[ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls] if self.tool_calls else None,
                     tool_calls=self.tool_calls,
                     tool_call_id=self.tool_call_id,
-                    embedding=self.embedding,
-                    embedding_dim=self.embedding_dim,
-                    embedding_model=self.embedding_model,
                     created_at=self.created_at,
                     id=self.id,
                 )
@@ -271,7 +219,7 @@ class SQLStorageConnector(StorageConnector):
         all_filters = [getattr(self.db_model, key) == value for key, value in filter_conditions.items()]
         return all_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0) -> Iterator[List[RecordType]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0):
         filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
@@ -291,8 +239,8 @@ class SQLStorageConnector(StorageConnector):
     def get_all_cursor(
         self,
         filters: Optional[Dict] = {},
-        after: uuid.UUID = None,
-        before: uuid.UUID = None,
+        after: str = None,
+        before: str = None,
         limit: Optional[int] = 1000,
         order_by: str = "created_at",
         reverse: bool = False,
@@ -314,19 +262,13 @@ class SQLStorageConnector(StorageConnector):
             # cursor logic: filter records based on before/after ID
             if after:
                 after_value = getattr(self.get(id=after), order_by)
-                if reverse:  # if reverse, then we want to get records that are less than the after_value
-                    sort_exp = getattr(self.db_model, order_by) < after_value
-                else:  # otherwise, we want to get records that are greater than the after_value
-                    sort_exp = getattr(self.db_model, order_by) > after_value
+                sort_exp = getattr(self.db_model, order_by) > after_value
                 query = query.filter(
                     or_(sort_exp, and_(getattr(self.db_model, order_by) == after_value, self.db_model.id > after))  # tiebreaker case
                 )
             if before:
                 before_value = getattr(self.get(id=before), order_by)
-                if reverse:
-                    sort_exp = getattr(self.db_model, order_by) > before_value
-                else:
-                    sort_exp = getattr(self.db_model, order_by) < before_value
+                sort_exp = getattr(self.db_model, order_by) < before_value
                 query = query.filter(or_(sort_exp, and_(getattr(self.db_model, order_by) == before_value, self.db_model.id < before)))
 
             # get records
@@ -335,12 +277,12 @@ class SQLStorageConnector(StorageConnector):
             return (None, [])
         records = [record.to_record() for record in db_record_chunk]
         next_cursor = db_record_chunk[-1].id
-        assert isinstance(next_cursor, uuid.UUID)
+        assert isinstance(next_cursor, str)
 
         # return (cursor, list[records])
         return (next_cursor, records)
 
-    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[RecordType]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=None):
         filters = self.get_filters(filters)
         with self.session_maker() as session:
             if limit:
@@ -349,7 +291,7 @@ class SQLStorageConnector(StorageConnector):
                 db_records = session.query(self.db_model).filter(*filters).all()
         return [record.to_record() for record in db_records]
 
-    def get(self, id: uuid.UUID) -> Optional[Record]:
+    def get(self, id: str):
         with self.session_maker() as session:
             db_record = session.get(self.db_model, id)
         if db_record is None:
@@ -362,13 +304,13 @@ class SQLStorageConnector(StorageConnector):
         with self.session_maker() as session:
             return session.query(self.db_model).filter(*filters).count()
 
-    def insert(self, record: Record):
+    def insert(self, record):
         raise NotImplementedError
 
-    def insert_many(self, records: List[RecordType], show_progress=False):
+    def insert_many(self, records, show_progress=False):
         raise NotImplementedError
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
         raise NotImplementedError("Vector query not implemented for SQLStorageConnector")
 
     def save(self):
@@ -473,7 +415,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         # create table
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
         filters = self.get_filters(filters)
         with self.session_maker() as session:
             results = session.scalars(
@@ -484,7 +426,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         records = [result.to_record() for result in results]
         return records
 
-    def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
+    def insert_many(self, records, exists_ok=True, show_progress=False):
         from sqlalchemy.dialects.postgresql import insert
 
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
@@ -510,10 +452,10 @@ class PostgresStorageConnector(SQLStorageConnector):
                     session.add(db_record)
                 session.commit()
 
-    def insert(self, record: Record, exists_ok=True):
+    def insert(self, record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
 
-    def update(self, record: RecordType):
+    def update(self, record):
         """
         Updates a record in the database based on the provided Record object.
         """
@@ -578,15 +520,18 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
         self.session_maker = sessionmaker(bind=self.engine)
 
-        import sqlite3
+        # import sqlite3
 
-        sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
-        sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
+        # sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
+        # sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
 
-    def insert_many(self, records: List[RecordType], exists_ok=True, show_progress=False):
+    def insert_many(self, records, exists_ok=True, show_progress=False):
         from sqlalchemy.dialects.sqlite import insert
 
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
+        print(f"Inserting {len(records)} records")
+        for record in records:
+            print(record.text[:100])
         if len(records) == 0:
             return
         if isinstance(records[0], Passage):
@@ -605,14 +550,15 @@ class SQLLiteStorageConnector(SQLStorageConnector):
             with self.session_maker() as session:
                 iterable = tqdm(records) if show_progress else records
                 for record in iterable:
-                    db_record = self.db_model(**vars(record))
+                    # db_record = self.db_model(**vars(record))
+                    db_record = self.db_model(**record.dict())
                     session.add(db_record)
                 session.commit()
 
-    def insert(self, record: Record, exists_ok=True):
+    def insert(self, record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
 
-    def update(self, record: Record):
+    def update(self, record):
         """
         Updates an existing record in the database with values from the provided record object.
         """

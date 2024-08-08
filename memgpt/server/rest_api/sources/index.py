@@ -18,14 +18,12 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from memgpt.data_sources.connectors import DirectoryConnector
-from memgpt.data_types import Source
-from memgpt.models.pydantic_models import (
-    DocumentModel,
-    JobModel,
-    JobStatus,
-    PassageModel,
-    SourceModel,
-)
+from memgpt.schemas.document import Document as DocumentModel  # TODO: modify
+from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.job import Job as JobModel  # TODO: modify
+from memgpt.schemas.passage import Passage as PassageModel  # TODO: modify
+from memgpt.schemas.source import Source  # TODO: modify
+from memgpt.schemas.source import Source as SourceModel
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -141,10 +139,36 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
         try:
             # TODO: don't use Source and just use SourceModel once pydantic migration is complete
-            source = server.create_source(name=request.name, user_id=user_id)
+            source = server.create_source(name=request.name, user_id=user_id, description=request.description)
             return SourceModel(
                 name=source.name,
-                description=None,  # TODO: actually store descriptions
+                description=source.description,
+                user_id=source.user_id,
+                id=source.id,
+                embedding_config=server.server_embedding_config,
+                created_at=source.created_at.timestamp(),
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"{e}")
+
+    @router.post("/sources/{source_id}", tags=["sources"], response_model=SourceModel)
+    async def update_source(
+        source_id: uuid.UUID,
+        request: CreateSourceRequest = Body(...),
+        user_id: uuid.UUID = Depends(get_current_user_with_server),
+    ):
+        """
+        Update the name or documentation of an existing data source.
+        """
+        interface.clear()
+        try:
+            # TODO: don't use Source and just use SourceModel once pydantic migration is complete
+            source = server.update_source(source_id=source_id, name=request.name, user_id=user_id, description=request.description)
+            return SourceModel(
+                name=source.name,
+                description=source.description,
                 user_id=source.user_id,
                 id=source.id,
                 embedding_config=server.server_embedding_config,

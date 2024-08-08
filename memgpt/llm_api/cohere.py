@@ -5,18 +5,18 @@ from typing import List, Optional, Union
 import requests
 
 from memgpt.constants import JSON_ENSURE_ASCII
-from memgpt.data_types import Message
 from memgpt.local_llm.utils import count_tokens
-from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
-from memgpt.models.chat_completion_response import (
+from memgpt.schemas.message import Message
+from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest, Tool
+from memgpt.schemas.openai.chat_completion_response import (
     ChatCompletionResponse,
     Choice,
     FunctionCall,
 )
-from memgpt.models.chat_completion_response import (
+from memgpt.schemas.openai.chat_completion_response import (
     Message as ChoiceMessage,  # NOTE: avoid conflict with our own MemGPT Message datatype
 )
-from memgpt.models.chat_completion_response import ToolCall, UsageStatistics
+from memgpt.schemas.openai.chat_completion_response import ToolCall, UsageStatistics
 from memgpt.utils import get_tool_call_id, get_utc_time, smart_urljoin
 
 BASE_URL = "https://api.cohere.ai/v1"

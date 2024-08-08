@@ -3,6 +3,8 @@ from sqlalchemy import String, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from memgpt.orm.sources_agents import SourcesAgents
+from memgpt.orm.tools_agents import ToolsAgents
 from memgpt.orm.mixins import OrganizationMixin
 from memgpt.data_types import LLMConfig, EmbeddingConfig
 

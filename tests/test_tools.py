@@ -60,7 +60,7 @@ def run_server():
 
     _reset_config()
 
-    from memgpt.server.rest_api.server import start_server
+    from memgpt.server.rest_api.app import start_server
 
     print("Starting server...")
     start_server(debug=True)
@@ -179,8 +179,8 @@ def test_create_agent_tool(client):
             str: The agent that was deleted.
 
         """
-        self.memory.memory["human"].value = ""
-        self.memory.memory["persona"].value = ""
+        self.memory.update_block_value(name="human", value="")
+        self.memory.update_block_value(name="persona", value="")
         print("UPDATED MEMORY", self.memory.memory)
         return None
 

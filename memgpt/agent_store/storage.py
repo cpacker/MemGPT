@@ -5,10 +5,14 @@ We originally tried to use Llama Index VectorIndex, but their limited API was ex
 
 import uuid
 from abc import abstractmethod
-from typing import Dict, Iterator, List, Optional, Tuple, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
+
+from pydantic import BaseModel
 
 from memgpt.config import MemGPTConfig
-from memgpt.data_types import Document, Message, Passage, Record, RecordType
+from memgpt.schemas.document import Document
+from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
 from memgpt.utils import printd
 
 
@@ -35,7 +39,7 @@ DOCUMENT_TABLE_NAME = "memgpt_documents"  # original documents (from source)
 class StorageConnector:
     """Defines a DB connection that is user-specific to access data: Documents, Passages, Archival/Recall Memory"""
 
-    type: Type[Record]
+    type: Type[BaseModel]
 
     def __init__(
         self,
@@ -136,15 +140,15 @@ class StorageConnector:
         pass
 
     @abstractmethod
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 1000) -> Iterator[List[RecordType]]:
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 1000):
         pass
 
     @abstractmethod
-    def get_all(self, filters: Optional[Dict] = {}, limit=10) -> List[RecordType]:
+    def get_all(self, filters: Optional[Dict] = {}, limit=10):
         pass
 
     @abstractmethod
-    def get(self, id: uuid.UUID) -> Optional[RecordType]:
+    def get(self, id: uuid.UUID):
         pass
 
     @abstractmethod
@@ -152,15 +156,15 @@ class StorageConnector:
         pass
 
     @abstractmethod
-    def insert(self, record: RecordType):
+    def insert(self, record):
         pass
 
     @abstractmethod
-    def insert_many(self, records: List[RecordType], show_progress=False):
+    def insert_many(self, records, show_progress=False):
         pass
 
     @abstractmethod
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
         pass
 
     @abstractmethod

@@ -11,3 +11,7 @@ class JobStatus(str, Enum):
     running = "running"
     completed = "completed"
     failed = "failed"
+
+class MessageRoleType(str, Enum):
+    user = "user"
+    system = "system"

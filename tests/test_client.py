@@ -6,25 +6,27 @@ import httpx
 
 import pytest
 from faker import Faker
-from dotenv import load_dotenv
 
 from memgpt.settings import settings
 from memgpt import Admin, create_client
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import Preset  # TODO move to PresetModel
 from memgpt.settings import settings
-from memgpt.orm.user import User
-from memgpt.orm.token import Token
+
+# replace all this with our FBoy clone
+from tests.mock_factory.models import (
+    MockUserFactory,
+    MockOrganizationFactory,
+    MockTokenFactory,
+)
 from tests.utils import create_config
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
-# test_preset_name = "test_preset"
 test_preset_name = settings.preset
 test_agent_state = None
 client = None
 
 test_agent_state_post_message = None
-test_user_id = uuid.uuid4()
 
 
 # admin credentials
@@ -79,11 +81,14 @@ def client(request, db_session, test_app):
     if request.param["server"]:
         # since we are not TESTING the admin client, we don't want to USE the admin client here.
         # create the user directly
-        requesting_user = User.create(db_session)
-        api_token = Token(user=requesting_user, name="test_client_api_token").create(db_session)
+
+        # drop in factories here, just doing this to prove the chain works
+        org = MockOrganizationFactory(db_session=db_session).generate()
+        requesting_user = MockUserFactory(db_session=db_session, organization_id=org.id).generate()
+        api_token = MockTokenFactory(db_session=db_session, user_id=requesting_user.id).generate()
         token = api_token.api_key
         client_args = {
-            "base_url": settings.server_url,
+            "base_url": "http://test",
             "token": token,
             "debug": True,
             "app": test_app
@@ -92,7 +97,7 @@ def client(request, db_session, test_app):
         # use local client (no server)
         client_args = {
             "token": None,
-            "server_url": None
+            "base_url": None
         }
     yield create_client(**client_args)
 
@@ -109,19 +114,18 @@ def agent(client):
 class TestClientAgent:
     """CRUD for agents via the client"""
 
-    def test_create_agent(self, client):
+    async def test_create_agent(self, client):
         expected_agent_name = faker.name()
-        assert not client.agent_exists(name=expected_agent_name)
-        created_agent_state = client.create_agent(name=expected_agent_name)
-        assert client.agent_exists(name=expected_agent_name)
+        assert not await client.agent_exists(agent_name=expected_agent_name)
+        created_agent_state = await client.create_agent(name=expected_agent_name)
+        assert await client.agent_exists(agent_name=expected_agent_name)
         assert created_agent_state.name == expected_agent_name
 
-    def test_rename_agent():
+    def test_rename_agent(self):
         new_name = faker.name()
 
 
 def test_agent(client, agent):
-    _reset_config()
 
     # test client.rename_agent
     new_name = "RenamedTestAgent"
@@ -137,22 +141,23 @@ def test_agent(client, agent):
 
 
 def test_memory(client, agent):
-    _reset_config()
+    # _reset_config()
 
-    memory_response = client.get_agent_memory(agent_id=agent.id)
+    memory_response = client.get_in_context_memory(agent_id=agent.id)
     print("MEMORY", memory_response)
 
     updated_memory = {"human": "Updated human memory", "persona": "Updated persona memory"}
-    client.update_agent_core_memory(agent_id=agent.id, new_memory_contents=updated_memory)
-    updated_memory_response = client.get_agent_memory(agent_id=agent.id)
+    client.update_in_context_memory(agent_id=agent.id, section="human", value=updated_memory["human"])
+    client.update_in_context_memory(agent_id=agent.id, section="persona", value=updated_memory["persona"])
+    updated_memory_response = client.get_in_context_memory(agent_id=agent.id)
     assert (
-        updated_memory_response.core_memory.human == updated_memory["human"]
-        and updated_memory_response.core_memory.persona == updated_memory["persona"]
+        updated_memory_response.get_block("human").value == updated_memory["human"]
+        and updated_memory_response.get_block("persona").value == updated_memory["persona"]
     ), "Memory update failed"
 
 
 def test_agent_interactions(client, agent):
-    _reset_config()
+    # _reset_config()
 
     message = "Hello, agent!"
     message_response = client.user_message(agent_id=agent.id, message=message)
@@ -163,25 +168,41 @@ def test_agent_interactions(client, agent):
 
 
 def test_archival_memory(client, agent):
-    _reset_config()
+    # _reset_config()
 
     memory_content = "Archival memory content"
-    insert_response = client.insert_archival_memory(agent_id=agent.id, memory=memory_content)
+    insert_response = client.insert_archival_memory(agent_id=agent.id, memory=memory_content)[0]
+    print("Inserted memory", insert_response.text, insert_response.id)
     assert insert_response, "Inserting archival memory failed"
 
-    archival_memory_response = client.get_agent_archival_memory(agent_id=agent.id, limit=1)
-    print("MEMORY")
-    archival_memories = [memory.contents for memory in archival_memory_response.archival_memory]
+    archival_memory_response = client.get_archival_memory(agent_id=agent.id, limit=1)
+    archival_memories = [memory.text for memory in archival_memory_response]
     assert memory_content in archival_memories, f"Retrieving archival memory failed: {archival_memories}"
 
-    memory_id_to_delete = archival_memory_response.archival_memory[0].id
+    memory_id_to_delete = archival_memory_response[0].id
     client.delete_archival_memory(agent_id=agent.id, memory_id=memory_id_to_delete)
 
+    # add archival memory
+    memory_str = "I love chats"
+    passage = client.insert_archival_memory(agent.id, memory=memory_str)[0]
+
+    # list archival memory
+    passages = client.get_archival_memory(agent.id)
+    assert passage.text in [p.text for p in passages], f"Missing passage {passage.text} in {passages}"
+
+    # get archival memory summary
+    archival_summary = client.get_archival_memory_summary(agent.id)
+    assert archival_summary.size == 1, f"Archival memory summary size is {archival_summary.size}"
+
+    # delete archival memory
+    client.delete_archival_memory(agent.id, passage.id)
+
     # TODO: check deletion
+    client.get_archival_memory(agent.id)
 
 
 def test_messages(client, agent):
-    _reset_config()
+    # _reset_config()
 
     send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
     assert send_message_response, "Sending message failed"
@@ -191,7 +212,7 @@ def test_messages(client, agent):
 
 
 def test_humans_personas(client, agent):
-    _reset_config()
+    # _reset_config()
 
     humans_response = client.list_humans()
     print("HUMANS", humans_response)
@@ -202,16 +223,16 @@ def test_humans_personas(client, agent):
     persona_name = "TestPersona"
     if client.get_persona(persona_name):
         client.delete_persona(persona_name)
-    persona = client.create_persona(name=persona_name, persona="Persona text")
+    persona = client.create_persona(name=persona_name, text="Persona text")
     assert persona.name == persona_name
-    assert persona.text == "Persona text", "Creating persona failed"
+    assert persona.value == "Persona text", "Creating persona failed"
 
     human_name = "TestHuman"
     if client.get_human(human_name):
         client.delete_human(human_name)
-    human = client.create_human(name=human_name, human="Human text")
+    human = client.create_human(name=human_name, text="Human text")
     assert human.name == human_name
-    assert human.text == "Human text", "Creating human failed"
+    assert human.value == "Human text", "Creating human failed"
 
 
 # def test_tools(client, agent):
@@ -224,7 +245,7 @@ def test_humans_personas(client, agent):
 
 
 def test_config(client, agent):
-    _reset_config()
+    # _reset_config()
 
     models_response = client.list_models()
     print("MODELS", models_response)
@@ -236,7 +257,7 @@ def test_config(client, agent):
 
 
 def test_sources(client, agent):
-    _reset_config()
+    # _reset_config()
 
     if not hasattr(client, "base_url"):
         pytest.skip("Skipping test_sources because base_url is None")
@@ -253,8 +274,22 @@ def test_sources(client, agent):
     sources = client.list_sources()
     print("listed sources", sources)
     assert len(sources.sources) == 1
-    assert sources.sources[0].metadata_["num_passages"] == 0
-    assert sources.sources[0].metadata_["num_documents"] == 0
+    assert sources[0].metadata_["num_passages"] == 0
+    assert sources[0].metadata_["num_documents"] == 0
+
+    # update the source
+    original_id = source.id
+    original_name = source.name
+    new_name = original_name + "_new"
+    client.update_source(source_id=source.id, name=new_name)
+
+    # get the source name (check that it's been updated)
+    source = client.get_source(source_id=source.id)
+    assert source.name == new_name
+    assert source.id == original_id
+
+    # get the source id (make sure that it's the same)
+    assert str(original_id) == client.get_source_id(source_name=new_name)
 
     # check agent archival memory size
     archival_memories = client.get_agent_archival_memory(agent_id=agent.id).archival_memory
@@ -290,80 +325,3 @@ def test_sources(client, agent):
 
     # delete the source
     client.delete_source(source.id)
-
-
-# def test_presets(client, agent):
-#    _reset_config()
-#
-#    # new_preset = Preset(
-#    #    # user_id=client.user_id,
-#    #    name="pytest_test_preset",
-#    #    description="DUMMY_DESCRIPTION",
-#    #    system="DUMMY_SYSTEM",
-#    #    persona="DUMMY_PERSONA",
-#    #    persona_name="DUMMY_PERSONA_NAME",
-#    #    human="DUMMY_HUMAN",
-#    #    human_name="DUMMY_HUMAN_NAME",
-#    #    functions_schema=[
-#    #        {
-#    #            "name": "send_message",
-#    #            "json_schema": {
-#    #                "name": "send_message",
-#    #                "description": "Sends a message to the human user.",
-#    #                "parameters": {
-#    #                    "type": "object",
-#    #                    "properties": {
-#    #                        "message": {"type": "string", "description": "Message contents. All unicode (including emojis) are supported."}
-#    #                    },
-#    #                    "required": ["message"],
-#    #                },
-#    #            },
-#    #            "tags": ["memgpt-base"],
-#    #            "source_type": "python",
-#    #            "source_code": 'def send_message(self, message: str) -> Optional[str]:\n    """\n    Sends a message to the human user.\n\n    Args:\n        message (str): Message contents. All unicode (including emojis) are supported.\n\n    Returns:\n        Optional[str]: None is always returned as this function does not produce a response.\n    """\n    self.interface.assistant_message(message)\n    return None\n',
-#    #        }
-#    #    ],
-#    # )
-#
-#    ## List all presets and make sure the preset is NOT in the list
-#    # all_presets = client.list_presets()
-#    # assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
-#    # Create a preset
-#    new_preset = client.create_preset(name="pytest_test_preset")
-#
-#    # List all presets and make sure the preset is in the list
-#    all_presets = client.list_presets()
-#    assert new_preset.id in [p.id for p in all_presets], (new_preset, all_presets)
-#
-#    # Delete the preset
-#    client.delete_preset(preset_id=new_preset.id)
-#
-#    # List all presets and make sure the preset is NOT in the list
-#    all_presets = client.list_presets()
-#    assert new_preset.id not in [p.id for p in all_presets], (new_preset, all_presets)
-
-
-# def test_tools(client, agent):
-#
-#    # load a function
-#    file_path = "tests/data/functions/dump_json.py"
-#    module_name = "dump_json"
-#
-#    # list functions
-#    response = client.list_tools()
-#    orig_tools = response.tools
-#    print(orig_tools)
-#
-#    # add the tool
-#    create_tool_response = client.create_tool(name=module_name, file_path=file_path)
-#    print(create_tool_response)
-#
-#    # list functions
-#    response = client.list_tools()
-#    new_tools = response.tools
-#    assert module_name in [tool.name for tool in new_tools]
-#    # assert len(new_tools) == len(orig_tools) + 1
-#
-#    # TODO: add a function to a preset
-#
-#    # TODO: add a function to an agent

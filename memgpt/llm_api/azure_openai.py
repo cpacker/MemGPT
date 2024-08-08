@@ -2,8 +2,8 @@ from typing import Union
 
 import requests
 
-from memgpt.models.chat_completion_response import ChatCompletionResponse
-from memgpt.models.embedding_response import EmbeddingResponse
+from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
+from memgpt.schemas.openai.embedding_response import EmbeddingResponse
 from memgpt.utils import smart_urljoin
 
 MODEL_TO_AZURE_ENGINE = {

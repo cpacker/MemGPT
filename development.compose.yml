@@ -19,6 +19,7 @@ services:
       - WATCHFILES_FORCE_POLLING=true
 
     volumes:
+
       - ./memgpt:/memgpt
       - ~/.memgpt/credentials:/root/.memgpt/credentials
       - ./configs/server_config.yaml:/root/.memgpt/config

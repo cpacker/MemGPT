@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
-
+# TODO: this is Nginx/Apache/Whatver web server job, not FastAPI
 class SPAStaticFiles(StaticFiles):
     async def get_response(self, path: str, scope):
         try:

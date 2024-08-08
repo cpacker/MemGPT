@@ -12,7 +12,7 @@ from tests.utils import wipe_memgpt_home
 from memgpt.data_types import EmbeddingConfig, LLMConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.server.server import SyncServer
-from memgpt.server.rest_api import app
+from memgpt.server.rest_api.app import app
 
 from tests.config import TestMGPTConfig
 
@@ -101,7 +101,7 @@ def db_session(request) -> "Session":
     after the end of the test.
 
     """
-    function_ = request.node.name.replace("[","_").replace("]","_")
+    function_ = request.node.name.replace("[","_").replace("]","_").replace("-","_").strip("_")
     adapter_test_configurations = {
         "sqlite_chroma": {
             "statements": (text(f"attach ':memory:' as {function_}"),),

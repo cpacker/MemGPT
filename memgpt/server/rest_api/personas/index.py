@@ -5,7 +5,7 @@ from typing import List
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import PersonaModel
+from memgpt.schemas.block import Persona as PersonaModel  # TODO: modify
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -44,7 +44,7 @@ def setup_personas_index_router(server: SyncServer, interface: QueuingInterface,
         interface.clear()
         new_persona = PersonaModel(text=request.text, name=request.name, user_id=user_id)
         persona_id = new_persona.id
-        server.ms.add_persona(new_persona)
+        server.ms.create_persona(new_persona)
         return PersonaModel(id=persona_id, text=request.text, name=request.name, user_id=user_id)
 
     @router.delete("/personas/{persona_name}", tags=["personas"], response_model=PersonaModel)

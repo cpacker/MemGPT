@@ -1,9 +1,10 @@
-import uuid
 from functools import partial
+from typing import List
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from memgpt.schemas.message import Message
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -22,11 +23,11 @@ class CommandResponse(BaseModel):
 def setup_agents_command_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.post("/agents/{agent_id}/command", tags=["agents"], response_model=CommandResponse)
+    @router.post("/agents/{agent_id}/command", tags=["agents"], response_model=List[Message])
     def run_command(
-        agent_id: uuid.UUID,
-        request: CommandRequest = Body(...),
-        user_id: uuid.UUID = Depends(get_current_user_with_server),
+        agent_id: str,
+        request: Message = Body(...),
+        user_id: str = Depends(get_current_user_with_server),
     ):
         """
         Execute a command on a specified agent.
@@ -37,7 +38,6 @@ def setup_agents_command_router(server: SyncServer, interface: QueuingInterface,
         """
         interface.clear()
         try:
-            # agent_id = uuid.UUID(request.agent_id) if request.agent_id else None
             response = server.run_command(user_id=user_id, agent_id=agent_id, command=request.command)
         except HTTPException:
             raise

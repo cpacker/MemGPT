@@ -33,8 +33,8 @@ from memgpt.constants import (
     MEMGPT_DIR,
     TOOL_CALL_ID_MAX_LEN,
 )
-from memgpt.models.chat_completion_response import ChatCompletionResponse
 from memgpt.openai_backcompat.openai_object import OpenAIObject
+from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
 
 DEBUG = False
 if "LOG_LEVEL" in os.environ:

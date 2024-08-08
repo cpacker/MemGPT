@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from memgpt.orm.sources_presets import SourcesPresets
 from memgpt.orm.mixins import OrganizationMixin
 
 if TYPE_CHECKING:

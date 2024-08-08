@@ -3,6 +3,9 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
 
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
+# System prompt templating
+IN_CONTEXT_MEMORY_KEYWORD = "CORE_MEMORY"
+
 # OpenAI error message: Invalid 'messages[1].tool_calls[0].id': string too long. Expected a string with maximum length 29, but got a string with length 36 instead.
 TOOL_CALL_ID_MAX_LEN = 29
 
@@ -85,10 +88,6 @@ MESSAGE_SUMMARY_REQUEST_ACK = "Understood, I will respond with a summary of the 
 # Even when summarizing, we want to keep a handful of recent messages
 # These serve as in-context examples of how to use functions / what user messages look like
 MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST = 3
-
-# Default memory limits
-CORE_MEMORY_PERSONA_CHAR_LIMIT = 2000
-CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
 
 # Function return limits
 FUNCTION_RETURN_CHAR_LIMIT = 3000  # ~300 words
