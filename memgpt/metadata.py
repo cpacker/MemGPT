@@ -485,7 +485,16 @@ class MetadataStore:
     def create_block(self, block: Block):
         with self.session_maker() as session:
             # TODO: fix?
-            if session.query(BlockModel).filter(BlockModel.name == block.name).filter(BlockModel.user_id == block.user_id).count() > 0:
+            # we are only validating that more than one template block
+            # with a given name doesn't exist.
+            if (
+                session.query(BlockModel)
+                .filter(BlockModel.name == block.name)
+                .filter(BlockModel.user_id == block.user_id)
+                .filter(BlockModel.template == True)
+                .count()
+                > 0
+            ):
                 raise ValueError(f"Block with name {block.name} already exists")
             session.add(BlockModel(**vars(block)))
             session.commit()
@@ -535,6 +544,16 @@ class MetadataStore:
     def update_block(self, block: Block):
         with self.session_maker() as session:
             session.query(BlockModel).filter(BlockModel.id == block.id).update(vars(block))
+            session.commit()
+
+    @enforce_types
+    def update_or_create_block(self, block: Block):
+        with self.session_maker() as session:
+            existing_block = session.query(BlockModel).filter(BlockModel.id == block.id).first()
+            if existing_block:
+                session.query(BlockModel).filter(BlockModel.id == block.id).update(vars(block))
+            else:
+                session.add(BlockModel(**vars(block)))
             session.commit()
 
     @enforce_types
@@ -684,6 +703,15 @@ class MetadataStore:
                 results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
                 if user_id:
                     results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    @enforce_types
+    def get_block(self, block_id: str) -> Optional[Block]:
+        with self.session_maker() as session:
+            results = session.query(BlockModel).filter(BlockModel.id == block_id).all()
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
