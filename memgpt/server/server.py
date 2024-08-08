@@ -412,6 +412,7 @@ class SyncServer(LockingServer):
                 return_dicts=False,
                 stream=token_streaming,
                 timestamp=timestamp,
+                ms=self.ms,
             )
             step_count += 1
             total_usage += usage
@@ -786,6 +787,11 @@ class SyncServer(LockingServer):
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
             )
+            # rebuilding agent memory on agent create in case shared memory blocks
+            # were specified in the new agent's memory config. we're doing this for two reasons:
+            # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
+            # 2. if the shared block state changed since this agent initialization started, we can be sure to have the latest value
+            agent.rebuild_memory(force=True, ms=self.ms)
             # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
             # self.ms.update_agent(agent.agent_state)
         except Exception as e:

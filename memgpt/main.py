@@ -422,6 +422,7 @@ def run_agent_loop(
                 skip_verify=no_verify,
                 stream=stream,
                 inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                ms=ms,
             )
 
             agent.save_agent(memgpt_agent, ms)
