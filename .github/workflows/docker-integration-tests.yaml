@@ -44,6 +44,11 @@ jobs:
     - name: Wait for service
       run: bash scripts/wait_for_service.sh http://localhost:8083 -- echo "Service is ready"
 
+    - name: Install dependencies
+      run: |
+        pipx install poetry==1.8.2
+        poetry install -E dev -E postgres
+
     - name: Run tests with pytest
       env:
         MEMGPT_PG_DB:   memgpt
@@ -55,8 +60,6 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
-        pipx install poetry==1.8.2
-        poetry install -E dev -E postgres
         poetry run pytest -s tests/test_client.py
         poetry run pytest -s tests/test_concurrent_connections.py
 
