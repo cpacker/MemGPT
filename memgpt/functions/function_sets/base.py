@@ -26,17 +26,7 @@ def send_message(self: Agent, message: str) -> Optional[str]:
         Optional[str]: None is always returned as this function does not produce a response.
     """
     # FIXME passing of msg_obj here is a hack, unclear if guaranteed to be the correct reference
-    try:
-        self.interface.assistant_message(message)  # , msg_obj=self._messages[-1])
-    except Exception as e:
-        print(e)
-        import traceback
-
-        traceback.print_exc()
-
-        input("xxx")
-        raise e
-    return None
+    self.interface.assistant_message(message)  # , msg_obj=self._messages[-1])
 
 
 # Construct the docstring dynamically (since it should use the external constants)
