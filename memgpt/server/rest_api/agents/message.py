@@ -101,6 +101,8 @@ async def send_message_to_agent(
         stream_steps = True
         stream_tokens = False
         include_final_message = False
+    else:
+        include_final_message = True
 
     if role == "user" or role is None:
         message_func = server.user_message
