@@ -1,11 +1,14 @@
 from typing import Dict, List, Optional
 
-from pydantic import Field
 from crewai_tools import BaseTool as CrewAiBaseTool
+from pydantic import Field
 
+from memgpt.functions.schema_generator import (
+    generate_schema_from_args_schema,
+    generate_tool_wrapper,
+)
 from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.openai.chat_completions import ToolCall
-from memgpt.functions.schema_generator import generate_schema_from_args_schema, generate_tool_wrapper
 
 
 class BaseTool(MemGPTBase):
