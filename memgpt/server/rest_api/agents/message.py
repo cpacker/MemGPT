@@ -25,7 +25,6 @@ async def send_message_to_agent(
     user_id: str,
     role: str,
     message: str,
-    stream_legacy: bool,  # legacy
     stream_steps: bool,
     stream_tokens: bool,
     chat_completion_mode: Optional[bool] = False,
@@ -33,13 +32,10 @@ async def send_message_to_agent(
 ) -> Union[StreamingResponse, MemGPTResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
 
-    # handle the legacy mode streaming
-    if stream_legacy:
-        # NOTE: override
-        stream_steps = True
-        stream_tokens = False
-        include_final_message = False
+    # TODO: @charles is this the correct way to handle?
+    include_final_message = True
 
+    # determine role
     if role == "user" or role is None:
         message_func = server.user_message
     elif role == "system":
@@ -53,9 +49,11 @@ async def send_message_to_agent(
     # For streaming response
     try:
 
+        # TODO: move this logic into server.py
+
         # Get the generator object off of the agent's streaming interface
         # This will be attached to the POST SSE request used under-the-hood
-        memgpt_agent = server._get_or_load_agent(user_id=user_id, agent_id=agent_id)
+        memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
         streaming_interface = memgpt_agent.interface
         if not isinstance(streaming_interface, StreamingServerInterface):
             raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
@@ -65,8 +63,6 @@ async def send_message_to_agent(
         # "chatcompletion mode" does some remapping and ignores inner thoughts
         streaming_interface.streaming_chat_completion_mode = chat_completion_mode
 
-        # NOTE: for legacy 'stream' flag
-        streaming_interface.nonstreaming_legacy_mode = stream_legacy
         # streaming_interface.allow_assistant_message = stream
         # streaming_interface.function_call_legacy_mode = stream
 
