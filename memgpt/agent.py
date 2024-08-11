@@ -284,6 +284,8 @@ class Agent(object):
         self.messages_total_init = len(self._messages) - 1
         printd(f"Agent initialized, self.messages_total={self.messages_total}")
 
+        print("AGENT STARTING", len(self._messages), self.messages_total, len(self.persistence_manager.recall_memory))
+
         # Create the agent in the DB
         self.update_state()
 
@@ -371,10 +373,13 @@ class Agent(object):
         new_messages = [self._messages[0]] + added_messages + self._messages[1:]  # prepend (no system)
         self._messages = new_messages
         self.messages_total += len(added_messages)  # still should increment the message counter (summaries are additions too)
+        print("MESSAGES TOTAL", self.messages_total, len(self._messages))
 
     def _append_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
         assert all([isinstance(msg, Message) for msg in added_messages])
+
+        print("adding messages", len(added_messages), len(self._messages))
 
         self.persistence_manager.append_to_messages(added_messages)
 
@@ -386,6 +391,7 @@ class Agent(object):
 
         self._messages = new_messages
         self.messages_total += len(added_messages)
+        print("MESSAGES TOTAL", self.messages_total, len(self._messages))
 
     def append_to_messages(self, added_messages: List[dict]):
         """An external-facing message append, where dict-like messages are first converted to Message objects"""
@@ -944,6 +950,7 @@ class Agent(object):
         prior_len = len(self.messages)
         self._trim_messages(cutoff)
         packed_summary_message = {"role": "user", "content": summary_message}
+        print("CALLING SUMMARY")
         self._prepend_to_messages(
             [
                 Message.dict_to_message(
@@ -1047,6 +1054,8 @@ class Agent(object):
         diff = united_diff(curr_system_message["content"], new_system_message["content"])
         if len(diff) > 0:  # there was a diff
             printd(f"Rebuilding system with new memory...\nDiff:\n{diff}")
+            print("REBUILD MEMORY")
+            print(f"Rebuilding system with new memory...\nDiff:\n{diff}")
 
             # Swap the system message out (only if there is a diff)
             self._swap_system_message_in_buffer(new_system_message=new_system_message_str)

@@ -26,33 +26,6 @@ test_agent_state_post_message = None
 test_server_token = "test_server_token"
 
 
-# def _reset_config():
-#    # Use os.getenv with a fallback to os.environ.get
-#    db_url = settings.memgpt_pg_uri
-#
-#    if os.getenv("OPENAI_API_KEY"):
-#        create_config("openai")
-#        credentials = MemGPTCredentials(
-#            openai_key=os.getenv("OPENAI_API_KEY"),
-#        )
-#    else:  # hosted
-#        create_config("memgpt_hosted")
-#        credentials = MemGPTCredentials()
-#
-#    config = MemGPTConfig.load()
-#
-#    ## set to use postgres
-#    #config.archival_storage_uri = db_url
-#    #config.recall_storage_uri = db_url
-#    #config.metadata_storage_uri = db_url
-#    #config.archival_storage_type = "postgres"
-#    #config.recall_storage_type = "postgres"
-#    #config.metadata_storage_type = "postgres"
-#    config.save()
-#    credentials.save()
-#    print("_reset_config :: ", config.config_path)
-
-
 def run_server():
     load_dotenv()
 

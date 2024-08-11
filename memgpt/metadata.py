@@ -681,6 +681,7 @@ class MetadataStore:
         self, source_id: Optional[str] = None, user_id: Optional[str] = None, source_name: Optional[str] = None
     ) -> Optional[Source]:
         with self.session_maker() as session:
+            print("get source", source_id, user_id, source_name)
             if source_id:
                 results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
             else:

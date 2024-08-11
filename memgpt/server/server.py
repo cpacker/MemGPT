@@ -33,14 +33,12 @@ from memgpt.data_sources.connectors import DataConnector, load_data
 #    Token,
 #    User,
 # )
-from memgpt.functions.functions import load_function_set, parse_source_code
-from memgpt.functions.schema_generator import generate_schema
+from memgpt.functions.functions import load_function_set
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
-from memgpt.memory import get_memory_functions
 from memgpt.metadata import MetadataStore
 from memgpt.prompts import gpt_system
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
@@ -752,25 +750,6 @@ class SyncServer(LockingServer):
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
-            # make sure memory tools are added
-            # TODO: remove this - eventually memory tools need to be added when the memory is created
-            # this is duplicated with logic on the client-side
-
-            memory_functions = get_memory_functions(request.memory)
-            for func_name, func in memory_functions.items():
-                if func_name in request.tools:
-                    # tool already added
-                    continue
-                source_code = parse_source_code(func)
-                json_schema = generate_schema(func, func_name)
-                source_type = "python"
-                tags = ["memory", "memgpt-base"]
-                tool = self.create_tool(
-                    user_id=user_id, json_schema=json_schema, source_code=source_code, source_type=source_type, tags=tags, exists_ok=True
-                )
-                tool_objs.append(tool)
-                request.tools.append(tool.name)
-
             # TODO: save the agent state
             agent_state = AgentState(
                 name=request.name,
@@ -1217,7 +1196,7 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(gent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         # iterate over records
         db_iterator = memgpt_agent.persistence_manager.archival_memory.storage.get_all_paginated(page_size=count, offset=start)

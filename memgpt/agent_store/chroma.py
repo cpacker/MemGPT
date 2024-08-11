@@ -94,8 +94,6 @@ class ChromaStorageConnector(StorageConnector):
                         args[field] = metadata[field]
                         del metadata[field]
                 embedding_config = EmbeddingConfig(**args)
-                print("METADATA", metadata)
-                print("embedding fields", EmbeddingConfig.__fields__.keys())
                 passages.append(Passage(text=text, embedding=embedding, id=record_id, embedding_config=embedding_config, **metadata))
             # return [
             #    Passage(text=text, embedding=embedding, id=record_id, embedding_config=EmbeddingConfig(), **metadatas)
@@ -267,12 +265,35 @@ class ChromaStorageConnector(StorageConnector):
         print("Warning: hacky implementation with chroma")
         records = self.get_all(filters=filters)
 
+        def get_index(id, record_list):
+            for i in range(len(record_list)):
+                if record_list[i].id == id:
+                    return i
+            assert False, f"Could not find id {id} in record list"
+
         # sort by custom field
         records = sorted(records, key=lambda x: getattr(x, order_by), reverse=reverse)
+        print("records", [(r.id, r.text) for r in records])
         if after:
-            records = [r for r in records if getattr(r, order_by) > getattr(after, order_by)]
+            index = get_index(after, records)
+            if index + 1 >= len(records):
+                print("EMPTY", before, after, limit, index)
+                return None, []
+            records = records[index + 1 :]
         if before:
-            records = [r for r in records if getattr(r, order_by) < getattr(before, order_by)]
+            index = get_index(before, records)
+            if index == 0:
+                print("EMPTY", before, after, limit, index)
+                return None, []
+
+            # TODO: not sure if this is correct
+            records = records[:index]
+
         if len(records) == 0:
-            return 0, []
+            print("EMPTY", before, after, limit)
+            return None, []
+
+        # enforce limit
+        if limit:
+            records = records[:limit]
         return records[-1].id, records
