@@ -1,46 +1,34 @@
-import os
 import uuid
 
 import pytest
-from dotenv import load_dotenv
 
 import memgpt.utils as utils
 from memgpt.constants import BASE_TOOLS
 
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials
 from memgpt.schemas.agent import CreateAgent
 from memgpt.schemas.memory import ChatMemory
 from memgpt.schemas.source import SourceCreate
 from memgpt.schemas.user import UserCreate
 from memgpt.server.server import SyncServer
-from memgpt.settings import settings
 
-from .utils import DummyDataConnector, create_config, wipe_config, wipe_memgpt_home
+from .utils import DummyDataConnector
 
 
 @pytest.fixture(scope="module")
 def server():
-    load_dotenv()
-    wipe_config()
-    wipe_memgpt_home()
-
-    settings.memgpt_pg_uri
-
-    # Use os.getenv with a fallback to os.environ.get
-    settings.memgpt_pg_uri
-
-    if os.getenv("OPENAI_API_KEY"):
-        create_config("openai")
-        credentials = MemGPTCredentials(
-            openai_key=os.getenv("OPENAI_API_KEY"),
-        )
-    else:  # hosted
-        create_config("memgpt_hosted")
-        credentials = MemGPTCredentials()
+    # if os.getenv("OPENAI_API_KEY"):
+    #    create_config("openai")
+    #    credentials = MemGPTCredentials(
+    #        openai_key=os.getenv("OPENAI_API_KEY"),
+    #    )
+    # else:  # hosted
+    #    create_config("memgpt_hosted")
+    #    credentials = MemGPTCredentials()
 
     config = MemGPTConfig.load()
+    print("CONFIG PATH", config.config_path)
 
     ## set to use postgres
     # config.archival_storage_uri = db_url
@@ -51,7 +39,6 @@ def server():
     # config.metadata_storage_type = "postgres"
 
     config.save()
-    credentials.save()
 
     server = SyncServer()
     return server

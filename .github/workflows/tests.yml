@@ -2,6 +2,7 @@ name: Run All pytest Tests
 
 env:
   MEMGPT_PGURI: ${{ secrets.MEMGPT_PGURI }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
 on:
   push:
