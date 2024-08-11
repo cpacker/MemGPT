@@ -597,10 +597,10 @@ class RESTClient(AbstractClient):
     # server configuration commands
 
     def list_models(self):
-        response = requests.get(f"{self.base_url}/api/models", headers=self.headers)
+        raise NotImplementedError
 
     def get_config(self):
-        response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
+        raise NotImplementedError
 
     # tools
 
@@ -732,13 +732,12 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
-        return ListToolsResponse(**response.json()).tools
+        return [Tool(**tool) for tool in response.json()]
 
     def delete_tool(self, name: str):
         response = requests.delete(f"{self.base_url}/api/tools/{name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to delete tool: {response.text}")
-        return response.json()
 
     def get_tool(self, name: str):
         response = requests.get(f"{self.base_url}/api/tools/{name}", headers=self.headers)
@@ -746,7 +745,7 @@ class RESTClient(AbstractClient):
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
-        return ToolModel(**response.json())
+        return Tool(**response.json())
 
 
 class LocalClient(AbstractClient):
