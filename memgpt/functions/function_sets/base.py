@@ -27,6 +27,7 @@ def send_message(self: Agent, message: str) -> Optional[str]:
     """
     # FIXME passing of msg_obj here is a hack, unclear if guaranteed to be the correct reference
     self.interface.assistant_message(message)  # , msg_obj=self._messages[-1])
+    return None
 
 
 # Construct the docstring dynamically (since it should use the external constants)
