@@ -947,7 +947,8 @@ class LocalClient(AbstractClient):
             # TODO: update self.interface.to_list() to return actual Message objects
             #       here, the message objects will have faulty created_by timestamps
             messages = [
-                Message.dict_to_message(user_id=agent_state.user_id, agent_id=agent_id, openai_message_dict=m)
+                # Message.dict_to_message(user_id=agent_state.user_id, agent_id=agent_id, openai_message_dict=m)
+                m
                 for m in self.interface.to_list()
             ]
             print("MESSAGES", messages)
