@@ -448,13 +448,14 @@ class SyncServer(LockingServer):
 
         return MemGPTUsageStatistics(**total_usage.dict(), step_count=step_count)
 
-    def _command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
+    def _command(self, user_id: str, agent_id: str, command: str) -> MemGPTUsageStatistics:
         """Process a CLI command"""
 
         logger.debug(f"Got command: {command}")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        usage = MemGPTUsageStatistics()  # by default, no usage
 
         if command.lower() == "exit":
             # exit not supported on server.py
@@ -555,11 +556,13 @@ class SyncServer(LockingServer):
 
         elif command.lower() == "heartbeat":
             input_message = system.get_heartbeat()
-            self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+            usage = self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
 
         elif command.lower() == "memorywarning":
             input_message = system.get_token_limit_warning()
-            self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+            usage = self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+
+        return usage
 
     # @LockingServer.agent_lock_decorator
     def user_message(
@@ -674,7 +677,7 @@ class SyncServer(LockingServer):
         return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message, timestamp=timestamp)
 
     # @LockingServer.agent_lock_decorator
-    def run_command(self, user_id: str, agent_id: str, command: str) -> Union[MemGPTUsageStatistics, None]:
+    def run_command(self, user_id: str, agent_id: str, command: str) -> MemGPTUsageStatistics:
         """Run a command on the agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")

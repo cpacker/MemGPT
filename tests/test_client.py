@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.constants import DEFAULT_PRESET
+from memgpt.schemas.message import Message
+from memgpt.schemas.usage import MemGPTUsageStatistics
 
 # from tests.utils import create_config
 
@@ -147,11 +149,24 @@ def test_agent_interactions(client, agent):
     # _reset_config()
 
     message = "Hello, agent!"
-    message_response = client.user_message(agent_id=agent.id, message=message)
+    print("Sending message", message)
+    response = client.user_message(agent_id=agent.id, message=message)
+    print("Response", response)
+    assert isinstance(response.usage, MemGPTUsageStatistics)
+    assert response.usage.step_count == 1
+    assert response.usage.total_tokens > 0
+    assert response.usage.completion_tokens > 0
+    assert isinstance(response.messages[0], Message)
+    print(response.messages)
 
     command = "/memory"
-    command_response = client.run_command(agent_id=agent.id, command=command)
-    print("command", command_response)
+    response = client.run_command(agent_id=agent.id, command=command)
+    assert isinstance(response.usage, MemGPTUsageStatistics)
+    assert response.usage.step_count == 0
+    assert response.usage.total_tokens == 0
+    assert response.usage.completion_tokens == 0
+    assert isinstance(response.messages[0], Message)
+    print(response.messages)
 
 
 def test_archival_memory(client, agent):

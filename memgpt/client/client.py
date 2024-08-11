@@ -18,6 +18,7 @@ from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.memory import (
     ArchivalMemorySummary,
@@ -25,7 +26,7 @@ from memgpt.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from memgpt.schemas.message import Message
+from memgpt.schemas.message import Message, MessageCreate
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
@@ -419,11 +420,18 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> MemGPTResponse:
+    def send_message(
+        self, agent_id: uuid.UUID, message: str, role: str, name: Optional[str] = None, stream: Optional[bool] = False
+    ) -> MemGPTResponse:
         data = {"message": message, "role": role, "stream": stream}
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=data, headers=self.headers)
+
+        messages = [MessageCreate(role=role, text=message, name=name)]
+        # TODO: figure out how to handle stream_steps and stream_tokens
+        request = MemGPTRequest(messages=messages, stream_steps=stream)
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
+        return MemGPTResponse(**response.json())
 
     # humans / personas
 
@@ -941,31 +949,33 @@ class LocalClient(AbstractClient):
             usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         else:
             raise ValueError(f"Role {role} not supported")
+
+        # auto-save
         if self.auto_save:
             self.save()
-        else:
-            # TODO: need to make sure date/timestamp is propely passed
-            # TODO: update self.interface.to_list() to return actual Message objects
-            #       here, the message objects will have faulty created_by timestamps
-            messages = [
-                # Message.dict_to_message(user_id=agent_state.user_id, agent_id=agent_id, openai_message_dict=m)
-                m
-                for m in self.interface.to_list()
-            ]
-            print("MESSAGES", messages)
-            return MemGPTResponse(messages=messages, usage=usage)
+
+        # TODO: need to make sure date/timestamp is propely passed
+        # TODO: update self.interface.to_list() to return actual Message objects
+        #       here, the message objects will have faulty created_by timestamps
+        messages = self.interface.to_list()
+        for m in messages:
+            assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
+        return MemGPTResponse(messages=messages, usage=usage)
 
     def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
         self.interface.clear()
-        usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
-        if self.auto_save:
-            self.save()
-        else:
-            return MemGPTResponse(messages=self.interface.to_list(), usage=usage)
+        return self.send_message(role="user", agent_id=agent_id, message=message)
 
     def run_command(self, agent_id: str, command: str) -> MemGPTResponse:
         self.interface.clear()
-        return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
+        usage = self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
+
+        # auto-save
+        if self.auto_save:
+            self.save()
+
+        # NOTE: messages/usage may be empty, depending on the command
+        return MemGPTResponse(messages=self.interface.to_list(), usage=usage)
 
     def save(self):
         self.server.save_agents()

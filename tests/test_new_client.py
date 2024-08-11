@@ -191,24 +191,12 @@ def test_archival_memory(client, agent):
 def test_recall_memory(client, agent):
     """Test functions for interacting with recall memory store"""
 
-    ## helper function for parsing me
-    # def collect_user_messages(messages):
-    #    user_messages = []
-    #    for m in messages:
-    #        if m.role == "user":
-    #            data = json.loads(m.text)
-    #            if "message" in data:
-    #                user_messages.append(data["message"])
-    #    return user_messages
-
     # send message to the agent
     message_str = "Hello"
     client.send_message(message_str, "user", agent.id)
 
     # list messages
     messages = client.get_messages(agent.id)
-    # assert message_str in collect_user_messages(messages), f"Missing message {message_str} in {[m[:100] for m in messages]}"
-    # assert message_str in [m.text + m. for m in messages], f"Missing message {message_str} in {[m.text[:100] for m in messages]}"
     exists = False
     for m in messages:
         if message_str in str(m):
@@ -216,7 +204,7 @@ def test_recall_memory(client, agent):
     assert exists
 
     # get in-context messages
-    client.get_in_context_messages(agent.id)
+    messages = client.get_in_context_messages(agent.id)
     exists = False
     for m in messages:
         if message_str in str(m):
