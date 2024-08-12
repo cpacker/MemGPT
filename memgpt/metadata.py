@@ -242,6 +242,7 @@ class SourceModel(Base):
             description=self.description,
         )
 
+
 class ArchivalPassageModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
@@ -282,6 +283,7 @@ class ArchivalPassageModel(Base):
             doc_id=self.doc_id,
         )
 
+
 class RecallPassageModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
@@ -321,6 +323,7 @@ class RecallPassageModel(Base):
             data_source=self.data_source,
             doc_id=self.doc_id,
         )
+
 
 class AgentSourceMappingModel(Base):
     """Stores mapping between agent -> source"""
@@ -437,7 +440,7 @@ class MetadataStore:
                     ToolModel.__table__,
                     JobModel.__table__,
                     ArchivalPassageModel.__table__,
-                    RecallPassageModel.__table__,                     
+                    RecallPassageModel.__table__,
                 ],
             )
         except (InterfaceError, OperationalError) as e:
@@ -644,7 +647,7 @@ class MetadataStore:
             session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
             session.query(ArchivalPassageModel).filter(ArchivalPassageModel.agent_id == agent_id).delete()
             session.query(RecallPassageModel).filter(RecallPassageModel.agent_id == agent_id).delete()
-                        
+
             # delete mappings
             session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).delete()
 
