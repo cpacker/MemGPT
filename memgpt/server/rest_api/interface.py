@@ -6,10 +6,20 @@ from typing import AsyncGenerator, Literal, Optional, Union
 
 from memgpt.interface import AgentInterface
 from memgpt.schemas.enums import MessageStreamStatus
+from memgpt.schemas.memgpt_message import (
+    AssistantMessage,
+    FunctionCall,
+    FunctionCallMessage,
+    FunctionReturn,
+    InternalMonologue,
+    LegacyFunctionCallMessage,
+    LegacyMemGPTMessage,
+    MemGPTMessage,
+)
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionChunkResponse
 from memgpt.streaming_interface import AgentChunkStreamingInterface
-from memgpt.utils import get_utc_time, is_utc_datetime
+from memgpt.utils import is_utc_datetime
 
 
 class QueuingInterface(AgentInterface):
@@ -313,7 +323,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self.debug = False
         self.timeout = 30
 
-    async def _create_generator(self) -> AsyncGenerator:
+    async def _create_generator(self) -> AsyncGenerator[Union[MemGPTMessage, LegacyMemGPTMessage, MessageStreamStatus], None]:
         """An asynchronous generator that yields chunks as they become available."""
         while self._active:
             try:
@@ -345,11 +355,14 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             raise StopIteration("The stream has not been started or has been ended.")
         return self._create_generator()
 
-    def _push_to_buffer(self, item: Union[dict, MessageStreamStatus]):
+    def _push_to_buffer(self, item: Union[MemGPTMessage, LegacyMemGPTMessage, MessageStreamStatus]):
         """Add an item to the deque"""
         print("zzz", item)
         assert self._active, "Generator is inactive"
-        assert isinstance(item, dict) or isinstance(item, MessageStreamStatus), f"Wrong type: {type(item)}"
+        # assert isinstance(item, dict) or isinstance(item, MessageStreamStatus), f"Wrong type: {type(item)}"
+        assert (
+            isinstance(item, MemGPTMessage) or isinstance(item, LegacyMemGPTMessage) or isinstance(item, MessageStreamStatus)
+        ), f"Wrong type: {type(item)}"
         self._chunks.append(item)
         self._event.set()  # Signal that new data is available
 
@@ -542,11 +555,16 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         if not self.streaming_mode:
 
             # create a fake "chunk" of a stream
-            processed_chunk = {
-                "internal_monologue": msg,
-                "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
-                "id": str(msg_obj.id) if msg_obj is not None else None,
-            }
+            # processed_chunk = {
+            #     "internal_monologue": msg,
+            #     "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
+            #     "id": str(msg_obj.id) if msg_obj is not None else None,
+            # }
+            processed_chunk = InternalMonologue(
+                id=msg_obj.id,
+                date=msg_obj.created_at,
+                internal_monologue=msg,
+            )
 
             self._push_to_buffer(processed_chunk)
 
@@ -593,36 +611,52 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                         func_args = json.loads(function_call.function.arguments)
                     except:
                         func_args = function_call.function.arguments
-                    processed_chunk = {
-                        "function_call": f"{function_call.function.name}({func_args})",
-                        "id": str(msg_obj.id),
-                        "date": msg_obj.created_at.isoformat(),
-                    }
+                    # processed_chunk = {
+                    #     "function_call": f"{function_call.function.name}({func_args})",
+                    #     "id": str(msg_obj.id),
+                    #     "date": msg_obj.created_at.isoformat(),
+                    # }
+                    processed_chunk = LegacyFunctionCallMessage(
+                        id=msg_obj.id,
+                        date=msg_obj.created_at,
+                        function_call=f"{function_call.function.name}({func_args})",
+                    )
                     self._push_to_buffer(processed_chunk)
 
                     if function_call.function.name == "send_message":
                         try:
-                            processed_chunk = {
-                                "assistant_message": func_args["message"],
-                                "id": str(msg_obj.id),
-                                "date": msg_obj.created_at.isoformat(),
-                            }
+                            # processed_chunk = {
+                            #     "assistant_message": func_args["message"],
+                            #     "id": str(msg_obj.id),
+                            #     "date": msg_obj.created_at.isoformat(),
+                            # }
+                            processed_chunk = AssistantMessage(
+                                id=msg_obj.id,
+                                date=msg_obj.created_at,
+                                assistant_message=func_args["message"],
+                            )
                             self._push_to_buffer(processed_chunk)
                         except Exception as e:
                             print(f"Failed to parse function message: {e}")
 
                 else:
 
-                    processed_chunk = {
-                        "function_call": {
-                            # "id": function_call.id,
-                            # "name": function_call.function["name"],
-                            "name": function_call.function.name,
-                            "arguments": function_call.function.arguments,
-                        },
-                        "id": str(msg_obj.id),
-                        "date": msg_obj.created_at.isoformat(),
-                    }
+                    processed_chunk = FunctionCallMessage(
+                        id=msg_obj.id,
+                        date=msg_obj.created_at,
+                        function_call=FunctionCall(
+                            name=function_call.function.name,
+                            arguments=function_call.function.arguments,
+                        ),
+                    )
+                    # processed_chunk = {
+                    #     "function_call": {
+                    #         "name": function_call.function.name,
+                    #         "arguments": function_call.function.arguments,
+                    #     },
+                    #     "id": str(msg_obj.id),
+                    #     "date": msg_obj.created_at.isoformat(),
+                    # }
                     self._push_to_buffer(processed_chunk)
 
                 return
@@ -638,20 +672,33 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
         elif msg.startswith("Success: "):
             msg = msg.replace("Success: ", "")
-            new_message = {"function_return": msg, "status": "success"}
+            # new_message = {"function_return": msg, "status": "success"}
+            new_message = FunctionReturn(
+                id=msg_obj.id,
+                date=msg_obj.created_at,
+                function_return=msg,
+                status="success",
+            )
 
         elif msg.startswith("Error: "):
             msg = msg.replace("Error: ", "")
-            new_message = {"function_return": msg, "status": "error"}
+            # new_message = {"function_return": msg, "status": "error"}
+            new_message = FunctionReturn(
+                id=msg_obj.id,
+                date=msg_obj.created_at,
+                function_return=msg,
+                status="error",
+            )
 
         else:
             # NOTE: generic, should not happen
+            raise ValueError(msg)
             new_message = {"function_message": msg}
 
         # add extra metadata
-        if msg_obj is not None:
-            new_message["id"] = str(msg_obj.id)
-            assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
-            new_message["date"] = msg_obj.created_at.isoformat()
+        # if msg_obj is not None:
+        #     new_message["id"] = str(msg_obj.id)
+        #     assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
+        #     new_message["date"] = msg_obj.created_at.isoformat()
 
         self._push_to_buffer(new_message)

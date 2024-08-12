@@ -2,7 +2,7 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from pydantic import Field, field_validator
 
@@ -10,6 +10,7 @@ from memgpt.constants import JSON_ENSURE_ASCII, TOOL_CALL_ID_MAX_LEN
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 from memgpt.schemas.enums import MessageRole
 from memgpt.schemas.memgpt_base import MemGPTBase
+from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
 from memgpt.schemas.openai.chat_completions import ToolCall
 from memgpt.utils import get_utc_time, is_utc_datetime
 
@@ -99,6 +100,13 @@ class Message(BaseMessage):
             self.created_at = self.created_at.replace(tzinfo=timezone.utc)
         json_message["created_at"] = self.created_at.isoformat()
         return json_message
+
+    def to_memgpt_message(self) -> Union[List[MemGPTMessage], List[LegacyMemGPTMessage]]:
+        """Convert message object (in DB format) to the style used by the original MemGPT API
+
+        NOTE: this may split the message into two pieces (e.g. if the assistant has inner thoughts + function call)
+        """
+        raise NotImplementedError
 
     @staticmethod
     def dict_to_message(
