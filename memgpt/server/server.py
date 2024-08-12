@@ -1134,6 +1134,13 @@ class SyncServer(LockingServer):
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return memgpt_agent._messages
 
+    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
+        """Get a single message from the agent's memory"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        return message
+
     def get_agent_messages(self, agent_id: str, start: int, count: int) -> List[Message]:
         """Paginated query of all messages in agent message queue"""
         # Get the agent object (loaded in memory)
