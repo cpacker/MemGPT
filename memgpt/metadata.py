@@ -782,19 +782,19 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def list_attached_sources(self, agent_id: str) -> List[str]:
+    def list_attached_sources(self, agent_id: str) -> List[Source]:
         with self.session_maker() as session:
             results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
 
-            source_ids = []
+            sources = []
             # make sure source exists
             for r in results:
                 source = self.get_source(source_id=r.source_id)
                 if source:
-                    source_ids.append(r.source_id)
+                    sources.append(source)
                 else:
                     printd(f"Warning: source {r.source_id} does not exist but exists in mapping database. This should never happen.")
-            return source_ids
+            return sources
 
     @enforce_types
     def list_attached_agents(self, source_id: str) -> List[str]:
