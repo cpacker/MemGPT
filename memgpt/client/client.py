@@ -8,8 +8,8 @@ from memgpt.log import get_logger
 from memgpt.constants import BASE_TOOLS
 from memgpt.settings import settings
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.functions.functions import parse_source_code
-from memgpt.functions.schema_generator import generate_schema
+from memgpt.seeds.functions.functions import parse_source_code
+from memgpt.seeds.functions.schema_generator import generate_schema
 from memgpt.memory import get_memory_functions
 
 # new schemas
@@ -383,76 +383,6 @@ class RESTClient(AbstractClient):
         response_obj = GetAgentResponse(**response.json())
         return self.get_agent_response_to_state(response_obj)
 
-    async def get_preset(self, name: str) -> PresetModel:
-        # TODO: remove
-        response = await self.httpx_client.get("/presets/{name}")
-        assert response.status_code == 200, f"Failed to get preset: {response.text}"
-        return PresetModel(**response.json())
-
-    async def create_preset(
-        self,
-        name: str,
-        description: Optional[str] = None,
-        system_name: Optional[str] = None,
-        persona_name: Optional[str] = None,
-        human_name: Optional[str] = None,
-        tools: Optional[List[ToolModel]] = None,
-        default_tools: bool = True,
-    ) -> PresetModel:
-        # TODO: remove
-        """Create an agent preset
-
-        :param name: Name of the preset
-        :type name: str
-        :param system: System prompt (text)
-        :type system: str
-        :param persona: Persona prompt (text)
-        :type persona: Optional[str]
-        :param human: Human prompt (text)
-        :type human: Optional[str]
-        :param tools: List of tools to connect, defaults to None
-        :type tools: Optional[List[Tool]], optional
-        :param default_tools: Whether to automatically include default tools, defaults to True
-        :type default_tools: bool, optional
-        :return: Preset object
-        :rtype: PresetModel
-        """
-        # provided tools
-        schema = []
-        if tools:
-            for tool in tools:
-                schema.append(tool.json_schema)
-
-        # include default tools
-        default_preset = await self.get_preset(name=settings.preset)
-        if default_tools:
-            # TODO
-            # from memgpt.functions.functions import load_function_set
-            # load_function_set()
-            # return
-            for function in default_preset.functions_schema:
-                schema.append(function)
-
-        payload = CreatePresetsRequest(
-            name=name,
-            description=description,
-            system_name=system_name,
-            persona_name=persona_name,
-            human_name=human_name,
-            functions_schema=schema,
-        )
-        response = await self.httpx_client.post("/presets", json=payload.model_dump())
-        assert response.status_code == 200, f"Failed to create preset: {response.text}"
-        return CreatePresetResponse(**response.json()).preset
-
-    async def delete_preset(self, preset_id: uuid.UUID):
-        response = await self.httpx_client.delete(f"/presets/{str(preset_id)}")
-        assert response.status_code == 200, f"Failed to delete preset: {response.text}"
-
-    async def list_presets(self) -> List[PresetModel]:
-        response =  await self.httpx_client.get("/presets")
-        return ListPresetsResponse(**response.json()).presets
-
     # memory
     async def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
         response = await self.httpx_client.get(f"/agents/{agent_id}/memory")
@@ -501,7 +431,7 @@ class RESTClient(AbstractClient):
 
     def run_command(self, agent_id: str, command: str) -> Union[str, None]:
         response = self.httpx_client.post("/api/agents/{str(agent_id)}/command", json={"command": command})
-        return CommandResponse(**response.json())
+        return AgentCommandResponse(**response.json())
 
     def save(self):
         raise NotImplementedError

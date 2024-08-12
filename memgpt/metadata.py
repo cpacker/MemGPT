@@ -22,13 +22,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-from memgpt.data_types import (
-    AgentState as DataAgentState,
-    Preset as DataPreset,
-    Source as DataSource,
-    Token as DataToken,
-    User as DataUser,
-)
+from memgpt.schemas.agent import AgentState as DataAgentState
 from memgpt.models.pydantic_models import (
     HumanModel,
     PersonaModel,

@@ -6,7 +6,8 @@ from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.sources_agents import SourcesAgents
 from memgpt.orm.tools_agents import ToolsAgents
 from memgpt.orm.mixins import OrganizationMixin
-from memgpt.data_types import LLMConfig, EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.embedding_config import EmbeddingConfig
 
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization

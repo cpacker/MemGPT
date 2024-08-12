@@ -7,7 +7,7 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.organization import Organization
 from memgpt.orm.mixins import OrganizationMixin
-from memgpt.data_types import User as PydanticUser
+from memgpt.schemas.user import User as PydanticUser
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

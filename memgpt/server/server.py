@@ -6,9 +6,7 @@ import json
 import warnings
 from abc import abstractmethod
 from datetime import datetime
-from functools import wraps
-from threading import Lock
-
+import uuid
 
 from fastapi import HTTPException
 
@@ -24,8 +22,8 @@ from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
 from memgpt.orm.user import User as SQLUser
-from memgpt.functions.functions import load_function_set, parse_source_code
-from memgpt.functions.schema_generator import generate_schema
+from memgpt.seeds.functions.functions import load_function_set, parse_source_code
+from memgpt.seeds.functions.schema_generator import generate_schema
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
@@ -799,44 +797,7 @@ class SyncServer(Server):
         if agent is not None:
             self.ms.delete_agent(agent_id=agent_id)
 
-    def delete_preset(self, user_id: uuid.UUID, preset_id: uuid.UUID) -> Preset:
-        if self.ms.get_user(user_id) is None:
-            raise ValueError(f"User {user_id} does not exist")
 
-        # first get the preset by name
-        preset = self.get_preset(preset_id=preset_id, user_id=user_id)
-        if preset is None:
-            raise ValueError(f"Could not find preset_id {preset_id}")
-        # then delete via name
-        # TODO allow delete-by-id, eg via server.delete_preset function
-        self.ms.delete_preset(name=preset.name, user_id=user_id)
-
-        return preset
-
-    def initialize_default_presets(self, user_id: uuid.UUID):
-        """Add default preset options into the metadata store"""
-        presets.add_default_presets(user_id, self.ms)
-
-    def create_preset(self, preset: Preset):
-        """Create a new preset using a config"""
-        if preset.user_id is not None and self.ms.get_user(preset.user_id) is None:
-            raise ValueError(f"User {preset.user_id} does not exist")
-
-        self.ms.create_preset(preset)
-        return preset
-
-    def get_preset(
-        self, preset_id: Optional[uuid.UUID] = None, preset_name: Optional[uuid.UUID] = None, user_id: Optional[uuid.UUID] = None
-    ) -> Preset:
-        """Get the preset"""
-        return self.ms.get_preset(preset_id=preset_id, name=preset_name, user_id=user_id)
-
-    def list_presets(self, user_id: uuid.UUID) -> List[PresetModel]:
-        # TODO update once we strip Preset in favor of PresetModel
-        presets = self.ms.list_presets(user_id)
-        presets = [PresetModel(**vars(p)) for p in presets]
-
-        return presets
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""

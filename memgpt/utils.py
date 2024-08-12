@@ -944,7 +944,7 @@ def list_agent_config_files(sort="last_modified"):
 
 def list_human_files():
     """List all humans files"""
-    defaults_dir = os.path.join(memgpt.__path__[0], "humans", "examples")
+    defaults_dir = os.path.join(memgpt.__path__[0], "seeds", "humans", "examples")
     user_dir = os.path.join(MEMGPT_DIR, "humans")
 
     memgpt_defaults = os.listdir(defaults_dir)
@@ -960,7 +960,7 @@ def list_human_files():
 
 def list_persona_files():
     """List all personas files"""
-    defaults_dir = os.path.join(memgpt.__path__[0], "personas", "examples")
+    defaults_dir = os.path.join(memgpt.__path__[0], "seeds", "personas", "examples")
     user_dir = os.path.join(MEMGPT_DIR, "personas")
 
     memgpt_defaults = os.listdir(defaults_dir)

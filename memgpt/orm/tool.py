@@ -11,7 +11,7 @@ from memgpt.orm.mixins import OrganizationMixin
 from memgpt.orm.users_agents import UsersAgents
 from memgpt.orm.organization import Organization
 # TODO everything in functions should live in this model
-from memgpt.functions.schema_generator import generate_schema
+from memgpt.seeds.functions.schema_generator import generate_schema
 from memgpt.models.pydantic_models import ToolModel as PydanticTool
 
 if TYPE_CHECKING:
