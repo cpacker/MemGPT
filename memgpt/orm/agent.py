@@ -8,9 +8,10 @@ from memgpt.orm.tools_agents import ToolsAgents
 from memgpt.orm.mixins import OrganizationMixin
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.orm.blocks_agents import BlocksAgents
+from memgpt.orm.block import Block
 
 if TYPE_CHECKING:
-    from memgpt.orm.block import Block
     from memgpt.orm.organization import Organization
     from memgpt.orm.source import Source
     from memgpt.orm.user import User
