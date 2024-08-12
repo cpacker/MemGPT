@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from memgpt.orm.agent import Agent
     from memgpt.orm.source import Source
     from memgpt.orm.tool import Tool
-    from memgpt.orm.preset import Preset
     from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
     from sqlalchemy.orm import Session
 

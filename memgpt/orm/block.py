@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Optional, Type, Union, List
+from uuid import UUID
 from sqlalchemy import String, Integer, UUID as SQLUUID, ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy.types import TypeDecorator
@@ -9,7 +10,6 @@ from memgpt.orm.mixins import _relation_getter, _relation_setter
 from memgpt.schemas.block import Block as PydanticBlock, Human, Persona
 
 if TYPE_CHECKING:
-    from uuid import UUID
     from memgpt.orm.organization import Organization
 
 class BlockValue(TypeDecorator):

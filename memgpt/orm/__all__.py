@@ -12,5 +12,6 @@ from memgpt.orm.memory_templates import MemoryTemplate, HumanMemoryTemplate, Per
 from memgpt.orm.sources_agents import SourcesAgents
 from memgpt.orm.tools_agents import ToolsAgents
 from memgpt.orm.job import Job
+from memgpt.orm.block import Block
 
 from memgpt.orm.base import Base
