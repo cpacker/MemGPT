@@ -6,6 +6,7 @@ from typing import List, Optional, Union
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from starlette.responses import StreamingResponse
 
+from memgpt.schemas.enums import MessageRole, MessageStreamStatus
 from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.message import Message
@@ -23,7 +24,7 @@ async def send_message_to_agent(
     server: SyncServer,
     agent_id: str,
     user_id: str,
-    role: str,
+    role: MessageRole,
     message: str,
     stream_steps: bool,
     stream_tokens: bool,
@@ -36,9 +37,9 @@ async def send_message_to_agent(
     include_final_message = True
 
     # determine role
-    if role == "user" or role is None:
+    if role == MessageRole.user:
         message_func = server.user_message
-    elif role == "system":
+    elif role == MessageRole.system:
         message_func = server.system_message
     else:
         raise HTTPException(status_code=500, detail=f"Bad role {role}")
@@ -83,9 +84,18 @@ async def send_message_to_agent(
             generated_stream = []
             async for message in streaming_interface.get_generator():
                 generated_stream.append(message)
-                if "data" in message and message["data"] == "[DONE]":
+                if "data" in message and message["data"] == MessageStreamStatus.done:
                     break
-            filtered_stream = [d for d in generated_stream if d not in ["[DONE_GEN]", "[DONE_STEP]", "[DONE]"]]
+            filtered_stream = [
+                d
+                for d in generated_stream
+                if d
+                not in [
+                    MessageStreamStatus.done_generation,
+                    MessageStreamStatus.done_step,
+                    MessageStreamStatus.done,
+                ]
+            ]
             usage = await task
             return MemGPTResponse(messages=filtered_stream, usage=usage)
 
@@ -147,8 +157,8 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         # TODO: revise to `MemGPTRequest`
         # TODO: support sending multiple messages
         assert len(request.messages) == 1, f"Multiple messages not supported: {request.messages}"
-
         message = request.messages[0]
+
         # TODO: what to do with message.name?
         return await send_message_to_agent(
             server=server,

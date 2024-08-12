@@ -48,6 +48,19 @@ class MessageCreate(BaseMessage):
     name: Optional[str] = Field(None, description="The name of the participant.")
 
 
+"""
+
+Assistant messages:
+-> inner thoughts
+-> tool calls
+
+User messages:
+
+
+
+"""
+
+
 class Message(BaseMessage):
     """
     Representation of a message sent.
