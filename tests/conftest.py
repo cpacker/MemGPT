@@ -9,9 +9,9 @@ from memgpt.settings import settings, BackendConfiguration
 from memgpt.orm.utilities import create_engine
 from memgpt.orm.__all__ import Base
 from memgpt.orm.utilities import get_memgpt_server
+from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.app import app
 
-from tests.config import TestMGPTConfig
 
 if TYPE_CHECKING:
     from sqlalchemy import Session
@@ -64,7 +64,11 @@ def db_session(request) -> "Session":
         yield session
 
 @pytest.fixture
-def test_app(db_session):
+def server(db_session):
+    return SyncServer(db_session=db_session)
+
+@pytest.fixture
+def test_app(server):
     """a per-test-function db scoped version of the rest api app"""
-    app.dependency_overrides[server] = TestMGPTConfig
+    app.dependency_overrides[get_memgpt_server] = lambda : server
     return app
