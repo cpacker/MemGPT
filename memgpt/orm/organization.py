@@ -4,7 +4,7 @@ from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
-from memgpt.models.pydantic_models import OrganizationSummary
+from memgpt.schemas.organization import Organization as PydanticOrganization
 from memgpt.orm.document import Document
 if TYPE_CHECKING:
     from memgpt.orm.user import User
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 class Organization(SqlalchemyBase):
     """The highest level of the object tree. All Entities belong to one and only one Organization."""
     __tablename__ = "organization"
-    __pydantic_model__ = OrganizationSummary
+    __pydantic_model__ = PydanticOrganization
 
     name:Mapped[Optional[str]] = mapped_column(nullable=True, doc="The display name of the organization.")
 

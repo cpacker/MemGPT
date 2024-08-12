@@ -22,9 +22,12 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 from memgpt.schemas.agent import AgentState as DataAgentState
-from memgpt.models.pydantic_models import (
-    HumanModel,
-    PersonaModel,
+from memgpt.data_types import (
+    AgentState as DataAgentState,
+    Preset as DataPreset,
+    Source as DataSource,
+    Token as DataToken,
+    User as DataUser,
 )
 from memgpt.orm.enums import JobStatus
 from memgpt.config import MemGPTConfig
@@ -38,6 +41,7 @@ from memgpt.schemas.memory import Memory
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
+from memgpt.schemas.block import Human, Persona
 
 class MetadataStore:
     """Metadatastore acts as a bridge between the ORM and the rest of the application. Ideally it will be removed in coming PRs and
@@ -182,7 +186,7 @@ class MetadataStore:
         sql_human = HumanMemoryTemplate(**human.model_dump(exclude_none=True)).create(self.db_session)
         return sql_human.to_record()
 
-    def update_persona(self, persona: PersonaModel) -> "PersonaModel":
+    def update_persona(self, persona: Persona) -> "Persona":
         sql_persona = PersonaMemoryTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
         return sql_persona.to_record()
 
@@ -207,11 +211,11 @@ class MetadataStore:
         source = Source.read(self.db_session, source_id)
         agent.sources.remove(source)
 
-    def get_human(self, name: str, user_id: uuid.UUID) -> Optional[HumanModel]:
+    def get_human(self, name: str, user_id: uuid.UUID) -> Optional[Human]:
         org = User.read(self.db_session, user_id)
         return org.human_memory_templates.filter(name=name).scalar()
 
-    def get_persona(self, name: str, user_id: uuid.UUID) -> Optional[PersonaModel]:
+    def get_persona(self, name: str, user_id: uuid.UUID) -> Optional[Persona]:
         org = User.read(self.db_session, user_id)
         return org.human_memory_templates.filter(name=name).scalar()
 

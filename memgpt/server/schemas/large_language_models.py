@@ -1,7 +1,7 @@
 from typing import List
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import LLMConfigModel
+from memgpt.schemas.llm_config import LLMConfig
 
 class ListModelsResponse(BaseModel):
-    models: List[LLMConfigModel] = Field(..., description="List of model configurations.")
+    models: List[LLMConfig] = Field(..., description="List of model configurations.")

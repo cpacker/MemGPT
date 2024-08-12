@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, List
 from fastapi import APIRouter, Depends
 
 from memgpt.server.rest_api.utils import get_memgpt_server, get_current_interface
-from memgpt.models.pydantic_models import LLMConfigModel
+from memgpt.schemas.llm_config import LLMConfig
 from memgpt.server.schemas.large_language_models import ListModelsResponse
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ def list_models(
     interface.clear()
 
     # currently, the server only supports one model, however this may change in the future
-    llm_config = LLMConfigModel(
+    llm_config = LLMConfig(
         model=server.server_llm_config.model,
         model_endpoint=server.server_llm_config.model_endpoint,
         model_endpoint_type=server.server_llm_config.model_endpoint_type,

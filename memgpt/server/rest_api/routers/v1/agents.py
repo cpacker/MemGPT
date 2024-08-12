@@ -6,7 +6,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from memgpt.settings import settings
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
-from memgpt.models.pydantic_models import  AgentStateModel, EmbeddingConfigModel, LLMConfigModel, PresetModel
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
 from memgpt.server.schemas.agents import AgentCommandResponse, GetAgentResponse, AgentRenameRequest, CreateAgentRequest, CreateAgentResponse, ListAgentsResponse, GetAgentMemoryResponse, UpdateAgentMemoryRequest, UpdateAgentMemoryResponse, GetAgentArchivalMemoryResponse, ArchivalMemoryObject, InsertAgentArchivalMemoryRequest, InsertAgentArchivalMemoryResponse, UserMessageRequest, UserMessageResponse, GetAgentMessagesRequest, GetAgentMessagesResponse, GetAgentMessagesCursorRequest
 from memgpt.server.rest_api.interface import StreamingServerInterface, QueuingInterface
 
@@ -80,7 +82,7 @@ def create_agent(
             # human_name=human_name,
             # persona=persona,
             # human=human,
-            # llm_config=LLMConfigModel(
+            # llm_config=LLMConfig(
             # model=request.config['model'],
             # )
             # tools
@@ -88,11 +90,11 @@ def create_agent(
             metadata=metadata,
             # function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
         )
-        llm_config = LLMConfigModel(**vars(agent_state.llm_config))
-        embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+        llm_config = LLMConfig(**vars(agent_state.llm_config))
+        embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
 
         return CreateAgentResponse(
-            agent_state=AgentStateModel(
+            agent_state=AgentState(
                 id=agent_state.id,
                 name=agent_state.name,
                 user_id=agent_state.user_id,
@@ -166,11 +168,11 @@ def get_agent_config(
     attached_sources = server.list_attached_sources(agent_id=agent_id)
 
     # configs
-    llm_config = LLMConfigModel(**vars(agent_state.llm_config))
-    embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+    llm_config = LLMConfig(**vars(agent_state.llm_config))
+    embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
 
     return GetAgentResponse(
-        agent_state=AgentStateModel(
+        agent_state=AgentState(
             id=agent_state.id,
             name=agent_state.name,
             user_id=agent_state.user_id,
@@ -204,11 +206,11 @@ def update_agent_name(
     agent_state = server.rename_agent(user_id=actor._id, agent_id=agent_id, new_agent_name=valid_name)
     # get sources
     attached_sources = server.list_attached_sources(agent_id=agent_id)
-    llm_config = LLMConfigModel(**vars(agent_state.llm_config))
-    embedding_config = EmbeddingConfigModel(**vars(agent_state.embedding_config))
+    llm_config = LLMConfig(**vars(agent_state.llm_config))
+    embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
 
     return GetAgentResponse(
-        agent_state=AgentStateModel(
+        agent_state=AgentState(
             id=agent_state.id,
             name=agent_state.name,
             user_id=agent_state.user_id,

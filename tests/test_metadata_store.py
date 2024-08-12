@@ -4,7 +4,7 @@ from memgpt.agent import Agent, save_agent
 from memgpt.settings import settings
 from memgpt.data_types import AgentState, LLMConfig, Source, User
 from memgpt.metadata import MetadataStore
-from memgpt.models.pydantic_models import HumanModel, PersonaModel
+from memgpt.schemas.block import Human, Persona
 from memgpt.presets.presets import add_default_presets
 from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
@@ -33,8 +33,8 @@ def test_storage(storage_connector):
     # test adding default humans/personas/presets
     # add_default_humans_and_personas(user_id=user_1.id, ms=ms)
     # add_default_humans_and_personas(user_id=user_2.id, ms=ms)
-    ms.add_human(human=HumanModel(name="test_human", text="This is a test human"))
-    ms.add_persona(persona=PersonaModel(name="test_persona", text="This is a test persona"))
+    ms.add_human(human=Human(name="test_human", text="This is a test human"))
+    ms.add_persona(persona=Persona(name="test_persona", text="This is a test persona"))
     add_default_presets(user_id=user_1.id, ms=ms)
     add_default_presets(user_id=user_2.id, ms=ms)
     assert len(ms.list_humans(user_id=user_1.id)) > 0, ms.list_humans(user_id=user_1.id)

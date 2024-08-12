@@ -15,7 +15,7 @@ from memgpt.server.schemas.users import (
 
 if TYPE_CHECKING:
     from uuid import UUID
-    from memgpt.models.pydantic_models import User
+    from memgpt.schemas.user import User
     from memgpt.server.server import SyncServer
     from memgpt.server.rest_api.interface import QueuingInterface
 

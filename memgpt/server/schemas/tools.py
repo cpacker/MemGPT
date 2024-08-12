@@ -2,10 +2,10 @@ from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 
 
-from memgpt.models.pydantic_models import ToolModel
+from memgpt.schemas.tool import Tool
 
 class ListToolsResponse(BaseModel):
-    tools: List[ToolModel] = Field(..., description="List of tools (functions).")
+    tools: List[Tool] = Field(..., description="List of tools (functions).")
 
 
 class CreateToolRequest(BaseModel):
@@ -17,4 +17,4 @@ class CreateToolRequest(BaseModel):
 
 
 class CreateToolResponse(BaseModel):
-    tool: ToolModel = Field(..., description="Information about the newly created tool.")
+    tool: Tool = Field(..., description="Information about the newly created tool.")

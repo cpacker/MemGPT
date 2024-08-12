@@ -6,7 +6,8 @@ from memgpt.agent import Agent
 from memgpt.data_types import AgentState, Message
 from memgpt.embeddings import embedding_model
 from memgpt.llm_api.llm_api_tools import create
-from memgpt.models.pydantic_models import EmbeddingConfig, LLMConfig
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
 from memgpt.presets.presets import load_module_tools
 from memgpt.prompts import gpt_system
 

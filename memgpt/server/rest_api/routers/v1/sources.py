@@ -8,7 +8,8 @@ from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.schemas.source import Source
 from memgpt.data_sources.connectors import DirectoryConnector
-from memgpt.models.pydantic_models import JobModel, JobStatus
+from memgpt.schemas.job import Job
+from memgpt.orm.enums import JobStatus
 from memgpt.server.schemas.sources import CreateSourceRequest, ListSourcesResponse, SourceModel, GetSourcePassagesResponse, GetSourceDocumentsResponse
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
@@ -110,7 +111,7 @@ async def detach_source_from_agent(
     actor = server.get_current_user()
     server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor._id)
 
-@router.get("/status/{job_id}", response_model=JobModel)
+@router.get("/status/{job_id}", response_model=Job)
 async def get_job_status(
     job_id: "UUID",
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -123,7 +124,7 @@ async def get_job_status(
     except (MultipleResultsFound, NoResultFound) as e:
         raise HTTPException(status_code=404, detail=f"Job with id={job_id} not found.") from e
 
-@router.post("/{source_id}/upload", response_model=JobModel)
+@router.post("/{source_id}/upload", response_model=Job)
 async def upload_file_to_source(
     file: UploadFile,
     source_id: "UUID",
@@ -140,7 +141,7 @@ async def upload_file_to_source(
     bytes = file.file.read()
 
     # create job
-    job = JobModel(user_id=actor._id, metadata={"type": "embedding", "filename": file.filename, "source_id": source_id})
+    job = Job(user_id=actor._id, metadata={"type": "embedding", "filename": file.filename, "source_id": source_id})
     job_id = job.id
     server.ms.create_job(job)
 

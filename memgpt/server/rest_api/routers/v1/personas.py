@@ -6,7 +6,7 @@ from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_serve
 from memgpt.server.schemas.personas import ListPersonasResponse, CreatePersonaRequest, PersonaModel
 
 if TYPE_CHECKING:
-    from memgpt.models.pydantic_models import User
+    from memgpt.schemas.user import User
     from memgpt.server.server import SyncServer
     from memgpt.server.rest_api.interface import QueuingInterface
 

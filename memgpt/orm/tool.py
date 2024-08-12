@@ -11,8 +11,8 @@ from memgpt.orm.mixins import OrganizationMixin
 from memgpt.orm.users_agents import UsersAgents
 from memgpt.orm.organization import Organization
 # TODO everything in functions should live in this model
-from memgpt.seeds.functions.schema_generator import generate_schema
-from memgpt.models.pydantic_models import ToolModel as PydanticTool
+from memgpt.functions.schema_generator import generate_schema
+from memgpt.schemas.tool import Tool as PydanticTool
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -48,7 +48,7 @@ class Tool(SqlalchemyBase, OrganizationMixin):
     @classmethod
     def load_default_tools(cls, db_session:"Session") -> None:
         """populates the db with default tools"""
-        target_module = importlib.import_module("memgpt.seeds.functions.function_sets.base")
+        target_module = importlib.import_module("memgpt.seeds.function_sets.base")
         functions_to_schema = cls._load_function_set(target_module)
         tags = ["base", "memgpt-base"]
 

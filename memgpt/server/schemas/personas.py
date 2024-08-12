@@ -1,10 +1,11 @@
 from typing import List
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import PersonaModel
+from memgpt.schemas.block import Persona
+
 
 class ListPersonasResponse(BaseModel):
-    personas: List[PersonaModel] = Field(..., description="List of persona configurations.")
+    personas: List[Persona] = Field(..., description="List of persona configurations.")
 
 
 class CreatePersonaRequest(BaseModel):

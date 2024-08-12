@@ -2,11 +2,11 @@ from typing import Optional, List, TYPE_CHECKING, Annotated
 from datetime import datetime
 from pydantic import BaseModel, Field, StringConstraints
 
-from memgpt.models.pydantic_models import AgentStateModel, MemGPTUsageStatistics
+from memgpt.schemas.usage import MemGPTUsageStatistics
+from memgpt.schemas.agent import AgentState
 from memgpt.orm.enums import MessageRoleType
 
 from uuid import UUID
-from memgpt.models.pydantic_models import PresetModel
 
 
 class AgentCommandRequest(BaseModel):

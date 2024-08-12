@@ -3,10 +3,12 @@ from fastapi import UploadFile
 from pydantic import BaseModel, Field
 
 
-from memgpt.models.pydantic_models import DocumentModel, PassageModel, SourceModel
+from memgpt.schemas.document import Document
+from memgpt.schemas.passage import Passage
+from memgpt.schemas.source import Source
 
 class ListSourcesResponse(BaseModel):
-    sources: List[SourceModel] = Field(..., description="List of available sources.")
+    sources: List[Source] = Field(..., description="List of available sources.")
 
 
 class CreateSourceRequest(BaseModel):
@@ -19,14 +21,14 @@ class UploadFileToSourceRequest(BaseModel):
 
 
 class UploadFileToSourceResponse(BaseModel):
-    source: SourceModel = Field(..., description="The source the file was uploaded to.")
+    source: Source = Field(..., description="The source the file was uploaded to.")
     added_passages: int = Field(..., description="The number of passages added to the source.")
     added_documents: int = Field(..., description="The number of documents added to the source.")
 
 
 class GetSourcePassagesResponse(BaseModel):
-    passages: List[PassageModel] = Field(..., description="List of passages from the source.")
+    passages: List[Passage] = Field(..., description="List of passages from the source.")
 
 
 class GetSourceDocumentsResponse(BaseModel):
-    documents: List[DocumentModel] = Field(..., description="List of documents from the source.")
+    documents: List[Document] = Field(..., description="List of documents from the source.")
