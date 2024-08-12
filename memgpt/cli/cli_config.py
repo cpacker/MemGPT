@@ -1089,7 +1089,8 @@ class ListChoice(str, Enum):
 def list(arg: Annotated[ListChoice, typer.Argument]):
     from memgpt.client.client import create_client
 
-    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+    client = create_client()
+    print("user", client.user_id)
     table = ColorTable(theme=Themes.OCEAN)
     if arg == ListChoice.agents:
         """List all agents"""
@@ -1118,13 +1119,13 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         """List all humans"""
         table.field_names = ["Name", "Text"]
         for human in client.list_humans():
-            table.add_row([human.name, human.text.replace("\n", "")[:100]])
+            table.add_row([human.name, human.value.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
         table.field_names = ["Name", "Text"]
         for persona in client.list_personas():
-            table.add_row([persona.name, persona.text.replace("\n", "")[:100]])
+            table.add_row([persona.name, persona.value.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""
