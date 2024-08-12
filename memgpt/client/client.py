@@ -464,7 +464,9 @@ class RESTClient(AbstractClient):
 
     def get_block(self, block_id: str) -> Block:
         response = requests.get(f"{self.base_url}/api/blocks/{block_id}", headers=self.headers)
-        if response.status_code != 200:
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
             raise ValueError(f"Failed to get block: {response.text}")
         return Block(**response.json())
 
@@ -486,6 +488,52 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to delete block: {response.text}")
         return Block(**response.json())
+
+    def list_humans(self):
+        blocks = self.list_blocks(label="human")
+        return [Human(**block.model_dump()) for block in blocks]
+
+    def create_human(self, name: str, text: str) -> Human:
+        return self.create_block(label="human", name=name, text=text)
+
+    def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
+        request = UpdateHuman(id=human_id, name=name, value=text)
+        response = requests.post(f"{self.base_url}/api/blocks/{human_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update human: {response.text}")
+        return Human(**response.json())
+
+    def list_personas(self):
+        blocks = self.list_blocks(label="persona")
+        return [Persona(**block.model_dump()) for block in blocks]
+
+    def create_persona(self, name: str, text: str) -> Persona:
+        return self.create_block(label="persona", name=name, text=text)
+
+    def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
+        request = UpdatePersona(id=persona_id, name=name, value=text)
+        response = requests.post(f"{self.base_url}/api/blocks/{persona_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update persona: {response.text}")
+        return Persona(**response.json())
+
+    def get_persona(self, persona_id: str) -> Persona:
+        return self.get_block(persona_id)
+
+    def get_persona_id(self, name: str) -> str:
+        return self.get_block_id(name, "persona")
+
+    def delete_persona(self, persona_id: str) -> Persona:
+        return self.delete_block(persona_id)
+
+    def get_human(self, human_id: str) -> Human:
+        return self.get_block(human_id)
+
+    def get_human_id(self, name: str) -> str:
+        return self.get_block_id(name, "human")
+
+    def delete_human(self, human_id: str) -> Human:
+        return self.delete_block(human_id)
 
     # sources
 
@@ -973,6 +1021,9 @@ class LocalClient(AbstractClient):
 
     def list_personas(self) -> List[Persona]:
         return [Persona(**block.model_dump()) for block in self.server.list_personas(user_id=self.user_id)]
+
+    def list_humans(self) -> List[Human]:
+        return [Human(**block.model_dump()) for block in self.server.list_humans(user_id=self.user_id)]
 
     def get_persona(self, name: str) -> Persona:
         return self.server.get_persona(name=name, user_id=self.user_id)

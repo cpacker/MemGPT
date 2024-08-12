@@ -1030,9 +1030,9 @@ class SyncServer(LockingServer):
 
     def get_block(self, block_id: str):
         blocks = self.get_blocks(id=block_id)
-        if len(blocks) == 0:
+        if blocks is None or len(blocks) == 0:
             return None
-        elif len(blocks) > 1:
+        if len(blocks) > 1:
             raise ValueError("Multiple blocks with the same id")
         return blocks[0]
 
@@ -1787,13 +1787,13 @@ class SyncServer(LockingServer):
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
             print(f"Creating persona {name}: {text[:50]}...")
-            self.create_persona(CreatePersona(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            self.create_persona(CreatePersona(user_id=user_id, name=name, value=text, template=True), update=True)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
             print(f"Creating human {name}: {text[:50]}...")
-            self.create_human(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            self.create_human(CreateHuman(user_id=user_id, name=name, value=text, template=True), update=True)
 
     def get_agent_message(self, agent_id: str, message_id: str) -> Message:
         """Get a single message from the agent's memory"""

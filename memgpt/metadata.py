@@ -493,9 +493,19 @@ class MetadataStore:
                 .filter(BlockModel.name == block.name)
                 .filter(BlockModel.user_id == block.user_id)
                 .filter(BlockModel.template == True)
+                .filter(BlockModel.label == block.label)
                 .count()
                 > 0
             ):
+
+                print(
+                    session.query(BlockModel)
+                    .filter(BlockModel.name == block.name)
+                    .filter(BlockModel.user_id == block.user_id)
+                    .filter(BlockModel.template == True)
+                    .filter(BlockModel.label == block.label)
+                    .all()
+                )
                 raise ValueError(f"Block with name {block.name} already exists")
             session.add(BlockModel(**vars(block)))
             session.commit()
