@@ -3,7 +3,8 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Depends, HTTPException
 
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
-from memgpt.server.schemas.personas import ListPersonasResponse, CreatePersonaRequest, PersonaModel
+from memgpt.server.schemas.personas import ListPersonasResponse, CreatePersonaRequest
+from memgpt.schemas.block import Persona
 
 if TYPE_CHECKING:
     from memgpt.schemas.user import User
@@ -26,7 +27,7 @@ async def list_personas(
     personas = server.ms.list_personas(user_id=actor._id)
     return ListPersonasResponse(personas=personas)
 
-@router.post("/", response_model=PersonaModel)
+@router.post("/", response_model=Persona)
 async def create_persona(
     persona: CreatePersonaRequest,
     interface: "QueuingInterface" = Depends(get_current_interface),
@@ -35,12 +36,12 @@ async def create_persona(
     actor = server.get_current_user()
     # TODO: disallow duplicate names for personas
     interface.clear()
-    new_persona = PersonaModel(text=persona.text, name=persona.name, user_id=actor._id)
+    new_persona = Persona(text=persona.text, name=persona.name, user_id=actor._id)
     persona_id = new_persona.id
     server.ms.add_persona(new_persona)
-    return PersonaModel(id=persona_id, text=persona.text, name=persona.name, user_id=actor._id)
+    return Persona(id=persona_id, text=persona.text, name=persona.name, user_id=actor._id)
 
-@router.delete("/{persona_name}", response_model=PersonaModel)
+@router.delete("/{persona_name}", response_model=Persona)
 async def delete_persona(
     persona_name: str,
     interface: "QueuingInterface" = Depends(get_current_interface),
@@ -51,7 +52,7 @@ async def delete_persona(
     persona = server.ms.delete_persona(persona_name, user_id=actor._id)
     return persona
 
-@router.get("/{persona_name}", response_model=PersonaModel)
+@router.get("/{persona_name}", response_model=Persona)
 async def get_persona(
     persona_name: str,
     interface: "QueuingInterface" = Depends(get_current_interface),

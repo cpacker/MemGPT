@@ -14,6 +14,7 @@ from memgpt.orm.source import Source
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
 from memgpt.orm.user import User
 from memgpt.orm.tool import Tool
+from memgpt.schemas.block import Human, Persona
 
 
 if TYPE_CHECKING:
@@ -22,13 +23,6 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 from memgpt.schemas.agent import AgentState as DataAgentState
-from memgpt.data_types import (
-    AgentState as DataAgentState,
-    Preset as DataPreset,
-    Source as DataSource,
-    Token as DataToken,
-    User as DataUser,
-)
 from memgpt.orm.enums import JobStatus
 from memgpt.config import MemGPTConfig
 from memgpt.schemas.agent import AgentState
@@ -182,7 +176,7 @@ class MetadataStore:
             case _:
                 raise AttributeError(f"Method {name} not found")
 
-    def update_human(self, human: HumanModel) -> "HumanModel":
+    def update_human(self, human: Human) -> "Human":
         sql_human = HumanMemoryTemplate(**human.model_dump(exclude_none=True)).create(self.db_session)
         return sql_human.to_record()
 

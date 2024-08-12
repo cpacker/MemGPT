@@ -3,12 +3,12 @@ from typing import List, Optional
 import requests
 from requests import HTTPError
 
-from memgpt.seeds.functions.functions import parse_source_code
-from memgpt.seeds.functions.schema_generator import generate_schema
+from memgpt.functions.functions import parse_source_code
+from memgpt.functions.schema_generator import generate_schema
+from memgpt.schemas.tool import Tool
 from memgpt.server.schemas.tools import (
     CreateToolRequest,
     ListToolsResponse,
-    ToolModel,
 )
 from memgpt.server.schemas.users import (
     CreateAPIKeyResponse,
@@ -130,7 +130,7 @@ class Admin:
         response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
-        return ToolModel(**response.json())
+        return Tool(**response.json())
 
     def list_tools(self):
         response = requests.get(f"{self.base_url}/admin/tools", headers=self.headers)
@@ -148,4 +148,4 @@ class Admin:
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
-        return ToolModel(**response.json())
+        return Tool(**response.json())

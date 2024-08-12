@@ -22,8 +22,8 @@ from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
 from memgpt.orm.user import User as SQLUser
-from memgpt.seeds.functions.functions import load_function_set, parse_source_code
-from memgpt.seeds.functions.schema_generator import generate_schema
+from memgpt.functions.functions import load_function_set, parse_source_code
+from memgpt.functions.schema_generator import generate_schema
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract

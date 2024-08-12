@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING
 from fastapi import APIRouter, Body, Depends, HTTPException
-from memgpt.server.schemas.tools import CreateToolRequest, ListToolsResponse, ToolModel
+from memgpt.server.schemas.tools import CreateToolRequest, ListToolsResponse
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
+from memgpt.schemas.tool import Tool
 
 if TYPE_CHECKING:
     from memgpt.orm.user import User
@@ -23,7 +24,7 @@ def delete_tool(
     interface.clear()
     server.ms.delete_tool(name=tool_name, user_id=actor._id)
 
-@router.get("/{tool_name}", tags=["tools"], response_model=ToolModel)
+@router.get("/{tool_name}", tags=["tools"], response_model=Tool)
 def get_tool(
     tool_name: str,
     interface: QueuingInterface = Depends(get_current_interface),
@@ -54,7 +55,7 @@ def list_all_tools(
     interface.clear()
     return ListToolsResponse(tools=server.ms.list_tools(user_id=actor._id))
 
-@router.post("/", tags=["tools"], response_model=ToolModel)
+@router.post("/", tags=["tools"], response_model=Tool)
 def create_tool(
     tool: CreateToolRequest = Body(...),
     server: SyncServer = Depends(get_memgpt_server),

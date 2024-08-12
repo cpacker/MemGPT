@@ -24,14 +24,13 @@ class AgentRenameRequest(BaseModel):
 
 class GetAgentResponse(BaseModel):
     # config: dict = Field(..., description="The agent configuration object.")
-    agent_state: AgentStateModel = Field(..., description="The state of the agent.")
+    agent_state: AgentState = Field(..., description="The state of the agent.")
     sources: List[str] = Field(..., description="The list of data sources associated with the agent.")
     last_run_at: Optional[int] = Field(None, description="The unix timestamp of when the agent was last run.")
 
 class ListAgentsResponse(BaseModel):
     num_agents: int = Field(..., description="The number of agents available to the user.")
-    # TODO make return type List[AgentStateModel]
-    #      also return - presets: List[PresetModel]
+    # TODO make return type List[AgentState]
     agents: List[dict] = Field(..., description="List of agent configurations.")
 
 
@@ -41,8 +40,7 @@ class CreateAgentRequest(BaseModel):
 
 
 class CreateAgentResponse(BaseModel):
-    agent_state: "AgentStateModel" = Field(..., description="The state of the newly created agent.")
-    preset: "PresetModel" = Field(..., description="The preset that the agent was created from.")
+    agent_state: "AgentState" = Field(..., description="The state of the newly created agent.")
 
 class CoreMemory(BaseModel):
     human: str | None = Field(None, description="Human element of the core memory.")

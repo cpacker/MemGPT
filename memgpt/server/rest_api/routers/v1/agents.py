@@ -106,17 +106,7 @@ def create_agent(
                 system=agent_state.system,
                 metadata=agent_state._metadata,
             ),
-            preset=PresetModel(  # TODO: remove (placeholder to avoid breaking frontend)
-                name="dummy_preset",
-                id=agent_state.id,
-                user_id=agent_state.user_id,
-                description="",
-                created_at=agent_state.created_at,
-                system=agent_state.system,
-                persona="",
-                human="",
-                functions_schema=[],
-            ),
+            preset=None,
         )
     except Exception as e:
         print(str(e))

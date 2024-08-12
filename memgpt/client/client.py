@@ -8,16 +8,17 @@ from memgpt.log import get_logger
 from memgpt.constants import BASE_TOOLS
 from memgpt.settings import settings
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.seeds.functions.functions import parse_source_code
-from memgpt.seeds.functions.schema_generator import generate_schema
+from memgpt.functions.functions import parse_source_code
+from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import get_memory_functions
 
 # This is a hack for now, should be using new schemas
-from memgpt.server.schemas.humans import ListHumansResponse, HumanModel
-from memgpt.server.schemas.personas import ListPersonasResponse, PersonaModel
+from memgpt.server.schemas.humans import ListHumansResponse
+from memgpt.server.schemas.personas import ListPersonasResponse
 from memgpt.server.schemas.config import ConfigResponse
 
 # new schemas
+from memgpt.schemas.block import Human, Persona
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import Block, CreateBlock, Human, Persona
 from memgpt.schemas.embedding_config import EmbeddingConfig
@@ -467,7 +468,7 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.get("/api/humans")
         return ListHumansResponse(**response.json())
 
-    def create_human(self, name: str, human: str) -> HumanModel:
+    def create_human(self, name: str, human: str) -> Human:
         data = {"name": name, "text": human}
         response = self.httpx_client.post("/api/humans", json=data)
 
@@ -487,7 +488,7 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.get("/personas")
         return ListPersonasResponse(**response.json())
 
-    async def create_persona(self, name: str, persona: str) -> PersonaModel:
+    async def create_persona(self, name: str, persona: str) -> Persona:
         data = {"name": name, "text": persona}
         response = await self.httpx_client.post("/personas", json=data)
 
@@ -503,15 +504,15 @@ class RESTClient(AbstractClient):
         else:
             return Block(**response.json())
 
-    async def get_persona(self, name: str) -> PersonaModel:
+    async def get_persona(self, name: str) -> Persona:
         response = await self.httpx_client.get("/personas/{name}")
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get persona: {response.text}")
-        return PersonaModel(**response.json())
+        return Persona(**response.json())
 
-    async def get_human(self, name: str) -> HumanModel:
+    async def get_human(self, name: str) -> Human:
         response = await self.httpx_client.get("/api/humans/{name}")
         if response.status_code == 404:
             return None

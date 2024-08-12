@@ -10,7 +10,8 @@ from memgpt.schemas.source import Source
 from memgpt.data_sources.connectors import DirectoryConnector
 from memgpt.schemas.job import Job
 from memgpt.orm.enums import JobStatus
-from memgpt.server.schemas.sources import CreateSourceRequest, ListSourcesResponse, SourceModel, GetSourcePassagesResponse, GetSourceDocumentsResponse
+from memgpt.server.schemas.sources import CreateSourceRequest, ListSourcesResponse, GetSourcePassagesResponse, GetSourceDocumentsResponse
+from memgpt.schemas.source import Source
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
 from uuid import UUID
@@ -50,9 +51,9 @@ async def create_source(
     """
     actor = server.get_current_user()
     interface.clear()
-    # TODO: don't use Source and just use SourceModel once pydantic migration is complete
+    # TODO: don't use Source and just use Source once pydantic migration is complete
     source = server.create_source(name=source.name, user_id=actor._id)
-    return SourceModel(
+    return Source(
         name=source.name,
         description=None,  # TODO: actually store descriptions
         user_id=source.user_id,
@@ -90,7 +91,7 @@ async def attach_source_to_agent(
     interface.clear()
     source = server.ms.get_source(source_id=source_id, user_id=actor._id)
     source = server.attach_source_to_agent(source_name=source.name, agent_id=agent_id, user_id=actor._id)
-    return SourceModel(
+    return Source(
         name=source.name,
         description=None,  # TODO: actually store descriptions
         user_id=source.user_id,
