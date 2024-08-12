@@ -121,8 +121,6 @@ class LocalStateManager(PersistenceManager):
         # self.messages = [self.messages[0]] + added_messages + self.messages[1:]
 
         # add to recall memory
-        print("Prepending", len(added_messages), "messages")
-        self.recall_memory.insert_many([m for m in added_messages])
 
     def append_to_messages(self, added_messages: List[Message]):
         # first tag with timestamps
@@ -132,9 +130,7 @@ class LocalStateManager(PersistenceManager):
         # self.messages = self.messages + added_messages
 
         # add to recall memory
-        print("Appending", len(added_messages), "messages", len(self.recall_memory))
         self.recall_memory.insert_many([m for m in added_messages])
-        print("Done", len(self.recall_memory))
 
     def swap_system_message(self, new_system_message: Message):
         # first tag with timestamps
@@ -142,8 +138,6 @@ class LocalStateManager(PersistenceManager):
 
         printd(f"{self.__class__.__name__}.swap_system_message")
         # self.messages[0] = new_system_message
-
-        print("SWAP SYSTEM")
 
         # add to recall memory
         self.recall_memory.insert(new_system_message)
