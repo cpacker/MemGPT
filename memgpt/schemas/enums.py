@@ -22,3 +22,9 @@ class JobStatus(str, Enum):
     completed = "completed"
     failed = "failed"
     pending = "pending"
+
+
+class MessageStreamStatus(str, Enum):
+    done_generation = "[DONE_GEN]"
+    done_step = "[DONE_STEP]"
+    done = "[DONE]"
