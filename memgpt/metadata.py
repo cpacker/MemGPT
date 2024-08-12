@@ -19,6 +19,8 @@ from sqlalchemy import (
     desc,
     func,
 )
+
+from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -33,6 +35,7 @@ from memgpt.data_types import (
     Source,
     Token,
     User,
+    Passage,
 )
 from memgpt.models.pydantic_models import (
     HumanModel,
@@ -239,6 +242,85 @@ class SourceModel(Base):
             description=self.description,
         )
 
+class ArchivalPassageModel(Base):
+    """Defines data model for storing Passages (consisting of text, embedding)"""
+
+    __tablename__ = "memgpt_archival_memory_agent"
+    __table_args__ = {"extend_existing": True}
+
+    # Assuming passage_id is the primary key
+    # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    user_id = Column(CommonUUID, nullable=False)
+    text = Column(String, nullable=False)
+    doc_id = Column(CommonUUID, nullable=True)
+    agent_id = Column(CommonUUID, nullable=True)
+    data_source = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    embedding = Column(Vector)
+    embedding_dim = Column(BIGINT)
+    embedding_model = Column(String)
+    metadata_ = Column(JSON)
+
+    # TODO: add num passages
+
+    def __repr__(self) -> str:
+        return f"<Passage(passage_id='{self.id}', text='{self.text}')>"
+
+    def to_record(self) -> Passage:
+        return Passage(
+            id=self.id,
+            user_id=self.user_id,
+            text=self.text,
+            created_at=self.created_at,
+            agent_id=self.agent_id,
+            embedding=self.embedding,
+            embedding_dim=self.embedding_dim,
+            embedding_model=self.embedding_model,
+            metadata_=self.metadata_,
+            data_source=self.data_source,
+            doc_id=self.doc_id,
+        )
+
+class RecallPassageModel(Base):
+    """Defines data model for storing Passages (consisting of text, embedding)"""
+
+    __tablename__ = "memgpt_recall_memory_agent"
+    __table_args__ = {"extend_existing": True}
+
+    # Assuming passage_id is the primary key
+    # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(CommonUUID, primary_key=True, default=uuid.uuid4)
+    user_id = Column(CommonUUID, nullable=False)
+    text = Column(String, nullable=False)
+    doc_id = Column(CommonUUID, nullable=True)
+    agent_id = Column(CommonUUID, nullable=True)
+    data_source = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    embedding = Column(Vector)
+    embedding_dim = Column(BIGINT)
+    embedding_model = Column(String)
+    metadata_ = Column(JSON)
+
+    # TODO: add num passages
+
+    def __repr__(self) -> str:
+        return f"<Passage(passage_id='{self.id}', text='{self.text}')>"
+
+    def to_record(self) -> Passage:
+        return Passage(
+            id=self.id,
+            user_id=self.user_id,
+            text=self.text,
+            created_at=self.created_at,
+            agent_id=self.agent_id,
+            embedding=self.embedding,
+            embedding_dim=self.embedding_dim,
+            embedding_model=self.embedding_model,
+            metadata_=self.metadata_,
+            data_source=self.data_source,
+            doc_id=self.doc_id,
+        )
 
 class AgentSourceMappingModel(Base):
     """Stores mapping between agent -> source"""
@@ -354,6 +436,8 @@ class MetadataStore:
                     PersonaModel.__table__,
                     ToolModel.__table__,
                     JobModel.__table__,
+                    ArchivalPassageModel.__table__,
+                    RecallPassageModel.__table__,                     
                 ],
             )
         except (InterfaceError, OperationalError) as e:
@@ -558,7 +642,9 @@ class MetadataStore:
 
             # delete agents
             session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
-
+            session.query(ArchivalPassageModel).filter(ArchivalPassageModel.agent_id == agent_id).delete()
+            session.query(RecallPassageModel).filter(RecallPassageModel.agent_id == agent_id).delete()
+                        
             # delete mappings
             session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).delete()
 
