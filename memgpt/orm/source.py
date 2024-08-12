@@ -3,7 +3,6 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
-from memgpt.orm.sources_presets import SourcesPresets
 from memgpt.orm.mixins import OrganizationMixin
 
 if TYPE_CHECKING:
@@ -24,4 +23,3 @@ class Source(OrganizationMixin,SqlalchemyBase):
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="sources")
     agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")
-    presets: Mapped[List["Preset"]] = relationship("Preset", secondary="sources_presets", back_populates="sources")

@@ -28,7 +28,6 @@ class Organization(SqlalchemyBase):
     agents: Mapped["Agent"] = relationship("Agent", back_populates="organization", cascade="all, delete-orphan")
     sources: Mapped["Source"] = relationship("Source", back_populates="organization", cascade="all, delete-orphan")
     tools: Mapped["Tool"] = relationship("Tool", back_populates="organization", cascade="all, delete-orphan")
-    presets: Mapped["Preset"] = relationship("Preset", back_populates="organization", cascade="all, delete-orphan")
     personas: Mapped["PersonaMemoryTemplate"] = relationship("PersonaMemoryTemplate", back_populates="organization", cascade="all, delete-orphan")
     humans: Mapped["HumanMemoryTemplate"] = relationship("HumanMemoryTemplate", back_populates="organization", cascade="all, delete-orphan")
     documents: Mapped["Document"] = relationship("Document", back_populates="organization", cascade="all, delete-orphan")

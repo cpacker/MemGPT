@@ -1,31 +1,20 @@
 from typing import List, TYPE_CHECKING
 
-from fastapi import APIRouter, Body, HTTPException, Path, Query, Depends
+from fastapi import APIRouter, Body, HTTPException, Path, Query
 
-from memgpt.config import MemGPTConfig
 from memgpt.settings import settings
-from memgpt.data_types import Message
-from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.server.schemas.openai.assistants import (
     CreateAssistantFileRequest,
     CreateAssistantRequest,
     DeleteAssistantFileResponse,
     DeleteAssistantResponse,
 )
-
 from memgpt.models.openai import (
     AssistantFile,
-    MessageFile,
-    MessageRoleType,
     OpenAIAssistant,
-    OpenAIMessage,
-    OpenAIRun,
-    OpenAIRunStep,
-    OpenAIThread,
-    Text,
-    ToolCall,
-    ToolCallOutput,
 )
+
+
 if TYPE_CHECKING:
     from memgpt.orm.user import User
     from memgpt.server.server import SyncServer

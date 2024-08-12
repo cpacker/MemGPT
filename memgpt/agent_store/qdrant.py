@@ -6,8 +6,27 @@ from typing import Dict, Iterator, List, Optional, cast
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import MAX_EMBEDDING_DIM
-from memgpt.data_types import Passage, Record, RecordType
 from memgpt.utils import datetime_to_timestamp, timestamp_to_datetime
+from memgpt.schemas.passage import Passage
+class Record:
+    """
+    Base class for an agent's memory unit. Each memory unit is represented in the database as a single row.
+    Memory units are searched over by functions defined in the memory classes
+    """
+
+    def __init__(self, id: Optional[uuid.UUID] = None):
+        if id is None:
+            self.id = uuid.uuid4()
+        else:
+            self.id = id
+
+        assert isinstance(self.id, uuid.UUID), f"UUID {self.id} must be a UUID type"
+
+
+# This allows type checking to work when you pass a Passage into a function expecting List[Record]
+# (just use List[RecordType] instead)
+RecordType = TypeVar("RecordType", bound="Record")
+
 
 TEXT_PAYLOAD_KEY = "text_content"
 METADATA_PAYLOAD_KEY = "metadata"

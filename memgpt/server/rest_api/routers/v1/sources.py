@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
-from memgpt.data_types import Source
+from memgpt.schemas.source import Source
 from memgpt.data_sources.connectors import DirectoryConnector
 from memgpt.models.pydantic_models import JobModel, JobStatus
 from memgpt.server.schemas.sources import CreateSourceRequest, ListSourcesResponse, SourceModel, GetSourcePassagesResponse, GetSourceDocumentsResponse

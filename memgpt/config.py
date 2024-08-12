@@ -40,9 +40,6 @@ class MemGPTConfig:
     config_path: str = str(settings.config_path.absolute())
     anon_clientid: str = str(uuid.UUID(int=0))
 
-    # preset
-    preset: str = settings.preset
-
     # persona parameters
     persona: str = settings.persona
     human: str = settings.human
@@ -156,7 +153,6 @@ class MemGPTConfig:
                 "default_llm_config": llm_config,
                 "default_embedding_config": embedding_config,
                 # Agent related
-                "preset": get_field(config, "defaults", "preset"),
                 "persona": get_field(config, "defaults", "persona"),
                 "human": get_field(config, "defaults", "human"),
                 "agent": get_field(config, "defaults", "agent"),
@@ -192,7 +188,6 @@ class MemGPTConfig:
 
         config = configparser.ConfigParser()
         # CLI defaults
-        set_field(config, "defaults", "preset", self.preset)
         set_field(config, "defaults", "persona", self.persona)
         set_field(config, "defaults", "human", self.human)
 
@@ -292,7 +287,6 @@ class MemGPTConfig:
             "agents",
             "functions",
             "system_prompts",
-            "presets",
             "settings",
         ]
 
@@ -326,7 +320,6 @@ class AgentConfig:
         embedding_dim=None,
         embedding_chunk_size=None,
         # other
-        preset=None,
         data_sources=None,
         # agent info
         agent_config_path=None,
@@ -343,7 +336,6 @@ class AgentConfig:
         config = MemGPTConfig.load()  # get default values
         self.persona = config.persona if persona is None else persona
         self.human = config.human if human is None else human
-        self.preset = config.preset if preset is None else preset
         self.context_window = config.default_llm_config.context_window if context_window is None else context_window
         self.model = config.default_llm_config.model if model is None else model
         self.model_endpoint_type = config.default_llm_config.model_endpoint_type if model_endpoint_type is None else model_endpoint_type
@@ -423,7 +415,7 @@ class AgentConfig:
     def to_agent_state(self):
         return AgentState(
             name=self.name,
-            preset=self.preset,
+            preset=None,
             persona=self.persona,
             human=self.human,
             llm_config=self.llm_config,

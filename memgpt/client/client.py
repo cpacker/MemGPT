@@ -12,6 +12,11 @@ from memgpt.seeds.functions.functions import parse_source_code
 from memgpt.seeds.functions.schema_generator import generate_schema
 from memgpt.memory import get_memory_functions
 
+# This is a hack for now, should be using new schemas
+from memgpt.server.schemas.humans import ListHumansResponse, HumanModel
+from memgpt.server.schemas.personas import ListPersonasResponse, PersonaModel
+from memgpt.server.schemas.config import ConfigResponse
+
 # new schemas
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import Block, CreateBlock, Human, Persona
@@ -24,6 +29,8 @@ from memgpt.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
+from memgpt.schemas.job import Job
+from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.message import Message
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
@@ -232,9 +239,9 @@ class RESTClient(AbstractClient):
 
         self.httpx_client = httpx.AsyncClient(**httpx_client_args)
 
-    async def list_agents(self):
+    async def list_agents(self) -> List[AgentState]:
         response = await self.httpx_client.get("/api/agents")
-        return ListAgentsResponse(**response.json())
+        return response.json()
 
     async def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         response = await self.httpx_client.get("/agents/")
@@ -305,38 +312,15 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.post("/agents", json=request.model_dump(exclude_none=True))
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
-        response_obj = CreateAgentResponse(**response.json())
-        return self.get_agent_response_to_state(response_obj)
 
-    def get_agent_response_to_state(self, response: Union[GetAgentResponse, CreateAgentResponse]) -> AgentState:
-        # TODO: eventually remove this conversion
-        llm_config = LLMConfig(
-            model=response.agent_state.llm_config.model,
-            model_endpoint_type=response.agent_state.llm_config.model_endpoint_type,
-            model_endpoint=response.agent_state.llm_config.model_endpoint,
-            model_wrapper=response.agent_state.llm_config.model_wrapper,
-            context_window=response.agent_state.llm_config.context_window,
-        )
-        embedding_config = EmbeddingConfig(
-            embedding_endpoint_type=response.agent_state.embedding_config.embedding_endpoint_type,
-            embedding_endpoint=response.agent_state.embedding_config.embedding_endpoint,
-            embedding_model=response.agent_state.embedding_config.embedding_model,
-            embedding_dim=response.agent_state.embedding_config.embedding_dim,
-            embedding_chunk_size=response.agent_state.embedding_config.embedding_chunk_size,
-        )
-        agent_state = AgentState(
-            id=response.agent_state.id,
-            name=response.agent_state.name,
-            user_id=response.agent_state.user_id,
-            llm_config=llm_config,
-            embedding_config=embedding_config,
-        )
+        return AgentState(**response.json())
 
-    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
-        response = self.httpx_client.patch("/api/agents/{str(agent_id)}/rename", json={"agent_name": new_name})
+
+    def rename_agent(self, agent_id: str, new_name: str):
+        response = self.httpx_client.patch(f"/api/agents/{agent_id}/rename", json={"agent_name": new_name})
         assert response.status_code == 200, f"Failed to rename agent: {response.text}"
-        response_obj = GetAgentResponse(**response.json())
-        return self.get_agent_response_to_state(response_obj)
+
+        return AgentState(**response.json())
 
     async def update_agent(
         self,
@@ -377,20 +361,20 @@ class RESTClient(AbstractClient):
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     async def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-        response = await self.httpx_client.get(f"/agents/{str(agent_id)}/config")
+        response = await self.httpx_client.get(f"/agents/{agent_id}/config")
         # TODO: this should be a 404 without details, don't share failed response with a bad actor
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
-        response_obj = GetAgentResponse(**response.json())
-        return self.get_agent_response_to_state(response_obj)
+
+        return AgentState(**response.json())
 
     # memory
-    async def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
+    async def get_agent_memory(self, agent_id: uuid.UUID) -> Memory:
         response = await self.httpx_client.get(f"/agents/{agent_id}/memory")
-        return GetAgentMemoryResponse(**response.json())
+        return Memory(**response.json())
 
-    async def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> UpdateAgentMemoryResponse:
+    async def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Memory:
         response = await self.httpx_client.post(f"/agents/{agent_id}/memory", json=new_memory_contents)
-        return UpdateAgentMemoryResponse(**response.json())
+        return Memory(**response.json())
 
     # memory
     async def get_in_context_memory(self, agent_id: uuid.UUID) -> Memory:
@@ -429,9 +413,9 @@ class RESTClient(AbstractClient):
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         return self.send_message(agent_id, message, role="user")
 
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        response = self.httpx_client.post("/api/agents/{str(agent_id)}/command", json={"command": command})
-        return AgentCommandResponse(**response.json())
+    def run_command(self, agent_id: str, command: str) -> Union[Message, str, None]:
+        response = self.httpx_client.post(f"/api/agents/{agent_id}/command", json={"command": command})
+        return Message(**response.json())
 
     def save(self):
         raise NotImplementedError
@@ -591,31 +575,31 @@ class RESTClient(AbstractClient):
 
     # sources
 
-    async def list_sources(self):
+    async def list_sources(self) -> List[Source]:
         """List loaded sources"""
         response = await self.httpx_client.get("/api/sources")
         response_json = response.json()
-        return ListSourcesResponse(**response_json)
+        return [i for i in response_json["sources"]]
 
     def delete_source(self, source_id: uuid.UUID):
         """Delete a source and associated data (including attached to agents)"""
-        response = self.httpx_client.delete("/api/sources/{str(source_id)}")
+        response = self.httpx_client.delete(f"/api/sources/{source_id}")
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
     def get_job_status(self, job_id: uuid.UUID):
-        response = self.httpx_client.get("/api/sources/status/{str(job_id)}")
-        return JobModel(**response.json())
+        response = self.httpx_client.get(f"/api/sources/status/{job_id}")
+        return Job(**response.json())
 
     def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
         """Load {filename} and insert into source"""
         files = {"file": open(filename, "rb")}
 
         # create job
-        response = self.httpx_client.post("/api/sources/{source_id}/upload", files=files)
+        response = self.httpx_client.post(f"/api/sources/{source_id}/upload", files=files)
         if response.status_code != 200:
             raise ValueError(f"Failed to upload file to source: {response.text}")
 
-        job = JobModel(**response.json())
+        job = Job(**response.json())
         if blocking:
             # wait until job is completed
             while True:
@@ -631,16 +615,7 @@ class RESTClient(AbstractClient):
         """Create a new source"""
         payload = {"name": name}
         response = self.httpx_client.post("/api/sources", json=payload)
-        response_json = response.json()
-        response_obj = SourceModel(**response_json)
-        return Source(
-            id=uuid.UUID(response_obj.id),
-            name=response_obj.name,
-            user_id=uuid.UUID(response_obj.user_id),
-            created_at=response_obj.created_at,
-            embedding_dim=response_obj.embedding_config["embedding_dim"],
-            embedding_model=response_obj.embedding_config["embedding_model"],
-        )
+        return Source(**response.json())
 
     def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         """Attach a source to an agent"""
@@ -655,9 +630,9 @@ class RESTClient(AbstractClient):
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
 
     # server configuration commands
-    async def list_models(self) -> ListModelsResponse:
+    async def list_models(self) -> List[LLMConfig]:
         response = await self.httpx_client.get("/api/models")
-        return ListModelsResponse(**response.json())
+        return response.json()
 
     async def get_config(self) -> ConfigResponse:
         response = await self.httpx_client.get("/api/config")
@@ -745,7 +720,7 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.get("/tools")
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
-        return ListToolsResponse(**response.json()).tools
+        return [Tool(**tool) for tool in response.json()]
 
     async def delete_tool(self, name: str):
         response = await self.httpx_client.delete(f"/tools/{name}")
@@ -759,7 +734,7 @@ class RESTClient(AbstractClient):
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
-        return ToolModel(**response.json())
+        return Tool(**response.json())
 
 
 class LocalClient(AbstractClient):

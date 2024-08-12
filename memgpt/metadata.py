@@ -11,7 +11,6 @@ from memgpt.orm.token import Token
 from memgpt.orm.agent import Agent
 from memgpt.orm.job import Job
 from memgpt.orm.source import Source
-from memgpt.orm.preset import Preset
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
 from memgpt.orm.user import User
 from memgpt.orm.tool import Tool
@@ -178,34 +177,6 @@ class MetadataStore:
                 return list
             case _:
                 raise AttributeError(f"Method {name} not found")
-
-    def get_preset(
-        self, preset_id: Optional[uuid.UUID] = None, name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
-    ) -> Optional[Preset]:
-        assert preset_id or (name and user_id), "Must provide either preset_id or (preset_name and user_id)"
-
-        #TODO: pivot this to org scope - get by id or by name within org of actor
-        if preset_id:
-            return Preset.read(self.db_session, preset_id).to_record()
-        # Implement actor lookup
-        return Preset.read(self.db_session, name=name, actor=user_id).to_record()
-
-    def set_preset_sources(self,
-                           preset_id: uuid.UUID,
-                           sources: List[uuid.UUID],
-                           actor: Optional["User"] = None) -> None:
-        """Legacy assign sources to a preset. This should be a normal relationship collection in the future.
-        Args:
-            preset_id: the preset raw UUID to assign sources to, legacy support
-            sources: the source raw UUID for each source to assign to the preset, legacy support
-            actor: the user making the assignment. TODO: this will not be optional in the future!
-        """
-        preset = Preset.read(self.db_session, preset_id)
-        preset.sources = [Source.read(self.db_session, source_id) for source_id in sources]
-        preset.update(self.db_session)
-
-    def get_preset_sources(self, preset_id: uuid.UUID) -> List[uuid.UUID]:
-        return [s._id for s in Preset.read(self.db_session, preset_id).sources]
 
     def update_human(self, human: HumanModel) -> "HumanModel":
         sql_human = HumanMemoryTemplate(**human.model_dump(exclude_none=True)).create(self.db_session)

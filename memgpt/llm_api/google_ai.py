@@ -18,8 +18,6 @@ from memgpt.schemas.openai.chat_completion_response import (
 )
 from memgpt.utils import get_tool_call_id, get_utc_time
 
-# from memgpt.data_types import ToolCall
-
 
 SUPPORTED_MODELS = [
     "gemini-pro",

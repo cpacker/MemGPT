@@ -598,7 +598,7 @@ class SyncServer(Server):
             existing_user = self.ms.get_user(user_config["id"])
             if existing_user:
                 if exists_ok:
-                    presets.add_default_humans_and_personas(existing_user.id, self.ms)
+                    # presets.add_default_humans_and_personas(existing_user.id, self.ms)
                     return existing_user
                 else:
                     raise ValueError(f"User with ID {existing_user.id} already exists")

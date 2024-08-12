@@ -6,14 +6,11 @@ from memgpt.orm.users_agents import UsersAgents
 from memgpt.orm.token import Token
 from memgpt.orm.source import Source
 from memgpt.orm.tool import Tool
-from memgpt.orm.preset import Preset
 from memgpt.orm.document import Document
 from memgpt.orm.passage import Passage
 from memgpt.orm.memory_templates import MemoryTemplate, HumanMemoryTemplate, PersonaMemoryTemplate
 from memgpt.orm.sources_agents import SourcesAgents
-from memgpt.orm.sources_presets import SourcesPresets
 from memgpt.orm.tools_agents import ToolsAgents
-from memgpt.orm.tools_presets import ToolsPresets
 from memgpt.orm.job import Job
 
 from memgpt.orm.base import Base
