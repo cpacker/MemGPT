@@ -196,15 +196,17 @@ def test_humans_personas(client, agent):
     print("PERSONAS", personas_response)
 
     persona_name = "TestPersona"
-    if client.get_persona(persona_name):
-        client.delete_persona(persona_name)
+    persona_id = client.get_persona_id(persona_name)
+    if client.get_persona(persona_id):
+        client.delete_persona(persona_id)
     persona = client.create_persona(name=persona_name, text="Persona text")
     assert persona.name == persona_name
     assert persona.value == "Persona text", "Creating persona failed"
 
     human_name = "TestHuman"
-    if client.get_human(human_name):
-        client.delete_human(human_name)
+    human_id = client.get_human_id(human_name)
+    if client.get_human(human_id):
+        client.delete_human(human_id)
     human = client.create_human(name=human_name, text="Human text")
     assert human.name == human_name
     assert human.value == "Human text", "Creating human failed"

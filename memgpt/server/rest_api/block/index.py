@@ -37,6 +37,7 @@ def setup_block_index_router(server: SyncServer, interface: QueuingInterface, pa
         user_id: str = Depends(get_current_user_with_server),
     ):
         interface.clear()
+        request.user_id = user_id  # TODO: remove?
         return server.create_block(user_id=user_id, request=request)
 
     @router.post("/blocks/{block_id}", tags=["block"], response_model=Block)
