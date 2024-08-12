@@ -1,7 +1,6 @@
 import ast
 import builtins
 import os
-import uuid
 from enum import Enum
 from typing import Annotated, List, Optional
 
@@ -38,7 +37,6 @@ from memgpt.local_llm.constants import (
 from memgpt.local_llm.utils import get_available_wrappers
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
-from memgpt.schemas.source import Source
 from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
@@ -1097,10 +1095,7 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         for agent in tqdm(client.list_agents()):
             # TODO: add this function
-            source_ids = client.list_attached_sources(agent_id=agent.id)
-            assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in source_ids])
-            sources = [client.get_source(source_id=source_id) for source_id in source_ids]
-            assert all([source is not None and isinstance(source, Source)] for source in sources)
+            sources = client.list_attached_sources(agent_id=agent.id)
             source_names = [source.name for source in sources if source is not None]
             table.add_row(
                 [
@@ -1108,8 +1103,8 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                     agent.llm_config.model,
                     agent.embedding_config.embedding_model,
                     agent.embedding_config.embedding_dim,
-                    agent._metadata.get("persona", ""),
-                    agent._metadata.get("human", ""),
+                    agent.memory.get_block("persona").value[:100] + "...",
+                    agent.memory.get_block("human").value[:100] + "...",
                     ",".join(source_names),
                     utils.format_datetime(agent.created_at),
                 ]
@@ -1264,13 +1259,14 @@ def delete(option: str, name: str):
         # delete from metadata
         if option == "source":
             # delete metadata
-            source = client.get_source(name)
-            assert source is not None, f"Source {name} does not exist"
-            client.delete_source(source_id=source.id)
+            source_id = client.get_source_id(name)
+            assert source_id is not None, f"Source {name} does not exist"
+            client.delete_source(source_id)
         elif option == "agent":
-            agent = client.get_agent(agent_name=name)
-            assert agent is not None, f"Agent {name} does not exist"
-            client.delete_agent(agent_id=agent.id)
+            agent_id = client.get_agent_id(name)
+            print(agent_id)
+            assert agent_id is not None, f"Agent {name} does not exist"
+            client.delete_agent(agent_id=agent_id)
         elif option == "human":
             human = client.get_human(name=name)
             assert human is not None, f"Human {name} does not exist"

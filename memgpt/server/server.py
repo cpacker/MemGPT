@@ -989,12 +989,12 @@ class SyncServer(LockingServer):
     def get_persona(self, name: str, user_id: str):
         return self.ms.get_persona(persona_name=name, user_id=user_id)
 
-    def create_persona(self, request: CreatePersona, user_id: str, update: bool = False) -> Persona:
-        existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
+    def create_persona(self, request: CreatePersona, update: bool = False) -> Persona:
+        existing_persona = self.ms.get_persona(persona_name=request.name, user_id=request.user_id)
         if existing_persona:  # update
             if update:
                 print("UPDATE PERSONA", existing_persona.id, vars(request))
-                return self.update_block(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
+                return self.update_block(UpdatePersona(id=existing_persona.id, **vars(request)))
             else:
                 raise ValueError(f"Persona with name {request.name} already exists")
         persona = Persona(**vars(request))
@@ -1042,11 +1042,11 @@ class SyncServer(LockingServer):
         self.ms.create_block(block)
         return block
 
-    def update_block(self, request: UpdateBlock, user_id: str) -> Block:
+    def update_block(self, request: UpdateBlock) -> Block:
         block = self.get_block(request.id)
-        block.limit = request.limit
-        block.value = request.value
-        block.name = request.name
+        block.limit = request.limit if request.limit is not None else block.limit
+        block.value = request.value if request.value is not None else block.value
+        block.name = request.name if request.name is not None else block.name
         self.ms.update_block(block=block)
         return block
 
@@ -1055,11 +1055,11 @@ class SyncServer(LockingServer):
         self.ms.delete_block(block_id)
         return block
 
-    def create_human(self, request: CreateHuman, user_id: str, update: bool = False) -> Human:
-        existing_human = self.ms.get_human(human_name=request.name, user_id=user_id)
+    def create_human(self, request: CreateHuman, update: bool = False) -> Human:
+        existing_human = self.ms.get_human(human_name=request.name, user_id=request.user_id)
         if existing_human:  # update
             if update:
-                return self.update_block(UpdateHuman(id=existing_human.id, **vars(request)), user_id)
+                return self.update_block(UpdateHuman(id=existing_human.id, **vars(request)))
             else:
                 raise ValueError(f"Human with name {request.name} already exists")
         human = Human(**vars(request))
@@ -1069,7 +1069,10 @@ class SyncServer(LockingServer):
     # convert name->id
 
     def get_agent_id(self, name: str, user_id: str):
-        return self.ms.get_agent(agent_name=name, user_id=user_id)
+        agent_state = self.ms.get_agent(agent_name=name, user_id=user_id)
+        if not agent_state:
+            return None
+        return agent_state.id
 
     def get_source(self, source_id: str, user_id: str) -> Source:
         existing_source = self.ms.get_source(source_id=source_id, user_id=user_id)
@@ -1604,7 +1607,7 @@ class SyncServer(LockingServer):
         # TODO: remove all passages coresponding to source from agent's archival memory
         raise NotImplementedError
 
-    def list_attached_sources(self, agent_id: str):
+    def list_attached_sources(self, agent_id: str) -> List[Source]:
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
