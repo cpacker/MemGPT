@@ -262,9 +262,9 @@ class ChromaStorageConnector(StorageConnector):
         order_by: str = "created_at",
         reverse: bool = False,
     ):
-        print("Warning: hacky implementation with chroma")
         records = self.get_all(filters=filters)
 
+        # WARNING: very hacky and slow implementation
         def get_index(id, record_list):
             for i in range(len(record_list)):
                 if record_list[i].id == id:
@@ -273,24 +273,20 @@ class ChromaStorageConnector(StorageConnector):
 
         # sort by custom field
         records = sorted(records, key=lambda x: getattr(x, order_by), reverse=reverse)
-        print("records", [(r.id, r.text) for r in records])
         if after:
             index = get_index(after, records)
             if index + 1 >= len(records):
-                print("EMPTY", before, after, limit, index)
                 return None, []
             records = records[index + 1 :]
         if before:
             index = get_index(before, records)
             if index == 0:
-                print("EMPTY", before, after, limit, index)
                 return None, []
 
             # TODO: not sure if this is correct
             records = records[:index]
 
         if len(records) == 0:
-            print("EMPTY", before, after, limit)
             return None, []
 
         # enforce limit

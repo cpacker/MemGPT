@@ -36,11 +36,9 @@ from memgpt.local_llm.constants import (
     DEFAULT_WRAPPER_NAME,
 )
 from memgpt.local_llm.utils import get_available_wrappers
-from memgpt.metadata import MetadataStore
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.source import Source
-from memgpt.schemas.user import User
 from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
@@ -1074,17 +1072,10 @@ def configure():
     typer.secho(f"📖 Saving config to {config.config_path}", fg=typer.colors.GREEN)
     config.save()
 
-    # create user records
-    ms = MetadataStore(config)
-    user_id = uuid.UUID(config.anon_clientid)
-    user = User(
-        id=uuid.UUID(config.anon_clientid),
-    )
-    if ms.get_user(user_id):
-        # update user
-        ms.update_user(user)
-    else:
-        ms.create_user(user)
+    from memgpt import create_client
+
+    client = create_client()
+    print("User ID:", client.user_id)
 
 
 class ListChoice(str, Enum):

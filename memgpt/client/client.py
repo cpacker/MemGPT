@@ -350,8 +350,6 @@ class RESTClient(AbstractClient):
 
     def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
         memory_update_dict = {section: value}
-        print()
-        print("MEMORY UPDATE", memory_update_dict)
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=memory_update_dict, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update in-context memory: {response.text}")
@@ -781,7 +779,6 @@ class LocalClient(AbstractClient):
         existing_user = self.server.get_user(self.user_id)
         if not existing_user:
             self.user = self.server.create_user(UserCreate())
-            print("existing user", self.user.id)
             self.user_id = self.user.id
 
             # update config
@@ -1125,7 +1122,6 @@ class LocalClient(AbstractClient):
 
         """
         tools = self.server.list_tools(user_id=self.user_id)
-        print("LIST TOOLS", [t.name for t in tools])
         return tools
 
     def get_tool(self, id: str) -> Tool:

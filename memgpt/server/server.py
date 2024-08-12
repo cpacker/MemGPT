@@ -1508,7 +1508,7 @@ class SyncServer(LockingServer):
 
         # delete data from passage store
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        passage_store.delete({"data_source": source.name})
+        passage_store.delete({"source_id": source_id})
 
         # TODO: delete data from agent passage stores (?)
 
