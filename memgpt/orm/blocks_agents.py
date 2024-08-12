@@ -1,6 +1,6 @@
-from sqlalchemy import ForeignKey, UUID as SQLUUID
+from sqlalchemy import ForeignKey, UUID as SQLUUID, UniqueConstraint, String, ForeignKeyConstraint
 from uuid import UUID
-from sqlalchemy.orm import relationship, Mapped, mapped_column, UniqueConstraint
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from memgpt.orm.base import Base
 
@@ -14,11 +14,11 @@ class BlocksAgents(Base):
             "_block_label",
             name="unique_label_per_agent",
         ),
-    )
+        ForeignKeyConstraint(["_block_id", "_block_label"],
+                             ["block._id", "block.label"]),
+        {})
+
     # unique agent + block label
-
-
-
     _agent_id:Mapped[UUID] = mapped_column(SQLUUID, ForeignKey('agent._id'), primary_key=True)
-    _block_id:Mapped[UUID] = mapped_column(SQLUUID, ForeignKey('block._id'), primary_key=True)
-    _block_label:Mapped[str] = mapped_column(str, ForeignKey('block.label'), primary_key=True)
+    _block_id:Mapped[UUID] = mapped_column(SQLUUID, primary_key=True)
+    _block_label:Mapped[str] = mapped_column(String, primary_key=True)
