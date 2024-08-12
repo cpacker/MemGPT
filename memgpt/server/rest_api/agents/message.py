@@ -6,6 +6,8 @@ from typing import List, Optional, Union
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from starlette.responses import StreamingResponse
 
+from memgpt.schemas.enums import MessageRole, MessageStreamStatus
+from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
 from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.message import Message
@@ -13,6 +15,7 @@ from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface, StreamingServerInterface
 from memgpt.server.rest_api.utils import sse_async_generator
 from memgpt.server.server import SyncServer
+from memgpt.utils import deduplicate
 
 router = APIRouter()
 
@@ -23,21 +26,23 @@ async def send_message_to_agent(
     server: SyncServer,
     agent_id: str,
     user_id: str,
-    role: str,
+    role: MessageRole,
     message: str,
     stream_steps: bool,
     stream_tokens: bool,
     chat_completion_mode: Optional[bool] = False,
     timestamp: Optional[datetime] = None,
+    # related to whether or not we return `MemGPTMessage`s or `Message`s
+    return_message_object: bool = True,  # Should be True for Python Client, False for REST API
 ) -> Union[StreamingResponse, MemGPTResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
     # TODO: @charles is this the correct way to handle?
     include_final_message = True
 
     # determine role
-    if role == "user" or role is None:
+    if role == MessageRole.user:
         message_func = server.user_message
-    elif role == "system":
+    elif role == MessageRole.system:
         message_func = server.system_message
     else:
         raise HTTPException(status_code=500, detail=f"Bad role {role}")
@@ -72,21 +77,44 @@ async def send_message_to_agent(
         )
 
         if stream_steps:
+            if return_message_object:
+                # TODO implement returning `Message`s in a stream, not just `MemGPTMessage` format
+                raise NotImplementedError
+
             # return a stream
             return StreamingResponse(
                 sse_async_generator(streaming_interface.get_generator(), finish_message=include_final_message),
                 media_type="text/event-stream",
             )
+
         else:
             # buffer the stream, then return the list
             generated_stream = []
             async for message in streaming_interface.get_generator():
+                assert (
+                    isinstance(message, MemGPTMessage)
+                    or isinstance(message, LegacyMemGPTMessage)
+                    or isinstance(message, MessageStreamStatus)
+                ), type(message)
                 generated_stream.append(message)
-                if "data" in message and message["data"] == "[DONE]":
+                if message == MessageStreamStatus.done:
                     break
-            filtered_stream = [d for d in generated_stream if d not in ["[DONE_GEN]", "[DONE_STEP]", "[DONE]"]]
+
+            # Get rid of the stream status messages
+            filtered_stream = [d for d in generated_stream if not isinstance(d, MessageStreamStatus)]
             usage = await task
-            return MemGPTResponse(messages=filtered_stream, usage=usage)
+
+            # By default the stream will be messages of type MemGPTMessage or MemGPTLegacyMessage
+            # If we want to convert these to Message, we can use the attached IDs
+            # NOTE: we will need to de-duplicate the Messsage IDs though (since Assistant->Inner+Func_Call)
+            # TODO: eventually update the interface to use `Message` and `MessageChunk` (new) inside the deque instead
+            if return_message_object:
+                message_ids = [m.id for m in filtered_stream]
+                message_ids = deduplicate(message_ids)
+                message_objs = [server.get_agent_message(agent_id=agent_id, message_id=m_id) for m_id in message_ids]
+                return MemGPTResponse(messages=message_objs, usage=usage)
+            else:
+                return MemGPTResponse(messages=filtered_stream, usage=usage)
 
     except HTTPException:
         raise
@@ -146,8 +174,8 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         # TODO: revise to `MemGPTRequest`
         # TODO: support sending multiple messages
         assert len(request.messages) == 1, f"Multiple messages not supported: {request.messages}"
-
         message = request.messages[0]
+
         # TODO: what to do with message.name?
         return await send_message_to_agent(
             server=server,

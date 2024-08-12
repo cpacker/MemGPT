@@ -3,6 +3,7 @@ import importlib
 import inspect
 import json
 import os
+import traceback
 import warnings
 from abc import abstractmethod
 from datetime import datetime
@@ -384,62 +385,68 @@ class SyncServer(LockingServer):
         self, user_id: str, agent_id: str, input_message: Union[str, Message], timestamp: Optional[datetime]
     ) -> MemGPTUsageStatistics:
         """Send the input message through the agent"""
-
         logger.debug(f"Got input message: {input_message}")
+        try:
 
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
-        if memgpt_agent is None:
-            raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
+            # Get the agent object (loaded in memory)
+            memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+            if memgpt_agent is None:
+                raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
-        # Determine whether or not to token stream based on the capability of the interface
-        token_streaming = memgpt_agent.interface.streaming_mode if hasattr(memgpt_agent.interface, "streaming_mode") else False
+            # Determine whether or not to token stream based on the capability of the interface
+            token_streaming = memgpt_agent.interface.streaming_mode if hasattr(memgpt_agent.interface, "streaming_mode") else False
 
-        logger.debug(f"Starting agent step")
-        no_verify = True
-        next_input_message = input_message
-        counter = 0
-        total_usage = UsageStatistics()
-        step_count = 0
-        while True:
-            new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
-                next_input_message,
-                first_message=False,
-                skip_verify=no_verify,
-                return_dicts=False,
-                stream=token_streaming,
-                timestamp=timestamp,
-                ms=self.ms,
-            )
-            step_count += 1
-            total_usage += usage
-            counter += 1
-            memgpt_agent.interface.step_complete()
+            logger.debug(f"Starting agent step")
+            no_verify = True
+            next_input_message = input_message
+            counter = 0
+            total_usage = UsageStatistics()
+            step_count = 0
+            while True:
+                new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
+                    next_input_message,
+                    first_message=False,
+                    skip_verify=no_verify,
+                    return_dicts=False,
+                    stream=token_streaming,
+                    timestamp=timestamp,
+                    ms=self.ms,
+                )
+                step_count += 1
+                total_usage += usage
+                counter += 1
+                memgpt_agent.interface.step_complete()
 
-            # Chain stops
-            if not self.chaining:
-                logger.debug("No chaining, stopping after one step")
-                break
-            elif self.max_chaining_steps is not None and counter > self.max_chaining_steps:
-                logger.debug(f"Hit max chaining steps, stopping after {counter} steps")
-                break
-            # Chain handlers
-            elif token_warning:
-                next_input_message = system.get_token_limit_warning()
-                continue  # always chain
-            elif function_failed:
-                next_input_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
-                continue  # always chain
-            elif heartbeat_request:
-                next_input_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
-                continue  # always chain
-            # MemGPT no-op / yield
-            else:
-                break
+                # Chain stops
+                if not self.chaining:
+                    logger.debug("No chaining, stopping after one step")
+                    break
+                elif self.max_chaining_steps is not None and counter > self.max_chaining_steps:
+                    logger.debug(f"Hit max chaining steps, stopping after {counter} steps")
+                    break
+                # Chain handlers
+                elif token_warning:
+                    next_input_message = system.get_token_limit_warning()
+                    continue  # always chain
+                elif function_failed:
+                    next_input_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                    continue  # always chain
+                elif heartbeat_request:
+                    next_input_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
+                    continue  # always chain
+                # MemGPT no-op / yield
+                else:
+                    break
 
-        memgpt_agent.interface.step_yield()
-        logger.debug(f"Finished agent step")
+        except Exception as e:
+            logger.error(f"Error in server._step: {e}")
+            print(traceback.print_exc())
+            raise
+        finally:
+            logger.debug("Calling step_yield()")
+            memgpt_agent.interface.step_yield()
 
+        logger.debug("Saving agent state")
         # save updated state
         save_agent(memgpt_agent, self.ms)
 
@@ -1787,3 +1794,10 @@ class SyncServer(LockingServer):
             name = os.path.basename(human_file).replace(".txt", "")
             print(f"Creating human {name}: {text[:50]}...")
             self.create_human(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+
+    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
+        """Get a single message from the agent's memory"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        return message

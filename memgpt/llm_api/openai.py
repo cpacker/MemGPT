@@ -89,6 +89,7 @@ def openai_chat_completions_process_stream(
     on the chunks received from the OpenAI-compatible server POST SSE response.
     """
     assert chat_completion_request.stream == True
+    assert stream_inferface is not None, "Required"
 
     # Count the prompt tokens
     # TODO move to post-request?

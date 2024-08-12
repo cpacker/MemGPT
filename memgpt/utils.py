@@ -468,6 +468,17 @@ NOUN_BANK = [
 ]
 
 
+def deduplicate(target_list: list) -> list:
+    seen = set()
+    dedup_list = []
+    for i in target_list:
+        if i not in seen:
+            seen.add(i)
+            dedup_list.append(i)
+
+    return dedup_list
+
+
 def smart_urljoin(base_url: str, relative_url: str) -> str:
     """urljoin is stupid and wants a trailing / at the end of the endpoint address, or it will chop the suffix off"""
     if not base_url.endswith("/"):
