@@ -452,7 +452,8 @@ class PostgresStorageConnector(SQLStorageConnector):
             with self.session_maker() as session:
                 iterable = tqdm(records) if show_progress else records
                 for record in iterable:
-                    db_record = self.db_model(**vars(record))
+                    # db_record = self.db_model(**vars(record))
+                    db_record = self.db_model(**record.dict())
                     session.add(db_record)
                 session.commit()
 
