@@ -33,7 +33,7 @@ jobs:
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "-E dev -E postgres -E milvus"
+        install-args: "-E dev -E postgres -E milvus -E crewai-tools"
 
     - name: Initialize credentials
       run: poetry run memgpt quickstart --backend openai
