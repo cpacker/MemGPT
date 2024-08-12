@@ -15,7 +15,6 @@ SSE_ARTIFICIAL_DELAY = 0.1
 
 def sse_formatter(data: Union[dict, str]) -> str:
     """Prefix with 'data: ', and always include double newlines"""
-    input(f"sse_formatter:\n{data}")
     assert type(data) in [dict, str], f"Expected type dict or str, got type {type(data)}"
     data_str = json.dumps(data, ensure_ascii=JSON_ENSURE_ASCII) if isinstance(data, dict) else data
     return f"{SSE_PREFIX}{data_str}{SSE_SUFFIX}"

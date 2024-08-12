@@ -357,7 +357,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def _push_to_buffer(self, item: Union[MemGPTMessage, LegacyMemGPTMessage, MessageStreamStatus]):
         """Add an item to the deque"""
-        print("zzz", item)
         assert self._active, "Generator is inactive"
         # assert isinstance(item, dict) or isinstance(item, MessageStreamStatus), f"Wrong type: {type(item)}"
         assert (
@@ -396,8 +395,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def step_complete(self):
         """Signal from the agent that one 'step' finished (step = LLM response + tool execution)"""
-        print("zzz step_complete")
-
         if not self.multi_step:
             # end the stream
             self._active = False
@@ -408,8 +405,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def step_yield(self):
         """If multi_step, this is the true 'stream_end' function."""
-        print("zzz step_yield")
-
         # if self.multi_step:
         # end the stream
         self._active = False
