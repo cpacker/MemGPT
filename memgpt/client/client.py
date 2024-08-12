@@ -11,7 +11,14 @@ from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import get_memory_functions
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from memgpt.schemas.block import Block, CreateBlock, Human, Persona
+from memgpt.schemas.block import (
+    Block,
+    CreateBlock,
+    Human,
+    Persona,
+    UpdateHuman,
+    UpdatePersona,
+)
 from memgpt.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
@@ -994,25 +1001,25 @@ class LocalClient(AbstractClient):
 
     def update_human(self, name: str, text: str):
         human = self.get_human(name)
-        human.text = text
-        return self.server.update_human(human)
+        return self.server.update_block(UpdateHuman(id=human.id, text=text), user_id=self.user_id)
 
     def delete_human(self, name: str):
-        return self.server.delete_human(name, self.user_id)
+        human = self.get_human(name)
+        self.server.delete_human(human.id)
 
-    def list_personas(self):
-        return self.server.list_personas(user_id=self.user_id)
+    def list_personas(self) -> List[Persona]:
+        return [Persona(**block.model_dump()) for block in self.server.list_personas(user_id=self.user_id)]
 
-    def get_persona(self, name: str):
+    def get_persona(self, name: str) -> Persona:
         return self.server.get_persona(name=name, user_id=self.user_id)
 
-    def update_persona(self, name: str, text: str):
+    def update_persona(self, name: str, text: str) -> Persona:
         persona = self.get_persona(name)
-        persona.text = text
-        return self.server.update_persona(persona)
+        return self.server.update_block(UpdatePersona(id=persona.id, text=text), user_id=self.user_id)
 
     def delete_persona(self, name: str):
-        return self.server.delete_persona(name, self.user_id)
+        persona = self.get_persona(name)
+        self.server.delete_block(persona.id)
 
     # tools
     def add_tool(self, tool: Tool, update: Optional[bool] = True) -> None:

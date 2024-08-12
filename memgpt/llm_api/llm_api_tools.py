@@ -260,8 +260,6 @@ def create(
         printd("unsetting function_call because functions is None")
         function_call = None
 
-    # print("HELLO")
-
     # openai
     if llm_config.model_endpoint_type == "openai":
 
@@ -326,7 +324,6 @@ def create(
             if isinstance(stream_inferface, AgentChunkStreamingInterface):
                 stream_inferface.stream_start()
             try:
-                print(data)
                 response = openai_chat_completions_request(
                     url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                     api_key=credentials.openai_key,

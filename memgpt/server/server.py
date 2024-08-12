@@ -340,7 +340,6 @@ class SyncServer(LockingServer):
             if not agent_state:
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
-            # print(f"server._load_agent :: load got agent state {agent_id}, messages = {agent_state.state['messages']}")
 
             # Instantiate an agent object using the state retrieved
             logger.info(f"Creating an agent object")
@@ -790,7 +789,6 @@ class SyncServer(LockingServer):
         logger.info(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
-        print("CREATED AGENT", agent.agent_state)
         # return AgentState
         return agent.agent_state
 
@@ -982,34 +980,33 @@ class SyncServer(LockingServer):
     # TODO: eventually deprecate this to be something more general? (e.g. can have custom labels)
 
     def list_personas(self, user_id: str):
-        return self.ms.list_personas(user_id=user_id)
+        print("LIST PERSONAS")
+        personas = self.get_blocks(user_id=user_id, label="persona")
+        if personas is None:
+            return []
+        return personas
 
     def get_persona(self, name: str, user_id: str):
         return self.ms.get_persona(persona_name=name, user_id=user_id)
 
     def create_persona(self, request: CreatePersona, user_id: str, update: bool = False) -> Persona:
         existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
-        print("UDPATE", update)
         if existing_persona:  # update
             if update:
-                return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
+                print("UPDATE PERSONA", existing_persona.id, vars(request))
+                return self.update_block(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Persona with name {request.name} already exists")
         persona = Persona(**vars(request))
+        print("CREATE PERSONA", persona.template)
         self.ms.create_persona(persona=persona)
         return persona
 
-    def update_persona(self, request: UpdatePersona, user_id: str) -> Persona:
-        # TODO: FIX THIS (should nto override none)
-        persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
-        self.ms.update_persona(persona=persona)
-        return persona
-
-    def delete_persona(self, name: str, user_id: str):
-        return self.ms.delete_persona(name, user_id)
-
     def list_humans(self, user_id: str):
-        return self.ms.list_humans(user_id=user_id)
+        human = self.get_blocks(user_id=user_id, label="human", template=True)
+        if human is None:
+            return []
+        return human
 
     def get_human(self, name: str, user_id: str):
         return self.ms.get_human(human_name=name, user_id=user_id)
@@ -1046,7 +1043,10 @@ class SyncServer(LockingServer):
         return block
 
     def update_block(self, request: UpdateBlock, user_id: str) -> Block:
-        block = Block(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
+        block = self.get_block(request.id)
+        block.limit = request.limit
+        block.value = request.value
+        block.name = request.name
         self.ms.update_block(block=block)
         return block
 
@@ -1059,21 +1059,12 @@ class SyncServer(LockingServer):
         existing_human = self.ms.get_human(human_name=request.name, user_id=user_id)
         if existing_human:  # update
             if update:
-                return self.update_human(UpdateHuman(id=existing_human.id, **vars(request)), user_id)
+                return self.update_block(UpdateHuman(id=existing_human.id, **vars(request)), user_id)
             else:
                 raise ValueError(f"Human with name {request.name} already exists")
         human = Human(**vars(request))
         self.ms.create_human(human=human)
         return human
-
-    def update_human(self, request: UpdateHuman, user_id: str) -> Human:
-        # TODO: FIX THIS (should nto override none)
-        human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
-        self.ms.update_human(human=human)
-        return human
-
-    def delete_human(self, name: str, user_id: str):
-        return self.ms.delete_human(name, user_id)
 
     # convert name->id
 
@@ -1544,7 +1535,6 @@ class SyncServer(LockingServer):
         job.status = JobStatus.completed
         job.metadata_["num_passages"] = num_passages
         job.metadata_["num_documents"] = num_documents
-        print("job completed", job.metadata_, job.id)
         self.ms.update_job(job)
 
         return job
@@ -1779,10 +1769,11 @@ class SyncServer(LockingServer):
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_persona(CreatePersona(name=name, value=text, template=True), user_id=user_id, update=True)
-            print("added", name, user_id)
+            print(f"Creating persona {name}: {text[:50]}...")
+            self.create_persona(CreatePersona(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            self.create_human(CreateHuman(name=name, value=text, template=True), user_id=user_id, update=True)
+            print(f"Creating human {name}: {text[:50]}...")
+            self.create_human(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
