@@ -260,8 +260,6 @@ def create(
         printd("unsetting function_call because functions is None")
         function_call = None
 
-    # print("HELLO")
-
     # openai
     if llm_config.model_endpoint_type == "openai":
 

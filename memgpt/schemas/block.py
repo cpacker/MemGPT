@@ -101,7 +101,7 @@ class UpdateBlock(BaseBlock):
     """Update a block"""
 
     id: str = Field(..., description="The unique identifier of the block.")
-    limit: Optional[int] = Field(None, description="Character limit of the block.")
+    limit: Optional[int] = Field(2000, description="Character limit of the block.")
 
 
 class UpdatePersona(UpdateBlock):

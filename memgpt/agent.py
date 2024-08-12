@@ -218,7 +218,6 @@ class Agent(object):
         self.memory = self.agent_state.memory
         assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
         printd("Initialized memory object", self.memory)
-        print("Initialized memory object", self.memory)
 
         # Interface must implement:
         # - internal_monologue
@@ -1141,14 +1140,11 @@ class Agent(object):
 
         filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
         size = source_connector.size(filters)
-        print(f"Ingesting {size} passages into {self.agent_state.name}")
         page_size = 100
         generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
         all_passages = []
         for i in tqdm(range(0, size, page_size)):
             passages = next(generator)
-
-            print("getting passage", len(passages))
 
             # need to associated passage with agent (for filtering)
             for passage in passages:

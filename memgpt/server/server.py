@@ -34,14 +34,12 @@ from memgpt.data_sources.connectors import DataConnector, load_data
 #    Token,
 #    User,
 # )
-from memgpt.functions.functions import load_function_set, parse_source_code
-from memgpt.functions.schema_generator import generate_schema
+from memgpt.functions.functions import load_function_set
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
-from memgpt.memory import get_memory_functions
 from memgpt.metadata import MetadataStore
 from memgpt.prompts import gpt_system
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
@@ -343,7 +341,6 @@ class SyncServer(LockingServer):
             if not agent_state:
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
-            # print(f"server._load_agent :: load got agent state {agent_id}, messages = {agent_state.state['messages']}")
 
             # Instantiate an agent object using the state retrieved
             logger.info(f"Creating an agent object")
@@ -759,25 +756,6 @@ class SyncServer(LockingServer):
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
-            # make sure memory tools are added
-            # TODO: remove this - eventually memory tools need to be added when the memory is created
-            # this is duplicated with logic on the client-side
-
-            memory_functions = get_memory_functions(request.memory)
-            for func_name, func in memory_functions.items():
-                if func_name in request.tools:
-                    # tool already added
-                    continue
-                source_code = parse_source_code(func)
-                json_schema = generate_schema(func, func_name)
-                source_type = "python"
-                tags = ["memory", "memgpt-base"]
-                tool = self.create_tool(
-                    user_id=user_id, json_schema=json_schema, source_code=source_code, source_type=source_type, tags=tags, exists_ok=True
-                )
-                tool_objs.append(tool)
-                request.tools.append(tool.name)
-
             # TODO: save the agent state
             agent_state = AgentState(
                 name=request.name,
@@ -818,7 +796,6 @@ class SyncServer(LockingServer):
         logger.info(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
-        print("CREATED AGENT", agent.agent_state)
         # return AgentState
         return agent.agent_state
 
@@ -1010,34 +987,33 @@ class SyncServer(LockingServer):
     # TODO: eventually deprecate this to be something more general? (e.g. can have custom labels)
 
     def list_personas(self, user_id: str):
-        return self.ms.list_personas(user_id=user_id)
+        print("LIST PERSONAS")
+        personas = self.get_blocks(user_id=user_id, label="persona")
+        if personas is None:
+            return []
+        return personas
 
     def get_persona(self, name: str, user_id: str):
         return self.ms.get_persona(persona_name=name, user_id=user_id)
 
-    def create_persona(self, request: CreatePersona, user_id: str, update: bool = False) -> Persona:
-        existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
-        print("UDPATE", update)
+    def create_persona(self, request: CreatePersona, update: bool = False) -> Persona:
+        existing_persona = self.ms.get_persona(persona_name=request.name, user_id=request.user_id)
         if existing_persona:  # update
             if update:
-                return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
+                print("UPDATE PERSONA", existing_persona.id, vars(request))
+                return self.update_block(UpdatePersona(id=existing_persona.id, **vars(request)))
             else:
                 raise ValueError(f"Persona with name {request.name} already exists")
         persona = Persona(**vars(request))
+        print("CREATE PERSONA", persona.template)
         self.ms.create_persona(persona=persona)
         return persona
 
-    def update_persona(self, request: UpdatePersona, user_id: str) -> Persona:
-        # TODO: FIX THIS (should nto override none)
-        persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
-        self.ms.update_persona(persona=persona)
-        return persona
-
-    def delete_persona(self, name: str, user_id: str):
-        return self.ms.delete_persona(name, user_id)
-
     def list_humans(self, user_id: str):
-        return self.ms.list_humans(user_id=user_id)
+        human = self.get_blocks(user_id=user_id, label="human", template=True)
+        if human is None:
+            return []
+        return human
 
     def get_human(self, name: str, user_id: str):
         return self.ms.get_human(human_name=name, user_id=user_id)
@@ -1073,8 +1049,11 @@ class SyncServer(LockingServer):
         self.ms.create_block(block)
         return block
 
-    def update_block(self, request: UpdateBlock, user_id: str) -> Block:
-        block = Block(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
+    def update_block(self, request: UpdateBlock) -> Block:
+        block = self.get_block(request.id)
+        block.limit = request.limit if request.limit is not None else block.limit
+        block.value = request.value if request.value is not None else block.value
+        block.name = request.name if request.name is not None else block.name
         self.ms.update_block(block=block)
         return block
 
@@ -1083,30 +1062,24 @@ class SyncServer(LockingServer):
         self.ms.delete_block(block_id)
         return block
 
-    def create_human(self, request: CreateHuman, user_id: str, update: bool = False) -> Human:
-        existing_human = self.ms.get_human(human_name=request.name, user_id=user_id)
+    def create_human(self, request: CreateHuman, update: bool = False) -> Human:
+        existing_human = self.ms.get_human(human_name=request.name, user_id=request.user_id)
         if existing_human:  # update
             if update:
-                return self.update_human(UpdateHuman(id=existing_human.id, **vars(request)), user_id)
+                return self.update_block(UpdateHuman(id=existing_human.id, **vars(request)))
             else:
                 raise ValueError(f"Human with name {request.name} already exists")
         human = Human(**vars(request))
         self.ms.create_human(human=human)
         return human
 
-    def update_human(self, request: UpdateHuman, user_id: str) -> Human:
-        # TODO: FIX THIS (should nto override none)
-        human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
-        self.ms.update_human(human=human)
-        return human
-
-    def delete_human(self, name: str, user_id: str):
-        return self.ms.delete_human(name, user_id)
-
     # convert name->id
 
     def get_agent_id(self, name: str, user_id: str):
-        return self.ms.get_agent(agent_name=name, user_id=user_id)
+        agent_state = self.ms.get_agent(agent_name=name, user_id=user_id)
+        if not agent_state:
+            return None
+        return agent_state.id
 
     def get_source(self, source_id: str, user_id: str) -> Source:
         existing_source = self.ms.get_source(source_id=source_id, user_id=user_id)
@@ -1152,6 +1125,13 @@ class SyncServer(LockingServer):
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return memgpt_agent._messages
+
+    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
+        """Get a single message from the agent's memory"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        return message
 
     def get_agent_messages(self, agent_id: str, start: int, count: int) -> List[Message]:
         """Paginated query of all messages in agent message queue"""
@@ -1206,7 +1186,7 @@ class SyncServer(LockingServer):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(gent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         # iterate over records
         db_iterator = memgpt_agent.persistence_manager.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
@@ -1518,7 +1498,7 @@ class SyncServer(LockingServer):
 
         # delete data from passage store
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        passage_store.delete({"data_source": source.name})
+        passage_store.delete({"source_id": source_id})
 
         # TODO: delete data from agent passage stores (?)
 
@@ -1572,7 +1552,6 @@ class SyncServer(LockingServer):
         job.status = JobStatus.completed
         job.metadata_["num_passages"] = num_passages
         job.metadata_["num_documents"] = num_documents
-        print("job completed", job.metadata_, job.id)
         self.ms.update_job(job)
 
         return job
@@ -1635,7 +1614,7 @@ class SyncServer(LockingServer):
         # TODO: remove all passages coresponding to source from agent's archival memory
         raise NotImplementedError
 
-    def list_attached_sources(self, agent_id: str):
+    def list_attached_sources(self, agent_id: str) -> List[Source]:
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
@@ -1807,13 +1786,14 @@ class SyncServer(LockingServer):
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_persona(CreatePersona(name=name, value=text, template=True), user_id=user_id, update=True)
-            print("added", name, user_id)
+            print(f"Creating persona {name}: {text[:50]}...")
+            self.create_persona(CreatePersona(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            self.create_human(CreateHuman(name=name, value=text, template=True), user_id=user_id, update=True)
+            print(f"Creating human {name}: {text[:50]}...")
+            self.create_human(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
 
     def get_agent_message(self, agent_id: str, message_id: str) -> Message:
         """Get a single message from the agent's memory"""

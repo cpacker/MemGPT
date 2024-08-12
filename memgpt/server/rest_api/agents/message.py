@@ -36,7 +36,6 @@ async def send_message_to_agent(
     return_message_object: bool = True,  # Should be True for Python Client, False for REST API
 ) -> Union[StreamingResponse, MemGPTResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
-
     # TODO: @charles is this the correct way to handle?
     include_final_message = True
 

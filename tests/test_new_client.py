@@ -1,10 +1,8 @@
 import pytest
-from crewai_tools import ScrapeWebsiteTool
 
 from memgpt import create_client
 from memgpt.schemas.block import Block
 from memgpt.schemas.memory import BlockChatMemory, ChatMemory, Memory
-from memgpt.schemas.tool import Tool
 
 
 @pytest.fixture(scope="module")
@@ -264,6 +262,11 @@ def test_tools(client):
 
 def test_tools_from_crewai(client):
     # create crewAI tool
+
+    from crewai_tools import ScrapeWebsiteTool
+
+    from memgpt.schemas.tool import Tool
+
     crewai_tool = ScrapeWebsiteTool()
 
     # Translate to memGPT Tool

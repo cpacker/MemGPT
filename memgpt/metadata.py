@@ -249,7 +249,7 @@ class BlockModel(Base):
     Index(__tablename__ + "_idx_user", user_id),
 
     def __repr__(self) -> str:
-        return f"<Block(id='{self.id}', name='{self.name}')>"
+        return f"<Block(id='{self.id}', name='{self.name}', template='{self.template}', label='{self.label}', user_id='{self.user_id}')>"
 
     def to_record(self) -> Block:
         if self.label == "persona":
@@ -478,6 +478,7 @@ class MetadataStore:
         with self.session_maker() as session:
             if self.get_persona(persona_id=persona.id, user_id=persona.user_id, persona_name=persona.name):
                 raise ValueError(f"Persona with name {persona.name} already exists")
+            assert persona.template, "Persona must be a template"
             session.add(BlockModel(**vars(persona)))
             session.commit()
 
@@ -537,6 +538,7 @@ class MetadataStore:
     @enforce_types
     def update_persona(self, persona: Persona):
         with self.session_maker() as session:
+            assert persona.template, "Persona must be a template"
             session.query(BlockModel).filter(BlockModel.id == persona.id).update(vars(persona))
             session.commit()
 
@@ -731,20 +733,25 @@ class MetadataStore:
             query = session.query(BlockModel).filter(BlockModel.template == template)
 
             if user_id:
-                query.filter(BlockModel.user_id == user_id)
+                query = query.filter(BlockModel.user_id == user_id)
 
             if label:
-                query.filter(BlockModel.label == label)
+                query = query.filter(BlockModel.label == label)
 
             if name:
-                query.filter(BlockModel.name == name)
+                query = query.filter(BlockModel.name == name)
 
             if id:
-                query.filter(BlockModel.id == id)
+                query = query.filter(BlockModel.id == id)
 
             results = query.all()
+
+            print("get blocks", id, user_id, label, template, name, id)
+            print(results)
+            print(session.query(BlockModel).all())
             if len(results) == 0:
                 return None
+
             return [r.to_record() for r in results]
 
     @enforce_types
@@ -775,19 +782,19 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def list_attached_sources(self, agent_id: str) -> List[str]:
+    def list_attached_sources(self, agent_id: str) -> List[Source]:
         with self.session_maker() as session:
             results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
 
-            source_ids = []
+            sources = []
             # make sure source exists
             for r in results:
                 source = self.get_source(source_id=r.source_id)
                 if source:
-                    source_ids.append(r.source_id)
+                    sources.append(source)
                 else:
                     printd(f"Warning: source {r.source_id} does not exist but exists in mapping database. This should never happen.")
-            return source_ids
+            return sources
 
     @enforce_types
     def list_attached_agents(self, source_id: str) -> List[str]:

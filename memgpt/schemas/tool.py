@@ -1,6 +1,5 @@
 from typing import Dict, List, Optional
 
-from crewai_tools import BaseTool as CrewAiBaseTool
 from pydantic import Field
 
 from memgpt.functions.schema_generator import (
@@ -45,17 +44,17 @@ class Tool(BaseTool):
         )
 
     @classmethod
-    def from_crewai(cls, crewai_tool: CrewAiBaseTool) -> "Tool":
+    def from_crewai(cls, crewai_tool) -> "Tool":
         """
         Class method to create an instance of Tool from a crewAI BaseTool object.
 
         Args:
-            crewai_tool (CrewAiBaseTool): An instance of a crewAI BaseTool
+            crewai_tool (CrewAIBaseTool): An instance of a crewAI BaseTool (BaseTool from crewai)
 
         Returns:
             Tool: A memGPT Tool initialized with attributes derived from the provided crewAI BaseTool object.
         """
-        name = crewai_tool.name
+        crewai_tool.name
         description = crewai_tool.description
         source_type = "python"
         tags = ["crew-ai"]

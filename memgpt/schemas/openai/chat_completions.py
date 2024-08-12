@@ -16,14 +16,14 @@ class UserMessage(BaseModel):
 
 
 class ToolCallFunction(BaseModel):
-    name: str
-    arguments: str
+    name: str = Field(..., description="The name of the function to call")
+    arguments: str = Field(..., description="The arguments to pass to the function (JSON dump)")
 
 
 class ToolCall(BaseModel):
-    id: str
-    type: Literal["function"] = "function"
-    function: ToolCallFunction
+    id: str = Field(..., description="The ID of the tool call")
+    type: str = "function"
+    function: ToolCallFunction = Field(..., description="The arguments and name for the function")
 
 
 class AssistantMessage(BaseModel):
