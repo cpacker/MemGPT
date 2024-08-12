@@ -5,7 +5,6 @@ from typing import Dict, List, Optional
 
 import numpy as np
 from sqlalchemy import (
-    BIGINT,
     BINARY,
     JSON,
     Column,
@@ -30,6 +29,7 @@ from tqdm import tqdm
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import MAX_EMBEDDING_DIM
+from memgpt.metadata import EmbeddingConfigColumn
 
 # from memgpt.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from memgpt.schemas.message import Message
@@ -102,7 +102,7 @@ def get_db_model(
             text = Column(String)
             doc_id = Column(String)
             agent_id = Column(String)
-            data_source = Column(String)  # agent_name if agent, data_source name if from data source
+            source_id = Column(String)
 
             # vector storage
             if dialect == "sqlite":
@@ -111,9 +111,8 @@ def get_db_model(
                 from pgvector.sqlalchemy import Vector
 
                 embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
-            embedding_dim = Column(BIGINT)
-            embedding_model = Column(String)
 
+            embedding_config = Column(EmbeddingConfigColumn)
             metadata_ = Column(MutableJson)
 
             # Add a datetime column, with default value as the current time
@@ -128,12 +127,11 @@ def get_db_model(
                 return Passage(
                     text=self.text,
                     embedding=self.embedding,
-                    embedding_dim=self.embedding_dim,
-                    embedding_model=self.embedding_model,
+                    embedding_config=self.embedding_config,
                     doc_id=self.doc_id,
                     user_id=self.user_id,
                     id=self.id,
-                    data_source=self.data_source,
+                    source_id=self.source_id,
                     agent_id=self.agent_id,
                     metadata_=self.metadata_,
                     created_at=self.created_at,
