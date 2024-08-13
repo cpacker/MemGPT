@@ -1,17 +1,14 @@
 import inspect
 import json
 import os
-import uuid
 import pytest
 
-from memgpt.settings import settings
 from memgpt import constants, create_client
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.schemas.message import Message
 from memgpt.utils import assistant_function_to_tool
 
-from tests.mock_factory.models import MockUserFactory
-from tests.utils import create_config, wipe_config
+from tests.mock_factory.models import MockUserFactory, MockTokenFactory
 
 
 def hello_world(self) -> str:
@@ -24,28 +21,24 @@ def hello_world(self) -> str:
 
 
 @pytest.fixture(scope="module")
-def agent():
+def agent(request, db_session, test_app):
     """Create a test agent that we can call functions on"""
-    wipe_config()
-    global client
-    if os.getenv("OPENAI_API_KEY"):
-        create_config("openai")
-    else:
-        create_config("memgpt_hosted")
+    requesting_user = MockUserFactory(db_session=db_session, organization_id=org.id).generate()
+    api_token = MockTokenFactory(db_session=db_session, user_id=requesting_user.id).generate()
+    token = api_token.api_key
+    client_args = {
+        "base_url": "http://test",
+        "token": token,
+        "debug": True,
+        "app": test_app
+    }
 
     # create memgpt client
-    client = create_client()
+    client = create_client(**client_args)
+    
+    agent_state = client.create_agent()
 
-    # ensure user exists
-    user_id = uuid.UUID(TEST_MEMGPT_CONFIG.anon_clientid)
-    if not client.server.get_user(user_id=user_id):
-        client.server.create_user({"id": user_id})
-
-    agent_state = client.create_agent(
-        preset=settings.preset,
-    )
-
-    return client.server._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+    return client.server._get_or_load_agent(user_id=requesting_user.id, agent_id=agent_state.id)
 
 
 @pytest.fixture(scope="module")

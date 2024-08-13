@@ -1,7 +1,7 @@
 import pytest
 
 from memgpt.settings import settings
-import memgpt.functions.function_sets.base as base_functions
+import memgpt.seeds.function_sets.base as base_functions
 from memgpt import create_client
 client = None
 
