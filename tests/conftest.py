@@ -12,6 +12,8 @@ from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.app import app
 
+from tests.mock_factory import UserFactory, AgentFactory
+
 
 if TYPE_CHECKING:
     from sqlalchemy import Session
@@ -72,3 +74,14 @@ def test_app(server):
     """a per-test-function db scoped version of the rest api app"""
     app.dependency_overrides[get_memgpt_server] = lambda : server
     return app
+
+@pytest.fixture
+def user_and_agent_seed(db_session) -> :
+    """ seed a single user and an Agent for that user
+    """
+    user = UserFactory()
+    agent = AgentFactory(user=user)
+    db_session.add(user)
+    db_session.add(agent)
+    db_session.commit()
+    return user, agent

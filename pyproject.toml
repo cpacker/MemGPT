@@ -79,6 +79,7 @@ ollama = ["llama-index-embeddings-ollama"]
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
 faker = "^25.8.0"
+pytest-it = "^0.1.5"
 
 [tool.black]
 line-length = 140
