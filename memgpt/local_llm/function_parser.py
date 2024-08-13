@@ -1,8 +1,7 @@
 import copy
 import json
 
-from memgpt.constants import
-
+from memgpt.utils import json_dumps, json_loads
 NO_HEARTBEAT_FUNCS = ["send_message", "pause_heartbeats"]
 
 

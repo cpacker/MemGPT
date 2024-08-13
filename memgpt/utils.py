@@ -31,7 +31,6 @@ from memgpt.constants import (
     MEMGPT_DIR,
     TOOL_CALL_ID_MAX_LEN,
 )
-from memgpt.openai_backcompat.openai_object import OpenAIObject
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
 
 DEBUG = False
@@ -780,6 +779,7 @@ def open_folder_in_explorer(folder_path):
 class OpenAIBackcompatUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
         if module == "openai.openai_object":
+            from memgpt.openai_backcompat.openai_object import OpenAIObject
             return OpenAIObject
         return super().find_class(module, name)
 

@@ -16,11 +16,11 @@ from fastapi import HTTPException
 import memgpt.constants as constants
 import memgpt.server.utils as server_utils
 import memgpt.system as system
+from memgpt.utils import json_dumps, json_loads
 from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
-from memgpt.constants import
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
 

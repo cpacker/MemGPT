@@ -1,11 +1,11 @@
 """Key idea: create drop-in replacement for agent's ChatCompletion call that runs on an OpenLLM backend"""
 
-import json
 import uuid
 
 import requests
 
-from memgpt.constants import CLI_WARNING_PREFIX,
+from memgpt.utils import json_dumps
+from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.local_llm.constants import DEFAULT_WRAPPER
 from memgpt.local_llm.function_parser import patch_function

@@ -5,7 +5,6 @@ from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest, Tool
 from memgpt.schemas.openai.chat_completion_response import (

@@ -9,7 +9,7 @@ from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import CLI_WARNING_PREFIX,
+from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.credentials import MemGPTCredentials
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
 from memgpt.llm_api.azure_openai import (
