@@ -1,15 +1,40 @@
-from pytest import mark as m, fixture
+from pytest import mark as m
 from tests.mock_factory.models import (
     MockUserFactory,
     MockOrganizationFactory,
     MockTokenFactory,
+    MockAgentFactory,
+    MockToolFactory,
 )
-from memgpt.orm.organization import Organization
 
 
-class TestORMBases:
-    """eyeball unit tests of accessors, id logic etc"""
+@m.describe("When performing basic interactions with models")
+class TestORM:
+    @m.context("and reading a model")
+    @m.it("should return the model")
+    @m.parametrize(
+        "mockModel",
+        [
+            MockUserFactory,
+            MockOrganizationFactory,
+            MockTokenFactory,
+            MockAgentFactory,
+            MockToolFactory,
+        ]
+    )
+    def test_read_models(self, mockModel, db_session):
+        model = mockModel(db_session=db_session).generate()
+        match mockModel.__model__.__name__:
+            case "Tool":
+                obj = mockModel.__model__.read(db_session=db_session, name=model.name)
+            case _:
+                obj = mockModel.__model__.read(db_session=db_session, identifier=str(model._id))
 
+        assert obj.id == model.id
+
+
+    @m.context("and creating a User model")
+    @m.it("should have the correct prefixes")
     def test_prefixed_ids(self, db_session):
 
         user = MockUserFactory(db_session=db_session).generate()
@@ -21,20 +46,3 @@ class TestORMBases:
             session.add(user)
             assert user.organization.id.startswith('organization-'), "Organization id is prefixed incorrectly"
             assert str(user.organization._id) in user.organization.id, "Organization id is not using the correct uuid"
-
-
-@m.describe("When performing basic interactions with models")
-class TestORMCRUD:
-    @m.context("and reading a model")
-    @m.it("should return the model")
-    @fixture(
-        params=[{"model": MockUserFactory},
-                {"model": MockOrganizationFactory},
-                {"model": MockTokenFactory}
-                ],
-    )
-    def test_read(self, request, db_session):
-        mockModel = request.param["model"]
-        model = mockModel(db_session=db_session).generate()
-        obj = mockModel.__model__.read(model.id, db_session)
-        assert obj.id == model.id

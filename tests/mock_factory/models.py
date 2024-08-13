@@ -59,7 +59,7 @@ class MockUserFactory(BaseMockFactory):
 
     def generate(self) -> "Any":
         if "organization_id" not in self.model_dict:
-            org = MockOrganizationFactory(self.db_session).generate()
+            org = MockOrganizationFactory(db_session=self.db_session).generate()
             self.model_dict["organization_id"] = org.id
 
         return super().generate()
@@ -71,6 +71,13 @@ class MockAgentFactory(BaseMockFactory):
     def __init__(self, db_session: "Session", **kwargs):
         self.default_dict = {
             "name": faker.name(),
+            "persona": faker.paragraph(nb_sentences=5),
+            "human": faker.paragraph(nb_sentences=5),
+            "preset": faker.paragraph(nb_sentences=5),
+            "state": {},
+            "_metadata": {},
+            "llm_config": {},
+            "embedding_config": {},
         }
         super().__init__(db_session, **kwargs)
 
@@ -78,9 +85,6 @@ class MockAgentFactory(BaseMockFactory):
         if "organization_id" not in self.model_dict:
             org = MockOrganizationFactory(self.db_session).generate()
             self.model_dict["organization_id"] = org.id
-        if "user_id" not in self.model_dict:
-            user = MockUserFactory(model_dict=self.model_dict, db_session=self.db_session).generate()
-            self.model_dict["user_id"] = user.id
 
         return super().generate()
 
@@ -93,12 +97,13 @@ class MockToolFactory(BaseMockFactory):
             "name": "Python Tool",
             "source_type": "python",
             "source_code": "print('Hello World')",
+            "tags": ["test"],
         }
         super().__init__(db_session, **kwargs)
 
     def generate(self) -> "Any":
         if "organization_id" not in self.model_dict:
-            org = MockOrganizationFactory(self.db_session).generate()
+            org = MockOrganizationFactory(db_session=self.db_session).generate()
             self.model_dict["organization_id"] = org.id
 
         return super().generate()
@@ -117,10 +122,10 @@ class MockSourceFactory(BaseMockFactory):
 
     def generate(self) -> "Any":
         if "organization_id" not in self.model_dict:
-            org = MockOrganizationFactory(self.db_session).generate()
+            org = MockOrganizationFactory(db_session=self.db_session).generate()
             self.model_dict["organization_id"] = org.id
         if "agent_id" not in self.model_dict:
-            agent = MockAgentFactory(self.db_session).generate()
+            agent = MockAgentFactory(organization_id=self.model_dict["organization_id"], db_session=self.db_session).generate()
             self.model_dict["agent_id"] = agent.id
 
         return super().generate()
@@ -138,7 +143,7 @@ class MockTokenFactory(BaseMockFactory):
 
     def generate(self) -> "Any":
         if "user_id" not in self.model_dict:
-            user = MockUserFactory(model_dict=self.model_dict, db_session=self.db_session).generate()
+            user = MockUserFactory(db_session=self.db_session).generate()
             self.model_dict["user_id"] = user.id
 
         return super().generate()
