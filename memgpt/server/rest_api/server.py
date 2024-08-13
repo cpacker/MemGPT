@@ -140,7 +140,8 @@ def on_startup():
 @app.on_event("shutdown")
 def on_shutdown():
     global server
-    server.save_agents()
+    if server:
+        server.save_agents()
     server = None
 
 
