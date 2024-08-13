@@ -371,7 +371,10 @@ def openai_chat_completions_request(
     url = smart_urljoin(url, "chat/completions")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     data = chat_completion_request.model_dump(exclude_none=True)
-    data["parallel_tool_calls"] = False
+
+    # add check otherwise will cause error: "Invalid value for 'parallel_tool_calls': 'parallel_tool_calls' is only allowed when 'tools' are specified."
+    if chat_completion_request.tools is not None:
+        data["parallel_tool_calls"] = False
 
     printd("Request:\n", json.dumps(data, indent=2))
 
