@@ -428,6 +428,10 @@ class SyncServer(LockingServer):
                 counter += 1
                 memgpt_agent.interface.step_complete()
 
+                logger.debug("Saving agent state")
+                # save updated state
+                save_agent(memgpt_agent, self.ms)
+
                 # Chain stops
                 if not self.chaining:
                     logger.debug("No chaining, stopping after one step")
@@ -456,10 +460,6 @@ class SyncServer(LockingServer):
         finally:
             logger.debug("Calling step_yield()")
             memgpt_agent.interface.step_yield()
-
-        logger.debug("Saving agent state")
-        # save updated state
-        save_agent(memgpt_agent, self.ms)
 
         return MemGPTUsageStatistics(**total_usage.dict(), step_count=step_count)
 

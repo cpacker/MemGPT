@@ -1204,6 +1204,8 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
     NOTE: we are assuming agent.update_state has already been called.
     """
 
+    print("SAVE AGENT MEMORY", agent.agent_state.memory.to_dict().values())
+
     for block_dict in agent.memory.to_dict().values():
         # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
         if block_dict.get("user_id", None) is None:
