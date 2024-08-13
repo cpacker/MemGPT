@@ -234,6 +234,8 @@ class SyncServer(LockingServer):
         # Initialize the connection to the DB
         try:
             self.config = MemGPTConfig.load()
+            assert self.config.default_llm_config is not None, "default_llm_config must be set in the config"
+            assert self.config.default_embedding_config is not None, "default_embedding_config must be set in the config"
         except Exception as e:
             # TODO: very hacky - need to improve model config for docker container
             if os.getenv("OPENAI_API_KEY") is None:

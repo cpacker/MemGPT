@@ -192,8 +192,8 @@ class MemGPTConfig:
 
             return cls(**config_dict)
 
-        assert embedding_config is not None, "Embedding config must be provided if config does not exist"
-        assert llm_config is not None, "LLM config must be provided if config does not exist"
+        # assert embedding_config is not None, "Embedding config must be provided if config does not exist"
+        # assert llm_config is not None, "LLM config must be provided if config does not exist"
 
         # create new config
         anon_clientid = MemGPTConfig.generate_uuid()
