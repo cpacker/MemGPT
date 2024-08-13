@@ -4,7 +4,7 @@ from typing import List, Optional
 
 import requests
 
-from memgpt.constants import JSON_ENSURE_ASCII, NON_USER_MSG_PREFIX
+from memgpt.constants import  NON_USER_MSG_PREFIX
 from memgpt.local_llm.json_parser import clean_json_string_extra_backslash
 from memgpt.local_llm.utils import count_tokens
 from memgpt.schemas.openai.chat_completion_request import Tool
@@ -308,7 +308,7 @@ def convert_google_ai_response_to_chatcompletion(
                             type="function",
                             function=FunctionCall(
                                 name=function_name,
-                                arguments=clean_json_string_extra_backslash(json.dumps(function_args, ensure_ascii=JSON_ENSURE_ASCII)),
+                                arguments=clean_json_string_extra_backslash(json_dumps(function_args)),
                             ),
                         )
                     ],
@@ -373,10 +373,10 @@ def convert_google_ai_response_to_chatcompletion(
             # Count it ourselves
             assert input_messages is not None, f"Didn't get UsageMetadata from the API response, so input_messages is required"
             prompt_tokens = count_tokens(
-                json.dumps(input_messages, ensure_ascii=JSON_ENSURE_ASCII)
+                json_dumps(input_messages)
             )  # NOTE: this is a very rough approximation
             completion_tokens = count_tokens(
-                json.dumps(openai_response_message.model_dump(), ensure_ascii=JSON_ENSURE_ASCII)
+                json_dumps(openai_response_message.model_dump())
             )  # NOTE: this is also approximate
             total_tokens = prompt_tokens + completion_tokens
             usage = UsageStatistics(

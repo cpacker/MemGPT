@@ -1,6 +1,6 @@
 import json
 
-from memgpt.constants import JSON_ENSURE_ASCII
+from memgpt.constants import
 
 # Server -> client
 
@@ -12,7 +12,7 @@ def server_error(msg):
             "type": "server_error",
             "message": msg,
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )
 
 
@@ -22,7 +22,7 @@ def server_command_response(status):
             "type": "command_response",
             "status": status,
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )
 
 
@@ -32,7 +32,7 @@ def server_agent_response_error(msg):
             "type": "agent_response_error",
             "message": msg,
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )
 
 
@@ -41,7 +41,7 @@ def server_agent_response_start():
         {
             "type": "agent_response_start",
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )
 
 
@@ -50,7 +50,7 @@ def server_agent_response_end():
         {
             "type": "agent_response_end",
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )
 
 
@@ -61,7 +61,7 @@ def server_agent_internal_monologue(msg):
             "message_type": "internal_monologue",
             "message": msg,
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )
 
 
@@ -72,7 +72,7 @@ def server_agent_assistant_message(msg):
             "message_type": "assistant_message",
             "message": msg,
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )
 
 
@@ -83,7 +83,7 @@ def server_agent_function_message(msg):
             "message_type": "function_message",
             "message": msg,
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )
 
 
@@ -97,7 +97,7 @@ def client_user_message(msg, agent_id=None):
             "message": msg,
             "agent_id": agent_id,
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )
 
 
@@ -108,5 +108,5 @@ def client_command_create(config):
             "command": "create_agent",
             "config": config,
         },
-        ensure_ascii=JSON_ENSURE_ASCII,
+        ensure_ascii=
     )

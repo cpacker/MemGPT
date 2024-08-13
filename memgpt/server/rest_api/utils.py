@@ -4,7 +4,7 @@ import traceback
 from typing import AsyncGenerator, Generator, Union
 from sqlalchemy import select
 
-from memgpt.constants import JSON_ENSURE_ASCII
+from memgpt.constants import
 from memgpt.orm.utilities import get_db_session
 from memgpt.orm.user import User
 from memgpt.server.server import SyncServer
@@ -17,7 +17,7 @@ SSE_ARTIFICIAL_DELAY = 0.1
 def sse_formatter(data: Union[dict, str]) -> str:
     """Prefix with 'data: ', and always include double newlines"""
     assert type(data) in [dict, str], f"Expected type dict or str, got type {type(data)}"
-    data_str = json.dumps(data, ensure_ascii=JSON_ENSURE_ASCII) if isinstance(data, dict) else data
+    data_str = json_dumps(data) if isinstance(data, dict) else data
     return f"data: {data_str}\n\n"
 
 

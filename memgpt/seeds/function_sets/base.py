@@ -5,7 +5,7 @@ from typing import Optional
 
 from memgpt.agent import Agent
 from memgpt.constants import (
-    JSON_ENSURE_ASCII,
+
     MAX_PAUSE_HEARTBEATS,
     RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE,
 )
@@ -81,7 +81,7 @@ def conversation_search(self: Agent, query: str, page: Optional[int] = 0) -> Opt
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
+        results_str = f"{results_pref} {json_dumps(results_formatted)}"
     return results_str
 
 
@@ -111,7 +111,7 @@ def conversation_search_date(self: Agent, start_date: str, end_date: str, page: 
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
+        results_str = f"{results_pref} {json_dumps(results_formatted)}"
     return results_str
 
 
@@ -154,5 +154,5 @@ def archival_memory_search(self: Agent, query: str, page: Optional[int] = 0) -> 
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
+        results_str = f"{results_pref} {json_dumps(results_formatted)}"
     return results_str

@@ -1,7 +1,7 @@
 import json
 
 import memgpt.system as system
-from memgpt.constants import JSON_ENSURE_ASCII
+from memgpt.constants import
 from memgpt.local_llm.function_parser import patch_function
 
 EXAMPLE_FUNCTION_CALL_SEND_MESSAGE = {
@@ -32,7 +32,7 @@ EXAMPLE_FUNCTION_CALL_CORE_MEMORY_APPEND_MISSING = {
         "content": "I'll append to memory.",
         "function_call": {
             "name": "core_memory_append",
-            "arguments": json.dumps({"content": "new_stuff"}, ensure_ascii=JSON_ENSURE_ASCII),
+            "arguments": json_dumps({"content": "new_stuff"}),
         },
     },
 }

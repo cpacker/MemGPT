@@ -5,7 +5,7 @@ from copy import deepcopy
 from enum import Enum
 from typing import Optional, Tuple, Union
 
-from memgpt.constants import JSON_ENSURE_ASCII
+from memgpt.constants import
 
 # import openai
 
@@ -342,7 +342,7 @@ class OpenAIObject(dict):
 
     def __str__(self):
         obj = self.to_dict_recursive()
-        return json.dumps(obj, sort_keys=True, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
+        return json_dumps(obj, sort_keys=True, indent=2)
 
     def to_dict(self):
         return dict(self)

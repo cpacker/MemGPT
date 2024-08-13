@@ -6,8 +6,8 @@ from typing import Optional
 import requests
 
 from memgpt.constants import (
-    JSON_ENSURE_ASCII,
-    JSON_LOADS_STRICT,
+
+
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
 )
@@ -123,10 +123,10 @@ def http_request(self, method: str, url: str, payload_json: Optional[str] = None
         else:
             # Validate and convert the payload for other types of requests
             if payload_json:
-                payload = json.loads(payload_json, strict=JSON_LOADS_STRICT)
+                payload = json_loads(payload_json)
             else:
                 payload = {}
-            print(f"[HTTP] launching {method} request to {url}, payload=\n{json.dumps(payload, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}")
+            print(f"[HTTP] launching {method} request to {url}, payload=\n{json_dumps(payload, indent=2)}")
             response = requests.request(method, url, json=payload, headers=headers)
 
         return {"status_code": response.status_code, "headers": dict(response.headers), "body": response.text}

@@ -77,7 +77,7 @@ def test_add_function_happy(agent, hello_world_function, ai_function_call):
     assert "hello_world" in agent.functions_python.keys()
 
     msgs, heartbeat_req, function_failed = agent._handle_ai_response(ai_function_call)
-    content = json.loads(msgs[-1].to_openai_dict()["content"], strict=constants.JSON_LOADS_STRICT)
+    content = json.loads(msgs[-1].to_openai_dict()["content"], strict=constants.)
     assert content["message"] == "hello, world!"
     assert content["status"] == "OK"
     assert not function_failed

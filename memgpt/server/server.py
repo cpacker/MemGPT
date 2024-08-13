@@ -18,7 +18,7 @@ from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
-from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
+from memgpt.constants import
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
 from memgpt.orm.user import User as SQLUser
@@ -439,10 +439,10 @@ class SyncServer(Server):
                 for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                     if memgpt_agent.messages[x].get("role") == "assistant":
                         text = command[len("rewrite ") :].strip()
-                        args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"), strict=JSON_LOADS_STRICT)
+                        args = json_loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
                         args["message"] = text
                         memgpt_agent.messages[x].get("function_call").update(
-                            {"arguments": json.dumps(args, ensure_ascii=JSON_ENSURE_ASCII)}
+                            {"arguments": json_dumps(args)}
                         )
                         break
 
