@@ -624,6 +624,13 @@ class MetadataStore:
             return [r.to_record() for r in results]
 
     @enforce_types
+    def list_all_agents(self) -> List[AgentState]:
+        with self.session_maker() as session:
+            results = session.query(AgentModel).all()
+
+            return [r.to_record() for r in results]
+
+    @enforce_types
     def list_sources(self, user_id: uuid.UUID) -> List[Source]:
         with self.session_maker() as session:
             results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()

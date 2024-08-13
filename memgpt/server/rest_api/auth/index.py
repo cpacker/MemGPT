@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter
@@ -13,6 +14,7 @@ router = APIRouter()
 
 class AuthResponse(BaseModel):
     uuid: UUID = Field(..., description="UUID of the user")
+    is_admin: Optional[bool] = Field(None, description="Whether the user is an admin")
 
 
 class AuthRequest(BaseModel):
@@ -29,10 +31,13 @@ def setup_auth_router(server: SyncServer, interface: QueuingInterface, password:
         Currently, this is a placeholder that simply returns a UUID placeholder
         """
         interface.clear()
+
+        is_admin = False
         if request.password != password:
             response = server.api_key_to_user(api_key=request.password)
         else:
+            is_admin = True
             response = server.authenticate_user()
-        return AuthResponse(uuid=response)
+        return AuthResponse(uuid=response, is_admin=is_admin)
 
     return router

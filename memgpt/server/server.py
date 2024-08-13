@@ -883,13 +883,18 @@ class SyncServer(LockingServer):
     # TODO make return type pydantic
     def list_agents_legacy(
         self,
-        user_id: uuid.UUID,
+        user_id: Optional[uuid.UUID] = None,
     ) -> dict:
         """List all available agents to a user"""
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
 
-        agents_states = self.ms.list_agents(user_id=user_id)
+        if user_id is None:
+            agents_states = self.ms.list_all_agents()
+        else:
+            if self.ms.get_user(user_id=user_id) is None:
+                raise ValueError(f"User user_id={user_id} does not exist")
+
+            agents_states = self.ms.list_agents(user_id=user_id)
+
         agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
 
         # TODO add a get_message_obj_from_message_id(...) function
@@ -900,7 +905,7 @@ class SyncServer(LockingServer):
         for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
             # Get the agent object (loaded in memory)
-            memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
+            memgpt_agent = self._get_or_load_agent(user_id=agent_state.user_id, agent_id=agent_state.id)
 
             # TODO remove this eventually when return type get pydanticfied
             # this is to add persona_name and human_name so that the columns in UI can populate
@@ -918,7 +923,7 @@ class SyncServer(LockingServer):
             # get tool info from agent state
             tools = []
             for tool_name in agent_state.tools:
-                tool = self.ms.get_tool(tool_name, user_id)
+                tool = self.ms.get_tool(tool_name, agent_state.user_id)
                 tools.append(tool)
             return_dict["tools"] = tools
 
