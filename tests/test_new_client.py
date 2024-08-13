@@ -117,7 +117,7 @@ def test_agent_with_shared_blocks(client):
     existing_non_template_blocks_no_values = []
     for block in existing_non_template_blocks:
         block_copy = block.copy()
-        block_copy.value = None
+        block_copy.value = ""
         existing_non_template_blocks_no_values.append(block_copy)
 
     # create agent
