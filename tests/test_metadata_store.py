@@ -5,7 +5,6 @@ from memgpt.settings import settings
 from memgpt.data_types import AgentState, LLMConfig, Source, User
 from memgpt.metadata import MetadataStore
 from memgpt.schemas.block import Human, Persona
-from memgpt.presets.presets import add_default_presets
 from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 from tests import TEST_MEMGPT_CONFIG
@@ -65,8 +64,6 @@ def test_storage(storage_connector):
     # test agent_state saving
     agent_state = ms.get_agent(agent_1.id).state
     assert agent_state == {}, agent_state  # when created via create_agent, it should be empty
-
-    from memgpt.presets.presets import add_default_presets
 
     add_default_presets(user_1.id, ms)
     preset_obj = ms.get_preset(name=settings.preset, user_id=user_1.id)

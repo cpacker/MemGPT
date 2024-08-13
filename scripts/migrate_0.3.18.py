@@ -7,7 +7,6 @@ from memgpt import create_client
 from memgpt.config import MemGPTConfig
 from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.metadata import MetadataStore
-from memgpt.presets.presets import add_default_tools
 from memgpt.prompts import gpt_system
 
 # Replace this with your actual database connection URL

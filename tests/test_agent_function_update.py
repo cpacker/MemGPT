@@ -3,7 +3,8 @@ import json
 import os
 import pytest
 
-from memgpt import constants, create_client
+from memgpt import create_client
+from memgpt.utils import json_loads
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.schemas.message import Message
 from memgpt.utils import assistant_function_to_tool
@@ -35,7 +36,7 @@ def agent(request, db_session, test_app):
 
     # create memgpt client
     client = create_client(**client_args)
-    
+
     agent_state = client.create_agent()
 
     return client.server._get_or_load_agent(user_id=requesting_user.id, agent_id=agent_state.id)
@@ -70,7 +71,7 @@ def test_add_function_happy(agent, hello_world_function, ai_function_call):
     assert "hello_world" in agent.functions_python.keys()
 
     msgs, heartbeat_req, function_failed = agent._handle_ai_response(ai_function_call)
-    content = json.loads(msgs[-1].to_openai_dict()["content"], strict=constants.)
+    content = json_loads(msgs[-1].to_openai_dict()["content"])
     assert content["message"] == "hello, world!"
     assert content["status"] == "OK"
     assert not function_failed

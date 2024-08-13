@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-import memgpt.presets.presets as presets
 import memgpt.system as system
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_types import AgentState

@@ -8,7 +8,6 @@ from memgpt.embeddings import embedding_model
 from memgpt.llm_api.llm_api_tools import create
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
-from memgpt.presets.presets import load_module_tools
 from memgpt.prompts import gpt_system
 
 messages = [Message(role="system", text=gpt_system.get_system_text("memgpt_chat")), Message(role="user", text="How are you?")]

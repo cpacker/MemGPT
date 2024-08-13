@@ -5,7 +5,6 @@ from sqlalchemy import DDL, MetaData, Table, create_engine, update
 from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS
 from memgpt.metadata import MetadataStore
-from memgpt.presets.presets import add_default_tools
 from memgpt.prompts import gpt_system
 
 # Replace this with your actual database connection URL
