@@ -617,8 +617,8 @@ def run(
 
         # create agent
         client = create_client()
-        human_obj = client.get_human(name=human)
-        persona_obj = client.get_persona(name=persona)
+        human_obj = client.get_human(client.get_human_id(name=human))
+        persona_obj = client.get_persona(client.get_persona_id(name=persona))
         if human_obj is None:
             typer.secho(f"Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
             sys.exit(1)

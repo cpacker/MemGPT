@@ -14,7 +14,6 @@ from starlette.middleware.cors import CORSMiddleware
 from memgpt.server.constants import REST_DEFAULT_PORT
 from memgpt.server.rest_api.admin.tools import setup_tools_index_router
 from memgpt.server.rest_api.admin.users import setup_admin_router
-from memgpt.server.rest_api.agents.command import setup_agents_command_router
 from memgpt.server.rest_api.agents.index import setup_agents_index_router
 from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
 from memgpt.server.rest_api.agents.message import setup_agents_message_router
@@ -87,7 +86,6 @@ app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, d
 app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
 
 # /api/agents endpoints
-app.include_router(setup_agents_command_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
