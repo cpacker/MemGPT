@@ -154,8 +154,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         Retrieve message history for an agent.
         """
         interface.clear()
-        [_, messages] = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, before=before, limit=limit, reverse=True)
-        return messages
+        return server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, before=before, limit=limit, reverse=True)
 
     @router.post("/agents/{agent_id}/messages", tags=["agents"], response_model=MemGPTResponse)
     async def send_message(

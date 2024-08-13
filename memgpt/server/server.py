@@ -49,11 +49,7 @@ from memgpt.schemas.block import (
     CreateBlock,
     CreateHuman,
     CreatePersona,
-    Human,
-    Persona,
     UpdateBlock,
-    UpdateHuman,
-    UpdatePersona,
 )
 from memgpt.schemas.document import Document
 from memgpt.schemas.embedding_config import EmbeddingConfig
@@ -459,7 +455,7 @@ class SyncServer(LockingServer):
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
-        usage = MemGPTUsageStatistics()  # by default, no usage
+        usage = None
 
         if command.lower() == "exit":
             # exit not supported on server.py
@@ -565,6 +561,9 @@ class SyncServer(LockingServer):
         elif command.lower() == "memorywarning":
             input_message = system.get_token_limit_warning()
             usage = self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+
+        if not usage:
+            usage = MemGPTUsageStatistics()
 
         return usage
 
@@ -983,40 +982,7 @@ class SyncServer(LockingServer):
             "agents": agents_states_dicts,
         }
 
-    # human / personas
-    # TODO: eventually deprecate this to be something more general? (e.g. can have custom labels)
-
-    def list_personas(self, user_id: str):
-        print("LIST PERSONAS")
-        personas = self.get_blocks(user_id=user_id, label="persona")
-        if personas is None:
-            return []
-        return personas
-
-    def get_persona(self, name: str, user_id: str):
-        return self.ms.get_persona(persona_name=name, user_id=user_id)
-
-    def create_persona(self, request: CreatePersona, update: bool = False) -> Persona:
-        existing_persona = self.ms.get_persona(persona_name=request.name, user_id=request.user_id)
-        if existing_persona:  # update
-            if update:
-                print("UPDATE PERSONA", existing_persona.id, vars(request))
-                return self.update_block(UpdatePersona(id=existing_persona.id, **vars(request)))
-            else:
-                raise ValueError(f"Persona with name {request.name} already exists")
-        persona = Persona(**vars(request))
-        print("CREATE PERSONA", persona.template)
-        self.ms.create_persona(persona=persona)
-        return persona
-
-    def list_humans(self, user_id: str):
-        human = self.get_blocks(user_id=user_id, label="human", template=True)
-        if human is None:
-            return []
-        return human
-
-    def get_human(self, name: str, user_id: str):
-        return self.ms.get_human(human_name=name, user_id=user_id)
+    # blocks
 
     def get_blocks(
         self,
@@ -1026,9 +992,11 @@ class SyncServer(LockingServer):
         name: Optional[str] = None,
         id: Optional[str] = None,
     ):
+
         return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
 
     def get_block(self, block_id: str):
+
         blocks = self.get_blocks(id=block_id)
         if blocks is None or len(blocks) == 0:
             return None
@@ -1061,17 +1029,6 @@ class SyncServer(LockingServer):
         block = self.get_block(block_id)
         self.ms.delete_block(block_id)
         return block
-
-    def create_human(self, request: CreateHuman, update: bool = False) -> Human:
-        existing_human = self.ms.get_human(human_name=request.name, user_id=request.user_id)
-        if existing_human:  # update
-            if update:
-                return self.update_block(UpdateHuman(id=existing_human.id, **vars(request)))
-            else:
-                raise ValueError(f"Human with name {request.name} already exists")
-        human = Human(**vars(request))
-        self.ms.create_human(human=human)
-        return human
 
     # convert name->id
 
@@ -1786,14 +1743,12 @@ class SyncServer(LockingServer):
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            print(f"Creating persona {name}: {text[:50]}...")
-            self.create_persona(CreatePersona(user_id=user_id, name=name, value=text, template=True), update=True)
+            self.create_block(CreatePersona(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            print(f"Creating human {name}: {text[:50]}...")
-            self.create_human(CreateHuman(user_id=user_id, name=name, value=text, template=True), update=True)
+            self.create_block(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
 
     def get_agent_message(self, agent_id: str, message_id: str) -> Message:
         """Get a single message from the agent's memory"""

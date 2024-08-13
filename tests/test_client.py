@@ -39,8 +39,7 @@ def run_server():
 
 # Fixture to create clients with different configurations
 @pytest.fixture(
-    # params=[{"server": True}, {"server": False}],  # whether to use REST API server
-    params=[{"server": True}],  # whether to use REST API server
+    params=[{"server": True}, {"server": False}],  # whether to use REST API server
     scope="module",
 )
 def client(request):
@@ -60,14 +59,12 @@ def client(request):
         admin = Admin(server_url, test_server_token)
         user = admin.create_user()  # Adjust as per your client's method
         api_key = admin.create_key(user.id)
+        client = create_client(base_url=server_url, token=api_key.key)  # This yields control back to the test function
     else:
         # use local client (no server)
-        assert False, "Local client not implemented"
         server_url = None
+        client = create_client()
 
-    assert server_url is not None
-    assert api_key.key is not None
-    client = create_client(base_url=server_url, token=api_key.key)  # This yields control back to the test function
     try:
         yield client
     finally:
@@ -132,14 +129,7 @@ def test_agent_interactions(client, agent):
     assert isinstance(response.messages[0], Message)
     print(response.messages)
 
-    command = "/memory"
-    response = client.run_command(agent_id=agent.id, command=command)
-    assert isinstance(response.usage, MemGPTUsageStatistics)
-    assert response.usage.step_count == 0
-    assert response.usage.total_tokens == 0
-    assert response.usage.completion_tokens == 0
-    assert isinstance(response.messages[0], Message)
-    print(response.messages)
+    # TODO: add streaming tests
 
 
 def test_archival_memory(client, agent):
@@ -183,7 +173,7 @@ def test_messages(client, agent):
     assert send_message_response, "Sending message failed"
 
     messages_response = client.get_messages(agent_id=agent.id, limit=1)
-    assert len(messages_response.messages) > 0, "Retrieving messages failed"
+    assert len(messages_response) > 0, "Retrieving messages failed"
 
 
 def test_humans_personas(client, agent):
@@ -197,7 +187,7 @@ def test_humans_personas(client, agent):
 
     persona_name = "TestPersona"
     persona_id = client.get_persona_id(persona_name)
-    if client.get_persona(persona_id):
+    if persona_id:
         client.delete_persona(persona_id)
     persona = client.create_persona(name=persona_name, text="Persona text")
     assert persona.name == persona_name
@@ -205,7 +195,7 @@ def test_humans_personas(client, agent):
 
     human_name = "TestHuman"
     human_id = client.get_human_id(human_name)
-    if client.get_human(human_id):
+    if human_id:
         client.delete_human(human_id)
     human = client.create_human(name=human_name, text="Human text")
     assert human.name == human_name
@@ -226,6 +216,9 @@ def test_config(client, agent):
 
     models_response = client.list_models()
     print("MODELS", models_response)
+
+    embeddings_response = client.list_embedding_models()
+    print("EMBEDDINGS", embeddings_response)
 
     # TODO: add back
     # config_response = client.get_config()

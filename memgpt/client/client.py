@@ -107,9 +107,6 @@ class AbstractClient(object):
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         raise NotImplementedError
 
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        raise NotImplementedError
-
     def save(self):
         raise NotImplementedError
 
@@ -380,10 +377,6 @@ class RESTClient(AbstractClient):
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         return self.send_message(agent_id, message, role="user")
 
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        response = requests.post(f"{self.base_url}/api/agents/{str(agent_id)}/command", json={"command": command}, headers=self.headers)
-        # return CommandResponse(**response.json())
-
     def save(self):
         raise NotImplementedError
 
@@ -418,15 +411,14 @@ class RESTClient(AbstractClient):
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> MemGPTResponse:
         params = {"before": before, "after": after, "limit": limit}
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages-cursor", params=params, headers=self.headers)
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
+        return [Message(**message) for message in response.json()]
 
     def send_message(
         self, agent_id: str, message: str, role: str, name: Optional[str] = None, stream: Optional[bool] = False
     ) -> MemGPTResponse:
-        data = {"message": message, "role": role, "stream": stream}
-
         messages = [MessageCreate(role=role, text=message, name=name)]
         # TODO: figure out how to handle stream_steps and stream_tokens
         request = MemGPTRequest(messages=messages, stream_steps=stream)
@@ -618,10 +610,16 @@ class RESTClient(AbstractClient):
     # server configuration commands
 
     def list_models(self):
-        raise NotImplementedError
+        response = requests.get(f"{self.base_url}/api/config/llm", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list models: {response.text}")
+        return [LLMConfig(**model) for model in response.json()]
 
-    def get_config(self):
-        raise NotImplementedError
+    def list_embedding_models(self):
+        response = requests.get(f"{self.base_url}/api/config/embedding", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list embedding models: {response.text}")
+        return [EmbeddingConfig(**model) for model in response.json()]
 
     # tools
 
@@ -909,6 +907,9 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
+    def rename_agent(self, agent_id: str, new_name: str):
+        return self.update_agent(agent_id, name=new_name)
+
     def delete_agent(self, agent_id: str):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
@@ -933,10 +934,10 @@ class LocalClient(AbstractClient):
         return memory
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
-        return self.server.get_archival_memory_summary(user_id=self.user_id, agent_id=agent_id)
+        return self.server.get_archival_memory_summary(agent_id=agent_id)
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
-        return self.server.get_recall_memory_summary(user_id=self.user_id, agent_id=agent_id)
+        return self.server.get_recall_memory_summary(agent_id=agent_id)
 
     def get_in_context_messages(self, agent_id: str) -> List[Message]:
         return self.server.get_in_context_messages(agent_id=agent_id)
@@ -1004,41 +1005,46 @@ class LocalClient(AbstractClient):
     # humans / personas
 
     def create_human(self, name: str, text: str):
-        return self.server.create_human(CreateHuman(name=name, value=text, user_id=self.user_id))
+        return self.server.create_block(CreateHuman(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
 
     def create_persona(self, name: str, text: str):
-        return self.server.create_persona(CreatePersona(name=name, value=text, user_id=self.user_id))
+        return self.server.create_block(CreatePersona(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
 
     def list_humans(self):
-        return self.server.list_humans(user_id=self.user_id if self.user_id else self.user_id)
-
-    def get_human(self, name: str):
-        return self.server.get_human(name=name, user_id=self.user_id)
-
-    def update_human(self, name: str, text: str):
-        human = self.get_human(name)
-        return self.server.update_block(UpdateHuman(id=human.id, value=text, user_id=self.user_id, template=True))
+        return self.server.get_blocks(label="human", user_id=self.user_id, template=True)
 
     def list_personas(self) -> List[Persona]:
-        return [Persona(**block.model_dump()) for block in self.server.list_personas(user_id=self.user_id)]
+        return self.server.get_blocks(label="persona", user_id=self.user_id, template=True)
 
-    def list_humans(self) -> List[Human]:
-        return [Human(**block.model_dump()) for block in self.server.list_humans(user_id=self.user_id)]
+    def update_human(self, name: str, text: str):
+        human = self.get_human_id(name=name)
+        return self.server.update_block(UpdateHuman(id=human.id, value=text, user_id=self.user_id, template=True))
 
-    def get_persona(self, name: str) -> Persona:
-        return self.server.get_persona(name=name, user_id=self.user_id)
+    def get_persona(self, id: str) -> Persona:
+        assert id, f"Persona ID must be provided"
+        return Persona(**self.server.get_block(id).model_dump())
 
-    def update_persona(self, name: str, text: str) -> Persona:
-        persona = self.get_persona(name)
-        return self.server.update_block(UpdatePersona(id=persona.id, value=text, user_id=self.user_id, template=True))
+    def get_human(self, id: str) -> Human:
+        assert id, f"Human ID must be provided"
+        return Human(**self.server.get_block(id).model_dump())
 
-    def delete_persona(self, name: str):
-        persona = self.get_persona(name)
-        self.server.delete_block(persona.id)
+    def get_persona_id(self, name: str) -> str:
+        persona = self.server.get_blocks(name=name, label="persona", user_id=self.user_id, template=True)
+        if not persona:
+            return None
+        return persona[0].id
 
-    def delete_human(self, name: str):
-        human = self.get_human(name)
-        self.server.delete_block(human.id)
+    def get_human_id(self, name: str) -> str:
+        human = self.server.get_blocks(name=name, label="human", user_id=self.user_id, template=True)
+        if not human:
+            return None
+        return human[0].id
+
+    def delete_persona(self, id: str):
+        self.server.delete_block(id)
+
+    def delete_human(self, id: str):
+        self.server.delete_block(id)
 
     # tools
     def add_tool(self, tool: Tool, update: Optional[bool] = True) -> None:
@@ -1240,13 +1246,7 @@ class LocalClient(AbstractClient):
         )
 
     def list_models(self) -> List[LLMConfig]:
+        return [self.server.server_llm_config]
 
-        llm_config = LLMConfig(
-            model=self.server.server_llm_config.model,
-            model_endpoint=self.server.server_llm_config.model_endpoint,
-            model_endpoint_type=self.server.server_llm_config.model_endpoint_type,
-            model_wrapper=self.server.server_llm_config.model_wrapper,
-            context_window=self.server.server_llm_config.context_window,
-        )
-        # TODO: support multiple models
-        return [llm_config]
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        return [self.server.server_embedding_config]

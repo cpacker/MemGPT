@@ -237,7 +237,7 @@ class BlockModel(Base):
     __tablename__ = "block"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True, nullable=False)
     value = Column(String, nullable=False)
     limit = Column(BIGINT)
     name = Column(String, nullable=False)
@@ -466,23 +466,6 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def create_human(self, human: Human):
-        with self.session_maker() as session:
-            if self.get_human(human_id=human.id, user_id=human.user_id, human_name=human.name):
-                raise ValueError(f"Human with name {human.name} already exists")
-            session.add(BlockModel(**vars(human)))
-            session.commit()
-
-    @enforce_types
-    def create_persona(self, persona: Persona):
-        with self.session_maker() as session:
-            if self.get_persona(persona_id=persona.id, user_id=persona.user_id, persona_name=persona.name):
-                raise ValueError(f"Persona with name {persona.name} already exists")
-            assert persona.template, "Persona must be a template"
-            session.add(BlockModel(**vars(persona)))
-            session.commit()
-
-    @enforce_types
     def create_block(self, block: Block):
         with self.session_maker() as session:
             # TODO: fix?
@@ -537,19 +520,6 @@ class MetadataStore:
     def update_source(self, source: Source):
         with self.session_maker() as session:
             session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
-            session.commit()
-
-    @enforce_types
-    def update_human(self, human: Human):
-        with self.session_maker() as session:
-            session.query(BlockModel).filter(BlockModel.id == human.id).update(vars(human))
-            session.commit()
-
-    @enforce_types
-    def update_persona(self, persona: Persona):
-        with self.session_maker() as session:
-            assert persona.template, "Persona must be a template"
-            session.query(BlockModel).filter(BlockModel.id == persona.id).update(vars(persona))
             session.commit()
 
     @enforce_types
@@ -740,6 +710,7 @@ class MetadataStore:
     ) -> List[Block]:
         """List available blocks"""
         with self.session_maker() as session:
+            print("MS ID", id)
             query = session.query(BlockModel).filter(BlockModel.template == template)
 
             if user_id:
@@ -763,24 +734,6 @@ class MetadataStore:
                 return None
 
             return [r.to_record() for r in results]
-
-    @enforce_types
-    def get_persona(
-        self, persona_id: Optional[str] = None, user_id: Optional[str] = None, persona_name: Optional[str] = None
-    ) -> Optional[Persona]:
-        personas = self.get_blocks(id=persona_id, user_id=user_id, label="persona", name=persona_name, template=True)
-        if personas:
-            assert len(personas) == 1, f"Expected 1 result, got {len(personas)}"
-            return personas[0]
-        return None
-
-    @enforce_types
-    def get_human(self, human_id: Optional[str] = None, user_id: Optional[str] = None, human_name: Optional[str] = None) -> Optional[Human]:
-        humans = self.get_blocks(id=human_id, user_id=user_id, label="human", name=human_name, template=True)
-        if humans:
-            assert len(humans) == 1, f"Expected 1 result, got {len(humans)}"
-            return humans[0]
-        return None
 
     # agent source metadata
     @enforce_types
