@@ -18,7 +18,7 @@ class BaseBlock(MemGPTBase, validate_assignment=True):
     limit: int = Field(2000, description="Character limit of the block.")
 
     name: Optional[str] = Field(None, description="Name of the block.")
-    template: Optional[bool] = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
+    template: bool = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
     label: Optional[str] = Field(None, description="Label of the block (e.g. 'human', 'persona').")
 
     # metadat
@@ -62,6 +62,7 @@ class Block(BaseBlock):
     """Block of the LLM context"""
 
     id: str = BaseBlock.generate_id_field()
+    value: str = Field(..., description="Value of the block.")
 
 
 class Human(Block):
