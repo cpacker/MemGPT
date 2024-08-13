@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from memgpt.settings import settings, BackendConfiguration
 from memgpt.orm.utilities import create_engine
 from memgpt.orm.__all__ import Base
-from memgpt.orm.utilities import get_memgpt_server
+from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.app import app
 

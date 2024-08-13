@@ -2,15 +2,15 @@ import inspect
 import json
 import os
 import uuid
-
 import pytest
 
 from memgpt.settings import settings
 from memgpt import constants, create_client
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
-from memgpt.models import chat_completion_response
+from memgpt.schemas.message import Message
 from memgpt.utils import assistant_function_to_tool
-from tests import TEST_MEMGPT_CONFIG
+
+from tests.mock_factory.models import MockUserFactory
 from tests.utils import create_config, wipe_config
 
 
@@ -56,7 +56,7 @@ def hello_world_function():
 
 @pytest.fixture(scope="module")
 def ai_function_call():
-    return chat_completion_response.Message(
+    return Message(
         **assistant_function_to_tool(
             {
                 "role": "assistant",
@@ -68,8 +68,6 @@ def ai_function_call():
             }
         )
     )
-
-    return
 
 
 def test_add_function_happy(agent, hello_world_function, ai_function_call):
