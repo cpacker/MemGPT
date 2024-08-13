@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import
+from memgpt.utils import json_dumps
 from memgpt.local_llm.utils import count_tokens
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest, Tool

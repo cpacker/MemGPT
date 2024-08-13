@@ -1,19 +1,10 @@
 # https://github.com/openai/openai-python/blob/v0.27.4/openai/openai_object.py
 
-import json
 from copy import deepcopy
 from enum import Enum
 from typing import Optional, Tuple, Union
 
-from memgpt.constants import
-
-# import openai
-
-
-# from openai import api_requestor, util
-# from openai.openai_response import OpenAIResponse
-# from openai.util import ApiType
-
+from memgpt.utils import json_dumps
 api_requestor = None
 api_resources = None
 CompletionConfig = None

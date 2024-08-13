@@ -4,7 +4,7 @@ import traceback
 from typing import AsyncGenerator, Generator, Union
 from sqlalchemy import select
 
-from memgpt.constants import
+from memgpt.utils import json_dumps
 from memgpt.orm.utilities import get_db_session
 from memgpt.orm.user import User
 from memgpt.server.server import SyncServer

@@ -1,6 +1,6 @@
 import json
 
-from memgpt.constants import
+from memgpt.utils import json_dumps, json_loads
 from memgpt.errors import LLMJSONParsingError
 from memgpt.local_llm.json_parser import clean_json
 from memgpt.local_llm.llm_chat_completion_wrappers.wrapper_base import (
@@ -175,10 +175,9 @@ class LLaMA3InnerMonologueWrapper(LLMChatCompletionWrapper):
             # Otherwise just dump the full json
             try:
                 user_msg_json = json_loads(message["content"])
-                user_msg_str = json.dumps(
+                user_msg_str = json_dumps(
                     user_msg_json,
                     indent=self.json_indent,
-                    ensure_ascii=
                 )
             except:
                 user_msg_str = message["content"]
@@ -194,10 +193,9 @@ class LLaMA3InnerMonologueWrapper(LLMChatCompletionWrapper):
         try:
             # indent the function replies
             function_return_dict = json_loads(message["content"])
-            function_return_str = json.dumps(
+            function_return_str = json_dumps(
                 function_return_dict,
                 indent=self.json_indent,
-                ensure_ascii=
             )
         except:
             function_return_str = message["content"]

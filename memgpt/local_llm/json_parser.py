@@ -1,7 +1,7 @@
 import json
 import re
 
-from memgpt.constants import
+from memgpt.utils import json_loads
 from memgpt.errors import LLMJSONParsingError
 
 

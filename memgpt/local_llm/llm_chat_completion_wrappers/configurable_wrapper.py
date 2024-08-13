@@ -1,8 +1,7 @@
-import json
 
 import yaml
 
-from ...constants import
+from memgpt.utils import json_dumps, json_loads
 from ...errors import LLMJSONParsingError
 from ..json_parser import clean_json
 from .wrapper_base import LLMChatCompletionWrapper
