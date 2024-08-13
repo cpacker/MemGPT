@@ -246,6 +246,7 @@ class SyncServer(LockingServer):
 
             quickstart(backend=QuickstartChoice.openai, debug=False, terminal=False, latest=False)
             self.config = MemGPTConfig.load()
+            self.config.save()
 
         logger.debug(f"loading configuration from '{self.config.config_path}'")
         assert self.config.persona is not None, "Persona must be set in the config"
