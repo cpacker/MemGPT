@@ -3,11 +3,13 @@ import os
 import uuid
 
 from memgpt.agent import Agent
-from memgpt.data_types import AgentState, Message
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.message import Message
 from memgpt.embeddings import embedding_model
 from memgpt.llm_api.llm_api_tools import create
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.server.server import SyncServer
 from memgpt.prompts import gpt_system
 
 messages = [Message(role="system", text=gpt_system.get_system_text("memgpt_chat")), Message(role="user", text="How are you?")]
@@ -28,7 +30,7 @@ def run_llm_endpoint(filename):
     embedding_config = EmbeddingConfig(**json.load(open(embedding_config_path)))
     agent_state = AgentState(
         name="test_agent",
-        tools=[tool.name for tool in load_module_tools()],
+        tools=[tool.name for tool in SyncServer.add_default_tools()],
         embedding_config=embedding_config,
         llm_config=llm_config,
         user_id=uuid.UUID(int=1),
@@ -37,7 +39,7 @@ def run_llm_endpoint(filename):
     )
     agent = Agent(
         interface=None,
-        tools=load_module_tools(),
+        tools=SyncServer.add_default_tools(),
         agent_state=agent_state,
         # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
         first_message_verify_mono=True,

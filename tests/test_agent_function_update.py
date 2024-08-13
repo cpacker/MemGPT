@@ -24,7 +24,7 @@ def hello_world(self) -> str:
 @pytest.fixture(scope="module")
 def agent(request, db_session, test_app):
     """Create a test agent that we can call functions on"""
-    requesting_user = MockUserFactory(db_session=db_session, organization_id=org.id).generate()
+    requesting_user = MockUserFactory(db_session=db_session).generate()
     api_token = MockTokenFactory(db_session=db_session, user_id=requesting_user.id).generate()
     token = api_token.api_key
     client_args = {

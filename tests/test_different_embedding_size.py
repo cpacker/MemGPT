@@ -3,7 +3,7 @@ import uuid
 
 from memgpt import create_client
 from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.data_types import Passage
+from memgpt.schemas.passage import Passage
 from memgpt.embeddings import embedding_model
 from tests import TEST_MEMGPT_CONFIG
 

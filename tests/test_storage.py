@@ -9,7 +9,10 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS, MAX_EMBEDDING_DIM
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import AgentState, Message, Passage, User
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
+from memgpt.schemas.user import User
 from memgpt.embeddings import embedding_model, query_embedding
 from memgpt.metadata import MetadataStore
 from memgpt.settings import settings

@@ -8,7 +8,8 @@ from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_load import load_directory
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import EmbeddingConfig, User
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.user import User
 from memgpt.metadata import MetadataStore
 
 # from memgpt.data_sources.connectors import DirectoryConnector, load_data

@@ -5,7 +5,7 @@ import pytest
 
 import memgpt.system as system
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import AgentState
+from memgpt.schemas.agent import AgentState
 from memgpt.server.ws_api.interface import SyncWebSocketInterface
 
 # def test_websockets():
@@ -76,8 +76,6 @@ async def test_websockets():
         model_endpoint_type="openai",
         model_endpoint="https://api.openai.com/v1",
     )
-    # TODO: get preset to pass in here
-    memgpt_agent = presets.create_agent_from_preset(agent_state, ws_interface)
 
     # Mock the user message packaging
     user_message = system.package_user_message("Hello, is anyone there?")

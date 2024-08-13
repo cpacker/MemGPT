@@ -10,7 +10,6 @@ from memgpt import Admin, create_client
 from memgpt.config import MemGPTConfig
 from memgpt.settings import settings
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import Preset  # TODO move to PresetModel
 from memgpt.settings import settings
 from tests.utils import create_config
 

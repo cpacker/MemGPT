@@ -2,7 +2,10 @@ import pytest
 
 from memgpt.agent import Agent, save_agent
 from memgpt.settings import settings
-from memgpt.data_types import AgentState, LLMConfig, Source, User
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.source import Source
+from memgpt.schemas.user import User
 from memgpt.metadata import MetadataStore
 from memgpt.schemas.block import Human, Persona
 from memgpt.settings import settings
@@ -34,8 +37,8 @@ def test_storage(storage_connector):
     # add_default_humans_and_personas(user_id=user_2.id, ms=ms)
     ms.add_human(human=Human(name="test_human", text="This is a test human"))
     ms.add_persona(persona=Persona(name="test_persona", text="This is a test persona"))
-    add_default_presets(user_id=user_1.id, ms=ms)
-    add_default_presets(user_id=user_2.id, ms=ms)
+    # add_default_presets(user_id=user_1.id, ms=ms)
+    # add_default_presets(user_id=user_2.id, ms=ms)
     assert len(ms.list_humans(user_id=user_1.id)) > 0, ms.list_humans(user_id=user_1.id)
     assert len(ms.list_personas(user_id=user_1.id)) > 0, ms.list_personas(user_id=user_1.id)
 
@@ -65,7 +68,7 @@ def test_storage(storage_connector):
     agent_state = ms.get_agent(agent_1.id).state
     assert agent_state == {}, agent_state  # when created via create_agent, it should be empty
 
-    add_default_presets(user_1.id, ms)
+    # add_default_presets(user_1.id, ms)
     preset_obj = ms.get_preset(name=settings.preset, user_id=user_1.id)
     from memgpt.interface import CLIInterface as interface  # for printing to terminal
 
