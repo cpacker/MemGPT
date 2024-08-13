@@ -28,8 +28,6 @@ from memgpt.constants import (
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     FUNCTION_RETURN_CHAR_LIMIT,
-    JSON_ENSURE_ASCII,
-    JSON_LOADS_STRICT,
     MEMGPT_DIR,
     TOOL_CALL_ID_MAX_LEN,
 )
@@ -873,7 +871,7 @@ def parse_json(string) -> dict:
     """Parse JSON string into JSON with both json and demjson"""
     result = None
     try:
-        result = json.loads(string, strict=JSON_LOADS_STRICT)
+        result = json_loads(string)
         return result
     except Exception as e:
         print(f"Error parsing json with json package: {e}")
@@ -906,7 +904,7 @@ def validate_function_response(function_response_string: any, strict: bool = Fal
             # Allow dict through since it will be cast to json.dumps()
             try:
                 # TODO find a better way to do this that won't result in double escapes
-                function_response_string = json.dumps(function_response_string, ensure_ascii=JSON_ENSURE_ASCII)
+                function_response_string = json_dumps(function_response_string)
             except:
                 raise ValueError(function_response_string)
 
@@ -1020,8 +1018,8 @@ def get_human_text(name: str):
 
 def get_schema_diff(schema_a, schema_b):
     # Assuming f_schema and linked_function['json_schema'] are your JSON schemas
-    f_schema_json = json.dumps(schema_a, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
-    linked_function_json = json.dumps(schema_b, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
+    f_schema_json = json_dumps(schema_a)
+    linked_function_json = json_dumps(schema_b)
 
     # Compute the difference using difflib
     difference = list(difflib.ndiff(f_schema_json.splitlines(keepends=True), linked_function_json.splitlines(keepends=True)))
@@ -1056,3 +1054,10 @@ def create_uuid_from_string(val: str):
     """
     hex_string = hashlib.md5(val.encode("UTF-8")).hexdigest()
     return uuid.UUID(hex=hex_string)
+
+
+def json_dumps(data, indent=2):
+    return json.dumps(data, indent=indent, ensure_ascii=False)
+
+def json_loads(data):
+    return json.loads(data, strict=False)

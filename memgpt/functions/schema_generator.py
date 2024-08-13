@@ -5,14 +5,6 @@ from typing import Any, Dict, Optional, Type, get_args, get_origin
 from docstring_parser import parse
 from pydantic import BaseModel
 
-from memgpt.constants import (
-    FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-    FUNCTION_PARAM_NAME_REQ_HEARTBEAT,
-    FUNCTION_PARAM_TYPE_REQ_HEARTBEAT,
-)
-
-NO_HEARTBEAT_FUNCTIONS = ["send_message", "pause_heartbeats"]
-
 
 def is_optional(annotation):
     # Check if the annotation is a Union
@@ -136,12 +128,12 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
             schema["parameters"]["required"].append(param.name)
 
     # append the heartbeat
-    if function.__name__ not in NO_HEARTBEAT_FUNCTIONS:
-        schema["parameters"]["properties"][FUNCTION_PARAM_NAME_REQ_HEARTBEAT] = {
-            "type": FUNCTION_PARAM_TYPE_REQ_HEARTBEAT,
-            "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
+    if function.__name__ not in ["send_message", "pause_heartbeats"]:
+        schema["parameters"]["properties"]["request_heartbeat"] = {
+            "type": "boolean",
+            "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function.",
         }
-        schema["parameters"]["required"].append(FUNCTION_PARAM_NAME_REQ_HEARTBEAT)
+        schema["parameters"]["required"].append("request_heartbeat")
 
     return schema
 

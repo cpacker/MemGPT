@@ -1,7 +1,7 @@
 import json
 
 import memgpt.local_llm.json_parser as json_parser
-from memgpt.constants import JSON_LOADS_STRICT
+from memgpt.constants import
 
 EXAMPLE_ESCAPED_UNDERSCORES = """{
   "function":"send\_message",
@@ -90,7 +90,7 @@ def test_json_parsers():
 
     for string in test_strings:
         try:
-            json.loads(string, strict=JSON_LOADS_STRICT)
+            json_loads(string)
             assert False, f"Test JSON string should have failed basic JSON parsing:\n{string}"
         except:
             print("String failed (expectedly)")

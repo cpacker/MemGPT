@@ -114,14 +114,9 @@ REQ_HEARTBEAT_MESSAGE = f"{NON_USER_MSG_PREFIX}Function called using request_hea
 # FUNC_FAILED_HEARTBEAT_MESSAGE = f"{NON_USER_MSG_PREFIX}Function call failed"
 FUNC_FAILED_HEARTBEAT_MESSAGE = f"{NON_USER_MSG_PREFIX}Function call failed, returning control"
 
-FUNCTION_PARAM_NAME_REQ_HEARTBEAT = "request_heartbeat"
-FUNCTION_PARAM_TYPE_REQ_HEARTBEAT = "boolean"
-FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT = "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function."
 
 RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE = 5
 
-# GLOBAL SETTINGS FOR `json.dumps()`
-JSON_ENSURE_ASCII = False
-
-# GLOBAL SETTINGS FOR `json.loads()`
-JSON_LOADS_STRICT = False
+# TODO Is this config or constant?
+CORE_MEMORY_PERSONA_CHAR_LIMIT: int = 2000
+CORE_MEMORY_HUMAN_CHAR_LIMIT: int = 2000
