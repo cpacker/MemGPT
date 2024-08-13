@@ -9,7 +9,6 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 from memgpt.orm.block import BlockValue
 
 # revision identifiers, used by Alembic.
@@ -31,7 +30,7 @@ def upgrade() -> None:
     sa.Column('is_template', sa.Boolean(), nullable=False),
     sa.Column('value', BlockValue(astext_type=sa.Text()), nullable=True),
     sa.Column('limit', sa.Integer(), nullable=False),
-    sa.Column('metadata_', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('metadata_', sa.JSON(astext_type=sa.Text()), nullable=True),
     sa.Column('_organization_id', sa.UUID(), nullable=True),
     sa.Column('_id', sa.UUID(), nullable=False),
     sa.Column('deleted', sa.Boolean(), nullable=False),

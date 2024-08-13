@@ -1,9 +1,8 @@
 from typing import TYPE_CHECKING, Optional, Type, Union, List
 from uuid import UUID
-from sqlalchemy import String, Integer, UUID as SQLUUID, ForeignKey
+from sqlalchemy import String, Integer, UUID as SQLUUID, ForeignKey, JSON
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy.types import TypeDecorator
-from sqlalchemy.dialects.postgresql import JSONB
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import _relation_getter, _relation_setter
@@ -18,7 +17,7 @@ class BlockValue(TypeDecorator):
     and will always store as a list of strings in the database.
     """
 
-    impl = JSONB
+    impl = JSON
 
     cache_ok = True
 
@@ -46,7 +45,7 @@ class Block(SqlalchemyBase):
     is_template:Mapped[bool] = mapped_column(doc="whether the block is a template (e.g. saved human/persona options as baselines for other templates)")
     value: Mapped[Optional[Union[List, str]]] = mapped_column(BlockValue, nullable=True, doc="Text content of the block for the respective section of core memory.")
     limit: Mapped[int] = mapped_column(Integer, default=2000, doc="Character limit of the block.")
-    metadata_: Mapped[Optional[dict]] = mapped_column(JSONB, default={}, doc="arbitrary information related to the block.")
+    metadata_: Mapped[Optional[dict]] = mapped_column(JSON, default={}, doc="arbitrary information related to the block.")
 
     # custom fkeys
     _organization_id: Mapped[Optional["UUID"]] = mapped_column(SQLUUID, ForeignKey("organization._id"),nullable=True, doc="the organization this block belongs to, if any")
