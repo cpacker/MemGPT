@@ -58,6 +58,10 @@ class CreateAgent(BaseAgent):
 
         import re
 
+        if not name:
+            # don't check if not provided
+            return name
+
         # TODO: this check should also be added to other model (e.g. User.name)
         # Length check
         if not (1 <= len(name) <= 50):
