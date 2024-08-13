@@ -1226,23 +1226,27 @@ def add(
         assert text is None, "Cannot specify both text and filename"
         with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
+    else:
+        assert text is not None, "Must specify either text or filename"
     if option == "persona":
-        persona = client.get_persona(name)
-        if persona:
+        persona_id = client.get_persona_id(name)
+        if persona_id:
+            client.get_persona(persona_id)
             # config if user wants to overwrite
             if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
                 return
-            client.update_persona(name=name, text=text)
+            client.update_persona(persona_id, text=text)
         else:
             client.create_persona(name=name, text=text)
 
     elif option == "human":
-        human = client.get_human(name=name)
-        if human:
+        human_id = client.get_human_id(name)
+        if human_id:
+            human = client.get_human(human_id)
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
                 return
-            client.update_human(name=name, text=text)
+            client.update_human(human_id, text=text)
         else:
             human = client.create_human(name=name, text=text)
     else:
@@ -1268,13 +1272,13 @@ def delete(option: str, name: str):
             assert agent_id is not None, f"Agent {name} does not exist"
             client.delete_agent(agent_id=agent_id)
         elif option == "human":
-            human = client.get_human(name=name)
-            assert human is not None, f"Human {name} does not exist"
-            client.delete_human(name=name)
+            human_id = client.get_human_id(name)
+            assert human_id is not None, f"Human {name} does not exist"
+            client.delete_human(human_id)
         elif option == "persona":
-            persona = client.get_persona(name=name)
-            assert persona is not None, f"Persona {name} does not exist"
-            client.delete_persona(name=name)
+            persona_id = client.get_persona_id(name)
+            assert persona_id is not None, f"Persona {name} does not exist"
+            client.delete_persona(persona_id)
         else:
             raise ValueError(f"Option {option} not implemented")
 

@@ -46,7 +46,7 @@ from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.user import UserCreate
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.utils import get_human_text
+from memgpt.utils import get_human_text, get_persona_text
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
@@ -241,7 +241,7 @@ class RESTClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         # system
         system: Optional[str] = None,
         # tools
@@ -834,7 +834,7 @@ class LocalClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         # system
         system: Optional[str] = None,
         # tools
@@ -1018,9 +1018,11 @@ class LocalClient(AbstractClient):
     def list_personas(self) -> List[Persona]:
         return self.server.get_blocks(label="persona", user_id=self.user_id, template=True)
 
-    def update_human(self, name: str, text: str):
-        human = self.get_human_id(name=name)
-        return self.server.update_block(UpdateHuman(id=human.id, value=text, user_id=self.user_id, template=True))
+    def update_human(self, human_id: str, text: str):
+        return self.server.update_block(UpdateHuman(id=human_id, value=text, user_id=self.user_id, template=True))
+
+    def update_persona(self, persona_id: str, text: str):
+        return self.server.update_block(UpdatePersona(id=persona_id, value=text, user_id=self.user_id, template=True))
 
     def get_persona(self, id: str) -> Persona:
         assert id, f"Persona ID must be provided"
