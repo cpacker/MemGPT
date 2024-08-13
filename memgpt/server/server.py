@@ -232,7 +232,21 @@ class SyncServer(LockingServer):
         # self.default_persistence_manager_cls = default_persistence_manager_cls
 
         # Initialize the connection to the DB
-        self.config = MemGPTConfig.load()
+        try:
+            self.config = MemGPTConfig.load()
+            assert self.config.default_llm_config is not None, "default_llm_config must be set in the config"
+            assert self.config.default_embedding_config is not None, "default_embedding_config must be set in the config"
+        except Exception as e:
+            # TODO: very hacky - need to improve model config for docker container
+            if os.getenv("OPENAI_API_KEY") is None:
+                logger.error("No OPENAI_API_KEY environment variable set and no ~/.memgpt/config")
+                raise e
+
+            from memgpt.cli.cli import QuickstartChoice, quickstart
+
+            quickstart(backend=QuickstartChoice.openai, debug=False, terminal=False, latest=False)
+            self.config = MemGPTConfig.load()
+
         logger.debug(f"loading configuration from '{self.config.config_path}'")
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
