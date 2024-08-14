@@ -12,7 +12,7 @@ from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.app import app
 
-from tests.mock_factory import UserFactory, AgentFactory
+from tests.mock_factory.models import MockAgentFactory, MockUserFactory
 
 
 if TYPE_CHECKING:
@@ -76,12 +76,9 @@ def test_app(server):
     return app
 
 @pytest.fixture
-def user_and_agent_seed(db_session) -> :
+def user_and_agent_seed(db_session):
     """ seed a single user and an Agent for that user
     """
-    user = UserFactory()
-    agent = AgentFactory(user=user)
-    db_session.add(user)
-    db_session.add(agent)
-    db_session.commit()
+    user = MockUserFactory(db_session=db_session).generate()
+    agent = MockAgentFactory(db_session=db_session, user_id=user.id).generate()
     return user, agent
