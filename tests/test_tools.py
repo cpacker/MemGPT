@@ -8,12 +8,10 @@ from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.agent import Agent
-from memgpt.constants import DEFAULT_PRESET
 from memgpt.schemas.memory import ChatMemory
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
-# test_preset_name = "test_preset"
-test_preset_name = DEFAULT_PRESET
+test_preset_name = "test_preset"
 test_agent_state = None
 client = None
 
