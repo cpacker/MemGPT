@@ -12,7 +12,7 @@ from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.app import app
 
-from tests.mock_factory.models import MockAgentFactory, MockUserFactory
+from tests.mock_factory.models import MockUserFactory, MockAgentFactory
 
 
 if TYPE_CHECKING:
