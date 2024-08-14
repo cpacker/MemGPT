@@ -8,7 +8,8 @@ from tests.mock_factory.models import (
     MockOrganizationFactory,
     MockTokenFactory,
 )
-
+from memgpt.schemas.message import Message
+from memgpt.schemas.usage import MemGPTUsageStatistics
 
 faker = Faker()
 
