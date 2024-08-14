@@ -264,8 +264,8 @@ def summarize_messages(
             + message_sequence_to_summarize[cutoff:]
         )
 
-    dummy_user_id = uuid.uuid4()
-    dummy_agent_id = uuid.uuid4()
+    dummy_user_id = agent_state.user_id
+    dummy_agent_id = agent_state.id
     message_sequence = []
     message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="system", text=summary_prompt))
     if insert_acknowledgement_assistant_message:

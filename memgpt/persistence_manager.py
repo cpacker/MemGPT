@@ -121,7 +121,6 @@ class LocalStateManager(PersistenceManager):
         # self.messages = [self.messages[0]] + added_messages + self.messages[1:]
 
         # add to recall memory
-        self.recall_memory.insert_many([m for m in added_messages])
 
     def append_to_messages(self, added_messages: List[Message]):
         # first tag with timestamps

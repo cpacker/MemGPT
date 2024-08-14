@@ -5,11 +5,11 @@ from typing import Dict, List, Optional
 
 import numpy as np
 from sqlalchemy import (
-    BIGINT,
     BINARY,
     JSON,
     Column,
     DateTime,
+    Index,
     String,
     TypeDecorator,
     and_,
@@ -29,6 +29,7 @@ from tqdm import tqdm
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import MAX_EMBEDDING_DIM
+from memgpt.metadata import EmbeddingConfigColumn
 
 # from memgpt.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from memgpt.schemas.message import Message
@@ -101,7 +102,7 @@ def get_db_model(
             text = Column(String)
             doc_id = Column(String)
             agent_id = Column(String)
-            data_source = Column(String)  # agent_name if agent, data_source name if from data source
+            source_id = Column(String)
 
             # vector storage
             if dialect == "sqlite":
@@ -110,13 +111,14 @@ def get_db_model(
                 from pgvector.sqlalchemy import Vector
 
                 embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
-            embedding_dim = Column(BIGINT)
-            embedding_model = Column(String)
 
+            embedding_config = Column(EmbeddingConfigColumn)
             metadata_ = Column(MutableJson)
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True))
+
+            Index("passage_idx_user", user_id, agent_id, doc_id),
 
             def __repr__(self):
                 return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
@@ -125,12 +127,11 @@ def get_db_model(
                 return Passage(
                     text=self.text,
                     embedding=self.embedding,
-                    embedding_dim=self.embedding_dim,
-                    embedding_model=self.embedding_model,
+                    embedding_config=self.embedding_config,
                     doc_id=self.doc_id,
                     user_id=self.user_id,
                     id=self.id,
-                    data_source=self.data_source,
+                    source_id=self.source_id,
                     agent_id=self.agent_id,
                     metadata_=self.metadata_,
                     created_at=self.created_at,
@@ -172,6 +173,7 @@ def get_db_model(
 
             # Add a datetime column, with default value as the current time
             created_at = Column(DateTime(timezone=True))
+            Index("message_idx_user", user_id, agent_id),
 
             def __repr__(self):
                 return f"<Message(message_id='{self.id}', text='{self.text}')>"
@@ -448,7 +450,8 @@ class PostgresStorageConnector(SQLStorageConnector):
             with self.session_maker() as session:
                 iterable = tqdm(records) if show_progress else records
                 for record in iterable:
-                    db_record = self.db_model(**vars(record))
+                    # db_record = self.db_model(**vars(record))
+                    db_record = self.db_model(**record.dict())
                     session.add(db_record)
                 session.commit()
 
@@ -529,9 +532,6 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         from sqlalchemy.dialects.sqlite import insert
 
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
-        print(f"Inserting {len(records)} records")
-        for record in records:
-            print(record.text[:100])
         if len(records) == 0:
             return
         if isinstance(records[0], Passage):

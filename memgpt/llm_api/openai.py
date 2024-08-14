@@ -89,6 +89,7 @@ def openai_chat_completions_process_stream(
     on the chunks received from the OpenAI-compatible server POST SSE response.
     """
     assert chat_completion_request.stream == True
+    assert stream_inferface is not None, "Required"
 
     # Count the prompt tokens
     # TODO move to post-request?
@@ -370,7 +371,10 @@ def openai_chat_completions_request(
     url = smart_urljoin(url, "chat/completions")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     data = chat_completion_request.model_dump(exclude_none=True)
-    data["parallel_tool_calls"] = False
+
+    # add check otherwise will cause error: "Invalid value for 'parallel_tool_calls': 'parallel_tool_calls' is only allowed when 'tools' are specified."
+    if chat_completion_request.tools is not None:
+        data["parallel_tool_calls"] = False
 
     printd("Request:\n", json.dumps(data, indent=2))
 
@@ -387,6 +391,7 @@ def openai_chat_completions_request(
     try:
         response = requests.post(url, headers=headers, json=data)
         # printd(f"response = {response}, response.text = {response.text}")
+        print(f"response = {response}, response.text = {response.text}")
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
 
         response = response.json()  # convert to dict from string

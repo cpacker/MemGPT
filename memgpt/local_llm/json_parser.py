@@ -18,7 +18,7 @@ def clean_json_string_extra_backslash(s):
 
 
 def replace_escaped_underscores(string: str):
-    """Handles the case of escaped underscores, e.g.:
+    r"""Handles the case of escaped underscores, e.g.:
 
     {
       "function":"send\_message",
@@ -26,7 +26,7 @@ def replace_escaped_underscores(string: str):
         "inner\_thoughts": "User is asking for information about themselves. Retrieving data from core memory.",
         "message": "I know that you are Chad. Is there something specific you would like to know or talk about regarding yourself?"
     """
-    return string.replace("\_", "_")
+    return string.replace(r"\_", "_")
 
 
 def extract_first_json(string: str):

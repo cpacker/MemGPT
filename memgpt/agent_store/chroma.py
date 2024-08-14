@@ -85,7 +85,7 @@ class ChromaStorageConnector(StorageConnector):
                 metadata["created_at"] = timestamp_to_datetime(metadata["created_at"])
         if results["embeddings"]:  # may not be returned, depending on table type
             passages = []
-            for text, record_id, embedding, metadatas in zip(
+            for text, record_id, embedding, metadata in zip(
                 results["documents"], results["ids"], results["embeddings"], results["metadatas"]
             ):
                 args = {}
@@ -94,7 +94,7 @@ class ChromaStorageConnector(StorageConnector):
                         args[field] = metadata[field]
                         del metadata[field]
                 embedding_config = EmbeddingConfig(**args)
-                passages.append(Passage(text=text, embedding=embedding, id=record_id, embedding_config=embedding_config, **metadatas))
+                passages.append(Passage(text=text, embedding=embedding, id=record_id, embedding_config=embedding_config, **metadata))
             # return [
             #    Passage(text=text, embedding=embedding, id=record_id, embedding_config=EmbeddingConfig(), **metadatas)
             #    for (text, record_id, embedding, metadatas) in zip(
@@ -105,14 +105,14 @@ class ChromaStorageConnector(StorageConnector):
         else:
             # no embeddings
             passages = []
-            for text, id, metadatas in zip(results["documents"], results["ids"], results["metadatas"]):
+            for text, id, metadata in zip(results["documents"], results["ids"], results["metadatas"]):
                 args = {}
                 for field in EmbeddingConfig.__fields__.keys():
                     if field in metadata:
                         args[field] = metadata[field]
                         del metadata[field]
                 embedding_config = EmbeddingConfig(**args)
-                passages.append(Passage(text=text, embedding=None, id=id, embedding_config=embedding_config, **metadatas))
+                passages.append(Passage(text=text, embedding=None, id=id, embedding_config=embedding_config, **metadata))
             return passages
 
             # return [
@@ -166,7 +166,7 @@ class ChromaStorageConnector(StorageConnector):
             metadata.pop("text")
             metadata.pop("embedding")
             metadata.pop("embedding_config")
-            metadata.pop("metadata")
+            metadata.pop("metadata_")
             if "created_at" in metadata:
                 metadata["created_at"] = datetime_to_timestamp(metadata["created_at"])
             if "metadata_" in metadata and metadata["metadata_"] is not None:
@@ -262,15 +262,34 @@ class ChromaStorageConnector(StorageConnector):
         order_by: str = "created_at",
         reverse: bool = False,
     ):
-        print("Warning: hacky implementation with chroma")
         records = self.get_all(filters=filters)
+
+        # WARNING: very hacky and slow implementation
+        def get_index(id, record_list):
+            for i in range(len(record_list)):
+                if record_list[i].id == id:
+                    return i
+            assert False, f"Could not find id {id} in record list"
 
         # sort by custom field
         records = sorted(records, key=lambda x: getattr(x, order_by), reverse=reverse)
         if after:
-            records = [r for r in records if getattr(r, order_by) > getattr(after, order_by)]
+            index = get_index(after, records)
+            if index + 1 >= len(records):
+                return None, []
+            records = records[index + 1 :]
         if before:
-            records = [r for r in records if getattr(r, order_by) < getattr(before, order_by)]
+            index = get_index(before, records)
+            if index == 0:
+                return None, []
+
+            # TODO: not sure if this is correct
+            records = records[:index]
+
         if len(records) == 0:
-            return 0, []
+            return None, []
+
+        # enforce limit
+        if limit:
+            records = records[:limit]
         return records[-1].id, records

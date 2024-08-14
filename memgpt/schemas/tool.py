@@ -2,6 +2,10 @@ from typing import Dict, List, Optional
 
 from pydantic import Field
 
+from memgpt.functions.schema_generator import (
+    generate_schema_from_args_schema,
+    generate_tool_wrapper,
+)
 from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.openai.chat_completions import ToolCall
 
@@ -39,23 +43,23 @@ class Tool(BaseTool):
             )
         )
 
-    # @classmethod
-    # def from_crewai(cls, crewai_tool: CrewAiBaseTool) -> "Tool":
-    #     """
-    #     Class method to create an instance of Tool from a crewAI BaseTool object.
+    @classmethod
+    def from_crewai(cls, crewai_tool) -> "Tool":
+        """
+        Class method to create an instance of Tool from a crewAI BaseTool object.
 
-    #     Args:
-    #         crewai_tool (CrewAiBaseTool): An instance of a crewAI BaseTool
+        Args:
+            crewai_tool (CrewAIBaseTool): An instance of a crewAI BaseTool (BaseTool from crewai)
 
-    #     Returns:
-    #         Tool: A memGPT Tool initialized with attributes derived from the provided crewAI BaseTool object.
-    #     """
-    #     name = crewai_tool.name
-    #     description = crewai_tool.description
-    #     source_type = "python"
-    #     tags = ["crew-ai"]
-    #     wrapper_func_name, wrapper_function_str = generate_tool_wrapper(crewai_tool.__class__.__name__)
-    #     json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
+        Returns:
+            Tool: A memGPT Tool initialized with attributes derived from the provided crewAI BaseTool object.
+        """
+        crewai_tool.name
+        description = crewai_tool.description
+        source_type = "python"
+        tags = ["crew-ai"]
+        wrapper_func_name, wrapper_function_str = generate_tool_wrapper(crewai_tool.__class__.__name__)
+        json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
 
     #     return cls(
     #         name=wrapper_func_name,

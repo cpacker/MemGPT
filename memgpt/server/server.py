@@ -29,7 +29,6 @@ from memgpt.functions.schema_generator import generate_schema
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
-from memgpt.memory import get_memory_functions
 from memgpt.metadata import MetadataStore
 from memgpt.prompts import gpt_system
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
@@ -39,19 +38,17 @@ from memgpt.schemas.block import (
     CreateBlock,
     CreateHuman,
     CreatePersona,
-    Human,
-    Persona,
     UpdateBlock,
-    UpdateHuman,
-    UpdatePersona,
 )
 from memgpt.schemas.document import Document
 from memgpt.schemas.embedding_config import EmbeddingConfig
+
+# openai schemas
+from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
 from memgpt.schemas.message import Message
-
-# openai schemas
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
@@ -286,73 +283,81 @@ class SyncServer(Server):
         self, user_id: str, agent_id: str, input_message: Union[str, Message], timestamp: Optional[datetime]
     ) -> MemGPTUsageStatistics:
         """Send the input message through the agent"""
-
         logger.debug(f"Got input message: {input_message}")
+        try:
 
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
-        if memgpt_agent is None:
-            raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
+            # Get the agent object (loaded in memory)
+            memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+            if memgpt_agent is None:
+                raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
-        # Determine whether or not to token stream based on the capability of the interface
-        token_streaming = memgpt_agent.interface.streaming_mode if hasattr(memgpt_agent.interface, "streaming_mode") else False
+            # Determine whether or not to token stream based on the capability of the interface
+            token_streaming = memgpt_agent.interface.streaming_mode if hasattr(memgpt_agent.interface, "streaming_mode") else False
 
-        logger.debug(f"Starting agent step")
-        no_verify = True
-        next_input_message = input_message
-        counter = 0
-        total_usage = UsageStatistics()
-        step_count = 0
-        while True:
-            new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
-                next_input_message,
-                first_message=False,
-                skip_verify=no_verify,
-                return_dicts=False,
-                stream=token_streaming,
-                timestamp=timestamp,
-            )
-            step_count += 1
-            total_usage += usage
-            counter += 1
-            memgpt_agent.interface.step_complete()
+            logger.debug(f"Starting agent step")
+            no_verify = True
+            next_input_message = input_message
+            counter = 0
+            total_usage = UsageStatistics()
+            step_count = 0
+            while True:
+                new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
+                    next_input_message,
+                    first_message=False,
+                    skip_verify=no_verify,
+                    return_dicts=False,
+                    stream=token_streaming,
+                    timestamp=timestamp,
+                    ms=self.ms,
+                )
+                step_count += 1
+                total_usage += usage
+                counter += 1
+                memgpt_agent.interface.step_complete()
 
-            # Chain stops
-            if not self.chaining:
-                logger.debug("No chaining, stopping after one step")
-                break
-            elif self.max_chaining_steps is not None and counter > self.max_chaining_steps:
-                logger.debug(f"Hit max chaining steps, stopping after {counter} steps")
-                break
-            # Chain handlers
-            elif token_warning:
-                next_input_message = system.get_token_limit_warning()
-                continue  # always chain
-            elif function_failed:
-                next_input_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
-                continue  # always chain
-            elif heartbeat_request:
-                next_input_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
-                continue  # always chain
-            # MemGPT no-op / yield
-            else:
-                break
+                logger.debug("Saving agent state")
+                # save updated state
+                save_agent(memgpt_agent, self.ms)
 
-        memgpt_agent.interface.step_yield()
-        logger.debug(f"Finished agent step")
+                # Chain stops
+                if not self.chaining:
+                    logger.debug("No chaining, stopping after one step")
+                    break
+                elif self.max_chaining_steps is not None and counter > self.max_chaining_steps:
+                    logger.debug(f"Hit max chaining steps, stopping after {counter} steps")
+                    break
+                # Chain handlers
+                elif token_warning:
+                    next_input_message = system.get_token_limit_warning()
+                    continue  # always chain
+                elif function_failed:
+                    next_input_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                    continue  # always chain
+                elif heartbeat_request:
+                    next_input_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
+                    continue  # always chain
+                # MemGPT no-op / yield
+                else:
+                    break
 
-        # save updated state
-        save_agent(memgpt_agent, self.ms)
+        except Exception as e:
+            logger.error(f"Error in server._step: {e}")
+            print(traceback.print_exc())
+            raise
+        finally:
+            logger.debug("Calling step_yield()")
+            memgpt_agent.interface.step_yield()
 
         return MemGPTUsageStatistics(**total_usage.dict(), step_count=step_count)
 
-    def _command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
+    def _command(self, user_id: str, agent_id: str, command: str) -> MemGPTUsageStatistics:
         """Process a CLI command"""
 
         logger.debug(f"Got command: {command}")
 
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        usage = None
 
         if command.lower() == "exit":
             # exit not supported on server.py
@@ -570,7 +575,7 @@ class SyncServer(Server):
         return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message, timestamp=timestamp)
 
     # @LockingServer.agent_lock_decorator
-    def run_command(self, user_id: str, agent_id: str, command: str) -> Union[MemGPTUsageStatistics, None]:
+    def run_command(self, user_id: str, agent_id: str, command: str) -> MemGPTUsageStatistics:
         """Run a command on the agent"""
         if self.ms.get_user(user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
@@ -656,25 +661,6 @@ class SyncServer(Server):
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
-            # make sure memory tools are added
-            # TODO: remove this - eventually memory tools need to be added when the memory is created
-            # this is duplicated with logic on the client-side
-
-            memory_functions = get_memory_functions(request.memory)
-            for func_name, func in memory_functions.items():
-                if func_name in request.tools:
-                    # tool already added
-                    continue
-                source_code = parse_source_code(func)
-                json_schema = generate_schema(func, func_name)
-                source_type = "python"
-                tags = ["memory", "memgpt-base"]
-                tool = self.create_tool(
-                    user_id=user_id, json_schema=json_schema, source_code=source_code, source_type=source_type, tags=tags, exists_ok=True
-                )
-                tool_objs.append(tool)
-                request.tools.append(tool.name)
-
             # TODO: save the agent state
             agent_state = AgentState(
                 name=request.name,
@@ -708,7 +694,6 @@ class SyncServer(Server):
         logger.info(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
-        print("CREATED AGENT", agent.agent_state)
         # return AgentState
         return agent.agent_state
 
@@ -832,7 +817,8 @@ class SyncServer(Server):
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
 
-        agents_states = self.ms.list_agents(user_id=user_id)
+            agents_states = self.ms.list_agents(user_id=user_id)
+
         agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
 
         # TODO add a get_message_obj_from_message_id(...) function
@@ -896,41 +882,7 @@ class SyncServer(Server):
             "agents": agents_states_dicts,
         }
 
-    # human / personas
-    # TODO: eventually deprecate this to be something more general? (e.g. can have custom labels)
-
-    def list_personas(self, user_id: str):
-        return self.ms.list_personas(user_id=user_id)
-
-    def get_persona(self, name: str, user_id: str):
-        return self.ms.get_persona(persona_name=name, user_id=user_id)
-
-    def create_persona(self, request: CreatePersona, user_id: str, update: bool = False) -> Persona:
-        existing_persona = self.ms.get_persona(persona_name=request.name, user_id=user_id)
-        print("UDPATE", update)
-        if existing_persona:  # update
-            if update:
-                return self.update_persona(UpdatePersona(id=existing_persona.id, **vars(request)), user_id)
-            else:
-                raise ValueError(f"Persona with name {request.name} already exists")
-        persona = Persona(**vars(request))
-        self.ms.create_persona(persona=persona)
-        return persona
-
-    def update_persona(self, request: UpdatePersona, user_id: str) -> Persona:
-        # TODO: FIX THIS (should nto override none)
-        persona = Persona(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
-        self.ms.update_persona(persona=persona)
-        return persona
-
-    def delete_persona(self, name: str, user_id: str):
-        return self.ms.delete_persona(name, user_id)
-
-    def list_humans(self, user_id: str):
-        return self.ms.list_humans(user_id=user_id)
-
-    def get_human(self, name: str, user_id: str):
-        return self.ms.get_human(human_name=name, user_id=user_id)
+    # blocks
 
     def get_blocks(
         self,
@@ -940,13 +892,15 @@ class SyncServer(Server):
         name: Optional[str] = None,
         id: Optional[str] = None,
     ):
+
         return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
 
     def get_block(self, block_id: str):
+
         blocks = self.get_blocks(id=block_id)
-        if len(blocks) == 0:
+        if blocks is None or len(blocks) == 0:
             return None
-        elif len(blocks) > 1:
+        if len(blocks) > 1:
             raise ValueError("Multiple blocks with the same id")
         return blocks[0]
 
@@ -963,8 +917,11 @@ class SyncServer(Server):
         self.ms.create_block(block)
         return block
 
-    def update_block(self, request: UpdateBlock, user_id: str) -> Block:
-        block = Block(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
+    def update_block(self, request: UpdateBlock) -> Block:
+        block = self.get_block(request.id)
+        block.limit = request.limit if request.limit is not None else block.limit
+        block.value = request.value if request.value is not None else block.value
+        block.name = request.name if request.name is not None else block.name
         self.ms.update_block(block=block)
         return block
 
@@ -973,30 +930,13 @@ class SyncServer(Server):
         self.ms.delete_block(block_id)
         return block
 
-    def create_human(self, request: CreateHuman, user_id: str, update: bool = False) -> Human:
-        existing_human = self.ms.get_human(human_name=request.name, user_id=user_id)
-        if existing_human:  # update
-            if update:
-                return self.update_human(UpdateHuman(id=existing_human.id, **vars(request)), user_id)
-            else:
-                raise ValueError(f"Human with name {request.name} already exists")
-        human = Human(**vars(request))
-        self.ms.create_human(human=human)
-        return human
-
-    def update_human(self, request: UpdateHuman, user_id: str) -> Human:
-        # TODO: FIX THIS (should nto override none)
-        human = Human(name=request.name, user_id=user_id, value=request.value, limit=request.limit, id=request.id)
-        self.ms.update_human(human=human)
-        return human
-
-    def delete_human(self, name: str, user_id: str):
-        return self.ms.delete_human(name, user_id)
-
     # convert name->id
 
     def get_agent_id(self, name: str, user_id: str):
-        return self.ms.get_agent(agent_name=name, user_id=user_id)
+        agent_state = self.ms.get_agent(agent_name=name, user_id=user_id)
+        if not agent_state:
+            return None
+        return agent_state.id
 
     def get_source(self, source_id: str, user_id: str) -> Source:
         existing_source = self.ms.get_source(source_id=source_id, user_id=user_id)
@@ -1042,6 +982,13 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return memgpt_agent._messages
+
+    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
+        """Get a single message from the agent's memory"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        return message
 
     def get_agent_messages(self, agent_id: str, start: int, count: int) -> List[Message]:
         """Paginated query of all messages in agent message queue"""
@@ -1096,6 +1043,7 @@ class SyncServer(Server):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
 
         # iterate over records
@@ -1406,9 +1354,13 @@ class SyncServer(Server):
         # override updated fields
         if request.name:
             existing_source.name = request.name
+        if request.metadata_:
+            existing_source.metadata_ = request.metadata_
+        if request.description:
+            existing_source.description = request.description
 
         self.ms.update_source(existing_source)
-        return self.ms.get_source(source_name=request.id, user_id=user_id)
+        return existing_source
 
     def delete_source(self, source_id: str, user_id: str):
         """Delete a data source"""
@@ -1417,9 +1369,63 @@ class SyncServer(Server):
 
         # delete data from passage store
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        passage_store.delete({"data_source": source.name})
+        passage_store.delete({"source_id": source_id})
 
         # TODO: delete data from agent passage stores (?)
+
+    def create_job(self, user_id: str) -> Job:
+        """Create a new job"""
+        job = Job(
+            user_id=user_id,
+            status=JobStatus.created,
+        )
+        self.ms.create_job(job)
+        return job
+
+    def delete_job(self, job_id: str):
+        """Delete a job"""
+        self.ms.delete_job(job_id)
+
+    def get_job(self, job_id: str) -> Job:
+        """Get a job"""
+        return self.ms.get_job(job_id)
+
+    def list_jobs(self, user_id: str) -> List[Job]:
+        """List all jobs for a user"""
+        return self.ms.list_jobs(user_id=user_id)
+
+    def load_file_to_source(self, source_id: str, file_path: str, job_id: str) -> Job:
+
+        # update job
+        job = self.ms.get_job(job_id)
+        job.status = JobStatus.running
+        self.ms.update_job(job)
+
+        # try:
+        from memgpt.data_sources.connectors import DirectoryConnector
+
+        source = self.ms.get_source(source_id=source_id)
+        connector = DirectoryConnector(input_files=[file_path])
+        num_passages, num_documents = self.load_data(user_id=source.user_id, source_name=source.name, connector=connector)
+        # except Exception as e:
+        #    # job failed with error
+        #    error = str(e)
+        #    print(error)
+        #    job.status = JobStatus.failed
+        #    job.metadata_["error"] = error
+        #    self.ms.update_job(job)
+        #    # TODO: delete any associated passages/documents?
+
+        #    # return failed job
+        #    return job
+
+        # update job status
+        job.status = JobStatus.completed
+        job.metadata_["num_passages"] = num_passages
+        job.metadata_["num_documents"] = num_documents
+        self.ms.update_job(job)
+
+        return job
 
     def load_data(
         self,
@@ -1441,7 +1447,7 @@ class SyncServer(Server):
         document_store = None  # StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, self.config.default_embedding_config, passage_store, document_store)
+        passage_count, document_count = load_data(connector, source, passage_store, document_store)
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1463,16 +1469,8 @@ class SyncServer(Server):
         # load agent
         agent = self._get_or_load_agent(agent_id=agent_id)
 
-        # get data source name
-        if not data_source.name:
-            source = self.ms.get_source(source_id=source_id)
-            assert source.user_id == agent.agent_state.user_id, "Source does not belong to the agent's user"
-            source_name = source.name
-        else:
-            source_name = data_source.name
-
         # attach source to agent
-        agent.attach_source(source_name, source_connector, self.ms)
+        agent.attach_source(data_source.id, source_connector, self.ms)
 
         return data_source
 
@@ -1487,7 +1485,7 @@ class SyncServer(Server):
         # TODO: remove all passages coresponding to source from agent's archival memory
         raise NotImplementedError
 
-    def list_attached_sources(self, agent_id: str):
+    def list_attached_sources(self, agent_id: str) -> List[Source]:
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
@@ -1654,10 +1652,16 @@ class SyncServer(Server):
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_persona(CreatePersona(name=name, value=text, template=True), user_id=user_id, update=True)
-            print("added", name, user_id)
+            self.create_block(CreatePersona(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            self.create_human(CreateHuman(name=name, value=text, template=True), user_id=user_id, update=True)
+            self.create_block(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+
+    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
+        """Get a single message from the agent's memory"""
+        # Get the agent object (loaded in memory)
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        return message

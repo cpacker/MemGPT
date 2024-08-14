@@ -1014,6 +1014,7 @@ FodyWeavers.xsd
 !persist/.gitkeep
 pgdata/
 !pgdata/.gitkeep
+.persist/
 
 ## pytest mirrors
 memgpt/.pytest_cache/

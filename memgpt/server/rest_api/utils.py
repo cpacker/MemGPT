@@ -1,4 +1,3 @@
-import asyncio
 import json
 import traceback
 from typing import AsyncGenerator, Generator, Union
@@ -10,6 +9,8 @@ from memgpt.orm.user import User
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.interface import StreamingServerInterface
 
+SSE_PREFIX = "data: "
+SSE_SUFFIX = "\n\n"
 SSE_FINISH_MSG = "[DONE]"  # mimic openai
 SSE_ARTIFICIAL_DELAY = 0.1
 
@@ -54,13 +55,20 @@ async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
     try:
         async for chunk in generator:
             # yield f"data: {json.dumps(chunk)}\n\n"
+            if isinstance(chunk, BaseModel):
+                chunk = chunk.model_dump()
+            elif isinstance(chunk, Enum):
+                chunk = str(chunk.value)
+            elif not isinstance(chunk, dict):
+                chunk = str(chunk)
             yield sse_formatter(chunk)
+
     except Exception as e:
         print("stream decoder hit error:", e)
         print(traceback.print_stack())
         yield sse_formatter({"error": "stream decoder encountered an error"})
+
     finally:
-        # yield "data: [DONE]\n\n"
         if finish_message:
             yield sse_formatter(SSE_FINISH_MSG)  # Signal that the stream is complete
 

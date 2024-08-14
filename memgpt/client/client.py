@@ -20,9 +20,23 @@ from memgpt.server.schemas.config import ConfigResponse
 # new schemas
 from memgpt.schemas.block import Human, Persona
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from memgpt.schemas.block import Block, CreateBlock, Human, Persona
+from memgpt.schemas.block import (
+    Block,
+    CreateBlock,
+    CreateHuman,
+    CreatePersona,
+    Human,
+    Persona,
+    UpdateHuman,
+    UpdatePersona,
+)
 from memgpt.schemas.embedding_config import EmbeddingConfig
+
+# new schemas
+from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.memory import (
     ArchivalMemorySummary,
@@ -91,15 +105,16 @@ class AbstractClient(object):
         human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
+        memory: Optional[Memory] = None,
     ) -> AgentState:
         """Create a new agent with the specified configuration."""
         raise NotImplementedError
 
-    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
+    def rename_agent(self, agent_id: str, new_name: str):
         """Rename the agent."""
         raise NotImplementedError
 
-    def delete_agent(self, agent_id: uuid.UUID):
+    def delete_agent(self, agent_id: str):
         """Delete the agent."""
         raise NotImplementedError
 
@@ -119,37 +134,30 @@ class AbstractClient(object):
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         raise NotImplementedError
 
-    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
-        raise NotImplementedError
-
     def save(self):
         raise NotImplementedError
 
     # archival memory
 
-    def get_agent_archival_memory(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
+    def get_archival_memory(self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000):
         """Paginated get for the archival memory for an agent"""
         raise NotImplementedError
 
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
+    def insert_archival_memory(self, agent_id: str, memory: str):
         """Insert archival memory into the agent."""
         raise NotImplementedError
 
-    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+    def delete_archival_memory(self, agent_id: str, memory_id: str):
         """Delete archival memory from the agent."""
         raise NotImplementedError
 
     # messages (recall memory)
 
-    def get_messages(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
-    ):
+    def get_messages(self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000):
         """Get messages for the agent."""
         raise NotImplementedError
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False):
+    def send_message(self, agent_id: str, message: str, role: str, stream: Optional[bool] = False):
         """Send a message to the agent."""
         raise NotImplementedError
 
@@ -424,7 +432,7 @@ class RESTClient(AbstractClient):
     # archival memory
 
     def get_archival_memory(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> List[Passage]:
         """Paginated get for the archival memory for an agent"""
         params = {"limit": limit}
@@ -449,18 +457,20 @@ class RESTClient(AbstractClient):
     # messages (recall memory)
 
     def get_messages(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> MemGPTResponse:
         params = {"before": before, "after": after, "limit": limit}
         response = self.httpx_client.get("/api/agents/{agent_id}/messages-cursor", params=params)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
+        return [Message(**message) for message in response.json()]
 
     def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> MemGPTResponse:
         data = {"message": message, "role": role, "stream": stream}
         response = self.httpx_client.post("/api/agents/{agent_id}/messages", json=data)
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
+        return MemGPTResponse(**response.json())
 
     # humans / personas
 
@@ -542,37 +552,51 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to delete block: {response.text}")
         return Block(**response.json())
 
-    def list_humans(self) -> List[Human]:
-        return self.list_blocks(label="human")
+    def list_humans(self):
+        blocks = self.list_blocks(label="human")
+        return [Human(**block.model_dump()) for block in blocks]
 
     def create_human(self, name: str, text: str) -> Human:
         return self.create_block(label="human", name=name, text=text)
 
-    def list_personas(self) -> List[Persona]:
-        return self.list_blocks(label="persona")
+    def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
+        request = UpdateHuman(id=human_id, name=name, value=text)
+        response = requests.post(f"{self.base_url}/api/blocks/{human_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update human: {response.text}")
+        return Human(**response.json())
+
+    def list_personas(self):
+        blocks = self.list_blocks(label="persona")
+        return [Persona(**block.model_dump()) for block in blocks]
 
     def create_persona(self, name: str, text: str) -> Persona:
         return self.create_block(label="persona", name=name, text=text)
 
-    def get_persona(self, name: str) -> Persona:
-        block_id = self.get_block_id(name, "persona")
-        if block_id is None:
-            return None
-        return self.get_block(block_id)
+    def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
+        request = UpdatePersona(id=persona_id, name=name, value=text)
+        response = requests.post(f"{self.base_url}/api/blocks/{persona_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update persona: {response.text}")
+        return Persona(**response.json())
 
-    def get_human(self, name: str) -> Human:
-        block_id = self.get_block_id(name, "human")
-        if block_id is None:
-            return None
-        return self.get_block(block_id)
+    def get_persona(self, persona_id: str) -> Persona:
+        return self.get_block(persona_id)
 
-    def delete_persona(self, name: str) -> Persona:
-        block_id = self.get_block_id(name, "persona")
-        return self.delete_block(block_id)
+    def get_persona_id(self, name: str) -> str:
+        return self.get_block_id(name, "persona")
 
-    def delete_human(self, name: str) -> Human:
-        block_id = self.get_block_id(name, "human")
-        return self.delete_block(block_id)
+    def delete_persona(self, persona_id: str) -> Persona:
+        return self.delete_block(persona_id)
+
+    def get_human(self, human_id: str) -> Human:
+        return self.get_block(human_id)
+
+    def get_human_id(self, name: str) -> str:
+        return self.get_block_id(name, "human")
+
+    def delete_human(self, human_id: str) -> Human:
+        return self.delete_block(human_id)
 
     # sources
 
@@ -582,7 +606,7 @@ class RESTClient(AbstractClient):
         response_json = response.json()
         return [i for i in response_json["sources"]]
 
-    def delete_source(self, source_id: uuid.UUID):
+    def delete_source(self, source_id: str):
         """Delete a source and associated data (including attached to agents)"""
         response = self.httpx_client.delete(f"/api/sources/{source_id}")
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
@@ -591,7 +615,7 @@ class RESTClient(AbstractClient):
         response = self.httpx_client.get(f"/api/sources/status/{job_id}")
         return Job(**response.json())
 
-    def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
+    def load_file_into_source(self, filename: str, source_id: str, blocking=True):
         """Load {filename} and insert into source"""
         files = {"file": open(filename, "rb")}
 
@@ -600,6 +624,7 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to upload file to source: {response.text}")
 
+        job = Job(**response.json())
         job = Job(**response.json())
         if blocking:
             # wait until job is completed
@@ -618,13 +643,13 @@ class RESTClient(AbstractClient):
         response = self.httpx_client.post("/api/sources", json=payload)
         return Source(**response.json())
 
-    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+    def attach_source_to_agent(self, source_id: str, agent_id: str):
         """Attach a source to an agent"""
         params = {"agent_id": agent_id}
         response = self.httpx_client.post("/api/sources/{source_id}/attach", params=params)
         assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
 
-    def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+    def detach_source(self, source_id: str, agent_id: str):
         """Detach a source from an agent"""
         params = {"agent_id": str(agent_id)}
         response = self.httpx_client.post("/api/sources/{source_id}/detach", params=params)
@@ -722,12 +747,12 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
         return [Tool(**tool) for tool in response.json()]
+        return [Tool(**tool) for tool in response.json()]
 
     async def delete_tool(self, name: str):
         response = await self.httpx_client.delete(f"/tools/{name}")
         if response.status_code != 200:
             raise ValueError(f"Failed to delete tool: {response.text}")
-        return response.json()
 
     async def get_tool(self, name: str):
         response = await self.httpx_client.get(f"/tools/{name}")
@@ -735,6 +760,7 @@ class RESTClient(AbstractClient):
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
+        return Tool(**response.json())
         return Tool(**response.json())
 
 
@@ -770,7 +796,6 @@ class LocalClient(AbstractClient):
         existing_user = self.server.get_user(self.user_id)
         if not existing_user:
             self.user = self.server.create_user(UserCreate())
-            print("existing user", self.user.id)
             self.user_id = self.user.id
 
             # update config
@@ -880,10 +905,13 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
-    def delete_agent(self, agent_id: uuid.UUID):
+    def rename_agent(self, agent_id: str, new_name: str):
+        return self.update_agent(agent_id, name=new_name)
+
+    def delete_agent(self, agent_id: str):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent(self, agent_id: uuid.UUID) -> AgentState:
+    def get_agent(self, agent_id: str) -> AgentState:
         # TODO: include agent_name
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
@@ -894,7 +922,7 @@ class LocalClient(AbstractClient):
         return self.server.get_agent_id(name=agent_name, user_id=self.user_id)
 
     # memory
-    def get_in_context_memory(self, agent_id: uuid.UUID) -> Memory:
+    def get_in_context_memory(self, agent_id: str) -> Memory:
         memory = self.server.get_agent_memory(agent_id=agent_id)
         return memory
 
@@ -904,10 +932,10 @@ class LocalClient(AbstractClient):
         return memory
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
-        return self.server.get_archival_memory_summary(user_id=self.user_id, agent_id=agent_id)
+        return self.server.get_archival_memory_summary(agent_id=agent_id)
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
-        return self.server.get_recall_memory_summary(user_id=self.user_id, agent_id=agent_id)
+        return self.server.get_recall_memory_summary(agent_id=agent_id)
 
     def get_in_context_messages(self, agent_id: str) -> List[Message]:
         return self.server.get_in_context_messages(agent_id=agent_id)
@@ -918,14 +946,16 @@ class LocalClient(AbstractClient):
         self,
         message: str,
         role: str,
-        agent_id: Optional[uuid.UUID] = None,
+        agent_id: Optional[str] = None,
         agent_name: Optional[str] = None,
         stream: Optional[bool] = False,
     ) -> MemGPTResponse:
         if not agent_id:
             assert agent_name, f"Either agent_id or agent_name must be provided"
-            agent_state = self.get_agent(agent_name=agent_name)
-            agent_id = agent_state.id
+            raise NotImplementedError
+            # agent_state = self.get_agent(agent_name=agent_name)
+            # agent_id = agent_state.id
+        agent_state = self.get_agent(agent_id=agent_id)
 
         if stream:
             # TODO: implement streaming with stream=True/False
@@ -937,25 +967,33 @@ class LocalClient(AbstractClient):
             usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         else:
             raise ValueError(f"Role {role} not supported")
+
+        # auto-save
         if self.auto_save:
             self.save()
-        else:
-            # TODO: need to make sure date/timestamp is propely passed
-            messages = [Message.dict_to_message(m) for m in self.interface.to_list()]
-            print("MESSAGES", messages)
-            return MemGPTResponse(messages=messages, usage=usage)
+
+        # TODO: need to make sure date/timestamp is propely passed
+        # TODO: update self.interface.to_list() to return actual Message objects
+        #       here, the message objects will have faulty created_by timestamps
+        messages = self.interface.to_list()
+        for m in messages:
+            assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
+        return MemGPTResponse(messages=messages, usage=usage)
 
     def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
         self.interface.clear()
-        usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
-        if self.auto_save:
-            self.save()
-        else:
-            return MemGPTResponse(messages=self.interface.to_list(), usage=usage)
+        return self.send_message(role="user", agent_id=agent_id, message=message)
 
     def run_command(self, agent_id: str, command: str) -> MemGPTResponse:
         self.interface.clear()
-        return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
+        usage = self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
+
+        # auto-save
+        if self.auto_save:
+            self.save()
+
+        # NOTE: messages/usage may be empty, depending on the command
+        return MemGPTResponse(messages=self.interface.to_list(), usage=usage)
 
     def save(self):
         self.server.save_agents()
@@ -965,38 +1003,48 @@ class LocalClient(AbstractClient):
     # humans / personas
 
     def create_human(self, name: str, text: str):
-        return self.server.create_human(Human(name=name, text=text, user_id=self.user_id))
+        return self.server.create_block(CreateHuman(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
 
     def create_persona(self, name: str, text: str):
-        return self.server.create_persona(Persona(name=name, text=text, user_id=self.user_id))
+        return self.server.create_block(CreatePersona(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
 
     def list_humans(self):
-        return self.server.list_humans(user_id=self.user_id if self.user_id else self.user_id)
+        return self.server.get_blocks(label="human", user_id=self.user_id, template=True)
 
-    def get_human(self, name: str):
-        return self.server.get_human(name=name, user_id=self.user_id)
+    def list_personas(self) -> List[Persona]:
+        return self.server.get_blocks(label="persona", user_id=self.user_id, template=True)
 
-    def update_human(self, name: str, text: str):
-        human = self.get_human(name)
-        human.text = text
-        return self.server.update_human(human)
+    def update_human(self, human_id: str, text: str):
+        return self.server.update_block(UpdateHuman(id=human_id, value=text, user_id=self.user_id, template=True))
 
-    def delete_human(self, name: str):
-        return self.server.delete_human(name, self.user_id)
+    def update_persona(self, persona_id: str, text: str):
+        return self.server.update_block(UpdatePersona(id=persona_id, value=text, user_id=self.user_id, template=True))
 
-    def list_personas(self):
-        return self.server.list_personas(user_id=self.user_id)
+    def get_persona(self, id: str) -> Persona:
+        assert id, f"Persona ID must be provided"
+        return Persona(**self.server.get_block(id).model_dump())
 
-    def get_persona(self, name: str):
-        return self.server.get_persona(name=name, user_id=self.user_id)
+    def get_human(self, id: str) -> Human:
+        assert id, f"Human ID must be provided"
+        return Human(**self.server.get_block(id).model_dump())
 
-    def update_persona(self, name: str, text: str):
-        persona = self.get_persona(name)
-        persona.text = text
-        return self.server.update_persona(persona)
+    def get_persona_id(self, name: str) -> str:
+        persona = self.server.get_blocks(name=name, label="persona", user_id=self.user_id, template=True)
+        if not persona:
+            return None
+        return persona[0].id
 
-    def delete_persona(self, name: str):
-        return self.server.delete_persona(name, self.user_id)
+    def get_human_id(self, name: str) -> str:
+        human = self.server.get_blocks(name=name, label="human", user_id=self.user_id, template=True)
+        if not human:
+            return None
+        return human[0].id
+
+    def delete_persona(self, id: str):
+        self.server.delete_block(id)
+
+    def delete_human(self, id: str):
+        self.server.delete_block(id)
 
     # tools
     def add_tool(self, tool: Tool, update: Optional[bool] = True) -> None:
@@ -1119,7 +1167,6 @@ class LocalClient(AbstractClient):
 
         """
         tools = self.server.list_tools(user_id=self.user_id)
-        print("LIST TOOLS", [t.name for t in tools])
         return tools
 
     def get_tool(self, id: str) -> Tool:
@@ -1135,6 +1182,14 @@ class LocalClient(AbstractClient):
 
     def load_data(self, connector: DataConnector, source_name: str):
         self.server.load_data(user_id=self.user_id, connector=connector, source_name=source_name)
+
+    def load_file_into_source(self, filename: str, source_id: str, blocking=True):
+        """Load {filename} and insert into source"""
+        job = self.server.create_job(user_id=self.user_id)
+
+        # TODO: implement blocking vs. non-blocking
+        self.server.load_file_to_source(source_id=source_id, file_path=filename, job_id=job.id)
+        return job
 
     def create_source(self, name: str) -> Source:
         request = SourceCreate(name=name)
@@ -1169,21 +1224,21 @@ class LocalClient(AbstractClient):
 
     # archival memory
 
-    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> List[Passage]:
+    def insert_archival_memory(self, agent_id: str, memory: str) -> List[Passage]:
         return self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
 
-    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+    def delete_archival_memory(self, agent_id: str, memory_id: str):
         self.server.delete_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_id=memory_id)
 
     def get_archival_memory(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> List[Passage]:
         return self.server.get_agent_archival_cursor(user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit)
 
     # recall memory
 
     def get_messages(
-        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> List[Message]:
         self.interface.clear()
         return self.server.get_agent_recall_cursor(
@@ -1191,13 +1246,7 @@ class LocalClient(AbstractClient):
         )
 
     def list_models(self) -> List[LLMConfig]:
+        return [self.server.server_llm_config]
 
-        llm_config = LLMConfig(
-            model=self.server.server_llm_config.model,
-            model_endpoint=self.server.server_llm_config.model_endpoint,
-            model_endpoint_type=self.server.server_llm_config.model_endpoint_type,
-            model_wrapper=self.server.server_llm_config.model_wrapper,
-            context_window=self.server.server_llm_config.context_window,
-        )
-        # TODO: support multiple models
-        return [llm_config]
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        return [self.server.server_embedding_config]

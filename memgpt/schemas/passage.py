@@ -17,11 +17,11 @@ class PassageBase(MemGPTBase):
     agent_id: Optional[str] = Field(None, description="The unique identifier of the agent associated with the passage.")
 
     # origin data source
-    data_source: Optional[str] = Field(None, description="The data source of the passage.")
+    source_id: Optional[str] = Field(None, description="The data source of the passage.")
 
     # document association
     doc_id: Optional[str] = Field(None, description="The unique identifier of the document associated with the passage.")
-    metadata: Optional[Dict] = Field({}, description="The metadata of the passage.")
+    metadata_: Optional[Dict] = Field({}, description="The metadata of the passage.")
 
 
 class Passage(PassageBase):

@@ -11,12 +11,12 @@ from rich.console import Console
 import memgpt.agent as agent
 import memgpt.errors as errors
 import memgpt.system as system
-from memgpt.agent_store.storage import StorageConnector, TableType
 
 # import benchmark
+from memgpt import create_client
 from memgpt.benchmark.benchmark import bench
 from memgpt.cli.cli import delete_agent, open_folder, quickstart, run, server, version
-from memgpt.cli.cli_config import add, add_tool, list_tools, configure, delete, list
+from memgpt.cli.cli_config import add, add_tool, configure, delete, list, list_tools
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import MemGPTConfig
 from memgpt.constants import (
@@ -93,7 +93,12 @@ def run_agent_loop(
         print()
 
     multiline_input = False
-    ms = MetadataStore(config)
+
+    # create client
+    client = create_client()
+    ms = MetadataStore(config)  # TODO: remove
+
+    # run loops
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
@@ -141,8 +146,8 @@ def run_agent_loop(
                     # TODO: check to ensure source embedding dimentions/model match agents, and disallow attachment if not
                     # TODO: alternatively, only list sources with compatible embeddings, and print warning about non-compatible sources
 
-                    data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
-                    if len(data_source_options) == 0:
+                    sources = client.list_sources()
+                    if len(sources) == 0:
                         typer.secho(
                             'No sources available. You must load a souce with "memgpt load ..." before running /attach.',
                             fg=typer.colors.RED,
@@ -153,11 +158,8 @@ def run_agent_loop(
                     # determine what sources are valid to be attached to this agent
                     valid_options = []
                     invalid_options = []
-                    for source in data_source_options:
-                        if (
-                            source.embedding_model == memgpt_agent.agent_state.embedding_config.embedding_model
-                            and source.embedding_dim == memgpt_agent.agent_state.embedding_config.embedding_dim
-                        ):
+                    for source in sources:
+                        if source.embedding_config == memgpt_agent.agent_state.embedding_config:
                             valid_options.append(source.name)
                         else:
                             # print warning about invalid sources
@@ -171,11 +173,7 @@ def run_agent_loop(
                     data_source = questionary.select("Select data source", choices=valid_options).ask()
 
                     # attach new data
-                    # attach(memgpt_agent.agent_state.name, data_source)
-                    source_connector = StorageConnector.get_storage_connector(
-                        TableType.PASSAGES, config, user_id=memgpt_agent.agent_state.user_id
-                    )
-                    memgpt_agent.attach_source(data_source, source_connector, ms)
+                    client.attach_source_to_agent(agent_id=memgpt_agent.agent_state.id, source_name=data_source)
 
                     continue
 
@@ -420,8 +418,10 @@ def run_agent_loop(
                 skip_verify=no_verify,
                 stream=stream,
                 inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                ms=ms,
             )
 
+            agent.save_agent(memgpt_agent, ms)
             skip_next_user_input = False
             if token_warning:
                 user_message = system.get_token_limit_warning()

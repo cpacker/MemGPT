@@ -1,4 +1,3 @@
-import uuid
 from typing import Dict, Optional
 
 from pydantic import Field
@@ -17,6 +16,6 @@ class Document(DocumentBase):
 
     id: str = DocumentBase.generate_id_field()
     text: str = Field(..., description="The text of the document.")
-    data_source: str = Field(..., description="The data source of the document.")
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, description="The unique identifier of the document.", primary_key=True)
-    metadata: Optional[Dict] = Field({}, description="The metadata of the document.")
+    source_id: str = Field(..., description="The unique identifier of the source associated with the document.")
+    user_id: str = Field(description="The unique identifier of the user associated with the document.")
+    metadata_: Optional[Dict] = Field({}, description="The metadata of the document.")

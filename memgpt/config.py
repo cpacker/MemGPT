@@ -4,6 +4,7 @@ import json
 import os
 import uuid
 from dataclasses import dataclass
+from typing import Optional
 
 import memgpt
 from memgpt.settings import settings
@@ -94,7 +95,7 @@ class MemGPTConfig:
         return uuid.UUID(int=uuid.getnode()).hex
 
     @classmethod
-    def load(cls) -> "MemGPTConfig":
+    def load(cls, llm_config: Optional[LLMConfig] = None, embedding_config: Optional[EmbeddingConfig] = None) -> "MemGPTConfig":
         # avoid circular import
         from memgpt.utils import printd
 
@@ -175,6 +176,9 @@ class MemGPTConfig:
             config_dict = {k: v for k, v in config_dict.items() if v is not None}
 
             return cls(**config_dict)
+
+        # assert embedding_config is not None, "Embedding config must be provided if config does not exist"
+        # assert llm_config is not None, "LLM config must be provided if config does not exist"
 
         # create new config
         anon_clientid = MemGPTConfig.generate_uuid()

@@ -23,6 +23,7 @@ from memgpt.memory import ArchivalMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.schemas.agent import AgentState
+from memgpt.schemas.block import Block
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.memory import Memory
@@ -38,7 +39,6 @@ from memgpt.system import (
 )
 from memgpt.utils import (
     count_tokens,
-    create_uuid_from_string,
     get_local_time,
     get_tool_call_id,
     get_utc_time,
@@ -217,7 +217,6 @@ class Agent(object):
         self.memory = self.agent_state.memory
         assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
         printd("Initialized memory object", self.memory)
-        print("Initialized memory object", self.memory)
 
         # Interface must implement:
         # - internal_monologue
@@ -647,6 +646,7 @@ class Agent(object):
         stream: bool = False,  # TODO move to config?
         timestamp: Optional[datetime.datetime] = None,
         inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        ms: Optional[MetadataStore] = None,
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         """Top-level event message handler for the MemGPT agent"""
 
@@ -676,7 +676,20 @@ class Agent(object):
                     raise e
 
         try:
-            # Step 0: add user message
+            # Step 0: update core memory
+            # only pulling latest block data if shared memory is being used
+            # TODO: ensure we're passing in metadata store from all surfaces
+            if ms is not None:
+                should_update = False
+                for block in self.agent_state.memory.to_dict().values():
+                    if not block.get("template", False):
+                        should_update = True
+                if should_update:
+                    # TODO: the force=True can be optimized away
+                    # once we ensure we're correctly comparing whether in-memory core
+                    # data is different than persisted core data.
+                    self.rebuild_memory(force=True, ms=ms)
+            # Step 1: add user message
             if user_message is not None:
                 if isinstance(user_message, Message):
                     # Validate JSON via save/load
@@ -722,7 +735,7 @@ class Agent(object):
             if len(input_message_sequence) > 1 and input_message_sequence[-1].role != "user":
                 printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
 
-            # Step 1: send the conversation and available functions to GPT
+            # Step 2: send the conversation and available functions to GPT
             if not skip_verify and (first_message or self.messages_total == self.messages_total_init):
                 printd(f"This is the first message. Running extra verifier on AI response.")
                 counter = 0
@@ -747,9 +760,9 @@ class Agent(object):
                     inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
                 )
 
-            # Step 2: check if LLM wanted to call a function
-            # (if yes) Step 3: call the function
-            # (if yes) Step 4: send the info on the function call and function response to LLM
+            # Step 3: check if LLM wanted to call a function
+            # (if yes) Step 4: call the function
+            # (if yes) Step 5: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
             response_message.model_copy()  # TODO why are we copying here?
             all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
@@ -765,7 +778,7 @@ class Agent(object):
             #     "functions": self.functions,
             # }
 
-            # Step 4: extend the message history
+            # Step 6: extend the message history
             if user_message is not None:
                 if isinstance(user_message, Message):
                     all_new_messages = [user_message] + all_response_messages
@@ -825,6 +838,7 @@ class Agent(object):
                     stream=stream,
                     timestamp=timestamp,
                     inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                    ms=ms,
                 )
 
             else:
@@ -973,8 +987,8 @@ class Agent(object):
         new_messages = [new_system_message_obj] + self._messages[1:]  # swap index 0 (system)
         self._messages = new_messages
 
-    def rebuild_memory(self, force=False, update_timestamp=True):
-        """Rebuilds the system message with the latest memory object"""
+    def rebuild_memory(self, force=False, update_timestamp=True, ms: Optional[MetadataStore] = None):
+        """Rebuilds the system message with the latest memory object and any shared memory block updates"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
 
         # NOTE: This is a hacky way to check if the memory has changed
@@ -982,6 +996,28 @@ class Agent(object):
         if not force and memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
             printd(f"Memory has not changed, not rebuilding system")
             return
+
+        if ms:
+            for block in self.memory.to_dict().values():
+                if block.get("templates", False):
+                    # we don't expect to update shared memory blocks that
+                    # are templates. this is something we could update in the
+                    # future if we expect templates to change often.
+                    continue
+                block_id = block.get("id")
+                db_block = ms.get_block(block_id=block_id)
+                if db_block is None:
+                    # this case covers if someone has deleted a shared block by interacting
+                    # with some other agent.
+                    # in that case we should remove this shared block from the agent currently being
+                    # evaluated.
+                    printd(f"removing block: {block_id=}")
+                    continue
+                if not isinstance(db_block.value, str):
+                    printd(f"skipping block update, unexpected value: {block_id=}")
+                    continue
+                # TODO: we may want to update which columns we're updating from shared memory e.g. the limit
+                self.memory.update_block_value(name=block.get("name", ""), value=db_block.value)
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False
@@ -1097,13 +1133,12 @@ class Agent(object):
         # TODO: recall memory
         raise NotImplementedError()
 
-    def attach_source(self, source_name, source_connector: StorageConnector, ms: MetadataStore):
+    def attach_source(self, source_id: str, source_connector: StorageConnector, ms: MetadataStore):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
 
-        filters = {"user_id": self.agent_state.user_id, "data_source": source_name}
+        filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
         size = source_connector.size(filters)
-        # typer.secho(f"Ingesting {size} passages into {agent.name}", fg=typer.colors.GREEN)
         page_size = 100
         generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
         all_passages = []
@@ -1116,7 +1151,8 @@ class Agent(object):
                 passage.agent_id = self.agent_state.id
 
                 # regenerate passage ID (avoid duplicates)
-                passage.id = create_uuid_from_string(f"{source_name}_{str(passage.agent_id)}_{passage.text}")
+                # TODO: need to find another solution to the text duplication issue
+                # passage.id = create_uuid_from_string(f"{source_id}_{str(passage.agent_id)}_{passage.text}")
 
             # insert into agent archival memory
             self.persistence_manager.archival_memory.storage.insert_many(passages)
@@ -1128,16 +1164,14 @@ class Agent(object):
         self.persistence_manager.archival_memory.storage.save()
 
         # attach to agent
-        source = ms.get_source(source_name=source_name, user_id=self.agent_state.user_id)
-        assert source is not None, f"source does not exist for source_name={source_name}, user_id={self.agent_state.user_id}"
-        source_id = source.id
-        assert source_id is not None, f"source_id is None for source_name={source_name}, user_id={self.agent_state.user_id}"
+        source = ms.get_source(source_id=source_id)
+        assert source is not None, f"Source {source_id} not found in metadata store"
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 
         total_agent_passages = self.persistence_manager.archival_memory.storage.size()
 
         printd(
-            f"Attached data source {source_name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+            f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
         )
 
 
@@ -1149,6 +1183,10 @@ def save_agent(agent: Agent, ms: MetadataStore):
     agent_id = agent_state.id
     assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
 
+    # NOTE: we're saving agent memory before persisting the agent to ensure
+    # that allocated block_ids for each memory block are present in the agent model
+    save_agent_memory(agent=agent, ms=ms)
+
     if ms.get_agent(agent_id=agent.agent_state.id):
         ms.update_agent(agent_state)
     else:
@@ -1156,3 +1194,24 @@ def save_agent(agent: Agent, ms: MetadataStore):
 
     agent.agent_state = ms.get_agent(agent_id=agent_id)
     assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
+
+
+def save_agent_memory(agent: Agent, ms: MetadataStore):
+    """
+    Save agent memory to metadata store. Memory is a collection of blocks and each block is persisted to the block table.
+
+    NOTE: we are assuming agent.update_state has already been called.
+    """
+
+    print("SAVE AGENT MEMORY", agent.agent_state.memory.to_dict().values())
+
+    for block_dict in agent.memory.to_dict().values():
+        # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
+        if block_dict.get("user_id", None) is None:
+            block_dict["user_id"] = agent.agent_state.user_id
+        block = Block(**block_dict)
+        # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
+        # the case in some tests, if so we should relax the DB constraint.
+        if block.value is None:
+            block.value = ""
+        ms.update_or_create_block(block)

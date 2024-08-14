@@ -1,7 +1,6 @@
 import inspect
 import typing
-from typing import Optional, get_args, get_origin, Type, Dict, Any
-
+from typing import Any, Dict, Optional, Type, get_args, get_origin
 
 from docstring_parser import parse
 from pydantic import BaseModel

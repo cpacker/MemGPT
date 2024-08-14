@@ -29,7 +29,8 @@ from memgpt.schemas.agent import AgentState
 from memgpt.schemas.api_key import APIKey
 from memgpt.schemas.block import Block, Human, Persona
 from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.job import JobStatus
+from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import Memory
 from memgpt.schemas.source import Source

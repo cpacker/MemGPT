@@ -12,9 +12,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
+from memgpt.server.rest_api.admin.agents import setup_agents_admin_router
 from memgpt.server.rest_api.admin.tools import setup_tools_index_router
 from memgpt.server.rest_api.admin.users import setup_admin_router
-from memgpt.server.rest_api.agents.command import setup_agents_command_router
 from memgpt.server.rest_api.agents.index import setup_agents_index_router
 from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
 from memgpt.server.rest_api.agents.message import setup_agents_message_router
@@ -66,6 +66,7 @@ def verify_password(credentials: HTTPAuthorizationCredentials = Depends(security
 
 
 ADMIN_PREFIX = "/admin"
+ADMIN_API_PREFIX = "/api/admin"
 API_PREFIX = "/api"
 OPENAI_API_PREFIX = "/v1"
 
@@ -86,8 +87,10 @@ app.include_router(setup_auth_router(server, interface, password), prefix=API_PR
 app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
 app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
 
+# /api/admin/agents endpoints
+app.include_router(setup_agents_admin_router(server, interface), prefix=ADMIN_API_PREFIX, dependencies=[Depends(verify_password)])
+
 # /api/agents endpoints
-app.include_router(setup_agents_command_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
@@ -142,7 +145,8 @@ def on_startup():
 @app.on_event("shutdown")
 def on_shutdown():
     global server
-    server.save_agents()
+    if server:
+        server.save_agents()
     server = None
 
 

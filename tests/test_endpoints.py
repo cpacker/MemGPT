@@ -2,6 +2,7 @@ import json
 import os
 import uuid
 
+from memgpt import create_client
 from memgpt.agent import Agent
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.message import Message
@@ -11,6 +12,9 @@ from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.server.server import SyncServer
 from memgpt.prompts import gpt_system
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.message import Message
 
 messages = [Message(role="system", text=gpt_system.get_system_text("memgpt_chat")), Message(role="user", text="How are you?")]
 
@@ -53,6 +57,7 @@ def run_llm_endpoint(filename):
         functions=agent.functions,
         functions_python=agent.functions_python,
     )
+    client.delete_agent(agent_state.id)
     assert response is not None
 
 

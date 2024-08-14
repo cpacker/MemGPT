@@ -1,9 +1,8 @@
-import builtins
 import ast
+import builtins
 import os
-import uuid
 from enum import Enum
-from typing import Annotated, Optional, List
+from typing import Annotated, List, Optional
 
 import questionary
 import typer
@@ -36,11 +35,8 @@ from memgpt.local_llm.constants import (
     DEFAULT_WRAPPER_NAME,
 )
 from memgpt.local_llm.utils import get_available_wrappers
-from memgpt.metadata import MetadataStore
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
-from memgpt.schemas.source import Source
-from memgpt.schemas.user import User
 from memgpt.server.utils import shorten_key_middle
 
 app = typer.Typer()
@@ -1074,17 +1070,10 @@ def configure():
     typer.secho(f"📖 Saving config to {config.config_path}", fg=typer.colors.GREEN)
     config.save()
 
-    # create user records
-    ms = MetadataStore(config)
-    user_id = uuid.UUID(config.anon_clientid)
-    user = User(
-        id=uuid.UUID(config.anon_clientid),
-    )
-    if ms.get_user(user_id):
-        # update user
-        ms.update_user(user)
-    else:
-        ms.create_user(user)
+    from memgpt import create_client
+
+    client = create_client()
+    print("User ID:", client.user_id)
 
 
 class ListChoice(str, Enum):
@@ -1098,17 +1087,15 @@ class ListChoice(str, Enum):
 def list(arg: Annotated[ListChoice, typer.Argument]):
     from memgpt.client.client import create_client
 
-    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+    client = create_client()
+    print("user", client.user_id)
     table = ColorTable(theme=Themes.OCEAN)
     if arg == ListChoice.agents:
         """List all agents"""
         table.field_names = ["Name", "LLM Model", "Embedding Model", "Embedding Dim", "Persona", "Human", "Data Source", "Create Time"]
         for agent in tqdm(client.list_agents()):
             # TODO: add this function
-            source_ids = client.list_attached_sources(agent_id=agent.id)
-            assert all([source_id is not None and isinstance(source_id, uuid.UUID) for source_id in source_ids])
-            sources = [client.get_source(source_id=source_id) for source_id in source_ids]
-            assert all([source is not None and isinstance(source, Source)] for source in sources)
+            sources = client.list_attached_sources(agent_id=agent.id)
             source_names = [source.name for source in sources if source is not None]
             table.add_row(
                 [
@@ -1116,8 +1103,8 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
                     agent.llm_config.model,
                     agent.embedding_config.embedding_model,
                     agent.embedding_config.embedding_dim,
-                    agent._metadata.get("persona", ""),
-                    agent._metadata.get("human", ""),
+                    agent.memory.get_block("persona").value[:100] + "...",
+                    agent.memory.get_block("human").value[:100] + "...",
                     ",".join(source_names),
                     utils.format_datetime(agent.created_at),
                 ]
@@ -1127,13 +1114,13 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         """List all humans"""
         table.field_names = ["Name", "Text"]
         for human in client.list_humans():
-            table.add_row([human.name, human.text.replace("\n", "")[:100]])
+            table.add_row([human.name, human.value.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
         table.field_names = ["Name", "Text"]
         for persona in client.list_personas():
-            table.add_row([persona.name, persona.text.replace("\n", "")[:100]])
+            table.add_row([persona.name, persona.value.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""
@@ -1239,23 +1226,27 @@ def add(
         assert text is None, "Cannot specify both text and filename"
         with open(filename, "r", encoding="utf-8") as f:
             text = f.read()
+    else:
+        assert text is not None, "Must specify either text or filename"
     if option == "persona":
-        persona = client.get_persona(name)
-        if persona:
+        persona_id = client.get_persona_id(name)
+        if persona_id:
+            client.get_persona(persona_id)
             # config if user wants to overwrite
             if not questionary.confirm(f"Persona {name} already exists. Overwrite?").ask():
                 return
-            client.update_persona(name=name, text=text)
+            client.update_persona(persona_id, text=text)
         else:
             client.create_persona(name=name, text=text)
 
     elif option == "human":
-        human = client.get_human(name=name)
-        if human:
+        human_id = client.get_human_id(name)
+        if human_id:
+            human = client.get_human(human_id)
             # config if user wants to overwrite
             if not questionary.confirm(f"Human {name} already exists. Overwrite?").ask():
                 return
-            client.update_human(name=name, text=text)
+            client.update_human(human_id, text=text)
         else:
             human = client.create_human(name=name, text=text)
     else:
@@ -1272,21 +1263,22 @@ def delete(option: str, name: str):
         # delete from metadata
         if option == "source":
             # delete metadata
-            source = client.get_source(name)
-            assert source is not None, f"Source {name} does not exist"
-            client.delete_source(source_id=source.id)
+            source_id = client.get_source_id(name)
+            assert source_id is not None, f"Source {name} does not exist"
+            client.delete_source(source_id)
         elif option == "agent":
-            agent = client.get_agent(agent_name=name)
-            assert agent is not None, f"Agent {name} does not exist"
-            client.delete_agent(agent_id=agent.id)
+            agent_id = client.get_agent_id(name)
+            print(agent_id)
+            assert agent_id is not None, f"Agent {name} does not exist"
+            client.delete_agent(agent_id=agent_id)
         elif option == "human":
-            human = client.get_human(name=name)
-            assert human is not None, f"Human {name} does not exist"
-            client.delete_human(name=name)
+            human_id = client.get_human_id(name)
+            assert human_id is not None, f"Human {name} does not exist"
+            client.delete_human(human_id)
         elif option == "persona":
-            persona = client.get_persona(name=name)
-            assert persona is not None, f"Persona {name} does not exist"
-            client.delete_persona(name=name)
+            persona_id = client.get_persona_id(name)
+            assert persona_id is not None, f"Persona {name} does not exist"
+            client.delete_persona(persona_id)
         else:
             raise ValueError(f"Option {option} not implemented")
 
