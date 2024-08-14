@@ -53,7 +53,7 @@ from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.user import UserCreate
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
-from memgpt.utils import get_human_text
+from memgpt.utils import get_human_text, get_persona_text
 
 if TYPE_CHECKING:
     from httpx import ASGITransport, WSGITransport
@@ -277,7 +277,7 @@ class RESTClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(settings.human), persona=get_human_text(settings.persona)),
+        memory: Memory = ChatMemory(human=get_human_text(settings.human), persona=get_persona_text(settings.persona)),
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
@@ -830,7 +830,7 @@ class LocalClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(settings.human), persona=get_human_text(settings.persona)),
+        memory: Memory = ChatMemory(human=get_human_text(settings.human), persona=get_persona_text(settings.persona)),
         # system
         system: Optional[str] = None,
         # tools

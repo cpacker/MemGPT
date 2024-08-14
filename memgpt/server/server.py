@@ -1645,21 +1645,19 @@ class SyncServer(Server):
             )
 
     def add_default_blocks(self, user_id: str):
-        from memgpt.utils import list_human_files, list_persona_files
+        from memgpt.utils import list_human_files, list_persona_files, get_human_text, get_persona_text
 
         assert user_id is not None, "User ID must be provided"
 
         for persona_file in list_persona_files():
-            text = open(persona_file, "r", encoding="utf-8").read()
-            name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_block(CreatePersona(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            text = get_persona_text(persona_file.stem)
+            self.create_block(CreatePersona(user_id=user_id, name=persona_file.stem, value=text, template=True), user_id=user_id, update=True)
 
         for human_file in list_human_files():
-            text = open(human_file, "r", encoding="utf-8").read()
-            name = os.path.basename(human_file).replace(".txt", "")
-            self.create_block(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            text = get_human_text(human_file.stem)
+            self.create_block(CreateHuman(user_id=user_id, name=human_file.stem, value=text, template=True), user_id=user_id, update=True)
 
-    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
+def get_agent_message(self, agent_id: str, message_id: str) -> Message:
         """Get a single message from the agent's memory"""
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
