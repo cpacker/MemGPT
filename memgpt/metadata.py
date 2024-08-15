@@ -481,14 +481,6 @@ class MetadataStore:
                 > 0
             ):
 
-                print(
-                    session.query(BlockModel)
-                    .filter(BlockModel.name == block.name)
-                    .filter(BlockModel.user_id == block.user_id)
-                    .filter(BlockModel.template == True)
-                    .filter(BlockModel.label == block.label)
-                    .all()
-                )
                 raise ValueError(f"Block with name {block.name} already exists")
             session.add(BlockModel(**vars(block)))
             session.commit()
@@ -710,7 +702,6 @@ class MetadataStore:
     ) -> List[Block]:
         """List available blocks"""
         with self.session_maker() as session:
-            print("MS ID", id)
             query = session.query(BlockModel).filter(BlockModel.template == template)
 
             if user_id:
@@ -727,9 +718,6 @@ class MetadataStore:
 
             results = query.all()
 
-            print("get blocks", id, user_id, label, template, name, id)
-            print(results)
-            print(session.query(BlockModel).all())
             if len(results) == 0:
                 return None
 
