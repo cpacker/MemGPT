@@ -14,7 +14,7 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 RUN poetry lock --no-update
 RUN if [ "$MEMGPT_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
-    poetry install --no-root -E "postgres server dev autogen" ; \
+    poetry install --no-root -E "postgres server dev" ; \
     else \
     poetry install --no-root -E "postgres server" && \
     rm -rf $POETRY_CACHE_DIR ;  \
