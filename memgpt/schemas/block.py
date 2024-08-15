@@ -101,7 +101,7 @@ class CreateHuman(BaseBlock):
 class UpdateBlock(BaseBlock):
     """Update a block"""
 
-    id: str = Field(..., description="The unique identifier of the block.")
+    id: Optional[str] = Field(default=None, description="The unique identifier of the block.")
     limit: Optional[int] = Field(2000, description="Character limit of the block.")
 
 
