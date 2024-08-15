@@ -1088,7 +1088,6 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
     from memgpt.client.client import create_client
 
     client = create_client()
-    print("user", client.user_id)
     table = ColorTable(theme=Themes.OCEAN)
     if arg == ListChoice.agents:
         """List all agents"""
@@ -1192,11 +1191,7 @@ def add_tool(
 
     # 4. Add or update the tool
     tool = client.create_tool(func=func, name=name, tags=tags, update=update)
-    print(tool)
-
-    tools = client.list_tools()
-    for tool in tools:
-        print(f"Tool: {tool.name}")
+    print(f"Tool {tool.name} added successfully")
 
 
 @app.command()
@@ -1268,7 +1263,6 @@ def delete(option: str, name: str):
             client.delete_source(source_id)
         elif option == "agent":
             agent_id = client.get_agent_id(name)
-            print(agent_id)
             assert agent_id is not None, f"Agent {name} does not exist"
             client.delete_agent(agent_id=agent_id)
         elif option == "human":
