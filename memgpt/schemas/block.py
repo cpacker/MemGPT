@@ -59,7 +59,11 @@ class BaseBlock(MemGPTBase, validate_assignment=True):
 
 
 class Block(BaseBlock):
-    """Block of the LLM context"""
+    """
+    Blocks represent a subset of the agent's context window, which has a limit on the number of characters.
+    Blocks are part of a `Memory` object, which contains tools to edit blocks within memory. Blocks are persisted in a database
+    and can be share by multiple agents. Block data is compiled into a string at inference time to be placed in the context window.
+    """
 
     id: str = BaseBlock.generate_id_field()
     value: str = Field(..., description="Value of the block.")
@@ -102,7 +106,8 @@ class UpdateBlock(BaseBlock):
     """Update a block"""
 
     id: str = Field(..., description="The unique identifier of the block.")
-    limit: Optional[int] = Field(2000, description="Character limit of the block.")
+    limit: Optional[int] = Field(None, description="Character limit of the block.")
+    value: Optional[Union[List[str], str]] = Field(None, description="Value of the block.")
 
 
 class UpdatePersona(UpdateBlock):
