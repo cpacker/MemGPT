@@ -1,5 +1,5 @@
 from typing import TYPE_CHECKING, List, Optional
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from memgpt.server.schemas.tools import CreateToolRequest, ListToolsResponse
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.server.rest_api.interface import QueuingInterface
