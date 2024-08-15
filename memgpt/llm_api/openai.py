@@ -252,7 +252,7 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[ChatCompletionCh
             # Inspect for errors before iterating (see https://github.com/florimondmanca/httpx-sse/pull/12)
             if not event_source.response.is_success:
                 # handle errors
-                from utils import printd
+                from memgpt.utils import printd
 
                 printd("Caught error before iterating SSE request:", vars(event_source.response))
                 printd(event_source.response.read())

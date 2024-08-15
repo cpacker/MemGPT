@@ -95,6 +95,7 @@ async def send_message_to_agent(
 ) -> Union[StreamingResponse, UserMessageResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
 
+    include_final_message = True
     # handle the legacy mode streaming
     if stream_legacy:
         # NOTE: override
