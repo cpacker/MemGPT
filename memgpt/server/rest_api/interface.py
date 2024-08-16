@@ -500,7 +500,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
                     processed_chunk = {
                         "function_call": {
-                            # "id": function_call.id,
+                            "id": function_call.id,
                             "name": function_call.function["name"],
                             "arguments": function_call.function["arguments"],
                         },
