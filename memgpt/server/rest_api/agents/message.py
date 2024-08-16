@@ -95,7 +95,10 @@ async def send_message_to_agent(
 ) -> Union[StreamingResponse, UserMessageResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
 
-    include_final_message = True
+    # TODO this is a total hack but is required until we move streaming into the model config
+    if server.server_llm_config.model_endpoint != "https://api.openai.com/v1":
+        stream_tokens = False
+
     # handle the legacy mode streaming
     if stream_legacy:
         # NOTE: override
