@@ -271,7 +271,9 @@ def create(
         else:
             inner_thoughts_in_kwargs = True if inner_thoughts_in_kwargs == OptionState.YES else False
 
-        assert isinstance(inner_thoughts_in_kwargs, bool), type(inner_thoughts_in_kwargs)
+        if not isinstance(inner_thoughts_in_kwargs, bool):
+            warnings.warn(f"Bad type detected: {type(inner_thoughts_in_kwargs)}")
+            inner_thoughts_in_kwargs = bool(inner_thoughts_in_kwargs)
         if inner_thoughts_in_kwargs:
             functions = add_inner_thoughts_to_functions(
                 functions=functions,
