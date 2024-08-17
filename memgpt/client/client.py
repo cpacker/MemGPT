@@ -6,14 +6,9 @@ import requests
 from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
-from memgpt.memory import BaseMemory, ChatMemory, get_memory_functions
-from memgpt.schemas.block import Human, Persona
-from memgpt.schemas.source import Source, SourceAttach, SourceCreate, SourceQuery
-
-# new schemas
+from memgpt.memory import get_memory_functions
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import (
     Block,
@@ -101,10 +96,10 @@ class AbstractClient(object):
 
     # memory
 
-    def get_agent_memory(self, agent_id: str) -> Dict:
+    def get_in_context_memory(self, agent_id: str) -> Dict:
         raise NotImplementedError
 
-    def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
+    def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
         raise NotImplementedError
 
     # agent interactions
@@ -165,28 +160,31 @@ class AbstractClient(object):
 
     # data sources
 
-    def list_sources(self):
-        """List loaded sources"""
+    def create_source(self, name: str) -> Source:
         raise NotImplementedError
 
-    def delete_source(self):
-        """Delete a source and associated data (including attached to agents)"""
+    def delete_source(self, source_id: str):
         raise NotImplementedError
 
-    def load_file_into_source(self, filename: str, source_id: uuid.UUID):
-        """Load {filename} and insert into source"""
+    def get_source(self, source_id: str) -> Source:
         raise NotImplementedError
 
-    def create_source(self, name: str):
-        """Create a new source"""
+    def get_source_id(self, source_name: str) -> str:
         raise NotImplementedError
 
-    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
-        """Attach a source to an agent"""
+    def attach_source_to_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
         raise NotImplementedError
 
-    def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
-        """Detach a source from an agent"""
+    def detach_source_from_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
+        raise NotImplementedError
+
+    def list_sources(self) -> List[Source]:
+        raise NotImplementedError
+
+    def list_attached_sources(self, agent_id: str) -> List[Source]:
+        raise NotImplementedError
+
+    def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         raise NotImplementedError
 
     # server configuration commands
@@ -1199,7 +1197,7 @@ class LocalClient(AbstractClient):
         request = SourceCreate(name=name)
         return self.server.create_source(request=request, user_id=self.user_id)
 
-    def delete_source(self, source_id: Optional[str] = None, source_name: Optional[str] = None):
+    def delete_source(self, source_id: str):
         # TODO: delete source data
         self.server.delete_source(source_id=source_id, user_id=self.user_id)
 
@@ -1209,9 +1207,11 @@ class LocalClient(AbstractClient):
     def get_source_id(self, source_name: str) -> str:
         return self.server.get_source_id(source_name=source_name, user_id=self.user_id)
 
-    def attach_source_to_agent(self, source_id: str, agent_id: str):
-        request = SourceAttach(agent_id=agent_id, source_id=source_id)
-        self.server.attach_source_to_agent(request=request, user_id=self.user_id)
+    def attach_source_to_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
+        self.server.attach_source_to_agent(source_id=source_id, source_name=source_name, agent_id=agent_id, user_id=self.user_id)
+
+    def detach_source_from_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
+        self.server.detach_source_from_agent(source_id=source_id, source_name=source_name, agent_id=agent_id, user_id=self.user_id)
 
     def list_sources(self) -> List[Source]:
         return self.server.list_all_sources(user_id=self.user_id)
@@ -1219,8 +1219,9 @@ class LocalClient(AbstractClient):
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         return self.server.list_attached_sources(agent_id=agent_id)
 
-    def update_source(self, name: Optional[str] = None) -> Source:
-        request = Source(name=name)
+    def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
+        # TODO should the arg here just be "source_update: Source"?
+        request = SourceUpdate(id=source_id, name=name)
         return self.server.update_source(request=request, user_id=self.user_id)
 
     # archival memory
@@ -1242,8 +1243,8 @@ class LocalClient(AbstractClient):
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> List[Message]:
         self.interface.clear()
-        [_, messages] = self.server.get_agent_recall_cursor(
-            user_id=self.user_id, agent_id=agent_id, before=before, limit=limit, reverse=True
+        return self.server.get_agent_recall_cursor(
+            user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit, reverse=True
         )
 
     def list_models(self) -> List[LLMConfig]:

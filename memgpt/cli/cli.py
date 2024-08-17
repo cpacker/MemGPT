@@ -563,6 +563,16 @@ def run(
             )
             agent_state.llm_config.model_endpoint_type = model_endpoint_type
 
+        # NOTE: commented out because this seems dangerous - instead users should use /systemswap when in the CLI
+        # # user specified a new system prompt
+        # if system:
+        #     # NOTE: agent_state.system is the ORIGINAL system prompt,
+        #     #       whereas agent_state.state["system"] is the LATEST system prompt
+        #     existing_system_prompt = agent_state.state["system"] if "system" in agent_state.state else None
+        #     if existing_system_prompt != system:
+        #         # override
+        #         agent_state.state["system"] = system
+
         # Update the agent with any overrides
         agent_state = client.update_agent(
             agent_id=agent_state.id,
@@ -640,6 +650,7 @@ def run(
         # add tools
         agent_state = client.create_agent(
             name=agent_name,
+            system=system_prompt,
             embedding_config=embedding_config,
             llm_config=llm_config,
             memory=memory,
@@ -657,10 +668,6 @@ def run(
             first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
         )
         save_agent(agent=memgpt_agent, ms=ms)
-
-        # except ValueError as e:
-        #    typer.secho(f"Failed to create agent from provided information:\n{e}", fg=typer.colors.RED)
-        #    sys.exit(1)
         typer.secho(f"🎉 Created new agent '{memgpt_agent.agent_state.name}' (id={memgpt_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # start event loop

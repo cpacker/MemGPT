@@ -36,19 +36,8 @@ async def send_message_to_agent(
     return_message_object: bool = True,  # Should be True for Python Client, False for REST API
 ) -> Union[StreamingResponse, MemGPTResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
-
-    # TODO this is a total hack but is required until we move streaming into the model config
-    if server.server_llm_config.model_endpoint != "https://api.openai.com/v1":
-        stream_tokens = False
-
-    # handle the legacy mode streaming
-    if stream_legacy:
-        # NOTE: override
-        stream_steps = True
-        stream_tokens = False
-        include_final_message = False
-    else:
-        include_final_message = True
+    # TODO: @charles is this the correct way to handle?
+    include_final_message = True
 
     # determine role
     if role == MessageRole.user:
