@@ -81,9 +81,10 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
         """
         Create a new tool
         """
+        # NOTE: horrifying code, should be replaced when we migrate dev portal
+        from memgpt.agent import Agent  # nasty: need agent to be defined
         from memgpt.functions.schema_generator import generate_schema
 
-        # NOTE: horrifying code, should be replaced when we migrate dev portal
         name = request.json_schema["name"]
 
         import ast
