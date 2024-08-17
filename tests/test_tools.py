@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.agent import Agent
+from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.schemas.memory import ChatMemory
 
@@ -148,7 +149,7 @@ def test_create_tool(client):
 def test_create_agent_tool(client):
     """Test creation of a agent tool"""
 
-    def core_memory_clear(self: Agent):
+    def core_memory_clear(self):
         """
         Args:
             agent (Agent): The agent to delete from memory.
