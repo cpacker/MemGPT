@@ -6,9 +6,10 @@ from typing import Dict, Iterator, List, Tuple
 import requests
 
 from memgpt.cli.cli import QuickstartChoice, quickstart
+from memgpt.config import MemGPTConfig
 from memgpt.data_sources.connectors import DataConnector
-from memgpt.data_types import Document
-from tests import TEST_MEMGPT_CONFIG
+from memgpt.schemas.document import Document
+from memgpt.settings import TestSettings
 
 from .constants import TIMEOUT
 
@@ -25,7 +26,7 @@ class DummyDataConnector(DataConnector):
 
     def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
         for doc in documents:
-            yield doc.text, doc.metadata
+            yield doc.text, doc.metadata_
 
 
 def create_config(endpoint="openai"):
@@ -39,17 +40,11 @@ def create_config(endpoint="openai"):
 
 
 def wipe_config():
-    if TEST_MEMGPT_CONFIG.exists():
+    test_settings = TestSettings()
+    config_path = os.path.join(test_settings.memgpt_dir, "config")
+    if os.path.exists(config_path):
         # delete
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = TEST_MEMGPT_CONFIG.config_path
-        # TODO delete file config_path
         os.remove(config_path)
-        assert not TEST_MEMGPT_CONFIG.exists(), "Config should not exist after deletion"
-    else:
-        print("No config to wipe", TEST_MEMGPT_CONFIG.config_path)
 
 
 def wipe_memgpt_home():
@@ -65,7 +60,10 @@ def wipe_memgpt_home():
     os.system(f"mv ~/.memgpt {backup_dir}")
 
     # Setup the initial directory
-    TEST_MEMGPT_CONFIG.create_config_dir()
+    test_settings = TestSettings()
+    config_path = os.path.join(test_settings.memgpt_dir, "config")
+    config = MemGPTConfig(config_path=config_path)
+    config.create_config_dir()
 
 
 def configure_memgpt_localllm():

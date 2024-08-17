@@ -3,7 +3,7 @@ from typing import List, Literal, Optional
 from fastapi import APIRouter, Body, HTTPException
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import ToolModel
+from memgpt.schemas.tool import Tool as ToolModel  # TODO: modify
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 

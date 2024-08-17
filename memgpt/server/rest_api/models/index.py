@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from memgpt.models.pydantic_models import LLMConfigModel
+from memgpt.schemas.llm_config import LLMConfig
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -13,7 +13,7 @@ router = APIRouter()
 
 
 class ListModelsResponse(BaseModel):
-    models: List[LLMConfigModel] = Field(..., description="List of model configurations.")
+    models: List[LLMConfig] = Field(..., description="List of model configurations.")
 
 
 def setup_models_index_router(server: SyncServer, interface: QueuingInterface, password: str):
@@ -25,7 +25,7 @@ def setup_models_index_router(server: SyncServer, interface: QueuingInterface, p
         interface.clear()
 
         # currently, the server only supports one model, however this may change in the future
-        llm_config = LLMConfigModel(
+        llm_config = LLMConfig(
             model=server.server_llm_config.model,
             model_endpoint=server.server_llm_config.model_endpoint,
             model_endpoint_type=server.server_llm_config.model_endpoint_type,
