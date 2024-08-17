@@ -25,14 +25,14 @@ from memgpt.local_llm.webui.api import get_webui_completion
 from memgpt.local_llm.webui.legacy_api import (
     get_webui_completion as get_webui_completion_legacy,
 )
-from memgpt.models.chat_completion_response import (
+from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
+from memgpt.schemas.openai.chat_completion_response import (
     ChatCompletionResponse,
     Choice,
     Message,
     ToolCall,
     UsageStatistics,
 )
-from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARIZE_SYSTEM_MESSAGE
 from memgpt.utils import get_tool_call_id, get_utc_time
 
 has_shown_warning = False

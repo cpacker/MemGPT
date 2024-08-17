@@ -33,8 +33,8 @@ from memgpt.constants import (
     MEMGPT_DIR,
     TOOL_CALL_ID_MAX_LEN,
 )
-from memgpt.models.chat_completion_response import ChatCompletionResponse
 from memgpt.openai_backcompat.openai_object import OpenAIObject
+from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
 
 DEBUG = False
 if "LOG_LEVEL" in os.environ:
@@ -466,6 +466,17 @@ NOUN_BANK = [
     "yak",
     "zebra",
 ]
+
+
+def deduplicate(target_list: list) -> list:
+    seen = set()
+    dedup_list = []
+    for i in target_list:
+        if i not in seen:
+            seen.add(i)
+            dedup_list.append(i)
+
+    return dedup_list
 
 
 def smart_urljoin(base_url: str, relative_url: str) -> str:
