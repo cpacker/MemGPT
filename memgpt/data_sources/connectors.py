@@ -4,10 +4,8 @@ import typer
 from llama_index.core import Document as LlamaIndexDocument
 
 from memgpt.agent_store.storage import StorageConnector
+from memgpt.data_types import Document, EmbeddingConfig, Passage, Source
 from memgpt.embeddings import embedding_model
-from memgpt.schemas.document import Document
-from memgpt.schemas.passage import Passage
-from memgpt.schemas.source import Source
 from memgpt.utils import create_uuid_from_string
 
 
@@ -22,11 +20,17 @@ class DataConnector:
 def load_data(
     connector: DataConnector,
     source: Source,
+    embedding_config: EmbeddingConfig,
     passage_store: StorageConnector,
     document_store: Optional[StorageConnector] = None,
 ):
     """Load data from a connector (generates documents and passages) into a specified source_id, associatedw with a user_id."""
-    embedding_config = source.embedding_config
+    assert (
+        source.embedding_model == embedding_config.embedding_model
+    ), f"Source and embedding config models must match, got: {source.embedding_model} and {embedding_config.embedding_model}"
+    assert (
+        source.embedding_dim == embedding_config.embedding_dim
+    ), f"Source and embedding config dimensions must match, got: {source.embedding_dim} and {embedding_config.embedding_dim}."
 
     # embedding model
     embed_model = embedding_model(embedding_config)
@@ -39,9 +43,10 @@ def load_data(
     for document_text, document_metadata in connector.generate_documents():
         # insert document into storage
         document = Document(
+            id=create_uuid_from_string(f"{str(source.id)}_{document_text}"),
             text=document_text,
-            metadata_=document_metadata,
-            source_id=source.id,
+            metadata=document_metadata,
+            data_source=source.name,
             user_id=source.user_id,
         )
         document_count += 1
@@ -73,15 +78,16 @@ def load_data(
                 id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),
                 text=passage_text,
                 doc_id=document.id,
-                source_id=source.id,
                 metadata_=passage_metadata,
                 user_id=source.user_id,
-                embedding_config=source.embedding_config,
+                data_source=source.name,
+                embedding_dim=source.embedding_dim,
+                embedding_model=source.embedding_model,
                 embedding=embedding,
             )
 
             hashable_embedding = tuple(passage.embedding)
-            document_name = document.metadata_.get("file_path", document.id)
+            document_name = document.metadata.get("file_path", document.id)
             if hashable_embedding in embedding_to_document_name:
                 typer.secho(
                     f"Warning: Duplicate embedding found for passage in {document_name} (already exists in {embedding_to_document_name[hashable_embedding]}), skipping insert into VectorDB.",
@@ -144,7 +150,7 @@ class DirectoryConnector(DataConnector):
 
         parser = TokenTextSplitter(chunk_size=chunk_size)
         for document in documents:
-            llama_index_docs = [LlamaIndexDocument(text=document.text, metadata=document.metadata_)]
+            llama_index_docs = [LlamaIndexDocument(text=document.text, metadata=document.metadata)]
             nodes = parser.get_nodes_from_documents(llama_index_docs)
             for node in nodes:
                 # passage = Passage(

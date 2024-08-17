@@ -11,6 +11,7 @@ import requests
 
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
 from memgpt.credentials import MemGPTCredentials
+from memgpt.data_types import Message
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
 from memgpt.llm_api.azure_openai import (
     MODEL_TO_AZURE_ENGINE,
@@ -30,15 +31,13 @@ from memgpt.local_llm.constants import (
     INNER_THOUGHTS_KWARG,
     INNER_THOUGHTS_KWARG_DESCRIPTION,
 )
-from memgpt.schemas.enums import OptionState
-from memgpt.schemas.llm_config import LLMConfig
-from memgpt.schemas.message import Message
-from memgpt.schemas.openai.chat_completion_request import (
+from memgpt.models.chat_completion_request import (
     ChatCompletionRequest,
     Tool,
     cast_message_to_subtype,
 )
-from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
+from memgpt.models.chat_completion_response import ChatCompletionResponse
+from memgpt.models.pydantic_models import LLMConfigModel, OptionState
 from memgpt.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
@@ -229,7 +228,7 @@ def retry_with_exponential_backoff(
 @retry_with_exponential_backoff
 def create(
     # agent_state: AgentState,
-    llm_config: LLMConfig,
+    llm_config: LLMConfigModel,
     messages: List[Message],
     user_id: uuid.UUID = None,  # option UUID to associate request with
     functions: list = None,
@@ -259,6 +258,8 @@ def create(
     if function_call and not functions:
         printd("unsetting function_call because functions is None")
         function_call = None
+
+    # print("HELLO")
 
     # openai
     if llm_config.model_endpoint_type == "openai":

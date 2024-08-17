@@ -1,3 +1,4 @@
+import uuid
 from typing import List, Optional
 
 import requests
@@ -5,8 +6,19 @@ from requests import HTTPError
 
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
-from memgpt.schemas.api_key import APIKey, APIKeyCreate
-from memgpt.schemas.user import User, UserCreate
+from memgpt.server.rest_api.admin.tools import (
+    CreateToolRequest,
+    ListToolsResponse,
+    ToolModel,
+)
+from memgpt.server.rest_api.admin.users import (
+    CreateAPIKeyResponse,
+    CreateUserResponse,
+    DeleteAPIKeyResponse,
+    DeleteUserResponse,
+    GetAllUsersResponse,
+    GetAPIKeysResponse,
+)
 
 
 class Admin:
@@ -21,7 +33,7 @@ class Admin:
         self.token = token
         self.headers = {"accept": "application/json", "content-type": "application/json", "authorization": f"Bearer {token}"}
 
-    def get_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[User]:
+    def get_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50):
         params = {}
         if cursor:
             params["cursor"] = str(cursor)
@@ -30,54 +42,54 @@ class Admin:
         response = requests.get(f"{self.base_url}/admin/users", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
-        return [User(**user) for user in response.json()]
+        return GetAllUsersResponse(**response.json())
 
-    def create_key(self, user_id: str, key_name: Optional[str] = None) -> APIKey:
-        request = APIKeyCreate(user_id=user_id, name=key_name)
-        response = requests.post(f"{self.base_url}/admin/users/keys", headers=self.headers, json=request.model_dump())
+    def create_key(self, user_id: uuid.UUID, key_name: str):
+        payload = {"user_id": str(user_id), "key_name": key_name}
+        response = requests.post(f"{self.base_url}/admin/users/keys", headers=self.headers, json=payload)
         if response.status_code != 200:
             raise HTTPError(response.json())
-        return APIKey(**response.json())
+        return CreateAPIKeyResponse(**response.json())
 
-    def get_keys(self, user_id: str) -> List[APIKey]:
+    def get_keys(self, user_id: uuid.UUID):
         params = {"user_id": str(user_id)}
         response = requests.get(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
-        return [APIKey(**key) for key in response.json()]
+        return GetAPIKeysResponse(**response.json()).api_key_list
 
-    def delete_key(self, api_key: str) -> APIKey:
+    def delete_key(self, api_key: str):
         params = {"api_key": api_key}
         response = requests.delete(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
-        return APIKey(**response.json())
+        return DeleteAPIKeyResponse(**response.json())
 
-    def create_user(self, name: Optional[str] = None) -> User:
-        request = UserCreate(name=name)
-        response = requests.post(f"{self.base_url}/admin/users", headers=self.headers, json=request.model_dump())
+    def create_user(self, user_id: Optional[uuid.UUID] = None):
+        payload = {"user_id": str(user_id) if user_id else None}
+        response = requests.post(f"{self.base_url}/admin/users", headers=self.headers, json=payload)
         if response.status_code != 200:
             raise HTTPError(response.json())
         response_json = response.json()
-        return User(**response_json)
+        return CreateUserResponse(**response_json)
 
-    def delete_user(self, user_id: str) -> User:
+    def delete_user(self, user_id: uuid.UUID):
         params = {"user_id": str(user_id)}
         response = requests.delete(f"{self.base_url}/admin/users", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
-        return User(**response.json())
+        return DeleteUserResponse(**response.json())
 
     def _reset_server(self):
         # DANGER: this will delete all users and keys
         # clear all state associated with users
         # TODO: clear out all agents, presets, etc.
-        users = self.get_users()
+        users = self.get_users().user_list
         for user in users:
-            keys = self.get_keys(user.id)
+            keys = self.get_keys(user["user_id"])
             for key in keys:
-                self.delete_key(key.key)
-            self.delete_user(user.id)
+                self.delete_key(key)
+            self.delete_user(user["user_id"])
 
     # tools
     def create_tool(
@@ -119,7 +131,7 @@ class Admin:
             raise ValueError(f"Failed to create tool: {response.text}")
         return ToolModel(**response.json())
 
-    def list_tools(self):
+    def list_tools(self) -> ListToolsResponse:
         response = requests.get(f"{self.base_url}/admin/tools", headers=self.headers)
         return ListToolsResponse(**response.json()).tools
 

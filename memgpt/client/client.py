@@ -1,47 +1,57 @@
+import datetime
 import time
+import uuid
 from typing import Dict, List, Optional, Tuple, Union
 
 import requests
 
 from memgpt.config import MemGPTConfig
-from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
+from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA, DEFAULT_PRESET
 from memgpt.data_sources.connectors import DataConnector
+from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig, Preset, Source
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
-from memgpt.memory import get_memory_functions
-from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from memgpt.schemas.block import (
-    Block,
-    CreateBlock,
-    CreateHuman,
-    CreatePersona,
-    Human,
-    Persona,
-    UpdateHuman,
-    UpdatePersona,
+from memgpt.memory import BaseMemory, ChatMemory, get_memory_functions
+from memgpt.models.pydantic_models import (
+    HumanModel,
+    JobModel,
+    JobStatus,
+    LLMConfigModel,
+    PersonaModel,
+    PresetModel,
+    SourceModel,
+    ToolModel,
 )
-from memgpt.schemas.embedding_config import EmbeddingConfig
-
-# new schemas
-from memgpt.schemas.enums import JobStatus
-from memgpt.schemas.job import Job
-from memgpt.schemas.llm_config import LLMConfig
-from memgpt.schemas.memgpt_request import MemGPTRequest
-from memgpt.schemas.memgpt_response import MemGPTResponse
-from memgpt.schemas.memory import (
-    ArchivalMemorySummary,
-    ChatMemory,
-    Memory,
-    RecallMemorySummary,
+from memgpt.server.rest_api.agents.command import CommandResponse
+from memgpt.server.rest_api.agents.config import GetAgentResponse
+from memgpt.server.rest_api.agents.index import CreateAgentResponse, ListAgentsResponse
+from memgpt.server.rest_api.agents.memory import (
+    ArchivalMemoryObject,
+    GetAgentArchivalMemoryResponse,
+    GetAgentMemoryResponse,
+    InsertAgentArchivalMemoryResponse,
+    UpdateAgentMemoryResponse,
 )
-from memgpt.schemas.message import Message, MessageCreate
-from memgpt.schemas.passage import Passage
-from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
-from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
-from memgpt.schemas.user import UserCreate
+from memgpt.server.rest_api.agents.message import (
+    GetAgentMessagesResponse,
+    UserMessageResponse,
+)
+from memgpt.server.rest_api.config.index import ConfigResponse
+from memgpt.server.rest_api.humans.index import ListHumansResponse
 from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.rest_api.models.index import ListModelsResponse
+from memgpt.server.rest_api.personas.index import ListPersonasResponse
+from memgpt.server.rest_api.presets.index import (
+    CreatePresetResponse,
+    CreatePresetsRequest,
+    ListPresetsResponse,
+)
+from memgpt.server.rest_api.sources.index import ListSourcesResponse
+
+# import pydantic response objects from memgpt.server.rest_api
+from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 from memgpt.server.server import SyncServer
-from memgpt.utils import get_human_text, get_persona_text
+from memgpt.utils import get_human_text
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
@@ -78,28 +88,37 @@ class AbstractClient(object):
         human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
-        memory: Optional[Memory] = None,
     ) -> AgentState:
         """Create a new agent with the specified configuration."""
         raise NotImplementedError
 
-    def rename_agent(self, agent_id: str, new_name: str):
+    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
         """Rename the agent."""
         raise NotImplementedError
 
-    def delete_agent(self, agent_id: str):
+    def delete_agent(self, agent_id: uuid.UUID):
         """Delete the agent."""
         raise NotImplementedError
 
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
         raise NotImplementedError
 
-    # memory
-
-    def get_in_context_memory(self, agent_id: str) -> Dict:
+    # presets
+    def create_preset(self, preset: Preset):
         raise NotImplementedError
 
-    def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
+    def delete_preset(self, preset_id: uuid.UUID):
+        raise NotImplementedError
+
+    def list_presets(self):
+        raise NotImplementedError
+
+    # memory
+
+    def get_agent_memory(self, agent_id: str) -> Dict:
+        raise NotImplementedError
+
+    def update_agent_core_memory(self, agent_id: str, human: Optional[str] = None, persona: Optional[str] = None) -> Dict:
         raise NotImplementedError
 
     # agent interactions
@@ -107,30 +126,37 @@ class AbstractClient(object):
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         raise NotImplementedError
 
+    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+        raise NotImplementedError
+
     def save(self):
         raise NotImplementedError
 
     # archival memory
 
-    def get_archival_memory(self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000):
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
         """Paginated get for the archival memory for an agent"""
         raise NotImplementedError
 
-    def insert_archival_memory(self, agent_id: str, memory: str):
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str):
         """Insert archival memory into the agent."""
         raise NotImplementedError
 
-    def delete_archival_memory(self, agent_id: str, memory_id: str):
+    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
         """Delete archival memory from the agent."""
         raise NotImplementedError
 
     # messages (recall memory)
 
-    def get_messages(self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000):
+    def get_messages(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
         """Get messages for the agent."""
         raise NotImplementedError
 
-    def send_message(self, agent_id: str, message: str, role: str, stream: Optional[bool] = False):
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False):
         """Send a message to the agent."""
         raise NotImplementedError
 
@@ -160,31 +186,28 @@ class AbstractClient(object):
 
     # data sources
 
-    def create_source(self, name: str) -> Source:
+    def list_sources(self):
+        """List loaded sources"""
         raise NotImplementedError
 
-    def delete_source(self, source_id: str):
+    def delete_source(self):
+        """Delete a source and associated data (including attached to agents)"""
         raise NotImplementedError
 
-    def get_source(self, source_id: str) -> Source:
+    def load_file_into_source(self, filename: str, source_id: uuid.UUID):
+        """Load {filename} and insert into source"""
         raise NotImplementedError
 
-    def get_source_id(self, source_name: str) -> str:
+    def create_source(self, name: str):
+        """Create a new source"""
         raise NotImplementedError
 
-    def attach_source_to_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
+    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Attach a source to an agent"""
         raise NotImplementedError
 
-    def detach_source_from_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
-        raise NotImplementedError
-
-    def list_sources(self) -> List[Source]:
-        raise NotImplementedError
-
-    def list_attached_sources(self, agent_id: str) -> List[Source]:
-        raise NotImplementedError
-
-    def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
+    def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        """Detach a source from an agent"""
         raise NotImplementedError
 
     # server configuration commands
@@ -209,15 +232,12 @@ class RESTClient(AbstractClient):
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
 
-    def list_agents(self) -> List[AgentState]:
+    def list_agents(self):
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
-        return [AgentState(**agent) for agent in response.json()]
+        return ListAgentsResponse(**response.json())
 
-    def get_agent_id(self, agent_name: str) -> str:
-        raise NotImplementedError
-
-    def agent_exists(self, agent_id: str) -> bool:
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
+    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
         if response.status_code == 404:
             # not found error
             return False
@@ -226,28 +246,26 @@ class RESTClient(AbstractClient):
         else:
             raise ValueError(f"Failed to check if agent exists: {response.text}")
 
-    def get_tool(self, tool_id: str):
-        response = requests.get(f"{self.base_url}/api/tools/{tool_id}", headers=self.headers)
+    def get_tool(self, tool_name: str):
+        response = requests.get(f"{self.base_url}/api/tools/{tool_name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
-        return Tool(**response.json())
+        return ToolModel(**response.json())
 
     def create_agent(
         self,
         name: Optional[str] = None,
-        # model configs
+        preset: Optional[str] = None,  # TODO: this should actually be re-named preset_name
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
-        # system
-        system: Optional[str] = None,
+        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        # system prompt (can be templated)
+        system_prompt: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
-        # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
-        description: Optional[str] = None,
     ) -> AgentState:
         """
         Create an agent
@@ -260,12 +278,8 @@ class RESTClient(AbstractClient):
         Returns:
             agent_state (AgentState): State of the the created agent.
         """
-
-        # TODO: implement this check once name lookup works
-        # if name:
-        #    exist_agent_id = self.get_agent_id(agent_name=name)
-
-        #    raise ValueError(f"Agent with name {name} already exists")
+        if embedding_config or llm_config:
+            raise ValueError("Cannot override embedding_config or llm_config when creating agent via REST API")
 
         # construct list of tools
         tool_names = []
@@ -280,111 +294,169 @@ class RESTClient(AbstractClient):
             tool = self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
             tool_names.append(tool.name)
 
-        # create agent
-        request = CreateAgent(
-            name=name,
-            description=description,
-            metadata_=metadata,
-            memory=memory,
-            tools=tool_names,
-            system=system,
-            llm_config=llm_config,
-            embedding_config=embedding_config,
-        )
-
-        response = requests.post(f"{self.base_url}/api/agents", json=request.model_dump(), headers=self.headers)
+        # TODO: distinguish between name and objects
+        # TODO: add metadata
+        payload = {
+            "config": {
+                "name": name,
+                "preset": preset,
+                "system": system_prompt,
+                "persona": memory.memory["persona"].value,
+                "human": memory.memory["human"].value,
+                "function_names": tool_names,
+                "metadata": metadata,
+            }
+        }
+        response = requests.post(f"{self.base_url}/api/agents", json=payload, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
-        return AgentState(**response.json())
+        response_obj = CreateAgentResponse(**response.json())
+        return self.get_agent_response_to_state(response_obj)
 
-    def update_agent(
-        self,
-        agent_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        system: Optional[str] = None,
-        tools: Optional[List[str]] = None,
-        metadata: Optional[Dict] = None,
-        llm_config: Optional[LLMConfig] = None,
-        embedding_config: Optional[EmbeddingConfig] = None,
-        message_ids: Optional[List[str]] = None,
-        memory: Optional[Memory] = None,
-    ):
-        request = UpdateAgentState(
-            id=agent_id,
-            name=name,
-            system=system,
-            tools=tools,
-            description=description,
-            metadata_=metadata,
+    def get_agent_response_to_state(self, response: Union[GetAgentResponse, CreateAgentResponse]) -> AgentState:
+        # TODO: eventually remove this conversion
+        llm_config = LLMConfig(
+            model=response.agent_state.llm_config.model,
+            model_endpoint_type=response.agent_state.llm_config.model_endpoint_type,
+            model_endpoint=response.agent_state.llm_config.model_endpoint,
+            model_wrapper=response.agent_state.llm_config.model_wrapper,
+            context_window=response.agent_state.llm_config.context_window,
+        )
+        embedding_config = EmbeddingConfig(
+            embedding_endpoint_type=response.agent_state.embedding_config.embedding_endpoint_type,
+            embedding_endpoint=response.agent_state.embedding_config.embedding_endpoint,
+            embedding_model=response.agent_state.embedding_config.embedding_model,
+            embedding_dim=response.agent_state.embedding_config.embedding_dim,
+            embedding_chunk_size=response.agent_state.embedding_config.embedding_chunk_size,
+        )
+        agent_state = AgentState(
+            id=response.agent_state.id,
+            name=response.agent_state.name,
+            user_id=response.agent_state.user_id,
             llm_config=llm_config,
             embedding_config=embedding_config,
-            message_ids=message_ids,
-            memory=memory,
+            state=response.agent_state.state,
+            system=response.agent_state.system,
+            tools=response.agent_state.tools,
+            _metadata=response.agent_state.metadata,
+            # load datetime from timestampe
+            created_at=datetime.datetime.fromtimestamp(response.agent_state.created_at, tz=datetime.timezone.utc),
         )
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to update agent: {response.text}")
-        return AgentState(**response.json())
+        return agent_state
 
-    def rename_agent(self, agent_id: str, new_name: str):
-        return self.update_agent(agent_id, name=new_name)
+    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
+        response = requests.patch(f"{self.base_url}/api/agents/{str(agent_id)}/rename", json={"agent_name": new_name}, headers=self.headers)
+        assert response.status_code == 200, f"Failed to rename agent: {response.text}"
+        response_obj = GetAgentResponse(**response.json())
+        return self.get_agent_response_to_state(response_obj)
 
-    def delete_agent(self, agent_id: str):
+    def delete_agent(self, agent_id: uuid.UUID):
         """Delete the agent."""
         response = requests.delete(f"{self.base_url}/api/agents/{str(agent_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/config", headers=self.headers)
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
-        return AgentState(**response.json())
+        response_obj = GetAgentResponse(**response.json())
+        return self.get_agent_response_to_state(response_obj)
+
+    def get_preset(self, name: str) -> PresetModel:
+        # TODO: remove
+        response = requests.get(f"{self.base_url}/api/presets/{name}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to get preset: {response.text}"
+        return PresetModel(**response.json())
+
+    def create_preset(
+        self,
+        name: str,
+        description: Optional[str] = None,
+        system_name: Optional[str] = None,
+        persona_name: Optional[str] = None,
+        human_name: Optional[str] = None,
+        tools: Optional[List[ToolModel]] = None,
+        default_tools: bool = True,
+    ) -> PresetModel:
+        # TODO: remove
+        """Create an agent preset
+
+        :param name: Name of the preset
+        :type name: str
+        :param system: System prompt (text)
+        :type system: str
+        :param persona: Persona prompt (text)
+        :type persona: Optional[str]
+        :param human: Human prompt (text)
+        :type human: Optional[str]
+        :param tools: List of tools to connect, defaults to None
+        :type tools: Optional[List[Tool]], optional
+        :param default_tools: Whether to automatically include default tools, defaults to True
+        :type default_tools: bool, optional
+        :return: Preset object
+        :rtype: PresetModel
+        """
+        # provided tools
+        schema = []
+        if tools:
+            for tool in tools:
+                schema.append(tool.json_schema)
+
+        # include default tools
+        default_preset = self.get_preset(name=DEFAULT_PRESET)
+        if default_tools:
+            # TODO
+            # from memgpt.functions.functions import load_function_set
+            # load_function_set()
+            # return
+            for function in default_preset.functions_schema:
+                schema.append(function)
+
+        payload = CreatePresetsRequest(
+            name=name,
+            description=description,
+            system_name=system_name,
+            persona_name=persona_name,
+            human_name=human_name,
+            functions_schema=schema,
+        )
+        response = requests.post(f"{self.base_url}/api/presets", json=payload.model_dump(), headers=self.headers)
+        assert response.status_code == 200, f"Failed to create preset: {response.text}"
+        return CreatePresetResponse(**response.json()).preset
+
+    def delete_preset(self, preset_id: uuid.UUID):
+        response = requests.delete(f"{self.base_url}/api/presets/{str(preset_id)}", headers=self.headers)
+        assert response.status_code == 200, f"Failed to delete preset: {response.text}"
+
+    def list_presets(self) -> List[PresetModel]:
+        response = requests.get(f"{self.base_url}/api/presets", headers=self.headers)
+        return ListPresetsResponse(**response.json()).presets
 
     # memory
-    def get_in_context_memory(self, agent_id: str) -> Memory:
+    def get_agent_memory(self, agent_id: uuid.UUID) -> GetAgentMemoryResponse:
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to get in-context memory: {response.text}")
-        return Memory(**response.json())
+        return GetAgentMemoryResponse(**response.json())
 
-    def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
-        memory_update_dict = {section: value}
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=memory_update_dict, headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to update in-context memory: {response.text}")
-        return Memory(**response.json())
-
-    def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory/archival", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to get archival memory summary: {response.text}")
-        return ArchivalMemorySummary(**response.json())
-
-    def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory/recall", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to get recall memory summary: {response.text}")
-        return RecallMemorySummary(**response.json())
-
-    def get_in_context_messages(self, agent_id: str) -> List[Message]:
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory/messages", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to get in-context messages: {response.text}")
-        return [Message(**message) for message in response.json()]
+    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> UpdateAgentMemoryResponse:
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=new_memory_contents, headers=self.headers)
+        return UpdateAgentMemoryResponse(**response.json())
 
     # agent interactions
 
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         return self.send_message(agent_id, message, role="user")
 
+    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+        response = requests.post(f"{self.base_url}/api/agents/{str(agent_id)}/command", json={"command": command}, headers=self.headers)
+        return CommandResponse(**response.json())
+
     def save(self):
         raise NotImplementedError
 
     # archival memory
 
-    def get_archival_memory(
-        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
-    ) -> List[Passage]:
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
         """Paginated get for the archival memory for an agent"""
         params = {"limit": limit}
         if before:
@@ -393,171 +465,94 @@ class RESTClient(AbstractClient):
             params["after"] = str(after)
         response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
-        return [Passage(**passage) for passage in response.json()]
+        return GetAgentArchivalMemoryResponse(**response.json())
 
-    def insert_archival_memory(self, agent_id: str, memory: str) -> List[Passage]:
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival/{memory}", headers=self.headers)
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", json={"content": memory}, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to insert archival memory: {response.text}")
-        return [Passage(**passage) for passage in response.json()]
+        return InsertAgentArchivalMemoryResponse(**response.json())
 
-    def delete_archival_memory(self, agent_id: str, memory_id: str):
-        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival/{memory_id}", headers=self.headers)
+    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival?id={memory_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete archival memory: {response.text}"
 
     # messages (recall memory)
 
     def get_messages(
-        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
-    ) -> MemGPTResponse:
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ) -> GetAgentMessagesResponse:
         params = {"before": before, "after": after, "limit": limit}
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages", params=params, headers=self.headers)
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages-cursor", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
-        return [Message(**message) for message in response.json()]
+        return GetAgentMessagesResponse(**response.json())
 
-    def send_message(
-        self, agent_id: str, message: str, role: str, name: Optional[str] = None, stream: Optional[bool] = False
-    ) -> MemGPTResponse:
-        messages = [MessageCreate(role=role, text=message, name=name)]
-        # TODO: figure out how to handle stream_steps and stream_tokens
-        request = MemGPTRequest(messages=messages, stream_steps=stream)
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers)
+    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> UserMessageResponse:
+        data = {"message": message, "role": role, "stream": stream}
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
-        return MemGPTResponse(**response.json())
+        return UserMessageResponse(**response.json())
 
     # humans / personas
 
-    def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
-        params = {"label": label, "templates_only": templates_only}
-        response = requests.get(f"{self.base_url}/api/blocks", params=params, headers=self.headers)
+    def list_humans(self) -> ListHumansResponse:
+        response = requests.get(f"{self.base_url}/api/humans", headers=self.headers)
+        return ListHumansResponse(**response.json())
+
+    def create_human(self, name: str, text: str) -> HumanModel:
+        data = {"name": name, "text": text}
+        response = requests.post(f"{self.base_url}/api/humans", json=data, headers=self.headers)
         if response.status_code != 200:
-            raise ValueError(f"Failed to list blocks: {response.text}")
+            raise ValueError(f"Failed to create human: {response.text}")
+        return HumanModel(**response.json())
 
-        if label == "human":
-            return [Human(**human) for human in response.json()]
-        elif label == "persona":
-            return [Persona(**persona) for persona in response.json()]
-        else:
-            return [Block(**block) for block in response.json()]
+    def list_personas(self) -> ListPersonasResponse:
+        response = requests.get(f"{self.base_url}/api/personas", headers=self.headers)
+        return ListPersonasResponse(**response.json())
 
-    def create_block(self, label: str, name: str, text: str) -> Block:  #
-        request = CreateBlock(label=label, name=name, value=text)
-        response = requests.post(f"{self.base_url}/api/blocks", json=request.model_dump(), headers=self.headers)
+    def create_persona(self, name: str, text: str) -> PersonaModel:
+        data = {"name": name, "text": text}
+        response = requests.post(f"{self.base_url}/api/personas", json=data, headers=self.headers)
         if response.status_code != 200:
-            raise ValueError(f"Failed to create block: {response.text}")
-        if request.label == "human":
-            return Human(**response.json())
-        elif request.label == "persona":
-            return Persona(**response.json())
-        else:
-            return Block(**response.json())
+            raise ValueError(f"Failed to create persona: {response.text}")
+        return PersonaModel(**response.json())
 
-    def get_block(self, block_id: str) -> Block:
-        response = requests.get(f"{self.base_url}/api/blocks/{block_id}", headers=self.headers)
+    def get_persona(self, name: str) -> PersonaModel:
+        response = requests.get(f"{self.base_url}/api/personas/{name}", headers=self.headers)
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
-            raise ValueError(f"Failed to get block: {response.text}")
-        return Block(**response.json())
+            raise ValueError(f"Failed to get persona: {response.text}")
+        return PersonaModel(**response.json())
 
-    def get_block_id(self, name: str, label: str) -> str:
-        params = {"name": name, "label": label}
-        response = requests.get(f"{self.base_url}/api/blocks", params=params, headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to get block ID: {response.text}")
-        blocks = [Block(**block) for block in response.json()]
-        if len(blocks) == 0:
+    def get_human(self, name: str) -> HumanModel:
+        response = requests.get(f"{self.base_url}/api/humans/{name}", headers=self.headers)
+        if response.status_code == 404:
             return None
-        elif len(blocks) > 1:
-            raise ValueError(f"Multiple blocks found with name {name}")
-        return blocks[0].id
-
-    def delete_block(self, id: str) -> Block:
-        response = requests.delete(f"{self.base_url}/api/blocks/{id}", headers=self.headers)
-        assert response.status_code == 200, f"Failed to delete block: {response.text}"
-        if response.status_code != 200:
-            raise ValueError(f"Failed to delete block: {response.text}")
-        return Block(**response.json())
-
-    def list_humans(self):
-        blocks = self.list_blocks(label="human")
-        return [Human(**block.model_dump()) for block in blocks]
-
-    def create_human(self, name: str, text: str) -> Human:
-        return self.create_block(label="human", name=name, text=text)
-
-    def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
-        request = UpdateHuman(id=human_id, name=name, value=text)
-        response = requests.post(f"{self.base_url}/api/blocks/{human_id}", json=request.model_dump(), headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to update human: {response.text}")
-        return Human(**response.json())
-
-    def list_personas(self):
-        blocks = self.list_blocks(label="persona")
-        return [Persona(**block.model_dump()) for block in blocks]
-
-    def create_persona(self, name: str, text: str) -> Persona:
-        return self.create_block(label="persona", name=name, text=text)
-
-    def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
-        request = UpdatePersona(id=persona_id, name=name, value=text)
-        response = requests.post(f"{self.base_url}/api/blocks/{persona_id}", json=request.model_dump(), headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to update persona: {response.text}")
-        return Persona(**response.json())
-
-    def get_persona(self, persona_id: str) -> Persona:
-        return self.get_block(persona_id)
-
-    def get_persona_id(self, name: str) -> str:
-        return self.get_block_id(name, "persona")
-
-    def delete_persona(self, persona_id: str) -> Persona:
-        return self.delete_block(persona_id)
-
-    def get_human(self, human_id: str) -> Human:
-        return self.get_block(human_id)
-
-    def get_human_id(self, name: str) -> str:
-        return self.get_block_id(name, "human")
-
-    def delete_human(self, human_id: str) -> Human:
-        return self.delete_block(human_id)
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get human: {response.text}")
+        return HumanModel(**response.json())
 
     # sources
-
-    def get_source(self, source_id: str) -> Source:
-        response = requests.get(f"{self.base_url}/api/sources/{source_id}", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to get source: {response.text}")
-        return Source(**response.json())
-
-    def get_source_id(self, source_name: str) -> str:
-        response = requests.get(f"{self.base_url}/api/sources/name/{source_name}", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to get source ID: {response.text}")
-        return response.json()
 
     def list_sources(self):
         """List loaded sources"""
         response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to list sources: {response.text}")
-        return [Source(**source) for source in response.json()]
+        response_json = response.json()
+        return ListSourcesResponse(**response_json)
 
-    def delete_source(self, source_id: str):
+    def delete_source(self, source_id: uuid.UUID):
         """Delete a source and associated data (including attached to agents)"""
         response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
-    def get_job_status(self, job_id: str):
+    def get_job_status(self, job_id: uuid.UUID):
         response = requests.get(f"{self.base_url}/api/sources/status/{str(job_id)}", headers=self.headers)
-        return Job(**response.json())
+        return JobModel(**response.json())
 
-    def load_file_into_source(self, filename: str, source_id: str, blocking=True):
+    def load_file_into_source(self, filename: str, source_id: uuid.UUID, blocking=True):
         """Load {filename} and insert into source"""
         files = {"file": open(filename, "rb")}
 
@@ -566,7 +561,7 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to upload file to source: {response.text}")
 
-        job = Job(**response.json())
+        job = JobModel(**response.json())
         if blocking:
             # wait until job is completed
             while True:
@@ -583,25 +578,23 @@ class RESTClient(AbstractClient):
         payload = {"name": name}
         response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
         response_json = response.json()
-        return Source(**response_json)
+        response_obj = SourceModel(**response_json)
+        return Source(
+            id=uuid.UUID(response_obj.id),
+            name=response_obj.name,
+            user_id=uuid.UUID(response_obj.user_id),
+            created_at=response_obj.created_at,
+            embedding_dim=response_obj.embedding_config["embedding_dim"],
+            embedding_model=response_obj.embedding_config["embedding_model"],
+        )
 
-    def list_attached_sources(self, agent_id: str) -> List[Source]:
-        raise NotImplementedError
-
-    def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
-        request = SourceUpdate(id=source_id, name=name)
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}", json=request.model_dump(), headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to update source: {response.text}")
-        return Source(**response.json())
-
-    def attach_source_to_agent(self, source_id: str, agent_id: str):
+    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         """Attach a source to an agent"""
         params = {"agent_id": agent_id}
         response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
 
-    def detach_source(self, source_id: str, agent_id: str):
+    def detach_source(self, source_id: uuid.UUID, agent_id: uuid.UUID):
         """Detach a source from an agent"""
         params = {"agent_id": str(agent_id)}
         response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params=params, headers=self.headers)
@@ -609,27 +602,15 @@ class RESTClient(AbstractClient):
 
     # server configuration commands
 
-    def list_models(self):
-        response = requests.get(f"{self.base_url}/api/config/llm", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to list models: {response.text}")
-        return [LLMConfig(**model) for model in response.json()]
+    def list_models(self) -> ListModelsResponse:
+        response = requests.get(f"{self.base_url}/api/models", headers=self.headers)
+        return ListModelsResponse(**response.json())
 
-    def list_embedding_models(self):
-        response = requests.get(f"{self.base_url}/api/config/embedding", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to list embedding models: {response.text}")
-        return [EmbeddingConfig(**model) for model in response.json()]
+    def get_config(self) -> ConfigResponse:
+        response = requests.get(f"{self.base_url}/api/config", headers=self.headers)
+        return ConfigResponse(**response.json())
 
     # tools
-
-    def get_tool_id(self, tool_name: str):
-        response = requests.get(f"{self.base_url}/api/tools/name/{tool_name}", headers=self.headers)
-        if response.status_code == 404:
-            return None
-        elif response.status_code != 200:
-            raise ValueError(f"Failed to get tool: {response.text}")
-        return response.json()
 
     def create_tool(
         self,
@@ -637,9 +618,8 @@ class RESTClient(AbstractClient):
         name: Optional[str] = None,
         update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
-    ) -> Tool:
-        """
-        Create a tool.
+    ):
+        """Create a tool
 
         Args:
             func (callable): The function to create a tool for.
@@ -647,7 +627,7 @@ class RESTClient(AbstractClient):
             update (bool, optional): Update the tool if it already exists. Defaults to True.
 
         Returns:
-            tool (ToolModel): The created tool.
+            Tool object
         """
 
         # TODO: check if tool already exists
@@ -656,107 +636,32 @@ class RESTClient(AbstractClient):
         source_code = parse_source_code(func)
         json_schema = generate_schema(func, name)
         source_type = "python"
-        tool_name = json_schema["name"]
+        json_schema["name"]
 
-        assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
+        # create data
+        data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema, "update": update}
+        try:
+            CreateToolRequest(**data)  # validate data
+        except Exception as e:
+            raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
 
-        # check if tool exists
-        existing_tool_id = self.get_tool_id(tool_name)
-        if existing_tool_id:
-            if update:
-                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
-            else:
-                raise ValueError(f"Tool with name {tool_name} already exists")
-
-        # call server function
-        request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
-        response = requests.post(f"{self.base_url}/api/tools", json=request.model_dump(), headers=self.headers)
+        # make REST request
+        response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
-        return Tool(**response.json())
+        return ToolModel(**response.json())
 
-    def update_tool(
-        self,
-        id: str,
-        name: Optional[str] = None,
-        func: Optional[callable] = None,
-        tags: Optional[List[str]] = None,
-    ) -> Tool:
-        """
-        Update existing tool
-
-        Args:
-            id (str): Unique ID for tool
-
-        Returns:
-            tool (Tool): Updated tool object
-
-        """
-        if func:
-            source_code = parse_source_code(func)
-            json_schema = generate_schema(func, name)
-        else:
-            source_code = None
-            json_schema = None
-
-        source_type = "python"
-        tool_name = json_schema["name"] if name else name
-
-        request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
-        response = requests.post(f"{self.base_url}/api/tools/{id}", json=request.model_dump(), headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to update tool: {response.text}")
-        return Tool(**response.json())
-
-    # def create_tool(
-    #    self,
-    #    func,
-    #    name: Optional[str] = None,
-    #    update: Optional[bool] = True,  # TODO: actually use this
-    #    tags: Optional[List[str]] = None,
-    # ):
-    #    """Create a tool
-
-    #    Args:
-    #        func (callable): The function to create a tool for.
-    #        tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
-    #        update (bool, optional): Update the tool if it already exists. Defaults to True.
-
-    #    Returns:
-    #        Tool object
-    #    """
-
-    #    # TODO: check if tool already exists
-    #    # TODO: how to load modules?
-    #    # parse source code/schema
-    #    source_code = parse_source_code(func)
-    #    json_schema = generate_schema(func, name)
-    #    source_type = "python"
-    #    json_schema["name"]
-
-    #    # create data
-    #    data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema, "update": update}
-    #    try:
-    #        CreateToolRequest(**data)  # validate data
-    #    except Exception as e:
-    #        raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
-
-    #    # make REST request
-    #    response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
-    #    if response.status_code != 200:
-    #        raise ValueError(f"Failed to create tool: {response.text}")
-    #    return ToolModel(**response.json())
-
-    def list_tools(self) -> List[Tool]:
+    def list_tools(self) -> ListToolsResponse:
         response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
-        return [Tool(**tool) for tool in response.json()]
+        return ListToolsResponse(**response.json()).tools
 
     def delete_tool(self, name: str):
         response = requests.delete(f"{self.base_url}/api/tools/{name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to delete tool: {response.text}")
+        return response.json()
 
     def get_tool(self, name: str):
         response = requests.get(f"{self.base_url}/api/tools/{name}", headers=self.headers)
@@ -764,7 +669,7 @@ class RESTClient(AbstractClient):
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
-        return Tool(**response.json())
+        return ToolModel(**response.json())
 
 
 class LocalClient(AbstractClient):
@@ -786,23 +691,15 @@ class LocalClient(AbstractClient):
         # determine user_id (pulled from local config)
         config = MemGPTConfig.load()
         if user_id:
-            self.user_id = user_id
+            self.user_id = uuid.UUID(user_id)
         else:
-            # TODO: find a neater way to do this
-            self.user_id = config.anon_clientid
+            self.user_id = uuid.UUID(config.anon_clientid)
 
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
         # create user if does not exist
-        existing_user = self.server.get_user(self.user_id)
-        if not existing_user:
-            self.user = self.server.create_user(UserCreate())
-            self.user_id = self.user.id
-
-            # update config
-            config.anon_clientid = str(self.user_id)
-            config.save()
+        self.server.create_user({"id": self.user_id}, exists_ok=True)
 
     # agents
 
@@ -832,15 +729,14 @@ class LocalClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
-        # system
-        system: Optional[str] = None,
+        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        # system prompt (can be templated)
+        system_prompt: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
-        description: Optional[str] = None,
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
@@ -855,92 +751,60 @@ class LocalClient(AbstractClient):
         # add memory tools
         memory_functions = get_memory_functions(memory)
         for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
+            tool = self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"])
             tool_names.append(tool.name)
 
         self.interface.clear()
 
         # create agent
         agent_state = self.server.create_agent(
-            CreateAgent(
-                name=name,
-                description=description,
-                metadata_=metadata,
-                memory=memory,
-                tools=tool_names,
-                system=system,
-                llm_config=llm_config,
-                embedding_config=embedding_config,
-            ),
             user_id=self.user_id,
+            name=name,
+            memory=memory,
+            system=system_prompt,
+            llm_config=llm_config,
+            embedding_config=embedding_config,
+            tools=tool_names,
+            metadata=metadata,
         )
         return agent_state
 
-    def update_agent(
-        self,
-        agent_id: str,
-        name: Optional[str] = None,
-        description: Optional[str] = None,
-        system: Optional[str] = None,
-        tools: Optional[List[str]] = None,
-        metadata: Optional[Dict] = None,
-        llm_config: Optional[LLMConfig] = None,
-        embedding_config: Optional[EmbeddingConfig] = None,
-        message_ids: Optional[List[str]] = None,
-        memory: Optional[Memory] = None,
-    ):
-        self.interface.clear()
-        agent_state = self.server.update_agent(
-            UpdateAgentState(
-                id=agent_id,
-                name=name,
-                system=system,
-                tools=tools,
-                description=description,
-                metadata_=metadata,
-                llm_config=llm_config,
-                embedding_config=embedding_config,
-                message_ids=message_ids,
-                memory=memory,
-            ),
-            user_id=self.user_id,
-        )
+    def rename_agent(self, agent_id: uuid.UUID, new_name: str):
+        # TODO: check valid name
+        agent_state = self.server.rename_agent(user_id=self.user_id, agent_id=agent_id, new_agent_name=new_name)
         return agent_state
 
-    def rename_agent(self, agent_id: str, new_name: str):
-        return self.update_agent(agent_id, name=new_name)
-
-    def delete_agent(self, agent_id: str):
+    def delete_agent(self, agent_id: uuid.UUID):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent(self, agent_id: str) -> AgentState:
-        # TODO: include agent_name
+    def get_agent_config(self, agent_id: uuid.UUID) -> AgentState:
         self.interface.clear()
-        return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
+        return self.server.get_agent_config(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_id(self, agent_name: str) -> AgentState:
-        self.interface.clear()
-        assert agent_name, f"Agent name must be provided"
-        return self.server.get_agent_id(name=agent_name, user_id=self.user_id)
+    def get_agent(self, agent_id: Optional[uuid.UUID] = None, agent_name: Optional[str] = None):
+        return self.server.ms.get_agent(user_id=self.user_id, agent_id=agent_id, agent_name=agent_name)
+
+    # presets
+    def create_preset(self, preset: Preset) -> Preset:
+        if preset.user_id is None:
+            preset.user_id = self.user_id
+        preset = self.server.create_preset(preset=preset)
+        return preset
+
+    def delete_preset(self, preset_id: uuid.UUID):
+        preset = self.server.delete_preset(preset_id=preset_id, user_id=self.user_id)
+
+    def list_presets(self) -> List[PresetModel]:
+        return self.server.list_presets(user_id=self.user_id)
 
     # memory
-    def get_in_context_memory(self, agent_id: str) -> Memory:
-        memory = self.server.get_agent_memory(agent_id=agent_id)
-        return memory
+    def get_agent_memory(self, agent_id: str) -> Dict:
+        memory = self.server.get_agent_memory(user_id=self.user_id, agent_id=agent_id)
+        return GetAgentMemoryResponse(**memory)
 
-    def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
-        # TODO: implement this (not sure what it should look like)
-        memory = self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents={section: value})
-        return memory
-
-    def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
-        return self.server.get_archival_memory_summary(agent_id=agent_id)
-
-    def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
-        return self.server.get_recall_memory_summary(agent_id=agent_id)
-
-    def get_in_context_messages(self, agent_id: str) -> List[Message]:
-        return self.server.get_in_context_messages(agent_id=agent_id)
+    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Dict:
+        self.interface.clear()
+        return self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents=new_memory_contents)
 
     # agent interactions
 
@@ -948,16 +812,14 @@ class LocalClient(AbstractClient):
         self,
         message: str,
         role: str,
-        agent_id: Optional[str] = None,
+        agent_id: Optional[uuid.UUID] = None,
         agent_name: Optional[str] = None,
         stream: Optional[bool] = False,
-    ) -> MemGPTResponse:
+    ) -> UserMessageResponse:
         if not agent_id:
             assert agent_name, f"Either agent_id or agent_name must be provided"
-            raise NotImplementedError
-            # agent_state = self.get_agent(agent_name=agent_name)
-            # agent_id = agent_state.id
-        agent_state = self.get_agent(agent_id=agent_id)
+            agent_state = self.get_agent(agent_name=agent_name)
+            agent_id = agent_state.id
 
         if stream:
             # TODO: implement streaming with stream=True/False
@@ -969,33 +831,22 @@ class LocalClient(AbstractClient):
             usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         else:
             raise ValueError(f"Role {role} not supported")
-
-        # auto-save
         if self.auto_save:
             self.save()
+        else:
+            return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
 
-        # TODO: need to make sure date/timestamp is propely passed
-        # TODO: update self.interface.to_list() to return actual Message objects
-        #       here, the message objects will have faulty created_by timestamps
-        messages = self.interface.to_list()
-        for m in messages:
-            assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
-        return MemGPTResponse(messages=messages, usage=usage)
-
-    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
+    def user_message(self, agent_id: str, message: str) -> UserMessageResponse:
         self.interface.clear()
-        return self.send_message(role="user", agent_id=agent_id, message=message)
-
-    def run_command(self, agent_id: str, command: str) -> MemGPTResponse:
-        self.interface.clear()
-        usage = self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
-
-        # auto-save
+        usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
         if self.auto_save:
             self.save()
+        else:
+            return UserMessageResponse(messages=self.interface.to_list(), usage=usage)
 
-        # NOTE: messages/usage may be empty, depending on the command
-        return MemGPTResponse(messages=self.interface.to_list(), usage=usage)
+    def run_command(self, agent_id: str, command: str) -> Union[str, None]:
+        self.interface.clear()
+        return self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
 
     def save(self):
         self.server.save_agents()
@@ -1005,94 +856,47 @@ class LocalClient(AbstractClient):
     # humans / personas
 
     def create_human(self, name: str, text: str):
-        return self.server.create_block(CreateHuman(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+        return self.server.add_human(HumanModel(name=name, text=text, user_id=self.user_id))
 
     def create_persona(self, name: str, text: str):
-        return self.server.create_block(CreatePersona(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+        return self.server.add_persona(PersonaModel(name=name, text=text, user_id=self.user_id))
 
     def list_humans(self):
-        return self.server.get_blocks(label="human", user_id=self.user_id, template=True)
+        return self.server.list_humans(user_id=self.user_id if self.user_id else self.user_id)
 
-    def list_personas(self) -> List[Persona]:
-        return self.server.get_blocks(label="persona", user_id=self.user_id, template=True)
+    def get_human(self, name: str):
+        return self.server.get_human(name=name, user_id=self.user_id)
 
-    def update_human(self, human_id: str, text: str):
-        return self.server.update_block(UpdateHuman(id=human_id, value=text, user_id=self.user_id, template=True))
+    def update_human(self, name: str, text: str):
+        human = self.get_human(name)
+        human.text = text
+        return self.server.update_human(human)
 
-    def update_persona(self, persona_id: str, text: str):
-        return self.server.update_block(UpdatePersona(id=persona_id, value=text, user_id=self.user_id, template=True))
+    def delete_human(self, name: str):
+        return self.server.delete_human(name, self.user_id)
 
-    def get_persona(self, id: str) -> Persona:
-        assert id, f"Persona ID must be provided"
-        return Persona(**self.server.get_block(id).model_dump())
+    def list_personas(self):
+        return self.server.list_personas(user_id=self.user_id)
 
-    def get_human(self, id: str) -> Human:
-        assert id, f"Human ID must be provided"
-        return Human(**self.server.get_block(id).model_dump())
+    def get_persona(self, name: str):
+        return self.server.get_persona(name=name, user_id=self.user_id)
 
-    def get_persona_id(self, name: str) -> str:
-        persona = self.server.get_blocks(name=name, label="persona", user_id=self.user_id, template=True)
-        if not persona:
-            return None
-        return persona[0].id
+    def update_persona(self, name: str, text: str):
+        persona = self.get_persona(name)
+        persona.text = text
+        return self.server.update_persona(persona)
 
-    def get_human_id(self, name: str) -> str:
-        human = self.server.get_blocks(name=name, label="human", user_id=self.user_id, template=True)
-        if not human:
-            return None
-        return human[0].id
-
-    def delete_persona(self, id: str):
-        self.server.delete_block(id)
-
-    def delete_human(self, id: str):
-        self.server.delete_block(id)
+    def delete_persona(self, name: str):
+        return self.server.delete_persona(name, self.user_id)
 
     # tools
-    def add_tool(self, tool: Tool, update: Optional[bool] = True) -> None:
-        """
-        Adds a tool directly.
-
-        Args:
-            tool (Tool): The tool to add.
-            update (bool, optional): Update the tool if it already exists. Defaults to True.
-
-        Returns:
-            None
-        """
-        existing_tool_id = self.get_tool_id(tool.name)
-        if existing_tool_id:
-            if update:
-                self.server.update_tool(
-                    ToolUpdate(
-                        id=existing_tool_id,
-                        source_type=tool.source_type,
-                        source_code=tool.source_code,
-                        tags=tool.tags,
-                        json_schema=tool.json_schema,
-                        name=tool.name,
-                    )
-                )
-            else:
-                raise ValueError(f"Tool with name {tool.name} already exists")
-
-        # call server function
-        return self.server.create_tool(
-            ToolCreate(
-                source_type=tool.source_type, source_code=tool.source_code, name=tool.name, json_schema=tool.json_schema, tags=tool.tags
-            ),
-            user_id=self.user_id,
-            update=update,
-        )
-
-    # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
         self,
         func,
         name: Optional[str] = None,
         update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
-    ) -> Tool:
+    ):
         """
         Create a tool.
 
@@ -1115,50 +919,13 @@ class LocalClient(AbstractClient):
 
         assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
 
-        # check if tool exists
-        existing_tool_id = self.get_tool_id(tool_name)
-        if existing_tool_id:
-            if update:
-                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
-            else:
-                raise ValueError(f"Tool with name {tool_name} already exists")
-
-        # call server function
         return self.server.create_tool(
-            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
             user_id=self.user_id,
-            update=update,
-        )
-
-    def update_tool(
-        self,
-        id: str,
-        name: Optional[str] = None,
-        func: Optional[callable] = None,
-        tags: Optional[List[str]] = None,
-    ) -> Tool:
-        """
-        Update existing tool
-
-        Args:
-            id (str): Unique ID for tool
-
-        Returns:
-            tool (Tool): Updated tool object
-
-        """
-        if func:
-            source_code = parse_source_code(func)
-            json_schema = generate_schema(func, name)
-        else:
-            source_code = None
-            json_schema = None
-
-        source_type = "python"
-        tool_name = json_schema["name"] if name else name
-
-        return self.server.update_tool(
-            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
+            source_code=source_code,
+            source_type=source_type,
+            tags=tags,
+            json_schema=json_schema,
+            exists_ok=update,
         )
 
     def list_tools(self):
@@ -1168,87 +935,79 @@ class LocalClient(AbstractClient):
             tools (List[ToolModel]): A list of available tools.
 
         """
-        tools = self.server.list_tools(user_id=self.user_id)
-        return tools
+        return self.server.ms.list_tools(user_id=self.user_id)
 
-    def get_tool(self, id: str) -> Tool:
-        return self.server.get_tool(id)
+    def get_tool(self, name: str):
+        return self.server.ms.get_tool(name, user_id=self.user_id)
 
-    def delete_tool(self, id: str):
-        return self.server.delete_tool(id)
-
-    def get_tool_id(self, name: str) -> Optional[str]:
-        return self.server.get_tool_id(name, self.user_id)
+    def delete_tool(self, name: str):
+        return self.server.ms.delete_tool(name, user_id=self.user_id)
 
     # data sources
 
     def load_data(self, connector: DataConnector, source_name: str):
         self.server.load_data(user_id=self.user_id, connector=connector, source_name=source_name)
 
-    def load_file_into_source(self, filename: str, source_id: str, blocking=True):
-        """Load {filename} and insert into source"""
-        job = self.server.create_job(user_id=self.user_id)
+    def create_source(self, name: str):
+        return self.server.create_source(user_id=self.user_id, name=name)
 
-        # TODO: implement blocking vs. non-blocking
-        self.server.load_file_to_source(source_id=source_id, file_path=filename, job_id=job.id)
-        return job
-
-    def create_source(self, name: str) -> Source:
-        request = SourceCreate(name=name)
-        return self.server.create_source(request=request, user_id=self.user_id)
-
-    def delete_source(self, source_id: str):
+    def delete_source(self, source_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
         # TODO: delete source data
-        self.server.delete_source(source_id=source_id, user_id=self.user_id)
+        self.server.delete_source(user_id=self.user.id, source_id=source_id, source_name=source_name)
 
-    def get_source(self, source_id: str) -> Source:
-        return self.server.get_source(source_id=source_id, user_id=self.user_id)
+    def get_source(self, source_id: Optional[uuid.UUID] = None, source_name: Optional[str] = None):
+        return self.server.ms.get_source(user_id=self.user_id, source_id=source_id, source_name=source_name)
 
-    def get_source_id(self, source_name: str) -> str:
-        return self.server.get_source_id(source_name=source_name, user_id=self.user_id)
+    def attach_source_to_agent(self, source_id: uuid.UUID, agent_id: uuid.UUID):
+        self.server.attach_source_to_agent(user_id=self.user_id, source_id=source_id, agent_id=agent_id)
 
-    def attach_source_to_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
-        self.server.attach_source_to_agent(source_id=source_id, source_name=source_name, agent_id=agent_id, user_id=self.user_id)
-
-    def detach_source_from_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
-        self.server.detach_source_from_agent(source_id=source_id, source_name=source_name, agent_id=agent_id, user_id=self.user_id)
-
-    def list_sources(self) -> List[Source]:
+    def list_sources(self):
         return self.server.list_all_sources(user_id=self.user_id)
 
-    def list_attached_sources(self, agent_id: str) -> List[Source]:
-        return self.server.list_attached_sources(agent_id=agent_id)
+    def get_agent_archival_memory(
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ):
+        self.interface.clear()
+        # TODO need to add support for non-postgres here
+        # chroma will throw:
+        #     raise ValueError("Cannot run get_all_cursor with chroma")
+        _, archival_json_records = self.server.get_agent_archival_cursor(
+            user_id=self.user_id,
+            agent_id=agent_id,
+            after=after,
+            before=before,
+            limit=limit,
+        )
+        archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["text"]) for passage in archival_json_records]
+        return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
 
-    def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
-        # TODO should the arg here just be "source_update: Source"?
-        request = SourceUpdate(id=source_id, name=name)
-        return self.server.update_source(request=request, user_id=self.user_id)
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> GetAgentArchivalMemoryResponse:
+        memory_ids = self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
+        return InsertAgentArchivalMemoryResponse(ids=memory_ids)
 
-    # archival memory
-
-    def insert_archival_memory(self, agent_id: str, memory: str) -> List[Passage]:
-        return self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
-
-    def delete_archival_memory(self, agent_id: str, memory_id: str):
+    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
         self.server.delete_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_id=memory_id)
 
-    def get_archival_memory(
-        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
-    ) -> List[Passage]:
-        return self.server.get_agent_archival_cursor(user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit)
-
-    # recall memory
-
     def get_messages(
-        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
-    ) -> List[Message]:
+        self, agent_id: uuid.UUID, before: Optional[uuid.UUID] = None, after: Optional[uuid.UUID] = None, limit: Optional[int] = 1000
+    ) -> GetAgentMessagesResponse:
         self.interface.clear()
-        return self.server.get_agent_recall_cursor(
-            user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit, reverse=True
+        [_, messages] = self.server.get_agent_recall_cursor(
+            user_id=self.user_id, agent_id=agent_id, before=before, limit=limit, reverse=True
+        )
+        return GetAgentMessagesResponse(messages=messages)
+
+    def list_models(self) -> ListModelsResponse:
+
+        llm_config = LLMConfigModel(
+            model=self.server.server_llm_config.model,
+            model_endpoint=self.server.server_llm_config.model_endpoint,
+            model_endpoint_type=self.server.server_llm_config.model_endpoint_type,
+            model_wrapper=self.server.server_llm_config.model_wrapper,
+            context_window=self.server.server_llm_config.context_window,
         )
 
-    def list_models(self) -> List[LLMConfig]:
-        return [self.server.server_llm_config]
+        return ListModelsResponse(models=[llm_config])
 
-    def list_embedding_models(self) -> List[EmbeddingConfig]:
-        return [self.server.server_embedding_config]
+    def list_attached_sources(self, agent_id: uuid.UUID):
+        return self.server.list_attached_sources(agent_id=agent_id)
