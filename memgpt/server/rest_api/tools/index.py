@@ -18,7 +18,7 @@ class ListToolsResponse(BaseModel):
 
 
 class CreateToolRequest(BaseModel):
-    json_schema: dict = Field(..., description="JSON schema of the tool.")
+    json_schema: dict = Field(..., description="JSON schema of the tool.")  # NOT OpenAI - just has `name`
     source_code: str = Field(..., description="The source code of the function.")
     source_type: Optional[Literal["python"]] = Field(None, description="The type of the source code.")
     tags: Optional[List[str]] = Field(None, description="Metadata tags.")
@@ -81,9 +81,44 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
         """
         Create a new tool
         """
+        from memgpt.functions.schema_generator import generate_schema
+
+        # NOTE: horrifying code, should be replaced when we migrate dev portal
+        name = request.json_schema["name"]
+
+        import ast
+
+        parsed_code = ast.parse(request.source_code)
+        function_names = []
+
+        # Function to find and print function names
+        def find_function_names(node):
+            for child in ast.iter_child_nodes(node):
+                if isinstance(child, ast.FunctionDef):
+                    # Print the name of the function
+                    function_names.append(child.name)
+                # Recurse into child nodes
+                find_function_names(child)
+
+        # Find and print function names
+        find_function_names(parsed_code)
+        assert len(function_names) == 1, f"Expected 1 function, found {len(function_names)}: {function_names}"
+
+        # generate JSON schema
+        env = {}
+        env.update(globals())
+        exec(request.source_code, env)
+        func = env.get(function_names[0])
+        json_schema = generate_schema(func, name=name)
+        from pprint import pprint
+
+        pprint(json_schema)
+
         try:
+
             return server.create_tool(
-                json_schema=request.json_schema,
+                # json_schema=request.json_schema, # TODO: add back
+                json_schema=json_schema,
                 source_code=request.source_code,
                 source_type=request.source_type,
                 tags=request.tags,
