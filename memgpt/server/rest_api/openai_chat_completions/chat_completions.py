@@ -4,9 +4,9 @@ from functools import partial
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-# from memgpt.data_types import Message
-from memgpt.models.chat_completion_request import ChatCompletionRequest
-from memgpt.models.chat_completion_response import (
+# from memgpt.schemas.message import Message
+from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest
+from memgpt.schemas.openai.chat_completion_response import (
     ChatCompletionResponse,
     Choice,
     Message,

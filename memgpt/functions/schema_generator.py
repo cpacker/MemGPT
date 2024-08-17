@@ -1,6 +1,6 @@
 import inspect
 import typing
-from typing import Optional, get_args, get_origin
+from typing import Any, Dict, Optional, Type, get_args, get_origin
 
 from docstring_parser import parse
 from pydantic import BaseModel
@@ -144,3 +144,39 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
         schema["parameters"]["required"].append(FUNCTION_PARAM_NAME_REQ_HEARTBEAT)
 
     return schema
+
+
+def generate_schema_from_args_schema(
+    args_schema: Type[BaseModel], name: Optional[str] = None, description: Optional[str] = None
+) -> Dict[str, Any]:
+    properties = {}
+    required = []
+    for field_name, field in args_schema.__fields__.items():
+        properties[field_name] = {"type": field.type_.__name__, "description": field.field_info.description}
+        if field.required:
+            required.append(field_name)
+
+    # Construct the OpenAI function call JSON object
+    function_call_json = {
+        "name": name,
+        "description": description,
+        "parameters": {"type": "object", "properties": properties, "required": required},
+    }
+
+    return function_call_json
+
+
+def generate_tool_wrapper(tool_name: str) -> str:
+    import_statement = f"from crewai_tools import {tool_name}"
+    tool_instantiation = f"tool = {tool_name}()"
+    run_call = f"return tool._run(**kwargs)"
+    func_name = f"run_{tool_name.lower()}"
+
+    # Combine all parts into the wrapper function
+    wrapper_function_str = f"""
+def {func_name}(**kwargs):
+    {import_statement}
+    {tool_instantiation}
+    {run_call}
+"""
+    return func_name, wrapper_function_str

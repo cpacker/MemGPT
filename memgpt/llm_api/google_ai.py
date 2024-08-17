@@ -7,8 +7,8 @@ import requests
 from memgpt.constants import JSON_ENSURE_ASCII, NON_USER_MSG_PREFIX
 from memgpt.local_llm.json_parser import clean_json_string_extra_backslash
 from memgpt.local_llm.utils import count_tokens
-from memgpt.models.chat_completion_request import Tool
-from memgpt.models.chat_completion_response import (
+from memgpt.schemas.openai.chat_completion_request import Tool
+from memgpt.schemas.openai.chat_completion_response import (
     ChatCompletionResponse,
     Choice,
     FunctionCall,
