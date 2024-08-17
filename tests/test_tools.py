@@ -8,7 +8,6 @@ from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.agent import Agent
-from memgpt.config import MemGPTConfig
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.schemas.memory import ChatMemory
 
