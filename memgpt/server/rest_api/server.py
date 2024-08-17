@@ -15,12 +15,14 @@ from memgpt.server.constants import REST_DEFAULT_PORT
 from memgpt.server.rest_api.admin.agents import setup_agents_admin_router
 from memgpt.server.rest_api.admin.tools import setup_tools_index_router
 from memgpt.server.rest_api.admin.users import setup_admin_router
+from memgpt.server.rest_api.agents.command import setup_agents_command_router
+from memgpt.server.rest_api.agents.config import setup_agents_config_router
 from memgpt.server.rest_api.agents.index import setup_agents_index_router
 from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
 from memgpt.server.rest_api.agents.message import setup_agents_message_router
 from memgpt.server.rest_api.auth.index import setup_auth_router
-from memgpt.server.rest_api.block.index import setup_block_index_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
+from memgpt.server.rest_api.humans.index import setup_humans_index_router
 from memgpt.server.rest_api.interface import StreamingServerInterface
 from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.rest_api.openai_assistants.assistants import (
@@ -29,6 +31,8 @@ from memgpt.server.rest_api.openai_assistants.assistants import (
 from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
     setup_openai_chat_completions_router,
 )
+from memgpt.server.rest_api.personas.index import setup_personas_index_router
+from memgpt.server.rest_api.presets.index import setup_presets_index_router
 from memgpt.server.rest_api.sources.index import setup_sources_index_router
 from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
@@ -91,13 +95,17 @@ app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PRE
 app.include_router(setup_agents_admin_router(server, interface), prefix=ADMIN_API_PREFIX, dependencies=[Depends(verify_password)])
 
 # /api/agents endpoints
+app.include_router(setup_agents_command_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_agents_config_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_block_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_humans_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_personas_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_user_tools_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_presets_index_router(server, interface, password), prefix=API_PREFIX)
 
 # /api/config endpoints
 app.include_router(setup_config_index_router(server, interface, password), prefix=API_PREFIX)
@@ -145,8 +153,7 @@ def on_startup():
 @app.on_event("shutdown")
 def on_shutdown():
     global server
-    if server:
-        server.save_agents()
+    server.save_agents()
     server = None
 
 

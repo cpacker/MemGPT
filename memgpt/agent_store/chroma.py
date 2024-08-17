@@ -1,12 +1,12 @@
-from typing import Dict, List, Optional, Tuple, cast
+import uuid
+from typing import Dict, Iterator, List, Optional, Tuple, cast
 
 import chromadb
 from chromadb.api.types import Include
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
-from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.passage import Passage
+from memgpt.data_types import Passage, Record, RecordType
 from memgpt.utils import datetime_to_timestamp, printd, timestamp_to_datetime
 
 
@@ -34,6 +34,9 @@ class ChromaStorageConnector(StorageConnector):
         self.collection = self.client.get_or_create_collection(self.table_name)
         self.include: Include = ["documents", "embeddings", "metadatas"]
 
+        # need to be converted to strings
+        self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "doc_id"]
+
     def get_filters(self, filters: Optional[Dict] = {}) -> Tuple[list, dict]:
         # get all filters for query
         if filters is not None:
@@ -51,7 +54,10 @@ class ChromaStorageConnector(StorageConnector):
                 continue
 
             # filter by other keys
-            chroma_filters.append({key: {"$eq": value}})
+            if key in self.uuid_fields:
+                chroma_filters.append({key: {"$eq": str(value)}})
+            else:
+                chroma_filters.append({key: {"$eq": value}})
 
         if len(chroma_filters) > 1:
             chroma_filters = {"$and": chroma_filters}
@@ -61,7 +67,7 @@ class ChromaStorageConnector(StorageConnector):
             chroma_filters = chroma_filters[0]
         return ids, chroma_filters
 
-    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 1000, offset: int = 0):
+    def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 1000, offset: int = 0) -> Iterator[List[RecordType]]:
         ids, filters = self.get_filters(filters)
         while True:
             # Retrieve a chunk of records with the given page_size
@@ -78,50 +84,29 @@ class ChromaStorageConnector(StorageConnector):
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
 
-    def results_to_records(self, results):
+    def results_to_records(self, results) -> List[RecordType]:
         # convert timestamps to datetime
         for metadata in results["metadatas"]:
             if "created_at" in metadata:
                 metadata["created_at"] = timestamp_to_datetime(metadata["created_at"])
+            for key, value in metadata.items():
+                if key in self.uuid_fields:
+                    metadata[key] = uuid.UUID(value)
         if results["embeddings"]:  # may not be returned, depending on table type
-            passages = []
-            for text, record_id, embedding, metadata in zip(
-                results["documents"], results["ids"], results["embeddings"], results["metadatas"]
-            ):
-                args = {}
-                for field in EmbeddingConfig.__fields__.keys():
-                    if field in metadata:
-                        args[field] = metadata[field]
-                        del metadata[field]
-                embedding_config = EmbeddingConfig(**args)
-                passages.append(Passage(text=text, embedding=embedding, id=record_id, embedding_config=embedding_config, **metadata))
-            # return [
-            #    Passage(text=text, embedding=embedding, id=record_id, embedding_config=EmbeddingConfig(), **metadatas)
-            #    for (text, record_id, embedding, metadatas) in zip(
-            #        results["documents"], results["ids"], results["embeddings"], results["metadatas"]
-            #    )
-            # ]
-            return passages
+            return [
+                cast(RecordType, self.type(text=text, embedding=embedding, id=uuid.UUID(record_id), **metadatas))  # type: ignore
+                for (text, record_id, embedding, metadatas) in zip(
+                    results["documents"], results["ids"], results["embeddings"], results["metadatas"]
+                )
+            ]
         else:
             # no embeddings
-            passages = []
-            for text, id, metadata in zip(results["documents"], results["ids"], results["metadatas"]):
-                args = {}
-                for field in EmbeddingConfig.__fields__.keys():
-                    if field in metadata:
-                        args[field] = metadata[field]
-                        del metadata[field]
-                embedding_config = EmbeddingConfig(**args)
-                passages.append(Passage(text=text, embedding=None, id=id, embedding_config=embedding_config, **metadata))
-            return passages
+            return [
+                cast(RecordType, self.type(text=text, id=uuid.UUID(id), **metadatas))  # type: ignore
+                for (text, id, metadatas) in zip(results["documents"], results["ids"], results["metadatas"])
+            ]
 
-            # return [
-            #    #cast(Passage, self.type(text=text, id=uuid.UUID(id), **metadatas))  # type: ignore
-            #    Passage(text=text, embedding=None, id=id, **metadatas)
-            #    for (text, id, metadatas) in zip(results["documents"], results["ids"], results["metadatas"])
-            # ]
-
-    def get_all(self, filters: Optional[Dict] = {}, limit=None):
+    def get_all(self, filters: Optional[Dict] = {}, limit=None) -> List[RecordType]:
         ids, filters = self.get_filters(filters)
         if self.collection.count() == 0:
             return []
@@ -131,13 +116,13 @@ class ChromaStorageConnector(StorageConnector):
             results = self.collection.get(ids=ids, include=self.include, where=filters)
         return self.results_to_records(results)
 
-    def get(self, id):
+    def get(self, id: uuid.UUID) -> Optional[RecordType]:
         results = self.collection.get(ids=[str(id)])
         if len(results["ids"]) == 0:
             return None
         return self.results_to_records(results)[0]
 
-    def format_records(self, records):
+    def format_records(self, records: List[RecordType]):
         assert all([isinstance(r, Passage) for r in records])
 
         recs = []
@@ -160,13 +145,10 @@ class ChromaStorageConnector(StorageConnector):
         # collect/format record metadata
         metadatas = []
         for record in recs:
-            embedding_config = vars(record.embedding_config)
             metadata = vars(record)
             metadata.pop("id")
             metadata.pop("text")
             metadata.pop("embedding")
-            metadata.pop("embedding_config")
-            metadata.pop("metadata_")
             if "created_at" in metadata:
                 metadata["created_at"] = datetime_to_timestamp(metadata["created_at"])
             if "metadata_" in metadata and metadata["metadata_"] is not None:
@@ -174,22 +156,23 @@ class ChromaStorageConnector(StorageConnector):
                 metadata.pop("metadata_")
             else:
                 record_metadata = {}
-
-            metadata = {**metadata, **record_metadata}  # merge with metadata
-            metadata = {**metadata, **embedding_config}  # merge with embedding config
             metadata = {key: value for key, value in metadata.items() if value is not None}  # null values not allowed
+            metadata = {**metadata, **record_metadata}  # merge with metadata
 
             # convert uuids to strings
+            for key, value in metadata.items():
+                if key in self.uuid_fields:
+                    metadata[key] = str(value)
             metadatas.append(metadata)
         return ids, documents, embeddings, metadatas
 
-    def insert(self, record):
+    def insert(self, record: Record):
         ids, documents, embeddings, metadatas = self.format_records([record])
         if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
         self.collection.upsert(documents=documents, embeddings=[e for e in embeddings if e is not None], ids=ids, metadatas=metadatas)
 
-    def insert_many(self, records, show_progress=False):
+    def insert_many(self, records: List[RecordType], show_progress=False):
         ids, documents, embeddings, metadatas = self.format_records(records)
         if any([e is None for e in embeddings]):
             raise ValueError("Embeddings must be provided to chroma")
@@ -215,7 +198,7 @@ class ChromaStorageConnector(StorageConnector):
     def list_data_sources(self):
         raise NotImplementedError
 
-    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}) -> List[RecordType]:
         ids, filters = self.get_filters(filters)
         results = self.collection.query(query_embeddings=[query_vec], n_results=top_k, include=self.include, where=filters)
 
@@ -256,40 +239,10 @@ class ChromaStorageConnector(StorageConnector):
     def get_all_cursor(
         self,
         filters: Optional[Dict] = {},
-        after: str = None,
-        before: str = None,
+        after: uuid.UUID = None,
+        before: uuid.UUID = None,
         limit: Optional[int] = 1000,
         order_by: str = "created_at",
         reverse: bool = False,
     ):
-        records = self.get_all(filters=filters)
-
-        # WARNING: very hacky and slow implementation
-        def get_index(id, record_list):
-            for i in range(len(record_list)):
-                if record_list[i].id == id:
-                    return i
-            assert False, f"Could not find id {id} in record list"
-
-        # sort by custom field
-        records = sorted(records, key=lambda x: getattr(x, order_by), reverse=reverse)
-        if after:
-            index = get_index(after, records)
-            if index + 1 >= len(records):
-                return None, []
-            records = records[index + 1 :]
-        if before:
-            index = get_index(before, records)
-            if index == 0:
-                return None, []
-
-            # TODO: not sure if this is correct
-            records = records[:index]
-
-        if len(records) == 0:
-            return None, []
-
-        # enforce limit
-        if limit:
-            records = records[:limit]
-        return records[-1].id, records
+        raise ValueError("Cannot run get_all_cursor with chroma")

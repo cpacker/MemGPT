@@ -2,24 +2,13 @@ import asyncio
 import json
 import queue
 from collections import deque
-from typing import AsyncGenerator, Literal, Optional, Union
+from typing import AsyncGenerator, Optional
 
+from memgpt.data_types import Message
 from memgpt.interface import AgentInterface
-from memgpt.schemas.enums import MessageStreamStatus
-from memgpt.schemas.memgpt_message import (
-    AssistantMessage,
-    FunctionCall,
-    FunctionCallMessage,
-    FunctionReturn,
-    InternalMonologue,
-    LegacyFunctionCallMessage,
-    LegacyMemGPTMessage,
-    MemGPTMessage,
-)
-from memgpt.schemas.message import Message
-from memgpt.schemas.openai.chat_completion_response import ChatCompletionChunkResponse
+from memgpt.models.chat_completion_response import ChatCompletionChunkResponse
 from memgpt.streaming_interface import AgentChunkStreamingInterface
-from memgpt.utils import is_utc_datetime
+from memgpt.utils import get_utc_time, is_utc_datetime
 
 
 class QueuingInterface(AgentInterface):
@@ -29,66 +18,12 @@ class QueuingInterface(AgentInterface):
         self.buffer = queue.Queue()
         self.debug = debug
 
-    def _queue_push(self, message_api: Union[str, dict], message_obj: Union[Message, None]):
-        """Wrapper around self.buffer.queue.put() that ensures the types are safe
-
-        Data will be in the format: {
-            "message_obj": ...
-            "message_string": ...
-        }
-        """
-
-        # Check the string first
-
-        if isinstance(message_api, str):
-            # check that it's the stop word
-            if message_api == "STOP":
-                assert message_obj is None
-                self.buffer.put(
-                    {
-                        "message_api": message_api,
-                        "message_obj": None,
-                    }
-                )
-            else:
-                raise ValueError(f"Unrecognized string pushed to buffer: {message_api}")
-
-        elif isinstance(message_api, dict):
-            # check if it's the error message style
-            if len(message_api.keys()) == 1 and "internal_error" in message_api:
-                assert message_obj is None
-                self.buffer.put(
-                    {
-                        "message_api": message_api,
-                        "message_obj": None,
-                    }
-                )
-            else:
-                assert message_obj is not None, message_api
-                self.buffer.put(
-                    {
-                        "message_api": message_api,
-                        "message_obj": message_obj,
-                    }
-                )
-
-        else:
-            raise ValueError(f"Unrecognized type pushed to buffer: {type(message_api)}")
-
-    def to_list(self, style: Literal["obj", "api"] = "obj"):
+    def to_list(self):
         """Convert queue to a list (empties it out at the same time)"""
         items = []
         while not self.buffer.empty():
             try:
-                # items.append(self.buffer.get_nowait())
-                item_to_push = self.buffer.get_nowait()
-                if style == "obj":
-                    if item_to_push["message_obj"] is not None:
-                        items.append(item_to_push["message_obj"])
-                elif style == "api":
-                    items.append(item_to_push["message_api"])
-                else:
-                    raise ValueError(style)
+                items.append(self.buffer.get_nowait())
             except queue.Empty:
                 break
         if len(items) > 1 and items[-1] == "STOP":
@@ -101,30 +36,20 @@ class QueuingInterface(AgentInterface):
             # Empty the queue
             self.buffer.queue.clear()
 
-    async def message_generator(self, style: Literal["obj", "api"] = "obj"):
+    async def message_generator(self):
         while True:
             if not self.buffer.empty():
                 message = self.buffer.get()
-                message_obj = message["message_obj"]
-                message_api = message["message_api"]
-
-                if message_api == "STOP":
+                if message == "STOP":
                     break
-
-                # yield message
-                if style == "obj":
-                    yield message_obj
-                elif style == "api":
-                    yield message_api
-                else:
-                    raise ValueError(style)
-
+                # yield message | {"date": datetime.now(tz=pytz.utc).isoformat()}
+                yield message
             else:
                 await asyncio.sleep(0.1)  # Small sleep to prevent a busy loop
 
     def step_yield(self):
         """Enqueue a special stop message"""
-        self._queue_push(message_api="STOP", message_obj=None)
+        self.buffer.put("STOP")
 
     @staticmethod
     def step_complete():
@@ -132,8 +57,8 @@ class QueuingInterface(AgentInterface):
 
     def error(self, error: str):
         """Enqueue a special stop message"""
-        self._queue_push(message_api={"internal_error": error}, message_obj=None)
-        self._queue_push(message_api="STOP", message_obj=None)
+        self.buffer.put({"internal_error": error})
+        self.buffer.put("STOP")
 
     def user_message(self, msg: str, msg_obj: Optional[Message] = None):
         """Handle reception of a user message"""
@@ -159,7 +84,7 @@ class QueuingInterface(AgentInterface):
             assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
             new_message["date"] = msg_obj.created_at.isoformat()
 
-        self._queue_push(message_api=new_message, message_obj=msg_obj)
+        self.buffer.put(new_message)
 
     def assistant_message(self, msg: str, msg_obj: Optional[Message] = None) -> None:
         """Handle the agent sending a message"""
@@ -183,13 +108,11 @@ class QueuingInterface(AgentInterface):
             assert self.buffer.qsize() > 1, "Tried to reach back to grab function call data, but couldn't find a buffer message."
             # TODO also should not be accessing protected member here
 
-            new_message["id"] = self.buffer.queue[-1]["message_api"]["id"]
+            new_message["id"] = self.buffer.queue[-1]["id"]
             # assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
-            new_message["date"] = self.buffer.queue[-1]["message_api"]["date"]
+            new_message["date"] = self.buffer.queue[-1]["date"]
 
-            msg_obj = self.buffer.queue[-1]["message_obj"]
-
-        self._queue_push(message_api=new_message, message_obj=msg_obj)
+        self.buffer.put(new_message)
 
     def function_message(self, msg: str, msg_obj: Optional[Message] = None, include_ran_messages: bool = False) -> None:
         """Handle the agent calling a function"""
@@ -229,7 +152,7 @@ class QueuingInterface(AgentInterface):
             assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
             new_message["date"] = msg_obj.created_at.isoformat()
 
-        self._queue_push(message_api=new_message, message_obj=msg_obj)
+        self.buffer.put(new_message)
 
 
 class FunctionArgumentsStreamHandler:
@@ -316,54 +239,20 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         # if multi_step = True, the stream ends when the agent yields
         # if multi_step = False, the stream ends when the step ends
         self.multi_step = multi_step
-        self.multi_step_indicator = MessageStreamStatus.done_step
-        self.multi_step_gen_indicator = MessageStreamStatus.done_generation
+        self.multi_step_indicator = "[DONE_STEP]"
+        self.multi_step_gen_indicator = "[DONE_GEN]"
 
-        # extra prints
-        self.debug = False
-        self.timeout = 30
-
-    async def _create_generator(self) -> AsyncGenerator[Union[MemGPTMessage, LegacyMemGPTMessage, MessageStreamStatus], None]:
+    async def _create_generator(self) -> AsyncGenerator:
         """An asynchronous generator that yields chunks as they become available."""
         while self._active:
-            try:
-                # Wait until there is an item in the deque or the stream is deactivated
-                await asyncio.wait_for(self._event.wait(), timeout=self.timeout)  # 30 second timeout
-            except asyncio.TimeoutError:
-                break  # Exit the loop if we timeout
+            # Wait until there is an item in the deque or the stream is deactivated
+            await self._event.wait()
 
             while self._chunks:
                 yield self._chunks.popleft()
 
             # Reset the event until a new item is pushed
             self._event.clear()
-
-        # while self._active:
-        #     # Wait until there is an item in the deque or the stream is deactivated
-        #     await self._event.wait()
-
-        #     while self._chunks:
-        #         yield self._chunks.popleft()
-
-        #     # Reset the event until a new item is pushed
-        #     self._event.clear()
-
-    def get_generator(self) -> AsyncGenerator:
-        """Get the generator that yields processed chunks."""
-        if not self._active:
-            # If the stream is not active, don't return a generator that would produce values
-            raise StopIteration("The stream has not been started or has been ended.")
-        return self._create_generator()
-
-    def _push_to_buffer(self, item: Union[MemGPTMessage, LegacyMemGPTMessage, MessageStreamStatus]):
-        """Add an item to the deque"""
-        assert self._active, "Generator is inactive"
-        # assert isinstance(item, dict) or isinstance(item, MessageStreamStatus), f"Wrong type: {type(item)}"
-        assert (
-            isinstance(item, MemGPTMessage) or isinstance(item, LegacyMemGPTMessage) or isinstance(item, MessageStreamStatus)
-        ), f"Wrong type: {type(item)}"
-        self._chunks.append(item)
-        self._event.set()  # Signal that new data is available
 
     def stream_start(self):
         """Initialize streaming by activating the generator and clearing any old chunks."""
@@ -379,10 +268,8 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self.streaming_chat_completion_mode_function_name = None
 
         if not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
-            self._push_to_buffer(self.multi_step_gen_indicator)
-
-        # self._active = False
-        # self._event.set()  # Unblock the generator if it's waiting to allow it to complete
+            self._chunks.append(self.multi_step_gen_indicator)
+            self._event.set()  # Signal that new data is available
 
         # if not self.multi_step:
         #     # end the stream
@@ -392,27 +279,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         #     # signal that a new step has started in the stream
         #     self._chunks.append(self.multi_step_indicator)
         #     self._event.set()  # Signal that new data is available
-
-    def step_complete(self):
-        """Signal from the agent that one 'step' finished (step = LLM response + tool execution)"""
-        if not self.multi_step:
-            # end the stream
-            self._active = False
-            self._event.set()  # Unblock the generator if it's waiting to allow it to complete
-        elif not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
-            # signal that a new step has started in the stream
-            self._push_to_buffer(self.multi_step_indicator)
-
-    def step_yield(self):
-        """If multi_step, this is the true 'stream_end' function."""
-        # if self.multi_step:
-        # end the stream
-        self._active = False
-        self._event.set()  # Unblock the generator if it's waiting to allow it to complete
-
-    @staticmethod
-    def clear():
-        return
 
     def _process_chunk_to_memgpt_style(self, chunk: ChatCompletionChunkResponse) -> Optional[dict]:
         """
@@ -539,7 +405,15 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         if msg_obj:
             processed_chunk["id"] = str(msg_obj.id)
 
-        self._push_to_buffer(processed_chunk)
+        self._chunks.append(processed_chunk)
+        self._event.set()  # Signal that new data is available
+
+    def get_generator(self) -> AsyncGenerator:
+        """Get the generator that yields processed chunks."""
+        if not self._active:
+            # If the stream is not active, don't return a generator that would produce values
+            raise StopIteration("The stream has not been started or has been ended.")
+        return self._create_generator()
 
     def user_message(self, msg: str, msg_obj: Optional[Message] = None):
         """MemGPT receives a user message"""
@@ -550,18 +424,14 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         if not self.streaming_mode:
 
             # create a fake "chunk" of a stream
-            # processed_chunk = {
-            #     "internal_monologue": msg,
-            #     "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
-            #     "id": str(msg_obj.id) if msg_obj is not None else None,
-            # }
-            processed_chunk = InternalMonologue(
-                id=msg_obj.id,
-                date=msg_obj.created_at,
-                internal_monologue=msg,
-            )
+            processed_chunk = {
+                "internal_monologue": msg,
+                "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
+                "id": str(msg_obj.id) if msg_obj is not None else None,
+            }
 
-            self._push_to_buffer(processed_chunk)
+            self._chunks.append(processed_chunk)
+            self._event.set()  # Signal that new data is available
 
         return
 
@@ -603,56 +473,42 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                     #   "date": "2024-06-22T23:04:32.141923+00:00"
                     # }
                     try:
-                        func_args = json.loads(function_call.function.arguments)
+                        func_args = json.loads(function_call.function["arguments"])
                     except:
-                        func_args = function_call.function.arguments
-                    # processed_chunk = {
-                    #     "function_call": f"{function_call.function.name}({func_args})",
-                    #     "id": str(msg_obj.id),
-                    #     "date": msg_obj.created_at.isoformat(),
-                    # }
-                    processed_chunk = LegacyFunctionCallMessage(
-                        id=msg_obj.id,
-                        date=msg_obj.created_at,
-                        function_call=f"{function_call.function.name}({func_args})",
-                    )
-                    self._push_to_buffer(processed_chunk)
+                        func_args = function_call.function["arguments"]
+                    processed_chunk = {
+                        "function_call": f"{function_call.function['name']}({func_args})",
+                        "id": str(msg_obj.id),
+                        "date": msg_obj.created_at.isoformat(),
+                    }
+                    self._chunks.append(processed_chunk)
+                    self._event.set()  # Signal that new data is available
 
-                    if function_call.function.name == "send_message":
+                    if function_call.function["name"] == "send_message":
                         try:
-                            # processed_chunk = {
-                            #     "assistant_message": func_args["message"],
-                            #     "id": str(msg_obj.id),
-                            #     "date": msg_obj.created_at.isoformat(),
-                            # }
-                            processed_chunk = AssistantMessage(
-                                id=msg_obj.id,
-                                date=msg_obj.created_at,
-                                assistant_message=func_args["message"],
-                            )
-                            self._push_to_buffer(processed_chunk)
+                            processed_chunk = {
+                                "assistant_message": func_args["message"],
+                                "id": str(msg_obj.id),
+                                "date": msg_obj.created_at.isoformat(),
+                            }
+                            self._chunks.append(processed_chunk)
+                            self._event.set()  # Signal that new data is available
                         except Exception as e:
                             print(f"Failed to parse function message: {e}")
 
                 else:
 
-                    processed_chunk = FunctionCallMessage(
-                        id=msg_obj.id,
-                        date=msg_obj.created_at,
-                        function_call=FunctionCall(
-                            name=function_call.function.name,
-                            arguments=function_call.function.arguments,
-                        ),
-                    )
-                    # processed_chunk = {
-                    #     "function_call": {
-                    #         "name": function_call.function.name,
-                    #         "arguments": function_call.function.arguments,
-                    #     },
-                    #     "id": str(msg_obj.id),
-                    #     "date": msg_obj.created_at.isoformat(),
-                    # }
-                    self._push_to_buffer(processed_chunk)
+                    processed_chunk = {
+                        "function_call": {
+                            "id": function_call.id,
+                            "name": function_call.function["name"],
+                            "arguments": function_call.function["arguments"],
+                        },
+                        "id": str(msg_obj.id),
+                        "date": msg_obj.created_at.isoformat(),
+                    }
+                    self._chunks.append(processed_chunk)
+                    self._event.set()  # Signal that new data is available
 
                 return
             else:
@@ -667,33 +523,43 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
         elif msg.startswith("Success: "):
             msg = msg.replace("Success: ", "")
-            # new_message = {"function_return": msg, "status": "success"}
-            new_message = FunctionReturn(
-                id=msg_obj.id,
-                date=msg_obj.created_at,
-                function_return=msg,
-                status="success",
-            )
+            new_message = {"function_return": msg, "status": "success"}
 
         elif msg.startswith("Error: "):
             msg = msg.replace("Error: ", "")
-            # new_message = {"function_return": msg, "status": "error"}
-            new_message = FunctionReturn(
-                id=msg_obj.id,
-                date=msg_obj.created_at,
-                function_return=msg,
-                status="error",
-            )
+            new_message = {"function_return": msg, "status": "error"}
 
         else:
             # NOTE: generic, should not happen
-            raise ValueError(msg)
             new_message = {"function_message": msg}
 
         # add extra metadata
-        # if msg_obj is not None:
-        #     new_message["id"] = str(msg_obj.id)
-        #     assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
-        #     new_message["date"] = msg_obj.created_at.isoformat()
+        if msg_obj is not None:
+            new_message["id"] = str(msg_obj.id)
+            assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
+            new_message["date"] = msg_obj.created_at.isoformat()
 
-        self._push_to_buffer(new_message)
+        self._chunks.append(new_message)
+        self._event.set()  # Signal that new data is available
+
+    def step_complete(self):
+        """Signal from the agent that one 'step' finished (step = LLM response + tool execution)"""
+        if not self.multi_step:
+            # end the stream
+            self._active = False
+            self._event.set()  # Unblock the generator if it's waiting to allow it to complete
+        elif not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
+            # signal that a new step has started in the stream
+            self._chunks.append(self.multi_step_indicator)
+            self._event.set()  # Signal that new data is available
+
+    def step_yield(self):
+        """If multi_step, this is the true 'stream_end' function."""
+        if self.multi_step:
+            # end the stream
+            self._active = False
+            self._event.set()  # Unblock the generator if it's waiting to allow it to complete
+
+    @staticmethod
+    def clear():
+        return
