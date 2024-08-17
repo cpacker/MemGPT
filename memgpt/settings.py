@@ -43,5 +43,12 @@ class Settings(BaseSettings):
             return None
 
 
+class TestSettings(Settings):
+    model_config = SettingsConfigDict(env_prefix="memgpt_test_")
+
+    memgpt_dir: Optional[Path] = Field(Path.home() / ".memgpt/test", env="MEMGPT_TEST_DIR")
+
+
 # singleton
 settings = Settings()
+test_settings = TestSettings()

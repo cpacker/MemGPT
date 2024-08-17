@@ -8,7 +8,7 @@ from lancedb.pydantic import LanceModel, Vector
 
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import AgentConfig, MemGPTConfig
-from memgpt.data_types import Message, Passage, Record
+from memgpt.schemas.message import Message, Passage, Record
 
 """ Initial implementation - not complete """
 

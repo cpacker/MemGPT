@@ -6,7 +6,7 @@ from typing import List, Optional
 from colorama import Fore, Style, init
 
 from memgpt.constants import CLI_WARNING_PREFIX, JSON_LOADS_STRICT
-from memgpt.data_types import Message
+from memgpt.schemas.message import Message
 from memgpt.utils import printd
 
 init(autoreset=True)
