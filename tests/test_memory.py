@@ -63,3 +63,26 @@ def test_memory_limit_validation(sample_memory):
 
     with pytest.raises(ValueError):
         sample_memory.memory["persona"].value = "x" * 3000
+
+
+def test_corrupted_memory_limit(sample_memory):
+    """Test what happens when a memory is stored with a value over the limit
+
+    See: https://github.com/cpacker/MemGPT/issues/1567
+    """
+    with pytest.raises(ValueError):
+        ChatMemory(persona="x" * 3000, human="y" * 3000)
+
+    memory_dict = sample_memory.to_dict()
+    assert memory_dict["persona"]["limit"] == 2000, memory_dict
+
+    # overflow the value
+    memory_dict["persona"]["limit"] = "x" * 2500
+
+    # by default, this should throw a value error
+    with pytest.raises(ValueError):
+        BaseMemory.load(memory_dict)
+
+    # if we have overflow protection on, this shouldn't raise a value error
+    # TODO
+    # new_memory = BaseMemory.load(memory_dict)
