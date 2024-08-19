@@ -6,10 +6,9 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from memgpt.settings import settings
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
-from memgpt.schemas.agent import AgentState
+from memgpt.schemas.agent import AgentState, CreateAgent
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
-from memgpt.server.schemas.agents import AgentCommandResponse, GetAgentResponse, AgentRenameRequest, CreateAgentRequest, CreateAgentResponse, ListAgentsResponse, GetAgentMemoryResponse, UpdateAgentMemoryRequest, UpdateAgentMemoryResponse, GetAgentArchivalMemoryResponse, ArchivalMemoryObject, InsertAgentArchivalMemoryRequest, InsertAgentArchivalMemoryResponse, UserMessageRequest, UserMessageResponse, GetAgentMessagesRequest, GetAgentMessagesResponse, GetAgentMessagesCursorRequest
 from memgpt.server.rest_api.interface import StreamingServerInterface, QueuingInterface
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
@@ -34,9 +33,9 @@ def list_agents(
     interface.clear()
     return server.list_agents(user_id=actor._id)
 
-@router.post("/", response_model=CreateAgentResponse)
+@router.post("/", response_model=AgentState)
 def create_agent(
-    agent: CreateAgentRequest,
+    agent: CreateAgent,
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -45,73 +44,7 @@ def create_agent(
     """
     actor = server.get_current_user()
     interface.clear()
-
-    # Parse request
-    # TODO: don't just use JSON in the future
-    human_name = agent.config["human_name"] if "human_name" in agent.config else None
-    human = agent.config["human"] if "human" in agent.config else None
-    persona_name = agent.config["persona_name"] if "persona_name" in agent.config else None
-    persona = agent.config["persona"] if "persona" in agent.config else None
-    agent.config["preset"] if ("preset" in agent.config and agent.config["preset"]) else settings.preset
-    tool_names = agent.config["function_names"]
-    metadata = agent.config["metadata"] if "metadata" in agent.config else {}
-    metadata["human"] = human_name
-    metadata["persona"] = persona_name
-
-    # TODO: remove this -- should be added based on create agent fields
-    if isinstance(tool_names, str):  # TODO: fix this on clinet side?
-        tool_names = tool_names.split(",")
-    if tool_names is None or tool_names == "":
-        tool_names = []
-    for name in BASE_TOOLS:  # TODO: remove this
-        if name not in tool_names:
-            tool_names.append(name)
-    assert isinstance(tool_names, list), "Tool names must be a list of strings."
-
-    # TODO: eventually remove this - should support general memory at the REST endpoint
-    memory = ChatMemory(persona=persona, human=human)
-
-    try:
-        agent_state = server.create_agent(
-            user_id=actor._id,
-            # **request.config
-            # TODO turn into a pydantic model
-            name=request.config["name"],
-            memory=memory,
-            # persona_name=persona_name,
-            # human_name=human_name,
-            # persona=persona,
-            # human=human,
-            # llm_config=LLMConfig(
-            # model=request.config['model'],
-            # )
-            # tools
-            tools=tool_names,
-            metadata=metadata,
-            # function_names=request.config["function_names"].split(",") if "function_names" in request.config else None,
-        )
-        llm_config = LLMConfig(**vars(agent_state.llm_config))
-        embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
-
-        return CreateAgentResponse(
-            agent_state=AgentState(
-                id=agent_state.id,
-                name=agent_state.name,
-                user_id=agent_state.user_id,
-                llm_config=llm_config,
-                embedding_config=embedding_config,
-                state=agent_state.state,
-                created_at=int(agent_state.created_at.timestamp()),
-                tools=tool_names,
-                system=agent_state.system,
-                metadata=agent_state._metadata,
-            ),
-            preset=None,
-        )
-    except Exception as e:
-        print(str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
+    return server.create_agent(create_agent, user_id=actor.id)
 
 @router.post("/{agent_id}/command")
 def run_command(
