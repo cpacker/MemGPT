@@ -16,6 +16,23 @@ def test_create_chat_memory():
     assert chat_memory.memory["human"].value == "User"
 
 
+def test_overflow_chat_memory():
+    """Test overflowing an instance of ChatMemory"""
+    chat_memory = ChatMemory(persona="Chat Agent", human="User")
+    assert chat_memory.memory["persona"].value == "Chat Agent"
+    assert chat_memory.memory["human"].value == "User"
+
+    # try overflowing via core_memory_append
+    with pytest.raises(ValueError):
+        persona_limit = chat_memory.memory["persona"].limit
+        chat_memory.core_memory_append(name="persona", content="x" * (persona_limit + 1))
+
+    # try overflowing via core_memory_replace
+    with pytest.raises(ValueError):
+        persona_limit = chat_memory.memory["persona"].limit
+        chat_memory.core_memory_replace(name="persona", old_content="Chat Agent", new_content="x" * (persona_limit + 1))
+
+
 def test_dump_memory_as_json(sample_memory):
     """Test dumping ChatMemory as JSON compatible dictionary"""
     memory_dict = sample_memory.to_dict()
