@@ -21,6 +21,7 @@ from memgpt.schemas.openai.chat_completion_response import ChatCompletionChunkRe
 from memgpt.streaming_interface import AgentChunkStreamingInterface
 from memgpt.utils import is_utc_datetime
 
+#TODO: this entire Queueing concept can go away in favor of sse
 
 class QueuingInterface(AgentInterface):
     """Messages are queued inside an internal buffer and manually flushed"""

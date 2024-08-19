@@ -6,7 +6,7 @@ from memgpt.schemas.block import Block
 
 
 class Memory(BaseModel, validate_assignment=True):
-    """Represents the in-context memory of the agent"""
+    """Represents the whole in-context memory of the agent"""
 
     # Private variable to avoid assignments with incorrect types
     memory: Dict[str, Block] = Field(default_factory=dict, description="Mapping from memory block section to memory block.")
@@ -109,6 +109,7 @@ class ChatMemory(BaseChatMemory):
 
     def __init__(self, persona: str, human: str, limit: int = 2000):
         super().__init__()
+        print("persona", persona)
         self.link_block(name="persona", block=Block(name="persona", value=persona, limit=limit, label="persona"))
         self.link_block(name="human", block=Block(name="human", value=human, limit=limit, label="human"))
 

@@ -1,46 +1,62 @@
 from pathlib import Path
-from typing import Optional
-
-from pydantic import Field
+from urllib.parse import urlsplit, urlunsplit
+from typing import Optional, Literal
+from enum import Enum
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# this is the driver we use
+POSTGRES_SCHEME="postgresql+pg8000"
+
+class BackendConfiguration(BaseModel):
+    name: Literal["postgres", "sqlite_chroma"]
+    database_uri: str
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="memgpt_")
-
     memgpt_dir: Optional[Path] = Field(Path.home() / ".memgpt", env="MEMGPT_DIR")
     debug: Optional[bool] = False
     server_pass: Optional[str] = None
-    pg_db: Optional[str] = None
-    pg_user: Optional[str] = None
-    pg_password: Optional[str] = None
-    pg_host: Optional[str] = None
-    pg_port: Optional[int] = None
-    pg_uri: Optional[str] = None  # option to specifiy full uri
     cors_origins: Optional[list] = ["http://memgpt.localhost", "http://localhost:8283", "http://localhost:8083"]
 
-    # agent configuration defaults
-    default_preset: Optional[str] = "memgpt_chat"
+    # backend database settings
+    pg_uri: Optional[str] = Field(None, description="if set backend will use postgresql. Othewise default to sqlite.")
 
     @property
-    def memgpt_pg_uri(self) -> str:
+    def backend(self) -> BackendConfiguration:
+        """Return an adjusted BackendConfiguration.
+        Note: defaults to sqlite_chroma if pg_uri is not set.
+        """
         if self.pg_uri:
-            return self.pg_uri
-        elif self.pg_db and self.pg_user and self.pg_password and self.pg_host and self.pg_port:
-            return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
-        else:
-            return f"postgresql+pg8000://memgpt:memgpt@localhost:5432/memgpt"
+            return BackendConfiguration(name="postgres", database_uri=self._correct_pg_uri(self.pg_uri))
+        return BackendConfiguration(name="sqlite_chroma", database_uri=f"sqlite:///{self.memgpt_dir}/memgpt.db")
 
-    # add this property to avoid being returned the default
-    # reference: https://github.com/cpacker/MemGPT/issues/1362
-    @property
-    def memgpt_pg_uri_no_default(self) -> str:
-        if self.pg_uri:
-            return self.pg_uri
-        elif self.pg_db and self.pg_user and self.pg_password and self.pg_host and self.pg_port:
-            return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
-        else:
-            return None
+    @classmethod
+    def _correct_pg_uri(cls, uri:str) -> str:
+        """It is awkward to have users set a scheme for the uri (because why should they know anything about what drivers we use?)
+        So here we check (and correct) the provided uri to use the scheme we implement.
+        """
+        url_parts = list(urlsplit(uri))
+        SCHEME = 0
+        url_parts[SCHEME] = POSTGRES_SCHEME
+        return urlunsplit(url_parts)
+
+    # configurations
+    config_path: Optional[Path] = Path("~/.memgpt/config").expanduser()
+
+    # application default starter settings
+    persona: Optional[str] = "sam_pov"
+    human: Optional[str] = "basic"
+    preset: Optional[str] = "memgpt_chat"
+
+    # TODO: extract to vendor plugin
+    openai_api_key: Optional[str] = None
+
+class TestSettings(Settings):
+    model_config = SettingsConfigDict(env_prefix="memgpt_test_")
+
+    memgpt_dir: Optional[Path] = Field(Path.home() / ".memgpt/test", env="MEMGPT_TEST_DIR")
 
 
 class TestSettings(Settings):

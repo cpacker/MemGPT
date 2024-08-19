@@ -9,7 +9,7 @@ from memgpt.schemas.memgpt_base import MemGPTBase
 
 
 class BaseBlock(MemGPTBase, validate_assignment=True):
-    """Base block of the LLM context"""
+    """Blocks are sections of the LLM context, representing a specific part of the total Memory"""
 
     __id_prefix__ = "block"
 
@@ -101,7 +101,7 @@ class CreateHuman(BaseBlock):
 class UpdateBlock(BaseBlock):
     """Update a block"""
 
-    id: str = Field(..., description="The unique identifier of the block.")
+    id: Optional[str] = Field(default=None, description="The unique identifier of the block.")
     limit: Optional[int] = Field(2000, description="Character limit of the block.")
 
 

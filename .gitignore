@@ -1010,6 +1010,8 @@ FodyWeavers.xsd
 
 
 ## cached db data
+.persist/*
+!persist/.gitkeep
 pgdata/
 !pgdata/.gitkeep
 .persist/

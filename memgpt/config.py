@@ -7,15 +7,9 @@ from dataclasses import dataclass
 from typing import Optional
 
 import memgpt
+from memgpt.settings import settings
 import memgpt.utils as utils
-from memgpt.constants import (
-    CORE_MEMORY_HUMAN_CHAR_LIMIT,
-    CORE_MEMORY_PERSONA_CHAR_LIMIT,
-    DEFAULT_HUMAN,
-    DEFAULT_PERSONA,
-    DEFAULT_PRESET,
-    MEMGPT_DIR,
-)
+from memgpt.constants import MEMGPT_DIR
 from memgpt.log import get_logger
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.embedding_config import EmbeddingConfig
@@ -44,21 +38,21 @@ def set_field(config, section, field, value):
 
 @dataclass
 class MemGPTConfig:
-    config_path: str = os.getenv("MEMGPT_CONFIG_PATH") or os.path.join(MEMGPT_DIR, "config")
+    config_path: str = str(settings.config_path.absolute())
     anon_clientid: str = str(uuid.UUID(int=0))
 
-    # preset
-    preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
-
     # persona parameters
-    persona: str = DEFAULT_PERSONA
-    human: str = DEFAULT_HUMAN
+    persona: str = settings.persona
+    human: str = settings.human
 
     # model parameters
     default_llm_config: LLMConfig = None
 
     # embedding parameters
     default_embedding_config: EmbeddingConfig = None
+
+# NONE OF THIS IS CONFIG ↓↓↓↓↓
+# @norton120 these are the metdadatastore
 
     # database configs: archival
     archival_storage_type: str = "chroma"  # local, db
@@ -87,9 +81,8 @@ class MemGPTConfig:
     policies_accepted: bool = False
 
     # Default memory limits
-    core_memory_persona_char_limit: int = CORE_MEMORY_PERSONA_CHAR_LIMIT
-    core_memory_human_char_limit: int = CORE_MEMORY_HUMAN_CHAR_LIMIT
-
+    core_memory_persona_char_limit: int = 2000
+    core_memory_human_char_limit: int = 2000
     def __post_init__(self):
         # ensure types
         # self.embedding_chunk_size = int(self.embedding_chunk_size)
@@ -118,18 +111,11 @@ class MemGPTConfig:
 
         config = configparser.ConfigParser()
 
-        # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = MemGPTConfig.config_path
-
         # insure all configuration directories exist
         cls.create_config_dir()
-        printd(f"Loading config from {config_path}")
-        if os.path.exists(config_path):
-            # read existing config
-            config.read(config_path)
+        printd(f"Loading config from {settings.config_path}")
+        if settings.config_path.exists():
+            config.read(str(settings.config_path.absolute()))
 
             # Handle extraction of nested LLMConfig and EmbeddingConfig
             llm_config_dict = {
@@ -168,7 +154,6 @@ class MemGPTConfig:
                 "default_llm_config": llm_config,
                 "default_embedding_config": embedding_config,
                 # Agent related
-                "preset": get_field(config, "defaults", "preset"),
                 "persona": get_field(config, "defaults", "persona"),
                 "human": get_field(config, "defaults", "human"),
                 "agent": get_field(config, "defaults", "agent"),
@@ -184,7 +169,7 @@ class MemGPTConfig:
                 "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
                 # Misc
                 "anon_clientid": get_field(config, "client", "anon_clientid"),
-                "config_path": config_path,
+                "config_path": settings.config_path,
                 "memgpt_version": get_field(config, "version", "memgpt_version"),
             }
             # Don't include null values
@@ -197,8 +182,7 @@ class MemGPTConfig:
 
         # create new config
         anon_clientid = MemGPTConfig.generate_uuid()
-        config = cls(anon_clientid=anon_clientid, config_path=config_path)
-
+        config = cls(anon_clientid=anon_clientid, config_path=settings.config_path)
         config.create_config_dir()  # create dirs
 
         return config
@@ -207,9 +191,7 @@ class MemGPTConfig:
         import memgpt
 
         config = configparser.ConfigParser()
-
         # CLI defaults
-        set_field(config, "defaults", "preset", self.preset)
         set_field(config, "defaults", "persona", self.persona)
         set_field(config, "defaults", "human", self.human)
 
@@ -295,14 +277,7 @@ class MemGPTConfig:
 
     @staticmethod
     def exists():
-        # allow overriding with env variables
-        if os.getenv("MEMGPT_CONFIG_PATH"):
-            config_path = os.getenv("MEMGPT_CONFIG_PATH")
-        else:
-            config_path = MemGPTConfig.config_path
-
-        assert not os.path.isdir(config_path), f"Config path {config_path} cannot be set to a directory."
-        return os.path.exists(config_path)
+        return settings.config_path.exists() and not settings.config_path.is_dir()
 
     @staticmethod
     def create_config_dir():
@@ -316,7 +291,6 @@ class MemGPTConfig:
             "agents",
             "functions",
             "system_prompts",
-            "presets",
             "settings",
         ]
 
@@ -350,7 +324,6 @@ class AgentConfig:
         embedding_dim=None,
         embedding_chunk_size=None,
         # other
-        preset=None,
         data_sources=None,
         # agent info
         agent_config_path=None,
@@ -367,7 +340,6 @@ class AgentConfig:
         config = MemGPTConfig.load()  # get default values
         self.persona = config.persona if persona is None else persona
         self.human = config.human if human is None else human
-        self.preset = config.preset if preset is None else preset
         self.context_window = config.default_llm_config.context_window if context_window is None else context_window
         self.model = config.default_llm_config.model if model is None else model
         self.model_endpoint_type = config.default_llm_config.model_endpoint_type if model_endpoint_type is None else model_endpoint_type
@@ -447,7 +419,7 @@ class AgentConfig:
     def to_agent_state(self):
         return AgentState(
             name=self.name,
-            preset=self.preset,
+            preset=None,
             persona=self.persona,
             human=self.human,
             llm_config=self.llm_config,

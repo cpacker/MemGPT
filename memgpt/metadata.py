@@ -1,27 +1,29 @@
 """ Metadata store for user/agent/data_source information"""
-
-import os
-import secrets
-import traceback
+from typing import TYPE_CHECKING
+import uuid
 from typing import List, Optional
+from humps import pascalize
+from sqlalchemy.exc import NoResultFound
 
-from sqlalchemy import (
-    BIGINT,
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    Index,
-    String,
-    TypeDecorator,
-    create_engine,
-    desc,
-    func,
-)
-from sqlalchemy.exc import InterfaceError, OperationalError
-from sqlalchemy.orm import declarative_base, sessionmaker
-from sqlalchemy.sql import func
+from memgpt.log import get_logger
+from memgpt.orm.utilities import get_db_session
+from memgpt.orm.token import Token
+from memgpt.orm.agent import Agent
+from memgpt.orm.job import Job
+from memgpt.orm.source import Source
+from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
+from memgpt.orm.user import User
+from memgpt.orm.tool import Tool
+from memgpt.schemas.block import Human, Persona
 
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+logger = get_logger(__name__)
+
+from memgpt.schemas.agent import AgentState as DataAgentState
+from memgpt.orm.enums import JobStatus
 from memgpt.config import MemGPTConfig
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.api_key import APIKey
@@ -34,775 +36,185 @@ from memgpt.schemas.memory import Memory
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
-from memgpt.settings import settings
-from memgpt.utils import enforce_types, get_utc_time, printd
-
-Base = declarative_base()
-
-
-class LLMConfigColumn(TypeDecorator):
-    """Custom type for storing LLMConfig as JSON"""
-
-    impl = JSON
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
-
-    def process_bind_param(self, value, dialect):
-        if value:
-            return vars(value)
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value:
-            return LLMConfig(**value)
-        return value
-
-
-class EmbeddingConfigColumn(TypeDecorator):
-    """Custom type for storing EmbeddingConfig as JSON"""
-
-    impl = JSON
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
-
-    def process_bind_param(self, value, dialect):
-        if value:
-            return vars(value)
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value:
-            return EmbeddingConfig(**value)
-        return value
-
-
-class UserModel(Base):
-    __tablename__ = "users"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True))
-
-    # TODO: what is this?
-    policies_accepted = Column(Boolean, nullable=False, default=False)
-
-    def __repr__(self) -> str:
-        return f"<User(id='{self.id}' name='{self.name}')>"
-
-    def to_record(self) -> User:
-        return User(id=self.id, name=self.name, created_at=self.created_at)
-
-
-class APIKeyModel(Base):
-    """Data model for authentication tokens. One-to-many relationship with UserModel (1 User - N tokens)."""
-
-    __tablename__ = "tokens"
-
-    id = Column(String, primary_key=True)
-    # each api key is tied to a user account (that it validates access for)
-    user_id = Column(String, nullable=False)
-    # the api key
-    key = Column(String, nullable=False)
-    # extra (optional) metadata
-    name = Column(String)
-
-    Index(__tablename__ + "_idx_user", user_id),
-    Index(__tablename__ + "_idx_key", key),
-
-    def __repr__(self) -> str:
-        return f"<APIKey(id='{self.id}', key='{self.key}', name='{self.name}')>"
-
-    def to_record(self) -> User:
-        return APIKey(
-            id=self.id,
-            user_id=self.user_id,
-            key=self.key,
-            name=self.name,
-        )
-
-
-def generate_api_key(prefix="sk-", length=51) -> str:
-    # Generate 'length // 2' bytes because each byte becomes two hex digits. Adjust length for prefix.
-    actual_length = max(length - len(prefix), 1) // 2  # Ensure at least 1 byte is generated
-    random_bytes = secrets.token_bytes(actual_length)
-    new_key = prefix + random_bytes.hex()
-    return new_key
-
-
-class AgentModel(Base):
-    """Defines data model for storing Passages (consisting of text, embedding)"""
-
-    __tablename__ = "agents"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    description = Column(String)
-
-    # state (context compilation)
-    message_ids = Column(JSON)
-    memory = Column(JSON)
-    system = Column(String)
-    tools = Column(JSON)
-
-    # configs
-    llm_config = Column(LLMConfigColumn)
-    embedding_config = Column(EmbeddingConfigColumn)
-
-    # state
-    metadata_ = Column(JSON)
-
-    # tools
-    tools = Column(JSON)
-
-    Index(__tablename__ + "_idx_user", user_id),
-
-    def __repr__(self) -> str:
-        return f"<Agent(id='{self.id}', name='{self.name}')>"
-
-    def to_record(self) -> AgentState:
-        return AgentState(
-            id=self.id,
-            user_id=self.user_id,
-            name=self.name,
-            created_at=self.created_at,
-            description=self.description,
-            message_ids=self.message_ids,
-            memory=Memory.load(self.memory),  # load dictionary
-            system=self.system,
-            tools=self.tools,
-            llm_config=self.llm_config,
-            embedding_config=self.embedding_config,
-            metadata_=self.metadata_,
-        )
-
-
-class SourceModel(Base):
-    """Defines data model for storing Passages (consisting of text, embedding)"""
-
-    __tablename__ = "sources"
-    __table_args__ = {"extend_existing": True}
-
-    # Assuming passage_id is the primary key
-    # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    embedding_config = Column(EmbeddingConfigColumn)
-    description = Column(String)
-    metadata_ = Column(JSON)
-    Index(__tablename__ + "_idx_user", user_id),
-
-    # TODO: add num passages
-
-    def __repr__(self) -> str:
-        return f"<Source(passage_id='{self.id}', name='{self.name}')>"
-
-    def to_record(self) -> Source:
-        return Source(
-            id=self.id,
-            user_id=self.user_id,
-            name=self.name,
-            created_at=self.created_at,
-            embedding_config=self.embedding_config,
-            description=self.description,
-            metadata_=self.metadata_,
-        )
-
-
-class AgentSourceMappingModel(Base):
-    """Stores mapping between agent -> source"""
-
-    __tablename__ = "agent_source_mapping"
-
-    id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
-    agent_id = Column(String, nullable=False)
-    source_id = Column(String, nullable=False)
-    Index(__tablename__ + "_idx_user", user_id, agent_id, source_id),
-
-    def __repr__(self) -> str:
-        return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
-
-
-class BlockModel(Base):
-    __tablename__ = "block"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True, nullable=False)
-    value = Column(String, nullable=False)
-    limit = Column(BIGINT)
-    name = Column(String, nullable=False)
-    template = Column(Boolean, default=False)  # True: listed as possible human/persona
-    label = Column(String)
-    metadata_ = Column(JSON)
-    description = Column(String)
-    user_id = Column(String)
-    Index(__tablename__ + "_idx_user", user_id),
-
-    def __repr__(self) -> str:
-        return f"<Block(id='{self.id}', name='{self.name}', template='{self.template}', label='{self.label}', user_id='{self.user_id}')>"
-
-    def to_record(self) -> Block:
-        if self.label == "persona":
-            return Persona(
-                id=self.id,
-                value=self.value,
-                limit=self.limit,
-                name=self.name,
-                template=self.template,
-                label=self.label,
-                metadata_=self.metadata_,
-                description=self.description,
-                user_id=self.user_id,
-            )
-        elif self.label == "human":
-            return Human(
-                id=self.id,
-                value=self.value,
-                limit=self.limit,
-                name=self.name,
-                template=self.template,
-                label=self.label,
-                metadata_=self.metadata_,
-                description=self.description,
-                user_id=self.user_id,
-            )
-        else:
-            raise ValueError(f"Block with label {self.label} is not supported")
-
-
-class ToolModel(Base):
-    __tablename__ = "tools"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    user_id = Column(String)
-    description = Column(String)
-    source_type = Column(String)
-    source_code = Column(String)
-    json_schema = Column(JSON)
-    module = Column(String)
-    tags = Column(JSON)
-
-    def __repr__(self) -> str:
-        return f"<Tool(id='{self.id}', name='{self.name}')>"
-
-    def to_record(self) -> Tool:
-        return Tool(
-            id=self.id,
-            name=self.name,
-            user_id=self.user_id,
-            description=self.description,
-            source_type=self.source_type,
-            source_code=self.source_code,
-            json_schema=self.json_schema,
-            module=self.module,
-            tags=self.tags,
-        )
-
-
-class JobModel(Base):
-    __tablename__ = "jobs"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    user_id = Column(String)
-    status = Column(String, default=JobStatus.pending)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    completed_at = Column(DateTime(timezone=True), onupdate=func.now())
-    metadata_ = Column(JSON)
-
-    def __repr__(self) -> str:
-        return f"<Job(id='{self.id}', status='{self.status}')>"
-
-    def to_record(self):
-        return Job(
-            id=self.id,
-            user_id=self.user_id,
-            status=self.status,
-            created_at=self.created_at,
-            completed_at=self.completed_at,
-            metadata_=self.metadata_,
-        )
-
+from memgpt.schemas.block import Human, Persona
 
 class MetadataStore:
-    uri: Optional[str] = None
+    """Metadatastore acts as a bridge between the ORM and the rest of the application. Ideally it will be removed in coming PRs and
+    Allow requests to handle sessions atomically (this is how FastAPI really wants things to work, and will drastically reduce the
+    mucking of the ORM layer). For now, all CRUD methods are invoked here instead of the ORM layer directly.
+    """
+    db_session: "Session" = None
 
-    def __init__(self, config: MemGPTConfig):
-        # TODO: get DB URI or path
-        if config.metadata_storage_type == "postgres":
-            # construct URI from enviornment variables
-            self.uri = settings.pg_uri if settings.pg_uri else config.metadata_storage_uri
+    def __init__(self, db_session: Optional["Session"] = None):
+        """
+        Args:
+            db_session: the database session to use.
+        """
+        self.db_session = get_db_session()
 
-        elif config.metadata_storage_type == "sqlite":
-            path = os.path.join(config.metadata_storage_path, "sqlite.db")
-            self.uri = f"sqlite:///{path}"
-        else:
-            raise ValueError(f"Invalid metadata storage type: {config.metadata_storage_type}")
+    def create_api_key(self,
+                       user_id: uuid.UUID,
+                       name: Optional[str] = None,
+                       actor: Optional["User"] = None) -> str:
+        """Create an API key for a user
+        Args:
+            user_id: the user raw id as a UUID (legacy accessor)
+            name: the name of the token
+            actor: the user creating the API key, does not need to be the same as the user_id. will default to the user_id if not provided.
+        Returns:
+            api_key: the generated API key string starting with 'sk-'
+        """
+        token = Token(
+            _user_id=actor._id or user_id,
+            name=name
+        ).create(self.db_session)
+        return token.api_key
 
-        # Ensure valid URI
-        assert self.uri, "Database URI is not provided or is invalid."
+    def delete_api_key(self,
+                       api_key: str,
+                       actor: Optional["User"]=None) -> None:
+        """(soft) Delete an API key from the database
+        Args:
+            api_key: the API key to delete
+            actor: the user deleting the API key. TODO this will not be optional in the future!
+        Raises:
+            NotFoundError: if the API key does not exist or the user does not have access to it.
+        """
+        #TODO: this is a temporary shim. the long-term solution (next PR) will be to look up the token ID partial, check access, and soft delete.
+        logger.info(f"User %s is deleting API key %s", actor.id, api_key)
+        Token.get_by_api_key(api_key).delete(self.db_session)
 
-        # Check if tables need to be created
-        self.engine = create_engine(self.uri)
-        try:
-            Base.metadata.create_all(
-                self.engine,
-                tables=[
-                    UserModel.__table__,
-                    AgentModel.__table__,
-                    SourceModel.__table__,
-                    AgentSourceMappingModel.__table__,
-                    APIKeyModel.__table__,
-                    BlockModel.__table__,
-                    ToolModel.__table__,
-                    JobModel.__table__,
-                ],
-            )
-        except (InterfaceError, OperationalError) as e:
-            traceback.print_exc()
-            if config.metadata_storage_type == "postgres":
-                raise ValueError(
-                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
-                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
-                    + "\npostgres detected: Make sure the postgres database is running (https://memgpt.readme.io/docs/storage#postgres)."
-                )
-            elif config.metadata_storage_type == "sqlite":
-                raise ValueError(
-                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
-                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
-                    + "\nsqlite detected: Make sure that the sqlite.db file exists at the URI."
-                )
-            else:
-                raise e
-        except:
-            raise
-        self.session_maker = sessionmaker(bind=self.engine)
+    def get_api_key(self,
+                    api_key: str,
+                    actor: Optional["User"] = None) -> Optional[Token]:
+            """legacy token lookup.
+            Note: auth should remove this completely - there is no reason to look up a token without a user context.
+            """
+            return Token.get_by_api_key(self.db_session, api_key).to_record()
 
-    @enforce_types
-    def create_api_key(self, user_id: str, name: str) -> APIKey:
-        """Create an API key for a user"""
-        new_api_key = generate_api_key()
-        with self.session_maker() as session:
-            if session.query(APIKeyModel).filter(APIKeyModel.key == new_api_key).count() > 0:
-                # NOTE duplicate API keys / tokens should never happen, but if it does don't allow it
-                raise ValueError(f"Token {new_api_key} already exists")
-            # TODO store the API keys as hashed
-            assert user_id and name, "User ID and name must be provided"
-            token = APIKey(user_id=user_id, key=new_api_key, name=name)
-            session.add(APIKeyModel(**vars(token)))
-            session.commit()
-        return self.get_api_key(api_key=new_api_key)
+    def get_all_api_keys_for_user(self,
+                                  user_id: uuid.UUID) -> List[Token]:
+            """"""
+            user = User.read(self.db_session, user_id)
+            return [r.to_record() for r in user.tokens]
 
-    @enforce_types
-    def delete_api_key(self, api_key: str):
-        """Delete an API key from the database"""
-        with self.session_maker() as session:
-            session.query(APIKeyModel).filter(APIKeyModel.key == api_key).delete()
-            session.commit()
-
-    @enforce_types
-    def get_api_key(self, api_key: str) -> Optional[APIKey]:
-        with self.session_maker() as session:
-            results = session.query(APIKeyModel).filter(APIKeyModel.key == api_key).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
-            return results[0].to_record()
-
-    @enforce_types
-    def get_all_api_keys_for_user(self, user_id: str) -> List[APIKey]:
-        with self.session_maker() as session:
-            results = session.query(APIKeyModel).filter(APIKeyModel.user_id == user_id).all()
-            tokens = [r.to_record() for r in results]
-            return tokens
-
-    @enforce_types
     def get_user_from_api_key(self, api_key: str) -> Optional[User]:
         """Get the user associated with a given API key"""
-        token = self.get_api_key(api_key=api_key)
-        if token is None:
-            raise ValueError(f"Provided token does not exist")
-        else:
-            return self.get_user(user_id=token.user_id)
+        return Token.get_by_api_key(self.db_session, api_key).user.to_record()
 
-    @enforce_types
-    def create_agent(self, agent: AgentState):
-        # insert into agent table
-        # make sure agent.name does not already exist for user user_id
-        with self.session_maker() as session:
-            if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
-                raise ValueError(f"Agent with name {agent.name} already exists")
-            fields = vars(agent)
-            fields["memory"] = agent.memory.to_dict()
-            session.add(AgentModel(**fields))
-            session.commit()
+    def create_agent(self, agent: DataAgentState):
+        "here is one example longhand to demonstrate the meta pattern"
+        return Agent.create(self.db_session, agent.model_dump(exclude_none=True))
 
-    @enforce_types
-    def create_source(self, source: Source):
-        with self.session_maker() as session:
-            if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
-                raise ValueError(f"Source with name {source.name} already exists for user {source.user_id}")
-            session.add(SourceModel(**vars(source)))
-            session.commit()
+    def list_agents(self, user_id: uuid.UUID) -> List[DataAgentState]:
+        return [a.to_record() for a in User.read(self.db_session, user_id).agents]
 
-    @enforce_types
-    def create_user(self, user: User):
-        with self.session_maker() as session:
-            if session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
-                raise ValueError(f"User with id {user.id} already exists")
-            session.add(UserModel(**vars(user)))
-            session.commit()
+    def list_tools(self) -> List[DataAgentState]:
+        return [a.to_record() for a in Tool.list(self.db_session)]
 
-    @enforce_types
-    def create_block(self, block: Block):
-        with self.session_maker() as session:
-            # TODO: fix?
-            # we are only validating that more than one template block
-            # with a given name doesn't exist.
-            if (
-                session.query(BlockModel)
-                .filter(BlockModel.name == block.name)
-                .filter(BlockModel.user_id == block.user_id)
-                .filter(BlockModel.template == True)
-                .filter(BlockModel.label == block.label)
-                .count()
-                > 0
-            ):
+    def get_tool(self, name: str, user_id: uuid.UUID) -> Optional[DataAgentState]:
+        return Tool.read(self.db_session, name=name).to_record()
 
-                raise ValueError(f"Block with name {block.name} already exists")
-            session.add(BlockModel(**vars(block)))
-            session.commit()
 
-    @enforce_types
-    def create_tool(self, tool: Tool):
-        with self.session_maker() as session:
-            if self.get_tool(tool_name=tool.name, user_id=tool.user_id) is not None:
-                raise ValueError(f"Tool with name {tool.name} already exists")
-            session.add(ToolModel(**vars(tool)))
-            session.commit()
+    def __getattr__(self, name):
+        """temporary metaprogramming to clean up all the getters and setters here.
 
-    @enforce_types
-    def update_agent(self, agent: AgentState):
-        with self.session_maker() as session:
-            fields = vars(agent)
-            if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
-                fields["memory"] = agent.memory.to_dict()
-            session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
-            session.commit()
+        __getattr__ is always the last-ditch effort, so you can override it by declaring any method (ie `get_hamburger`) to handle the call instead.
+        """
+        action, raw_model_name = name.split("_",1)
+        Model = globals().get(pascalize(raw_model_name).capitalize()) # gross, but nessary for now
+        if Model is None:
+            raise AttributeError(f"Model {raw_model_name} action {action} not found")
 
-    @enforce_types
-    def update_user(self, user: User):
-        with self.session_maker() as session:
-            session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
-            session.commit()
+        def pluralize(name):
+            return name if name[-1] == "s" else name + "s"
 
-    @enforce_types
-    def update_source(self, source: Source):
-        with self.session_maker() as session:
-            session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
-            session.commit()
+        match action:
+            case "add":
+                return self.getattr("_".join(["create",raw_model_name]))
+            case "get":
+                # this has no support for scoping, but we won't keep this pattern long
+                try:
+                    def get(id, user_id = None):
+                        return Model.read(self.db_session, id).to_record()
+                    return get
+                except IndexError:
+                    raise NoResultFound(f"No {raw_model_name} found with id {id}")
+            case "create":
+                def create(schema):
+                    splatted_pydantic = schema.model_dump(exclude_none=True)
+                    return Model.create(self.db_session, splatted_pydantic).to_record()
+                return create
+            case "update":
+                def update(schema):
+                    instance = Model.read(self.db_session, schema.id)
+                    splatted_pydantic = schema.model_dump(exclude_none=True, exclude=["id"])
+                    for k,v in splatted_pydantic.items():
+                        setattr(instance, k, v)
+                    instance.update(self.db_session)
+                    return instance.to_record()
+                return update
+            case "delete":
+                def delete(*args):
+                # hacky temp. look up the org for the user, get all the plural (related set) for that org and delete by name
+                    if user_uuid := (args[1] if len(args) > 1 else None):
+                        org = User.read(self.db_session, user_uuid).organization
+                        related_set = getattr(org, pluralize(raw_model_name)) or []
+                        related_set.filter(name=name).scalar().delete()
+                        return
+                    instance = Model.read(self.db_session, args[0])
+                    instance.delete(self.db_session)
+                return delete
+            case "list":
+                # hacky temp. look up the org for the user, get all the plural (related set) for that org
+                def list(*args, **kwargs):
+                    if user_uuid := kwargs.get("id"):
+                        org = User.read(self.db_session, user_uuid).organization
+                        return [r.to_record() for r in getattr(org, pluralize(raw_model_name)) or []]
+                    # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
+                    return [r.to_record() for r in Model.list(self.db_session)]
+                return list
+            case _:
+                raise AttributeError(f"Method {name} not found")
 
-    @enforce_types
-    def update_block(self, block: Block):
-        with self.session_maker() as session:
-            session.query(BlockModel).filter(BlockModel.id == block.id).update(vars(block))
-            session.commit()
+    def update_human(self, human: Human) -> "Human":
+        sql_human = HumanMemoryTemplate(**human.model_dump(exclude_none=True)).create(self.db_session)
+        return sql_human.to_record()
 
-    @enforce_types
-    def update_or_create_block(self, block: Block):
-        with self.session_maker() as session:
-            existing_block = session.query(BlockModel).filter(BlockModel.id == block.id).first()
-            if existing_block:
-                session.query(BlockModel).filter(BlockModel.id == block.id).update(vars(block))
-            else:
-                session.add(BlockModel(**vars(block)))
-            session.commit()
+    def update_persona(self, persona: Persona) -> "Persona":
+        sql_persona = PersonaMemoryTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
+        return sql_persona.to_record()
 
-    @enforce_types
-    def update_tool(self, tool: Tool):
-        with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.id == tool.id).update(vars(tool))
-            session.commit()
-
-    @enforce_types
-    def delete_tool(self, tool_id: str):
-        with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.id == tool_id).delete()
-            session.commit()
-
-    @enforce_types
-    def delete_block(self, block_id: str):
-        with self.session_maker() as session:
-            session.query(BlockModel).filter(BlockModel.id == block_id).delete()
-            session.commit()
-
-    @enforce_types
-    def delete_agent(self, agent_id: str):
-        with self.session_maker() as session:
-
-            # delete agents
-            session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
-
-            # delete mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).delete()
-
-            session.commit()
-
-    @enforce_types
-    def delete_source(self, source_id: str):
-        with self.session_maker() as session:
-            # delete from sources table
-            session.query(SourceModel).filter(SourceModel.id == source_id).delete()
-
-            # delete any mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).delete()
-
-            session.commit()
-
-    @enforce_types
-    def delete_user(self, user_id: str):
-        with self.session_maker() as session:
-            # delete from users table
-            session.query(UserModel).filter(UserModel.id == user_id).delete()
-
-            # delete associated agents
-            session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
-
-            # delete associated sources
-            session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
-
-            # delete associated mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
-
-            session.commit()
-
-    @enforce_types
-    # def list_tools(self, user_id: str) -> List[ToolModel]: # TODO: add when users can creat tools
-    def list_tools(self, user_id: Optional[str] = None) -> List[ToolModel]:
-        with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.user_id == None).all()
-            if user_id:
-                results += session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
-            res = [r.to_record() for r in results]
-            return res
-
-    @enforce_types
-    def list_agents(self, user_id: str) -> List[AgentState]:
-        with self.session_maker() as session:
-            results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    def list_sources(self, user_id: str) -> List[Source]:
-        with self.session_maker() as session:
-            results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    def get_agent(
-        self, agent_id: Optional[str] = None, agent_name: Optional[str] = None, user_id: Optional[str] = None
-    ) -> Optional[AgentState]:
-        with self.session_maker() as session:
-            if agent_id:
-                results = session.query(AgentModel).filter(AgentModel.id == agent_id).all()
-            else:
-                assert agent_name is not None and user_id is not None, "Must provide either agent_id or agent_name"
-                results = session.query(AgentModel).filter(AgentModel.name == agent_name).filter(AgentModel.user_id == user_id).all()
-
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
-            return results[0].to_record()
-
-    @enforce_types
-    def get_user(self, user_id: str) -> Optional[User]:
-        with self.session_maker() as session:
-            results = session.query(UserModel).filter(UserModel.id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
-        with self.session_maker() as session:
-            query = session.query(UserModel).order_by(desc(UserModel.id))
-            if cursor:
-                query = query.filter(UserModel.id < cursor)
-            results = query.limit(limit).all()
-            if not results:
-                return None, []
-            user_records = [r.to_record() for r in results]
-            next_cursor = user_records[-1].id
-            assert isinstance(next_cursor, str)
-
-            return next_cursor, user_records
-
-    @enforce_types
-    def get_source(
-        self, source_id: Optional[str] = None, user_id: Optional[str] = None, source_name: Optional[str] = None
-    ) -> Optional[Source]:
-        with self.session_maker() as session:
-            if source_id:
-                results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
-            else:
-                assert user_id is not None and source_name is not None
-                results = session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_tool(
-        self, tool_name: Optional[str] = None, tool_id: Optional[str] = None, user_id: Optional[str] = None
-    ) -> Optional[ToolModel]:
-        with self.session_maker() as session:
-            if tool_id:
-                results = session.query(ToolModel).filter(ToolModel.id == tool_id).all()
-            else:
-                assert tool_name is not None
-                results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
-                if user_id:
-                    results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_block(self, block_id: str) -> Optional[Block]:
-        with self.session_maker() as session:
-            results = session.query(BlockModel).filter(BlockModel.id == block_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_blocks(
-        self,
-        user_id: Optional[str],
-        label: Optional[str] = None,
-        template: bool = True,
-        name: Optional[str] = None,
-        id: Optional[str] = None,
-    ) -> List[Block]:
-        """List available blocks"""
-        with self.session_maker() as session:
-            query = session.query(BlockModel).filter(BlockModel.template == template)
-
-            if user_id:
-                query = query.filter(BlockModel.user_id == user_id)
-
-            if label:
-                query = query.filter(BlockModel.label == label)
-
-            if name:
-                query = query.filter(BlockModel.name == name)
-
-            if id:
-                query = query.filter(BlockModel.id == id)
-
-            results = query.all()
-
-            if len(results) == 0:
-                return None
-
-            return [r.to_record() for r in results]
+    def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
+        del limit # TODO: implement pagination as part of predicate
+        return None , [u.to_record() for u in User.list(self.db_session)]
 
     # agent source metadata
-    @enforce_types
-    def attach_source(self, user_id: str, agent_id: str, source_id: str):
-        with self.session_maker() as session:
-            # TODO: remove this (is a hack)
-            mapping_id = f"{user_id}-{agent_id}-{source_id}"
-            session.add(AgentSourceMappingModel(id=mapping_id, user_id=user_id, agent_id=agent_id, source_id=source_id))
-            session.commit()
+    def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID) -> None:
+        agent = Agent.read(self.db_session, agent_id)
+        source = Source.read(self.db_session, source_id)
+        agent.sources.append(source)
 
-    @enforce_types
-    def list_attached_sources(self, agent_id: str) -> List[Source]:
-        with self.session_maker() as session:
-            results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
+    def list_attached_sources(self, agent_id: uuid.UUID) -> List[uuid.UUID]:
+        return [s._id for s in Agent.read(self.db_session, agent_id).sources]
 
-            sources = []
-            # make sure source exists
-            for r in results:
-                source = self.get_source(source_id=r.source_id)
-                if source:
-                    sources.append(source)
-                else:
-                    printd(f"Warning: source {r.source_id} does not exist but exists in mapping database. This should never happen.")
-            return sources
+    def list_attached_agents(self, source_id: uuid.UUID) -> List[uuid.UUID]:
+        return [a._id for a in Source.read(self.db_session, source_id).agents]
 
-    @enforce_types
-    def list_attached_agents(self, source_id: str) -> List[str]:
-        with self.session_maker() as session:
-            results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).all()
+    def detach_source(self, agent_id: uuid.UUID, source_id: uuid.UUID) -> None:
+        agent = Agent.read(self.db_session, agent_id)
+        source = Source.read(self.db_session, source_id)
+        agent.sources.remove(source)
 
-            agent_ids = []
-            # make sure agent exists
-            for r in results:
-                agent = self.get_agent(agent_id=r.agent_id)
-                if agent:
-                    agent_ids.append(r.agent_id)
-                else:
-                    printd(f"Warning: agent {r.agent_id} does not exist but exists in mapping database. This should never happen.")
-            return agent_ids
+    def get_human(self, name: str, user_id: uuid.UUID) -> Optional[Human]:
+        org = User.read(self.db_session, user_id)
+        return org.human_memory_templates.filter(name=name).scalar()
 
-    @enforce_types
-    def detach_source(self, agent_id: str, source_id: str):
-        with self.session_maker() as session:
-            session.query(AgentSourceMappingModel).filter(
-                AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
-            ).delete()
-            session.commit()
+    def get_persona(self, name: str, user_id: uuid.UUID) -> Optional[Persona]:
+        org = User.read(self.db_session, user_id)
+        return org.human_memory_templates.filter(name=name).scalar()
 
-    @enforce_types
-    def create_job(self, job: Job):
-        with self.session_maker() as session:
-            session.add(JobModel(**vars(job)))
-            session.commit()
-
-    def delete_job(self, job_id: str):
-        with self.session_maker() as session:
-            session.query(JobModel).filter(JobModel.id == job_id).delete()
-            session.commit()
-
-    def get_job(self, job_id: str) -> Optional[Job]:
-        with self.session_maker() as session:
-            results = session.query(JobModel).filter(JobModel.id == job_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    def list_jobs(self, user_id: str) -> List[Job]:
-        with self.session_maker() as session:
-            results = session.query(JobModel).filter(JobModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    def update_job(self, job: Job) -> Job:
-        with self.session_maker() as session:
-            session.query(JobModel).filter(JobModel.id == job.id).update(vars(job))
-            session.commit()
-        return Job
-
-    def update_job_status(self, job_id: str, status: JobStatus):
-        with self.session_maker() as session:
-            session.query(JobModel).filter(JobModel.id == job_id).update({"status": status})
-            if status == JobStatus.COMPLETED:
-                session.query(JobModel).filter(JobModel.id == job_id).update({"completed_at": get_utc_time()})
-            session.commit()
+    def update_job_status(self, job_id: uuid.UUID, status: JobStatus):
+        job = Job.read(self.db_session, job_id)
+        job.status = status
+        job.update(self.db_session)

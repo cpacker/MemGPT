@@ -5,13 +5,14 @@ import subprocess
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Tuple
 
 import questionary
 import requests
 import typer
 
 import memgpt.utils as utils
+from memgpt.settings import settings
 from memgpt import create_client
 from memgpt.agent import Agent, save_agent
 from memgpt.cli.cli_config import configure
@@ -25,6 +26,7 @@ from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ChatMemory, Memory
 from memgpt.server.constants import WS_DEFAULT_PORT
+from memgpt.cli.start_remote_server import start_server
 from memgpt.server.server import logger as server_logger
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
@@ -50,7 +52,7 @@ def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
         raise ValueError(f"{choice_str} is not a valid QuickstartChoice. Valid options are: {valid_options}")
 
 
-def set_config_with_dict(new_config: dict) -> (MemGPTConfig, bool):
+def set_config_with_dict(new_config: dict) -> Tuple[MemGPTConfig, bool]:
     """_summary_
 
     Args:
@@ -283,9 +285,6 @@ def server(
     type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
-    use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
-    ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
-    ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
 ):
     """Launch a MemGPT server process"""
@@ -302,14 +301,10 @@ def server(
             sys.exit(1)
 
         try:
-            from memgpt.server.rest_api.server import start_server
-
+            from memgpt.cli.start_remote_server import start_server
             start_server(
                 port=port,
                 host=host,
-                use_ssl=use_ssl,
-                ssl_cert=ssl_cert,
-                ssl_key=ssl_key,
                 debug=debug,
             )
 
@@ -319,21 +314,10 @@ def server(
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
+        port = port or 8282 # WS default
         if debug:
-            from memgpt.server.server import logger as server_logger
+            settings.debug = debug
 
-            # Set the logging level
-            server_logger.setLevel(logging.DEBUG)
-            # Create a StreamHandler
-            stream_handler = logging.StreamHandler()
-            # Set the formatter (optional)
-            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-            stream_handler.setFormatter(formatter)
-            # Add the handler to the logger
-            server_logger.addHandler(stream_handler)
-
-        if port is None:
-            port = WS_DEFAULT_PORT
 
         # Change to the desired directory
         script_path = Path(__file__).resolve()
@@ -404,54 +388,12 @@ def run(
 
     """
 
-    # setup logger
     # TODO: remove Utils Debug after global logging is complete.
     utils.DEBUG = debug
     # TODO: add logging command line options for runtime log level
 
     if debug:
-        logger.setLevel(logging.DEBUG)
-        server_logger.setLevel(logging.DEBUG)
-    else:
-        logger.setLevel(logging.CRITICAL)
-        server_logger.setLevel(logging.CRITICAL)
-
-    # from memgpt.migrate import (
-    #    VERSION_CUTOFF,
-    #    config_is_compatible,
-    #    wipe_config_and_reconfigure,
-    # )
-
-    # if not config_is_compatible(allow_empty=True):
-    #    typer.secho(f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)
-    #    choices = [
-    #        "Run the full config setup (recommended)",
-    #        "Create a new config using defaults",
-    #        "Cancel",
-    #    ]
-    #    selection = questionary.select(
-    #        f"To use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}), or regenerate your config. Would you like to proceed?",
-    #        choices=choices,
-    #        default=choices[0],
-    #    ).ask()
-    #    if selection == choices[0]:
-    #        try:
-    #            wipe_config_and_reconfigure()
-    #        except Exception as e:
-    #            typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
-    #            raise
-    #    elif selection == choices[1]:
-    #        try:
-    #            # Don't create a config, so that the next block of code asking about quickstart is run
-    #            wipe_config_and_reconfigure(run_configure=False, create_config=False)
-    #        except Exception as e:
-    #            typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
-    #            raise
-    #    else:
-    #        typer.secho("MemGPT config regeneration cancelled", fg=typer.colors.RED)
-    #        raise KeyboardInterrupt()
-
-    #    typer.secho("Note: if you would like to migrate old agents to the new release, please run `memgpt migrate`!", fg=typer.colors.GREEN)
+        settings.debug = debug
 
     if not MemGPTConfig.exists():
         # if no config, ask about quickstart

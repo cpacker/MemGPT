@@ -9,7 +9,7 @@ from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
+from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.credentials import MemGPTCredentials
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
 from memgpt.llm_api.azure_openai import (
@@ -109,7 +109,7 @@ def unpack_inner_thoughts_from_kwargs(
 
                     # replace the kwargs
                     new_choice = choice.model_copy(deep=True)
-                    new_choice.message.tool_calls[0].function.arguments = json.dumps(func_args, ensure_ascii=JSON_ENSURE_ASCII)
+                    new_choice.message.tool_calls[0].function.arguments = json_dumps(func_args)
                     # also replace the message content
                     if new_choice.message.content is not None:
                         warnings.warn(f"Overwriting existing inner monologue ({new_choice.message.content}) with kwarg ({inner_thoughts})")

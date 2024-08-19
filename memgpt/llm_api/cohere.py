@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import JSON_ENSURE_ASCII
+from memgpt.utils import json_dumps
 from memgpt.local_llm.utils import count_tokens
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest, Tool
@@ -156,7 +156,7 @@ def convert_cohere_response_to_chatcompletion(
     else:
         # For some reason input_tokens not included in 'meta' 'tokens' dict?
         prompt_tokens = count_tokens(
-            json.dumps(response_json["chat_history"], ensure_ascii=JSON_ENSURE_ASCII)
+            json_dumps(response_json["chat_history"])
         )  # NOTE: this is a very rough approximation
         completion_tokens = response_json["meta"]["tokens"]["output_tokens"]
 

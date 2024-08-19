@@ -72,7 +72,7 @@ nltk = "^3.8.1"
 local = ["llama-index-embeddings-huggingface"]
 postgres = ["pgvector", "pg8000", "psycopg2-binary"]
 milvus = ["pymilvus"]
-dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort"]
+dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "pytest-it"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
@@ -82,6 +82,8 @@ crewai-tools = ["crewai", "docker", "crewai-tools"]
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
 ipykernel = "^6.29.5"
+faker = "^25.8.0"
+pytest-it = "^0.1.5"
 
 [tool.black]
 line-length = 140

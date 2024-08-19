@@ -10,6 +10,7 @@ from autogen.agentchat import (
     UserProxyAgent,
 )
 
+from memgpt.settings import settings
 import memgpt.constants as constants
 import memgpt.system as system
 import memgpt.utils as utils
@@ -20,7 +21,9 @@ from memgpt.autogen.interface import AutoGenInterface
 from memgpt.cli.cli_load import load_directory, load_vector_database
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.data_types import EmbeddingConfig, LLMConfig, User
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.user import User
 from memgpt.metadata import MetadataStore
 from memgpt.utils import get_human_text, get_persona_text
 
@@ -342,14 +345,8 @@ def create_autogen_memgpt_agent(
         user = ms.get_user(user_id=user_id)
 
     try:
-        preset_obj = ms.get_preset(name=agent_config["preset"] if "preset" in agent_config else config.preset, user_id=user.id)
+        preset_obj = None
         if preset_obj is None:
-            # create preset records in metadata store
-            from memgpt.presets.presets import add_default_presets
-
-            add_default_presets(user.id, ms)
-            # try again
-            preset_obj = ms.get_preset(name=agent_config["preset"] if "preset" in agent_config else config.preset, user_id=user.id)
             if preset_obj is None:
                 print("Couldn't find presets in database, please run `memgpt configure`")
                 sys.exit(1)
@@ -414,7 +411,7 @@ def create_memgpt_autogen_agent_from_config(
         interface_kwargs = {}
 
     # The "system message" in AutoGen becomes the persona in MemGPT
-    persona_desc = utils.get_persona_text(constants.DEFAULT_PERSONA) if system_message == "" else system_message
+    persona_desc = utils.get_persona_text(settings.persona) if system_message == "" else system_message
     # The user profile is based on the input mode
     if human_input_mode == "ALWAYS":
         user_desc = ""

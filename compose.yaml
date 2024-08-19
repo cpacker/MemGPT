@@ -6,6 +6,7 @@ services:
         aliases:
           - pgvector_db
           - memgpt-db
+          - memgpt
     environment:
       - POSTGRES_USER=${MEMGPT_PG_USER}
       - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD}

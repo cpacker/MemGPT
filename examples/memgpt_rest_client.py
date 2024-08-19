@@ -1,6 +1,8 @@
 import json
 
 from memgpt import Admin, create_client
+from memgpt.settings import settings
+from memgpt.utils import get_human_text, get_persona_text
 from memgpt.memory import ChatMemory
 
 """
