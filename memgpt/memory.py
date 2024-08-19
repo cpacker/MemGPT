@@ -37,7 +37,6 @@ class MemoryModule(BaseModel):
                 print(f"Edit failed: Exceeds {self.limit} character limit (requested {len(value)}). Clipping to {self.limit} characters.")
                 value = value[: self.limit]
 
-        print(f"Setting {name} to {value}")
         super().__setattr__(name, value)
 
     @validator("value", always=True)
@@ -59,7 +58,6 @@ class MemoryModule(BaseModel):
                 error_msg = f"Edit failed: Exceeds {limit} character limit (requested {length}). Clipping to {limit} characters."
                 print(error_msg)
                 values["value"] = v[:limit]
-                print(cls)
                 return v[:limit]
             else:
                 return v
