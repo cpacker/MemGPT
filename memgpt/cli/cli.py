@@ -662,8 +662,10 @@ def run(
             system_prompt = system if system else None
             if human_obj is None:
                 typer.secho("Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
+                sys.exit(1)
             if persona_obj is None:
                 typer.secho("Couldn't find persona {persona} in database, please run `memgpt add persona`", fg=typer.colors.RED)
+                sys.exit(1)
 
             memory = ChatMemory(human=human_obj.text, persona=persona_obj.text, limit=core_memory_limit)
             metadata = {"human": human_obj.name, "persona": persona_obj.name}
