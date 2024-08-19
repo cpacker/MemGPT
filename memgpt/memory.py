@@ -3,13 +3,14 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Union
 
-from pydantic import BaseModel, validator
-
 from memgpt.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING_FRAC
-from memgpt.data_types import AgentState, Message, Passage
 from memgpt.embeddings import embedding_model, parse_and_chunk_text, query_embedding
 from memgpt.llm_api.llm_api_tools import create
 from memgpt.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.memory import Memory
+from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
 from memgpt.utils import (
     count_tokens,
     extract_date_from_timestamp,
@@ -18,125 +19,135 @@ from memgpt.utils import (
     validate_date_format,
 )
 
+# class MemoryModule(BaseModel):
+#    """Base class for memory modules"""
+#
+#    description: Optional[str] = None
+#    limit: int = 2000
+#    value: Optional[Union[List[str], str]] = None
+#
+#    def __setattr__(self, name, value):
+#        """Run validation if self.value is updated"""
+#        super().__setattr__(name, value)
+#        if name == "value":
+#            # run validation
+#            self.__class__.validate(self.dict(exclude_unset=True))
+#
+#    @validator("value", always=True)
+#    def check_value_length(cls, v, values):
+#        if v is not None:
+#            # Fetching the limit from the values dictionary
+#            limit = values.get("limit", 2000)  # Default to 2000 if limit is not yet set
+#
+#            # Check if the value exceeds the limit
+#            if isinstance(v, str):
+#                length = len(v)
+#            elif isinstance(v, list):
+#                length = sum(len(item) for item in v)
+#            else:
+#                raise ValueError("Value must be either a string or a list of strings.")
+#
+#            if length > limit:
+#                error_msg = f"Edit failed: Exceeds {limit} character limit (requested {length})."
+#                # TODO: add archival memory error?
+#                raise ValueError(error_msg)
+#        return v
+#
+#    def __len__(self):
+#        return len(str(self))
+#
+#    def __str__(self) -> str:
+#        if isinstance(self.value, list):
+#            return ",".join(self.value)
+#        elif isinstance(self.value, str):
+#            return self.value
+#        else:
+#            return ""
+#
+#
+# class BaseMemory:
+#
+#    def __init__(self):
+#        self.memory = {}
+#
+#    @classmethod
+#    def load(cls, state: dict):
+#        """Load memory from dictionary object"""
+#        obj = cls()
+#        for key, value in state.items():
+#            obj.memory[key] = MemoryModule(**value)
+#        return obj
+#
+#    def __str__(self) -> str:
+#        """Representation of the memory in-context"""
+#        section_strs = []
+#        for section, module in self.memory.items():
+#            section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
+#        return "\n".join(section_strs)
+#
+#    def to_dict(self):
+#        """Convert to dictionary representation"""
+#        return {key: value.dict() for key, value in self.memory.items()}
+#
+#
+# class ChatMemory(BaseMemory):
+#
+#    def __init__(self, persona: str, human: str, limit: int = 2000):
+#        self.memory = {
+#            "persona": MemoryModule(name="persona", value=persona, limit=limit),
+#            "human": MemoryModule(name="human", value=human, limit=limit),
+#        }
+#
+#    def core_memory_append(self, name: str, content: str) -> Optional[str]:
+#        """
+#        Append to the contents of core memory.
+#
+#        Args:
+#            name (str): Section of the memory to be edited (persona or human).
+#            content (str): Content to write to the memory. All unicode (including emojis) are supported.
+#
+#        Returns:
+#            Optional[str]: None is always returned as this function does not produce a response.
+#        """
+#        self.memory[name].value += "\n" + content
+#        return None
+#
+#    def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
+#        """
+#        Replace the contents of core memory. To delete memories, use an empty string for new_content.
+#
+#        Args:
+#            name (str): Section of the memory to be edited (persona or human).
+#            old_content (str): String to replace. Must be an exact match.
+#            new_content (str): Content to write to the memory. All unicode (including emojis) are supported.
+#
+#        Returns:
+#            Optional[str]: None is always returned as this function does not produce a response.
+#        """
+#        self.memory[name].value = self.memory[name].value.replace(old_content, new_content)
+#        return None
 
-class MemoryModule(BaseModel):
-    """Base class for memory modules"""
 
-    description: Optional[str] = None
-    limit: int = 2000
-    value: Optional[Union[List[str], str]] = None
-
-    def __setattr__(self, name, value):
-        """Run validation if self.value is updated"""
-        super().__setattr__(name, value)
-        if name == "value":
-            # run validation
-            self.__class__.validate(self.dict(exclude_unset=True))
-
-    @validator("value", always=True)
-    def check_value_length(cls, v, values):
-        if v is not None:
-            # Fetching the limit from the values dictionary
-            limit = values.get("limit", 2000)  # Default to 2000 if limit is not yet set
-
-            # Check if the value exceeds the limit
-            if isinstance(v, str):
-                length = len(v)
-            elif isinstance(v, list):
-                length = sum(len(item) for item in v)
-            else:
-                raise ValueError("Value must be either a string or a list of strings.")
-
-            if length > limit:
-                error_msg = f"Edit failed: Exceeds {limit} character limit (requested {length})."
-                # TODO: add archival memory error?
-                raise ValueError(error_msg)
-        return v
-
-    def __len__(self):
-        return len(str(self))
-
-    def __str__(self) -> str:
-        if isinstance(self.value, list):
-            return ",".join(self.value)
-        elif isinstance(self.value, str):
-            return self.value
-        else:
-            return ""
-
-
-class BaseMemory:
-
-    def __init__(self):
-        self.memory = {}
-
-    @classmethod
-    def load(cls, state: dict):
-        """Load memory from dictionary object"""
-        obj = cls()
-        for key, value in state.items():
-            obj.memory[key] = MemoryModule(**value)
-        return obj
-
-    def __str__(self) -> str:
-        """Representation of the memory in-context"""
-        section_strs = []
-        for section, module in self.memory.items():
-            section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
-        return "\n".join(section_strs)
-
-    def to_dict(self):
-        """Convert to dictionary representation"""
-        return {key: value.dict() for key, value in self.memory.items()}
-
-
-class ChatMemory(BaseMemory):
-
-    def __init__(self, persona: str, human: str, limit: int = 2000):
-        self.memory = {
-            "persona": MemoryModule(name="persona", value=persona, limit=limit),
-            "human": MemoryModule(name="human", value=human, limit=limit),
-        }
-
-    def core_memory_append(self, name: str, content: str) -> Optional[str]:
-        """
-        Append to the contents of core memory.
-
-        Args:
-            name (str): Section of the memory to be edited (persona or human).
-            content (str): Content to write to the memory. All unicode (including emojis) are supported.
-
-        Returns:
-            Optional[str]: None is always returned as this function does not produce a response.
-        """
-        self.memory[name].value += "\n" + content
-        return None
-
-    def core_memory_replace(self, name: str, old_content: str, new_content: str) -> Optional[str]:
-        """
-        Replace the contents of core memory. To delete memories, use an empty string for new_content.
-
-        Args:
-            name (str): Section of the memory to be edited (persona or human).
-            old_content (str): String to replace. Must be an exact match.
-            new_content (str): Content to write to the memory. All unicode (including emojis) are supported.
-
-        Returns:
-            Optional[str]: None is always returned as this function does not produce a response.
-        """
-        self.memory[name].value = self.memory[name].value.replace(old_content, new_content)
-        return None
-
-
-def get_memory_functions(cls: BaseMemory) -> List[callable]:
+def get_memory_functions(cls: Memory) -> List[callable]:
     """Get memory functions for a memory class"""
     functions = {}
+
+    # collect base memory functions (should not be included)
+    base_functions = []
+    for func_name in dir(Memory):
+        funct = getattr(Memory, func_name)
+        if callable(funct):
+            base_functions.append(func_name)
+
     for func_name in dir(cls):
         if func_name.startswith("_") or func_name in ["load", "to_dict"]:  # skip base functions
             continue
+        if func_name in base_functions:  # dont use BaseMemory functions
+            continue
         func = getattr(cls, func_name)
-        if callable(func):
-            functions[func_name] = func
+        if not callable(func):  # not a function
+            continue
+        functions[func_name] = func
     return functions
 
 
@@ -253,8 +264,8 @@ def summarize_messages(
             + message_sequence_to_summarize[cutoff:]
         )
 
-    dummy_user_id = uuid.uuid4()
-    dummy_agent_id = uuid.uuid4()
+    dummy_user_id = agent_state.user_id
+    dummy_agent_id = agent_state.id
     message_sequence = []
     message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role="system", text=summary_prompt))
     if insert_acknowledgement_assistant_message:
@@ -517,8 +528,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             agent_id=self.agent_state.id,
             text=text,
             embedding=embedding,
-            embedding_dim=self.agent_state.embedding_config.embedding_dim,
-            embedding_model=self.agent_state.embedding_config.embedding_model,
+            embedding_config=self.agent_state.embedding_config,
         )
 
     def save(self):

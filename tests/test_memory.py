@@ -1,7 +1,7 @@
 import pytest
 
 # Import the classes here, assuming the above definitions are in a module named memory_module
-from memgpt.memory import BaseMemory, ChatMemory
+from memgpt.schemas.memory import ChatMemory, Memory
 
 
 @pytest.fixture
@@ -12,11 +12,11 @@ def sample_memory():
 def test_create_chat_memory():
     """Test creating an instance of ChatMemory"""
     chat_memory = ChatMemory(persona="Chat Agent", human="User")
-    assert chat_memory.memory["persona"].value == "Chat Agent"
-    assert chat_memory.memory["human"].value == "User"
+    assert chat_memory.get_block("persona").value == "Chat Agent"
+    assert chat_memory.get_block("human").value == "User"
 
 
-def test_dump_memory_as_json(sample_memory):
+def test_dump_memory_as_json(sample_memory: Memory):
     """Test dumping ChatMemory as JSON compatible dictionary"""
     memory_dict = sample_memory.to_dict()
     assert isinstance(memory_dict, dict)
@@ -24,13 +24,13 @@ def test_dump_memory_as_json(sample_memory):
     assert memory_dict["persona"]["value"] == "Chat Agent"
 
 
-def test_load_memory_from_json(sample_memory):
+def test_load_memory_from_json(sample_memory: Memory):
     """Test loading ChatMemory from a JSON compatible dictionary"""
     memory_dict = sample_memory.to_dict()
     print(memory_dict)
-    new_memory = BaseMemory.load(memory_dict)
-    assert new_memory.memory["persona"].value == "Chat Agent"
-    assert new_memory.memory["human"].value == "User"
+    new_memory = Memory.load(memory_dict)
+    assert new_memory.get_block("persona").value == "Chat Agent"
+    assert new_memory.get_block("human").value == "User"
 
 
 # def test_memory_functionality(sample_memory):
@@ -56,10 +56,10 @@ def test_load_memory_from_json(sample_memory):
 #    assert sample_memory.memory['persona'].value == "Chat Agent\n was a test."
 
 
-def test_memory_limit_validation(sample_memory):
+def test_memory_limit_validation(sample_memory: Memory):
     """Test exceeding memory limit"""
     with pytest.raises(ValueError):
         ChatMemory(persona="x" * 3000, human="y" * 3000)
 
     with pytest.raises(ValueError):
-        sample_memory.memory["persona"].value = "x" * 3000
+        sample_memory.get_block("persona").value = "x" * 3000

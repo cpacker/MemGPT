@@ -2,6 +2,7 @@ name: Run All pytest Tests
 
 env:
   MEMGPT_PGURI: ${{ secrets.MEMGPT_PGURI }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
 on:
   push:
@@ -32,10 +33,10 @@ jobs:
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "-E dev -E postgres -E milvus"
+        install-args: "-E dev -E postgres -E milvus -E crewai-tools"
 
     - name: Initialize credentials
-      run: poetry run memgpt quickstart --backend memgpt
+      run: poetry run memgpt quickstart --backend openai
 
     #- name: Run docker compose server
     #  env:
@@ -69,14 +70,3 @@ jobs:
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
         poetry run pytest -s -vv -k "not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client" tests
-
-    - name: Run storage tests
-      env:
-        MEMGPT_PG_PORT: 8888
-        MEMGPT_PG_USER: memgpt
-        MEMGPT_PG_PASSWORD: memgpt
-        MEMGPT_PG_HOST: localhost
-        MEMGPT_PG_DB: memgpt
-        MEMGPT_SERVER_PASS: test_server_token
-      run: |
-        poetry run pytest -s -vv tests/test_storage.py

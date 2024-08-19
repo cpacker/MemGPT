@@ -3,6 +3,9 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
 
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
+# System prompt templating
+IN_CONTEXT_MEMORY_KEYWORD = "CORE_MEMORY"
+
 # OpenAI error message: Invalid 'messages[1].tool_calls[0].id': string too long. Expected a string with maximum length 29, but got a string with length 36 instead.
 TOOL_CALL_ID_MAX_LEN = 29
 
@@ -86,10 +89,6 @@ MESSAGE_SUMMARY_REQUEST_ACK = "Understood, I will respond with a summary of the 
 # These serve as in-context examples of how to use functions / what user messages look like
 MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST = 3
 
-# Default memory limits
-CORE_MEMORY_PERSONA_CHAR_LIMIT = 2000
-CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
-
 # Function return limits
 FUNCTION_RETURN_CHAR_LIMIT = 3000  # ~300 words
 
@@ -105,14 +104,9 @@ REQ_HEARTBEAT_MESSAGE = f"{NON_USER_MSG_PREFIX}Function called using request_hea
 # FUNC_FAILED_HEARTBEAT_MESSAGE = f"{NON_USER_MSG_PREFIX}Function call failed"
 FUNC_FAILED_HEARTBEAT_MESSAGE = f"{NON_USER_MSG_PREFIX}Function call failed, returning control"
 
-FUNCTION_PARAM_NAME_REQ_HEARTBEAT = "request_heartbeat"
-FUNCTION_PARAM_TYPE_REQ_HEARTBEAT = "boolean"
-FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT = "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function."
 
 RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE = 5
 
-# GLOBAL SETTINGS FOR `json.dumps()`
-JSON_ENSURE_ASCII = False
-
-# GLOBAL SETTINGS FOR `json.loads()`
-JSON_LOADS_STRICT = False
+# TODO Is this config or constant?
+CORE_MEMORY_PERSONA_CHAR_LIMIT: int = 2000
+CORE_MEMORY_HUMAN_CHAR_LIMIT: int = 2000

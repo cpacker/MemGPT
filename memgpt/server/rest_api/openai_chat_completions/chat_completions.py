@@ -4,9 +4,9 @@ from functools import partial
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-# from memgpt.data_types import Message
-from memgpt.models.chat_completion_request import ChatCompletionRequest
-from memgpt.models.chat_completion_response import (
+# from memgpt.schemas.message import Message
+from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest
+from memgpt.schemas.openai.chat_completion_response import (
     ChatCompletionResponse,
     Choice,
     Message,
@@ -59,7 +59,8 @@ def setup_openai_chat_completions_router(server: SyncServer, interface: QueuingI
                 agent_id=agent_id,
                 user_id=user_id,
                 role=input_message.role,
-                message=input_message.content,
+                message=str(input_message.content),
+                stream_legacy=False,
                 # Turn streaming ON
                 stream_steps=True,
                 stream_tokens=True,
@@ -75,7 +76,8 @@ def setup_openai_chat_completions_router(server: SyncServer, interface: QueuingI
                 agent_id=agent_id,
                 user_id=user_id,
                 role=input_message.role,
-                message=input_message.content,
+                message=str(input_message.content),
+                stream_legacy=False,
                 # Turn streaming OFF
                 stream_steps=False,
                 stream_tokens=False,

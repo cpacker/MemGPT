@@ -8,7 +8,6 @@ from memgpt.orm.mixins import OrganizationMixin
 if TYPE_CHECKING:
     from memgpt.orm.agent import Agent
     from memgpt.orm.organization import Organization
-    from memgpt.orm.preset import Preset
 
 class Source(OrganizationMixin,SqlalchemyBase):
     """A source represents an embedded text passage"""
@@ -23,4 +22,3 @@ class Source(OrganizationMixin,SqlalchemyBase):
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="sources")
     agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")
-    presets: Mapped[List["Preset"]] = relationship("Preset", secondary="sources_presets", back_populates="sources")

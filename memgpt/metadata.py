@@ -3,14 +3,18 @@ from typing import TYPE_CHECKING
 import uuid
 from typing import List, Optional
 from humps import pascalize
+from sqlalchemy.exc import NoResultFound
 
 from memgpt.log import get_logger
 from memgpt.orm.utilities import get_db_session
 from memgpt.orm.token import Token
 from memgpt.orm.agent import Agent
 from memgpt.orm.job import Job
-from memgpt.orm.preset import Preset
+from memgpt.orm.source import Source
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
+from memgpt.orm.user import User
+from memgpt.orm.tool import Tool
+from memgpt.schemas.block import Human, Persona
 
 
 if TYPE_CHECKING:
@@ -18,18 +22,21 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-from memgpt.data_types import (
-    AgentState,
-    Preset,
-    Source,
-    Token,
-    User,
-)
-from memgpt.models.pydantic_models import (
-    HumanModel,
-    PersonaModel,
-)
+from memgpt.schemas.agent import AgentState as DataAgentState
 from memgpt.orm.enums import JobStatus
+from memgpt.config import MemGPTConfig
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.api_key import APIKey
+from memgpt.schemas.block import Block, Human, Persona
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.job import Job
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memory import Memory
+from memgpt.schemas.source import Source
+from memgpt.schemas.tool import Tool
+from memgpt.schemas.user import User
+from memgpt.schemas.block import Human, Persona
 
 class MetadataStore:
     """Metadatastore acts as a bridge between the ORM and the rest of the application. Ideally it will be removed in coming PRs and
@@ -95,83 +102,86 @@ class MetadataStore:
         """Get the user associated with a given API key"""
         return Token.get_by_api_key(self.db_session, api_key).user.to_record()
 
-    def create_agent(self, agent: AgentState):
+    def create_agent(self, agent: DataAgentState):
         "here is one example longhand to demonstrate the meta pattern"
         return Agent.create(self.db_session, agent.model_dump(exclude_none=True))
 
-    def __getattr__(self, name, *args, **kwargs):
+    def list_agents(self, user_id: uuid.UUID) -> List[DataAgentState]:
+        return [a.to_record() for a in User.read(self.db_session, user_id).agents]
+
+    def list_tools(self) -> List[DataAgentState]:
+        return [a.to_record() for a in Tool.list(self.db_session)]
+
+    def get_tool(self, name: str, user_id: uuid.UUID) -> Optional[DataAgentState]:
+        return Tool.read(self.db_session, name=name).to_record()
+
+
+    def __getattr__(self, name):
         """temporary metaprogramming to clean up all the getters and setters here.
 
         __getattr__ is always the last-ditch effort, so you can override it by declaring any method (ie `get_hamburger`) to handle the call instead.
         """
         action, raw_model_name = name.split("_",1)
-        Model = globals().get(pascalize(raw_model_name)) # gross, but nessary for now
+        Model = globals().get(pascalize(raw_model_name).capitalize()) # gross, but nessary for now
+        if Model is None:
+            raise AttributeError(f"Model {raw_model_name} action {action} not found")
+
+        def pluralize(name):
+            return name if name[-1] == "s" else name + "s"
+
         match action:
             case "add":
                 return self.getattr("_".join(["create",raw_model_name]))
             case "get":
                 # this has no support for scoping, but we won't keep this pattern long
-                return Model.read(self.db_session, args[0]).to_record()
+                try:
+                    def get(id, user_id = None):
+                        return Model.read(self.db_session, id).to_record()
+                    return get
+                except IndexError:
+                    raise NoResultFound(f"No {raw_model_name} found with id {id}")
             case "create":
-                splatted_pydantic = args[0].model_dump(exclude_none=True)
-                return Model.create(self.db_session, splatted_pydantic).to_record()
+                def create(schema):
+                    splatted_pydantic = schema.model_dump(exclude_none=True)
+                    return Model.create(self.db_session, splatted_pydantic).to_record()
+                return create
             case "update":
-                instance = Model.read(self.db_session, args[0].id)
-                splatted_pydantic = args[0].model_dump(exclude_none=True, exclude=["id"])
-                for k,v in splatted_pydantic.items():
-                    setattr(instance, k, v)
-                instance.update(self.db_session)
-                return instance.to_record()
+                def update(schema):
+                    instance = Model.read(self.db_session, schema.id)
+                    splatted_pydantic = schema.model_dump(exclude_none=True, exclude=["id"])
+                    for k,v in splatted_pydantic.items():
+                        setattr(instance, k, v)
+                    instance.update(self.db_session)
+                    return instance.to_record()
+                return update
             case "delete":
+                def delete(*args):
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org and delete by name
-                if user_uuid := (args[1] if len(args) > 1 else None):
-                    org = User.read(user_uuid).organization
-                    related_set = getattr(org, (raw_model_name + "s"))
-                    related_set.filter(name=name).scalar().delete()
-                    return
-                instance = Model.read(self.db_session, args[0])
-                instance.delete(self.db_session)
+                    if user_uuid := (args[1] if len(args) > 1 else None):
+                        org = User.read(self.db_session, user_uuid).organization
+                        related_set = getattr(org, pluralize(raw_model_name)) or []
+                        related_set.filter(name=name).scalar().delete()
+                        return
+                    instance = Model.read(self.db_session, args[0])
+                    instance.delete(self.db_session)
+                return delete
             case "list":
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org
-                if user_uuid := (args[1] if len(args) > 1 else None):
-                    org = User.read(user_uuid).organization
-                    return [r.to_record() for r in getattr(org, (raw_model_name + "s"))]
-                # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
-                return [r.to_record() for r in Model.list(self.db_session)]
+                def list(*args, **kwargs):
+                    if user_uuid := kwargs.get("id"):
+                        org = User.read(self.db_session, user_uuid).organization
+                        return [r.to_record() for r in getattr(org, pluralize(raw_model_name)) or []]
+                    # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
+                    return [r.to_record() for r in Model.list(self.db_session)]
+                return list
+            case _:
+                raise AttributeError(f"Method {name} not found")
 
-    def get_preset(
-        self, preset_id: Optional[uuid.UUID] = None, name: Optional[str] = None, user_id: Optional[uuid.UUID] = None
-    ) -> Optional[Preset]:
-        assert preset_id or (name and user_id), "Must provide either preset_id or (preset_name and user_id)"
-
-        #TODO: pivot this to org scope - get by id or by name within org of actor
-        if preset_id:
-            return Preset.read(self.db_session, preset_id).to_record()
-        # Implement actor lookup
-        return Preset.read(self.db_session, name=name, actor=user_id).to_record()
-
-    def set_preset_sources(self,
-                           preset_id: uuid.UUID,
-                           sources: List[uuid.UUID],
-                           actor: Optional["User"] = None) -> None:
-        """Legacy assign sources to a preset. This should be a normal relationship collection in the future.
-        Args:
-            preset_id: the preset raw UUID to assign sources to, legacy support
-            sources: the source raw UUID for each source to assign to the preset, legacy support
-            actor: the user making the assignment. TODO: this will not be optional in the future!
-        """
-        preset = Preset.read(self.db_session, preset_id)
-        preset.sources = [Source.read(self.db_session, source_id) for source_id in sources]
-        preset.update(self.db_session)
-
-    def get_preset_sources(self, preset_id: uuid.UUID) -> List[uuid.UUID]:
-        return [s._id for s in Preset.read(self.db_session, preset_id).sources]
-
-    def update_human(self, human: HumanModel) -> "HumanModel":
+    def update_human(self, human: Human) -> "Human":
         sql_human = HumanMemoryTemplate(**human.model_dump(exclude_none=True)).create(self.db_session)
         return sql_human.to_record()
 
-    def update_persona(self, persona: PersonaModel) -> "PersonaModel":
+    def update_persona(self, persona: Persona) -> "Persona":
         sql_persona = PersonaMemoryTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
         return sql_persona.to_record()
 
@@ -196,11 +206,11 @@ class MetadataStore:
         source = Source.read(self.db_session, source_id)
         agent.sources.remove(source)
 
-    def get_human(self, name: str, user_id: uuid.UUID) -> Optional[HumanModel]:
+    def get_human(self, name: str, user_id: uuid.UUID) -> Optional[Human]:
         org = User.read(self.db_session, user_id)
         return org.human_memory_templates.filter(name=name).scalar()
 
-    def get_persona(self, name: str, user_id: uuid.UUID) -> Optional[PersonaModel]:
+    def get_persona(self, name: str, user_id: uuid.UUID) -> Optional[Persona]:
         org = User.read(self.db_session, user_id)
         return org.human_memory_templates.filter(name=name).scalar()
 

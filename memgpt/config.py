@@ -4,13 +4,16 @@ import json
 import os
 import uuid
 from dataclasses import dataclass
+from typing import Optional
 
 import memgpt
 from memgpt.settings import settings
 import memgpt.utils as utils
 from memgpt.constants import MEMGPT_DIR
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
 from memgpt.log import get_logger
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
 
 logger = get_logger(__name__)
 
@@ -37,9 +40,6 @@ def set_field(config, section, field, value):
 class MemGPTConfig:
     config_path: str = str(settings.config_path.absolute())
     anon_clientid: str = str(uuid.UUID(int=0))
-
-    # preset
-    preset: str = settings.preset
 
     # persona parameters
     persona: str = settings.persona
@@ -80,6 +80,9 @@ class MemGPTConfig:
     # user info
     policies_accepted: bool = False
 
+    # Default memory limits
+    core_memory_persona_char_limit: int = 2000
+    core_memory_human_char_limit: int = 2000
     def __post_init__(self):
         # ensure types
         # self.embedding_chunk_size = int(self.embedding_chunk_size)
@@ -92,19 +95,19 @@ class MemGPTConfig:
         return uuid.UUID(int=uuid.getnode()).hex
 
     @classmethod
-    def load(cls) -> "MemGPTConfig":
+    def load(cls, llm_config: Optional[LLMConfig] = None, embedding_config: Optional[EmbeddingConfig] = None) -> "MemGPTConfig":
         # avoid circular import
-        from memgpt.migrate import VERSION_CUTOFF, config_is_compatible
         from memgpt.utils import printd
 
-        if not config_is_compatible(allow_empty=True):
-            error_message = " ".join(
-                [
-                    f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}.",
-                    f"\nTo use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}) or regenerate your config using `memgpt configure`, or `memgpt migrate` if you would like to migrate old agents.",
-                ]
-            )
-            raise ValueError(error_message)
+        # from memgpt.migrate import VERSION_CUTOFF, config_is_compatible
+        # if not config_is_compatible(allow_empty=True):
+        #    error_message = " ".join(
+        #        [
+        #            f"\nYour current config file is incompatible with MemGPT versions later than {VERSION_CUTOFF}.",
+        #            f"\nTo use MemGPT, you must either downgrade your MemGPT version (<= {VERSION_CUTOFF}) or regenerate your config using `memgpt configure`, or `memgpt migrate` if you would like to migrate old agents.",
+        #        ]
+        #    )
+        #    raise ValueError(error_message)
 
         config = configparser.ConfigParser()
 
@@ -151,7 +154,6 @@ class MemGPTConfig:
                 "default_llm_config": llm_config,
                 "default_embedding_config": embedding_config,
                 # Agent related
-                "preset": get_field(config, "defaults", "preset"),
                 "persona": get_field(config, "defaults", "persona"),
                 "human": get_field(config, "defaults", "human"),
                 "agent": get_field(config, "defaults", "agent"),
@@ -175,6 +177,9 @@ class MemGPTConfig:
 
             return cls(**config_dict)
 
+        # assert embedding_config is not None, "Embedding config must be provided if config does not exist"
+        # assert llm_config is not None, "LLM config must be provided if config does not exist"
+
         # create new config
         anon_clientid = MemGPTConfig.generate_uuid()
         config = cls(anon_clientid=anon_clientid, config_path=settings.config_path)
@@ -187,7 +192,6 @@ class MemGPTConfig:
 
         config = configparser.ConfigParser()
         # CLI defaults
-        set_field(config, "defaults", "preset", self.preset)
         set_field(config, "defaults", "persona", self.persona)
         set_field(config, "defaults", "human", self.human)
 
@@ -287,7 +291,6 @@ class MemGPTConfig:
             "agents",
             "functions",
             "system_prompts",
-            "presets",
             "settings",
         ]
 
@@ -321,7 +324,6 @@ class AgentConfig:
         embedding_dim=None,
         embedding_chunk_size=None,
         # other
-        preset=None,
         data_sources=None,
         # agent info
         agent_config_path=None,
@@ -338,7 +340,6 @@ class AgentConfig:
         config = MemGPTConfig.load()  # get default values
         self.persona = config.persona if persona is None else persona
         self.human = config.human if human is None else human
-        self.preset = config.preset if preset is None else preset
         self.context_window = config.default_llm_config.context_window if context_window is None else context_window
         self.model = config.default_llm_config.model if model is None else model
         self.model_endpoint_type = config.default_llm_config.model_endpoint_type if model_endpoint_type is None else model_endpoint_type
@@ -418,7 +419,7 @@ class AgentConfig:
     def to_agent_state(self):
         return AgentState(
             name=self.name,
-            preset=self.preset,
+            preset=None,
             persona=self.persona,
             human=self.human,
             llm_config=self.llm_config,

@@ -4,10 +4,10 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import OrganizationMixin
+from memgpt.orm.passage import Passage
 
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization
-    from memgpt.orm.passage import Passage
 
 
 class Document(OrganizationMixin, SqlalchemyBase):

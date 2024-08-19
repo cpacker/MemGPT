@@ -11,29 +11,20 @@ from rich.console import Console
 import memgpt.agent as agent
 import memgpt.errors as errors
 import memgpt.system as system
-from memgpt.agent_store.storage import StorageConnector, TableType
 
 # import benchmark
+from memgpt import create_client
 from memgpt.benchmark.benchmark import bench
-from memgpt.cli.cli import (
-    delete_agent,
-    migrate,
-    open_folder,
-    quickstart,
-    run,
-    server,
-    version,
-)
-from memgpt.cli.cli_config import add, configure, delete, list
+from memgpt.cli.cli import delete_agent, open_folder, quickstart, run, server, version
+from memgpt.cli.cli_config import add, add_tool, configure, delete, list, list_tools
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import MemGPTConfig
 from memgpt.constants import (
     FUNC_FAILED_HEARTBEAT_MESSAGE,
-    JSON_ENSURE_ASCII,
-    JSON_LOADS_STRICT,
     REQ_HEARTBEAT_MESSAGE,
 )
 from memgpt.metadata import MetadataStore
+from memgpt.schemas.enums import OptionState
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import AgentRefreshStreamingInterface
@@ -46,14 +37,14 @@ app.command(name="version")(version)
 app.command(name="configure")(configure)
 app.command(name="list")(list)
 app.command(name="add")(add)
+app.command(name="add-tool")(add_tool)
+app.command(name="list-tools")(list_tools)
 app.command(name="delete")(delete)
 app.command(name="server")(server)
 app.command(name="folder")(open_folder)
 app.command(name="quickstart")(quickstart)
 # load data commands
 app.add_typer(load_app, name="load")
-# migration command
-app.command(name="migrate")(migrate)
 # benchmark command
 app.command(name="benchmark")(bench)
 # delete agents
@@ -71,7 +62,14 @@ def clear_line(console, strip_ui=False):
 
 
 def run_agent_loop(
-    memgpt_agent: agent.Agent, config: MemGPTConfig, first, ms: MetadataStore, no_verify=False, cfg=None, strip_ui=False, stream=False
+    memgpt_agent: agent.Agent,
+    config: MemGPTConfig,
+    first: bool,
+    ms: MetadataStore,
+    no_verify: bool = False,
+    strip_ui: bool = False,
+    stream: bool = False,
+    inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
 ):
     if isinstance(memgpt_agent.interface, AgentRefreshStreamingInterface):
         # memgpt_agent.interface.toggle_streaming(on=stream)
@@ -95,7 +93,12 @@ def run_agent_loop(
         print()
 
     multiline_input = False
-    ms = MetadataStore(config)
+
+    # create client
+    client = create_client()
+    ms = MetadataStore(config)  # TODO: remove
+
+    # run loops
     while True:
         if not skip_next_user_input and (counter > 0 or USER_GOES_FIRST):
             # Ask for user input
@@ -143,8 +146,8 @@ def run_agent_loop(
                     # TODO: check to ensure source embedding dimentions/model match agents, and disallow attachment if not
                     # TODO: alternatively, only list sources with compatible embeddings, and print warning about non-compatible sources
 
-                    data_source_options = ms.list_sources(user_id=memgpt_agent.agent_state.user_id)
-                    if len(data_source_options) == 0:
+                    sources = client.list_sources()
+                    if len(sources) == 0:
                         typer.secho(
                             'No sources available. You must load a souce with "memgpt load ..." before running /attach.',
                             fg=typer.colors.RED,
@@ -155,11 +158,8 @@ def run_agent_loop(
                     # determine what sources are valid to be attached to this agent
                     valid_options = []
                     invalid_options = []
-                    for source in data_source_options:
-                        if (
-                            source.embedding_model == memgpt_agent.agent_state.embedding_config.embedding_model
-                            and source.embedding_dim == memgpt_agent.agent_state.embedding_config.embedding_dim
-                        ):
+                    for source in sources:
+                        if source.embedding_config == memgpt_agent.agent_state.embedding_config:
                             valid_options.append(source.name)
                         else:
                             # print warning about invalid sources
@@ -173,11 +173,7 @@ def run_agent_loop(
                     data_source = questionary.select("Select data source", choices=valid_options).ask()
 
                     # attach new data
-                    # attach(memgpt_agent.agent_state.name, data_source)
-                    source_connector = StorageConnector.get_storage_connector(
-                        TableType.PASSAGES, config, user_id=memgpt_agent.agent_state.user_id
-                    )
-                    memgpt_agent.attach_source(data_source, source_connector, ms)
+                    client.attach_source_to_agent(agent_id=memgpt_agent.agent_state.id, source_name=data_source)
 
                     continue
 
@@ -277,14 +273,14 @@ def run_agent_loop(
                                 if args_string is None:
                                     print("Assistant missing send_message function arguments")
                                     break  # cancel op
-                                args_json = json.loads(args_string, strict=JSON_LOADS_STRICT)
+                                args_json = json_loads(args_string)
                                 if "message" not in args_json:
                                     print("Assistant missing send_message message argument")
                                     break  # cancel op
 
                                 # Once we found our target, rewrite it
                                 args_json["message"] = text
-                                new_args_string = json.dumps(args_json, ensure_ascii=JSON_ENSURE_ASCII)
+                                new_args_string = json_dumps(args_json)
                                 message_obj.tool_calls[0].function["arguments"] = new_args_string
 
                                 # To persist to the database, all we need to do is "re-insert" into recall memory
@@ -369,6 +365,41 @@ def run_agent_loop(
                         questionary.print(f" {desc}")
                     continue
 
+                elif user_input.lower().startswith("/systemswap"):
+                    if len(user_input) < len("/systemswap "):
+                        print("Missing new system prompt after the command")
+                        continue
+                    old_system_prompt = memgpt_agent.system
+                    new_system_prompt = user_input[len("/systemswap ") :].strip()
+
+                    # Show warning and prompts to user
+                    typer.secho(
+                        "\nWARNING: You are about to change the system prompt.",
+                        # fg=typer.colors.BRIGHT_YELLOW,
+                        bold=True,
+                    )
+                    typer.secho(
+                        f"\nOld system prompt:\n{old_system_prompt}",
+                        fg=typer.colors.RED,
+                        bold=True,
+                    )
+                    typer.secho(
+                        f"\nNew system prompt:\n{new_system_prompt}",
+                        fg=typer.colors.GREEN,
+                        bold=True,
+                    )
+
+                    # Ask for confirmation
+                    confirm = questionary.confirm("Do you want to proceed with the swap?").ask()
+
+                    if confirm:
+                        memgpt_agent.update_system_prompt(new_system_prompt=new_system_prompt)
+                        print("System prompt updated successfully.")
+                    else:
+                        print("System prompt swap cancelled.")
+
+                    continue
+
                 else:
                     print(f"Unrecognized command: {user_input}")
                     continue
@@ -386,8 +417,11 @@ def run_agent_loop(
                 first_message=False,
                 skip_verify=no_verify,
                 stream=stream,
+                inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                ms=ms,
             )
 
+            agent.save_agent(memgpt_agent, ms)
             skip_next_user_input = False
             if token_warning:
                 user_message = system.get_token_limit_warning()
@@ -419,7 +453,7 @@ def run_agent_loop(
                 retry = questionary.confirm("Retry agent.step()?").ask()
                 if not retry:
                     break
-            except Exception as e:
+            except Exception:
                 print("An exception occurred when running agent.step(): ")
                 traceback.print_exc()
                 retry = questionary.confirm("Retry agent.step()?").ask()

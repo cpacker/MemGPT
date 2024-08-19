@@ -2,8 +2,10 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List
 
-from memgpt.data_types import AgentState, Message
 from memgpt.memory import BaseRecallMemory, EmbeddingArchivalMemory
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.memory import Memory
+from memgpt.schemas.message import Message
 from memgpt.utils import printd
 
 
@@ -45,7 +47,7 @@ class LocalStateManager(PersistenceManager):
 
     def __init__(self, agent_state: AgentState):
         # Memory held in-state useful for debugging stateful versions
-        self.memory = None
+        self.memory = agent_state.memory
         # self.messages = []  # current in-context messages
         # self.all_messages = [] # all messages seen in current session (needed if lazily synchronizing state with DB)
         self.archival_memory = EmbeddingArchivalMemory(agent_state)
@@ -56,15 +58,6 @@ class LocalStateManager(PersistenceManager):
         """Ensure storage connectors save data"""
         self.archival_memory.save()
         self.recall_memory.save()
-
-    def init(self, agent):
-        """Connect persistent state manager to agent"""
-        printd(f"Initializing {self.__class__.__name__} with agent object")
-        # self.all_messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
-        # self.messages = [{"timestamp": get_local_time(), "message": msg} for msg in agent.messages.copy()]
-        self.memory = agent.memory
-        # printd(f"{self.__class__.__name__}.all_messages.len = {len(self.all_messages)}")
-        printd(f"{self.__class__.__name__}.messages.len = {len(self.messages)}")
 
     '''
     def json_to_message(self, message_json) -> Message:
@@ -128,7 +121,6 @@ class LocalStateManager(PersistenceManager):
         # self.messages = [self.messages[0]] + added_messages + self.messages[1:]
 
         # add to recall memory
-        self.recall_memory.insert_many([m for m in added_messages])
 
     def append_to_messages(self, added_messages: List[Message]):
         # first tag with timestamps
@@ -150,6 +142,7 @@ class LocalStateManager(PersistenceManager):
         # add to recall memory
         self.recall_memory.insert(new_system_message)
 
-    def update_memory(self, new_memory):
+    def update_memory(self, new_memory: Memory):
         printd(f"{self.__class__.__name__}.update_memory")
+        assert isinstance(new_memory, Memory), type(new_memory)
         self.memory = new_memory

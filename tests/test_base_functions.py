@@ -1,7 +1,7 @@
 import pytest
 
 from memgpt.settings import settings
-import memgpt.functions.function_sets.base as base_functions
+import memgpt.seeds.function_sets.base as base_functions
 from memgpt import create_client
 client = None
 
@@ -17,7 +17,7 @@ def agent_obj(config):
     )
 
     global agent_obj
-    agent_obj = client.server._get_or_load_agent(user_id=client.user_id, agent_id=agent_state.id)
+    agent_obj = client.server._get_or_load_agent(agent_id=agent_state.id)
     yield agent_obj
 
     client.delete_agent(agent_obj.agent_state.id)

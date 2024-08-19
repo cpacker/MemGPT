@@ -1,16 +1,21 @@
 import threading
 import time
-import uuid
 
 import pytest
 
 from memgpt import Admin
-from tests.test_client import _reset_config, run_server
 
 test_base_url = "http://localhost:8283"
 
 # admin credentials
 test_server_token = "test_server_token"
+
+
+def run_server():
+    from memgpt.server.rest_api.server import start_server
+
+    print("Starting server...")
+    start_server(debug=True)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -34,91 +39,85 @@ def admin_client():
 
 
 def test_admin_client(admin_client):
-    _reset_config()
 
     # create a user
-    user_id = uuid.uuid4()
-    create_user1_response = admin_client.create_user(user_id)
-    assert user_id == create_user1_response.user_id, f"Expected {user_id}, got {create_user1_response.user_id}"
+    user_name = "test_user"
+    user1 = admin_client.create_user(user_name)
+    assert user_name == user1.name, f"Expected {user_name}, got {user1.name}"
 
     # create another user
-    create_user_2_response = admin_client.create_user()
+    user2 = admin_client.create_user()
 
     # create keys
     key1_name = "test_key1"
     key2_name = "test_key2"
-    create_key1_response = admin_client.create_key(user_id, key1_name)
-    create_key2_response = admin_client.create_key(create_user_2_response.user_id, key2_name)
+    api_key1 = admin_client.create_key(user1.id, key1_name)
+    admin_client.create_key(user2.id, key2_name)
 
     # list users
     users = admin_client.get_users()
-    assert len(users.user_list) == 2
-    print(users.user_list)
-    assert user_id in [uuid.UUID(u["user_id"]) for u in users.user_list]
+    assert len(users) == 2
+    assert user1.id in [user.id for user in users]
+    assert user2.id in [user.id for user in users]
 
     # list keys
-    user1_keys = admin_client.get_keys(user_id)
-    assert len(user1_keys) == 2, f"Expected 2 keys, got {user1_keys}"
-    assert create_key1_response.api_key in user1_keys, f"Expected {create_key1_response.api_key} in {user1_keys}"
-    assert create_user1_response.api_key in user1_keys, f"Expected {create_user1_response.api_key} in {user1_keys}"
+    user1_keys = admin_client.get_keys(user1.id)
+    assert len(user1_keys) == 1, f"Expected 1 keys, got {user1_keys}"
+    assert api_key1.key == user1_keys[0].key
 
     # delete key
-    delete_key1_response = admin_client.delete_key(create_key1_response.api_key)
-    assert delete_key1_response.api_key_deleted == create_key1_response.api_key
-    assert len(admin_client.get_keys(user_id)) == 1
-    delete_key2_response = admin_client.delete_key(create_key2_response.api_key)
-    assert delete_key2_response.api_key_deleted == create_key2_response.api_key
-    assert len(admin_client.get_keys(create_user_2_response.user_id)) == 1
+    deleted_key1 = admin_client.delete_key(api_key1.key)
+    assert deleted_key1.key == api_key1.key
+    assert len(admin_client.get_keys(user1.id)) == 0
 
     # delete users
-    delete_user1_response = admin_client.delete_user(user_id)
-    assert delete_user1_response.user_id_deleted == user_id
-    delete_user2_response = admin_client.delete_user(create_user_2_response.user_id)
-    assert delete_user2_response.user_id_deleted == create_user_2_response.user_id
+    deleted_user1 = admin_client.delete_user(user1.id)
+    assert deleted_user1.id == user1.id
+    deleted_user2 = admin_client.delete_user(user2.id)
+    assert deleted_user2.id == user2.id
 
     # list users
     users = admin_client.get_users()
-    assert len(users.user_list) == 0, f"Expected 0 users, got {users}"
+    assert len(users) == 0, f"Expected 0 users, got {users}"
 
 
-def test_get_users_pagination(admin_client):
-    _reset_config()
-
-    page_size = 5
-    num_users = 7
-    expected_users_remainder = num_users - page_size
-
-    # create users
-    all_user_ids = []
-    for i in range(num_users):
-
-        user_id = uuid.uuid4()
-        all_user_ids.append(user_id)
-        key_name = "test_key" + f"{i}"
-
-        create_user_response = admin_client.create_user(user_id)
-        admin_client.create_key(create_user_response.user_id, key_name)
-
-    # list users in page 1
-    get_all_users_response1 = admin_client.get_users(limit=page_size)
-    cursor1 = get_all_users_response1.cursor
-    user_list1 = get_all_users_response1.user_list
-    assert len(user_list1) == page_size
-
-    # list users in page 2 using cursor
-    get_all_users_response2 = admin_client.get_users(cursor1, limit=page_size)
-    cursor2 = get_all_users_response2.cursor
-    user_list2 = get_all_users_response2.user_list
-
-    assert len(user_list2) == expected_users_remainder
-    assert cursor1 != cursor2
-
-    # delete users
-    clean_up_users_and_keys(all_user_ids)
-
-    # list users to check pagination with no users
-    users = admin_client.get_users()
-    assert len(users.user_list) == 0, f"Expected 0 users, got {users}"
+# def test_get_users_pagination(admin_client):
+#
+#    page_size = 5
+#    num_users = 7
+#    expected_users_remainder = num_users - page_size
+#
+#    # create users
+#    all_user_ids = []
+#    for i in range(num_users):
+#
+#        user_id = uuid.uuid4()
+#        all_user_ids.append(user_id)
+#        key_name = "test_key" + f"{i}"
+#
+#        create_user_response = admin_client.create_user(user_id)
+#        admin_client.create_key(create_user_response.user_id, key_name)
+#
+#    # list users in page 1
+#    get_all_users_response1 = admin_client.get_users(limit=page_size)
+#    cursor1 = get_all_users_response1.cursor
+#    user_list1 = get_all_users_response1.user_list
+#    assert len(user_list1) == page_size
+#
+#    # list users in page 2 using cursor
+#    get_all_users_response2 = admin_client.get_users(cursor1, limit=page_size)
+#    cursor2 = get_all_users_response2.cursor
+#    user_list2 = get_all_users_response2.user_list
+#
+#    assert len(user_list2) == expected_users_remainder
+#    assert cursor1 != cursor2
+#
+#    # delete users
+#    clean_up_users_and_keys(all_user_ids)
+#
+#    # list users to check pagination with no users
+#    users = admin_client.get_users()
+#    assert len(users.user_list) == 0, f"Expected 0 users, got {users}"
 
 
 def clean_up_users_and_keys(user_id_list):

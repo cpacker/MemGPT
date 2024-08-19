@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from memgpt.settings import settings, BackendConfiguration
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
     from sqlalchemy.engine import Engine
 
 
@@ -23,9 +24,6 @@ def create_engine(
     return sqlalchemy_create_engine(backend.database_uri)
 
 
-
-def get_db_session() -> "Generator":
-    """dependency primarily for FastAPI"""
+def get_db_session() -> "Session":
     bound_session = sessionmaker(bind=create_engine())
-    with bound_session() as session:
-        yield session
+    return bound_session()

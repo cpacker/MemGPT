@@ -5,18 +5,17 @@ from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import JSON_ENSURE_ASCII
-from memgpt.data_types import Message
-from memgpt.models.chat_completion_request import ChatCompletionRequest, Tool
-from memgpt.models.chat_completion_response import (
+from memgpt.schemas.message import Message
+from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest, Tool
+from memgpt.schemas.openai.chat_completion_response import (
     ChatCompletionResponse,
     Choice,
     FunctionCall,
 )
-from memgpt.models.chat_completion_response import (
+from memgpt.schemas.openai.chat_completion_response import (
     Message as ChoiceMessage,  # NOTE: avoid conflict with our own MemGPT Message datatype
 )
-from memgpt.models.chat_completion_response import ToolCall, UsageStatistics
+from memgpt.schemas.openai.chat_completion_response import ToolCall, UsageStatistics
 from memgpt.utils import get_utc_time, smart_urljoin
 
 BASE_URL = "https://api.anthropic.com/v1"
@@ -257,7 +256,7 @@ def convert_anthropic_response_to_chatcompletion(
                 type="function",
                 function=FunctionCall(
                     name=response_json["content"][1]["name"],
-                    arguments=json.dumps(response_json["content"][1]["input"], ensure_ascii=JSON_ENSURE_ASCII),
+                    arguments=json_dumps(response_json["content"][1]["input"]),
                 ),
             )
         ]

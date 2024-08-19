@@ -4,7 +4,6 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from memgpt.data_types import Token as PydanticToken
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import UserMixin
 from memgpt.log import get_logger
@@ -16,7 +15,7 @@ logger = get_logger(__name__)
 
 class Token(SqlalchemyBase, UserMixin):
     __tablename__ = 'token'
-    __pydantic_model__ =  PydanticToken
+    # __pydantic_model__ =  PydanticToken
 
     _temporary_shim_api_key: Mapped[Optional[str]] = mapped_column(String,
                                                                      default=lambda: "sk-" + str(uuid4()),

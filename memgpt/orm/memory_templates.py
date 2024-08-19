@@ -40,3 +40,12 @@ class PersonaMemoryTemplate(MemoryTemplate):
     __mapper_args__ = {
         "polymorphic_identity": "persona",
     }
+
+class SystemMemoryTemplate(MemoryTemplate):
+    """Template for the structured 'system' section of core memory.
+    Note: will be migrated to dynamic memory templates in the future.
+    """
+
+    __mapper_args__ = {
+        "polymorphic_identity": "system",
+    }

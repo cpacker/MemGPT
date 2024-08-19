@@ -2,13 +2,19 @@ import json
 import os
 import uuid
 
+from memgpt import create_client
 from memgpt.agent import Agent
-from memgpt.data_types import AgentState, Message
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.message import Message
 from memgpt.embeddings import embedding_model
 from memgpt.llm_api.llm_api_tools import create
-from memgpt.models.pydantic_models import EmbeddingConfigModel, LLMConfigModel
-from memgpt.presets.presets import load_module_tools
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.server.server import SyncServer
 from memgpt.prompts import gpt_system
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.message import Message
 
 messages = [Message(role="system", text=gpt_system.get_system_text("memgpt_chat")), Message(role="user", text="How are you?")]
 
@@ -24,11 +30,11 @@ llm_config_dir = "configs/llm_model_configs"
 def run_llm_endpoint(filename):
     config_data = json.load(open(filename, "r"))
     print(config_data)
-    llm_config = LLMConfigModel(**config_data)
-    embedding_config = EmbeddingConfigModel(**json.load(open(embedding_config_path)))
+    llm_config = LLMConfig(**config_data)
+    embedding_config = EmbeddingConfig(**json.load(open(embedding_config_path)))
     agent_state = AgentState(
         name="test_agent",
-        tools=[tool.name for tool in load_module_tools()],
+        tools=[tool.name for tool in SyncServer.add_default_tools()],
         embedding_config=embedding_config,
         llm_config=llm_config,
         user_id=uuid.UUID(int=1),
@@ -37,7 +43,7 @@ def run_llm_endpoint(filename):
     )
     agent = Agent(
         interface=None,
-        tools=load_module_tools(),
+        tools=SyncServer.add_default_tools(),
         agent_state=agent_state,
         # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
         first_message_verify_mono=True,
@@ -51,6 +57,7 @@ def run_llm_endpoint(filename):
         functions=agent.functions,
         functions_python=agent.functions_python,
     )
+    client.delete_agent(agent_state.id)
     assert response is not None
 
 
@@ -58,7 +65,7 @@ def run_embedding_endpoint(filename):
     # load JSON file
     config_data = json.load(open(filename, "r"))
     print(config_data)
-    embedding_config = EmbeddingConfigModel(**config_data)
+    embedding_config = EmbeddingConfig(**config_data)
     model = embedding_model(embedding_config)
     query_text = "hello"
     query_vec = model.get_text_embedding(query_text)

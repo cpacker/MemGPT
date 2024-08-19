@@ -13,15 +13,8 @@ from typing import Annotated, List, Optional
 
 import typer
 
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.config import MemGPTConfig
-from memgpt.data_sources.connectors import (
-    DirectoryConnector,
-    VectorDBConnector,
-    load_data,
-)
-from memgpt.data_types import Source
-from memgpt.metadata import MetadataStore
+from memgpt import create_client
+from memgpt.data_sources.connectors import DirectoryConnector
 
 app = typer.Typer()
 
@@ -89,41 +82,20 @@ def load_directory(
     user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,  # TODO: remove
     description: Annotated[Optional[str], typer.Option(help="Description of the source.")] = None,
 ):
+    client = create_client()
+
+    # create connector
+    connector = DirectoryConnector(input_files=input_files, input_directory=input_dir, recursive=recursive, extensions=extensions)
+
+    # create source
+    source = client.create_source(name=name)
+
+    # load data
     try:
-        connector = DirectoryConnector(input_files=input_files, input_directory=input_dir, recursive=recursive, extensions=extensions)
-        config = MemGPTConfig.load()
-        if not user_id:
-            user_id = uuid.UUID(config.anon_clientid)
-
-        ms = MetadataStore(config)
-        source = Source(
-            name=name,
-            user_id=user_id,
-            embedding_model=config.default_embedding_config.embedding_model,
-            embedding_dim=config.default_embedding_config.embedding_dim,
-            description=description,
-        )
-        ms.create_source(source)
-        passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
-        # TODO: also get document store
-
-        # ingest data into passage/document store
-        try:
-            num_passages, num_documents = load_data(
-                connector=connector,
-                source=source,
-                embedding_config=config.default_embedding_config,
-                document_store=None,
-                passage_store=passage_storage,
-            )
-            print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
-        except Exception as e:
-            typer.secho(f"Failed to load data from provided information.\n{e}", fg=typer.colors.RED)
-            ms.delete_source(source_id=source.id)
-
-    except ValueError as e:
-        typer.secho(f"Failed to load directory from provided information.\n{e}", fg=typer.colors.RED)
-        raise
+        client.load_data(connector, source_name=name)
+    except Exception as e:
+        typer.secho(f"Failed to load data from provided information.\n{e}", fg=typer.colors.RED)
+        client.delete_source(source.id)
 
 
 # @app.command("webpage")
@@ -139,56 +111,6 @@ def load_directory(
 #
 #    except ValueError as e:
 #        typer.secho(f"Failed to load webpage from provided information.\n{e}", fg=typer.colors.RED)
-#
-#
-# @app.command("database")
-# def load_database(
-#    name: Annotated[str, typer.Option(help="Name of dataset to load.")],
-#    query: Annotated[str, typer.Option(help="Database query.")],
-#    dump_path: Annotated[Optional[str], typer.Option(help="Path to dump file.")] = None,
-#    scheme: Annotated[Optional[str], typer.Option(help="Database scheme.")] = None,
-#    host: Annotated[Optional[str], typer.Option(help="Database host.")] = None,
-#    port: Annotated[Optional[int], typer.Option(help="Database port.")] = None,
-#    user: Annotated[Optional[str], typer.Option(help="Database user.")] = None,
-#    password: Annotated[Optional[str], typer.Option(help="Database password.")] = None,
-#    dbname: Annotated[Optional[str], typer.Option(help="Database name.")] = None,
-# ):
-#    try:
-#        from llama_index.readers.database import DatabaseReader
-#
-#        print(dump_path, scheme)
-#
-#        if dump_path is not None:
-#            # read from database dump file
-#            from sqlalchemy import create_engine
-#
-#            engine = create_engine(f"sqlite:///{dump_path}")
-#
-#            db = DatabaseReader(engine=engine)
-#        else:
-#            assert dump_path is None, "Cannot provide both dump_path and database connection parameters."
-#            assert scheme is not None, "Must provide database scheme."
-#            assert host is not None, "Must provide database host."
-#            assert port is not None, "Must provide database port."
-#            assert user is not None, "Must provide database user."
-#            assert password is not None, "Must provide database password."
-#            assert dbname is not None, "Must provide database name."
-#
-#            db = DatabaseReader(
-#                scheme=scheme,  # Database Scheme
-#                host=host,  # Database Host
-#                port=str(port),  # Database Port
-#                user=user,  # Database User
-#                password=password,  # Database Password
-#                dbname=dbname,  # Database Name
-#            )
-#
-#        # load data
-#        docs = db.load_data(query=query)
-#        store_docs(name, docs)
-#    except ValueError as e:
-#        typer.secho(f"Failed to load database from provided information.\n{e}", fg=typer.colors.RED)
-#
 
 
 @app.command("vector-database")
@@ -201,43 +123,44 @@ def load_vector_database(
     user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,
 ):
     """Load pre-computed embeddings into MemGPT from a database."""
-    try:
-        config = MemGPTConfig.load()
-        connector = VectorDBConnector(
-            uri=uri,
-            table_name=table_name,
-            text_column=text_column,
-            embedding_column=embedding_column,
-            embedding_dim=config.default_embedding_config.embedding_dim,
-        )
-        if not user_id:
-            user_id = uuid.UUID(config.anon_clientid)
+    raise NotImplementedError
+    # try:
+    #    config = MemGPTConfig.load()
+    #    connector = VectorDBConnector(
+    #        uri=uri,
+    #        table_name=table_name,
+    #        text_column=text_column,
+    #        embedding_column=embedding_column,
+    #        embedding_dim=config.default_embedding_config.embedding_dim,
+    #    )
+    #    if not user_id:
+    #        user_id = uuid.UUID(config.anon_clientid)
 
-        ms = MetadataStore(config)
-        source = Source(
-            name=name,
-            user_id=user_id,
-            embedding_model=config.default_embedding_config.embedding_model,
-            embedding_dim=config.default_embedding_config.embedding_dim,
-        )
-        ms.create_source(source)
-        passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
-        # TODO: also get document store
+    #    ms = MetadataStore(config)
+    #    source = Source(
+    #        name=name,
+    #        user_id=user_id,
+    #        embedding_model=config.default_embedding_config.embedding_model,
+    #        embedding_dim=config.default_embedding_config.embedding_dim,
+    #    )
+    #    ms.create_source(source)
+    #    passage_storage = StorageConnector.get_storage_connector(TableType.PASSAGES, config, user_id)
+    #    # TODO: also get document store
 
-        # ingest data into passage/document store
-        try:
-            num_passages, num_documents = load_data(
-                connector=connector,
-                source=source,
-                embedding_config=config.default_embedding_config,
-                document_store=None,
-                passage_store=passage_storage,
-            )
-            print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
-        except Exception as e:
-            typer.secho(f"Failed to load data from provided information.\n{e}", fg=typer.colors.RED)
-            ms.delete_source(source_id=source.id)
+    #    # ingest data into passage/document store
+    #    try:
+    #        num_passages, num_documents = load_data(
+    #            connector=connector,
+    #            source=source,
+    #            embedding_config=config.default_embedding_config,
+    #            document_store=None,
+    #            passage_store=passage_storage,
+    #        )
+    #        print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
+    #    except Exception as e:
+    #        typer.secho(f"Failed to load data from provided information.\n{e}", fg=typer.colors.RED)
+    #        ms.delete_source(source_id=source.id)
 
-    except ValueError as e:
-        typer.secho(f"Failed to load VectorDB from provided information.\n{e}", fg=typer.colors.RED)
-        raise
+    # except ValueError as e:
+    #    typer.secho(f"Failed to load VectorDB from provided information.\n{e}", fg=typer.colors.RED)
+    #    raise

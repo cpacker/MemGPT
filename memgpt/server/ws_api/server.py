@@ -55,7 +55,7 @@ class WebSocketServer:
 
                 # Assuming the message is a JSON string
                 try:
-                    data = json.loads(message, strict=JSON_LOADS_STRICT)
+                    data = json_loads(message)
                 except:
                     print(f"[server] bad data from client:\n{data}")
                     await websocket.send(protocol.server_command_response(f"Error: bad data from client - {str(data)}"))
