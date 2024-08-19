@@ -51,7 +51,7 @@ from memgpt.server.rest_api.sources.index import ListSourcesResponse
 # import pydantic response objects from memgpt.server.rest_api
 from memgpt.server.rest_api.tools.index import CreateToolRequest, ListToolsResponse
 from memgpt.server.server import SyncServer
-from memgpt.utils import get_human_text
+from memgpt.utils import get_human_text, get_persona_text
 
 
 def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
@@ -259,7 +259,7 @@ class RESTClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         # system prompt (can be templated)
         system_prompt: Optional[str] = None,
         # tools
@@ -729,7 +729,7 @@ class LocalClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_human_text(DEFAULT_PERSONA)),
+        memory: BaseMemory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         # system prompt (can be templated)
         system_prompt: Optional[str] = None,
         # tools
