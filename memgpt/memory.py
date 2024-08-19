@@ -19,6 +19,7 @@ from memgpt.utils import (
 )
 
 
+# always run validation
 class MemoryModule(BaseModel):
     """Base class for memory modules"""
 
@@ -28,13 +29,20 @@ class MemoryModule(BaseModel):
 
     def __setattr__(self, name, value):
         """Run validation if self.value is updated"""
-        super().__setattr__(name, value)
         if name == "value":
             # run validation
-            self.__class__.validate(self.dict(exclude_unset=True))
+            self.__class__.validate(self.dict(exclude_unset=True))  # TODO: not sure what this does
+            if len(value) > self.limit:
+                # TODO: come up with smarter eviction algorithm
+                print(f"Edit failed: Exceeds {self.limit} character limit (requested {len(value)}). Clipping to {self.limit} characters.")
+                value = value[: self.limit]
+
+        print(f"Setting {name} to {value}")
+        super().__setattr__(name, value)
 
     @validator("value", always=True)
     def check_value_length(cls, v, values):
+        # TODO: this doesn't run all the time, should fix
         if v is not None:
             # Fetching the limit from the values dictionary
             limit = values.get("limit", 2000)  # Default to 2000 if limit is not yet set
@@ -48,10 +56,13 @@ class MemoryModule(BaseModel):
                 raise ValueError("Value must be either a string or a list of strings.")
 
             if length > limit:
-                error_msg = f"Edit failed: Exceeds {limit} character limit (requested {length})."
-                # TODO: add archival memory error?
-                raise ValueError(error_msg)
-        return v
+                error_msg = f"Edit failed: Exceeds {limit} character limit (requested {length}). Clipping to {limit} characters."
+                print(error_msg)
+                values["value"] = v[:limit]
+                print(cls)
+                return v[:limit]
+            else:
+                return v
 
     def __len__(self):
         return len(str(self))
