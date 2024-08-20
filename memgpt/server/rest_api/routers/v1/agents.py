@@ -12,6 +12,10 @@ from memgpt.schemas.passage import Passage
 from memgpt.schemas.memory import Memory, RecallMemorySummary, ArchivalMemorySummary
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.enums import MessageRole, MessageStreamStatus
+from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
+from memgpt.schemas.memgpt_request import MemGPTRequest
+from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.server.schemas.agents import AgentCommandResponse, GetAgentResponse, AgentRenameRequest, CreateAgentRequest, CreateAgentResponse, GetAgentMemoryResponse, UpdateAgentMemoryRequest, UpdateAgentMemoryResponse, GetAgentArchivalMemoryResponse, ArchivalMemoryObject, InsertAgentArchivalMemoryRequest, InsertAgentArchivalMemoryResponse, UserMessageRequest, UserMessageResponse, GetAgentMessagesRequest, GetAgentMessagesResponse, GetAgentMessagesCursorRequest
 from memgpt.server.rest_api.interface import StreamingServerInterface, QueuingInterface
 
@@ -292,31 +296,29 @@ async def send_message(
     )
 
 
-# TODO: this belongs in a controller!
+# TODO: cpacker should check this file
+# TODO: move this into server.py?
 async def send_message_to_agent(
-    agent_id: "UUID",
-    role: str,
+    server: SyncServer,
+    agent_id: str,
+    user_id: str,
+    role: MessageRole,
     message: str,
-    stream_legacy: bool,  # legacy
     stream_steps: bool,
     stream_tokens: bool,
-    interface: "QueuingInterface" = Depends(get_current_interface),
-    server: "SyncServer" = Depends(get_memgpt_server),
     chat_completion_mode: Optional[bool] = False,
     timestamp: Optional[datetime] = None,
-) -> Union[StreamingResponse, UserMessageResponse]:
+    # related to whether or not we return `MemGPTMessage`s or `Message`s
+    return_message_object: bool = True,  # Should be True for Python Client, False for REST API
+) -> Union[StreamingResponse, MemGPTResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
-    actor = server.get_current_user()
-    # handle the legacy mode streaming
-    if stream_legacy:
-        # NOTE: override
-        stream_steps = True
-        stream_tokens = False
-        include_final_message = False
+    # TODO: @charles is this the correct way to handle?
+    include_final_message = True
 
-    if role == "user" or role is None:
+    # determine role
+    if role == MessageRole.user:
         message_func = server.user_message
-    elif role == "system":
+    elif role == MessageRole.system:
         message_func = server.system_message
     else:
         raise HTTPException(status_code=500, detail=f"Bad role {role}")
@@ -327,9 +329,11 @@ async def send_message_to_agent(
     # For streaming response
     try:
 
+        # TODO: move this logic into server.py
+
         # Get the generator object off of the agent's streaming interface
         # This will be attached to the POST SSE request used under-the-hood
-        memgpt_agent = server._get_or_load_agent(user_id=actor._id, agent_id=agent_id)
+        memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
         streaming_interface = memgpt_agent.interface
         if not isinstance(streaming_interface, StreamingServerInterface):
             raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
@@ -339,8 +343,8 @@ async def send_message_to_agent(
         # "chatcompletion mode" does some remapping and ignores inner thoughts
         streaming_interface.streaming_chat_completion_mode = chat_completion_mode
 
-        # NOTE: for legacy 'stream' flag
-        streaming_interface.nonstreaming_legacy_mode = stream_legacy
+        # streaming_interface.allow_assistant_message = stream
+        # streaming_interface.function_call_legacy_mode = stream
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
@@ -349,21 +353,44 @@ async def send_message_to_agent(
         )
 
         if stream_steps:
+            if return_message_object:
+                # TODO implement returning `Message`s in a stream, not just `MemGPTMessage` format
+                raise NotImplementedError
+
             # return a stream
             return StreamingResponse(
                 sse_async_generator(streaming_interface.get_generator(), finish_message=include_final_message),
                 media_type="text/event-stream",
             )
+
         else:
             # buffer the stream, then return the list
             generated_stream = []
             async for message in streaming_interface.get_generator():
+                assert (
+                    isinstance(message, MemGPTMessage)
+                    or isinstance(message, LegacyMemGPTMessage)
+                    or isinstance(message, MessageStreamStatus)
+                ), type(message)
                 generated_stream.append(message)
-                if "data" in message and message["data"] == "[DONE]":
+                if message == MessageStreamStatus.done:
                     break
-            filtered_stream = [d for d in generated_stream if d not in ["[DONE_GEN]", "[DONE_STEP]", "[DONE]"]]
+
+            # Get rid of the stream status messages
+            filtered_stream = [d for d in generated_stream if not isinstance(d, MessageStreamStatus)]
             usage = await task
-            return UserMessageResponse(messages=filtered_stream, usage=usage)
+
+            # By default the stream will be messages of type MemGPTMessage or MemGPTLegacyMessage
+            # If we want to convert these to Message, we can use the attached IDs
+            # NOTE: we will need to de-duplicate the Messsage IDs though (since Assistant->Inner+Func_Call)
+            # TODO: eventually update the interface to use `Message` and `MessageChunk` (new) inside the deque instead
+            if return_message_object:
+                message_ids = [m.id for m in filtered_stream]
+                message_ids = deduplicate(message_ids)
+                message_objs = [server.get_agent_message(agent_id=agent_id, message_id=m_id) for m_id in message_ids]
+                return MemGPTResponse(messages=message_objs, usage=usage)
+            else:
+                return MemGPTResponse(messages=filtered_stream, usage=usage)
 
     except HTTPException:
         raise
@@ -373,7 +400,6 @@ async def send_message_to_agent(
 
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"{e}")
-
 
 
 ##### MISSING #######
