@@ -8,6 +8,7 @@ from memgpt.settings import settings
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 from memgpt.schemas.agent import AgentState, UpdateAgentState
 from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
 from memgpt.schemas.memory import Memory, RecallMemorySummary, ArchivalMemorySummary
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
