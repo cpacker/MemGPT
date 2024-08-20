@@ -94,12 +94,12 @@ def test_corrupted_memory_limit(sample_memory):
     assert memory_dict["persona"]["limit"] == 2000, memory_dict
 
     # overflow the value
-    memory_dict["persona"]["limit"] = "x" * 2500
+    memory_dict["persona"]["value"] = "x" * 2500
 
     # by default, this should throw a value error
     with pytest.raises(ValueError):
-        BaseMemory.load(memory_dict)
+        BaseMemory.load(memory_dict, catch_overflow=False)
 
     # if we have overflow protection on, this shouldn't raise a value error
     # TODO
-    # new_memory = BaseMemory.load(memory_dict)
+    BaseMemory.load(memory_dict)

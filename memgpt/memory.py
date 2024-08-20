@@ -73,10 +73,14 @@ class BaseMemory:
         self.memory = {}
 
     @classmethod
-    def load(cls, state: dict):
+    def load(cls, state: dict, catch_overflow: bool = True):
         """Load memory from dictionary object"""
         obj = cls()
         for key, value in state.items():
+            # TODO: will cause an error for lists
+            if catch_overflow and len(value["value"]) >= value["limit"]:
+                warnings.warn(f"Loaded section {key} exceeds character limit {value['limit']} - increasing specified memory limit.")
+                value["limit"] = len(value["value"])
             obj.memory[key] = MemoryModule(**value)
         return obj
 
@@ -96,13 +100,13 @@ class ChatMemory(BaseMemory):
 
     def __init__(self, persona: str, human: str, limit: int = 2000):
         # TODO: clip if needed
-        if persona and len(persona) > limit:
-            warnings.warn(f"Persona exceeds {limit} character limit (requested {len(persona)}).")
-            persona = persona[:limit]
+        # if persona and len(persona) > limit:
+        #    warnings.warn(f"Persona exceeds {limit} character limit (requested {len(persona)}).")
+        #    persona = persona[:limit]
 
-        if human and len(human) > limit:
-            warnings.warn(f"Human exceeds {limit} character limit (requested {len(human)}).")
-            human = human[:limit]
+        # if human and len(human) > limit:
+        #    warnings.warn(f"Human exceeds {limit} character limit (requested {len(human)}).")
+        #    human = human[:limit]
         self.memory = {
             "persona": MemoryModule(name="persona", value=persona, limit=limit),
             "human": MemoryModule(name="human", value=human, limit=limit),
