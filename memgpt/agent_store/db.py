@@ -155,8 +155,7 @@ def get_db_model(
 
             # openai info
             role = Column(String, nullable=False)
-            text = Column(String)  # optional: can be null if function call
-            mm_content = Column(JSON)  # optional: multi-modal input
+            content = Column(JSON)  # optional: multi-modal input. can be null be function call.
             model = Column(String)  # optional: can be null if LLM backend doesn't require specifying
             name = Column(String)  # optional: multi-agent only
 

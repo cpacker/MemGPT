@@ -11,7 +11,7 @@ from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 from memgpt.schemas.enums import MessageRole
 from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
-from memgpt.schemas.openai.chat_completions import ToolCall
+from memgpt.schemas.openai.chat_completions import ToolCall, MultiModalMessage
 from memgpt.utils import get_utc_time, is_utc_datetime
 
 
@@ -62,8 +62,7 @@ class Message(BaseMessage):
     id: str = BaseMessage.generate_id_field()
     role: MessageRole = Field(..., description="The role of the participant.")
     text: str = Field(..., description="The text of the message.")
-    # Field mm_content is only used when role is 'user'. It needs to be mapped to MultiModalMessage
-    mm_content: List[dict] = Field(None, description="Multi modal content entered by the user.")
+    content: Union[str, MultiModalMessage] = Field(None, description="Content entered by the user.")
     user_id: str = Field(None, description="The unique identifier of the user.")
     agent_id: str = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")

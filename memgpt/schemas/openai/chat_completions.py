@@ -8,12 +8,14 @@ class SystemMessage(BaseModel):
     role: str = "system"
     name: Optional[str] = None
 
+class MultiModalMessage(BaseModel):
+    type: str
+    image_url: str
 
 class UserMessage(BaseModel):
-    content: Union[str, List[str]]
+    content: Union[str, List[MultiModalMessage]]
     role: str = "user"
     name: Optional[str] = None
-
 
 class ToolCallFunction(BaseModel):
     name: str = Field(..., description="The name of the function to call")
