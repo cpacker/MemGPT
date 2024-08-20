@@ -1,5 +1,6 @@
 import datetime
 import uuid
+import warnings
 from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Union
 
@@ -19,6 +20,7 @@ from memgpt.utils import (
 )
 
 
+# always run validation
 class MemoryModule(BaseModel):
     """Base class for memory modules"""
 
@@ -31,10 +33,11 @@ class MemoryModule(BaseModel):
         super().__setattr__(name, value)
         if name == "value":
             # run validation
-            self.__class__.validate(self.dict(exclude_unset=True))
+            self.__class__.validate(self.dict(exclude_unset=True))  # TODO: not sure what this does
 
-    @validator("value", always=True)
+    @validator("value", always=True, check_fields=False)
     def check_value_length(cls, v, values):
+        # TODO: this doesn't run all the time, should fix
         if v is not None:
             # Fetching the limit from the values dictionary
             limit = values.get("limit", 2000)  # Default to 2000 if limit is not yet set
@@ -48,10 +51,9 @@ class MemoryModule(BaseModel):
                 raise ValueError("Value must be either a string or a list of strings.")
 
             if length > limit:
-                error_msg = f"Edit failed: Exceeds {limit} character limit (requested {length})."
-                # TODO: add archival memory error?
-                raise ValueError(error_msg)
-        return v
+                raise ValueError(f"Value exceeds {limit} character limit (requested {length}).")
+
+            return v
 
     def __len__(self):
         return len(str(self))
@@ -93,6 +95,14 @@ class BaseMemory:
 class ChatMemory(BaseMemory):
 
     def __init__(self, persona: str, human: str, limit: int = 2000):
+        # TODO: clip if needed
+        if persona and len(persona) > limit:
+            warnings.warn(f"Persona exceeds {limit} character limit (requested {len(persona)}).")
+            persona = persona[:limit]
+
+        if human and len(human) > limit:
+            warnings.warn(f"Human exceeds {limit} character limit (requested {len(human)}).")
+            human = human[:limit]
         self.memory = {
             "persona": MemoryModule(name="persona", value=persona, limit=limit),
             "human": MemoryModule(name="human", value=human, limit=limit),
