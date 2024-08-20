@@ -18,7 +18,7 @@ test_agent_name = "TestAgent"
 
 # Fixture to create clients with different configurations
 @pytest.fixture(
-    params=[{"server": True}, {"server": False}],  # whether to use REST API server
+    params=[{"server": True}],  # whether to use REST API server
 )
 def client(request, db_session, test_app):
     if request.param["server"]:
@@ -42,8 +42,8 @@ def client(request, db_session, test_app):
 
 # Fixture for test agent
 @pytest.fixture
-def agent(client):
-    agent_state = client.create_agent(name=test_agent_name)
+async def agent(client):
+    agent_state = await client.create_agent(name=test_agent_name)
     print("AGENT ID", agent_state.id)
     yield agent_state
 

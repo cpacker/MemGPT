@@ -703,7 +703,7 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Update the agents core memory block, return the new state"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=request.id) is None:
             raise ValueError(f"Agent agent_id={request.id} does not exist")
@@ -769,7 +769,7 @@ class SyncServer(Server):
         agent_id: str,
     ):
         """Update the agents core memory block, return the new state"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=request.id) is None:
             raise ValueError(f"Agent agent_id={request.id} does not exist")
@@ -801,7 +801,7 @@ class SyncServer(Server):
         user_id: str,
     ) -> List[AgentState]:
         """List all available agents to a user"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
         agents_states = self.ms.list_agents(user_id=user_id)
@@ -1036,7 +1036,7 @@ class SyncServer(Server):
 
     def get_agent_archival(self, user_id: str, agent_id: str, start: int, count: int) -> List[Passage]:
         """Paginated query of all messages in agent archival memory"""
-        if self.ms.get_user(user_id) is None:
+        if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1062,7 +1062,7 @@ class SyncServer(Server):
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
     ) -> List[Passage]:
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1077,7 +1077,7 @@ class SyncServer(Server):
         return records
 
     def insert_archival_memory(self, user_id: str, agent_id: str, memory_contents: str) -> List[Passage]:
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1106,7 +1106,7 @@ class SyncServer(Server):
         return [memgpt_agent.persistence_manager.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
 
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1133,7 +1133,7 @@ class SyncServer(Server):
         order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
     ) -> List[Message]:
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1149,7 +1149,7 @@ class SyncServer(Server):
 
     def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> Optional[AgentState]:
         """Return the config of an agent"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if agent_id:
             if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:

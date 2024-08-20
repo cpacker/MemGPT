@@ -4,6 +4,7 @@ import uuid
 from typing import List, Optional
 from humps import pascalize
 from sqlalchemy.exc import NoResultFound
+from importlib import import_module
 
 from memgpt.log import get_logger
 from memgpt.orm.utilities import get_db_session
@@ -14,13 +15,6 @@ from memgpt.orm.source import Source
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
 from memgpt.orm.user import User
 from memgpt.orm.tool import Tool
-from memgpt.schemas.block import Human, Persona
-
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-logger = get_logger(__name__)
 
 from memgpt.schemas.agent import AgentState as DataAgentState
 from memgpt.orm.enums import JobStatus
@@ -37,6 +31,11 @@ from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
 from memgpt.schemas.block import Human, Persona
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+logger = get_logger(__name__)
 
 class MetadataStore:
     """Metadatastore acts as a bridge between the ORM and the rest of the application. Ideally it will be removed in coming PRs and
@@ -122,7 +121,7 @@ class MetadataStore:
         __getattr__ is always the last-ditch effort, so you can override it by declaring any method (ie `get_hamburger`) to handle the call instead.
         """
         action, raw_model_name = name.split("_",1)
-        Model = globals().get(pascalize(raw_model_name).capitalize()) # gross, but nessary for now
+        Model = getattr(import_module("memgpt.orm.__all__"), pascalize(raw_model_name).capitalize())
         if Model is None:
             raise AttributeError(f"Model {raw_model_name} action {action} not found")
 
