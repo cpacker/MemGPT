@@ -155,7 +155,7 @@ def get_db_model(
 
             # openai info
             role = Column(String, nullable=False)
-            text = Column(String)  # optional: can be null if function call
+            content = Column(JSON)  # optional: multi-modal input. can be null be function call.
             model = Column(String)  # optional: can be null if LLM backend doesn't require specifying
             name = Column(String)  # optional: multi-agent only
 
@@ -192,6 +192,7 @@ def get_db_model(
                     role=self.role,
                     name=self.name,
                     text=self.text,
+                    mm_content=self.mm_content,
                     model=self.model,
                     # tool_calls=[ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls] if self.tool_calls else None,
                     tool_calls=self.tool_calls,
