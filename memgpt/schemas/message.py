@@ -62,6 +62,8 @@ class Message(BaseMessage):
     id: str = BaseMessage.generate_id_field()
     role: MessageRole = Field(..., description="The role of the participant.")
     text: str = Field(..., description="The text of the message.")
+    # Field mm_content is only used when role is 'user'. It needs to be mapped to MultiModalMessage
+    mm_content: List[dict] = Field(None, description="Multi modal content entered by the user.")
     user_id: str = Field(None, description="The unique identifier of the user.")
     agent_id: str = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
@@ -223,8 +225,9 @@ class Message(BaseMessage):
 
         elif self.role == "user":
             assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            content = self.mm_content if self.mm_content is not None else self.text
             openai_message = {
-                "content": self.text,
+                "content": content,
                 "role": self.role,
             }
             # Optional field, do not include if null
