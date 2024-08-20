@@ -101,5 +101,4 @@ def test_corrupted_memory_limit(sample_memory):
         BaseMemory.load(memory_dict, catch_overflow=False)
 
     # if we have overflow protection on, this shouldn't raise a value error
-    # TODO
     BaseMemory.load(memory_dict)
