@@ -24,9 +24,7 @@ async def list_blocks(
     interface.clear()
     user = server.get_current_user()
     blocks = server.get_blocks(user_id=user.id, label=label, template=templates_only, name=name)
-    if blocks is None:
-        return []
-    return blocks
+    return blocks or []
 
 @router.post("/", response_model=Block)
 async def create_block(
@@ -51,6 +49,7 @@ async def update_block(
     user = server.get_current_user()
     return server.update_block(user_id=user.id, request=updated_block)
 
+# TODO: delete should not return anything
 @router.delete("/{block_id}", response_model=Block)
 async def delete_block(
     block_id: str,
