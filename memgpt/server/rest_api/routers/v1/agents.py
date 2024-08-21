@@ -3,6 +3,7 @@ from datetime import datetime
 import asyncio
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.responses import JSONResponse, StreamingResponse
+from starlette.responses import StreamingResponse
 
 from memgpt.settings import settings
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
@@ -16,8 +17,10 @@ from memgpt.schemas.enums import MessageRole, MessageStreamStatus
 from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
 from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
+from memgpt.server.rest_api.utils import sse_async_generator
 from memgpt.server.schemas.agents import AgentCommandResponse, GetAgentResponse, AgentRenameRequest, CreateAgentRequest, CreateAgentResponse, GetAgentMemoryResponse, UpdateAgentMemoryRequest, UpdateAgentMemoryResponse, GetAgentArchivalMemoryResponse, ArchivalMemoryObject, InsertAgentArchivalMemoryRequest, InsertAgentArchivalMemoryResponse, UserMessageRequest, UserMessageResponse, GetAgentMessagesRequest, GetAgentMessagesResponse, GetAgentMessagesCursorRequest
 from memgpt.server.rest_api.interface import StreamingServerInterface, QueuingInterface
+from memgpt.utils import deduplicate
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
 from uuid import UUID
@@ -227,9 +230,9 @@ def delete_agent_archival_memory(
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Memory id={memory_id} successfully deleted"})
 
 
-@router.get("/agents/{agent_id}/messages", tags=["agents"], response_model=GetAgentMessagesResponse)
+@router.get("/{agent_id}/messages", response_model=List[Message])
 def get_agent_messages(
-    agent_id: "UUID",
+    agent_id: "str",
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
     start: int = Query(..., description="Message index to start on (reverse chronological)."),
@@ -240,11 +243,10 @@ def get_agent_messages(
     """
     # Validate with the Pydantic model (optional)
     actor = server.get_current_user()
-    request = GetAgentMessagesRequest(agent_id=agent_id, start=start, count=count)
-
     interface.clear()
-    messages = server.get_agent_messages(user_id=actor._id, agent_id=agent_id, start=request.start, count=request.count)
-    return GetAgentMessagesResponse(messages=messages)
+    # this was in the migrated code - confirm this is incorrect?
+    #return server.get_agent_recall_cursor(user_id=actor.id, agent_id=agent_id, before=before, limit=limit, reverse=True)
+    return server.get_agent_messages(user_id=actor._id, agent_id=agent_id, start=start, count=count)
 
 @router.get("/{agent_id}/messages-cursor", response_model=GetAgentMessagesResponse)
 def get_agent_messages_cursor(
@@ -268,12 +270,28 @@ def get_agent_messages_cursor(
     )
     return GetAgentMessagesResponse(messages=messages)
 
-@router.post("/{agent_id}/messages", response_model=UserMessageResponse)
+@router.get("/{agent_id}/messages/context/", response_model=List[Message])
+def get_agent_messages_in_context(
+    agent_id: str,
+    start: int = Query(..., description="Message index to start on (reverse chronological)."),
+    count: int = Query(..., description="How many messages to retrieve."),
+    server: "SyncServer" = Depends(get_memgpt_server),
+    interface: "QueuingInterface" = Depends(get_current_interface),
+):
+    """
+    Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
+    """
+    interface.clear()
+    actor = server.get_current_user()
+    messages = server.get_agent_messages(user_id=actor.id, agent_id=agent_id, start=start, count=count)
+    return messages
+
+
+@router.post("/{agent_id}/messages", response_model=MemGPTResponse)
 async def send_message(
-    # background_tasks: BackgroundTasks,
-    agent_id: "UUID",
+    agent_id: "str",
     server: SyncServer = Depends(get_memgpt_server),
-    message: UserMessageRequest = Body(...),
+    message: MemGPTRequest = Body(...),
 ):
     """
     Process a user message and return the agent's response.
@@ -285,9 +303,9 @@ async def send_message(
     return await send_message_to_agent(
         server=server,
         agent_id=agent_id,
-        user_id=actor._id,
+        user_id=actor.id,
         role=message.role,
-        message=message.message,
+        message=message.text,
         stream_steps=message.stream_steps,
         stream_tokens=message.stream_tokens,
         timestamp=message.timestamp,
