@@ -77,64 +77,6 @@ def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, f
 def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/sources/{source_id}", tags=["sources"], response_model=Source)
-    async def get_source(
-        source_id: str,
-        user_id: str = Depends(get_current_user_with_server),
-    ):
-        """
-        Get all sources
-        """
-        interface.clear()
-        source = server.get_source(source_id=source_id, user_id=user_id)
-        return source
-
-    @router.get("/sources/name/{source_name}", tags=["sources"], response_model=str)
-    async def get_source_id_by_name(
-        source_name: str,
-        user_id: str = Depends(get_current_user_with_server),
-    ):
-        """
-        Get a source by name
-        """
-        interface.clear()
-        source = server.get_source_id(source_name=source_name, user_id=user_id)
-        return source
-
-    @router.get("/sources", tags=["sources"], response_model=List[Source])
-    async def list_sources(
-        user_id: str = Depends(get_current_user_with_server),
-    ):
-        """
-        List all data sources created by a user.
-        """
-        # Clear the interface
-        interface.clear()
-
-        try:
-            sources = server.list_all_sources(user_id=user_id)
-            return sources
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"{e}")
-
-    @router.post("/sources", tags=["sources"], response_model=Source)
-    async def create_source(
-        request: SourceCreate = Body(...),
-        user_id: str = Depends(get_current_user_with_server),
-    ):
-        """
-        Create a new data source.
-        """
-        interface.clear()
-        try:
-            return server.create_source(request=request, user_id=user_id)
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"{e}")
-
     @router.post("/sources/{source_id}", tags=["sources"], response_model=Source)
     async def update_source(
         source_id: str,
@@ -147,22 +89,6 @@ def setup_sources_index_router(server: SyncServer, interface: QueuingInterface, 
         interface.clear()
         try:
             return server.update_source(request=request, user_id=user_id)
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"{e}")
-
-    @router.delete("/sources/{source_id}", tags=["sources"])
-    async def delete_source(
-        source_id: str,
-        user_id: str = Depends(get_current_user_with_server),
-    ):
-        """
-        Delete a data source.
-        """
-        interface.clear()
-        try:
-            server.delete_source(source_id=source_id, user_id=user_id)
         except HTTPException:
             raise
         except Exception as e:

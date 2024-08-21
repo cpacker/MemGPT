@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 import tempfile
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
-from memgpt.schemas.source import Source
+from memgpt.schemas.source import Source, SourceCreate
 from memgpt.data_sources.connectors import DirectoryConnector
 from memgpt.schemas.job import Job
 from memgpt.orm.enums import JobStatus
@@ -21,8 +21,31 @@ from memgpt.server.rest_api.interface import QueuingInterface
 
 router = APIRouter(prefix="/sources", tags=["sources"])
 
+@router.get("/{source_id}", response_model=Source)
+async def get_source(
+    source_id: str,
+    server: "SyncServer" = Depends(get_memgpt_server),
+    interface: "QueuingInterface" = Depends(get_current_interface),
+):
+    """
+    Get all sources
+    """
+    interface.clear()
+    return server.get_source(source_id=source_id, user_id=server.get_current_user().id)
 
-@router.get("/")
+@router.get("/name/{source_name}", response_model=str)
+async def get_source_id_by_name(
+    source_name: str,
+    server: "SyncServer" = Depends(get_memgpt_server),
+    interface: "QueuingInterface" = Depends(get_current_interface),
+):
+    """
+    Get a source by name
+    """
+    interface.clear()
+    return server.get_source_id(source_name=source_name, user_id=server.get_current_user().id)
+
+@router.get("/", response_model=List[Source])
 async def list_sources(
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -31,18 +54,12 @@ async def list_sources(
     List all data sources created by a user.
     """
     actor = server.get_current_user()
-    # Clear the interface
     interface.clear()
+    return server.list_all_sources(user_id=actor.id)
 
-    try:
-        sources = server.list_all_sources(user_id=actor._id)
-        return ListSourcesResponse(sources=sources)
-    except (MultipleResultsFound, NoResultFound) as e:
-        raise HTTPException(status_code=404, detail=f"No sources found for {actor}") from e
-
-@router.post("/")
+@router.post("/", response_model=Source)
 async def create_source(
-    source: CreateSourceRequest,
+    source: SourceCreate,
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -51,21 +68,11 @@ async def create_source(
     """
     actor = server.get_current_user()
     interface.clear()
-    # TODO: don't use Source and just use Source once pydantic migration is complete
-    source = server.create_source(name=source.name, user_id=actor._id)
-    return Source(
-        name=source.name,
-        description=None,  # TODO: actually store descriptions
-        user_id=source.user_id,
-        id=source.id,
-        embedding_config=server.server_embedding_config,
-        created_at=source.created_at.timestamp(),
-    )
-
+    return server.create_source(request=source, user_id=actor.id)
 
 @router.delete("/{source_id}")
 async def delete_source(
-    source_id: "UUID",
+    source_id: "str",
     server: "SyncServer" = Depends(get_memgpt_server),
     interface: "QueuingInterface" = Depends(get_current_interface),
 ):
@@ -74,13 +81,12 @@ async def delete_source(
     """
     actor = server.get_current_user()
     interface.clear()
-    server.delete_source(source_id=source_id, user_id=actor._id)
-    return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Source source_id={source_id} successfully deleted"})
+    server.delete_source(source_id=source_id, user_id=actor.id)
 
 @router.post("/{source_id}/attach")
 async def attach_source_to_agent(
-    source_id: "UUID",
-    agent_id: "UUID" = Query(..., description="The unique identifier of the agent to attach the source to."),
+    source_id: "str",
+    agent_id: "str" = Query(..., description="The unique identifier of the agent to attach the source to."),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -178,45 +184,11 @@ async def list_documents(
     return GetSourceDocumentsResponse(documents=documents)
 
 
-def load_file_to_source(server: SyncServer,
-                        user_id: "UUID",
-                        source: Source,
-                        job_id: "UUID",
-                        file: UploadFile,
-                        bytes: bytes):
-    # TODO: simplify the middleware in here and move this to a controller
-    # update job status
-    job = server.ms.get_job(job_id=job_id)
-    job.status = JobStatus.running
-    server.ms.update_job(job)
+def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):
+    # write the file to a temporary directory (deleted after the context manager exits)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        file_path = os.path.join(tmpdirname, file.filename)
+        with open(file_path, "wb") as buffer:
+            buffer.write(bytes)
 
-    try:
-        # write the file to a temporary directory (deleted after the context manager exits)
-        with tempfile.TemporaryDirectory() as tmpdirname:
-            file_path = os.path.join(tmpdirname, file.filename)
-            with open(file_path, "wb") as buffer:
-                buffer.write(bytes)
-
-            # read the file
-            connector = DirectoryConnector(input_files=[file_path])
-
-            # TODO: pre-compute total number of passages?
-
-            # load the data into the source via the connector
-            num_passages, num_documents = server.load_data(user_id=user_id, source_name=source.name, connector=connector)
-    except Exception as e:
-        # job failed with error
-        error = str(e)
-        print(error)
-        job.status = JobStatus.failed
-        job.metadata_["error"] = error
-        server.ms.update_job(job)
-        # TODO: delete any associated passages/documents?
-        return 0, 0
-
-    # update job status
-    job.status = JobStatus.completed
-    job.metadata_["num_passages"] = num_passages
-    job.metadata_["num_documents"] = num_documents
-    print("job completed", job.metadata_, job.id)
-    server.ms.update_job(job)
+        server.load_file_to_source(source_id, file_path, job_id)
