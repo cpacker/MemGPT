@@ -42,4 +42,4 @@ class Token(SqlalchemyBase, UserMixin):
     @classmethod
     def get_by_api_key(cls, db_session:"Session", api_key:str) -> "Token":
         """temporary lookup (insecure! replace!) to get a token by the plain text user api key"""
-        return db_session.query(cls).filter(cls._temporary_shim_api_key == api_key, cls.deleted==False).one()
+        return db_session.query(cls).filter(cls._temporary_shim_api_key == api_key, cls.is_deleted==False).one()

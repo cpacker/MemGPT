@@ -94,19 +94,19 @@ class CreateThreadRunRequest(BaseModel):
 
 class DeleteAssistantResponse(BaseModel):
     id: str = Field(..., description="The unique identifier of the agent.")
-    object: str = "assistant.deleted"
+    object: str = "assistant.is_deleted"
     deleted: bool = Field(..., description="Whether the agent was deleted.")
 
 
 class DeleteAssistantFileResponse(BaseModel):
     id: str = Field(..., description="The unique identifier of the file.")
-    object: str = "assistant.file.deleted"
+    object: str = "assistant.file.is_deleted"
     deleted: bool = Field(..., description="Whether the file was deleted.")
 
 
 class DeleteThreadResponse(BaseModel):
     id: str = Field(..., description="The unique identifier of the agent.")
-    object: str = "thread.deleted"
+    object: str = "thread.is_deleted"
     deleted: bool = Field(..., description="Whether the agent was deleted.")
 
 

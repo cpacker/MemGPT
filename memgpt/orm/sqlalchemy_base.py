@@ -90,6 +90,8 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         query = select(cls).where(cls._id == identifier)
         if actor:
             query = cls.apply_access_predicate(query, actor, access)
+        if hasattr(cls, "is_deleted"):
+            query = query.where(cls.is_deleted == False)
         if found := db_session.execute(query).scalar():
             return found
         raise NoResultFound(f"{cls.__name__} with id {identifier} not found")
@@ -136,7 +138,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         )
         if not org_uid:
             raise ValueError("object %s has no organization accessor", actor)
-        return query.where(cls._organization_id == org_uid, cls.deleted == False)
+        return query.where(cls._organization_id == org_uid, cls.is_deleted == False)
 
     @property
     def __pydantic_model__(self) -> Type["BaseModel"]:
