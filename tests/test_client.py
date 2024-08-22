@@ -2,43 +2,12 @@ import pytest
 from faker import Faker
 
 from memgpt.settings import settings
-from memgpt import create_client
-from tests.mock_factory.models import (
-    MockUserFactory,
-    MockOrganizationFactory,
-    MockTokenFactory,
-)
 from memgpt.schemas.message import Message
 from memgpt.schemas.usage import MemGPTUsageStatistics
 
 faker = Faker()
 
 test_agent_name = "TestAgent"
-
-
-# Fixture to create clients with different configurations
-@pytest.fixture(
-    params=[{"server": True}],  # whether to use REST API server
-)
-def client(request, db_session, test_app):
-    if request.param["server"]:
-        org = MockOrganizationFactory(db_session=db_session).generate()
-        requesting_user = MockUserFactory(db_session=db_session, organization_id=org.id).generate()
-        api_token = MockTokenFactory(db_session=db_session, user_id=requesting_user.id).generate()
-        token = api_token.api_key
-        client_args = {
-            "base_url": "http://test",
-            "token": token,
-            "debug": True,
-            "app": test_app
-        }
-    else:
-        # use local client (no server)
-        client_args = {
-            "token": None,
-            "base_url": None
-        }
-    yield create_client(**client_args)
 
 # Fixture for test agent
 @pytest.fixture

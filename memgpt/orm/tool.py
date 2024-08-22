@@ -5,6 +5,7 @@ from typing import Optional, TYPE_CHECKING, List
 from sqlalchemy import String, JSON
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
+from memgpt.orm.errors import NoResultFound
 from memgpt.orm.enums import ToolSourceType
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import OrganizationMixin
@@ -42,7 +43,9 @@ class Tool(SqlalchemyBase, OrganizationMixin):
 
     @classmethod
     def read(cls, db_session:"Session", name:str) -> "Tool":
-        return db_session.query(cls).filter(cls.name == name).one()
+        if found := db_session.query(cls).filter(cls.name == name).scalar():
+            return found
+        raise NoResultFound(f"{cls.__name__} with name {name} not found")
 
 
     @classmethod

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 
-
+from memgpt import create_client
 from memgpt.settings import settings, BackendConfiguration
 from memgpt.orm.utilities import create_engine
 from memgpt.orm.__all__ import Base
@@ -12,7 +12,11 @@ from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.app import app
 
-from tests.mock_factory.models import MockUserFactory, MockAgentFactory
+from tests.mock_factory.models import (
+    MockUserFactory,
+    MockOrganizationFactory,
+    MockTokenFactory,
+)
 
 
 if TYPE_CHECKING:
@@ -82,3 +86,27 @@ def user_and_agent_seed(db_session):
     user = MockUserFactory(db_session=db_session).generate()
     agent = MockAgentFactory(db_session=db_session, user_id=user.id).generate()
     return user, agent
+
+# Fixture to create clients with different configurations
+@pytest.fixture(
+    params=[{"server": True}],  # whether to use REST API server
+)
+def client(request, db_session, test_app):
+    if request.param["server"]:
+        org = MockOrganizationFactory(db_session=db_session).generate()
+        requesting_user = MockUserFactory(db_session=db_session, organization_id=org.id).generate()
+        api_token = MockTokenFactory(db_session=db_session, user_id=requesting_user.id).generate()
+        token = api_token.api_key
+        client_args = {
+            "base_url": "http://test",
+            "token": token,
+            "debug": True,
+            "app": test_app
+        }
+    else:
+        # use local client (no server)
+        client_args = {
+            "token": None,
+            "base_url": None
+        }
+    yield create_client(**client_args)

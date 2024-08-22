@@ -7,6 +7,7 @@ from sqlalchemy.exc import NoResultFound
 from importlib import import_module
 
 from memgpt.log import get_logger
+from memgpt.orm.errors import NoResultFound
 from memgpt.orm.utilities import get_db_session
 from memgpt.orm.token import Token
 from memgpt.orm.agent import Agent
@@ -14,23 +15,17 @@ from memgpt.orm.job import Job
 from memgpt.orm.source import Source
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
 from memgpt.orm.user import User
-from memgpt.orm.tool import Tool
+from memgpt.orm.tool import Tool as SQLTool
+from memgpt.orm.organization import Organization
 
 from memgpt.schemas.agent import AgentState as DataAgentState
 from memgpt.orm.enums import JobStatus
-from memgpt.config import MemGPTConfig
-from memgpt.schemas.agent import AgentState
-from memgpt.schemas.api_key import APIKey
-from memgpt.schemas.block import Block, Human, Persona
-from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.block import Human, Persona
 from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
-from memgpt.schemas.llm_config import LLMConfig
-from memgpt.schemas.memory import Memory
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
-from memgpt.schemas.block import Human, Persona
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -109,11 +104,17 @@ class MetadataStore:
         return [a.to_record() for a in User.read(self.db_session, user_id).agents]
 
     def list_tools(self) -> List[DataAgentState]:
-        return [a.to_record() for a in Tool.list(self.db_session)]
+        return [a.to_record() for a in SQLTool.list(self.db_session)]
 
     def get_tool(self, name: str, user_id: uuid.UUID) -> Optional[DataAgentState]:
-        return Tool.read(self.db_session, name=name).to_record()
+        try:
+            return SQLTool.read(self.db_session, name=name).to_record()
+        except NoResultFound:
+            return None
 
+    def create_tool(self, tool: Tool) -> Tool:
+        splatted_pydantic = {**tool.model_dump(exclude_none=True), "organization_id": Organization.default(self.db_session).id}
+        return SQLTool(**splatted_pydantic).create(self.db_session).to_record()
 
     def __getattr__(self, name):
         """temporary metaprogramming to clean up all the getters and setters here.
@@ -142,7 +143,7 @@ class MetadataStore:
             case "create":
                 def create(schema):
                     splatted_pydantic = schema.model_dump(exclude_none=True)
-                    return Model.create(self.db_session, splatted_pydantic).to_record()
+                    return Model(**splatted_pydantic).create(self.db_session).to_record()
                 return create
             case "update":
                 def update(schema):

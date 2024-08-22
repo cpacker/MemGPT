@@ -1576,7 +1576,7 @@ class SyncServer(Server):
 
         # check if already exists:
         tool_name = request.json_schema["name"]
-        existing_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+        existing_tool = self.ms.get_tool(name=tool_name, user_id=user_id)
         if existing_tool:
             if update:
                 updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
@@ -1584,17 +1584,8 @@ class SyncServer(Server):
                 return updated_tool
             else:
                 raise ValueError(f"Tool {tool_name} already exists and update=False")
-
-        tool = Tool(
-            name=request.name,
-            source_code=request.source_code,
-            source_type=request.source_type,
-            tags=request.tags,
-            json_schema=request.json_schema,
-            user_id=user_id,
-        )
-        self.ms.create_tool(tool)
-        created_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+        
+        created_tool = self.ms.create_tool(request)
         return created_tool
 
     def delete_tool(self, tool_id: str):

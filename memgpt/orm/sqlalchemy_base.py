@@ -102,7 +102,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return self
 
     def delete(self, db_session: "Session") -> Type["SqlalchemyBase"]:
-        self.deleted = True
+        self.is_deleted = True
         return self.update(db_session)
 
     def update(self, db_session: "Session") -> Type["SqlalchemyBase"]:

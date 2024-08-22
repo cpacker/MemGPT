@@ -737,7 +737,7 @@ class RESTClient(AbstractClient):
         tool_name = json_schema["name"] if name else name
 
         request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
-        response = await self.httpx_client.post(f"{self.base_url}/api/tools/{id}", json=request.model_dump(), headers=self.headers)
+        response = await self.httpx_client.post(f"/tools/{id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
         return Tool(**response.json())
