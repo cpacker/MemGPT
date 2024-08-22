@@ -581,8 +581,17 @@ def run(
             embedding_config=agent_state.embedding_config,
         )
 
+        tools = []
+        for tool_name in agent_state.tools:
+            tool = ms.get_tool(tool_name, agent_state.user_id)
+            if tool is None:
+                typer.secho(f"Couldn't find tool {tool_name} in database, please run `memgpt add tool`", fg=typer.colors.RED)
+            tools.append(tool)
+
         # create agent
         memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
+
+
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
