@@ -249,7 +249,7 @@ class SyncServer(Server):
             logger.info(f"Creating an agent object")
             tool_objs = []
             for name in agent_state.tools:
-                tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
+                tool_obj = self.ms.get_tool(name=name, user_id=user_id)
                 if not tool_obj:
                     logger.exception(f"Tool {name} does not exist for user {user_id}")
                     raise ValueError(f"Tool {name} does not exist for user {user_id}")
@@ -657,7 +657,7 @@ class SyncServer(Server):
             # get tools + make sure they exist
             tool_objs = []
             for tool_name in request.tools:
-                tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+                tool_obj = self.ms.get_tool(name=tool_name, user_id=user_id)
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
@@ -735,7 +735,7 @@ class SyncServer(Server):
             # (1) get tools + make sure they exist
             tool_objs = []
             for tool_name in request.tools:
-                tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+                tool_obj = self.ms.get_tool(name=tool_name, user_id=user_id)
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
@@ -846,7 +846,7 @@ class SyncServer(Server):
             # get tool info from agent state
             tools = []
             for tool_name in agent_state.tools:
-                tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+                tool = self.ms.get_tool(name=tool_name, user_id=user_id)
                 tools.append(tool)
             return_dict["tools"] = tools
 
@@ -1533,11 +1533,11 @@ class SyncServer(Server):
 
     def get_tool(self, tool_id: str) -> Tool:
         """Get tool by ID."""
-        return self.ms.get_tool(tool_id=tool_id)
+        return self.ms.get_tool(id=tool_id)
 
     def get_tool_id(self, name: str, user_id: str) -> str:
         """Get tool ID from name and user_id."""
-        tool = self.ms.get_tool(tool_name=name, user_id=user_id)
+        tool = self.ms.get_tool(name=name, user_id=user_id)
         if not tool:
             return None
         return tool.id
@@ -1547,24 +1547,7 @@ class SyncServer(Server):
         request: ToolUpdate,
     ) -> Tool:
         """Update an existing tool"""
-        existing_tool = self.ms.get_tool(tool_id=request.id)
-        if not existing_tool:
-            raise ValueError(f"Tool does not exist")
-
-        # override updated fields
-        if request.source_code:
-            existing_tool.source_code = request.source_code
-        if request.source_type:
-            existing_tool.source_type = request.source_type
-        if request.tags:
-            existing_tool.tags = request.tags
-        if request.json_schema:
-            existing_tool.json_schema = request.json_schema
-        if request.name:
-            existing_tool.name = request.name
-
-        self.ms.update_tool(existing_tool)
-        return self.ms.get_tool(tool_id=request.id)
+        return self.ms.update_tool(request)
 
     def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = False) -> Tool:  # TODO: add other fields
         """Create a new tool"""

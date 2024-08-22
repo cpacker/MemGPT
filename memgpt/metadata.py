@@ -103,12 +103,17 @@ class MetadataStore:
     def list_agents(self, user_id: uuid.UUID) -> List[DataAgentState]:
         return [a.to_record() for a in User.read(self.db_session, user_id).agents]
 
-    def list_tools(self) -> List[DataAgentState]:
+    def list_tools(self) -> List[Tool]:
         return [a.to_record() for a in SQLTool.list(self.db_session)]
 
-    def get_tool(self, name: str, user_id: uuid.UUID) -> Optional[DataAgentState]:
+    def get_tool(self, id: Optional[str]=None, name: Optional[str]=None, user_id: uuid.UUID=None) -> Optional[Tool]:
         try:
-            return SQLTool.read(self.db_session, name=name).to_record()
+            if id:
+                return SQLTool.read_by_id(self.db_session, id=id).to_record()
+            if name:
+                return SQLTool.read(self.db_session, name=name).to_record()
+            else:
+                return None
         except NoResultFound:
             return None
 

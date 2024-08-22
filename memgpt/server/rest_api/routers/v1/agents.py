@@ -7,7 +7,7 @@ from starlette.responses import StreamingResponse
 
 from memgpt.settings import settings
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
-from memgpt.schemas.agent import AgentState, UpdateAgentState
+from memgpt.schemas.agent import AgentState, UpdateAgentState, CreateAgent
 from memgpt.schemas.message import Message
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.memory import Memory, RecallMemorySummary, ArchivalMemorySummary
@@ -46,7 +46,7 @@ def list_agents(
 
 @router.post("/", response_model=AgentState)
 def create_agent(
-    agent: CreateAgentRequest,
+    agent: CreateAgent = Body(...),
     interface: "QueuingInterface" = Depends(get_current_interface),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):

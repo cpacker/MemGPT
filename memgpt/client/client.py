@@ -326,7 +326,7 @@ class RESTClient(AbstractClient):
 
 
     def rename_agent(self, agent_id: str, new_name: str):
-        response = self.httpx_client.patch(f"/api/agents/{agent_id}/rename", json={"agent_name": new_name})
+        response = self.httpx_client.patch(f"/agents/{agent_id}/rename", json={"agent_name": new_name})
         assert response.status_code == 200, f"Failed to rename agent: {response.text}"
 
         return AgentState(**response.json())
@@ -704,7 +704,10 @@ class RESTClient(AbstractClient):
 
         # make REST request
         request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
-        response = await self.httpx_client.post("/tools/", json=request.model_dump(exclude_none=True))
+        response = await self.httpx_client.post("/tools/",
+                                                json=request.model_dump(exclude_none=True),
+                                                params={"update": update},
+                                                )
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return Tool(**response.json())

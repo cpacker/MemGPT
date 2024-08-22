@@ -46,6 +46,12 @@ class Tool(SqlalchemyBase, OrganizationMixin):
         if found := db_session.query(cls).filter(cls.name == name).scalar():
             return found
         raise NoResultFound(f"{cls.__name__} with name {name} not found")
+    
+    @classmethod
+    def read_by_id(cls, db_session:"Session", id:str) -> "Tool":
+        if found := db_session.query(cls).filter(cls.id == id).scalar():
+            return found
+        raise NoResultFound(f"{cls.__name__} with id {id} not found")
 
 
     @classmethod

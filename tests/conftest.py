@@ -16,6 +16,7 @@ from tests.mock_factory.models import (
     MockUserFactory,
     MockOrganizationFactory,
     MockTokenFactory,
+    MockAgentFactory,
 )
 
 
