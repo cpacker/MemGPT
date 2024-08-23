@@ -35,7 +35,7 @@ class Organization(SqlalchemyBase):
     def default(cls, db_session:"Session") -> "Organization":
         """Get the default org, or create it if it doesn't exist."""
         try:
-            return db_session.query(cls).one()
+            return db_session.query(cls).filter(cls.name == "Default Organization").one()
         except NoResultFound:
             return cls(name="Default Organization").create(db_session)
 

@@ -303,10 +303,10 @@ class RESTClient(AbstractClient):
 
         # TODO: why is this here?
         # add memory tools
-        memory_functions = get_memory_functions(memory)
-        for func_name, func in memory_functions.items():
-            tool = await self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
-            tool_names.append(tool.name)
+        # memory_functions = get_memory_functions(memory)
+        # for func_name, func in memory_functions.items():
+        #     tool = await self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
+        #     tool_names.append(tool.name)
 
         request = CreateAgent(
             name=name,

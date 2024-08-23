@@ -7,7 +7,8 @@ from sqlalchemy.orm import sessionmaker
 from memgpt import create_client
 from memgpt.settings import settings, BackendConfiguration
 from memgpt.orm.utilities import create_engine
-from memgpt.orm.__all__ import Base
+from memgpt.orm.__all__ import Base, Tool
+from memgpt.orm.utilities import get_db_session
 from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.server.server import SyncServer
 from memgpt.server.rest_api.app import app
@@ -75,9 +76,12 @@ def server(db_session):
     return SyncServer(db_session=db_session)
 
 @pytest.fixture
-def test_app(server):
+def test_app(server, db_session):
     """a per-test-function db scoped version of the rest api app"""
     app.dependency_overrides[get_memgpt_server] = lambda : server
+    app.dependency_overrides[get_db_session] = lambda : db_session
+
+    Tool.load_default_tools(db_session)
     return app
 
 @pytest.fixture

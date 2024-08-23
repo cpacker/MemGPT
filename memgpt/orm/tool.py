@@ -63,14 +63,15 @@ class Tool(SqlalchemyBase, OrganizationMixin):
 
         for name, schema in functions_to_schema.items():
             source_code = getsource(schema["python_function"])
+            # TODO: this needs to create a new instance not update the existing one
             cls(
-                    name=name,
-                    organization=Organization.default(db_session),
-                    tags=tags,
-                    source_type="python",
-                    module=schema["module"],
-                    source_code=source_code,
-                    json_schema=schema["json_schema"],
+                name=name,
+                organization=Organization.default(db_session),
+                tags=tags,
+                source_type="python",
+                module=schema["module"],
+                source_code=source_code,
+                json_schema=schema["json_schema"],
             ).create(db_session)
 
     @classmethod

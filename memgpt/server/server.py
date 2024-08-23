@@ -629,8 +629,8 @@ class SyncServer(Server):
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
-        if user := self.ms.get_user(user_id):
-            raise ValueError(f"cannot find user with associated client id: {user_id}")
+        # if user := self.ms.get_user(user_id):
+        #     raise ValueError(f"cannot find user with associated id: {user_id}")
 
         if interface is None:
             interface = self.default_interface_factory()
@@ -643,7 +643,8 @@ class SyncServer(Server):
         if request.system is None:
             # TODO: don't hardcode
             request.system = gpt_system.get_system_text("memgpt_chat")
-
+        
+        agent = None
         try:
             # model configuration
             llm_config = request.llm_config if request.llm_config else self.server_llm_config
@@ -1573,43 +1574,6 @@ class SyncServer(Server):
         """List tools available to user_id"""
         tools = self.ms.list_tools(user_id)
         return tools
-
-    def add_default_tools(self, module_name="base", user_id: Optional[str] = None):
-        """Add default tools in {module_name}.py"""
-        full_module_name = f"memgpt.functions.function_sets.{module_name}"
-        try:
-            module = importlib.import_module(full_module_name)
-        except Exception as e:
-            # Handle other general exceptions
-            raise e
-
-        try:
-            # Load the function set
-            functions_to_schema = load_function_set(module)
-        except ValueError as e:
-            err = f"Error loading function set '{module_name}': {e}"
-
-        # create tool in db
-        for name, schema in functions_to_schema.items():
-            # print([str(inspect.getsource(line)) for line in schema["imports"]])
-            source_code = inspect.getsource(schema["python_function"])
-            tags = [module_name]
-            if module_name == "base":
-                tags.append("memgpt-base")
-
-            # create to tool
-            self.create_tool(
-                ToolCreate(
-                    name=name,
-                    tags=tags,
-                    source_type="python",
-                    module=schema["module"],
-                    source_code=source_code,
-                    json_schema=schema["json_schema"],
-                    user_id=user_id,
-                ),
-                update=True,
-            )
 
     def add_default_blocks(self, user_id: str):
         from memgpt.utils import list_human_files, list_persona_files, get_human_text, get_persona_text
