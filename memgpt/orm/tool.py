@@ -46,7 +46,7 @@ class Tool(SqlalchemyBase, OrganizationMixin):
         if found := db_session.query(cls).filter(cls.name == name, cls.is_deleted == False).scalar():
             return found
         raise NoResultFound(f"{cls.__name__} with name {name} not found")
-    
+
     @classmethod
     def read_by_id(cls, db_session:"Session", id:str) -> "Tool":
         if found := db_session.query(cls).filter(cls.id == id, cls.is_deleted == False).scalar():
@@ -60,19 +60,22 @@ class Tool(SqlalchemyBase, OrganizationMixin):
         target_module = importlib.import_module("memgpt.seeds.function_sets.base")
         functions_to_schema = cls._load_function_set(target_module)
         tags = ["base", "memgpt-base"]
-
+        sql_tools = []
+        org = Organization.default(db_session)
         for name, schema in functions_to_schema.items():
             source_code = getsource(schema["python_function"])
             # TODO: this needs to create a new instance not update the existing one
-            cls(
+            sql_tools.append(cls(
                 name=name,
-                organization=Organization.default(db_session),
+                organization=org,
                 tags=tags,
                 source_type="python",
                 module=schema["module"],
                 source_code=source_code,
                 json_schema=schema["json_schema"],
-            ).create(db_session)
+            ))
+        db_session.add_all(sql_tools)
+        db_session.commit()
 
     @classmethod
     def _load_function_set(cls, target_module: ModuleType) -> dict:

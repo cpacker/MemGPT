@@ -42,6 +42,7 @@ def db_session(request) -> "Session":
         },
         "postgres": {
             "statements":(
+                text(f"DROP SCHEMA IF EXISTS {function_} CASCADE"),
                 text(f"CREATE SCHEMA IF NOT EXISTS {function_}"),
                 text(f"CREATE EXTENSION IF NOT EXISTS vector"),
                 text(f"SET search_path TO {function_},public"),
@@ -80,7 +81,6 @@ def test_app(server, db_session):
     """a per-test-function db scoped version of the rest api app"""
     app.dependency_overrides[get_memgpt_server] = lambda : server
     app.dependency_overrides[get_db_session] = lambda : db_session
-
     Tool.load_default_tools(db_session)
     return app
 
