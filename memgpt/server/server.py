@@ -194,7 +194,7 @@ class SyncServer(Server):
         first touchpoint.
         """
         # TODO: this is not real auth code! that is the next PR.
-        return SQLUser.default(self.db_session)
+        return SQLUser.default(self.db_session).to_pydantic()
 
 
     def save_agents(self):
@@ -629,8 +629,8 @@ class SyncServer(Server):
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
-        if self.ms.get_user(user_id) is None:
-            raise ValueError(f"User {user_id} does not exist")
+        if user := self.ms.get_user(user_id):
+            raise ValueError(f"cannot find user with associated client id: {user_id}")
 
         if interface is None:
             interface = self.default_interface_factory()
@@ -643,11 +643,6 @@ class SyncServer(Server):
         if request.system is None:
             # TODO: don't hardcode
             request.system = gpt_system.get_system_text("memgpt_chat")
-
-        logger.debug(f"Attempting to find user: {user_id}")
-        user = self.ms.get_user(user_id)
-        if not user:
-            raise ValueError(f"cannot find user with associated client id: {user_id}")
 
         try:
             # model configuration
@@ -680,6 +675,9 @@ class SyncServer(Server):
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
             )
+            
+            logger.info(f"Created new agent from config: {agent}")
+            save_agent(agent, self.ms)            
         except Exception as e:
             logger.exception(e)
             try:
@@ -689,12 +687,8 @@ class SyncServer(Server):
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
 
-        # save agent
-        save_agent(agent, self.ms)
-        logger.info(f"Created new agent from config: {agent}")
-
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
-        # return AgentState
+
         return agent.agent_state
 
     def update_agent(

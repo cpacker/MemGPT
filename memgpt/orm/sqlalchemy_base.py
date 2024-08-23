@@ -28,14 +28,14 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
     deleted: Mapped[bool] = mapped_column(Boolean, default=False, doc="Is this record deleted? Used for universal soft deletes.")
 
-    @property
-    def __prefix__(self) -> str:
-        return depascalize(self.__class__.__name__)
+    @classmethod
+    def __prefix__(cls) -> str:
+        return depascalize(cls.__name__)
 
     @property
     def id(self) -> Optional[str]:
         if self._id:
-            return f"{self.__prefix__}-{self._id}"
+            return f"{self.__prefix__()}-{self._id}"
 
     @id.setter
     def id(self, value: str) -> None:
@@ -43,7 +43,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return
         prefix, id_ = value.split("-", 1)
         assert (
-            prefix == self.__prefix__
+            prefix == self.__prefix__()
         ), f"{prefix} is not a valid id prefix for {self.__class__.__name__}"
         self._id = UUID(id_)
 
@@ -60,7 +60,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return identifier
         except:
             try:
-                return UUID(identifier.replace(cls.__prefix__,"").strip("-"))
+                return UUID(identifier.replace(f"{cls.__prefix__()}-",""))
             except ValueError as e:
                 raise ValueError(f"{identifier} is not a valid identifier for class {cls.__name__}") from e
 
