@@ -44,7 +44,7 @@ class MetadataStore:
         Args:
             db_session: the database session to use.
         """
-        self.db_session = get_db_session()
+        self.db_session = db_session or get_db_session()
 
     def create_api_key(self,
                        user_id: uuid.UUID,
