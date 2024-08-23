@@ -14,7 +14,7 @@ from memgpt.orm.agent import Agent
 from memgpt.orm.job import Job
 from memgpt.orm.source import Source
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
-from memgpt.orm.user import User
+from memgpt.orm.user import User as SQLUser
 from memgpt.orm.tool import Tool as SQLTool
 from memgpt.orm.organization import Organization
 
@@ -89,7 +89,7 @@ class MetadataStore:
     def get_all_api_keys_for_user(self,
                                   user_id: uuid.UUID) -> List[Token]:
             """"""
-            user = User.read(self.db_session, user_id)
+            user = SQLUser.read(self.db_session, user_id)
             return [r.to_record() for r in user.tokens]
 
     def get_user_from_api_key(self, api_key: str) -> Optional[User]:
@@ -101,7 +101,7 @@ class MetadataStore:
         return Agent.create(self.db_session, agent.model_dump(exclude_none=True))
 
     def list_agents(self, user_id: uuid.UUID) -> List[DataAgentState]:
-        return [a.to_record() for a in User.read(self.db_session, user_id).agents]
+        return [a.to_record() for a in SQLUser.read(self.db_session, user_id).agents]
 
     def list_tools(self) -> List[Tool]:
         return [a.to_record() for a in SQLTool.list(self.db_session)]
@@ -163,7 +163,7 @@ class MetadataStore:
                 def delete(*args):
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org and delete by name
                     if user_uuid := (args[1] if len(args) > 1 else None):
-                        org = User.read(self.db_session, user_uuid).organization
+                        org = SQLUser.read(self.db_session, user_uuid).organization
                         related_set = getattr(org, pluralize(raw_model_name)) or []
                         related_set.filter(name=name).scalar().delete()
                         return
@@ -174,7 +174,7 @@ class MetadataStore:
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org
                 def list(*args, **kwargs):
                     if user_uuid := kwargs.get("id"):
-                        org = User.read(self.db_session, user_uuid).organization
+                        org = SQLUser.read(self.db_session, user_uuid).organization
                         return [r.to_record() for r in getattr(org, pluralize(raw_model_name)) or []]
                     # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
                     return [r.to_record() for r in Model.list(self.db_session)]
@@ -192,7 +192,7 @@ class MetadataStore:
 
     def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
         del limit # TODO: implement pagination as part of predicate
-        return None , [u.to_record() for u in User.list(self.db_session)]
+        return None , [u.to_record() for u in SQLUser.list(self.db_session)]
 
     # agent source metadata
     def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID) -> None:
@@ -212,11 +212,11 @@ class MetadataStore:
         agent.sources.remove(source)
 
     def get_human(self, name: str, user_id: uuid.UUID) -> Optional[Human]:
-        org = User.read(self.db_session, user_id)
+        org = SQLUser.read(self.db_session, user_id)
         return org.human_memory_templates.filter(name=name).scalar()
 
     def get_persona(self, name: str, user_id: uuid.UUID) -> Optional[Persona]:
-        org = User.read(self.db_session, user_id)
+        org = SQLUser.read(self.db_session, user_id)
         return org.human_memory_templates.filter(name=name).scalar()
 
     def update_job_status(self, job_id: uuid.UUID, status: JobStatus):

@@ -256,7 +256,7 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.get("/agents/")
         if response.status_code != 200:
             raise ValueError(f"Failed to list agents: {response.text}")
-        for agent in response.json()["agents"]:
+        for agent in response.json():
             if agent_id and agent["id"] == agent_id:
                 return True
             if agent_name and agent["name"] == agent_name:
