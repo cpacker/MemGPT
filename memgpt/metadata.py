@@ -59,7 +59,7 @@ class MetadataStore:
             api_key: the generated API key string starting with 'sk-'
         """
         token = Token(
-            _user_id=actor._id or user_id,
+            _user_id=actor.id or user_id,
             name=name
         ).create(self.db_session)
         return token.api_key

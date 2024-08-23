@@ -42,7 +42,7 @@ def list_agents(
     """
     actor = server.get_current_user()
     interface.clear()
-    return server.list_agents(user_id=actor._id)
+    return server.list_agents(user_id=actor.id)
 
 @router.post("/", response_model=AgentState)
 def create_agent(
@@ -246,7 +246,7 @@ def get_agent_messages(
     interface.clear()
     # this was in the migrated code - confirm this is incorrect?
     #return server.get_agent_recall_cursor(user_id=actor.id, agent_id=agent_id, before=before, limit=limit, reverse=True)
-    return server.get_agent_messages(user_id=actor._id, agent_id=agent_id, start=start, count=count)
+    return server.get_agent_messages(user_id=actor.id, agent_id=agent_id, start=start, count=count)
 
 @router.get("/{agent_id}/messages-cursor", response_model=GetAgentMessagesResponse)
 def get_agent_messages_cursor(
@@ -266,7 +266,7 @@ def get_agent_messages_cursor(
 
     interface.clear()
     [_, messages] = server.get_agent_recall_cursor(
-        user_id=actor._id, agent_id=agent_id, before=request.before, limit=request.limit, reverse=True
+        user_id=actor.id, agent_id=agent_id, before=request.before, limit=request.limit, reverse=True
     )
     return GetAgentMessagesResponse(messages=messages)
 
@@ -438,7 +438,7 @@ async def send_message_to_agent(
     #"""
     #actor = server.get_current_user()
     #interface.clear()
-    #response = server.run_command(user_id=actor._id,
+    #response = server.run_command(user_id=actor.id,
                                   #agent_id=agent_id,
                                   #command=command.command)
 
@@ -457,11 +457,11 @@ async def send_message_to_agent(
     #"""
     #actor = server.get_current_user()
     #interface.clear()
-    #if not server.ms.get_agent(user_id=actor._id, agent_id=agent_id):
+    #if not server.ms.get_agent(user_id=actor.id, agent_id=agent_id):
         ## agent does not exist
         #raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
 
-    #agent_state = server.get_agent_config(user_id=actor._id, agent_id=agent_id)
+    #agent_state = server.get_agent_config(user_id=actor.id, agent_id=agent_id)
     ## get sources
     #attached_sources = server.list_attached_sources(agent_id=agent_id)
 
@@ -501,7 +501,7 @@ async def send_message_to_agent(
     #valid_name = agent_rename.agent_name
     #actor = server.get_current_user()
     #interface.clear()
-    #agent_state = server.rename_agent(user_id=actor._id, agent_id=agent_id, new_agent_name=valid_name)
+    #agent_state = server.rename_agent(user_id=actor.id, agent_id=agent_id, new_agent_name=valid_name)
     ## get sources
     #attached_sources = server.list_attached_sources(agent_id=agent_id)
     #llm_config = LLMConfig(**vars(agent_state.llm_config))
@@ -535,7 +535,7 @@ async def send_message_to_agent(
     #"""
     #actor = server.get_current_user()
     #interface.clear()
-    #archival_memories = server.get_all_archival_memories(user_id=actor._id, agent_id=agent_id)
+    #archival_memories = server.get_all_archival_memories(user_id=actor.id, agent_id=agent_id)
     #print("archival_memories:", archival_memories)
     #archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["contents"]) for passage in archival_memories]
     #return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)

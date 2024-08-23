@@ -69,7 +69,7 @@ async def create_chat_completion(
         response_messages = await send_message_to_agent(
             server=server,
             agent_id=agent_id,
-            user_id=actor._id,
+            user_id=actor.id,
             role=input_message.role,
             message=input_message.content,
             # Turn streaming OFF

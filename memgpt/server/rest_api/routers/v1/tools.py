@@ -20,7 +20,7 @@ def delete_tool(
     """
     actor = server.get_current_user()
     interface.clear()
-    server.ms.delete_tool(id=tool_id, user_id=actor._id)
+    server.ms.delete_tool(id=tool_id, user_id=actor.id)
 
 
 @router.get("/{tool_id}", tags=["tools"], response_model=Tool)
@@ -35,7 +35,7 @@ def get_tool(
     actor = server.get_current_user()
     # Clear the interface
     interface.clear()
-    if tool := server.ms.get_tool(tool_id=tool_id, user_id=actor._id):
+    if tool := server.ms.get_tool(tool_id=tool_id, user_id=actor.id):
         return tool
     # return 404 error
     # TODO issue #13 in the big spreadsheet: Standardize errors and correct error codes
@@ -53,7 +53,7 @@ def list_all_tools(
     actor = server.get_current_user()
     # Clear the interface
     interface.clear()
-    return server.ms.list_tools(user_id=actor._id)
+    return server.ms.list_tools(user_id=actor.id)
 
 
 @router.post("/", tags=["tools"], response_model=Tool)
@@ -69,5 +69,5 @@ def create_tool(
     return server.create_tool(
         request=tool,
         update=update,
-        user_id=actor._id,
+        user_id=actor.id,
     )

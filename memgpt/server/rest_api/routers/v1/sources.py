@@ -93,8 +93,8 @@ async def attach_source_to_agent(
     """
     actor = server.get_current_user()
     interface.clear()
-    source = server.ms.get_source(source_id=source_id, user_id=actor._id)
-    source = server.attach_source_to_agent(source_name=source.name, agent_id=agent_id, user_id=actor._id)
+    source = server.ms.get_source(source_id=source_id, user_id=actor.id)
+    source = server.attach_source_to_agent(source_name=source.name, agent_id=agent_id, user_id=actor.id)
     return Source(
         name=source.name,
         description=None,  # TODO: actually store descriptions
@@ -115,7 +115,7 @@ async def detach_source_from_agent(
     Detach a data source from an existing agent.
     """
     actor = server.get_current_user()
-    server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor._id)
+    server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor.id)
 
 
 @router.get("/status/{job_id}", response_model=Job)
@@ -145,16 +145,16 @@ async def upload_file_to_source(
     """
     actor = server.get_current_user()
     interface.clear()
-    source = server.ms.get_source(source_id=source_id, user_id=actor._id)
+    source = server.ms.get_source(source_id=source_id, user_id=actor.id)
     bytes = file.file.read()
 
     # create job
-    job = Job(user_id=actor._id, metadata={"type": "embedding", "filename": file.filename, "source_id": source_id})
+    job = Job(user_id=actor.id, metadata={"type": "embedding", "filename": file.filename, "source_id": source_id})
     job_id = job.id
     server.ms.create_job(job)
 
     # create background task
-    background_tasks.add_task(load_file_to_source_async, server, actor._id, source, job_id, file, bytes)
+    background_tasks.add_task(load_file_to_source_async, server, actor.id, source, job_id, file, bytes)
 
     # return job information
     job = server.ms.get_job(job_id=job_id)
@@ -170,7 +170,7 @@ async def list_passages(
     List all passages associated with a data source.
     """
     actor = server.get_current_user()
-    passages = server.list_data_source_passages(user_id=actor._id, source_id=source_id)
+    passages = server.list_data_source_passages(user_id=actor.id, source_id=source_id)
     return GetSourcePassagesResponse(passages=passages)
 
 
@@ -183,7 +183,7 @@ async def list_documents(
     List all documents associated with a data source.
     """
     actor = server.get_current_user()
-    documents = server.list_data_source_documents(user_id=actor._id, source_id=source_id)
+    documents = server.list_data_source_documents(user_id=actor.id, source_id=source_id)
     return GetSourceDocumentsResponse(documents=documents)
 
 

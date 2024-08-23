@@ -22,7 +22,7 @@ async def list_humans(
     actor = server.get_current_user()
     # Clear the interface
     interface.clear()
-    humans = server.ms.list_humans(user_id=actor._id)
+    humans = server.ms.list_humans(user_id=actor.id)
     return ListHumansResponse(humans=humans)
 
 @router.post("/",  response_model=Human)
@@ -34,10 +34,10 @@ async def create_human(
     actor = server.get_current_user()
     # TODO: disallow duplicate names for humans
     interface.clear()
-    new_human = Human(text=request.text, name=request.name, user_id=actor._id)
+    new_human = Human(text=request.text, name=request.name, user_id=actor.id)
     human_id = new_human.id
     server.ms.add_human(new_human)
-    return Human(id=human_id, text=request.text, name=request.name, user_id=actor._id)
+    return Human(id=human_id, text=request.text, name=request.name, user_id=actor.id)
 
 @router.delete("/{human_name}",  response_model=Human)
 async def delete_human(
@@ -47,7 +47,7 @@ async def delete_human(
 ):
     actor = server.get_current_user()
     interface.clear()
-    human = server.ms.delete_human(human_name, user_id=actor._id)
+    human = server.ms.delete_human(human_name, user_id=actor.id)
     return human
 
 @router.get("/{human_name}",  response_model=Human)
@@ -58,7 +58,7 @@ async def get_human(
 ):
     actor = server.get_current_user()
     interface.clear()
-    human = server.ms.get_human(human_name, user_id=actor._id)
+    human = server.ms.get_human(human_name, user_id=actor.id)
     if human is None:
         raise HTTPException(status_code=404, detail="Human not found")
     return human
