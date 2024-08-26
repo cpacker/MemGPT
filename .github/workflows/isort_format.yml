@@ -25,10 +25,11 @@ jobs:
         run: poetry run isort --profile black --check-only .
         continue-on-error: true
 
-      - name: Check isort Output
+      - name: Auto-fix with isort and commit
         if: steps.isort.outcome == 'failure'
         run: |
-          poetry run isort --version
-          poetry run python --version
-          echo "isort check failed. To fix, please run 'poetry run isort --profile black .'"
-          exit 1
+          poetry run isort --profile black .
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -am "Apply isort import ordering" || echo "No changes to commit"
+          git push

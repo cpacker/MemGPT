@@ -24,23 +24,11 @@ jobs:
         id: black
         run: poetry run black --check .
         continue-on-error: true
-
-      - name: Check Black Output
-        if: steps.black.outcome == 'failure'
+      - name: Auto-fix with Black and commit
+        if: failure()
         run: |
-          echo "Black check failed. To fix, please run 'poetry run black .'"
-          exit 1
-
-
-
-      # (Optional) If you want to automatically fix formatting issues
-      # Uncomment the following steps:
-
-      # - name: Auto-fix with Black and commit
-      #   if: failure()
-      #   run: |
-      #     black .
-      #     git config --local user.email "action@github.com"
-      #     git config --local user.name "GitHub Action"
-      #     git commit -am "Apply Black formatting" || echo "No changes to commit"
-      #     git push
+          black .
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -am "Apply Black formatting" || echo "No changes to commit"
+          git push
