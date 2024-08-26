@@ -1,7 +1,7 @@
 import json
 
 import memgpt.system as system
-from memgpt.constants import
+from memgpt.utils import json_dumps
 from memgpt.local_llm.function_parser import patch_function
 
 EXAMPLE_FUNCTION_CALL_SEND_MESSAGE = {

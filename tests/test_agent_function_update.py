@@ -1,5 +1,4 @@
 import inspect
-import json
 import os
 import uuid
 import pytest
@@ -8,7 +7,7 @@ from memgpt.settings import settings
 from memgpt import constants, create_client
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.schemas.message import Message
-from memgpt.utils import assistant_function_to_tool
+from memgpt.utils import assistant_function_to_tool, json_loads, json_dumps
 
 from tests.mock_factory.models import MockUserFactory
 from tests.utils import create_config, wipe_config
@@ -63,7 +62,7 @@ def ai_function_call():
                 "content": "I will now call hello world",
                 "function_call": {
                     "name": "hello_world",
-                    "arguments": json.dumps({}),
+                    "arguments": json_dumps({}),
                 },
             }
         )
@@ -77,7 +76,7 @@ def test_add_function_happy(agent, hello_world_function, ai_function_call):
     assert "hello_world" in agent.functions_python.keys()
 
     msgs, heartbeat_req, function_failed = agent._handle_ai_response(ai_function_call)
-    content = json.loads(msgs[-1].to_openai_dict()["content"], strict=constants.)
+    content = json_loads(msgs[-1].to_openai_dict()["content"])
     assert content["message"] == "hello, world!"
     assert content["status"] == "OK"
     assert not function_failed
