@@ -107,7 +107,7 @@ def compile_system_message(
             archival_memory=archival_memory,
             recall_memory=recall_memory,
         )
-        full_memory_string = memory_metadata_string + "\n" + in_context_memory.string()
+        full_memory_string = memory_metadata_string + "\n" + in_context_memory.compile()
 
         # Add to the variables list to inject
         variables[IN_CONTEXT_MEMORY_KEYWORD] = full_memory_string
@@ -216,7 +216,7 @@ class Agent(object):
         # Initialize the memory object
         self.memory = self.agent_state.memory
         assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
-        printd("Initialized memory object", self.memory.string())
+        printd("Initialized memory object", self.memory.compile())
 
         # Interface must implement:
         # - internal_monologue
@@ -992,7 +992,7 @@ class Agent(object):
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
 
         # NOTE: This is a hacky way to check if the memory has changed
-        memory_repr = self.memory.string()
+        memory_repr = self.memory.compile()
         if not force and memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
             printd(f"Memory has not changed, not rebuilding system")
             return
