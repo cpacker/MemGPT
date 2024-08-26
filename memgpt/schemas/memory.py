@@ -19,9 +19,6 @@ class Memory(BaseModel, validate_assignment=True):
             obj.memory[key] = Block(**value)
         return obj
 
-    def __str__(self) -> str:
-        raise NotImplementedError("Use the .compile() method instead")
-
     def compile(self) -> str:
         """Generate a string representation of the memory in-context"""
         section_strs = []
