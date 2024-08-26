@@ -1,10 +1,10 @@
 import datetime
-import json
 import math
 from typing import Optional
 
 from memgpt.agent import Agent
 from memgpt.constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+from memgpt.utils import json_dumps
 
 ### Functions / tools the agent can use
 # All functions should return a response string (or None)
