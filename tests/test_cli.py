@@ -2,10 +2,9 @@ import subprocess
 import sys
 
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pexpect"])
-from prettytable.colortable import ColorTable
-
 from memgpt.cli.cli_config import ListChoice, add, delete
 from memgpt.cli.cli_config import list as list_command
+from prettytable.colortable import ColorTable
 
 # def test_configure_memgpt():
 #    configure_memgpt()

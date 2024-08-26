@@ -2,7 +2,6 @@ import threading
 import time
 
 import pytest
-
 from memgpt import Admin
 
 test_base_url = "http://localhost:8283"

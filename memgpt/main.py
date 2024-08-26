@@ -19,10 +19,7 @@ from memgpt.cli.cli import delete_agent, open_folder, quickstart, run, server, v
 from memgpt.cli.cli_config import add, add_tool, configure, delete, list, list_tools
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import MemGPTConfig
-from memgpt.constants import (
-    FUNC_FAILED_HEARTBEAT_MESSAGE,
-    REQ_HEARTBEAT_MESSAGE,
-)
+from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, REQ_HEARTBEAT_MESSAGE
 from memgpt.metadata import MetadataStore
 from memgpt.schemas.enums import OptionState
 

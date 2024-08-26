@@ -2,6 +2,9 @@ import sys
 import uuid
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import memgpt.constants as constants
+import memgpt.system as system
+import memgpt.utils as utils
 from autogen.agentchat import (
     Agent,
     ConversableAgent,
@@ -9,10 +12,6 @@ from autogen.agentchat import (
     GroupChatManager,
     UserProxyAgent,
 )
-
-import memgpt.constants as constants
-import memgpt.system as system
-import memgpt.utils as utils
 from memgpt.agent import Agent as MemGPTAgent
 from memgpt.agent import save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType

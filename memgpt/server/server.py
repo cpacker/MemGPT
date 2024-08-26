@@ -16,7 +16,6 @@ from fastapi import HTTPException
 import memgpt.constants as constants
 import memgpt.server.utils as server_utils
 import memgpt.system as system
-from memgpt.utils import json_dumps, json_loads
 from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_config import get_model_options
@@ -66,7 +65,7 @@ from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.schemas.user import User, UserCreate
-from memgpt.utils import create_random_username
+from memgpt.utils import create_random_username, json_dumps, json_loads
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 

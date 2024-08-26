@@ -1,8 +1,8 @@
 import json
 import re
 
-from memgpt.utils import json_loads
 from memgpt.errors import LLMJSONParsingError
+from memgpt.utils import json_loads
 
 
 def clean_json_string_extra_backslash(s):

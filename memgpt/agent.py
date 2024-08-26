@@ -6,7 +6,6 @@ from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
 
-from memgpt.utils import json_dumps, json_loads
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.constants import (
     CLI_WARNING_PREFIX,
@@ -43,6 +42,8 @@ from memgpt.utils import (
     get_tool_call_id,
     get_utc_time,
     is_utc_datetime,
+    json_dumps,
+    json_loads,
     parse_json,
     printd,
     united_diff,

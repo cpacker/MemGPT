@@ -5,10 +5,9 @@ from typing import List, Optional
 
 from colorama import Fore, Style, init
 
-from memgpt.utils import json_loads
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.schemas.message import Message
-from memgpt.utils import printd
+from memgpt.utils import json_loads, printd
 
 init(autoreset=True)
 

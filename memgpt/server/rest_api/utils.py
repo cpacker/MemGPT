@@ -5,11 +5,11 @@ from typing import AsyncGenerator, Union
 
 from pydantic import BaseModel
 
-from memgpt.utils import json_dumps
-from memgpt.orm.utilities import get_db_session
 from memgpt.orm.user import User
-from memgpt.server.server import SyncServer
+from memgpt.orm.utilities import get_db_session
 from memgpt.server.rest_api.interface import StreamingServerInterface
+from memgpt.server.server import SyncServer
+from memgpt.utils import json_dumps
 
 SSE_PREFIX = "data: "
 SSE_SUFFIX = "\n\n"

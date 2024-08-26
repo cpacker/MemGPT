@@ -5,7 +5,6 @@ import uuid
 
 import pytest
 from dotenv import load_dotenv
-
 from memgpt import Admin, create_client
 from memgpt.agent import Agent
 from memgpt.constants import DEFAULT_PRESET

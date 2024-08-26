@@ -4,7 +4,6 @@ import uuid
 
 import requests
 
-from memgpt.utils import json_dumps
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.local_llm.constants import DEFAULT_WRAPPER
@@ -33,7 +32,7 @@ from memgpt.schemas.openai.chat_completion_response import (
     ToolCall,
     UsageStatistics,
 )
-from memgpt.utils import get_tool_call_id, get_utc_time
+from memgpt.utils import get_tool_call_id, get_utc_time, json_dumps
 
 has_shown_warning = False
 grammar_supported_backends = ["koboldcpp", "llamacpp", "webui", "webui-legacy"]

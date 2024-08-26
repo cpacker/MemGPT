@@ -2,10 +2,9 @@ import asyncio
 
 import pytest
 import websockets
-
-from memgpt.utils import json_dumps
 from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.ws_api.server import WebSocketServer
+from memgpt.utils import json_dumps
 
 
 @pytest.mark.asyncio

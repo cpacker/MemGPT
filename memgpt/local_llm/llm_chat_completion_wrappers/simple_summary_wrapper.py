@@ -1,6 +1,7 @@
 import json
 
 from memgpt.utils import json_dumps, json_loads
+
 from .wrapper_base import LLMChatCompletionWrapper
 
 
