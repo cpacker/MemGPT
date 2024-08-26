@@ -12,7 +12,7 @@ from memgpt.schemas.enums import MessageRole
 from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
 from memgpt.schemas.openai.chat_completions import ToolCall
-from memgpt.utils import get_utc_time, is_utc_datetime
+from memgpt.utils import get_utc_time, is_utc_datetime, json_dumps
 
 
 def add_inner_thoughts_to_tool_call(
