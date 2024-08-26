@@ -216,7 +216,7 @@ class Agent(object):
         # Initialize the memory object
         self.memory = self.agent_state.memory
         assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
-        printd("Initialized memory object", self.memory)
+        printd("Initialized memory object", self.memory.string())
 
         # Interface must implement:
         # - internal_monologue
