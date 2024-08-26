@@ -17,6 +17,8 @@ from memgpt.constants import (
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
 )
+from memgpt.orm.utilities import get_db_session
+from memgpt.orm.agent import Agent as SQLAgent
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
 from memgpt.memory import ArchivalMemory, RecallMemory, summarize_messages
@@ -197,11 +199,10 @@ class Agent(object):
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
-        assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
         # Hold a copy of the state that was used to init the agent
         self.agent_state = agent_state
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
-
+        
         try:
             self.link_tools(tools)
         except Exception as e:
@@ -1005,7 +1006,7 @@ class Agent(object):
                     # future if we expect templates to change often.
                     continue
                 block_id = block.get("id")
-                db_block = ms.get_block(block_id=block_id)
+                db_block = ms.get_block(id=block_id)
                 if db_block is None:
                     # this case covers if someone has deleted a shared block by interacting
                     # with some other agent.
@@ -1164,7 +1165,7 @@ class Agent(object):
         self.persistence_manager.archival_memory.storage.save()
 
         # attach to agent
-        source = ms.get_source(source_id=source_id)
+        source = ms.get_source(id=source_id)
         assert source is not None, f"Source {source_id} not found in metadata store"
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 
@@ -1181,19 +1182,17 @@ def save_agent(agent: Agent, ms: MetadataStore):
     agent.update_state()
     agent_state = agent.agent_state
     agent_id = agent_state.id
-    assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
 
     # NOTE: we're saving agent memory before persisting the agent to ensure
     # that allocated block_ids for each memory block are present in the agent model
     save_agent_memory(agent=agent, ms=ms)
 
-    if ms.get_agent(agent_id=agent.agent_state.id):
+    if ms.get_agent(id=agent.agent_state.id):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)
 
-    agent.agent_state = ms.get_agent(agent_id=agent_id)
-    assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
+    agent.agent_state = ms.get_agent(id=agent_id)
 
 
 def save_agent_memory(agent: Agent, ms: MetadataStore):
@@ -1204,14 +1203,19 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
     """
 
     print("SAVE AGENT MEMORY", agent.agent_state.memory.to_dict().values())
-
+    organization_id = ms.get_organization().id
     for block_dict in agent.memory.to_dict().values():
         # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
-        if block_dict.get("user_id", None) is None:
-            block_dict["user_id"] = agent.agent_state.user_id
+        # if block_dict.get("user_id", None) is None:
+        #     block_dict["user_id"] = agent.agent_state.user_id
+        block_dict["organization_id"] = organization_id
         block = Block(**block_dict)
         # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
         # the case in some tests, if so we should relax the DB constraint.
         if block.value is None:
             block.value = ""
-        ms.update_or_create_block(block)
+
+        try:
+            ms.update_block(block)
+        except Exception as e:
+            ms.create_block(block)

@@ -1,11 +1,12 @@
-from typing import Optional, TYPE_CHECKING, List
-from pydantic import EmailStr
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.schemas.organization import Organization as PydanticOrganization
 from memgpt.orm.document import Document
+from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
+
 if TYPE_CHECKING:
     from memgpt.orm.user import User
     from memgpt.orm.agent import Agent
@@ -20,7 +21,7 @@ class Organization(SqlalchemyBase):
     __tablename__ = "organization"
     __pydantic_model__ = PydanticOrganization
 
-    name:Mapped[Optional[str]] = mapped_column(nullable=True, doc="The display name of the organization.")
+    name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="The display name of the organization.")
 
     # relationships
     users: Mapped["User"] = relationship("User", back_populates="organization", cascade="all, delete-orphan")

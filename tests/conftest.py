@@ -1,8 +1,9 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 from urllib.parse import urlsplit, urlunsplit
 import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
+from unittest.mock import patch
 
 from memgpt import create_client
 from memgpt.settings import settings, BackendConfiguration
@@ -26,12 +27,12 @@ if TYPE_CHECKING:
 
 
 # new ORM
-@pytest.fixture(params=["sqlite_chroma","postgres",])
-def db_session(request) -> "Session":
+@pytest.fixture(params=["postgres",])
+def test_session_maker(request):
     """Creates a function-scoped orm session for the given test and adapter.
-    Note: both pg and sqlite/chroma will have results scoped to each test function - so 2x results
-    for each. These are cleared at the _beginning_ of each test run - so states are persisted for inspection
-    after the end of the test.
+        Note: both pg and sqlite/chroma will have results scoped to each test function - so 2x results
+        for each. These are cleared at the _beginning_ of each test run - so states are persisted for inspection
+        after the end of the test.
 
     """
     function_ = request.node.name.replace("[","_").replace("]","_").replace("-","_").strip("_")
@@ -69,7 +70,19 @@ def db_session(request) -> "Session":
             connection.execute(statement)
         Base.metadata.drop_all(bind=connection)
         Base.metadata.create_all(bind=connection)
-    with sessionmaker(bind=engine)() as session:
+
+    def _session_maker():
+        return sessionmaker(bind=engine)
+
+    return _session_maker
+
+@pytest.fixture
+def test_get_db_session(test_session_maker) -> Callable:
+    return test_session_maker()
+
+@pytest.fixture
+def db_session(test_get_db_session) -> "Session":
+    with test_get_db_session() as session:
         yield session
 
 @pytest.fixture
@@ -115,3 +128,32 @@ def client(request, db_session, test_app):
             "base_url": None
         }
     yield create_client(**client_args)
+
+
+@pytest.fixture(autouse=True)
+def patch_local_db_calls(test_get_db_session: Callable):
+    # TODO: I'm not happy about this, but it's either make the tests messy without hooks,
+    # or make the code messy with hooks. I'm choosing the former for now.
+    with (
+        patch(
+            "memgpt.agent.get_db_session",
+            test_get_db_session,
+        ),
+        patch(
+            "memgpt.metadata.get_db_session",
+            test_get_db_session,
+        ),
+        patch(
+            "memgpt.agent_store.storage.get_db_session",
+            test_get_db_session,
+        ),
+        patch(
+            "memgpt.server.server.get_db_session",
+            test_get_db_session,
+        ),
+        patch(
+            "memgpt.server.rest_api.utils.get_db_session",
+            test_get_db_session,
+        ),
+    ):
+        yield

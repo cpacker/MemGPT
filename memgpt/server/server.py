@@ -1,8 +1,6 @@
 """See memgpt/server/README.md for context on SyncServer"""
 
-
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
-import json
 import warnings
 from abc import abstractmethod
 from datetime import datetime
@@ -22,8 +20,7 @@ from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
 from memgpt.orm.user import User as SQLUser
-from memgpt.functions.functions import load_function_set, parse_source_code
-from memgpt.functions.schema_generator import generate_schema
+from memgpt.orm.agent import Agent as SQLAgent
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
@@ -57,8 +54,8 @@ from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.schemas.user import User, UserCreate
 from memgpt.utils import create_random_username
 
-# from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
-
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 logger = get_logger(__name__)
 
@@ -657,11 +654,10 @@ class SyncServer(Server):
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
-            # TODO: save the agent state
             agent_state = AgentState(
                 name=request.name,
                 user_id=user_id,
-                tools=request.tools,  # name=id for tools
+                tools=request.tools,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,
@@ -669,6 +665,14 @@ class SyncServer(Server):
                 description=request.description,
                 metadata_=request.metadata_,
             )
+
+            try:
+                sql_state = self.ms.create_agent(agent_state)
+                agent_state.id = sql_state._id
+            except Exception as e:
+                logger.exception(e)
+                raise e
+
             agent = Agent(
                 interface=interface,
                 agent_state=agent_state,
@@ -1311,7 +1315,7 @@ class SyncServer(Server):
 
     def create_api_key(self, request: APIKeyCreate) -> APIKey:  # TODO: add other fields
         """Create a new API key for a user"""
-        token = self.ms.create_api_key(user_id)
+        token = self.ms.create_api_key(request.user_id)
         return token
 
     def list_api_keys(self, user_id: str) -> List[APIKey]:

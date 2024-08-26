@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Optional, Type, Union, List
 from uuid import UUID
-from sqlalchemy import String, Integer, UUID as SQLUUID, ForeignKey, JSON
+from sqlalchemy import Integer, UUID as SQLUUID, ForeignKey, JSON
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy.types import TypeDecorator
 
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
-from memgpt.orm.mixins import _relation_getter, _relation_setter
+from memgpt.orm.mixins import OrganizationMixin
 from memgpt.schemas.block import Block as PydanticBlock, Human, Persona
 
 if TYPE_CHECKING:
@@ -34,32 +34,21 @@ class BlockValue(TypeDecorator):
         return value
 
 
-class Block(SqlalchemyBase):
+class Block(OrganizationMixin, SqlalchemyBase):
     """Blocks are sections of the LLM context, representing a specific part of the total Memory"""
     __tablename__ = 'block'
     __pydantic_model__ = PydanticBlock
 
-    name:Mapped[Optional[str]] = mapped_column(nullable=True, doc="the unique name that identifies a block in a human-readable way")
-    description:Mapped[Optional[str]] = mapped_column(nullable=True, doc="a description of the block for context")
-    label:Mapped[str] = mapped_column(doc="the type of memory block in use, ie 'human', 'persona', 'system'", primary_key=True)
-    is_template:Mapped[bool] = mapped_column(doc="whether the block is a template (e.g. saved human/persona options as baselines for other templates)")
+    name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="the unique name that identifies a block in a human-readable way")
+    description: Mapped[Optional[str]] = mapped_column(nullable=True, doc="a description of the block for context")
+    label: Mapped[str] = mapped_column(doc="the type of memory block in use, ie 'human', 'persona', 'system'", primary_key=True)
+    is_template: Mapped[bool] = mapped_column(doc="whether the block is a template (e.g. saved human/persona options as baselines for other templates)")
     value: Mapped[Optional[Union[List, str]]] = mapped_column(BlockValue, nullable=True, doc="Text content of the block for the respective section of core memory.")
     limit: Mapped[int] = mapped_column(Integer, default=2000, doc="Character limit of the block.")
     metadata_: Mapped[Optional[dict]] = mapped_column(JSON, default={}, doc="arbitrary information related to the block.")
 
-    # custom fkeys
-    _organization_id: Mapped[Optional["UUID"]] = mapped_column(SQLUUID, ForeignKey("organization._id"),nullable=True, doc="the organization this block belongs to, if any")
-
-    @property
-    def organization_id(self) -> str:
-        return _relation_getter(self, "organization")
-
-    @organization_id.setter
-    def organization_id(self, value: str) -> None:
-        _relation_setter(self, "organization", value)
-
     # relationships
-    organization:Mapped[Optional["Organization"]] = relationship("Organization")
+    organization: Mapped[Optional["Organization"]] = relationship("Organization")
 
     def to_pydantic(self) -> Type:
         match self.label:

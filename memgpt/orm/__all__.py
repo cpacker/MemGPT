@@ -9,6 +9,7 @@ from memgpt.orm.source import Source
 from memgpt.orm.tool import Tool
 from memgpt.orm.document import Document
 from memgpt.orm.passage import Passage
+from memgpt.orm.memory_templates import MemoryTemplate, HumanMemoryTemplate, PersonaMemoryTemplate
 from memgpt.orm.sources_agents import SourcesAgents
 from memgpt.orm.tools_agents import ToolsAgents
 from memgpt.orm.job import Job

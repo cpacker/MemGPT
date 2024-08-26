@@ -16,7 +16,7 @@ from memgpt.orm.source import Source
 from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTemplate
 from memgpt.orm.user import User as SQLUser
 from memgpt.orm.tool import Tool as SQLTool
-from memgpt.orm.organization import Organization
+from memgpt.orm.organization import Organization as SQLOrganization
 
 from memgpt.schemas.agent import AgentState as DataAgentState
 from memgpt.orm.enums import JobStatus
@@ -84,42 +84,74 @@ class MetadataStore:
             """legacy token lookup.
             Note: auth should remove this completely - there is no reason to look up a token without a user context.
             """
-            return Token.get_by_api_key(self.db_session, api_key).to_record()
+            return Token.get_by_api_key(self.db_session, api_key).to_pydantic()
 
     def get_all_api_keys_for_user(self,
                                   user_id: uuid.UUID) -> List[Token]:
             """"""
             user = SQLUser.read(self.db_session, user_id)
-            return [r.to_record() for r in user.tokens]
+            return [r.to_pydantic() for r in user.tokens]
 
     def get_user_from_api_key(self, api_key: str) -> Optional[User]:
         """Get the user associated with a given API key"""
-        return Token.get_by_api_key(self.db_session, api_key).user.to_record()
+        return Token.get_by_api_key(self.db_session, api_key).user.to_pydantic()
 
-    def create_agent(self, agent: DataAgentState):
-        "here is one example longhand to demonstrate the meta pattern"
-        return Agent.create(self.db_session, agent.model_dump(exclude_none=True))
+    # TODO this is a hack since the Pydantic model and SQL model differ in types and structure
+    def _clean_agent_state(self, agent_state: DataAgentState, action: str = "create") -> DataAgentState:
+        """Clean an agent state before creating or updating it"""
+        excluded_fields = ["user_id", "memory", "created_at", "tools", "message_ids", "messages",]
+        if action == "create":
+            excluded_fields.append("id")
+        
+        splatted_pydantic = agent_state.model_dump(exclude_none=True, exclude=excluded_fields)
+        
+        splatted_pydantic["organization"] = SQLOrganization.default(self.db_session)
+        
+        # TODO: should not always be getting the default user
+        splatted_pydantic["users"] = [SQLUser.default(self.db_session)]
+        
+        if action == "create":
+            splatted_pydantic["tools"] = [SQLTool.read(self.db_session, name=t) for t in agent_state.tools]
+
+        return splatted_pydantic
+    
+    def create_agent(self, agent_state: DataAgentState):
+        """Create an agent from a DataAgentState
+        *Note* There is not currently a clear SQL <> Pydantic mapping for this object.
+        Args:
+            agent: the agent to create"""
+        return Agent(**self._clean_agent_state(agent_state=agent_state, action="create")).create(self.db_session)
+
+    def update_agent(self, agent_state: DataAgentState):
+        """Create an agent from a DataAgentState
+        *Note* There is not currently a clear SQL <> Pydantic mapping for this object.
+        Args:
+            agent: the agent to create"""
+        return Agent(**self._clean_agent_state(agent_state=agent_state, action="update")).update(self.db_session)
 
     def list_agents(self, user_id: uuid.UUID) -> List[DataAgentState]:
-        return [a.to_record() for a in SQLUser.read(self.db_session, user_id).agents]
+        return [a.to_pydantic() for a in SQLUser.read(self.db_session, user_id).agents]
 
     def list_tools(self) -> List[Tool]:
-        return [a.to_record() for a in SQLTool.list(self.db_session)]
+        return [a.to_pydantic() for a in SQLTool.list(self.db_session)]
 
     def get_tool(self, id: Optional[str]=None, name: Optional[str]=None, user_id: uuid.UUID=None) -> Optional[Tool]:
         try:
             if id:
-                return SQLTool.read_by_id(self.db_session, id=id).to_record()
+                return SQLTool.read_by_id(self.db_session, id=id).to_pydantic()
             if name:
-                return SQLTool.read(self.db_session, name=name).to_record()
+                return SQLTool.read(self.db_session, name=name).to_pydantic()
             else:
                 return None
         except NoResultFound:
             return None
 
     def create_tool(self, tool: Tool) -> Tool:
-        splatted_pydantic = {**tool.model_dump(exclude_none=True), "organization_id": Organization.default(self.db_session).id}
-        return SQLTool(**splatted_pydantic).create(self.db_session).to_record()
+        splatted_pydantic = {**tool.model_dump(exclude_none=True), "organization_id": SQLOrganization.default(self.db_session).id}
+        return SQLTool(**splatted_pydantic).create(self.db_session).to_pydantic()
+
+    def get_organization(self, name: str = "Default Organization") -> SQLOrganization:
+        return SQLOrganization.default(self.db_session)
 
     def __getattr__(self, name):
         """temporary metaprogramming to clean up all the getters and setters here.
@@ -141,14 +173,14 @@ class MetadataStore:
                 # this has no support for scoping, but we won't keep this pattern long
                 try:
                     def get(id, user_id = None):
-                        return Model.read(self.db_session, id).to_record()
+                        return Model.read(self.db_session, id).to_pydantic()
                     return get
                 except IndexError:
                     raise NoResultFound(f"No {raw_model_name} found with id {id}")
             case "create":
                 def create(schema):
                     splatted_pydantic = schema.model_dump(exclude_none=True)
-                    return Model(**splatted_pydantic).create(self.db_session).to_record()
+                    return Model(**splatted_pydantic).create(self.db_session).to_pydantic()
                 return create
             case "update":
                 def update(schema):
@@ -157,7 +189,7 @@ class MetadataStore:
                     for k,v in splatted_pydantic.items():
                         setattr(instance, k, v)
                     instance.update(self.db_session)
-                    return instance.to_record()
+                    return instance.to_pydantic()
                 return update
             case "delete":
                 def delete(*args):
@@ -175,24 +207,24 @@ class MetadataStore:
                 def list(*args, **kwargs):
                     if user_uuid := kwargs.get("id"):
                         org = SQLUser.read(self.db_session, user_uuid).organization
-                        return [r.to_record() for r in getattr(org, pluralize(raw_model_name)) or []]
+                        return [r.to_pydantic() for r in getattr(org, pluralize(raw_model_name)) or []]
                     # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
-                    return [r.to_record() for r in Model.list(self.db_session)]
+                    return [r.to_pydantic() for r in Model.list(self.db_session)]
                 return list
             case _:
                 raise AttributeError(f"Method {name} not found")
 
     def update_human(self, human: Human) -> "Human":
         sql_human = HumanMemoryTemplate(**human.model_dump(exclude_none=True)).create(self.db_session)
-        return sql_human.to_record()
+        return sql_human.to_pydantic()
 
     def update_persona(self, persona: Persona) -> "Persona":
         sql_persona = PersonaMemoryTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
-        return sql_persona.to_record()
+        return sql_persona.to_pydantic()
 
     def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
         del limit # TODO: implement pagination as part of predicate
-        return None , [u.to_record() for u in SQLUser.list(self.db_session)]
+        return None , [u.to_pydantic() for u in SQLUser.list(self.db_session)]
 
     # agent source metadata
     def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID) -> None:

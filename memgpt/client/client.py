@@ -41,6 +41,7 @@ from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.memory import (
     ArchivalMemorySummary,
     ChatMemory,
+    BlockChatMemory,
     Memory,
     RecallMemorySummary,
 )
@@ -277,7 +278,7 @@ class RESTClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(settings.human), persona=get_persona_text(settings.persona)),
+        memory: Memory = BlockChatMemory(blocks=[Block(name="human block", value=get_human_text(settings.human), label="human"), Block(name="persona block", value=get_persona_text(settings.persona), label="persona")]),
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
@@ -833,7 +834,7 @@ class LocalClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(settings.human), persona=get_persona_text(settings.persona)),
+        memory: Memory = BlockChatMemory(blocks=[Block(name="human block", value=get_human_text(settings.human), label="human"), Block(name="persona block", value=get_persona_text(settings.persona), label="persona")]),
         # system
         system: Optional[str] = None,
         # tools

@@ -8,7 +8,6 @@ from sqlalchemy import (
     or_,
     select,
 )
-from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
 from tqdm import tqdm
 
@@ -28,10 +27,7 @@ class SQLStorageConnector(StorageConnector):
         self.config = config
 
     def get_filters(self, filters: Optional[Dict] = {}):
-        if filters is not None:
-            filter_conditions = {**self.filters, **filters}
-        else:
-            filter_conditions = self.filters
+        filter_conditions = {**self.filters, **(filters or {})}
         all_filters = [getattr(self.SQLModel, key) == value for key, value in filter_conditions.items()]
         return all_filters
 

@@ -7,8 +7,7 @@ class BaseOrganization(MemGPTBase, validate_assignment=True):
 
     __id_prefix__ = "organization"
 
-
-
 class Organization(BaseOrganization):
     """An Organization interface with minimal references, good when only the link is needed"""
+    id: str = Field(..., description="The unique id of the organization.")
     name: str = Field(..., description="The name of the organization.")
