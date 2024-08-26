@@ -20,6 +20,9 @@ class Memory(BaseModel, validate_assignment=True):
         return obj
 
     def __str__(self) -> str:
+        raise NotImplementedError("Use the .string() method instead")
+
+    def string(self) -> str:
         """Representation of the memory in-context"""
         section_strs = []
         for section, module in self.memory.items():
