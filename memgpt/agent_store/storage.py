@@ -5,16 +5,19 @@ We originally tried to use Llama Index VectorIndex, but their limited API was ex
 
 import uuid
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, Type, Union
-
-from pydantic import BaseModel
+from typing import Dict, List, Optional, Tuple, Type, Union, TYPE_CHECKING
 
 from memgpt.config import MemGPTConfig
-from memgpt.schemas.document import Document
-from memgpt.schemas.message import Message
-from memgpt.schemas.passage import Passage
-from memgpt.utils import printd
 
+from memgpt.orm.base import Base as SQLBase
+from memgpt.orm.message import Message as SQLMessage
+from memgpt.orm.passage import Passage as SQLPassage
+from memgpt.orm.document import Document as SQLDocument
+from memgpt.orm.utilities import get_db_session
+
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 # ENUM representing table types in MemGPT
 # each table corresponds to a different table schema  (specified in data_types.py)
@@ -39,35 +42,34 @@ DOCUMENT_TABLE_NAME = "memgpt_documents"  # original documents (from source)
 class StorageConnector:
     """Defines a DB connection that is user-specific to access data: Documents, Passages, Archival/Recall Memory"""
 
-    type: Type[BaseModel]
+    SQLModel: SQLBase
+    db_session: "Session" = None
 
     def __init__(
         self,
-        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
+        table_type: TableType,
         config: MemGPTConfig,
-        user_id,
-        agent_id=None,
+        user_id: str,
+        agent_id: str = None,
+        db_session: Optional["Session"] = None
     ):
         self.user_id = user_id
         self.agent_id = agent_id
         self.table_type = table_type
 
-        # get object type
-        if table_type == TableType.ARCHIVAL_MEMORY:
-            self.type = Passage
-            self.table_name = ARCHIVAL_TABLE_NAME
-        elif table_type == TableType.RECALL_MEMORY:
-            self.type = Message
-            self.table_name = RECALL_TABLE_NAME
-        elif table_type == TableType.DOCUMENTS:
-            self.type = Document
-            self.table_name == DOCUMENT_TABLE_NAME
-        elif table_type == TableType.PASSAGES:
-            self.type = Passage
-            self.table_name = PASSAGE_TABLE_NAME
-        else:
-            raise ValueError(f"Table type {table_type} not implemented")
-        printd(f"Using table name {self.table_name}")
+        self.db_session = db_session or get_db_session()
+
+        match table_type:
+            case TableType.ARCHIVAL_MEMORY:
+                self.SQLModel = SQLPassage
+            case TableType.RECALL_MEMORY:
+                self.SQLModel = SQLMessage
+            case TableType.DOCUMENTS:
+                self.SQLModel = SQLDocument
+            case TableType.PASSAGES:
+                self.SQLModel = SQLPassage
+            case _:
+                raise ValueError(f"Table type {table_type} not implemented")
 
         # setup base filters for agent-specific tables
         if self.table_type == TableType.ARCHIVAL_MEMORY or self.table_type == TableType.RECALL_MEMORY:
@@ -83,10 +85,10 @@ class StorageConnector:
 
     @staticmethod
     def get_storage_connector(
-        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
+        table_type: TableType,
         config: MemGPTConfig,
-        user_id,
-        agent_id=None,
+        user_id: str,
+        agent_id: str = None,
     ):
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             storage_type = config.archival_storage_type
@@ -95,35 +97,19 @@ class StorageConnector:
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
-        if storage_type == "postgres":
-            from memgpt.agent_store.db import PostgresStorageConnector
-
-            return PostgresStorageConnector(table_type, config, user_id, agent_id)
-        elif storage_type == "chroma":
-            from memgpt.agent_store.chroma import ChromaStorageConnector
-
-            return ChromaStorageConnector(table_type, config, user_id, agent_id)
-
-        elif storage_type == "qdrant":
-            from memgpt.agent_store.qdrant import QdrantStorageConnector
-
-            return QdrantStorageConnector(table_type, config, user_id, agent_id)
-        # TODO: add back
-        # elif storage_type == "lancedb":
-        #    from memgpt.agent_store.db import LanceDBConnector
-
-        #    return LanceDBConnector(agent_config=agent_config, table_type=table_type)
-
-        elif storage_type == "sqlite":
-            from memgpt.agent_store.db import SQLLiteStorageConnector
-
-            return SQLLiteStorageConnector(table_type, config, user_id, agent_id)
-        elif storage_type == "milvus":
-            from memgpt.agent_store.milvus import MilvusStorageConnector
-
-            return MilvusStorageConnector(table_type, config, user_id, agent_id)
-        else:
-            raise NotImplementedError(f"Storage type {storage_type} not implemented")
+        match storage_type:
+            case "postgres":
+                from memgpt.agent_store.db import PostgresStorageConnector
+                return PostgresStorageConnector(table_type, config, user_id, agent_id)
+            case "sqlite":
+                from memgpt.agent_store.db import SQLLiteStorageConnector
+                return SQLLiteStorageConnector(table_type, config, user_id, agent_id)
+            # TODO: implement other storage types
+            # case "chroma":
+            #     from memgpt.agent_store.chroma import ChromaStorageConnector
+            #     return ChromaStorageConnector(table_type, config, user_id, agent_id)
+            case _:
+                raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
     @staticmethod
     def get_archival_storage_connector(user_id, agent_id):

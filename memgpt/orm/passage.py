@@ -16,6 +16,7 @@ class Passage(DocumentMixin, SqlalchemyBase):
     __tablename__ = "passage"
 
     text: Mapped[str] = mapped_column(doc="The text of the passage.")
+    # TODO: embedding should support PGVector type and switch based on dialect
     embedding: Mapped[Optional[List[float]]] = mapped_column(JSON, doc="The embedding of the passage.", nullable=True)
     embedding_config: Mapped[Optional["EmbeddingConfig"]] = mapped_column(JSON, doc="The embedding configuration used by the passage.",
     nullable=True)
