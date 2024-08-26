@@ -1409,7 +1409,8 @@ class SyncServer(LockingServer):
 
     def authenticate_user(self) -> str:
         # TODO: Implement actual authentication to enable multi user setup
-        return str(MemGPTConfig.load().anon_clientid)
+        # NOTE: THIS IS NASTY, GET RID OF IT SOON
+        return "user-" + str(MemGPTConfig.load().anon_clientid)
 
     def api_key_to_user(self, api_key: str) -> str:
         """Decode an API key to a user"""
