@@ -1,6 +1,5 @@
 import datetime
 import inspect
-import json
 import traceback
 from typing import List, Literal, Optional, Tuple, Union
 
@@ -108,7 +107,7 @@ def compile_system_message(
             archival_memory=archival_memory,
             recall_memory=recall_memory,
         )
-        full_memory_string = memory_metadata_string + "\n" + str(in_context_memory)
+        full_memory_string = memory_metadata_string + "\n" + in_context_memory.string()
 
         # Add to the variables list to inject
         variables[IN_CONTEXT_MEMORY_KEYWORD] = full_memory_string
