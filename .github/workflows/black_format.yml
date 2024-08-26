@@ -25,7 +25,7 @@ jobs:
         run: poetry run black --check .
         continue-on-error: true
       - name: Auto-fix with Black and commit
-        if: failure()
+        if: steps.black.outcome == 'failure' || ${{ !contains(github.event.issue.labels.*.name, 'check-only') }}
         run: |
           black .
           git config --local user.email "action@github.com"

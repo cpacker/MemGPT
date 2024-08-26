@@ -26,7 +26,7 @@ jobs:
         continue-on-error: true
 
       - name: Auto-fix with isort and commit
-        if: steps.isort.outcome == 'failure'
+        if: steps.isort.outcome == 'failure' || ${{ !contains(github.event.issue.labels.*.name, 'check-only') }}
         run: |
           poetry run isort --profile black .
           git config --local user.email "action@github.com"
