@@ -3,12 +3,12 @@ import os
 import uuid
 
 import pytest
+
 from memgpt import constants, create_client
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.schemas.message import Message
 from memgpt.settings import settings
 from memgpt.utils import assistant_function_to_tool, json_dumps, json_loads
-
 from tests.mock_factory.models import MockUserFactory
 from tests.utils import create_config, wipe_config
 

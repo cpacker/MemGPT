@@ -1,7 +1,8 @@
 import uuid
 
-import memgpt.utils as utils
 import pytest
+
+import memgpt.utils as utils
 from memgpt.constants import BASE_TOOLS
 
 utils.DEBUG = True

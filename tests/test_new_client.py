@@ -1,4 +1,5 @@
 import pytest
+
 from memgpt import create_client
 from memgpt.schemas.block import Block
 from memgpt.schemas.memory import BlockChatMemory, ChatMemory, Memory
@@ -263,6 +264,7 @@ def test_tools_from_crewai(client):
     # create crewAI tool
 
     from crewai_tools import ScrapeWebsiteTool
+
     from memgpt.schemas.tool import Tool
 
     crewai_tool = ScrapeWebsiteTool()

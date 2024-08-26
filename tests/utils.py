@@ -4,6 +4,7 @@ from importlib import util
 from typing import Dict, Iterator, List, Tuple
 
 import requests
+
 from memgpt.cli.cli import QuickstartChoice, quickstart
 from memgpt.config import MemGPTConfig
 from memgpt.data_sources.connectors import DataConnector

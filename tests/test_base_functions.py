@@ -1,7 +1,8 @@
 import os
 
-import memgpt.functions.function_sets.base as base_functions
 import pytest
+
+import memgpt.functions.function_sets.base as base_functions
 from memgpt import create_client
 
 from .utils import create_config, wipe_config
