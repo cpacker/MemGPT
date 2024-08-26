@@ -6,7 +6,6 @@ from .constants import (
     INITIAL_BOOT_MESSAGE,
     INITIAL_BOOT_MESSAGE_SEND_MESSAGE_FIRST_MSG,
     INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT,
-
     MESSAGE_SUMMARY_WARNING_STR,
 )
 from .utils import get_local_time

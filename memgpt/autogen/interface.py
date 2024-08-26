@@ -4,7 +4,7 @@ from typing import Optional
 
 from colorama import Fore, Style, init
 
-from memgpt.constants import CLI_WARNING_PREFIX,
+from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.schemas.message import Message
 
 init(autoreset=True)

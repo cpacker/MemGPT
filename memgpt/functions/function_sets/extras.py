@@ -6,8 +6,6 @@ from typing import Optional
 import requests
 
 from memgpt.constants import (
-
-
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
 )

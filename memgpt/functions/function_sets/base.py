@@ -5,7 +5,6 @@ from typing import Optional
 
 from memgpt.agent import Agent
 from memgpt.constants import (
-
     MAX_PAUSE_HEARTBEATS,
     RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE,
 )

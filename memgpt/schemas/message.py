@@ -6,7 +6,7 @@ from typing import List, Optional, Union
 
 from pydantic import Field, field_validator
 
-from memgpt.constants import  TOOL_CALL_ID_MAX_LEN
+from memgpt.constants import TOOL_CALL_ID_MAX_LEN
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 from memgpt.schemas.enums import MessageRole
 from memgpt.schemas.memgpt_base import MemGPTBase

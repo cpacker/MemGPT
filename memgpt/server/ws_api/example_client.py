@@ -4,7 +4,6 @@ import json
 import websockets
 
 import memgpt.server.ws_api.protocol as protocol
-from memgpt.constants import
 from memgpt.server.constants import WS_CLIENT_TIMEOUT, WS_DEFAULT_PORT
 from memgpt.server.utils import condition_to_stop_receiving, print_server_response
 
