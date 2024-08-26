@@ -4,7 +4,6 @@ from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import JSON_ENSURE_ASCII
 from memgpt.local_llm.utils import count_tokens
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest, Tool
@@ -17,7 +16,7 @@ from memgpt.schemas.openai.chat_completion_response import (
     Message as ChoiceMessage,  # NOTE: avoid conflict with our own MemGPT Message datatype
 )
 from memgpt.schemas.openai.chat_completion_response import ToolCall, UsageStatistics
-from memgpt.utils import get_tool_call_id, get_utc_time, smart_urljoin
+from memgpt.utils import get_tool_call_id, get_utc_time, json_dumps, smart_urljoin
 
 BASE_URL = "https://api.cohere.ai/v1"
 
@@ -155,9 +154,7 @@ def convert_cohere_response_to_chatcompletion(
         completion_tokens = response_json["meta"]["billed_units"]["output_tokens"]
     else:
         # For some reason input_tokens not included in 'meta' 'tokens' dict?
-        prompt_tokens = count_tokens(
-            json.dumps(response_json["chat_history"], ensure_ascii=JSON_ENSURE_ASCII)
-        )  # NOTE: this is a very rough approximation
+        prompt_tokens = count_tokens(json_dumps(response_json["chat_history"]))  # NOTE: this is a very rough approximation
         completion_tokens = response_json["meta"]["tokens"]["output_tokens"]
 
     finish_reason = remap_finish_reason(response_json["finish_reason"])

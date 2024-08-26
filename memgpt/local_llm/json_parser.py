@@ -1,8 +1,8 @@
 import json
 import re
 
-from memgpt.constants import JSON_LOADS_STRICT
 from memgpt.errors import LLMJSONParsingError
+from memgpt.utils import json_loads
 
 
 def clean_json_string_extra_backslash(s):
@@ -45,7 +45,7 @@ def extract_first_json(string: str):
             depth -= 1
             if depth == 0 and start_index is not None:
                 try:
-                    return json.loads(string[start_index : i + 1], strict=JSON_LOADS_STRICT)
+                    return json_loads(string[start_index : i + 1])
                 except json.JSONDecodeError as e:
                     raise LLMJSONParsingError(f"Matched closing bracket, but decode failed with error: {str(e)}")
     printd("No valid JSON object found.")
@@ -174,21 +174,21 @@ def clean_json(raw_llm_output, messages=None, functions=None):
     from memgpt.utils import printd
 
     strategies = [
-        lambda output: json.loads(output, strict=JSON_LOADS_STRICT),
-        lambda output: json.loads(output + "}", strict=JSON_LOADS_STRICT),
-        lambda output: json.loads(output + "}}", strict=JSON_LOADS_STRICT),
-        lambda output: json.loads(output + '"}}', strict=JSON_LOADS_STRICT),
+        lambda output: json_loads(output),
+        lambda output: json_loads(output + "}"),
+        lambda output: json_loads(output + "}}"),
+        lambda output: json_loads(output + '"}}'),
         # with strip and strip comma
-        lambda output: json.loads(output.strip().rstrip(",") + "}", strict=JSON_LOADS_STRICT),
-        lambda output: json.loads(output.strip().rstrip(",") + "}}", strict=JSON_LOADS_STRICT),
-        lambda output: json.loads(output.strip().rstrip(",") + '"}}', strict=JSON_LOADS_STRICT),
+        lambda output: json_loads(output.strip().rstrip(",") + "}"),
+        lambda output: json_loads(output.strip().rstrip(",") + "}}"),
+        lambda output: json_loads(output.strip().rstrip(",") + '"}}'),
         # more complex patchers
-        lambda output: json.loads(repair_json_string(output), strict=JSON_LOADS_STRICT),
-        lambda output: json.loads(repair_even_worse_json(output), strict=JSON_LOADS_STRICT),
+        lambda output: json_loads(repair_json_string(output)),
+        lambda output: json_loads(repair_even_worse_json(output)),
         lambda output: extract_first_json(output + "}}"),
         lambda output: clean_and_interpret_send_message_json(output),
         # replace underscores
-        lambda output: json.loads(replace_escaped_underscores(output), strict=JSON_LOADS_STRICT),
+        lambda output: json_loads(replace_escaped_underscores(output)),
         lambda output: extract_first_json(replace_escaped_underscores(output) + "}}"),
     ]
 

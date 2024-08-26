@@ -4,7 +4,6 @@ import json
 import websockets
 
 import memgpt.server.ws_api.protocol as protocol
-from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.server.constants import WS_CLIENT_TIMEOUT, WS_DEFAULT_PORT
 from memgpt.server.utils import condition_to_stop_receiving, print_server_response
 
@@ -27,12 +26,12 @@ async def send_message_and_print_replies(websocket, user_message, agent_id):
     # Wait for messages in a loop, since the server may send a few
     while True:
         response = await asyncio.wait_for(websocket.recv(), WS_CLIENT_TIMEOUT)
-        response = json.loads(response, strict=JSON_LOADS_STRICT)
+        response = json_loads(response)
 
         if CLEAN_RESPONSES:
             print_server_response(response)
         else:
-            print(f"Server response:\n{json.dumps(response, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}")
+            print(f"Server response:\n{json_dumps(response, indent=2)}")
 
         # Check for a specific condition to break the loop
         if condition_to_stop_receiving(response):
@@ -62,8 +61,8 @@ async def basic_cli_client():
                     await websocket.send(protocol.client_command_create(example_config))
                     # Wait for the response
                     response = await websocket.recv()
-                    response = json.loads(response, strict=JSON_LOADS_STRICT)
-                    print(f"Server response:\n{json.dumps(response, indent=2, ensure_ascii=JSON_ENSURE_ASCII)}")
+                    response = json_loads(response)
+                    print(f"Server response:\n{json_dumps(response, indent=2)}")
 
                     await asyncio.sleep(1)
 

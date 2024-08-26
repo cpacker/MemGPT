@@ -19,12 +19,7 @@ from memgpt.cli.cli import delete_agent, open_folder, quickstart, run, server, v
 from memgpt.cli.cli_config import add, add_tool, configure, delete, list, list_tools
 from memgpt.cli.cli_load import app as load_app
 from memgpt.config import MemGPTConfig
-from memgpt.constants import (
-    FUNC_FAILED_HEARTBEAT_MESSAGE,
-    JSON_ENSURE_ASCII,
-    JSON_LOADS_STRICT,
-    REQ_HEARTBEAT_MESSAGE,
-)
+from memgpt.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, REQ_HEARTBEAT_MESSAGE
 from memgpt.metadata import MetadataStore
 from memgpt.schemas.enums import OptionState
 
@@ -275,14 +270,14 @@ def run_agent_loop(
                                 if args_string is None:
                                     print("Assistant missing send_message function arguments")
                                     break  # cancel op
-                                args_json = json.loads(args_string, strict=JSON_LOADS_STRICT)
+                                args_json = json_loads(args_string)
                                 if "message" not in args_json:
                                     print("Assistant missing send_message message argument")
                                     break  # cancel op
 
                                 # Once we found our target, rewrite it
                                 args_json["message"] = text
-                                new_args_string = json.dumps(args_json, ensure_ascii=JSON_ENSURE_ASCII)
+                                new_args_string = json_dumps(args_json)
                                 message_obj.tool_calls[0].function["arguments"] = new_args_string
 
                                 # To persist to the database, all we need to do is "re-insert" into recall memory

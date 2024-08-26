@@ -1,8 +1,7 @@
-import json
-
 import yaml
 
-from ...constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
+from memgpt.utils import json_dumps, json_loads
+
 from ...errors import LLMJSONParsingError
 from ..json_parser import clean_json
 from .wrapper_base import LLMChatCompletionWrapper
@@ -131,10 +130,10 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
             "function": function_call["name"],
             "params": {
                 "inner_thoughts": inner_thoughts,
-                **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
+                **json_loads(function_call["arguments"]),
             },
         }
-        return json.dumps(airo_func_call, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
+        return json_dumps(airo_func_call, indent=self.json_indent)
 
     # NOTE: BOS/EOS chatml tokens are NOT inserted here
     def _compile_assistant_message(self, message) -> str:
@@ -161,15 +160,15 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
         if self.simplify_json_content:
             # Make user messages not JSON but plaintext instead
             try:
-                user_msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
+                user_msg_json = json_loads(message["content"])
                 user_msg_str = user_msg_json["message"]
             except:
                 user_msg_str = message["content"]
         else:
             # Otherwise just dump the full json
             try:
-                user_msg_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
-                user_msg_str = json.dumps(user_msg_json, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
+                user_msg_json = json_loads(message["content"])
+                user_msg_str = json_dumps(user_msg_json, indent=self.json_indent)
             except:
                 user_msg_str = message["content"]
 
@@ -183,8 +182,8 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
         prompt = ""
         try:
             # indent the function replies
-            function_return_dict = json.loads(message["content"], strict=JSON_LOADS_STRICT)
-            function_return_str = json.dumps(function_return_dict, indent=self.json_indent, ensure_ascii=JSON_ENSURE_ASCII)
+            function_return_dict = json_loads(message["content"])
+            function_return_str = json_dumps(function_return_dict, indent=self.json_indent)
         except:
             function_return_str = message["content"]
 
@@ -309,7 +308,7 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
             "content": inner_thoughts,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
+                "arguments": json_dumps(function_parameters),
             },
         }
         return message

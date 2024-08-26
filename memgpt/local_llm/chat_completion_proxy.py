@@ -1,11 +1,10 @@
 """Key idea: create drop-in replacement for agent's ChatCompletion call that runs on an OpenLLM backend"""
 
-import json
 import uuid
 
 import requests
 
-from memgpt.constants import CLI_WARNING_PREFIX, JSON_ENSURE_ASCII
+from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.local_llm.constants import DEFAULT_WRAPPER
 from memgpt.local_llm.function_parser import patch_function
@@ -33,7 +32,7 @@ from memgpt.schemas.openai.chat_completion_response import (
     ToolCall,
     UsageStatistics,
 )
-from memgpt.utils import get_tool_call_id, get_utc_time
+from memgpt.utils import get_tool_call_id, get_utc_time, json_dumps
 
 has_shown_warning = False
 grammar_supported_backends = ["koboldcpp", "llamacpp", "webui", "webui-legacy"]
@@ -189,7 +188,7 @@ def get_chat_completion(
             chat_completion_result = llm_wrapper.output_to_chat_completion_response(result, first_message=first_message)
         else:
             chat_completion_result = llm_wrapper.output_to_chat_completion_response(result)
-        printd(json.dumps(chat_completion_result, indent=2, ensure_ascii=JSON_ENSURE_ASCII))
+        printd(json_dumps(chat_completion_result, indent=2))
     except Exception as e:
         raise LocalLLMError(f"Failed to parse JSON from local LLM response - error: {str(e)}")
 
@@ -206,13 +205,13 @@ def get_chat_completion(
         usage["prompt_tokens"] = count_tokens(prompt)
 
     # NOTE: we should compute on-the-fly anyways since we might have to correct for errors during JSON parsing
-    usage["completion_tokens"] = count_tokens(json.dumps(chat_completion_result, ensure_ascii=JSON_ENSURE_ASCII))
+    usage["completion_tokens"] = count_tokens(json_dumps(chat_completion_result))
     """
     if usage["completion_tokens"] is None:
         printd(f"usage dict was missing completion_tokens, computing on-the-fly...")
         # chat_completion_result is dict with 'role' and 'content'
         # token counter wants a string
-        usage["completion_tokens"] = count_tokens(json.dumps(chat_completion_result, ensure_ascii=JSON_ENSURE_ASCII))
+        usage["completion_tokens"] = count_tokens(json_dumps(chat_completion_result))
     """
 
     # NOTE: this is the token count that matters most

@@ -1,18 +1,10 @@
 # https://github.com/openai/openai-python/blob/v0.27.4/openai/openai_object.py
 
-import json
 from copy import deepcopy
 from enum import Enum
 from typing import Optional, Tuple, Union
 
-from memgpt.constants import JSON_ENSURE_ASCII
-
-# import openai
-
-
-# from openai import api_requestor, util
-# from openai.openai_response import OpenAIResponse
-# from openai.util import ApiType
+from memgpt.utils import json_dumps
 
 api_requestor = None
 api_resources = None
@@ -342,7 +334,7 @@ class OpenAIObject(dict):
 
     def __str__(self):
         obj = self.to_dict_recursive()
-        return json.dumps(obj, sort_keys=True, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
+        return json_dumps(obj, sort_keys=True, indent=2)
 
     def to_dict(self):
         return dict(self)

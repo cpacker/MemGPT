@@ -1,4 +1,11 @@
-from ..constants import FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT, MAX_PAUSE_HEARTBEATS
+from ..constants import MAX_PAUSE_HEARTBEATS
+
+request_heartbeat = {
+    "request_heartbeat": {
+        "type": "boolean",
+        "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function.",
+    }
+}
 
 # FUNCTIONS_PROMPT_MULTISTEP_NO_HEARTBEATS = FUNCTIONS_PROMPT_MULTISTEP[:-1]
 FUNCTIONS_CHAINING = {
@@ -42,12 +49,8 @@ FUNCTIONS_CHAINING = {
                 "message": {
                     "type": "string",
                     "description": "Message to send ChatGPT. Phrase your message as a full English sentence.",
-                },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+                }
+            }.update(request_heartbeat),
             "required": ["message", "request_heartbeat"],
         },
     },
@@ -65,11 +68,7 @@ FUNCTIONS_CHAINING = {
                     "type": "string",
                     "description": "Content to write to the memory. All unicode (including emojis) are supported.",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["name", "content", "request_heartbeat"],
         },
     },
@@ -91,11 +90,7 @@ FUNCTIONS_CHAINING = {
                     "type": "string",
                     "description": "Content to write to the memory. All unicode (including emojis) are supported.",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["name", "old_content", "new_content", "request_heartbeat"],
         },
     },
@@ -113,11 +108,7 @@ FUNCTIONS_CHAINING = {
                     "type": "integer",
                     "description": "Allows you to page through results. Only use on a follow-up query. Defaults to 0 (first page).",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["query", "page", "request_heartbeat"],
         },
     },
@@ -135,11 +126,7 @@ FUNCTIONS_CHAINING = {
                     "type": "integer",
                     "description": "Allows you to page through results. Only use on a follow-up query. Defaults to 0 (first page).",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["query", "request_heartbeat"],
         },
     },
@@ -161,11 +148,7 @@ FUNCTIONS_CHAINING = {
                     "type": "integer",
                     "description": "Allows you to page through results. Only use on a follow-up query. Defaults to 0 (first page).",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["start_date", "end_date", "page", "request_heartbeat"],
         },
     },
@@ -187,11 +170,7 @@ FUNCTIONS_CHAINING = {
                     "type": "integer",
                     "description": "Allows you to page through results. Only use on a follow-up query. Defaults to 0 (first page).",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["start_date", "end_date", "request_heartbeat"],
         },
     },
@@ -205,11 +184,7 @@ FUNCTIONS_CHAINING = {
                     "type": "string",
                     "description": "Content to write to the memory. All unicode (including emojis) are supported.",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["content", "request_heartbeat"],
         },
     },
@@ -227,11 +202,7 @@ FUNCTIONS_CHAINING = {
                     "type": "integer",
                     "description": "Allows you to page through results. Only use on a follow-up query. Defaults to 0 (first page).",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["query", "request_heartbeat"],
         },
     },
@@ -253,11 +224,7 @@ FUNCTIONS_CHAINING = {
                     "type": "integer",
                     "description": "How many lines to read (defaults to 1).",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["filename", "line_start", "request_heartbeat"],
         },
     },
@@ -275,11 +242,7 @@ FUNCTIONS_CHAINING = {
                     "type": "string",
                     "description": "Content to append to the file.",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["filename", "content", "request_heartbeat"],
         },
     },
@@ -301,11 +264,7 @@ FUNCTIONS_CHAINING = {
                     "type": "string",
                     "description": "A JSON string representing the request payload.",
                 },
-                "request_heartbeat": {
-                    "type": "boolean",
-                    "description": FUNCTION_PARAM_DESCRIPTION_REQ_HEARTBEAT,
-                },
-            },
+            }.update(request_heartbeat),
             "required": ["method", "url", "request_heartbeat"],
         },
     },

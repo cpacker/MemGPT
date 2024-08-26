@@ -1,6 +1,7 @@
 import json
 
-from ...constants import JSON_ENSURE_ASCII
+from memgpt.utils import json_dumps, json_loads
+
 from ...errors import LLMJSONParsingError
 from ..json_parser import clean_json
 from .wrapper_base import LLMChatCompletionWrapper
@@ -76,9 +77,9 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
         def create_function_call(function_call):
             airo_func_call = {
                 "function": function_call["name"],
-                "params": json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
+                "params": json_loads(function_call["arguments"]),
             }
-            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
+            return json_dumps(airo_func_call, indent=2)
 
         for message in messages[1:]:
             assert message["role"] in ["user", "assistant", "function", "tool"], message
@@ -86,7 +87,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
+                        content_json = json_loads(message["content"])
                         content_simple = content_json["message"]
                         prompt += f"\n<|user|>\n{content_simple}{IM_END_TOKEN}"
                         # prompt += f"\nUSER: {content_simple}"
@@ -171,7 +172,7 @@ class ZephyrMistralWrapper(LLMChatCompletionWrapper):
             "content": None,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
+                "arguments": json_dumps(function_parameters),
             },
         }
         return message
@@ -239,10 +240,10 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
                 "function": function_call["name"],
                 "params": {
                     "inner_thoughts": inner_thoughts,
-                    **json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
+                    **json_loads(function_call["arguments"]),
                 },
             }
-            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
+            return json_dumps(airo_func_call, indent=2)
 
         # Add a sep for the conversation
         if self.include_section_separators:
@@ -255,7 +256,7 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
+                        content_json = json_loads(message["content"])
                         content_simple = content_json["message"]
                         prompt += f"\n<|user|>\n{content_simple}{IM_END_TOKEN}"
                     except:
@@ -340,7 +341,7 @@ class ZephyrMistralInnerMonologueWrapper(ZephyrMistralWrapper):
             "content": inner_thoughts,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
+                "arguments": json_dumps(function_parameters),
             },
         }
         return message

@@ -6,13 +6,13 @@ from typing import List, Optional, Union
 
 from pydantic import Field, field_validator
 
-from memgpt.constants import JSON_ENSURE_ASCII, TOOL_CALL_ID_MAX_LEN
+from memgpt.constants import TOOL_CALL_ID_MAX_LEN
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 from memgpt.schemas.enums import MessageRole
 from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
 from memgpt.schemas.openai.chat_completions import ToolCall
-from memgpt.utils import get_utc_time, is_utc_datetime
+from memgpt.utils import get_utc_time, is_utc_datetime, json_dumps
 
 
 def add_inner_thoughts_to_tool_call(
@@ -29,7 +29,7 @@ def add_inner_thoughts_to_tool_call(
         func_args[inner_thoughts_key] = inner_thoughts
         # create the updated tool call (as a string)
         updated_tool_call = copy.deepcopy(tool_call)
-        updated_tool_call.function.arguments = json.dumps(func_args, ensure_ascii=JSON_ENSURE_ASCII)
+        updated_tool_call.function.arguments = json_dumps(func_args)
         return updated_tool_call
     except json.JSONDecodeError as e:
         # TODO: change to logging
@@ -517,7 +517,7 @@ class Message(BaseMessage):
                 cohere_message = []
                 for tc in self.tool_calls:
                     # TODO better way to pack?
-                    function_call_text = json.dumps(tc.to_dict(), ensure_ascii=JSON_ENSURE_ASCII)
+                    function_call_text = json_dumps(tc.to_dict())
                     cohere_message.append(
                         {
                             "role": function_call_role,
