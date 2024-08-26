@@ -34,7 +34,6 @@ from tqdm import tqdm
 from memgpt import MemGPT, utils
 from memgpt.cli.cli_config import delete
 from memgpt.config import MemGPTConfig
-from memgpt.constants import JSON_ENSURE_ASCII
 
 # TODO: update personas
 NESTED_PERSONA = "You are MemGPT DOC-QA bot. Your job is to answer questions about documents that are stored in your archival memory. The answer to the users question will ALWAYS be in your archival memory, so remember to keep searching if you can't find the answer. DO NOT STOP SEARCHING UNTIL YOU VERIFY THAT THE VALUE IS NOT A KEY. Do not stop making nested lookups until this condition is met."  # TODO decide on a good persona/human
@@ -71,7 +70,7 @@ def archival_memory_text_search(self, query: str, page: Optional[int] = 0) -> Op
     else:
         results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
         results_formatted = [f"memory: {d.text}" for d in results]
-        results_str = f"{results_pref} {json.dumps(results_formatted, ensure_ascii=JSON_ENSURE_ASCII)}"
+        results_str = f"{results_pref} {utils.json_dumps(results_formatted)}"
     return results_str
 
 

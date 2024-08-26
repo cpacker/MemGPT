@@ -20,7 +20,6 @@ from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
-from memgpt.constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
 
@@ -66,7 +65,7 @@ from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.schemas.user import User, UserCreate
-from memgpt.utils import create_random_username
+from memgpt.utils import create_random_username, json_dumps, json_loads
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 
@@ -557,11 +556,9 @@ class SyncServer(LockingServer):
                 for x in range(len(memgpt_agent.messages) - 1, 0, -1):
                     if memgpt_agent.messages[x].get("role") == "assistant":
                         text = command[len("rewrite ") :].strip()
-                        args = json.loads(memgpt_agent.messages[x].get("function_call").get("arguments"), strict=JSON_LOADS_STRICT)
+                        args = json_loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
                         args["message"] = text
-                        memgpt_agent.messages[x].get("function_call").update(
-                            {"arguments": json.dumps(args, ensure_ascii=JSON_ENSURE_ASCII)}
-                        )
+                        memgpt_agent.messages[x].get("function_call").update({"arguments": json_dumps(args)})
                         break
 
         # No skip options

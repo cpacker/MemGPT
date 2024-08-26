@@ -1,6 +1,7 @@
 import json
 
-from ...constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
+from memgpt.utils import json_dumps, json_loads
+
 from .wrapper_base import LLMChatCompletionWrapper
 
 
@@ -85,9 +86,9 @@ class SimpleSummaryWrapper(LLMChatCompletionWrapper):
             """
             airo_func_call = {
                 "function": function_call["name"],
-                "params": json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
+                "params": json_loads(function_call["arguments"]),
             }
-            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
+            return json_dumps(airo_func_call, indent=2)
 
         # Add a sep for the conversation
         if self.include_section_separators:
@@ -100,7 +101,7 @@ class SimpleSummaryWrapper(LLMChatCompletionWrapper):
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = json.loads(message["content"], strict=JSON_LOADS_STRICT)
+                        content_json = json_loads(message["content"])
                         content_simple = content_json["message"]
                         prompt += f"\nUSER: {content_simple}"
                     except:
@@ -151,7 +152,7 @@ class SimpleSummaryWrapper(LLMChatCompletionWrapper):
             "content": raw_llm_output,
             # "function_call": {
             # "name": function_name,
-            # "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
+            # "arguments": json_dumps(function_parameters),
             # },
         }
         return message

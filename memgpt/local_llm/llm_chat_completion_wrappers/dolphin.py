@@ -1,6 +1,7 @@
 import json
 
-from ...constants import JSON_ENSURE_ASCII, JSON_LOADS_STRICT
+from memgpt.utils import json_dumps, json_loads
+
 from ...errors import LLMJSONParsingError
 from ..json_parser import clean_json
 from .wrapper_base import LLMChatCompletionWrapper
@@ -127,9 +128,9 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
             """
             airo_func_call = {
                 "function": function_call["name"],
-                "params": json.loads(function_call["arguments"], strict=JSON_LOADS_STRICT),
+                "params": json_loads(function_call["arguments"]),
             }
-            return json.dumps(airo_func_call, indent=2, ensure_ascii=JSON_ENSURE_ASCII)
+            return json_dumps(airo_func_call, indent=2)
 
         # option (1): from HF README:
         # <|im_start|>user
@@ -156,7 +157,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
             if message["role"] == "user":
                 if self.simplify_json_content:
                     try:
-                        content_json = (json.loads(message["content"], strict=JSON_LOADS_STRICT),)
+                        content_json = (json_loads(message["content"]),)
                         content_simple = content_json["message"]
                         prompt += f"\n{IM_START_TOKEN}user\n{content_simple}{IM_END_TOKEN}"
                         # prompt += f"\nUSER: {content_simple}"
@@ -241,7 +242,7 @@ class Dolphin21MistralWrapper(LLMChatCompletionWrapper):
             "content": None,
             "function_call": {
                 "name": function_name,
-                "arguments": json.dumps(function_parameters, ensure_ascii=JSON_ENSURE_ASCII),
+                "arguments": json_dumps(function_parameters),
             },
         }
         return message
