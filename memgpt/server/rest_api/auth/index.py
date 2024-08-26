@@ -34,11 +34,9 @@ def setup_auth_router(server: SyncServer, interface: QueuingInterface, password:
         is_admin = False
         if request.password != password:
             user_id = server.api_key_to_user(api_key=request.password)
-            return user_id
         else:
             is_admin = True
             user_id = server.authenticate_user()
-            return None
         return AuthResponse(user_id=user_id, is_admin=is_admin)
 
     return router
