@@ -1,6 +1,6 @@
 import traceback
 from enum import Enum
-from typing import AsyncGenerator, Union
+from typing import AsyncGenerator, Generator, Union
 
 from pydantic import BaseModel
 
