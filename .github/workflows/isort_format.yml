@@ -33,3 +33,7 @@ jobs:
           git config --local user.name "GitHub Action"
           git commit -am "Apply isort import ordering" || echo "No changes to commit"
           git push
+      - name: Error if 'check-only' label is present
+        if: steps.isort.outcome == 'failure' && contains(github.event.issue.labels.*.name, 'check-only')
+        run: echo "Isort check failed. Please run 'isort .' locally to fix import orders." && exit 1
+
