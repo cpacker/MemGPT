@@ -992,7 +992,7 @@ class Agent(object):
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
 
         # NOTE: This is a hacky way to check if the memory has changed
-        memory_repr = str(self.memory)
+        memory_repr = self.memory.string()
         if not force and memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
             printd(f"Memory has not changed, not rebuilding system")
             return
