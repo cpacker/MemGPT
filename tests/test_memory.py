@@ -18,7 +18,7 @@ def test_create_chat_memory():
 
 def test_dump_memory_as_json(sample_memory: Memory):
     """Test dumping ChatMemory as JSON compatible dictionary"""
-    memory_dict = sample_memory.to_dict()
+    memory_dict = sample_memory.to_dict()["memory"]
     assert isinstance(memory_dict, dict)
     assert "persona" in memory_dict
     assert memory_dict["persona"]["value"] == "Chat Agent"
@@ -26,7 +26,7 @@ def test_dump_memory_as_json(sample_memory: Memory):
 
 def test_load_memory_from_json(sample_memory: Memory):
     """Test loading ChatMemory from a JSON compatible dictionary"""
-    memory_dict = sample_memory.to_dict()
+    memory_dict = sample_memory.to_dict()["memory"]
     print(memory_dict)
     new_memory = Memory.load(memory_dict)
     assert new_memory.get_block("persona").value == "Chat Agent"

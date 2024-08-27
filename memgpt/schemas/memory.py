@@ -50,12 +50,11 @@ class Memory(BaseModel, validate_assignment=True):
     def load(cls, state: dict):
         """Load memory from dictionary object"""
         obj = cls()
-        if "memory" in state:
+        if len(state.keys()) == 2 and "memory" in state and "template" in state:
             # New format
+            obj.template = state["template"]
             for key, value in state["memory"].items():
                 obj.memory[key] = Block(**value)
-            if "template" in state:
-                obj.template = state["template"]
         else:
             # Old format (pre-template)
             for key, value in state.items():
