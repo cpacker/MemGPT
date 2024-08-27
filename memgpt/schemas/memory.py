@@ -18,6 +18,7 @@ class Memory(BaseModel, validate_assignment=True):
         '<{{ section }} characters="{{ module.value|length }}/{{ module.limit }}">\n'
         "{{ module.value }}\n"
         "</{{ section }}>"
+        "{% if not loop.last %}\n{% endif %}"
         "{% endfor %}",
         description="Jinja2 template for compiling memory module into a prompt string",
     )
