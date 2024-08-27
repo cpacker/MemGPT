@@ -359,9 +359,9 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         """Add an item to the deque"""
         assert self._active, "Generator is inactive"
         # assert isinstance(item, dict) or isinstance(item, MessageStreamStatus), f"Wrong type: {type(item)}"
-        assert (
-            isinstance(item, MemGPTMessage) or isinstance(item, LegacyMemGPTMessage) or isinstance(item, MessageStreamStatus)
-        ), f"Wrong type: {type(item)}"
+        # assert (
+        #    isinstance(item, MemGPTMessage) or isinstance(item, LegacyMemGPTMessage) or isinstance(item, MessageStreamStatus)
+        # ), f"Wrong type: {type(item)}"
         self._chunks.append(item)
         self._event.set()  # Signal that new data is available
 
@@ -523,7 +523,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
         data: {"function_return": "None", "status": "success", "date": "2024-02-29T06:07:50.847262+00:00"}
         """
-        # print("Processed CHUNK:", chunk)
+        print("Processed CHUNK:", chunk)
 
         # Example where we just pass through the raw stream from the underlying OpenAI SSE stream
         # processed_chunk = chunk.model_dump_json(exclude_none=True)

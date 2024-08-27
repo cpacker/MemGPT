@@ -184,6 +184,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
             message=message.text,
             stream_steps=request.stream_steps,
             stream_tokens=request.stream_tokens,
+            return_message_object=False,  # set for REST API
         )
 
     return router

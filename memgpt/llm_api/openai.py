@@ -138,7 +138,7 @@ def openai_chat_completions_process_stream(
             openai_chat_completions_request_stream(url=url, api_key=api_key, chat_completion_request=chat_completion_request)
         ):
             assert isinstance(chat_completion_chunk, ChatCompletionChunkResponse), type(chat_completion_chunk)
-            # print(chat_completion_chunk)
+            print("CHAT COMPLETITION CHUNK", chat_completion_chunk)
 
             if stream_inferface:
                 if isinstance(stream_inferface, AgentChunkStreamingInterface):
