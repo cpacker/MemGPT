@@ -586,7 +586,10 @@ class RESTClient(AbstractClient):
         return Source(**response_json)
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
-        raise NotImplementedError
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/sources", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list attached sources: {response.text}")
+        return [Source(**source) for source in response.json()]
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         request = SourceUpdate(id=source_id, name=name)
