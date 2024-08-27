@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional, Union
 
+from jinja2 import Template
 from pydantic import BaseModel, Field
 
 from memgpt.schemas.block import Block
@@ -8,8 +9,18 @@ from memgpt.schemas.block import Block
 class Memory(BaseModel, validate_assignment=True):
     """Represents the in-context memory of the agent"""
 
-    # Private variable to avoid assignments with incorrect types
+    # Memory.memory is a dict mapping from memory block section to memory block.
     memory: Dict[str, Block] = Field(default_factory=dict, description="Mapping from memory block section to memory block.")
+
+    # Memory.template is a Jinja2 template for compiling memory module into a prompt string.
+    template: str = Field(
+        default="{% for section, module in memory.items() %}"
+        '<{{ section }} characters="{{ module.value|length }}/{{ module.limit }}">\n'
+        "{{ module.value }}\n"
+        "</{{ section }}>"
+        "{% endfor %}",
+        description="Jinja2 template for compiling memory module into a prompt string",
+    )
 
     @classmethod
     def load(cls, state: dict):
@@ -20,11 +31,9 @@ class Memory(BaseModel, validate_assignment=True):
         return obj
 
     def compile(self) -> str:
-        """Generate a string representation of the memory in-context"""
-        section_strs = []
-        for section, module in self.memory.items():
-            section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
-        return "\n".join(section_strs)
+        """Generate a string representation of the memory in-context using the Jinja2 template"""
+        template = Template(self.template)
+        return template.render(memory=self.memory)
 
     def to_dict(self):
         """Convert to dictionary representation"""
