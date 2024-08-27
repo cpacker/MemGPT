@@ -104,7 +104,7 @@ def test_memory(client, agent):
     # _reset_config()
 
     memory_response = client.get_in_context_memory(agent_id=agent.id)
-    print("MEMORY", memory_response)
+    print("MEMORY", memory_response.compile())
 
     updated_memory = {"human": "Updated human memory", "persona": "Updated persona memory"}
     client.update_in_context_memory(agent_id=agent.id, section="human", value=updated_memory["human"])

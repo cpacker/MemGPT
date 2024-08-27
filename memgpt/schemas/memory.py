@@ -19,8 +19,8 @@ class Memory(BaseModel, validate_assignment=True):
             obj.memory[key] = Block(**value)
         return obj
 
-    def __str__(self) -> str:
-        """Representation of the memory in-context"""
+    def compile(self) -> str:
+        """Generate a string representation of the memory in-context"""
         section_strs = []
         for section, module in self.memory.items():
             section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
