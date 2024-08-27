@@ -10,6 +10,10 @@ from memgpt.orm.tool import Tool
 from memgpt.orm.source import Source
 from memgpt.orm.token import Token
 
+from memgpt.config import MemGPTConfig
+
+config = MemGPTConfig.load()
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
@@ -65,13 +69,15 @@ class MockUserFactory(BaseMockFactory):
 
 class MockAgentFactory(BaseMockFactory):
     __model__ = Agent
-
+    # TDODO: these defaults should be in the model
     def __init__(self, db_session: "Session", **kwargs):
         self.default_dict = {
             "name": faker.name(),
+            "description": faker.sentence(),
+            "system": faker.sentence(),
             "metadata_": {},
-            "llm_config": {},
-            "embedding_config": {},
+            "llm_config": config.default_llm_config.model_dump(),
+            "embedding_config": config.default_embedding_config.model_dump(),
         }
         super().__init__(db_session, **kwargs)
 

@@ -20,8 +20,8 @@ class User(SqlalchemyBase, OrganizationMixin):
     __tablename__ = "user"
     __pydantic_model__ = PydanticUser
 
-    name:Mapped[Optional[str]] = mapped_column(nullable=True, doc="The display name of the user.")
-    email:Mapped[Optional[EmailStr]] = mapped_column(String,
+    name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="The display name of the user.")
+    email: Mapped[Optional[EmailStr]] = mapped_column(String,
                                                      nullable=True,
                                                      doc="The email address of the user. Uninforced at this time.")
 

@@ -17,7 +17,6 @@ from memgpt.constants import (
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
 )
-from memgpt.orm.utilities import get_db_session
 from memgpt.orm.agent import Agent as SQLAgent
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
@@ -1203,12 +1202,11 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
     """
 
     print("SAVE AGENT MEMORY", agent.agent_state.memory.to_dict().values())
-    organization_id = ms.get_organization().id
+    blocks = []
     for block_dict in agent.memory.to_dict().values():
         # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
         # if block_dict.get("user_id", None) is None:
         #     block_dict["user_id"] = agent.agent_state.user_id
-        block_dict["organization_id"] = organization_id
         block = Block(**block_dict)
         # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
         # the case in some tests, if so we should relax the DB constraint.
@@ -1216,6 +1214,14 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
             block.value = ""
 
         try:
-            ms.update_block(block)
+            block = ms.update_block(block)
         except Exception as e:
-            ms.create_block(block)
+            block = ms.create_block(block)
+
+        blocks.append(block)
+    
+    # Need to attach blocks to the Agent in one session instance
+    sql_agent = SQLAgent.read(db_session=ms.db_session, identifier=agent.agent_state.id)    
+    [sql_agent.core_memory.append(block.to_sqlalchemy(ms.db_session)) for block in blocks]
+    ms.db_session.commit()
+

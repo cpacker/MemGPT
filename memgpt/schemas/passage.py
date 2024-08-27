@@ -11,6 +11,7 @@ from memgpt.utils import get_utc_time
 
 class PassageBase(MemGPTBase):
     __id_prefix__ = "passage"
+    __sqlalchemy_model__ = "Passage"
 
     # associated user/agent
     user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the passage.")

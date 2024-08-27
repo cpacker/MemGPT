@@ -17,6 +17,7 @@ from memgpt.orm.memory_templates import HumanMemoryTemplate, PersonaMemoryTempla
 from memgpt.orm.user import User as SQLUser
 from memgpt.orm.tool import Tool as SQLTool
 from memgpt.orm.organization import Organization as SQLOrganization
+from memgpt.orm.message import Message as SQLMessage
 
 from memgpt.schemas.agent import AgentState as DataAgentState
 from memgpt.orm.enums import JobStatus
@@ -26,6 +27,7 @@ from memgpt.schemas.job import Job
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
+from memgpt.schemas.message import Message
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -99,22 +101,20 @@ class MetadataStore:
         """Get the user associated with a given API key"""
         return Token.get_by_api_key(self.db_session, api_key).user.to_pydantic()
 
-    # TODO this is a hack since the Pydantic model and SQL model differ in types and structure
     def _clean_agent_state(self, agent_state: DataAgentState, action: str = "create") -> DataAgentState:
-        """Clean an agent state before creating or updating it"""
+        """Clean an agent state before creating or updating it in DB"""
         excluded_fields = ["user_id", "memory", "created_at", "tools", "message_ids", "messages",]
         if action == "create":
             excluded_fields.append("id")
 
         splatted_pydantic = agent_state.model_dump(exclude_none=True, exclude=excluded_fields)
 
-        splatted_pydantic["organization"] = SQLOrganization.default(self.db_session)
+        if agent_state.tools:
+            splatted_pydantic["tools"] = [SQLTool.read(self.db_session, name=r) if not isinstance(r, Tool) else r.to_sqlalchemy() for r in agent_state.tools]
+        if agent_state.message_ids:
+            splatted_pydantic["messages"] = [SQLMessage.read(self.db_session, identifier=r) if not isinstance(r, Message) else r.to_sqlalchemy() for r in agent_state.message_ids]
 
-        # TODO: should not always be getting the default user
-        splatted_pydantic["users"] = [SQLUser.default(self.db_session)]
-
-        if action == "create":
-            splatted_pydantic["tools"] = [SQLTool.read(self.db_session, name=t) for t in agent_state.tools]
+        # Blocks/Memory are a bit more complex, so we'll handle them separately in controller
 
         return splatted_pydantic
 
@@ -131,7 +131,9 @@ class MetadataStore:
         *Note* There is not currently a clear SQL <> Pydantic mapping for this object.
         Args:
             agent: the agent to create"""
-        return Agent(**self._clean_agent_state(agent_state=agent_state, action="update")).update(self.db_session)
+        splatted_pydantic = self._clean_agent_state(agent_state=agent_state, action="update")
+        breakpoint()
+        return Agent(**splatted_pydantic).update(self.db_session)
 
     def list_agents(self) -> List[DataAgentState]:
         return [a.to_pydantic() for a in SQLUser.read(self.db_session, self.actor.id).organization.agents]

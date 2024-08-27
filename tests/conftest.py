@@ -135,10 +135,6 @@ def patch_local_db_calls(test_get_db_session: Callable):
     # or make the code messy with hooks. I'm choosing the former for now.
     with (
         patch(
-            "memgpt.agent.get_db_session",
-            test_get_db_session,
-        ),
-        patch(
             "memgpt.metadata.get_db_session",
             test_get_db_session,
         ),

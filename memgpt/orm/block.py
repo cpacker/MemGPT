@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, Optional, Type, Union, List
-from uuid import UUID
-from sqlalchemy import Integer, UUID as SQLUUID, ForeignKey, JSON
+from sqlalchemy import Integer, JSON
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 from sqlalchemy.types import TypeDecorator
 

@@ -13,6 +13,8 @@ from memgpt.schemas.block import Block
 
 class BaseAgent(MemGPTBase, validate_assignment=True):
     __id_prefix__ = "agent"
+    __sqlalchemy_model__ = "Agent"
+
     description: Optional[str] = Field(None, description="The description of the agent.")
 
     # metadata
@@ -30,13 +32,13 @@ class AgentState(BaseAgent):
     # in-context memory
     message_ids: Optional[List[Union[Message, str]]] = Field(default=None, alias="messages", description="The ids of the messages in the agent's in-context memory.")
     # TODO: dont skip validation for this!
-    memory: SkipValidation[Optional[Memory]] = Field(default_factory=Memory, alias="core_memory", description="The in-context memory of the agent.")
+    memory: Optional[Memory] = Field(default_factory=Memory, alias="core_memory", description="The in-context memory of the agent.")
 
     # tools
-    tools: List[Union[Tool, str]] = Field(..., description="The tools used by the agent.")
+    tools: Optional[List[Union[Tool, str]]] = Field(..., description="The tools used by the agent.")
 
     # system prompt
-    system: str = Field(..., description="The system prompt used by the agent.")
+    system: Optional[str] = Field(..., description="The system prompt used by the agent.")
 
     # llm information
     llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")

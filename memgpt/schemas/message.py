@@ -39,6 +39,7 @@ def add_inner_thoughts_to_tool_call(
 
 class BaseMessage(MemGPTBase):
     __id_prefix__ = "message"
+    __sqlalchemy_model__ = "Message"
 
 
 class MessageCreate(BaseMessage):

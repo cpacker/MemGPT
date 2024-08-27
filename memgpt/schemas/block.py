@@ -10,6 +10,7 @@ class BaseBlock(MemGPTBase, validate_assignment=True):
     """Blocks are sections of the LLM context, representing a specific part of the total Memory"""
 
     __id_prefix__ = "block"
+    __sqlalchemy_model__ = "Block"
 
     # data value
     value: Optional[Union[List[str], str]] = Field(None, description="Value of the block.")

@@ -6,6 +6,7 @@ class BaseOrganization(MemGPTBase, validate_assignment=True):
     """Blocks are sections of the LLM context, representing a specific part of the total Memory"""
 
     __id_prefix__ = "organization"
+    __sqlalchemy_model__ = "Organization"
 
 class Organization(BaseOrganization):
     """An Organization interface with minimal references, good when only the link is needed"""

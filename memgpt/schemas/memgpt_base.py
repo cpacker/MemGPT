@@ -1,15 +1,32 @@
+from typing import TYPE_CHECKING
 import uuid
 from logging import getLogger
 from typing import Optional
 from uuid import UUID
+from humps import pascalize
+from importlib import import_module
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from memgpt.orm.errors import NoResultFound
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+    from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 
 # from: https://gist.github.com/norton120/22242eadb80bf2cf1dd54a961b151c61
 
 
 logger = getLogger(__name__)
 
+def get_paired_model(model_name: str) -> "SqlalchemyBase":
+    """gets a sqlalchemy model for a pydantic model"""
+    model_name = pascalize(model_name).capitalize()
+    Model = getattr(import_module("memgpt.orm.__all__"), model_name)
+    if Model is None:
+        raise AttributeError(f"SQL Model {model_name} not found")
+    return Model
 
 class MemGPTBase(BaseModel):
     """Base schema for MemGPT schemas (does not include model provider schemas, e.g. OpenAI)"""
@@ -78,3 +95,18 @@ class MemGPTBase(BaseModel):
             logger.warning("Bare UUIDs are deprecated, please use the full prefixed id!")
             return f"{cls.__id_prefix__}-{v}"
         return v
+
+    @property
+    def __sqlalchemy_model__(self) -> "str":
+        """The string representation of the matching sqlalchemy model. Must be declared on all pydantic base objects"""
+        raise NotImplementedError
+
+    def to_sqlalchemy(self, db_session: "Session") -> SqlalchemyBase:
+        """convert the pydantic model to a sqlalchemy model"""
+        SqlModel: "SqlalchemyBase" = get_paired_model(self.__sqlalchemy_model__)
+        if self.id:
+            try:
+                return SqlModel.read(identifier=self.id, db_session=db_session)
+            except NoResultFound:
+                logger.info("Instance does not exist, creating new local instance.")
+        return SqlModel(**self.model_dump(exclude_none=True))

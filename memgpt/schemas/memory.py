@@ -47,10 +47,6 @@ class Memory(BaseModel, validate_assignment=True):
 
     def link_block(self, name: str, block: Block, override: Optional[bool] = False):
         """Link a new block to the memory object"""
-        if not isinstance(block, Block):
-            raise ValueError(f"Param block must be type Block (not {type(block)})")
-        if not isinstance(name, str):
-            raise ValueError(f"Name must be str (not type {type(name)})")
         if not override and name in self.memory:
             raise ValueError(f"Block with name {name} already exists")
 

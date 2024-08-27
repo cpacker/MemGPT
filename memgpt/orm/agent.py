@@ -41,3 +41,22 @@ class Agent(SqlalchemyBase, OrganizationMixin):
     tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_agents", lazy="selectin")
     core_memory: Mapped[List["Block"]] = relationship("Block", secondary="blocks_agents", lazy="selectin")
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="agent", lazy="selectin")
+
+
+    def to_pydantic(self) -> Type["BaseModel"]:
+        """converts to the basic pydantic model counterpart"""
+        state = {
+            "id": self.id,
+            "name": self.name,
+            "created_at": self.created_at,
+            "description": self.description,
+            "system": self.system,
+            "metadata_": self.metadata_,
+            "llm_config": self.llm_config,
+            "embedding_config": self.embedding_config,
+            "user_id": str(self.users[0]._id) if self.users else "",
+            "tools": self.tools,
+            "memory": { "memory": { b.name: b for b in self.core_memory }},
+            "message_ids": [str(m._id) for m in self.messages],
+        }
+        return self.__pydantic_model__(**state)

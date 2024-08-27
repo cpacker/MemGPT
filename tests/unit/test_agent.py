@@ -5,7 +5,7 @@ from tests.mock_factory.models import MockAgentFactory
 @m.describe("When performing basic interactions with Agents")
 class TestUnitAgent:
 
-    @m.skip()
+    
     @m.context("and interacting with agents via Client")
     @m.it("should create an agent")
     async def test_create_agent(self, client):
@@ -63,4 +63,5 @@ class TestUnitAgent:
     async def test_send_message(self, client, db_session):
         agent = MockAgentFactory(db_session).generate()
         agents = await client.list_agents()
-        assert any(a.id == agent.id for a in agents)
+        assert any(a["id"] == agent.id for a in agents)
+        assert len(agents) == 1

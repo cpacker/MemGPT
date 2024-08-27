@@ -9,6 +9,7 @@ class DocumentBase(MemGPTBase):
     """Base class for document schemas"""
 
     __id_prefix__ = "doc"
+    __sqlalchemy_model__ = "Document"
 
 
 class Document(DocumentBase):
