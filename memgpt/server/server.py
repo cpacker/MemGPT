@@ -1705,6 +1705,11 @@ class SyncServer(LockingServer):
             # provided by client
             json_schema = request.json_schema
 
+        if not request.name:
+            # use name from JSON schema
+            request.name = json_schema["name"]
+            assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
+
         # check if already exists:
         existing_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
         if existing_tool:
