@@ -1674,7 +1674,7 @@ class SyncServer(LockingServer):
         self.ms.update_tool(existing_tool)
         return self.ms.get_tool(tool_id=request.id)
 
-    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = False) -> Tool:  # TODO: add other fields
+    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = True) -> Tool:  # TODO: add other fields
         """Create a new tool"""
 
         if request.tags and "memory" in request.tags:
