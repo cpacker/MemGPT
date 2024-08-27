@@ -42,7 +42,7 @@ def list_agents(
     """
     actor = server.get_current_user()
     interface.clear()
-    return server.list_agents(user_id=actor.id)
+    return server.list_agents()
 
 @router.post("/", response_model=AgentState)
 def create_agent(

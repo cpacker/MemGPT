@@ -39,12 +39,17 @@ class MetadataStore:
     """
     db_session: "Session" = None
 
-    def __init__(self, db_session: Optional["Session"] = None):
+    def __init__(self,
+                 db_session: Optional["Session"] = None,
+                 actor: Optional["User"] = None):
         """
         Args:
             db_session: the database session to use.
+            actor: the user making the request. should be a straight pass from server.get_current_user at the moment
+                and when we collapse metadatastore into server this will no longer be necessary.
         """
         self.db_session = db_session or get_db_session()
+        self.actor = actor
 
     def create_api_key(self,
                        user_id: uuid.UUID,
@@ -65,17 +70,15 @@ class MetadataStore:
         return token.api_key
 
     def delete_api_key(self,
-                       api_key: str,
-                       actor: Optional["User"]=None) -> None:
+                       api_key: str) -> None:
         """(soft) Delete an API key from the database
         Args:
             api_key: the API key to delete
-            actor: the user deleting the API key. TODO this will not be optional in the future!
         Raises:
             NotFoundError: if the API key does not exist or the user does not have access to it.
         """
         #TODO: this is a temporary shim. the long-term solution (next PR) will be to look up the token ID partial, check access, and soft delete.
-        logger.info(f"User %s is deleting API key %s", actor.id, api_key)
+        logger.info(f"User %s is deleting API key %s", self.actor.id, api_key)
         Token.get_by_api_key(api_key).delete(self.db_session)
 
     def get_api_key(self,
@@ -102,25 +105,26 @@ class MetadataStore:
         excluded_fields = ["user_id", "memory", "created_at", "tools", "message_ids", "messages",]
         if action == "create":
             excluded_fields.append("id")
-        
+
         splatted_pydantic = agent_state.model_dump(exclude_none=True, exclude=excluded_fields)
-        
+
         splatted_pydantic["organization"] = SQLOrganization.default(self.db_session)
-        
+
         # TODO: should not always be getting the default user
         splatted_pydantic["users"] = [SQLUser.default(self.db_session)]
-        
+
         if action == "create":
             splatted_pydantic["tools"] = [SQLTool.read(self.db_session, name=t) for t in agent_state.tools]
 
         return splatted_pydantic
-    
+
     def create_agent(self, agent_state: DataAgentState):
         """Create an agent from a DataAgentState
         *Note* There is not currently a clear SQL <> Pydantic mapping for this object.
         Args:
             agent: the agent to create"""
-        return Agent(**self._clean_agent_state(agent_state=agent_state, action="create")).create(self.db_session)
+        return Agent(created_by_id=self.actor.id,
+                     **self._clean_agent_state(agent_state=agent_state, action="create")).create(self.db_session)
 
     def update_agent(self, agent_state: DataAgentState):
         """Create an agent from a DataAgentState
@@ -129,8 +133,8 @@ class MetadataStore:
             agent: the agent to create"""
         return Agent(**self._clean_agent_state(agent_state=agent_state, action="update")).update(self.db_session)
 
-    def list_agents(self, user_id: uuid.UUID) -> List[DataAgentState]:
-        return [a.to_pydantic() for a in SQLUser.read(self.db_session, user_id).agents]
+    def list_agents(self) -> List[DataAgentState]:
+        return [a.to_pydantic() for a in SQLUser.read(self.db_session, self.actor.id).organization.agents]
 
     def list_tools(self) -> List[Tool]:
         return [a.to_pydantic() for a in SQLTool.list(self.db_session)]
@@ -147,7 +151,7 @@ class MetadataStore:
             return None
 
     def create_tool(self, tool: Tool) -> Tool:
-        splatted_pydantic = {**tool.model_dump(exclude_none=True), "organization_id": SQLOrganization.default(self.db_session).id}
+        splatted_pydantic = {"created_by_id": self.actor.id, **tool.model_dump(exclude_none=True), "organization_id": SQLOrganization.default(self.db_session).id}
         return SQLTool(**splatted_pydantic).create(self.db_session).to_pydantic()
 
     def get_organization(self, name: str = "Default Organization") -> SQLOrganization:
@@ -180,7 +184,7 @@ class MetadataStore:
             case "create":
                 def create(schema):
                     splatted_pydantic = schema.model_dump(exclude_none=True)
-                    return Model(**splatted_pydantic).create(self.db_session).to_pydantic()
+                    return Model(created_by_id=self.actor.id, **splatted_pydantic).create(self.db_session).to_pydantic()
                 return create
             case "update":
                 def update(schema):

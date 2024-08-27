@@ -1,4 +1,4 @@
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, List
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 
@@ -24,13 +24,11 @@ class Organization(SqlalchemyBase):
     name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="The display name of the organization.")
 
     # relationships
-    users: Mapped["User"] = relationship("User", back_populates="organization", cascade="all, delete-orphan")
-    agents: Mapped["Agent"] = relationship("Agent", back_populates="organization", cascade="all, delete-orphan")
-    sources: Mapped["Source"] = relationship("Source", back_populates="organization", cascade="all, delete-orphan")
-    tools: Mapped["Tool"] = relationship("Tool", back_populates="organization", cascade="all, delete-orphan")
-    personas: Mapped["PersonaMemoryTemplate"] = relationship("PersonaMemoryTemplate", back_populates="organization", cascade="all, delete-orphan")
-    humans: Mapped["HumanMemoryTemplate"] = relationship("HumanMemoryTemplate", back_populates="organization", cascade="all, delete-orphan")
-    documents: Mapped["Document"] = relationship("Document", back_populates="organization", cascade="all, delete-orphan")
+    users: Mapped[List["User"]] = relationship("User", back_populates="organization", cascade="all, delete-orphan")
+    agents: Mapped[List["Agent"]] = relationship("Agent", back_populates="organization", cascade="all, delete-orphan")
+    sources: Mapped[List["Source"]] = relationship("Source", back_populates="organization", cascade="all, delete-orphan")
+    tools: Mapped[List["Tool"]] = relationship("Tool", back_populates="organization", cascade="all, delete-orphan")
+    documents: Mapped[List["Document"]] = relationship("Document", back_populates="organization", cascade="all, delete-orphan")
 
     @classmethod
     def default(cls, db_session:"Session") -> "Organization":

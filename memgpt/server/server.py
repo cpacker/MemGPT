@@ -181,16 +181,13 @@ class SyncServer(Server):
         assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
 
         # Initialize the metadata store
-        self.ms = MetadataStore(db_session=db_session)
-        # add global default tools
-        #presets.add_default_tools(None, self.ms)
+        self.ms = MetadataStore(db_session=db_session, actor = self.get_current_user())
 
     def get_current_user(self) -> SQLUser:
         """ returns the currently authed user.
         since server is the core gateway this needs to pass through server as the
         first touchpoint.
         """
-        # TODO: this is not real auth code! that is the next PR.
         return SQLUser.default(self.db_session).to_pydantic()
 
 
@@ -640,7 +637,7 @@ class SyncServer(Server):
         if request.system is None:
             # TODO: don't hardcode
             request.system = gpt_system.get_system_text("memgpt_chat")
-        
+
         agent = None
         try:
             # model configuration
@@ -680,9 +677,9 @@ class SyncServer(Server):
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
             )
-            
+
             logger.info(f"Created new agent from config: {agent}")
-            save_agent(agent, self.ms)            
+            save_agent(agent, self.ms)
         except Exception as e:
             logger.exception(e)
             try:
@@ -795,16 +792,9 @@ class SyncServer(Server):
         }
         return agent_config
 
-    def list_agents(
-        self,
-        user_id: str,
-    ) -> List[AgentState]:
+    def list_agents(self) -> List[AgentState]:
         """List all available agents to a user"""
-        if self.ms.get_user(id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-
-        agents_states = self.ms.list_agents(user_id=user_id)
-        return agents_states
+        return self.ms.list_agents()
 
     # TODO make return type pydantic
     def list_agents_legacy(
@@ -1566,7 +1556,7 @@ class SyncServer(Server):
                 return updated_tool
             else:
                 raise ValueError(f"Tool {tool_name} already exists and update=False")
-        
+
         created_tool = self.ms.create_tool(request)
         return created_tool
 

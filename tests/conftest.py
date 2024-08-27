@@ -8,7 +8,7 @@ from unittest.mock import patch
 from memgpt import create_client
 from memgpt.settings import settings, BackendConfiguration
 from memgpt.orm.utilities import create_engine
-from memgpt.orm.__all__ import Base, Tool
+from memgpt.orm.__all__ import Base, Tool, User
 from memgpt.orm.utilities import get_db_session
 from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.server.server import SyncServer
@@ -111,9 +111,8 @@ def user_and_agent_seed(db_session):
 )
 def client(request, db_session, test_app):
     if request.param["server"]:
-        org = MockOrganizationFactory(db_session=db_session).generate()
-        requesting_user = MockUserFactory(db_session=db_session, organization_id=org.id).generate()
-        api_token = MockTokenFactory(db_session=db_session, user_id=requesting_user.id).generate()
+
+        api_token = MockTokenFactory(db_session=db_session, user_id=User.default(db_session).id).generate()
         token = api_token.api_key
         client_args = {
             "base_url": "http://test",

@@ -97,6 +97,8 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         raise NoResultFound(f"{cls.__name__} with id {identifier} not found")
 
     def create(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+        self._infer_organization(db_session)
+
         with db_session as session:
             session.add(self)
             session.commit()
@@ -163,3 +165,20 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         """Deprecated accessor for to_pydantic"""
         logger.warning("to_record is deprecated, use to_pydantic instead.")
         return self.to_pydantic()
+
+    def _infer_organization(self, db_session:"Session") -> None:
+        """🪄 MAGIC ALERT! 🪄
+        Because so much of the original API is centered around user scopes,
+        this allows us to continue with that scope and then infer the org from the creating user.
+
+        IF a created_by_id is set, we will use that to infer the organization and magic set it at create time!
+        If not do nothing to the object. Mutates in place.
+        """
+        if self.created_by_id and hasattr(self, "_organization_id"):
+            try:
+                from memgpt.orm.user import User # to avoid circular import
+                created_by = User.read(db_session, self.created_by_id)
+            except NoResultFound:
+                logger.warning(f"User {self.created_by_id} not found, unable to infer organization.")
+                return
+            self._organization_id = created_by._organization_id

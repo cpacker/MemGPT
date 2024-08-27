@@ -809,12 +809,7 @@ class LocalClient(AbstractClient):
     # agents
 
     def list_agents(self) -> List[AgentState]:
-        self.interface.clear()
-
-        # TODO: fix the server function
-        # return self.server.list_agents(user_id=self.user_id)
-
-        return self.server.ms.list_agents(user_id=self.user_id)
+        return self.server.list_agents()
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         if not (agent_id or agent_name):

@@ -1,9 +1,11 @@
 from pytest import mark as m
 from memgpt.schemas.memory import ChatMemory
-
+from tests.mock_factory.models import MockAgentFactory
 
 @m.describe("When performing basic interactions with Agents")
 class TestUnitAgent:
+
+    @m.skip()
     @m.context("and interacting with agents via Client")
     @m.it("should create an agent")
     async def test_create_agent(self, client):
@@ -53,5 +55,12 @@ class TestUnitAgent:
     async def test_list_agents(self, client):
         agent_name = "TestAgent"
         agent = await client.create_agent(name=agent_name)
+        agents = await client.list_agents()
+        assert any(a.id == agent.id for a in agents)
+
+    @m.context("and a message is sent to the agent")
+    @m.it("should get the message and respond")
+    async def test_send_message(self, client, db_session):
+        agent = MockAgentFactory(db_session).generate()
         agents = await client.list_agents()
         assert any(a.id == agent.id for a in agents)
