@@ -7,7 +7,6 @@ from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.functions.functions import parse_source_code
-from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import get_memory_functions
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import (
@@ -17,6 +16,7 @@ from memgpt.schemas.block import (
     CreatePersona,
     Human,
     Persona,
+    UpdateBlock,
     UpdateHuman,
     UpdatePersona,
 )
@@ -454,6 +454,13 @@ class RESTClient(AbstractClient):
         else:
             return Block(**response.json())
 
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
+        request = UpdateBlock(id=block_id, name=name, value=text)
+        response = requests.post(f"{self.base_url}/api/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update block: {response.text}")
+        return Block(**response.json())
+
     def get_block(self, block_id: str) -> Block:
         response = requests.get(f"{self.base_url}/api/blocks/{block_id}", headers=self.headers)
         if response.status_code == 404:
@@ -657,22 +664,10 @@ class RESTClient(AbstractClient):
         # TODO: how to load modules?
         # parse source code/schema
         source_code = parse_source_code(func)
-        json_schema = generate_schema(func, name)
         source_type = "python"
-        tool_name = json_schema["name"]
-
-        assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
-
-        # check if tool exists
-        existing_tool_id = self.get_tool_id(tool_name)
-        if existing_tool_id:
-            if update:
-                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
-            else:
-                raise ValueError(f"Tool with name {tool_name} already exists")
 
         # call server function
-        request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
+        request = ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags)
         response = requests.post(f"{self.base_url}/api/tools", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
@@ -697,15 +692,12 @@ class RESTClient(AbstractClient):
         """
         if func:
             source_code = parse_source_code(func)
-            json_schema = generate_schema(func, name)
         else:
             source_code = None
-            json_schema = None
 
         source_type = "python"
-        tool_name = json_schema["name"] if name else name
 
-        request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
+        request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name)
         response = requests.post(f"{self.base_url}/api/tools/{id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
@@ -1052,6 +1044,8 @@ class LocalClient(AbstractClient):
         self.server.delete_block(id)
 
     # tools
+
+    # TODO: merge this into create_tool
     def add_tool(self, tool: Tool, update: Optional[bool] = True) -> None:
         """
         Adds a tool directly.
@@ -1112,23 +1106,12 @@ class LocalClient(AbstractClient):
         # TODO: how to load modules?
         # parse source code/schema
         source_code = parse_source_code(func)
-        json_schema = generate_schema(func, name)
         source_type = "python"
-        tool_name = json_schema["name"]
-
-        assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
-
-        # check if tool exists
-        existing_tool_id = self.get_tool_id(tool_name)
-        if existing_tool_id:
-            if update:
-                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
-            else:
-                raise ValueError(f"Tool with name {tool_name} already exists")
 
         # call server function
         return self.server.create_tool(
-            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
+            # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
+            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags),
             user_id=self.user_id,
             update=update,
         )
@@ -1152,17 +1135,12 @@ class LocalClient(AbstractClient):
         """
         if func:
             source_code = parse_source_code(func)
-            json_schema = generate_schema(func, name)
         else:
             source_code = None
-            json_schema = None
 
         source_type = "python"
-        tool_name = json_schema["name"] if name else name
 
-        return self.server.update_tool(
-            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
-        )
+        return self.server.update_tool(ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name))
 
     def list_tools(self):
         """List available tools.
