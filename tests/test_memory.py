@@ -65,6 +65,23 @@ def test_memory_limit_validation(sample_memory: Memory):
         sample_memory.get_block("persona").value = "x" * 3000
 
 
+def test_memory_jinja2_template_load(sample_memory: Memory):
+    """Test loading a memory with and without a jinja2 template"""
+
+    # Test loading a memory with a template
+    memory_dict = sample_memory.to_dict()
+    memory_dict["template"] = sample_memory.get_template()
+    new_memory = Memory.load(memory_dict)
+    assert new_memory.get_template() == sample_memory.get_template()
+
+    # Test loading a memory without a template (old format)
+    memory_dict = sample_memory.to_dict()
+    memory_dict_old_format = memory_dict["memory"]
+    new_memory = Memory.load(memory_dict_old_format)
+    assert new_memory.get_template() is not None  # Ensure a default template is set
+    assert new_memory.to_dict()["memory"] == memory_dict_old_format
+
+
 def test_memory_jinja2_template(sample_memory: Memory):
     """Test to make sure the jinja2 template string is equivalent to the old __repr__ method"""
 

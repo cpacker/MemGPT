@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Union
 
-from jinja2 import Template, TemplateSyntaxError
+from jinja2 import Template
 from pydantic import BaseModel, Field
 
 from memgpt.schemas.block import Block
@@ -50,8 +50,16 @@ class Memory(BaseModel, validate_assignment=True):
     def load(cls, state: dict):
         """Load memory from dictionary object"""
         obj = cls()
-        for key, value in state.items():
-            obj.memory[key] = Block(**value)
+        if "memory" in state:
+            # New format
+            for key, value in state["memory"].items():
+                obj.memory[key] = Block(**value)
+            if "template" in state:
+                obj.template = state["template"]
+        else:
+            # Old format (pre-template)
+            for key, value in state.items():
+                obj.memory[key] = Block(**value)
         return obj
 
     def compile(self) -> str:
@@ -61,7 +69,10 @@ class Memory(BaseModel, validate_assignment=True):
 
     def to_dict(self):
         """Convert to dictionary representation"""
-        return {key: value.dict() for key, value in self.memory.items()}
+        return {
+            "memory": {key: value.dict() for key, value in self.memory.items()},
+            "template": self.template,
+        }
 
     def to_flat_dict(self):
         """Convert to a dictionary that maps directly from block names to values"""
