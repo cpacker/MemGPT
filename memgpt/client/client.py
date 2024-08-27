@@ -17,6 +17,7 @@ from memgpt.schemas.block import (
     CreatePersona,
     Human,
     Persona,
+    UpdateBlock,
     UpdateHuman,
     UpdatePersona,
 )
@@ -454,6 +455,13 @@ class RESTClient(AbstractClient):
         else:
             return Block(**response.json())
 
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
+        request = UpdateBlock(id=block_id, name=name, value=text)
+        response = requests.post(f"{self.base_url}/api/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update block: {response.text}")
+        return Block(**response.json())
+
     def get_block(self, block_id: str) -> Block:
         response = requests.get(f"{self.base_url}/api/blocks/{block_id}", headers=self.headers)
         if response.status_code == 404:
@@ -672,7 +680,8 @@ class RESTClient(AbstractClient):
                 raise ValueError(f"Tool with name {tool_name} already exists")
 
         # call server function
-        request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
+        # request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
+        request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, tags=tags)
         response = requests.post(f"{self.base_url}/api/tools", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
@@ -1128,7 +1137,8 @@ class LocalClient(AbstractClient):
 
         # call server function
         return self.server.create_tool(
-            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
+            # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
+            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, tags=tags),
             user_id=self.user_id,
             update=update,
         )

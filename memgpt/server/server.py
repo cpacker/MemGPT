@@ -1,7 +1,6 @@
 # inspecting tools
 import importlib
 import inspect
-import json
 import os
 import traceback
 import warnings
@@ -33,7 +32,7 @@ from memgpt.data_sources.connectors import DataConnector, load_data
 #    Token,
 #    User,
 # )
-from memgpt.functions.functions import load_function_set
+from memgpt.functions.functions import generate_schema, load_function_set
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
@@ -1683,27 +1682,49 @@ class SyncServer(LockingServer):
             # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
             request.source_code = request.source_code.replace("self.memory", "self.memory.memory")
 
+        if not request.json_schema:
+            # auto-generate openai schema
+            try:
+                env = {}
+                env.update(globals())
+                exec(request.source_code, env)
+
+                # get available functions
+                functions = [f for f in env if callable(env[f])]
+                print(functions)
+
+            except Exception as e:
+                logger.error(f"Failed to execute source code: {e}")
+
+            # TODO: not sure if this always works
+            func = env[functions[-1]]
+            print("FUNCTION", func)
+            json_schema = generate_schema(func, request.name)
+            print(json_schema)
+        else:
+            # provided by client
+            json_schema = request.json_schema
+
         # check if already exists:
-        tool_name = request.json_schema["name"]
-        existing_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+        existing_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
         if existing_tool:
             if update:
                 updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
-                assert updated_tool is not None, f"Failed to update tool {tool_name}"
+                assert updated_tool is not None, f"Failed to update tool {request.name}"
                 return updated_tool
             else:
-                raise ValueError(f"Tool {tool_name} already exists and update=False")
+                raise ValueError(f"Tool {request.name} already exists and update=False")
 
         tool = Tool(
             name=request.name,
             source_code=request.source_code,
             source_type=request.source_type,
             tags=request.tags,
-            json_schema=request.json_schema,
+            json_schema=json_schema,
             user_id=user_id,
         )
         self.ms.create_tool(tool)
-        created_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+        created_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
         return created_tool
 
     def delete_tool(self, tool_id: str):
