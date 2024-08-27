@@ -281,6 +281,11 @@ def test_sources(client, agent):
     # attach a source
     client.attach_source_to_agent(source_id=source.id, agent_id=agent.id)
 
+    # list attached sources
+    attached_sources = client.list_attached_sources(agent_id=agent.id)
+    print("attached sources", attached_sources)
+    assert source.id in [s.id for s in attached_sources], f"Attached sources: {attached_sources}"
+
     # list archival memory
     archival_memories = client.get_archival_memory(agent_id=agent.id)
     # print(archival_memories)
