@@ -421,10 +421,20 @@ class RESTClient(AbstractClient):
     def send_message(
         self, agent_id: str, message: str, role: str, name: Optional[str] = None, stream: Optional[bool] = False
     ) -> MemGPTResponse:
+
+        if stream:
+            raise NotImplementedError("Streaming not supported")
+
         messages = [MessageCreate(role=role, text=message, name=name)]
         # TODO: figure out how to handle stream_steps and stream_tokens
         request = MemGPTRequest(messages=messages, stream_steps=stream)
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers)
+        # return message objects (streaming not supported)
+        response = requests.post(
+            f"{self.base_url}/api/agents/{agent_id}/messages",
+            json=request.model_dump(),
+            headers=self.headers,
+            params={"return_message_object": True},
+        )
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
         return MemGPTResponse(**response.json())

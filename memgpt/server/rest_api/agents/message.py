@@ -161,6 +161,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         # background_tasks: BackgroundTasks,
         agent_id: str,
         request: MemGPTRequest = Body(...),
+        return_message_object: bool = Query(True, description="Return MemGPTMessage or Message objects."),
         user_id: str = Depends(get_current_user_with_server),
     ):
         """
@@ -184,7 +185,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
             message=message.text,
             stream_steps=request.stream_steps,
             stream_tokens=request.stream_tokens,
-            return_message_object=False,  # set for REST API
+            return_message_object=return_message_object,  # set for REST API
         )
 
     return router
