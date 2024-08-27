@@ -173,7 +173,7 @@ def test_create_agent_tool(client):
 
     # initial memory
     initial_memory = client.get_in_context_memory(agent.id)
-    print("initial memory", initial_memory)
+    print("initial memory", initial_memory.compile())
     human = initial_memory.get_block("human")
     persona = initial_memory.get_block("persona")
     print("Initial memory:", human, persona)
