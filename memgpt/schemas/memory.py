@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Union
 
-from jinja2 import Template
+from jinja2 import Template, TemplateSyntaxError
 from pydantic import BaseModel, Field
 
 from memgpt.schemas.block import Block
@@ -22,6 +22,29 @@ class Memory(BaseModel, validate_assignment=True):
         "{% endfor %}",
         description="Jinja2 template for compiling memory module into a prompt string",
     )
+
+    def get_template(self) -> str:
+        """Return the current Jinja2 template string."""
+        return str(self.template)
+
+    def set_template(self, template: str):
+        """
+        Set a new Jinja2 template string.
+        Validates the template syntax and compatibility with current memory structure.
+        """
+        try:
+            # Validate Jinja2 syntax
+            Template(template)
+
+            # Validate compatibility with current memory structure
+            test_render = Template(template).render(memory=self.memory)
+
+            # If we get here, the template is valid and compatible
+            self.template = template
+        except TemplateSyntaxError as e:
+            raise ValueError(f"Invalid Jinja2 template syntax: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Template is not compatible with current memory structure: {str(e)}")
 
     @classmethod
     def load(cls, state: dict):

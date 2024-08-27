@@ -78,3 +78,36 @@ def test_memory_jinja2_template(sample_memory: Memory):
     old_repr_str = old_repr(sample_memory)
     new_repr_str = sample_memory.compile()
     assert new_repr_str == old_repr_str, f"Expected '{old_repr_str}' to be '{new_repr_str}'"
+
+
+def test_memory_jinja2_set_template(sample_memory: Memory):
+    """Test setting the template for the memory"""
+
+    example_template = sample_memory.get_template()
+
+    # Try setting a valid template
+    sample_memory.set_template(template=example_template)
+
+    # Try setting an invalid template (bad jinja2)
+    template_bad_jinja = (
+        "{% for section, module in mammoth.items() %}"
+        '<{{ section }} characters="{{ module.value|length }}/{{ module.limit }}">\n'
+        "{{ module.value }}\n"
+        "</{{ section }}>"
+        "{% if not loop.last %}\n{% endif %}"
+        "{% endfor %"  # Missing closing curly brace
+    )
+    with pytest.raises(ValueError):
+        sample_memory.set_template(template=template_bad_jinja)
+
+    # Try setting an invalid template (not compatible with memory structure)
+    template_bad_memory_structure = (
+        "{% for section, module in mammoth.items() %}"
+        '<{{ section }} characters="{{ module.value|length }}/{{ module.limit }}">\n'
+        "{{ module.value }}\n"
+        "</{{ section }}>"
+        "{% if not loop.last %}\n{% endif %}"
+        "{% endfor %}"
+    )
+    with pytest.raises(ValueError):
+        sample_memory.set_template(template=template_bad_memory_structure)
