@@ -31,6 +31,7 @@ from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.memory import (
     ArchivalMemorySummary,
     ChatMemory,
+    CreateArchivalMemory,
     Memory,
     RecallMemorySummary,
 )
@@ -396,7 +397,8 @@ class RESTClient(AbstractClient):
         return [Passage(**passage) for passage in response.json()]
 
     def insert_archival_memory(self, agent_id: str, memory: str) -> List[Passage]:
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival/{memory}", headers=self.headers)
+        request = CreateArchivalMemory(text=memory)
+        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", headers=self.headers, json=request.model_dump())
         if response.status_code != 200:
             raise ValueError(f"Failed to insert archival memory: {response.text}")
         return [Passage(**passage) for passage in response.json()]
