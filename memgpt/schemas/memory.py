@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional, Union
 
-from jinja2 import Template
+from jinja2 import Template, TemplateSyntaxError
 from pydantic import BaseModel, Field
 
 from memgpt.schemas.block import Block
