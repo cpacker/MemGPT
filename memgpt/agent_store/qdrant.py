@@ -115,14 +115,14 @@ class QdrantStorageConnector(StorageConnector):
         filters: Optional[Dict] = {},
     ) -> List[RecordType]:
         filters = self.get_filters(filters)
-        results = self.qdrant_client.search(
+        results = self.qdrant_client.query_points(
             self.table_name,
-            query_vector=query_vec,
+            query=query_vec,
             query_filter=filters,
             limit=top_k,
             with_payload=True,
             with_vectors=True,
-        )
+        ).points
         return self.to_records(results)
 
     def to_records(self, records: list) -> List[RecordType]:
