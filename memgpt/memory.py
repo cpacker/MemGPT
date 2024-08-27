@@ -307,7 +307,7 @@ class ArchivalMemory(ABC):
         """
 
     @abstractmethod
-    def __repr__(self) -> str:
+    def compile(self) -> str:
         pass
 
 
@@ -321,7 +321,7 @@ class RecallMemory(ABC):
         """Search messages between start_date and end_date in recall memory"""
 
     @abstractmethod
-    def __repr__(self) -> str:
+    def compile(self) -> str:
         pass
 
     @abstractmethod
@@ -350,6 +350,9 @@ class DummyRecallMemory(RecallMemory):
         return len(self._message_logs)
 
     def __repr__(self) -> str:
+        raise NotImplementedError("Use the .compile() method instead")
+
+    def compile(self) -> str:
         # don't dump all the conversations, just statistics
         system_count = user_count = assistant_count = function_count = other_count = 0
         for msg in self._message_logs:
@@ -467,6 +470,9 @@ class BaseRecallMemory(RecallMemory):
         return results_json, len(results)
 
     def __repr__(self) -> str:
+        raise NotImplementedError("Use the .compile() method instead")
+
+    def compile(self) -> str:
         total = self.storage.size()
         system_count = self.storage.size(filters={"role": "system"})
         user_count = self.storage.size(filters={"role": "user"})
@@ -597,6 +603,9 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             raise e
 
     def __repr__(self) -> str:
+        raise NotImplementedError("Use the .compile() method instead")
+
+    def compile(self) -> str:
         limit = 10
         passages = []
         for passage in list(self.storage.get_all(limit=limit)):  # TODO: only get first 10
