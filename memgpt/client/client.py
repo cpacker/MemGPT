@@ -696,11 +696,10 @@ class RESTClient(AbstractClient):
             source_code = parse_source_code(func)
         else:
             source_code = None
-            json_schema = None
 
         source_type = "python"
 
-        request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=name)
+        request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name)
         response = requests.post(f"{self.base_url}/api/tools/{id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
@@ -1140,13 +1139,10 @@ class LocalClient(AbstractClient):
             source_code = parse_source_code(func)
         else:
             source_code = None
-            json_schema = None
 
         source_type = "python"
 
-        return self.server.update_tool(
-            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=name)
-        )
+        return self.server.update_tool(ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name))
 
     def list_tools(self):
         """List available tools.
