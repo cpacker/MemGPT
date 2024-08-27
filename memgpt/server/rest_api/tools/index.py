@@ -77,11 +77,7 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
         """
         Create a new tool
         """
-        try:
-            return server.create_tool(request, user_id=user_id)
-        except Exception as e:
-            print(e)
-            raise HTTPException(status_code=500, detail=f"Failed to create tool: {e}")
+        return server.create_tool(request, user_id=user_id)
 
     @router.post("/tools/{tool_id}", tags=["tools"], response_model=Tool)
     async def update_tool(
