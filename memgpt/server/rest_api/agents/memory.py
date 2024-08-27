@@ -4,7 +4,12 @@ from typing import Dict, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
-from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
+from memgpt.schemas.memory import (
+    ArchivalMemorySummary,
+    CreateArchivalMemory,
+    Memory,
+    RecallMemorySummary,
+)
 from memgpt.schemas.message import Message
 from memgpt.schemas.passage import Passage
 from memgpt.server.rest_api.auth_token import get_current_user
@@ -109,17 +114,17 @@ def setup_agents_memory_router(server: SyncServer, interface: QueuingInterface, 
             limit=limit,
         )
 
-    @router.post("/agents/{agent_id}/archival/{memory}", tags=["agents"], response_model=List[Passage])
+    @router.post("/agents/{agent_id}/archival", tags=["agents"], response_model=List[Passage])
     def insert_agent_archival_memory(
         agent_id: str,
-        memory: str,
+        request: CreateArchivalMemory = Body(...),
         user_id: str = Depends(get_current_user_with_server),
     ):
         """
         Insert a memory into an agent's archival memory store.
         """
         interface.clear()
-        return server.insert_archival_memory(user_id=user_id, agent_id=agent_id, memory_contents=memory)
+        return server.insert_archival_memory(user_id=user_id, agent_id=agent_id, memory_contents=request.text)
 
     @router.delete("/agents/{agent_id}/archival/{memory_id}", tags=["agents"])
     def delete_agent_archival_memory(
