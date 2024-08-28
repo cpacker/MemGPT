@@ -163,7 +163,6 @@ def openai_chat_completions_process_stream(
                         message_id=chat_completion_response.id if create_message_id else chat_completion_chunk.id,
                         message_date=chat_completion_response.created if create_message_datetime else chat_completion_chunk.created,
                     )
-                    print(f"process_chunk: {chat_completion_response.id} {chat_completion_response.created.isoformat()}")
                 elif isinstance(stream_inferface, AgentRefreshStreamingInterface):
                     stream_inferface.process_refresh(chat_completion_response)
                 else:
