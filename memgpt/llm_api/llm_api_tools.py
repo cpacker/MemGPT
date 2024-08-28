@@ -3,7 +3,6 @@ import json
 import os
 import random
 import time
-import uuid
 import warnings
 from typing import List, Optional, Union
 
@@ -231,9 +230,9 @@ def create(
     # agent_state: AgentState,
     llm_config: LLMConfig,
     messages: List[Message],
-    user_id: uuid.UUID = None,  # option UUID to associate request with
-    functions: list = None,
-    functions_python: list = None,
+    user_id: Optional[str] = None,  # option UUID to associate request with
+    functions: Optional[list] = None,
+    functions_python: Optional[list] = None,
     function_call: str = "auto",
     # hint
     first_message: bool = False,
