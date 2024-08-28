@@ -549,7 +549,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             # processed_chunk = self._process_chunk_to_openai_style(chunk)
             raise NotImplementedError("OpenAI proxy streaming temporarily disabled")
         else:
-            processed_chunk = self._process_chunk_to_memgpt_style(chunk, message_id=message_id, message_date=message_date)
+            processed_chunk = self._process_chunk_to_memgpt_style(chunk=chunk, message_id=message_id, message_date=message_date)
 
         if processed_chunk is None:
             return
