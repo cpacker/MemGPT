@@ -7,6 +7,8 @@ from httpx_sse import connect_sse
 from httpx_sse._exceptions import SSEError
 
 from memgpt.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
+from memgpt.schemas.message import Message as _Message
+from memgpt.schemas.message import MessageRole as _MessageRole
 from memgpt.schemas.openai.chat_completion_request import ChatCompletionRequest
 from memgpt.schemas.openai.chat_completion_response import (
     ChatCompletionChunkResponse,
@@ -22,7 +24,7 @@ from memgpt.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
 )
-from memgpt.utils import get_utc_time, smart_urljoin
+from memgpt.utils import smart_urljoin
 
 OPENAI_SSE_DONE = "[DONE]"
 
@@ -114,13 +116,24 @@ def openai_chat_completions_process_stream(
             model=chat_completion_request.model,
         )
 
-    TEMP_STREAM_RESPONSE_ID = "temp_id"
+    # Create a dummy Message object to get an ID and date
+    dummy_message = _Message(
+        role=_MessageRole.assistant,
+        text="",
+        user_id="",
+        agent_id="",
+        model="",
+        name=None,
+        tool_calls=None,
+        tool_call_id=None,
+    )
+
     TEMP_STREAM_FINISH_REASON = "temp_null"
     TEMP_STREAM_TOOL_CALL_ID = "temp_id"
     chat_completion_response = ChatCompletionResponse(
-        id=TEMP_STREAM_RESPONSE_ID,
+        id=dummy_message.id,
         choices=[],
-        created=get_utc_time(),
+        created=dummy_message.created_at,
         model=chat_completion_request.model,
         usage=UsageStatistics(
             completion_tokens=0,
@@ -142,7 +155,9 @@ def openai_chat_completions_process_stream(
 
             if stream_inferface:
                 if isinstance(stream_inferface, AgentChunkStreamingInterface):
-                    stream_inferface.process_chunk(chat_completion_chunk)
+                    stream_inferface.process_chunk(
+                        chat_completion_chunk, message_id=chat_completion_chunk.id, message_date=chat_completion_chunk.created
+                    )
                 elif isinstance(stream_inferface, AgentRefreshStreamingInterface):
                     stream_inferface.process_refresh(chat_completion_response)
                 else:
@@ -234,7 +249,8 @@ def openai_chat_completions_process_stream(
             for c in chat_completion_response.choices
         ]
     )
-    assert chat_completion_response.id != TEMP_STREAM_RESPONSE_ID
+    # TODO: remove this once we start passing the message ID backwards via the chunks
+    assert chat_completion_response.id != dummy_message.id
 
     # compute token usage before returning
     # TODO try actually computing the #tokens instead of assuming the chunks is the same
