@@ -13,7 +13,9 @@ class BaseMemGPTMessage(BaseModel):
 
     @field_serializer("date")
     def serialize_datetime(self, dt: datetime, _info):
-        return dt.now(timezone.utc).isoformat()
+        if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.isoformat()
 
 
 class InternalMonologue(BaseMemGPTMessage):
