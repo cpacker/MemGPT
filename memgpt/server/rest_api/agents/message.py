@@ -4,7 +4,7 @@ from functools import partial
 from typing import List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from starlette.responses import StreamingResponse
+from fastapi.responses import StreamingResponse
 
 from memgpt.schemas.enums import MessageRole, MessageStreamStatus
 from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
@@ -140,7 +140,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
         Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
         """
         interface.clear()
-        messages = server.get_agent_messages(user_id=user_id, agent_id=agent_id, start=start, count=count)
+        messages = server.get_agent_messages(agent_id=agent_id, start=start, count=count)
         return messages
 
     @router.get("/agents/{agent_id}/messages", tags=["agents"], response_model=List[Message])
@@ -184,6 +184,7 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
             message=message.text,
             stream_steps=request.stream_steps,
             stream_tokens=request.stream_tokens,
+            return_message_object=False,
         )
 
     return router
