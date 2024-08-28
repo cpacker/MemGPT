@@ -448,6 +448,10 @@ class Agent(object):
         self,
         response_message: ChatCompletionMessage,  # TODO should we eventually move the Message creation outside of this function?
         override_tool_call_id: bool = True,
+        # If we are streaming, we needed to create a Message ID ahead of time,
+        # and now we want to use it in the creation of the Message object
+        # TODO figure out a cleaner way to do this
+        response_message_id: Optional[str] = None,
     ) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
 
@@ -481,6 +485,7 @@ class Agent(object):
                 # NOTE: we're recreating the message here
                 # TODO should probably just overwrite the fields?
                 Message.dict_to_message(
+                    id=response_message_id,
                     agent_id=self.agent_state.id,
                     user_id=self.agent_state.user_id,
                     model=self.model,
@@ -626,6 +631,7 @@ class Agent(object):
             # Standard non-function reply
             messages.append(
                 Message.dict_to_message(
+                    id=response_message_id,
                     agent_id=self.agent_state.id,
                     user_id=self.agent_state.user_id,
                     model=self.model,
@@ -772,7 +778,14 @@ class Agent(object):
             # (if yes) Step 5: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
             response_message.model_copy()  # TODO why are we copying here?
-            all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
+            all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(
+                response_message,
+                # TODO the only time we set up message creation ahead of time is when streaming is on
+                # I'm not really what the best way to pass this backwards sometimes but not always is
+                # For now I'll leave this disgusting hack, but we need to clean this up
+                # The hack assumes that if the response id starts with "message-" then we intended to use it
+                response_message_id=response.id if response.id.startswith("message-") else None,
+            )
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
