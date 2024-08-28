@@ -27,6 +27,9 @@ from memgpt.schemas.enums import OptionState
 from memgpt.schemas.memory import Memory
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
+from memgpt.schemas.openai.chat_completion_response import (
+    Message as ChatCompletionMessage,
+)
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.tool import Tool
 from memgpt.system import (
@@ -441,7 +444,11 @@ class Agent(object):
         except Exception as e:
             raise e
 
-    def _handle_ai_response(self, response_message: Message, override_tool_call_id: bool = True) -> Tuple[List[Message], bool, bool]:
+    def _handle_ai_response(
+        self,
+        response_message: ChatCompletionMessage,  # TODO should we eventually move the Message creation outside of this function?
+        override_tool_call_id: bool = True,
+    ) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
 
         messages = []  # append these to the history when done
