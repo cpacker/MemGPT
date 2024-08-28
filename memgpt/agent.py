@@ -455,6 +455,10 @@ class Agent(object):
     ) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
 
+        # Hacky failsafe for now to make sure we didn't implement the streaming Message ID creation incorrectly
+        if response_message_id is not None:
+            assert response_message_id.startswith("message-"), response_message_id
+
         messages = []  # append these to the history when done
 
         # Step 2: check if LLM wanted to call a function
@@ -780,11 +784,9 @@ class Agent(object):
             response_message.model_copy()  # TODO why are we copying here?
             all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(
                 response_message,
-                # TODO the only time we set up message creation ahead of time is when streaming is on
-                # I'm not really what the best way to pass this backwards sometimes but not always is
-                # For now I'll leave this disgusting hack, but we need to clean this up
-                # The hack assumes that if the response id starts with "message-" then we intended to use it
-                response_message_id=response.id if response.id.startswith("message-") else None,
+                # TODO this is kind of hacky, find a better way to handle this
+                # the only time we set up message creation ahead of time is when streaming is on
+                response_message_id=response.id if stream else None,
             )
 
             # Add the extra metadata to the assistant response
