@@ -24,7 +24,7 @@ from memgpt.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
 )
-from memgpt.utils import smart_urljoin
+from memgpt.utils import get_utc_time, smart_urljoin
 
 OPENAI_SSE_DONE = "[DONE]"
 
@@ -84,6 +84,8 @@ def openai_chat_completions_process_stream(
     api_key: str,
     chat_completion_request: ChatCompletionRequest,
     stream_inferface: Optional[Union[AgentChunkStreamingInterface, AgentRefreshStreamingInterface]] = None,
+    create_message_id: Optional[bool] = True,
+    create_message_datetime: Optional[bool] = True,
 ) -> ChatCompletionResponse:
     """Process a streaming completion response, and return a ChatCompletionRequest at the end.
 
@@ -128,12 +130,13 @@ def openai_chat_completions_process_stream(
         tool_call_id=None,
     )
 
+    TEMP_STREAM_RESPONSE_ID = "temp_id"
     TEMP_STREAM_FINISH_REASON = "temp_null"
     TEMP_STREAM_TOOL_CALL_ID = "temp_id"
     chat_completion_response = ChatCompletionResponse(
-        id=dummy_message.id,
+        id=dummy_message.id if create_message_id else TEMP_STREAM_RESPONSE_ID,
         choices=[],
-        created=dummy_message.created_at,
+        created=dummy_message.created_at if create_message_datetime else get_utc_time(),
         model=chat_completion_request.model,
         usage=UsageStatistics(
             completion_tokens=0,
@@ -156,8 +159,11 @@ def openai_chat_completions_process_stream(
             if stream_inferface:
                 if isinstance(stream_inferface, AgentChunkStreamingInterface):
                     stream_inferface.process_chunk(
-                        chat_completion_chunk, message_id=chat_completion_chunk.id, message_date=chat_completion_chunk.created
+                        chat_completion_chunk,
+                        message_id=chat_completion_response.id if create_message_id else chat_completion_chunk.id,
+                        message_date=chat_completion_response.created if create_message_datetime else chat_completion_chunk.created,
                     )
+                    print(f"process_chunk: {chat_completion_response.id} {chat_completion_response.created.isoformat()}")
                 elif isinstance(stream_inferface, AgentRefreshStreamingInterface):
                     stream_inferface.process_refresh(chat_completion_response)
                 else:
@@ -224,10 +230,12 @@ def openai_chat_completions_process_stream(
                     raise NotImplementedError(f"Old function_call style not support with stream=True")
 
             # overwrite response fields based on latest chunk
-            chat_completion_response.id = chat_completion_chunk.id
-            chat_completion_response.system_fingerprint = chat_completion_chunk.system_fingerprint
-            chat_completion_response.created = chat_completion_chunk.created
+            if not create_message_id:
+                chat_completion_response.id = chat_completion_chunk.id
+            if not create_message_datetime:
+                chat_completion_response.created = chat_completion_chunk.created
             chat_completion_response.model = chat_completion_chunk.model
+            chat_completion_response.system_fingerprint = chat_completion_chunk.system_fingerprint
 
             # increment chunk counter
             n_chunks += 1
@@ -250,7 +258,7 @@ def openai_chat_completions_process_stream(
         ]
     )
     # TODO: remove this once we start passing the message ID backwards via the chunks
-    assert chat_completion_response.id != dummy_message.id
+    # assert chat_completion_response.id != dummy_message.id
 
     # compute token usage before returning
     # TODO try actually computing the #tokens instead of assuming the chunks is the same
