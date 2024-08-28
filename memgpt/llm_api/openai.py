@@ -6,6 +6,7 @@ import requests
 from httpx_sse import connect_sse
 from httpx_sse._exceptions import SSEError
 
+from memgpt.errors import LLMError
 from memgpt.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
 from memgpt.schemas.message import Message as _Message
 from memgpt.schemas.message import MessageRole as _MessageRole
@@ -256,8 +257,8 @@ def openai_chat_completions_process_stream(
             for c in chat_completion_response.choices
         ]
     )
-    # TODO: remove this once we start passing the message ID backwards via the chunks
-    # assert chat_completion_response.id != dummy_message.id
+    if not create_message_id:
+        assert chat_completion_response.id != dummy_message.id
 
     # compute token usage before returning
     # TODO try actually computing the #tokens instead of assuming the chunks is the same
@@ -286,7 +287,10 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[ChatCompletionCh
                     response_dict = json.loads(response_bytes.decode("utf-8"))
                     error_message = response_dict["error"]["message"]
                     # e.g.: This model's maximum context length is 8192 tokens. However, your messages resulted in 8198 tokens (7450 in the messages, 748 in the functions). Please reduce the length of the messages or functions.
-                    raise Exception(error_message)
+                    if "maximum context length" in error_message:
+                        raise LLMError(error_message)
+                except LLMError:
+                    raise
                 except:
                     print(f"Failed to parse SSE message, throwing SSE HTTP error up the stack")
                     event_source.response.raise_for_status()
