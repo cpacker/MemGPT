@@ -423,7 +423,7 @@ class RESTClient(AbstractClient):
     ) -> MemGPTResponse:
         messages = [MessageCreate(role=role, text=message, name=name)]
         # TODO: figure out how to handle stream_steps and stream_tokens
-        request = MemGPTRequest(messages=messages, stream_steps=stream)
+        request = MemGPTRequest(messages=messages, stream_steps=stream, return_message_object=True)
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
