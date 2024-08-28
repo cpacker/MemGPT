@@ -1,5 +1,6 @@
 import json
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import List, Optional
 
 # from colorama import Fore, Style, init
@@ -49,7 +50,7 @@ class AgentChunkStreamingInterface(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def process_chunk(self, chunk: ChatCompletionChunkResponse):
+    def process_chunk(self, chunk: ChatCompletionChunkResponse, message_id: str, message_date: datetime):
         """Process a streaming chunk from an OpenAI-compatible server"""
         raise NotImplementedError
 
@@ -93,7 +94,7 @@ class StreamingCLIInterface(AgentChunkStreamingInterface):
     def _flush(self):
         pass
 
-    def process_chunk(self, chunk: ChatCompletionChunkResponse):
+    def process_chunk(self, chunk: ChatCompletionChunkResponse, message_id: str, message_date: datetime):
         assert len(chunk.choices) == 1, chunk
 
         message_delta = chunk.choices[0].delta
@@ -135,10 +136,10 @@ class StreamingCLIInterface(AgentChunkStreamingInterface):
 
             # Slightly more complex - want to write parameters in a certain way (paren-style)
             # function_name(function_args)
-            if function_call.name:
+            if function_call and function_call.name:
                 # NOTE: need to account for closing the brace later
                 print(f"{function_call.name}(", end="", flush=True)
-            if function_call.arguments:
+            if function_call and function_call.arguments:
                 print(function_call.arguments, end="", flush=True)
 
     def stream_start(self):
