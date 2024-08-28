@@ -134,8 +134,32 @@ class Message(BaseMessage):
                 created_at=created_at,
             )
             if id is not None:
-                message_args["id"] = str(id)
-            return Message(**message_args)
+                return Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    model=model,
+                    # standard fields expected in an OpenAI ChatCompletion message object
+                    role=MessageRole.tool,  # NOTE
+                    text=openai_message_dict["content"],
+                    name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+                    tool_calls=openai_message_dict["tool_calls"] if "tool_calls" in openai_message_dict else None,
+                    tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+                    created_at=created_at,
+                    id=str(id),
+                )
+            else:
+                return Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    model=model,
+                    # standard fields expected in an OpenAI ChatCompletion message object
+                    role=MessageRole.tool,  # NOTE
+                    text=openai_message_dict["content"],
+                    name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+                    tool_calls=openai_message_dict["tool_calls"] if "tool_calls" in openai_message_dict else None,
+                    tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+                    created_at=created_at,
+                )
 
         elif "function_call" in openai_message_dict and openai_message_dict["function_call"] is not None:
             if not allow_functions_style:
@@ -156,21 +180,33 @@ class Message(BaseMessage):
                 )
             ]
 
-            message_args = dict(
-                user_id=user_id,
-                agent_id=agent_id,
-                model=model,
-                # standard fields expected in an OpenAI ChatCompletion message object
-                role=MessageRole(openai_message_dict["role"]),
-                text=openai_message_dict["content"],
-                name=openai_message_dict["name"] if "name" in openai_message_dict else None,
-                tool_calls=tool_calls,
-                tool_call_id=None,  # NOTE: None, since this field is only non-null for role=='tool'
-                created_at=created_at,
-            )
             if id is not None:
-                message_args["id"] = str(id)
-            return Message(**message_args)
+                return Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    model=model,
+                    # standard fields expected in an OpenAI ChatCompletion message object
+                    role=MessageRole(openai_message_dict["role"]),
+                    text=openai_message_dict["content"],
+                    name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+                    tool_calls=tool_calls,
+                    tool_call_id=None,  # NOTE: None, since this field is only non-null for role=='tool'
+                    created_at=created_at,
+                    id=str(id),
+                )
+            else:
+                return Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    model=model,
+                    # standard fields expected in an OpenAI ChatCompletion message object
+                    role=MessageRole(openai_message_dict["role"]),
+                    text=openai_message_dict["content"],
+                    name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+                    tool_calls=tool_calls,
+                    tool_call_id=None,  # NOTE: None, since this field is only non-null for role=='tool'
+                    created_at=created_at,
+                )
 
         else:
             # Basic sanity check
@@ -191,21 +227,33 @@ class Message(BaseMessage):
                 tool_calls = None
 
             # If we're going from tool-call style
-            message_args = dict(
-                user_id=user_id,
-                agent_id=agent_id,
-                model=model,
-                # standard fields expected in an OpenAI ChatCompletion message object
-                role=MessageRole(openai_message_dict["role"]),
-                text=openai_message_dict["content"],
-                name=openai_message_dict["name"] if "name" in openai_message_dict else None,
-                tool_calls=tool_calls,
-                tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
-                created_at=created_at,
-            )
             if id is not None:
-                message_args["id"] = str(id)
-            return Message(**message_args)
+                return Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    model=model,
+                    # standard fields expected in an OpenAI ChatCompletion message object
+                    role=MessageRole(openai_message_dict["role"]),
+                    text=openai_message_dict["content"],
+                    name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+                    tool_calls=tool_calls,
+                    tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+                    created_at=created_at,
+                    id=str(id),
+                )
+            else:
+                return Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    model=model,
+                    # standard fields expected in an OpenAI ChatCompletion message object
+                    role=MessageRole(openai_message_dict["role"]),
+                    text=openai_message_dict["content"],
+                    name=openai_message_dict["name"] if "name" in openai_message_dict else None,
+                    tool_calls=tool_calls,
+                    tool_call_id=openai_message_dict["tool_call_id"] if "tool_call_id" in openai_message_dict else None,
+                    created_at=created_at,
+                )
 
     def to_openai_dict_search_results(self, max_tool_id_length: int = TOOL_CALL_ID_MAX_LEN) -> dict:
         result_json = self.to_openai_dict()
