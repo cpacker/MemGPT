@@ -1,6 +1,6 @@
 services:
   memgpt_db:
-    image: ankane/pgvector:v0.5.1
+    image: pgvector/pgvector:0.7.4-pg15
     networks:
       default:
         aliases:
