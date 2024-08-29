@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.constants import DEFAULT_PRESET
-from memgpt.schemas.message import Message
+from memgpt.schemas.memgpt_message import InternalMonologue
 from memgpt.schemas.usage import MemGPTUsageStatistics
 
 # from tests.utils import create_config
@@ -127,7 +127,7 @@ def test_agent_interactions(client, agent):
     assert response.usage.step_count == 1
     assert response.usage.total_tokens > 0
     assert response.usage.completion_tokens > 0
-    assert isinstance(response.messages[0], Message)
+    assert isinstance(response.messages[0], InternalMonologue)
     print(response.messages)
 
     # TODO: add streaming tests
@@ -165,6 +165,14 @@ def test_archival_memory(client, agent):
 
     # TODO: check deletion
     client.get_archival_memory(agent.id)
+
+
+def test_core_memory(client, agent):
+    response = client.send_message(agent_id=agent.id, message="Update your core memory to remember that my name is Timber!", role="user")
+    print("Response", response)
+
+    memory = client.get_in_context_memory(agent_id=agent.id)
+    assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
 
 
 def test_messages(client, agent):
