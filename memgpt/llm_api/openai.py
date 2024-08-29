@@ -86,8 +86,8 @@ def openai_chat_completions_process_stream(
     api_key: str,
     chat_completion_request: ChatCompletionRequest,
     stream_inferface: Optional[Union[AgentChunkStreamingInterface, AgentRefreshStreamingInterface]] = None,
-    create_message_id: Optional[bool] = True,
-    create_message_datetime: Optional[bool] = False,
+    create_message_id: bool = True,
+    create_message_datetime: bool = True,
 ) -> ChatCompletionResponse:
     """Process a streaming completion response, and return a ChatCompletionRequest at the end.
 
@@ -157,7 +157,6 @@ def openai_chat_completions_process_stream(
             openai_chat_completions_request_stream(url=url, api_key=api_key, chat_completion_request=chat_completion_request)
         ):
             assert isinstance(chat_completion_chunk, ChatCompletionChunkResponse), type(chat_completion_chunk)
-            # print(chat_completion_chunk)
 
             if stream_inferface:
                 if isinstance(stream_inferface, AgentChunkStreamingInterface):

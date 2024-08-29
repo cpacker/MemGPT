@@ -15,7 +15,9 @@ class BaseMemGPTMessage(BaseModel):
     def serialize_datetime(self, dt: datetime, _info):
         if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
             dt = dt.replace(tzinfo=timezone.utc)
-        return dt.isoformat()
+        # Remove microseconds since it seems like we're inconsistent with getting them
+        # TODO figure out why we don't always get microseconds (get_utc_time() does)
+        return dt.isoformat(timespec="seconds")
 
 
 class InternalMonologue(BaseMemGPTMessage):
