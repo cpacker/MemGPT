@@ -121,6 +121,7 @@ def openai_chat_completions_process_stream(
         )
 
     # Create a dummy Message object to get an ID and date
+    # TODO(sarah): add message ID generation function
     dummy_message = _Message(
         role=_MessageRole.assistant,
         text="",
