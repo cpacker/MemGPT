@@ -36,7 +36,7 @@ class Agent(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="agents")
-    users: Mapped[List["User"]] = relationship("User", back_populates="agents", secondary="users_agents")
+    users: Mapped[List["User"]] = relationship("User", back_populates="agents", secondary="users_agents", lazy="selectin")
     sources: Mapped[List["Source"]] = relationship("Source", secondary="sources_agents")
     tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_agents", lazy="selectin")
     core_memory: Mapped[List["Block"]] = relationship("Block", secondary="blocks_agents", lazy="selectin")

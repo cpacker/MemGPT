@@ -4,7 +4,7 @@ from tests.mock_factory.models import MockAgentFactory
 
 @m.describe("When performing basic interactions with Agents")
 class TestUnitAgent:
-    @m.skip()
+
     @m.context("and interacting with agents via Client")
     @m.it("should create an agent")
     async def test_create_agent(self, client):
@@ -12,7 +12,7 @@ class TestUnitAgent:
         agent = await client.create_agent(name=agent_name)
         assert agent.name == agent_name
 
-    @m.skip()
+
     @m.it("should update an agent")
     async def test_update_agent(self, client):
         agent_name = "TestAgent"
@@ -60,7 +60,7 @@ class TestUnitAgent:
         agents = await client.list_agents()
         assert any(a["id"] == agent.id for a in agents)
 
-    @m.skip()
+
     @m.context("and a message is sent to the agent")
     @m.it("should get the message and respond")
     async def test_send_message(self, client):

@@ -53,8 +53,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             query = select(cls).filter_by(**kwargs)
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
-            breakpoint()
-            return session.execute(query).all()
+            return list(session.execute(query).scalars())
 
     @classmethod
     def to_uid(cls, identifier) -> "UUID":
