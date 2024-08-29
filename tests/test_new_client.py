@@ -1,6 +1,9 @@
+from typing import Union
+
 import pytest
 
 from memgpt import create_client
+from memgpt.client.client import LocalClient, RESTClient
 from memgpt.schemas.block import Block
 from memgpt.schemas.memory import BlockChatMemory, ChatMemory, Memory
 
@@ -19,7 +22,7 @@ def agent(client):
     assert client.get_agent(agent_state.id) is None, f"Failed to properly delete agent {agent_state.id}"
 
 
-def test_agent(client):
+def test_agent(client: Union[LocalClient, RESTClient]):
 
     tools = client.list_tools()
 
