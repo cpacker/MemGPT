@@ -26,7 +26,7 @@ from memgpt.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
 )
-from memgpt.utils import get_utc_time, smart_urljoin
+from memgpt.utils import smart_urljoin
 
 OPENAI_SSE_DONE = "[DONE]"
 
@@ -87,7 +87,7 @@ def openai_chat_completions_process_stream(
     chat_completion_request: ChatCompletionRequest,
     stream_inferface: Optional[Union[AgentChunkStreamingInterface, AgentRefreshStreamingInterface]] = None,
     create_message_id: Optional[bool] = True,
-    create_message_datetime: Optional[bool] = True,
+    create_message_datetime: Optional[bool] = False,
 ) -> ChatCompletionResponse:
     """Process a streaming completion response, and return a ChatCompletionRequest at the end.
 
@@ -139,7 +139,7 @@ def openai_chat_completions_process_stream(
     chat_completion_response = ChatCompletionResponse(
         id=dummy_message.id if create_message_id else TEMP_STREAM_RESPONSE_ID,
         choices=[],
-        created=dummy_message.created_at if create_message_datetime else get_utc_time(),
+        created=dummy_message.created_at,  # NOTE: doesn't matter since both will do get_utc_time()
         model=chat_completion_request.model,
         usage=UsageStatistics(
             completion_tokens=0,
