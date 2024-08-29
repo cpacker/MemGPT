@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import CLI_WARNING_PREFIX
+from memgpt.constants import CLI_WARNING_PREFIX, OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from memgpt.credentials import MemGPTCredentials
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
 from memgpt.llm_api.azure_openai import (
@@ -133,7 +133,7 @@ def is_context_overflow_error(exception: requests.exceptions.RequestException) -
     """Checks if an exception is due to context overflow (based on common OpenAI response messages)"""
     from memgpt.utils import printd
 
-    match_string = "maximum context length"
+    match_string = OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 
     # Backwards compatibility with openai python package/client v0.28 (pre-v1 client migration)
     if match_string in str(exception):

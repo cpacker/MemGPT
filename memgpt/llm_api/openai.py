@@ -6,6 +6,7 @@ import requests
 from httpx_sse import connect_sse
 from httpx_sse._exceptions import SSEError
 
+from memgpt.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from memgpt.errors import LLMError
 from memgpt.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
 from memgpt.schemas.message import Message as _Message
@@ -287,7 +288,7 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[ChatCompletionCh
                     response_dict = json.loads(response_bytes.decode("utf-8"))
                     error_message = response_dict["error"]["message"]
                     # e.g.: This model's maximum context length is 8192 tokens. However, your messages resulted in 8198 tokens (7450 in the messages, 748 in the functions). Please reduce the length of the messages or functions.
-                    if "maximum context length" in error_message:
+                    if OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING in error_message:
                         raise LLMError(error_message)
                 except LLMError:
                     raise
