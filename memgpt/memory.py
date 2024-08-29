@@ -1,7 +1,7 @@
 import datetime
 import uuid
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from memgpt.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.embeddings import embedding_model, parse_and_chunk_text, query_embedding
@@ -128,7 +128,7 @@ from memgpt.utils import (
 #        return None
 
 
-def get_memory_functions(cls: Memory) -> List[callable]:
+def get_memory_functions(cls: Memory) -> Dict[str, Callable]:
     """Get memory functions for a memory class"""
     functions = {}
 
@@ -148,6 +148,7 @@ def get_memory_functions(cls: Memory) -> List[callable]:
         if not callable(func):  # not a function
             continue
         functions[func_name] = func
+
     return functions
 
 

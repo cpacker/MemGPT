@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -16,12 +15,12 @@ class BaseAgent(MemGPTBase, validate_assignment=True):
 
     # metadata
     metadata_: Optional[Dict] = Field(None, description="The metadata of the agent.", alias="metadata_")
-    user_id: Optional[str] = Field(None, description="The user id of the agent.")
 
 
 class AgentState(BaseAgent):
     """Representation of an agent's state."""
 
+    user_id: Optional[str] = Field(None, description="The user id of the agent.")
     id: str = BaseAgent.generate_id_field()
     name: str = Field(..., description="The name of the agent.")
     created_at: datetime = Field(..., description="The datetime the agent was created.", default_factory=datetime.now)
@@ -44,7 +43,7 @@ class AgentState(BaseAgent):
 class CreateAgent(BaseAgent):
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
-    message_ids: Optional[List[uuid.UUID]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
+    message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
     memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")

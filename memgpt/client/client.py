@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import requests
 
@@ -23,7 +23,7 @@ from memgpt.schemas.block import (
 from memgpt.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
-from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.enums import JobStatus, MessageRole
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memgpt_request import MemGPTRequest
@@ -49,6 +49,8 @@ def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
     if base_url is None:
         return LocalClient()
     else:
+        if token is None:
+            raise ValueError("Token is required for RESTClient")
         return RESTClient(base_url, token)
 
 
@@ -60,6 +62,7 @@ class AbstractClient(object):
     ):
         self.auto_save = auto_save
         self.debug = debug
+        self.default_block_limit = 2000  # TODO(sarah): is this a good value / good place?
 
     # agents
 
@@ -227,12 +230,6 @@ class RESTClient(AbstractClient):
         else:
             raise ValueError(f"Failed to check if agent exists: {response.text}")
 
-    def get_tool(self, tool_id: str):
-        response = requests.get(f"{self.base_url}/api/tools/{tool_id}", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to get tool: {response.text}")
-        return Tool(**response.json())
-
     def create_agent(
         self,
         name: Optional[str] = None,
@@ -283,6 +280,7 @@ class RESTClient(AbstractClient):
 
         # create agent
         request = CreateAgent(
+            message_ids=None,
             name=name,
             description=description,
             metadata_=metadata,
@@ -375,7 +373,7 @@ class RESTClient(AbstractClient):
 
     # agent interactions
 
-    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
+    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
         return self.send_message(agent_id, message, role="user")
 
     def save(self):
@@ -387,7 +385,7 @@ class RESTClient(AbstractClient):
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> List[Passage]:
         """Paginated get for the archival memory for an agent"""
-        params = {"limit": limit}
+        params: Dict[str, Any] = {"limit": limit}
         if before:
             params["before"] = str(before)
         if after:
@@ -411,7 +409,7 @@ class RESTClient(AbstractClient):
 
     def get_messages(
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
-    ) -> MemGPTResponse:
+    ) -> List[Message]:
         params = {"before": before, "after": after, "limit": limit}
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages", params=params, headers=self.headers)
         if response.status_code != 200:
@@ -419,11 +417,19 @@ class RESTClient(AbstractClient):
         return [Message(**message) for message in response.json()]
 
     def send_message(
-        self, agent_id: str, message: str, role: str, name: Optional[str] = None, stream: Optional[bool] = False
+        self,
+        agent_id: str,
+        message: str,
+        role: str,
+        name: Optional[str] = None,
+        stream_steps: bool = False,
+        stream_tokens: bool = False,
     ) -> MemGPTResponse:
-        messages = [MessageCreate(role=role, text=message, name=name)]
-        # TODO: figure out how to handle stream_steps and stream_tokens
-        request = MemGPTRequest(messages=messages, stream_steps=stream, return_message_object=True)
+        # TODO: add support for stream_steps and stream_tokens
+        if stream_steps or stream_tokens:
+            raise NotImplementedError("Streaming is not yet implemented on Python Client")
+        messages = [MessageCreate(role=MessageRole(role), text=message, name=name)]
+        request = MemGPTRequest(messages=messages, stream_steps=stream_steps, stream_tokens=stream_tokens, return_message_object=True)
         response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
@@ -463,7 +469,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to update block: {response.text}")
         return Block(**response.json())
 
-    def get_block(self, block_id: str) -> Block:
+    def get_block(self, block_id: str) -> Optional[Block]:
         response = requests.get(f"{self.base_url}/api/blocks/{block_id}", headers=self.headers)
         if response.status_code == 404:
             return None
@@ -471,7 +477,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get block: {response.text}")
         return Block(**response.json())
 
-    def get_block_id(self, name: str, label: str) -> str:
+    def get_block_id(self, name: str, label: str) -> Optional[str]:
         params = {"name": name, "label": label}
         response = requests.get(f"{self.base_url}/api/blocks", params=params, headers=self.headers)
         if response.status_code != 200:
@@ -583,7 +589,7 @@ class RESTClient(AbstractClient):
                 if job.status == JobStatus.completed:
                     break
                 elif job.status == JobStatus.failed:
-                    raise ValueError(f"Job failed: {job.metadata}")
+                    raise ValueError(f"Job failed: {job.metadata_}")
                 time.sleep(1)
         return job
 
@@ -679,7 +685,7 @@ class RESTClient(AbstractClient):
         self,
         id: str,
         name: Optional[str] = None,
-        func: Optional[callable] = None,
+        func: Optional[Callable] = None,
         tags: Optional[List[str]] = None,
     ) -> Tool:
         """
@@ -794,7 +800,7 @@ class LocalClient(AbstractClient):
         # create user if does not exist
         existing_user = self.server.get_user(self.user_id)
         if not existing_user:
-            self.user = self.server.create_user(UserCreate())
+            self.user = self.server.create_user(UserCreate(name=None))
             self.user_id = self.user.id
 
             # update config
@@ -860,6 +866,7 @@ class LocalClient(AbstractClient):
         # create agent
         agent_state = self.server.create_agent(
             CreateAgent(
+                message_ids=None,
                 name=name,
                 description=description,
                 metadata_=metadata,
@@ -910,12 +917,12 @@ class LocalClient(AbstractClient):
     def delete_agent(self, agent_id: str):
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent(self, agent_id: str) -> AgentState:
+    def get_agent(self, agent_id: str) -> Optional[AgentState]:
         # TODO: include agent_name
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_id(self, agent_name: str) -> AgentState:
+    def get_agent_id(self, agent_name: str) -> Optional[str]:
         self.interface.clear()
         assert agent_name, f"Agent name must be provided"
         return self.server.get_agent_id(name=agent_name, user_id=self.user_id)
@@ -1021,19 +1028,27 @@ class LocalClient(AbstractClient):
 
     def get_persona(self, id: str) -> Persona:
         assert id, f"Persona ID must be provided"
-        return Persona(**self.server.get_block(id).model_dump())
+        block = self.server.get_block(id)
+        if block is None:
+            raise ValueError(f"Persona with id {id} not found")
+        else:
+            return Persona(**block.model_dump())
 
     def get_human(self, id: str) -> Human:
         assert id, f"Human ID must be provided"
-        return Human(**self.server.get_block(id).model_dump())
+        block = self.server.get_block(id)
+        if block is None:
+            raise ValueError(f"Human with id {id} not found")
+        else:
+            return Human(**block.model_dump())
 
-    def get_persona_id(self, name: str) -> str:
+    def get_persona_id(self, name: str) -> Optional[str]:
         persona = self.server.get_blocks(name=name, label="persona", user_id=self.user_id, template=True)
         if not persona:
             return None
         return persona[0].id
 
-    def get_human_id(self, name: str) -> str:
+    def get_human_id(self, name: str) -> Optional[str]:
         human = self.server.get_blocks(name=name, label="human", user_id=self.user_id, template=True)
         if not human:
             return None
@@ -1048,7 +1063,7 @@ class LocalClient(AbstractClient):
     # tools
 
     # TODO: merge this into create_tool
-    def add_tool(self, tool: Tool, update: Optional[bool] = True) -> None:
+    def add_tool(self, tool: Tool, update: bool = True) -> Tool:
         """
         Adds a tool directly.
 
@@ -1062,7 +1077,7 @@ class LocalClient(AbstractClient):
         existing_tool_id = self.get_tool_id(tool.name)
         if existing_tool_id:
             if update:
-                self.server.update_tool(
+                return self.server.update_tool(
                     ToolUpdate(
                         id=existing_tool_id,
                         source_type=tool.source_type,
@@ -1078,7 +1093,11 @@ class LocalClient(AbstractClient):
         # call server function
         return self.server.create_tool(
             ToolCreate(
-                source_type=tool.source_type, source_code=tool.source_code, name=tool.name, json_schema=tool.json_schema, tags=tool.tags
+                source_type=tool.source_type,
+                source_code=tool.source_code,
+                name=tool.name,
+                json_schema=tool.json_schema,
+                tags=tool.tags,
             ),
             user_id=self.user_id,
             update=update,
@@ -1089,7 +1108,7 @@ class LocalClient(AbstractClient):
         self,
         func,
         name: Optional[str] = None,
-        update: Optional[bool] = True,  # TODO: actually use this
+        update: bool = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
     ) -> Tool:
         """
@@ -1122,7 +1141,7 @@ class LocalClient(AbstractClient):
         self,
         id: str,
         name: Optional[str] = None,
-        func: Optional[callable] = None,
+        func: Optional[Callable] = None,
         tags: Optional[List[str]] = None,
     ) -> Tool:
         """

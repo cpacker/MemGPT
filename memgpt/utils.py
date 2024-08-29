@@ -996,7 +996,7 @@ def get_human_text(name: str, enforce_limit=True):
     raise ValueError(f"Human {name}.txt not found")
 
 
-def get_persona_text(name: str, enforce_limit=True):
+def get_persona_text(name: str, enforce_limit=True) -> str:
     for file_path in list_persona_files():
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
@@ -1010,11 +1010,16 @@ def get_persona_text(name: str, enforce_limit=True):
     raise ValueError(f"Persona {name}.txt not found")
 
 
-def get_human_text(name: str):
+def get_human_text(name: str, enforce_limit=True) -> str:
     for file_path in list_human_files():
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
-            return open(file_path, "r", encoding="utf-8").read().strip()
+            human_text = open(file_path, "r", encoding="utf-8").read().strip()
+            if enforce_limit and len(human_text) > CORE_MEMORY_HUMAN_CHAR_LIMIT:
+                raise ValueError(f"Contents of {name}.txt is over the character limit ({len(human_text)} > {CORE_MEMORY_HUMAN_CHAR_LIMIT})")
+            return human_text
+
+    raise ValueError(f"Human {name}.txt not found")
 
 
 def get_schema_diff(schema_a, schema_b):
