@@ -1597,7 +1597,6 @@ class SyncServer(Server):
 
                 # get available functions
                 functions = [f for f in env if callable(env[f])]
-                print(functions)
 
             except Exception as e:
                 logger.error(f"Failed to execute source code: {e}")
