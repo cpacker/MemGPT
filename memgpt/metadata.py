@@ -131,12 +131,16 @@ class MetadataStore:
         *Note* There is not currently a clear SQL <> Pydantic mapping for this object.
         Args:
             agent: the agent to create"""
+        instance = Agent.read(self.db_session, agent_state.id)
         splatted_pydantic = self._clean_agent_state(agent_state=agent_state, action="update")
-        breakpoint()
-        return Agent(**splatted_pydantic).update(self.db_session)
+        for k,v in splatted_pydantic.items():
+            setattr(instance, k, v)
+        instance.update(self.db_session)
 
-    def list_agents(self) -> List[DataAgentState]:
-        return [a.to_pydantic() for a in SQLUser.read(self.db_session, self.actor.id).organization.agents]
+        return instance
+
+    def list_agents(self, **kwargs) -> List[DataAgentState]:
+        return self.list_agent(**kwargs)
 
     def list_tools(self) -> List[Tool]:
         return [a.to_pydantic() for a in SQLTool.list(self.db_session)]
@@ -211,11 +215,11 @@ class MetadataStore:
             case "list":
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org
                 def list(*args, **kwargs):
+                    filters = kwargs.get("filters", {})
                     if user_uuid := kwargs.get("id"):
-                        org = SQLUser.read(self.db_session, user_uuid).organization
-                        return [r.to_pydantic() for r in getattr(org, pluralize(raw_model_name)) or []]
+                        filters["_organization_id"] = SQLUser.read(self.db_session, user_uuid).organization._id
                     # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
-                    return [r.to_pydantic() for r in Model.list(self.db_session)]
+                    return [r.to_pydantic() for r in Model.list(db_session=self.db_session, **filters)]
                 return list
             case _:
                 raise AttributeError(f"Method {name} not found")

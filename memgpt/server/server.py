@@ -225,16 +225,13 @@ class SyncServer(Server):
 
     def _load_agent(self, user_id: str, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Loads a saved agent into memory (if it doesn't exist, throw an error)"""
-        assert isinstance(user_id, str), user_id
-        assert isinstance(agent_id, str), agent_id
-
         # If an interface isn't specified, use the default
         if interface is None:
             interface = self.default_interface_factory()
 
         try:
-            logger.info(f"Grabbing agent {user_id} agent_id={agent_id} from database")
-            agent_state = self.ms.get_agent(agent_id=agent_id, user_it=user_id)
+            logger.info(f"Grabbing agent {user_id=} {agent_id=} from database")
+            agent_state = self.ms.get_agent(id=agent_id, user_id=user_id)
             if not agent_state:
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
@@ -263,14 +260,14 @@ class SyncServer(Server):
             logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
             raise
 
-    def _get_or_load_agent(self, agent_id: str) -> Agent:
+    def _get_or_load_agent(self, agent_id: str, user_id: Optional[str] = None) -> Agent:
         """Check if the agent is in-memory, then load"""
-        logger.debug(f"Checking for agent {user_id} agent_id={agent_id}")
+        logger.debug(f"Checking for agent {user_id=} {agent_id=}")
         # TODO: consider disabling loading cached agents due to potential concurrency issues
-        memgpt_agent = self._get_agent(user_id, agent_id=agent_id)
+        memgpt_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
         if not memgpt_agent:
-            logger.debug(f"Agent not loaded, loading agent {user_id} agent_id={agent_id}")
-            memgpt_agent = self._load_agent(user_id, agent_id=agent_id)
+            logger.debug(f"Agent not loaded, loading agent {user_id=} {agent_id=}")
+            memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return memgpt_agent
 
     def _step(
@@ -468,7 +465,7 @@ class SyncServer(Server):
         """Process an incoming user message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Basic input sanitization
@@ -517,7 +514,7 @@ class SyncServer(Server):
         """Process an incoming system message and feed it through the MemGPT agent"""
         if self.ms.get_user(user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Basic input sanitization
@@ -573,7 +570,7 @@ class SyncServer(Server):
         """Run a command on the agent"""
         if self.ms.get_user(user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # If the input begins with a command prefix, attempt to process it as a command
@@ -701,7 +698,7 @@ class SyncServer(Server):
         """Update the agents core memory block, return the new state"""
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=request.id) is None:
+        if self.ms.get_agent(id=request.id) is None:
             raise ValueError(f"Agent agent_id={request.id} does not exist")
 
         # Get the agent object (loaded in memory)
@@ -759,26 +756,6 @@ class SyncServer(Server):
         # TODO: probably reload the agent somehow?
         return memgpt_agent.agent_state
 
-    def delete_agent(
-        self,
-        user_id: str,
-        agent_id: str,
-    ):
-        """Update the agents core memory block, return the new state"""
-        if self.ms.get_user(id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=request.id) is None:
-            raise ValueError(f"Agent agent_id={request.id} does not exist")
-
-        # TODO: delete related tables (recall/archival memory)
-
-        # TODO: Make sure the user owns the agent
-        agent = self.ms.get_agent(agent_id=agent_id, id=user_id)
-        if agent is not None:
-            self.ms.delete_agent(agent_id=agent_id)
-
-
-
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
         assert agent_state is not None
@@ -792,9 +769,9 @@ class SyncServer(Server):
         }
         return agent_config
 
-    def list_agents(self) -> List[AgentState]:
+    def list_agents(self, user_id: str = None) -> List[AgentState]:
         """List all available agents to a user"""
-        return self.ms.list_agents()
+        return self.ms.list_agents(id=user_id)
 
     # TODO make return type pydantic
     def list_agents_legacy(
@@ -858,7 +835,7 @@ class SyncServer(Server):
 
             # Add information about attached sources
             sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
-            sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
+            sources = [self.ms.get_source(id=s_id) for s_id in sources_ids]
             return_dict["sources"] = [vars(s) for s in sources]
 
         # Sort agents by "last_run" in descending order, most recent first
@@ -927,7 +904,7 @@ class SyncServer(Server):
         return agent_state.id
 
     def get_source(self, source_id: str, user_id: str) -> Source:
-        existing_source = self.ms.get_source(source_id=source_id, user_id=user_id)
+        existing_source = self.ms.get_source(id=source_id, user_id=user_id)
         if not existing_source:
             raise ValueError("Source does not exist")
         return existing_source
@@ -940,7 +917,7 @@ class SyncServer(Server):
 
     def get_agent(self, user_id: str, agent_id: str, agent_name: Optional[str] = None):
         """Get the agent state"""
-        return self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+        return self.ms.get_agent(id=agent_id, user_id=user_id)
 
     def get_user(self, user_id: str) -> User:
         """Get the user"""
@@ -1027,7 +1004,7 @@ class SyncServer(Server):
         """Paginated query of all messages in agent archival memory"""
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
@@ -1053,7 +1030,7 @@ class SyncServer(Server):
     ) -> List[Passage]:
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
@@ -1068,7 +1045,7 @@ class SyncServer(Server):
     def insert_archival_memory(self, user_id: str, agent_id: str, memory_contents: str) -> List[Passage]:
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
@@ -1082,7 +1059,7 @@ class SyncServer(Server):
     def insert_archival_memory(self, user_id: uuid.UUID, agent_id: uuid.UUID, memory_contents: str) -> uuid.UUID:
         if self.ms.get_user(user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
@@ -1097,7 +1074,7 @@ class SyncServer(Server):
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # TODO: should return a passage
@@ -1124,7 +1101,7 @@ class SyncServer(Server):
     ) -> List[Message]:
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
@@ -1141,7 +1118,7 @@ class SyncServer(Server):
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if agent_id:
-            if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
                 return None
         else:
             agent_state = self.ms.get_agent(agent_name=agent_name, user_id=user_id)
@@ -1206,7 +1183,7 @@ class SyncServer(Server):
         """Update the agents core memory block, return the new state"""
         if self.ms.get_user(user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
@@ -1232,13 +1209,13 @@ class SyncServer(Server):
             # save agent
             save_agent(memgpt_agent, self.ms)
 
-        return self.ms.get_agent(agent_id=agent_id).memory
+        return self.ms.get_agent(id=agent_id).memory
 
     def rename_agent(self, user_id: str, agent_id: str, new_agent_name: str) -> AgentState:
         """Update the name of the agent in the database"""
         if self.ms.get_user(user_id) is None:
             raise ValueError(f"User {user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+        if self.ms.get_agent(id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
@@ -1264,17 +1241,15 @@ class SyncServer(Server):
 
     def delete_agent(self, user_id: str, agent_id: str):
         """Delete an agent in the database"""
-        if self.ms.get_user(user_id) is None:
-            raise ValueError(f"User {user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+        if self.ms.get_user(id=user_id) is None:
+            raise ValueError(f"{user_id=} does not exist")
+        
+        # Raises a NoResultFound error if not found
+        agent_state = self.ms.get_agent(id=agent_id, user_id=user_id)
 
-        # Verify that the agent exists and is owned by the user
-        agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
-        if not agent_state:
-            raise ValueError(f"Could not find agent_id={agent_id} under {user_id}")
-        if agent_state.user_id != user_id:
-            raise ValueError(f"Could not authorize agent_id={agent_id} with {user_id}")
+        # TODO: create_agent via RESTClient never passes in user_id
+        # if agent_state.user_id != user_id:
+        #     raise ValueError(f"Could not authorize {agent_id=} with {user_id=}")
 
         # First, if the agent is in the in-memory cache we should remove it
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
@@ -1286,7 +1261,7 @@ class SyncServer(Server):
 
         # Next, attempt to delete it from the actual database
         try:
-            self.ms.delete_agent(agent_id=agent_id)
+            agent_state.to_sqlalchemy(self.ms.db_session).delete(self.ms.db_session)
         except Exception as e:
             logger.exception(f"Failed to delete agent {agent_id} via ID with:\n{str(e)}")
             raise ValueError(f"Failed to delete agent {agent_id} in database")
@@ -1335,7 +1310,7 @@ class SyncServer(Server):
         if not request.id:
             existing_source = self.ms.get_source(source_name=request.name, user_id=user_id)
         else:
-            existing_source = self.ms.get_source(source_id=request.id)
+            existing_source = self.ms.get_source(id=request.id)
         if not existing_source:
             raise ValueError("Source does not exist")
 
@@ -1352,7 +1327,7 @@ class SyncServer(Server):
 
     def delete_source(self, source_id: str, user_id: str):
         """Delete a data source"""
-        source = self.ms.get_source(source_id=source_id, user_id=user_id)
+        source = self.ms.get_source(id=source_id, user_id=user_id)
         self.ms.delete_source(source_id)
 
         # delete data from passage store
@@ -1392,7 +1367,7 @@ class SyncServer(Server):
         # try:
         from memgpt.data_sources.connectors import DirectoryConnector
 
-        source = self.ms.get_source(source_id=source_id)
+        source = self.ms.get_source(id=source_id)
         connector = DirectoryConnector(input_files=[file_path])
         num_passages, num_documents = self.load_data(user_id=source.user_id, source_name=source.name, connector=connector)
         # except Exception as e:
@@ -1447,7 +1422,7 @@ class SyncServer(Server):
         source_name: Optional[str] = None,
     ) -> Source:
         # attach a data source to an agent
-        data_source = self.ms.get_source(source_id=source_id, user_id=user_id, source_name=source_name)
+        data_source = self.ms.get_source(id=source_id, user_id=user_id, source_name=source_name)
         if data_source is None:
             raise ValueError(f"Data source id={source_id} name={source_name} does not exist for user_id {user_id}")
 
@@ -1504,7 +1479,7 @@ class SyncServer(Server):
             attached_agents = [
                 {
                     "id": str(a_id),
-                    "name": self.ms.get_agent(user_id, agent_id=a_id).name,
+                    "name": self.ms.get_agent(id=a_id).name,
                 }
                 for a_id in agent_ids
             ]

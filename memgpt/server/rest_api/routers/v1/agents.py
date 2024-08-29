@@ -42,7 +42,7 @@ def list_agents(
     """
     actor = server.get_current_user()
     interface.clear()
-    return server.list_agents()
+    return server.list_agents(user_id=actor.id)
 
 @router.post("/", response_model=AgentState)
 def create_agent(
@@ -54,7 +54,7 @@ def create_agent(
     Create a new agent with the specified configuration.
     """
     actor = server.get_current_user()
-    interface.clear()
+    agent.user_id = actor.id
 
     return server.create_agent(agent, user_id=actor.id)
 
@@ -289,9 +289,9 @@ def get_agent_messages_in_context(
 
 @router.post("/{agent_id}/messages", response_model=MemGPTResponse)
 async def send_message(
-    agent_id: "str",
+    agent_id: str,
     server: SyncServer = Depends(get_memgpt_server),
-    message: MemGPTRequest = Body(...),
+    request: MemGPTRequest = Body(...),
 ):
     """
     Process a user message and return the agent's response.
@@ -300,17 +300,15 @@ async def send_message(
     It can optionally stream the response if 'stream' is set to True.
     """
     actor = server.get_current_user()
+    message = request.messages[0]
     return await send_message_to_agent(
         server=server,
         agent_id=agent_id,
         user_id=actor.id,
         role=message.role,
         message=message.text,
-        stream_steps=message.stream_steps,
-        stream_tokens=message.stream_tokens,
-        timestamp=message.timestamp,
-        # legacy
-        stream_legacy=message.stream,
+        stream_steps=request.stream_steps,
+        stream_tokens=request.stream_tokens,
     )
 
 

@@ -48,9 +48,13 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         self._id = UUID(id_)
 
     @classmethod
-    def list(cls, db_session: "Session") -> list[Type["Base"]]:
+    def list(cls, *, db_session: "Session", **kwargs) -> List[Type["SqlalchemyBase"]]:
         with db_session as session:
-            return session.query(cls).all()
+            query = select(cls).filter_by(**kwargs)
+            if hasattr(cls, "is_deleted"):
+                query = query.where(cls.is_deleted == False)
+            breakpoint()
+            return session.execute(query).all()
 
     @classmethod
     def to_uid(cls, identifier) -> "UUID":
@@ -119,7 +123,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     @classmethod
     def read_or_create(
         cls, *, db_session: "Session", **kwargs
-    ) -> "SqlalchemyBase":
+    ) -> Type["SqlalchemyBase"]:
         """get an instance by search criteria or create it if it doesn't exist"""
         try:
             return cls.read(db_session=db_session, identifier=kwargs.get("id", None))

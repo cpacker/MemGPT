@@ -47,7 +47,10 @@ from memgpt.schemas.memory import (
 )
 from memgpt.schemas.job import Job
 from memgpt.schemas.enums import JobStatus
-from memgpt.schemas.message import Message
+from memgpt.schemas.message import (
+    Message,
+    MessageCreate
+)
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
@@ -326,8 +329,8 @@ class RESTClient(AbstractClient):
         return AgentState(**response.json())
 
 
-    def rename_agent(self, agent_id: str, new_name: str):
-        response = self.httpx_client.patch(f"/agents/{agent_id}/rename/", json={"agent_name": new_name})
+    async def rename_agent(self, agent_id: str, new_name: str):
+        response = await self.httpx_client.patch(f"/agents/{agent_id}/rename/", json={"agent_name": new_name})
         assert response.status_code == 200, f"Failed to rename agent: {response.text}"
 
         return AgentState(**response.json())
@@ -357,7 +360,7 @@ class RESTClient(AbstractClient):
             message_ids=message_ids,
             memory=memory,
         )
-        response = await self.httpx_client.post(f"/agents/{agent_id}/", json=request.model_dump(exclude_none=True))
+        response = await self.httpx_client.post(f"/agents/{agent_id}", json=request.model_dump(exclude_none=True))
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
@@ -365,9 +368,9 @@ class RESTClient(AbstractClient):
     def rename_agent(self, agent_id: str, new_name: str):
         return self.update_agent(agent_id, name=new_name)
 
-    def delete_agent(self, agent_id: str):
+    async def delete_agent(self, agent_id: str):
         """Delete the agent."""
-        response = self.httpx_client.delete(f"/agents/{agent_id}/")
+        response = await self.httpx_client.delete(f"/agents/{agent_id}")
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     async def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
@@ -466,9 +469,9 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get messages: {response.text}")
         return [Message(**message) for message in response.json()]
 
-    def send_message(self, agent_id: uuid.UUID, message: str, role: str, stream: Optional[bool] = False) -> MemGPTResponse:
-        data = {"message": message, "role": role, "stream": stream}
-        response = self.httpx_client.post(f"/agents/{agent_id}/messages/", json=data)
+    async def send_message(self, agent_id: str, message: str, role: str, stream: Optional[bool] = False) -> MemGPTResponse:
+        request = MemGPTRequest(messages=[MessageCreate(text=message, role=role)], run_async=False, stream_steps=stream, stream_tokens=stream)
+        response = await self.httpx_client.post(f"/agents/{agent_id}/messages", json=request.model_dump(exclude_none=True))
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
         return MemGPTResponse(**response.json())
