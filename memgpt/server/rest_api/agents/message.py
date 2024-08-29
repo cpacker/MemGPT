@@ -30,10 +30,10 @@ async def send_message_to_agent(
     message: str,
     stream_steps: bool,
     stream_tokens: bool,
+    return_message_object: bool,  # Should be True for Python Client, False for REST API
     chat_completion_mode: Optional[bool] = False,
     timestamp: Optional[datetime] = None,
     # related to whether or not we return `MemGPTMessage`s or `Message`s
-    return_message_object: bool = True,  # Should be True for Python Client, False for REST API
 ) -> Union[StreamingResponse, MemGPTResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
     # TODO: @charles is this the correct way to handle?

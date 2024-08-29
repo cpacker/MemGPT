@@ -375,7 +375,7 @@ class RESTClient(AbstractClient):
 
     # agent interactions
 
-    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
+    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
         return self.send_message(agent_id, message, role="user")
 
     def save(self):
