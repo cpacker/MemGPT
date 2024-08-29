@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.constants import DEFAULT_PRESET
-from memgpt.schemas.memgpt_message import InternalMonologue
+from memgpt.schemas.message import Message
 from memgpt.schemas.usage import MemGPTUsageStatistics
 
 # from tests.utils import create_config
@@ -127,7 +127,7 @@ def test_agent_interactions(client, agent):
     assert response.usage.step_count == 1
     assert response.usage.total_tokens > 0
     assert response.usage.completion_tokens > 0
-    assert isinstance(response.messages[0], InternalMonologue)
+    assert isinstance(response.messages[0], Message)
     print(response.messages)
 
     # TODO: add streaming tests
