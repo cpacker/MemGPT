@@ -61,7 +61,7 @@ class Message(BaseMessage):
 
     id: str = BaseMessage.generate_id_field()
     role: MessageRole = Field(..., description="The role of the participant.")
-    text: str = Field(..., description="The text of the message.")
+    text: Optional[str] = Field(None, description="The text of the message.")
     user_id: str = Field(None, description="The unique identifier of the user.")
     agent_id: str = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
