@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import requests
 
@@ -61,141 +61,635 @@ class AbstractClient(object):
         self.auto_save = auto_save
         self.debug = debug
 
-    # agents
-
-    def list_agents(self):
-        """List all agents associated with a given user."""
-        raise NotImplementedError
-
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        """Check if an agent with the specified ID or name exists."""
+        """
+        Check if an agent exists
+
+        Args:
+            agent_id (str): ID of the agent
+            agent_name (str): Name of the agent
+
+        Returns:
+            exists (bool): `True` if the agent exists, `False` otherwise
+        """
         raise NotImplementedError
 
     def create_agent(
         self,
         name: Optional[str] = None,
-        preset: Optional[str] = None,
-        persona: Optional[str] = None,
-        human: Optional[str] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
-        memory: Optional[Memory] = None,
+        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        system: Optional[str] = None,
+        tools: Optional[List[str]] = None,
+        include_base_tools: Optional[bool] = True,
+        metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
+        description: Optional[str] = None,
     ) -> AgentState:
-        """Create a new agent with the specified configuration."""
+        """Create an agent
+
+        Args:
+            name (str): Name of the agent
+            embedding_config (EmbeddingConfig): Embedding configuration
+            llm_config (LLMConfig): LLM configuration
+            memory (Memory): Memory configuration
+            system (str): System configuration
+            tools (List[str]): List of tools
+            include_base_tools (bool): Include base tools
+            metadata (Dict): Metadata
+            description (str): Description
+
+        Returns:
+            agent_state (AgentState): State of the created agent
+        """
+        raise NotImplementedError
+
+    def update_agent(
+        self,
+        agent_id: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        system: Optional[str] = None,
+        tools: Optional[List[str]] = None,
+        metadata: Optional[Dict] = None,
+        llm_config: Optional[LLMConfig] = None,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        message_ids: Optional[List[str]] = None,
+        memory: Optional[Memory] = None,
+    ):
+        """
+        Update an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            name (str): Name of the agent
+            description (str): Description of the agent
+            system (str): System configuration
+            tools (List[str]): List of tools
+            metadata (Dict): Metadata
+            llm_config (LLMConfig): LLM configuration
+            embedding_config (EmbeddingConfig): Embedding configuration
+            message_ids (List[str]): List of message IDs
+            memory (Memory): Memory configuration
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
         raise NotImplementedError
 
     def rename_agent(self, agent_id: str, new_name: str):
-        """Rename the agent."""
+        """
+        Rename an agent
+
+        Args:
+            agent_id (str): ID of the agent
+            new_name (str): New name for the agent
+
+        """
         raise NotImplementedError
 
     def delete_agent(self, agent_id: str):
-        """Delete the agent."""
+        """
+        Delete an agent
+
+        Args:
+            agent_id (str): ID of the agent to delete
+        """
         raise NotImplementedError
 
-    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
+    def get_agent(self, agent_id: str) -> AgentState:
+        """
+        Get an agent
+
+        Args:
+            agent_id (str): ID of the agent
+
+        Returns:
+            agent_state (AgentState): State representation of the agent
+        """
         raise NotImplementedError
 
-    # memory
+    def get_agent_id(self, agent_name: str) -> AgentState:
+        """
+        Get the ID of an agent by name
 
-    def get_in_context_memory(self, agent_id: str) -> Dict:
+        Args:
+            agent_name (str): Name of the agent
+
+        Returns:
+            agent_id (str): ID of the agent
+
+        """
+        raise NotImplementedError
+
+    def get_in_context_memory(self, agent_id: str) -> Memory:
+        """
+        Get the in-contxt (i.e. core) memory of an agent
+
+        Args:
+            agent_id (str): ID of the agent
+
+        Returns:
+            memory (Memory): In-context memory of the agent
+        """
         raise NotImplementedError
 
     def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
+        """
+        Update the in-context memory of an agent
+
+        Args:
+            agent_id (str): ID of the agent
+
+        Returns:
+            memory (Memory): The updated in-context memory of the agent
+
+        """
         raise NotImplementedError
 
-    # agent interactions
+    def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
+        """
+        Get a summary of the archival memory of an agent
 
-    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
+        Args:
+            agent_id (str): ID of the agent
+
+        Returns:
+            summary (ArchivalMemorySummary): Summary of the archival memory
+
+        """
         raise NotImplementedError
 
-    def save(self):
+    def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
+        """
+        Get a summary of the recall memory of an agent
+
+        Args:
+            agent_id (str): ID of the agent
+
+        Returns:
+            summary (RecallMemorySummary): Summary of the recall memory
+        """
         raise NotImplementedError
 
-    # archival memory
+    def get_in_context_messages(self, agent_id: str) -> List[Message]:
+        """
+        Get in-context messages of an agent
 
-    def get_archival_memory(self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000):
-        """Paginated get for the archival memory for an agent"""
+        Args:
+            agent_id (str): ID of the agent
+
+        Returns:
+            messages (List[Message]): List of in-context messages
+        """
         raise NotImplementedError
 
-    def insert_archival_memory(self, agent_id: str, memory: str):
-        """Insert archival memory into the agent."""
+    def send_message(
+        self,
+        message: str,
+        role: str,
+        agent_id: Optional[str] = None,
+        agent_name: Optional[str] = None,
+        stream: Optional[bool] = False,
+    ) -> MemGPTResponse:
+        """
+        Send a message to an agent
+
+        Args:
+            message (str): Message to send
+            role (str): Role of the message
+            agent_id (str): ID of the agent
+            agent_name (str): Name of the agent
+            stream (bool): Stream the response
+
+        Returns:
+            response (MemGPTResponse): Response from the agent
+        """
         raise NotImplementedError
 
-    def delete_archival_memory(self, agent_id: str, memory_id: str):
-        """Delete archival memory from the agent."""
+    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
+        """
+        Send a message to an agent as a user
+
+        Args:
+            agent_id (str): ID of the agent
+            message (str): Message to send
+
+        Returns:
+            response (MemGPTResponse): Response from the agent
+        """
         raise NotImplementedError
 
-    # messages (recall memory)
+    def create_human(self, name: str, text: str) -> Human:
+        """
+        Create a human block template (saved human string to pre-fill `ChatMemory`)
 
-    def get_messages(self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000):
-        """Get messages for the agent."""
+        Args:
+            name (str): Name of the human block
+            text (str): Text of the human block
+
+        Returns:
+            human (Human): Human block
+        """
         raise NotImplementedError
 
-    def send_message(self, agent_id: str, message: str, role: str, stream: Optional[bool] = False):
-        """Send a message to the agent."""
+    def create_persona(self, name: str, text: str) -> Persona:
+        """
+        Create a persona block template (saved persona string to pre-fill `ChatMemory`)
+
+        Args:
+            name (str): Name of the persona block
+            text (str): Text of the persona block
+
+        Returns:
+            persona (Persona): Persona block
+        """
         raise NotImplementedError
 
-    # humans / personas
+    def list_humans(self) -> List[Human]:
+        """
+        List available human block templates
 
-    def list_humans(self):
-        """List all humans."""
+        Returns:
+            humans (List[Human]): List of human blocks
+        """
         raise NotImplementedError
 
-    def create_human(self, name: str, text: str):
-        """Create a human."""
+    def list_personas(self) -> List[Persona]:
+        """
+        List available persona block templates
+
+        Returns:
+            personas (List[Persona]): List of persona blocks
+        """
         raise NotImplementedError
 
-    def list_personas(self):
-        """List all personas."""
+    def update_human(self, human_id: str, text: str) -> Human:
+        """
+        Update a human block template
+
+        Args:
+            human_id (str): ID of the human block
+            text (str): Text of the human block
+
+        Returns:
+            human (Human): Updated human block
+        """
         raise NotImplementedError
 
-    def create_persona(self, name: str, text: str):
-        """Create a persona."""
+    def update_persona(self, persona_id: str, text: str) -> Persona:
+        """
+        Update a persona block template
+
+        Args:
+            persona_id (str): ID of the persona block
+            text (str): Text of the persona block
+
+        Returns:
+            persona (Persona): Updated persona block
+        """
         raise NotImplementedError
 
-    # tools
+    def get_persona(self, id: str) -> Persona:
+        """
+        Get a persona block template
 
-    def list_tools(self):
-        """List all tools."""
+        Args:
+            id (str): ID of the persona block
+
+        Returns:
+            persona (Persona): Persona block
+        """
         raise NotImplementedError
 
-    # data sources
+    def get_human(self, id: str) -> Human:
+        """
+        Get a human block template
+
+        Args:
+            id (str): ID of the human block
+
+        Returns:
+            human (Human): Human block
+        """
+        raise NotImplementedError
+
+    def get_persona_id(self, name: str) -> str:
+        """
+        Get the ID of a persona block template
+
+        Args:
+            name (str): Name of the persona block
+
+        Returns:
+            id (str): ID of the persona block
+        """
+        raise NotImplementedError
+
+    def get_human_id(self, name: str) -> str:
+        """
+        Get the ID of a human block template
+
+        Args:
+            name (str): Name of the human block
+
+        Returns:
+            id (str): ID of the human block
+        """
+        raise NotImplementedError
+
+    def delete_persona(self, id: str):
+        """
+        Delete a persona block template
+
+        Args:
+            id (str): ID of the persona block
+        """
+        raise NotImplementedError
+
+    def delete_human(self, id: str):
+        """
+        Delete a human block template
+
+        Args:
+            id (str): ID of the human block
+        """
+        raise NotImplementedError
+
+    def create_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        update: Optional[bool] = True,
+        tags: Optional[List[str]] = None,
+    ) -> Tool:
+        """
+        Create a tool
+
+        Args:
+            func (callable): Function to wrap in a tool
+            name (str): Name of the tool
+            update (bool): Update the tool if it exists
+            tags (List[str]): Tags for the tool
+
+        Returns:
+            tool (Tool): Created tool
+        """
+        raise NotImplementedError
+
+    def update_tool(
+        self,
+        id: str,
+        name: Optional[str] = None,
+        func: Optional[callable] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Tool:
+        """
+        Update a tool
+
+        Args:
+            id (str): ID of the tool
+            name (str): Name of the tool
+            func (callable): Function to wrap in a tool
+            tags (List[str]): Tags for the tool
+
+        Returns:
+            tool (Tool): Updated tool
+        """
+        raise NotImplementedError
+
+    def list_tools(self) -> List[Tool]:
+        """
+        List available tools
+
+        Returns:
+            tools (List[Tool]): List of tools
+        """
+        raise NotImplementedError
+
+    def get_tool(self, id: str) -> Tool:
+        """
+        Get a tool
+
+        Args:
+            id (str): ID of the tool
+
+        Returns:
+            tool (Tool): Tool
+        """
+        raise NotImplementedError
+
+    def delete_tool(self, id: str):
+        """
+        Delete a tool
+
+        Args:
+            id (str): ID of the tool
+        """
+        raise NotImplementedError
+
+    def get_tool_id(self, name: str) -> Optional[str]:
+        """
+        Get the ID of a tool
+
+        Args:
+            name (str): Name of the tool
+
+        Returns:
+            id (str): ID of the tool (`None` if not found)
+        """
+        raise NotImplementedError
+
+    def load_data(self, connector: DataConnector, source_name: str):
+        """
+        Load data into a source
+
+        Args:
+            connector (DataConnector): Data connector
+            source_name (str): Name of the source
+        """
+        raise NotImplementedError
+
+    def load_file_into_source(self, filename: str, source_id: str, blocking=True) -> Job:
+        """
+        Load a file into a source
+
+        Args:
+            filename (str): Name of the file
+            source_id (str): ID of the source
+            blocking (bool): Block until the job is complete
+
+        Returns:
+            job (Job): Data loading job including job status and metadata
+        """
+        raise NotImplementedError
 
     def create_source(self, name: str) -> Source:
+        """
+        Create a source
+
+        Args:
+            name (str): Name of the source
+
+        Returns:
+            source (Source): Created source
+        """
         raise NotImplementedError
 
     def delete_source(self, source_id: str):
+        """
+        Delete a source
+
+        Args:
+            source_id (str): ID of the source
+        """
         raise NotImplementedError
 
     def get_source(self, source_id: str) -> Source:
+        """
+        Get a source
+
+        Args:
+            source_id (str): ID of the source
+
+        Returns:
+            source (Source): Source
+        """
         raise NotImplementedError
 
     def get_source_id(self, source_name: str) -> str:
+        """
+        Get the ID of a source
+
+        Args:
+            source_name (str): Name of the source
+
+        Returns:
+            source_id (str): ID of the source
+        """
         raise NotImplementedError
 
     def attach_source_to_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
+        """
+        Attach a source to an agent
+
+        Args:
+            agent_id (str): ID of the agent
+            source_id (str): ID of the source
+            source_name (str): Name of the source
+        """
         raise NotImplementedError
 
     def detach_source_from_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
         raise NotImplementedError
 
     def list_sources(self) -> List[Source]:
+        """
+        List available sources
+
+        Returns:
+            sources (List[Source]): List of sources
+        """
         raise NotImplementedError
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
+        """
+        List sources attached to an agent
+
+        Args:
+            agent_id (str): ID of the agent
+
+        Returns:
+            sources (List[Source]): List of sources
+        """
         raise NotImplementedError
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
+        """
+        Update a source
+
+        Args:
+            source_id (str): ID of the source
+            name (str): Name of the source
+
+        Returns:
+            source (Source): Updated source
+        """
         raise NotImplementedError
 
-    # server configuration commands
+    def insert_archival_memory(self, agent_id: str, memory: str) -> List[Passage]:
+        """
+        Insert archival memory into an agent
 
-    def list_models(self):
-        """List all models."""
+        Args:
+            agent_id (str): ID of the agent
+            memory (str): Memory string to insert
+
+        Returns:
+            passages (List[Passage]): List of inserted passages
+        """
         raise NotImplementedError
 
-    def get_config(self):
-        """Get server config"""
+    def delete_archival_memory(self, agent_id: str, memory_id: str):
+        """
+        Delete archival memory from an agent
+
+        Args:
+            agent_id (str): ID of the agent
+            memory_id (str): ID of the memory
+        """
+        raise NotImplementedError
+
+    def get_archival_memory(
+        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
+    ) -> List[Passage]:
+        """
+        Get archival memory from an agent
+
+        Args:
+            agent_id (str): ID of the agent
+            before (str): Get memories before a certain time
+            after (str): Get memories after a certain time
+            limit (int): Limit number of memories
+
+        Returns:
+            passages (List[Passage]): List of passages
+        """
+        raise NotImplementedError
+
+    def get_messages(
+        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
+    ) -> List[Message]:
+        """
+        Get messages from an agent
+
+        Args:
+            agent_id (str): ID of the agent
+            before (str): Get messages before a certain time
+            after (str): Get messages after a certain time
+            limit (int): Limit number of messages
+
+        Returns:
+            messages (List[Message]): List of messages
+        """
+        raise NotImplementedError
+
+    def list_models(self) -> List[LLMConfig]:
+        """
+        List available LLM models
+
+        Returns:
+            models (List[LLMConfig]): List of LLM models
+        """
+        raise NotImplementedError
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        """
+        List available embedding models
+
+        Returns:
+            models (List[EmbeddingConfig]): List of embedding models
+        """
         raise NotImplementedError
 
 
@@ -984,6 +1478,17 @@ class LocalClient(AbstractClient):
         return self.send_message(role="user", agent_id=agent_id, message=message)
 
     def run_command(self, agent_id: str, command: str) -> MemGPTResponse:
+        """
+        Run a command on the agent
+
+        Args:
+            agent_id (str): The agent ID
+            command (str): The command to run
+
+        Returns:
+            MemGPTResponse: The response from the agent
+
+        """
         self.interface.clear()
         usage = self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
 
@@ -1048,7 +1553,7 @@ class LocalClient(AbstractClient):
     # tools
 
     # TODO: merge this into create_tool
-    def add_tool(self, tool: Tool, update: Optional[bool] = True) -> None:
+    def add_tool(self, tool: Tool, update: Optional[bool] = True) -> Tool:
         """
         Adds a tool directly.
 

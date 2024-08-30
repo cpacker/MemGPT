@@ -1,0 +1,26 @@
+site_name: "MemGPT API Reference"
+
+theme:
+  name: "material"
+  features:
+    - navigation.instant
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+
+nav:
+  - Client:
+      #- Overview: index.md
+      - Client: client/client.md
+      - RESTClient: client/rest_client.md
+      - LocalClient: client/local_client.md
+plugins:
+- mkdocstrings:
+    handlers:
+      python:
+        options:
+          group_by_category: true
+          show_category_heading: true
