@@ -13,8 +13,7 @@ def test_split_thread_creation():
     assert response is not None
 
     for i in response.messages:
-        print(i)
-        print()
+        print(i.id)
         print(i.text)
         print("\n" * 2)
 

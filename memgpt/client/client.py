@@ -869,6 +869,7 @@ class LocalClient(AbstractClient):
                 system=system,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
+                split_thread_agent=split_thread_agent,
             ),
             user_id=self.user_id,
         )
