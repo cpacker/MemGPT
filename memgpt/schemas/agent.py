@@ -39,6 +39,9 @@ class AgentState(BaseAgent):
     # llm information
     llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
+    
+    # split thread agent
+    split_thread_agent: bool = Field(..., description="Whether the agent is a split thread agent.")
 
 
 class CreateAgent(BaseAgent):

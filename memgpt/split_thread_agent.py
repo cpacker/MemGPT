@@ -117,6 +117,7 @@ class SplitThreadAgent(AbstractAgent):
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
+        print("I AM CREATING AN AGENT!")
         self.conversational_agent = Agent(
             interface=interface,
             agent_state=conversation_agent_state,
@@ -149,43 +150,6 @@ class SplitThreadAgent(AbstractAgent):
     def agent_state(self, value: AgentState):
         self.conversational_agent.agent_state = value
 
-    # @property
-    # def interface(self) -> AgentInterface:
-    #     return self.conversational_agent.interface
-
-    # @interface.setter
-    # def interface(self, value: AgentInterface):
-    #     self.conversational_agent.interface = value
-
-    # @property
-    # def messages(self) -> List[dict]:
-    #     return self.conversational_agent.messages
-
-    # @messages.setter
-    # def messages(self, value: List[dict]):
-    #     raise ValueError("Cannot set messages directly on SplitThreadAgent")
-
-    # @property
-    # def interface(self) -> AgentInterface:
-    #     print("HELLLLOOO I AM BEING CALLED !!!")
-    #     return self.conversational_agent.interface
-
-    # @interface.setter
-    # def interface(self, value: AgentInterface):
-    #     self.conversational_agent.interface
-
-    # def update_state(self) -> AgentState:
-    #     return self.conversational_agent.update_state()
-    #     # message_ids = [msg.id for msg in self.conversational_agent._messages]
-    # assert isinstance(self.conversational_agent.memory, Memory), f"Memory is not a Memory object: {type(self.memory)}"
-
-    # # override any fields that may have been updated
-    # self.agent_state.message_ids = message_ids
-    # self.agent_state.memory = self.convememory
-    # self.agent_state.system = self.system
-
-    # return self.agent_state
-
     def step(
         self,
         user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
@@ -199,7 +163,10 @@ class SplitThreadAgent(AbstractAgent):
         inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
-        return self.conversational_agent.step(
+        print("I AM STEPPING")
+        raise NotImplementedError
+        
+        memory_step = self.memory_agent.step(
             user_message=user_message,
             first_message=first_message,
             first_message_retry_limit=first_message_retry_limit,
@@ -211,6 +178,29 @@ class SplitThreadAgent(AbstractAgent):
             inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             ms=ms,
         )
+        print("I GOT MEMORY STEP: ", memory_step)
+
+        conversation_step = self.conversational_agent.step(
+            user_message=user_message,
+            first_message=first_message,
+            first_message_retry_limit=first_message_retry_limit,
+            skip_verify=skip_verify,
+            return_dicts=return_dicts,
+            recreate_message_timestamp=recreate_message_timestamp,
+            stream=stream,
+            timestamp=timestamp,
+            inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+            ms=ms,
+        )
+        print("I GOT CONVERSATION STEP", conversation_step)
+
+        combined_steps = (
+            memory_step[0] + conversation_step[0],
+            memory_step[1] or conversation_step[1],
+            memory_step[2] or conversation_step[2],
+            memory_step[3] or conversation_step[3],
+        )
+        return combined_steps
 
     def update_state(self) -> AgentState:
         return self.conversational_agent.update_state()

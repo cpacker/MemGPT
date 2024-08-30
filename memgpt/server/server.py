@@ -5,6 +5,7 @@ import os
 import traceback
 import warnings
 from abc import abstractmethod
+from copy import deepcopy
 from datetime import datetime
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -223,6 +224,7 @@ class SyncServer(Server):
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
         for d in self.active_agents:
+            print("I HAVE AGENTS: ", d)
             if d["user_id"] == str(user_id) and d["agent_id"] == str(agent_id):
                 return d["agent"]
         return None
@@ -259,20 +261,30 @@ class SyncServer(Server):
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
 
-            # Instantiate an agent object using the state retrieved
-            logger.info(f"Creating an agent object")
-            tool_objs = []
-            for name in agent_state.tools:
-                tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
-                if not tool_obj:
-                    logger.exception(f"Tool {name} does not exist for user {user_id}")
-                    raise ValueError(f"Tool {name} does not exist for user {user_id}")
-                tool_objs.append(tool_obj)
+            if agent_state.split_thread_agent:
+                conversation_agent_state = self.ms.get_agent(agent_id=f"{agent_id}_conversation", user_id=user_id)
+                assert conversation_agent_state, f"conversation agent state not found for {agent_id}"
+                conversation_tools = self._get_tools_from_agent_state(agent_state=conversation_agent_state, user_id=user_id)
 
-            # Make sure the memory is a memory object
-            assert isinstance(agent_state.memory, Memory)
+                memory_agent_state = self.ms.get_agent(agent_id=f"{agent_id}_memory", user_id=user_id)
+                assert memory_agent_state, f"memory agent state not found for {agent_id}"
+                memory_tools = self._get_tools_from_agent_state(agent_state=memory_agent_state, user_id=user_id)
 
-            memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+                memgpt_agent = SplitThreadAgent(
+                    conversation_agent_state=conversation_agent_state,
+                    conversation_tools=conversation_tools,
+                    memory_agent_state=memory_agent_state,
+                    memory_tools=memory_tools,
+                    agent_state=agent_state,
+                    interface=interface,
+                )
+            else:
+                # Instantiate an agent object using the state retrieved
+                logger.info(f"Creating an agent object")
+                tool_objs = self._get_tools_from_agent_state(agent_state=agent_state, user_id=user_id)
+                # Make sure the memory is a memory object
+                assert isinstance(agent_state.memory, Memory)
+                memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
             logger.info(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -282,6 +294,16 @@ class SyncServer(Server):
         except Exception as e:
             logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
             raise
+
+    def _get_tools_from_agent_state(self, agent_state: AgentState, user_id: str) -> List:
+        tool_objs = []
+        for name in agent_state.tools:
+            tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
+            if not tool_obj:
+                logger.exception(f"Tool {name} does not exist for user {user_id}")
+                raise ValueError(f"Tool {name} does not exist for user {user_id}")
+            tool_objs.append(tool_obj)
+        return tool_objs
 
     def _get_or_load_agent(self, agent_id: str) -> Agent:
         """Check if the agent is in-memory, then load"""
@@ -307,6 +329,7 @@ class SyncServer(Server):
 
             # Get the agent object (loaded in memory)
             memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+            assert isinstance(memgpt_agent, SplitThreadAgent)
             if memgpt_agent is None:
                 raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
@@ -673,14 +696,17 @@ class SyncServer(Server):
                 tool_objs.append(tool_obj)
 
             if request.split_thread_agent:
+                conversation_prompt = gpt_system.get_system_text("memgpt_conversation")
+                memory_prompt = gpt_system.get_system_text("memgpt_memory")
+
                 conversation_agent_state = AgentState(
                     name=f"{request.name}_conversation",
                     user_id=user_id,
                     tools=request.tools,  # name=id for tools
                     llm_config=llm_config,
                     embedding_config=embedding_config,
-                    system=request.system,
-                    memory=request.memory,
+                    system=conversation_prompt,
+                    memory=deepcopy(request.memory),
                     description=request.description,
                     metadata_=request.metadata_,
                 )
@@ -691,8 +717,8 @@ class SyncServer(Server):
                     tools=request.tools,  # name=id for tools
                     llm_config=llm_config,
                     embedding_config=embedding_config,
-                    system=gpt_system.get_system_text("memgpt_memory"),
-                    memory=request.memory,
+                    system=memory_prompt,
+                    memory=deepcopy(request.memory),
                     description=request.description,
                     metadata_=request.metadata_,
                 )

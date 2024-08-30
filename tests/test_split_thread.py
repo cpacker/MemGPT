@@ -2,6 +2,7 @@ from memgpt.client.client import create_client
 
 
 def parse_messages(messages):
+    return [i.text for i in messages]
     parsed_messages = {}
     for message in messages:
         parsed_messages[message.id] = message
@@ -22,7 +23,7 @@ def test_split_thread_creation():
     agent = client.get_agent(agent_id=agent_state.id)
     assert agent is not None
 
-    response = client.user_message(agent_id=agent_state.id, message="Hello")
+    response = client.user_message(agent_id=agent_state.id, message="My name is Vivek.")
     assert response is not None
 
     print_messages(response.messages)
