@@ -26,12 +26,12 @@ jobs:
 
     - name: Initialize credentials
       env:
-        OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
         poetry run memgpt quickstart --backend anthropic
 
     - name: Test LLM endpoint
       env:
-        OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_llm_endpoint_anthropic
