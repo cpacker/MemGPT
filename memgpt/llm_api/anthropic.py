@@ -335,9 +335,7 @@ def anthropic_chat_completions_request(
             message["content"] = None
 
     # Convert to Anthropic format
-    from pprint import pprint
 
-    pprint(data["messages"])
     msg_objs = [Message.dict_to_message(user_id=None, agent_id=None, openai_message_dict=m) for m in data["messages"]]
     data["messages"] = [m.to_anthropic_dict(inner_thoughts_xml_tag=inner_thoughts_xml_tag) for m in msg_objs]
 
