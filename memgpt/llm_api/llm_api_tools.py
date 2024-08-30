@@ -3,13 +3,12 @@ import json
 import os
 import random
 import time
-import uuid
 import warnings
 from typing import List, Optional, Union
 
 import requests
 
-from memgpt.constants import CLI_WARNING_PREFIX
+from memgpt.constants import CLI_WARNING_PREFIX, OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from memgpt.credentials import MemGPTCredentials
 from memgpt.llm_api.anthropic import anthropic_chat_completions_request
 from memgpt.llm_api.azure_openai import (
@@ -134,7 +133,7 @@ def is_context_overflow_error(exception: requests.exceptions.RequestException) -
     """Checks if an exception is due to context overflow (based on common OpenAI response messages)"""
     from memgpt.utils import printd
 
-    match_string = "maximum context length"
+    match_string = OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 
     # Backwards compatibility with openai python package/client v0.28 (pre-v1 client migration)
     if match_string in str(exception):
@@ -231,9 +230,9 @@ def create(
     # agent_state: AgentState,
     llm_config: LLMConfig,
     messages: List[Message],
-    user_id: uuid.UUID = None,  # option UUID to associate request with
-    functions: list = None,
-    functions_python: list = None,
+    user_id: Optional[str] = None,  # option UUID to associate request with
+    functions: Optional[list] = None,
+    functions_python: Optional[list] = None,
     function_call: str = "auto",
     # hint
     first_message: bool = False,

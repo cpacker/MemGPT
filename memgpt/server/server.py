@@ -6,8 +6,6 @@ import traceback
 import warnings
 from abc import abstractmethod
 from datetime import datetime
-from functools import wraps
-from threading import Lock
 from typing import Callable, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
@@ -1584,10 +1582,11 @@ class SyncServer(Server):
     def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = True) -> Tool:  # TODO: add other fields
         """Create a new tool"""
 
-        if request.tags and "memory" in request.tags:
-            # special modifications to memory functions
-            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
-            request.source_code = request.source_code.replace("self.memory", "self.memory.memory")
+        # NOTE: deprecated code that existed when we were trying to pretend that `self` was the memory object
+        # if request.tags and "memory" in request.tags:
+        #    # special modifications to memory functions
+        #    # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
+        #    request.source_code = request.source_code.replace("self.memory", "self.memory.memory")
 
         if not request.json_schema:
             # auto-generate openai schema
@@ -1598,16 +1597,13 @@ class SyncServer(Server):
 
                 # get available functions
                 functions = [f for f in env if callable(env[f])]
-                print(functions)
 
             except Exception as e:
                 logger.error(f"Failed to execute source code: {e}")
 
             # TODO: not sure if this always works
             func = env[functions[-1]]
-            print("FUNCTION", func)
             json_schema = generate_schema(func, request.name)
-            print(json_schema)
         else:
             # provided by client
             json_schema = request.json_schema

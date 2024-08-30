@@ -167,6 +167,14 @@ def test_archival_memory(client, agent):
     client.get_archival_memory(agent.id)
 
 
+def test_core_memory(client, agent):
+    response = client.send_message(agent_id=agent.id, message="Update your core memory to remember that my name is Timber!", role="user")
+    print("Response", response)
+
+    memory = client.get_in_context_memory(agent_id=agent.id)
+    assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
+
+
 def test_messages(client, agent):
     # _reset_config()
 
