@@ -26,6 +26,7 @@ from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ChatMemory, Memory
 from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.server import logger as server_logger
+from memgpt.split_thread_agent import SplitThreadAgent
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import (
@@ -392,6 +393,9 @@ def run(
     no_content: Annotated[
         OptionState, typer.Option(help="Set to 'yes' for LLM APIs that omit the `content` field during tool calling")
     ] = OptionState.DEFAULT,
+    split_thread_agent: Annotated[
+        bool, typer.Option(help="Use --split_thread_agent to have the memory and conversation be run in 'parallel'.")
+    ] = False,
 ):
     """Start chatting with an MemGPT agent
 
@@ -582,7 +586,10 @@ def run(
         )
 
         # create agent
-        memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
+        if split_thread_agent:
+            memgpt_agent = SplitThreadAgent(agent_state=agent_state, interface=interface(), tools=tools)
+        else:
+            memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
@@ -655,18 +662,28 @@ def run(
             llm_config=llm_config,
             memory=memory,
             metadata=metadata,
+            include_base_tools=not split_thread_agent,
         )
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
         typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
         tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
-
-        memgpt_agent = Agent(
-            interface=interface(),
-            agent_state=agent_state,
-            tools=tools,
-            # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-            first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
-        )
+        
+        if split_thread_agent:
+            memgpt_agent = SplitThreadAgent(
+                interface=interface(),
+                agent_state=agent_state,
+                tools=tools,
+                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
+            )
+        else:
+            memgpt_agent = Agent(
+                interface=interface(),
+                agent_state=agent_state,
+                tools=tools,
+                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
+            )
         save_agent(agent=memgpt_agent, ms=ms)
         typer.secho(f"🎉 Created new agent '{memgpt_agent.agent_state.name}' (id={memgpt_agent.agent_state.id})", fg=typer.colors.GREEN)
 
