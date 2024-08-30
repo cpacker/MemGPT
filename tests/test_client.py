@@ -2,11 +2,13 @@ import os
 import threading
 import time
 import uuid
+from typing import Union
 
 import pytest
 from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
+from memgpt.client.client import LocalClient, RESTClient
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.schemas.message import Message
 from memgpt.schemas.usage import MemGPTUsageStatistics
@@ -183,6 +185,19 @@ def test_messages(client, agent):
 
     messages_response = client.get_messages(agent_id=agent.id, limit=1)
     assert len(messages_response) > 0, "Retrieving messages failed"
+
+
+def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent):
+    if isinstance(client, LocalClient):
+        pytest.skip("Skipping test_streaming_send_message because LocalClient does not support streaming")
+    assert isinstance(client, RESTClient), client
+
+    response = client.send_message(agent_id=agent.id, message="Hello, is anyone there?", role="user", stream_steps=True, stream_tokens=True)
+    print(response)
+    assert response, "Sending message failed"
+    for chunk in response:
+        print("\n\n\n")
+        print(chunk)
 
 
 def test_humans_personas(client, agent):

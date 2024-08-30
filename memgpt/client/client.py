@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Generator, List, Optional, Tuple, Union
 
 import requests
 
@@ -23,7 +23,7 @@ from memgpt.schemas.block import (
 from memgpt.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
-from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.enums import JobStatus, MessageRole
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memgpt_request import MemGPTRequest
@@ -419,15 +419,29 @@ class RESTClient(AbstractClient):
         return [Message(**message) for message in response.json()]
 
     def send_message(
-        self, agent_id: str, message: str, role: str, name: Optional[str] = None, stream: Optional[bool] = False
-    ) -> MemGPTResponse:
-        messages = [MessageCreate(role=role, text=message, name=name)]
+        self,
+        agent_id: str,
+        message: str,
+        role: str,
+        name: Optional[str] = None,
+        stream_steps: bool = False,
+        stream_tokens: bool = False,
+    ) -> Union[MemGPTResponse, Generator[dict, None, None]]:
+        messages = [MessageCreate(role=MessageRole(role), text=message, name=name)]
         # TODO: figure out how to handle stream_steps and stream_tokens
-        request = MemGPTRequest(messages=messages, stream_steps=stream, return_message_object=True)
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to send message: {response.text}")
-        return MemGPTResponse(**response.json())
+
+        # When streaming steps is True, stream_tokens must be False
+        request = MemGPTRequest(messages=messages, stream_steps=stream_steps, stream_tokens=stream_tokens, return_message_object=True)
+        if stream_tokens or stream_steps:
+            from memgpt.client.streaming import _sse_post
+
+            request.return_message_object = False
+            return _sse_post(f"{self.base_url}/api/agents/{agent_id}/messages", request.model_dump(), self.headers)
+        else:
+            response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers)
+            if response.status_code != 200:
+                raise ValueError(f"Failed to send message: {response.text}")
+            return MemGPTResponse(**response.json())
 
     # humans / personas
 
@@ -947,7 +961,8 @@ class LocalClient(AbstractClient):
         role: str,
         agent_id: Optional[str] = None,
         agent_name: Optional[str] = None,
-        stream: Optional[bool] = False,
+        stream_steps: bool = False,
+        stream_tokens: bool = False,
     ) -> MemGPTResponse:
         if not agent_id:
             assert agent_name, f"Either agent_id or agent_name must be provided"
@@ -956,7 +971,7 @@ class LocalClient(AbstractClient):
             # agent_id = agent_state.id
         agent_state = self.get_agent(agent_id=agent_id)
 
-        if stream:
+        if stream_steps or stream_tokens:
             # TODO: implement streaming with stream=True/False
             raise NotImplementedError
         self.interface.clear()
