@@ -22,3 +22,20 @@ def setup_jobs_index_router(server: SyncServer, interface: QueuingInterface, pas
 
         # TODO: add filtering by status
         return server.list_jobs(user_id=user_id)
+
+    @router.get("/jobs/active", tags=["jobs"], response_model=List[Job])
+    async def list_active_jobs(
+        user_id: str = Depends(get_current_user_with_server),
+    ):
+        interface.clear()
+        return server.list_active_jobs(user_id=user_id)
+
+    @router.get("/jobs/{job_id}", tags=["jobs"], response_model=Job)
+    async def get_job(
+        job_id: str,
+        user_id: str = Depends(get_current_user_with_server),
+    ):
+        interface.clear()
+        return server.get_job(job_id=job_id)
+
+    return router

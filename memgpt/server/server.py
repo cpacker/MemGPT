@@ -1401,6 +1401,11 @@ class SyncServer(Server):
         """List all jobs for a user"""
         return self.ms.list_jobs(user_id=user_id)
 
+    def list_active_jobs(self, user_id: str) -> List[Job]:
+        """List all active jobs for a user"""
+        jobs = self.ms.list_jobs(user_id=user_id)
+        return [job for job in jobs if job.status in [JobStatus.created, JobStatus.running]]
+
     def load_file_to_source(self, source_id: str, file_path: str, job_id: str) -> Job:
 
         # update job
