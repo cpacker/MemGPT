@@ -691,7 +691,7 @@ class SyncServer(Server):
                     tools=request.tools,  # name=id for tools
                     llm_config=llm_config,
                     embedding_config=embedding_config,
-                    system=request.system,
+                    system=gpt_system.get_system_text("memgpt_memory"),
                     memory=request.memory,
                     description=request.description,
                     metadata_=request.metadata_,
