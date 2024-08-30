@@ -80,6 +80,7 @@ class AbstractClient(object):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         memory: Optional[Memory] = None,
+        split_thread_agent: Optional[bool] = False,
     ) -> AgentState:
         """Create a new agent with the specified configuration."""
         raise NotImplementedError
@@ -249,6 +250,7 @@ class RESTClient(AbstractClient):
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
+        split_thread_agent: Optional[bool] = False,
     ) -> AgentState:
         """
         Create an agent
@@ -291,6 +293,7 @@ class RESTClient(AbstractClient):
             system=system,
             llm_config=llm_config,
             embedding_config=embedding_config,
+            split_thread_agent=split_thread_agent,
         )
 
         response = requests.post(f"{self.base_url}/api/agents", json=request.model_dump(), headers=self.headers)

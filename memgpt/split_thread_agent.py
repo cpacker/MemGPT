@@ -131,8 +131,7 @@ class SplitThreadAgent(AbstractAgent):
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
-        # self.agent_state = conversation_agent_state 
-        # self.interface = interface
+        self.interface = interface
 
     @property
     def memory(self) -> Memory:
@@ -150,21 +149,21 @@ class SplitThreadAgent(AbstractAgent):
     def agent_state(self, value: AgentState):
         self.conversational_agent.agent_state = value
 
-    @property
-    def interface(self) -> AgentInterface:
-        return self.conversational_agent.interface
+    # @property
+    # def interface(self) -> AgentInterface:
+    #     return self.conversational_agent.interface
 
-    @interface.setter
-    def interface(self, value: AgentInterface):
-        self.conversational_agent.interface = value
+    # @interface.setter
+    # def interface(self, value: AgentInterface):
+    #     self.conversational_agent.interface = value
 
-    @property
-    def messages(self) -> List[dict]:
-        return self.conversational_agent.messages
+    # @property
+    # def messages(self) -> List[dict]:
+    #     return self.conversational_agent.messages
 
-    @messages.setter
-    def messages(self, value: List[dict]):
-        raise ValueError("Cannot set messages directly on SplitThreadAgent")
+    # @messages.setter
+    # def messages(self, value: List[dict]):
+    #     raise ValueError("Cannot set messages directly on SplitThreadAgent")
 
     # @property
     # def interface(self) -> AgentInterface:

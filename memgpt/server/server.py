@@ -710,14 +710,14 @@ class SyncServer(Server):
                 )
 
                 agent = SplitThreadAgent(
-                    interface=interface(),
+                    interface=interface,
                     agent_state=agent_state,
                     conversation_agent_state=conversation_agent_state,
                     conversation_tools=tool_objs,
                     memory_agent_state=memory_agent_state,
                     memory_tools=tool_objs,
                     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
+                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
                 )
 
             else:
