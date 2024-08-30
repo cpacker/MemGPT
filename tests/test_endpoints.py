@@ -103,3 +103,8 @@ def test_llm_endpoint_ollama():
 def test_embedding_endpoint_ollama():
     filename = os.path.join(embedding_config_dir, "ollama.json")
     run_embedding_endpoint(filename)
+
+
+def test_llm_endpoint_anthropic():
+    filename = os.path.join(llm_config_dir, "anthropic.json")
+    run_llm_endpoint(filename)
