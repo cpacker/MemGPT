@@ -41,7 +41,7 @@ class AgentState(BaseAgent):
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
     
     # split thread agent
-    split_thread_agent: bool = Field(..., description="Whether the agent is a split thread agent.")
+    split_thread_agent: Optional[bool] = Field(default=False, description="Whether the agent is a split thread agent.")
 
 
 class CreateAgent(BaseAgent):

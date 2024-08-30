@@ -22,6 +22,7 @@ from sqlalchemy.exc import InterfaceError, OperationalError
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 
+from memgpt import split_thread_agent
 from memgpt.config import MemGPTConfig
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.api_key import APIKey
@@ -161,6 +162,9 @@ class AgentModel(Base):
 
     # tools
     tools = Column(JSON)
+    
+    # split thread agent
+    split_thread_agent = Column(Boolean, default=False)
 
     Index(__tablename__ + "_idx_user", user_id),
 
@@ -181,6 +185,7 @@ class AgentModel(Base):
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             metadata_=self.metadata_,
+            split_thread_agent=self.split_thread_agent,
         )
 
 

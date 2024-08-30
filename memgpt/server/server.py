@@ -262,6 +262,7 @@ class SyncServer(Server):
                 raise ValueError(f"agent_id {agent_id} does not exist")
 
             if agent_state.split_thread_agent:
+                print("MY AGENT STATE HAS SPLIT THREAD AGENT")
                 conversation_agent_state = self.ms.get_agent(agent_id=f"{agent_id}_conversation", user_id=user_id)
                 assert conversation_agent_state, f"conversation agent state not found for {agent_id}"
                 conversation_tools = self._get_tools_from_agent_state(agent_state=conversation_agent_state, user_id=user_id)
@@ -329,7 +330,7 @@ class SyncServer(Server):
 
             # Get the agent object (loaded in memory)
             memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
-            assert isinstance(memgpt_agent, SplitThreadAgent)
+            print("I GOT AGENT", memgpt_agent)
             if memgpt_agent is None:
                 raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
