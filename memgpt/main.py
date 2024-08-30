@@ -8,6 +8,7 @@ import requests
 import typer
 from rich.console import Console
 
+import memgpt.split_thread_agent as split_thread_agent
 import memgpt.agent as agent
 import memgpt.errors as errors
 import memgpt.system as system
@@ -59,7 +60,7 @@ def clear_line(console, strip_ui=False):
 
 
 def run_agent_loop(
-    memgpt_agent: agent.Agent,
+    memgpt_agent: agent.Agent | split_thread_agent.SplitThreadAgent,
     config: MemGPTConfig,
     first: bool,
     ms: MetadataStore,
@@ -131,11 +132,17 @@ def run_agent_loop(
                 # updated agent save functions
                 if user_input.lower() == "/exit":
                     # memgpt_agent.save()
-                    agent.save_agent(memgpt_agent, ms)
+                    if isinstance(memgpt_agent, agent.Agent):
+                        agent.save_agent(memgpt_agent, ms)
+                    elif isinstance(memgpt_agent, split_thread_agent.SplitThreadAgent):
+                        split_thread_agent.save_split_thread_agent(memgpt_agent, ms)
                     break
                 elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
                     # memgpt_agent.save()
-                    agent.save_agent(memgpt_agent, ms)
+                    if isinstance(memgpt_agent, agent.Agent):
+                        agent.save_agent(memgpt_agent, ms)
+                    elif isinstance(memgpt_agent, split_thread_agent.SplitThreadAgent):
+                        split_thread_agent.save_split_thread_agent(memgpt_agent, ms)
                     continue
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
@@ -418,7 +425,11 @@ def run_agent_loop(
                 ms=ms,
             )
 
-            agent.save_agent(memgpt_agent, ms)
+            if isinstance(memgpt_agent, agent.Agent):
+                agent.save_agent(memgpt_agent, ms)
+            elif isinstance(memgpt_agent, split_thread_agent.SplitThreadAgent):
+                split_thread_agent.save_split_thread_agent(memgpt_agent, ms)
+
             skip_next_user_input = False
             if token_warning:
                 user_message = system.get_token_limit_warning()

@@ -26,7 +26,7 @@ from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ChatMemory, Memory
 from memgpt.server.constants import WS_DEFAULT_PORT
 from memgpt.server.server import logger as server_logger
-from memgpt.split_thread_agent import SplitThreadAgent
+from memgpt.split_thread_agent import SplitThreadAgent, save_split_thread_agent
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import (
@@ -654,29 +654,82 @@ def run(
         typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
         typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
 
-        # add tools
-        agent_state = client.create_agent(
-            name=agent_name,
-            system=system_prompt,
-            embedding_config=embedding_config,
-            llm_config=llm_config,
-            memory=memory,
-            metadata=metadata,
-            include_base_tools=not split_thread_agent,
-        )
-        assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
-        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-        tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
-        
         if split_thread_agent:
+            print("Creating SplitThreadAgent")
+            conversation_agent_state = client.create_agent(
+                name=f"{agent_name}_conversation",
+                system=system_prompt,
+                embedding_config=embedding_config,
+                llm_config=llm_config,
+                memory=memory,
+                metadata=metadata,
+                # include_base_tools=not split_thread_agent,
+            )
+            assert isinstance(conversation_agent_state.memory, Memory), f"Expected Memory, got {type(conversation_agent_state.memory)}"
+            typer.secho(
+                f"->  🛠️  {len(conversation_agent_state.tools)} tools: {', '.join([t for t in conversation_agent_state.tools])}",
+                fg=typer.colors.WHITE,
+            )
+            conversation_tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in conversation_agent_state.tools]
+
+            memory_agent_state = client.create_agent(
+                name=f"{agent_name}_memory",
+                system=system_prompt,
+                embedding_config=embedding_config,
+                llm_config=llm_config,
+                memory=memory,
+                metadata=metadata,
+                include_base_tools=True,
+            )
+            assert isinstance(memory_agent_state.memory, Memory), f"Expected Memory, got {type(memory_agent_state.memory)}"
+            typer.secho(
+                f"->  🛠️  {len(memory_agent_state.tools)} tools: {', '.join([t for t in memory_agent_state.tools])}",
+                fg=typer.colors.WHITE,
+            )
+            memory_tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in memory_agent_state.tools]
+            
+            agent_state = client.create_agent(
+                name=agent_name,
+                system=system_prompt,
+                embedding_config=embedding_config,
+                llm_config=llm_config,
+                memory=memory,
+                metadata=metadata,
+                include_base_tools=False,
+            )
+            assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
+            typer.secho(
+                f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}",
+                fg=typer.colors.WHITE,
+            )
+            tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
+
             memgpt_agent = SplitThreadAgent(
                 interface=interface(),
                 agent_state=agent_state,
-                tools=tools,
+                conversation_agent_state=conversation_agent_state,
+                conversation_tools=conversation_tools,
+                memory_agent_state=memory_agent_state,
+                memory_tools=memory_tools,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             )
+            save_split_thread_agent(agent=memgpt_agent, ms=ms)
         else:
+            # add tools
+            agent_state = client.create_agent(
+                name=agent_name,
+                system=system_prompt,
+                embedding_config=embedding_config,
+                llm_config=llm_config,
+                memory=memory,
+                metadata=metadata,
+                include_base_tools=not split_thread_agent,
+            )
+            assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
+            typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
+            tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
+
             memgpt_agent = Agent(
                 interface=interface(),
                 agent_state=agent_state,
@@ -684,7 +737,7 @@ def run(
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                 first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             )
-        save_agent(agent=memgpt_agent, ms=ms)
+            save_agent(agent=memgpt_agent, ms=ms)
         typer.secho(f"🎉 Created new agent '{memgpt_agent.agent_state.name}' (id={memgpt_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # start event loop

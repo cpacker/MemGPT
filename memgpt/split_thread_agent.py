@@ -1,11 +1,12 @@
 import datetime
 import inspect
 import traceback
-from typing import List, Literal, Optional, Tuple, Union
 
+from abc import ABC, abstractmethod
+from typing import List, Literal, Optional, Tuple, Union
 from tqdm import tqdm
 
-from memgpt.agent import Agent
+from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.constants import (
     CLI_WARNING_PREFIX,
@@ -55,11 +56,16 @@ from memgpt.utils import (
 )
 
 
-class AbstractAgent:
+class AbstractAgent(ABC):
     """
     Abstract class for conversational agents.
     """
 
+    # agent_state: AgentState
+    # memory: Memory
+    # interface: AgentInterface
+
+    @abstractmethod
     def step(
         self,
         user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
@@ -76,7 +82,24 @@ class AbstractAgent:
         """
         Top-level event message handler for the agent.
         """
-        raise NotImplementedError
+        pass
+
+    # @abstractmethod
+    # def update_state(self) -> AgentState:
+    #     """
+    #     Update the agent state.
+    #     """
+    #     pass
+
+    # @property
+    # @abstractmethod
+    # def messages(self) -> List[dict]:
+    #     pass
+
+    # @messages.setter
+    # @abstractmethod
+    # def messages(self, value: List[dict]):
+    #     pass
 
 
 class SplitThreadAgent(AbstractAgent):
@@ -85,7 +108,10 @@ class SplitThreadAgent(AbstractAgent):
         interface: AgentInterface,
         # agents can be created from providing agent_state
         agent_state: AgentState,
-        tools: List[Tool],
+        conversation_agent_state: AgentState,
+        conversation_tools: List[Tool],
+        memory_agent_state: AgentState,
+        memory_tools: List[Tool],
         # memory: Memory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
@@ -93,20 +119,44 @@ class SplitThreadAgent(AbstractAgent):
     ):
         self.conversational_agent = Agent(
             interface=interface,
-            agent_state=agent_state,
-            tools=tools,
+            agent_state=conversation_agent_state,
+            tools=conversation_tools,
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
+        self.memory_agent = Agent(
+            interface=interface,
+            agent_state=memory_agent_state,
+            tools=memory_tools,
+            messages_total=messages_total,
+            first_message_verify_mono=first_message_verify_mono,
+        )
+        # self.agent_state = conversation_agent_state 
+        # self.interface = interface
 
-        print("THIS AGENT STATE HAS TOOLS:", agent_state.tools)
+    @property
+    def memory(self) -> Memory:
+        return self.conversational_agent.memory
 
-        # self.conversational_agent_state = AgentState()
-        # self.conversational_agent = Agent()
+    @memory.setter
+    def memory(self, value: Memory):
+        self.conversational_agent.memory = value
 
-        # self.memory_agent_state = AgentState()
-        # self.memory_agent = Agent()
-        #
+    @property
+    def agent_state(self) -> AgentState:
+        return self.conversational_agent.agent_state
+
+    @agent_state.setter
+    def agent_state(self, value: AgentState):
+        self.conversational_agent.agent_state = value
+
+    @property
+    def interface(self) -> AgentInterface:
+        return self.conversational_agent.interface
+
+    @interface.setter
+    def interface(self, value: AgentInterface):
+        self.conversational_agent.interface = value
 
     @property
     def messages(self) -> List[dict]:
@@ -116,16 +166,26 @@ class SplitThreadAgent(AbstractAgent):
     def messages(self, value: List[dict]):
         raise ValueError("Cannot set messages directly on SplitThreadAgent")
 
-    def update_state(self) -> AgentState:
-        message_ids = [msg.id for msg in self.conversational_agent._messages]
-        assert isinstance(self.conversational_agent.memory, Memory), f"Memory is not a Memory object: {type(self.memory)}"
+    # @property
+    # def interface(self) -> AgentInterface:
+    #     print("HELLLLOOO I AM BEING CALLED !!!")
+    #     return self.conversational_agent.interface
 
-        # override any fields that may have been updated
-        self.agent_state.message_ids = message_ids
-        self.agent_state.memory = self.memory
-        self.agent_state.system = self.system
+    # @interface.setter
+    # def interface(self, value: AgentInterface):
+    #     self.conversational_agent.interface
 
-        return self.agent_state
+    # def update_state(self) -> AgentState:
+    #     return self.conversational_agent.update_state()
+    #     # message_ids = [msg.id for msg in self.conversational_agent._messages]
+    # assert isinstance(self.conversational_agent.memory, Memory), f"Memory is not a Memory object: {type(self.memory)}"
+
+    # # override any fields that may have been updated
+    # self.agent_state.message_ids = message_ids
+    # self.agent_state.memory = self.convememory
+    # self.agent_state.system = self.system
+
+    # return self.agent_state
 
     def step(
         self,
@@ -140,206 +200,46 @@ class SplitThreadAgent(AbstractAgent):
         inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
-        return [], False, False, False
+        return self.conversational_agent.step(
+            user_message=user_message,
+            first_message=first_message,
+            first_message_retry_limit=first_message_retry_limit,
+            skip_verify=skip_verify,
+            return_dicts=return_dicts,
+            recreate_message_timestamp=recreate_message_timestamp,
+            stream=stream,
+            timestamp=timestamp,
+            inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+            ms=ms,
+        )
 
-        """Top-level event message handler for the MemGPT agent"""
+    def update_state(self) -> AgentState:
+        return self.conversational_agent.update_state()
 
-        def strip_name_field_from_user_message(user_message_text: str) -> Tuple[str, Optional[str]]:
-            """If 'name' exists in the JSON string, remove it and return the cleaned text + name value"""
-            try:
-                user_message_json = dict(json_loads(user_message_text))
-                # Special handling for AutoGen messages with 'name' field
-                # Treat 'name' as a special field
-                # If it exists in the input message, elevate it to the 'message' level
-                name = user_message_json.pop("name", None)
-                clean_message = json_dumps(user_message_json)
 
-            except Exception as e:
-                print(f"{CLI_WARNING_PREFIX}handling of 'name' field failed with: {e}")
+# SplitThreadAgent = Agent
 
-            return clean_message, name
 
-        def validate_json(user_message_text: str, raise_on_error: bool) -> str:
-            try:
-                user_message_json = dict(json_loads(user_message_text))
-                user_message_json_val = json_dumps(user_message_json)
-                return user_message_json_val
-            except Exception as e:
-                print(f"{CLI_WARNING_PREFIX}couldn't parse user input message as JSON: {e}")
-                if raise_on_error:
-                    raise e
+def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
+    """Save agent to metadata store"""
 
-        try:
-            # Step 0: update core memory
-            # only pulling latest block data if shared memory is being used
-            # TODO: ensure we're passing in metadata store from all surfaces
-            if ms is not None:
-                should_update = False
-                for block in self.agent_state.memory.to_dict().values():
-                    if not block.get("template", False):
-                        should_update = True
-                if should_update:
-                    # TODO: the force=True can be optimized away
-                    # once we ensure we're correctly comparing whether in-memory core
-                    # data is different than persisted core data.
-                    self.rebuild_memory(force=True, ms=ms)
-            # Step 1: add user message
-            if user_message is not None:
-                if isinstance(user_message, Message):
-                    # Validate JSON via save/load
-                    user_message_text = validate_json(user_message.text, False)
-                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message_text)
+    # save conversational agent
+    save_agent(agent=agent.conversational_agent, ms=ms)
+    save_agent(agent=agent.memory_agent, ms=ms)
 
-                    if name is not None:
-                        # Update Message object
-                        user_message.text = cleaned_user_message_text
-                        user_message.name = name
+    # agent.update_state()
+    # agent_state = agent.agent_state
+    # agent_id = agent_state.id
+    # assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
 
-                    # Recreate timestamp
-                    if recreate_message_timestamp:
-                        user_message.created_at = get_utc_time()
+    # # NOTE: we're saving agent memory before persisting the agent to ensure
+    # # that allocated block_ids for each memory block are present in the agent model
+    # save_agent_memory(agent=agent, ms=ms)
 
-                elif isinstance(user_message, str):
-                    # Validate JSON via save/load
-                    user_message = validate_json(user_message, False)
-                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message)
+    # if ms.get_agent(agent_id=agent.agent_state.id):
+    #     ms.update_agent(agent_state)
+    # else:
+    #     ms.create_agent(agent_state)
 
-                    # If user_message['name'] is not None, it will be handled properly by dict_to_message
-                    # So no need to run strip_name_field_from_user_message
-
-                    # Create the associated Message object (in the database)
-                    user_message = Message.dict_to_message(
-                        agent_id=self.agent_state.id,
-                        user_id=self.agent_state.user_id,
-                        model=self.model,
-                        openai_message_dict={"role": "user", "content": cleaned_user_message_text, "name": name},
-                        created_at=timestamp,
-                    )
-
-                else:
-                    raise ValueError(f"Bad type for user_message: {type(user_message)}")
-
-                self.interface.user_message(user_message.text, msg_obj=user_message)
-
-                input_message_sequence = self._messages + [user_message]
-            # Alternatively, the requestor can send an empty user message
-            else:
-                input_message_sequence = self._messages
-
-            if len(input_message_sequence) > 1 and input_message_sequence[-1].role != "user":
-                printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
-
-            # Step 2: send the conversation and available functions to GPT
-            if not skip_verify and (first_message or self.messages_total == self.messages_total_init):
-                printd(f"This is the first message. Running extra verifier on AI response.")
-                counter = 0
-                while True:
-                    response = self._get_ai_reply(
-                        message_sequence=input_message_sequence,
-                        first_message=True,  # passed through to the prompt formatter
-                        stream=stream,
-                        inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
-                    )
-                    if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
-                        break
-
-                    counter += 1
-                    if counter > first_message_retry_limit:
-                        raise Exception(f"Hit first message retry limit ({first_message_retry_limit})")
-
-            else:
-                response = self._get_ai_reply(
-                    message_sequence=input_message_sequence,
-                    stream=stream,
-                    inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
-                )
-
-            # Step 3: check if LLM wanted to call a function
-            # (if yes) Step 4: call the function
-            # (if yes) Step 5: send the info on the function call and function response to LLM
-            response_message = response.choices[0].message
-            response_message.model_copy()  # TODO why are we copying here?
-            all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(
-                response_message,
-                # TODO this is kind of hacky, find a better way to handle this
-                # the only time we set up message creation ahead of time is when streaming is on
-                response_message_id=response.id if stream else None,
-            )
-
-            # Add the extra metadata to the assistant response
-            # (e.g. enough metadata to enable recreating the API call)
-            # assert "api_response" not in all_response_messages[0]
-            # all_response_messages[0]["api_response"] = response_message_copy
-            # assert "api_args" not in all_response_messages[0]
-            # all_response_messages[0]["api_args"] = {
-            #     "model": self.model,
-            #     "messages": input_message_sequence,
-            #     "functions": self.functions,
-            # }
-
-            # Step 6: extend the message history
-            if user_message is not None:
-                if isinstance(user_message, Message):
-                    all_new_messages = [user_message] + all_response_messages
-                else:
-                    raise ValueError(type(user_message))
-            else:
-                all_new_messages = all_response_messages
-
-            # Check the memory pressure and potentially issue a memory pressure warning
-            current_total_tokens = response.usage.total_tokens
-            active_memory_warning = False
-            # We can't do summarize logic properly if context_window is undefined
-            if self.agent_state.llm_config.context_window is None:
-                # Fallback if for some reason context_window is missing, just set to the default
-                print(f"{CLI_WARNING_PREFIX}could not find context_window in config, setting to default {LLM_MAX_TOKENS['DEFAULT']}")
-                print(f"{self.agent_state}")
-                self.agent_state.llm_config.context_window = (
-                    LLM_MAX_TOKENS[self.model] if (self.model is not None and self.model in LLM_MAX_TOKENS) else LLM_MAX_TOKENS["DEFAULT"]
-                )
-            if current_total_tokens > MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window):
-                printd(
-                    f"{CLI_WARNING_PREFIX}last response total_tokens ({current_total_tokens}) > {MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window)}"
-                )
-                # Only deliver the alert if we haven't already (this period)
-                if not self.agent_alerted_about_memory_pressure:
-                    active_memory_warning = True
-                    self.agent_alerted_about_memory_pressure = True  # it's up to the outer loop to handle this
-            else:
-                printd(
-                    f"last response total_tokens ({current_total_tokens}) < {MESSAGE_SUMMARY_WARNING_FRAC * int(self.agent_state.llm_config.context_window)}"
-                )
-
-            self._append_to_messages(all_new_messages)
-            messages_to_return = [msg.to_openai_dict() for msg in all_new_messages] if return_dicts else all_new_messages
-
-            # update state after each step
-            self.update_state()
-
-            return messages_to_return, heartbeat_request, function_failed, active_memory_warning, response.usage
-
-        except Exception as e:
-            printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
-
-            # If we got a context alert, try trimming the messages length, then try again
-            if is_context_overflow_error(e):
-                # A separate API call to run a summarizer
-                self.summarize_messages_inplace()
-
-                # Try step again
-                return self.step(
-                    user_message,
-                    first_message=first_message,
-                    first_message_retry_limit=first_message_retry_limit,
-                    skip_verify=skip_verify,
-                    return_dicts=return_dicts,
-                    recreate_message_timestamp=recreate_message_timestamp,
-                    stream=stream,
-                    timestamp=timestamp,
-                    inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
-                    ms=ms,
-                )
-
-            else:
-                printd(f"step() failed with an unrecognized exception: '{str(e)}'")
-                raise e
+    # agent.agent_state = ms.get_agent(agent_id=agent_id)
+    # assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"

@@ -838,6 +838,7 @@ class LocalClient(AbstractClient):
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
+        split_thread_agent: Optional[bool] = False 
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
