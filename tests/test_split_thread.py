@@ -4,10 +4,6 @@ from memgpt.client.client import create_client
 
 
 def parse_messages(messages):
-    for i in messages:
-        print("THIS IS A MESSAGE: ", i)
-        print("\n" * 5)
-
     return_messages = []
     for msg in messages:
         if hasattr(msg, "tool_calls") and msg.tool_calls is not None:

@@ -94,11 +94,6 @@ class SplitThreadAgent(BaseAgent):
             ms=ms,
         )
 
-        for i in memory_step[0]:
-            if not i.text:
-                continue
-            i.text = f"MEMORY: {i.text}"
-
         conversation_step = self.conversation_agent.step(
             user_message=user_message,
             first_message=first_message,
@@ -111,7 +106,6 @@ class SplitThreadAgent(BaseAgent):
             inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             ms=ms,
         )
-        print("I GOT CONVERSATION STEP", conversation_step)
 
         combined_steps = (
             memory_step[0] + conversation_step[0],
