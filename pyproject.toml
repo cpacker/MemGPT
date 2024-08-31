@@ -67,15 +67,15 @@ crewai-tools = {version = "^0.8.3", optional = true}
 docker = {version = "^7.1.0", optional = true}
 tiktoken = "^0.7.0"
 nltk = "^3.8.1"
-mkdocstrings = {extras = ["python"], version = "^0.25.1"}
-mkdocs = "^1.6.0"
-mkdocs-material = "^9.5.26"
+mkdocstrings = {extras = ["python"], version = "^0.25.1", optional = true}
+mkdocs = {version = "^1.6.0", optional = true}
+mkdocs-material = {version = "^9.5.26", optional = true}
 
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]
 postgres = ["pgvector", "pg8000", "psycopg2-binary"]
 milvus = ["pymilvus"]
-dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort"]
+dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "mkdocstrings", "mkdocs", "mkdocs-material"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
