@@ -1,9 +1,8 @@
 import datetime
 
-from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple, Union
 
-from memgpt.agent import Agent, save_agent
+from memgpt.agent import BaseAgent, Agent, save_agent
 from memgpt.constants import (
     FIRST_MESSAGE_ATTEMPTS,
 )
@@ -16,36 +15,7 @@ from memgpt.schemas.message import Message
 from memgpt.schemas.tool import Tool
 
 
-class AbstractAgent(ABC):
-    """
-    Abstract class for conversational agents.
-    """
-
-    agent_state: AgentState
-    memory: Memory
-    interface: AgentInterface
-
-    @abstractmethod
-    def step(
-        self,
-        user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
-        first_message: bool = False,
-        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
-        skip_verify: bool = False,
-        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
-        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
-        stream: bool = False,  # TODO move to config?
-        timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
-        ms: Optional[MetadataStore] = None,
-    ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
-        """
-        Top-level event message handler for the agent.
-        """
-        pass
-
-
-class SplitThreadAgent(AbstractAgent):
+class SplitThreadAgent(BaseAgent):
     def __init__(
         self,
         interface: AgentInterface,
