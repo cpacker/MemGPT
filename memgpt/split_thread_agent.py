@@ -106,7 +106,6 @@ class SplitThreadAgent(AbstractAgent):
     def __init__(
         self,
         interface: AgentInterface,
-        # agents can be created from providing agent_state
         agent_state: AgentState,
         conversation_agent_state: AgentState,
         conversation_tools: List[Tool],
@@ -118,7 +117,7 @@ class SplitThreadAgent(AbstractAgent):
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
         print("I AM CREATING AN AGENT!")
-        self.conversational_agent = Agent(
+        self.conversation_agent = Agent(
             interface=interface,
             agent_state=conversation_agent_state,
             tools=conversation_tools,
@@ -132,23 +131,22 @@ class SplitThreadAgent(AbstractAgent):
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
+        self.agent = Agent(
+            interface=interface,
+            agent_state=agent_state,
+            tools=conversation_tools + memory_tools,
+            messages_total=messages_total,
+            first_message_verify_mono=first_message_verify_mono,
+        )
         self.interface = interface
 
     @property
-    def memory(self) -> Memory:
-        return self.conversational_agent.memory
-
-    @memory.setter
-    def memory(self, value: Memory):
-        self.conversational_agent.memory = value
-
-    @property
     def agent_state(self) -> AgentState:
-        return self.conversational_agent.agent_state
+        return self.agent.agent_state
 
     @agent_state.setter
     def agent_state(self, value: AgentState):
-        self.conversational_agent.agent_state = value
+        self.agent.agent_state = value
 
     def step(
         self,
@@ -165,7 +163,7 @@ class SplitThreadAgent(AbstractAgent):
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
         print("I AM STEPPING")
         raise NotImplementedError
-        
+
         memory_step = self.memory_agent.step(
             user_message=user_message,
             first_message=first_message,
@@ -180,7 +178,7 @@ class SplitThreadAgent(AbstractAgent):
         )
         print("I GOT MEMORY STEP: ", memory_step)
 
-        conversation_step = self.conversational_agent.step(
+        conversation_step = self.conversation_agent.step(
             user_message=user_message,
             first_message=first_message,
             first_message_retry_limit=first_message_retry_limit,
@@ -203,32 +201,18 @@ class SplitThreadAgent(AbstractAgent):
         return combined_steps
 
     def update_state(self) -> AgentState:
-        return self.conversational_agent.update_state()
-
-
-# SplitThreadAgent = Agent
+        self.conversation_agent.update_state()
+        self.memory_agent.update_state()
+        self.agent.update_state()
+        return self.agent_state
 
 
 def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
     """Save agent to metadata store"""
 
+    assert agent.agent_state.split_thread_agent, "Agent state must be a split thread agent."
+
     # save conversational agent
-    save_agent(agent=agent.conversational_agent, ms=ms)
+    save_agent(agent=agent.agent, ms=ms)
+    save_agent(agent=agent.conversation_agent, ms=ms)
     save_agent(agent=agent.memory_agent, ms=ms)
-
-    # agent.update_state()
-    # agent_state = agent.agent_state
-    # agent_id = agent_state.id
-    # assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
-
-    # # NOTE: we're saving agent memory before persisting the agent to ensure
-    # # that allocated block_ids for each memory block are present in the agent model
-    # save_agent_memory(agent=agent, ms=ms)
-
-    # if ms.get_agent(agent_id=agent.agent_state.id):
-    #     ms.update_agent(agent_state)
-    # else:
-    #     ms.create_agent(agent_state)
-
-    # agent.agent_state = ms.get_agent(agent_id=agent_id)
-    # assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"

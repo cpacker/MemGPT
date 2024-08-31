@@ -164,7 +164,7 @@ class AgentModel(Base):
     tools = Column(JSON)
     
     # split thread agent
-    split_thread_agent = Column(Boolean, default=False)
+    split_thread_agent = Column(Boolean)
 
     Index(__tablename__ + "_idx_user", user_id),
 

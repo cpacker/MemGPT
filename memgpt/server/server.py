@@ -261,13 +261,16 @@ class SyncServer(Server):
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
 
+            print("AGENT STATE", agent_state)
+
             if agent_state.split_thread_agent:
                 print("MY AGENT STATE HAS SPLIT THREAD AGENT")
-                conversation_agent_state = self.ms.get_agent(agent_id=f"{agent_id}_conversation", user_id=user_id)
+                agent_name = agent_state.name
+                conversation_agent_state = self.ms.get_agent(user_id=user_id, agent_name=f"{agent_name}_conversation")
                 assert conversation_agent_state, f"conversation agent state not found for {agent_id}"
                 conversation_tools = self._get_tools_from_agent_state(agent_state=conversation_agent_state, user_id=user_id)
 
-                memory_agent_state = self.ms.get_agent(agent_id=f"{agent_id}_memory", user_id=user_id)
+                memory_agent_state = self.ms.get_agent(user_id=user_id, agent_name=f"{agent_name}_memory")
                 assert memory_agent_state, f"memory agent state not found for {agent_id}"
                 memory_tools = self._get_tools_from_agent_state(agent_state=memory_agent_state, user_id=user_id)
 
@@ -710,6 +713,7 @@ class SyncServer(Server):
                     memory=deepcopy(request.memory),
                     description=request.description,
                     metadata_=request.metadata_,
+                    split_thread_agent=False,
                 )
 
                 memory_agent_state = AgentState(
@@ -722,10 +726,12 @@ class SyncServer(Server):
                     memory=deepcopy(request.memory),
                     description=request.description,
                     metadata_=request.metadata_,
+                    split_thread_agent=False,
                 )
 
+                print("THIS IS NEVER SAVED??")
                 agent_state = AgentState(
-                    name=request.name,
+                    name=f"{request.name}-ASFJASJFHASKJ",
                     user_id=user_id,
                     tools=request.tools,  # name=id for tools
                     llm_config=llm_config,
@@ -734,6 +740,7 @@ class SyncServer(Server):
                     memory=request.memory,
                     description=request.description,
                     metadata_=request.metadata_,
+                    split_thread_agent=True,
                 )
 
                 agent = SplitThreadAgent(
@@ -747,6 +754,8 @@ class SyncServer(Server):
                     first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
                 )
 
+                # save agent
+                save_split_thread_agent(agent, self.ms)
             else:
                 # TODO: save the agent state
                 agent_state = AgentState(
@@ -774,6 +783,9 @@ class SyncServer(Server):
                 agent.rebuild_memory(force=True, ms=self.ms)
                 # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
                 # self.ms.update_agent(agent.agent_state)
+
+                # save agent
+                save_agent(agent, self.ms)
         except Exception as e:
             logger.exception(e)
             try:
@@ -783,11 +795,6 @@ class SyncServer(Server):
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
 
-        # save agent
-        if request.split_thread_agent:
-            save_split_thread_agent(agent, self.ms)
-        else:
-            save_agent(agent, self.ms)
         logger.info(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
