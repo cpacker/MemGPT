@@ -562,9 +562,19 @@ class RESTClient(AbstractClient):
         response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
-    def get_job_status(self, job_id: str):
-        response = requests.get(f"{self.base_url}/api/sources/status/{str(job_id)}", headers=self.headers)
+    def get_job(self, job_id: str) -> Job:
+        response = requests.get(f"{self.base_url}/api/jobs/{job_id}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get job: {response.text}")
         return Job(**response.json())
+
+    def list_jobs(self):
+        response = requests.get(f"{self.base_url}/api/jobs", headers=self.headers)
+        return [Job(**job) for job in response.json()]
+
+    def list_active_jobs(self):
+        response = requests.get(f"{self.base_url}/api/jobs/active", headers=self.headers)
+        return [Job(**job) for job in response.json()]
 
     def load_file_into_source(self, filename: str, source_id: str, blocking=True):
         """Load {filename} and insert into source"""
@@ -579,7 +589,7 @@ class RESTClient(AbstractClient):
         if blocking:
             # wait until job is completed
             while True:
-                job = self.get_job_status(job.id)
+                job = self.get_job(job.id)
                 if job.status == JobStatus.completed:
                     break
                 elif job.status == JobStatus.failed:
@@ -1175,6 +1185,15 @@ class LocalClient(AbstractClient):
         # TODO: implement blocking vs. non-blocking
         self.server.load_file_to_source(source_id=source_id, file_path=filename, job_id=job.id)
         return job
+
+    def get_job(self, job_id: str):
+        return self.server.get_job(job_id=job_id)
+
+    def list_jobs(self):
+        return self.server.list_jobs(user_id=self.user_id)
+
+    def list_active_jobs(self):
+        return self.server.list_active_jobs(user_id=self.user_id)
 
     def create_source(self, name: str) -> Source:
         request = SourceCreate(name=name)

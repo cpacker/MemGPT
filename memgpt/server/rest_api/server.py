@@ -22,6 +22,7 @@ from memgpt.server.rest_api.auth.index import setup_auth_router
 from memgpt.server.rest_api.block.index import setup_block_index_router
 from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.interface import StreamingServerInterface
+from memgpt.server.rest_api.jobs.index import setup_jobs_index_router
 from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.rest_api.openai_assistants.assistants import (
     setup_openai_assistant_router,
@@ -95,6 +96,7 @@ app.include_router(setup_agents_index_router(server, interface, password), prefi
 app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_block_index_router(server, interface, password), prefix=API_PREFIX)
+app.include_router(setup_jobs_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_user_tools_index_router(server, interface, password), prefix=API_PREFIX)
 app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
