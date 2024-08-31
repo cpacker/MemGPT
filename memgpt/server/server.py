@@ -261,17 +261,15 @@ class SyncServer(Server):
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
 
-            print("AGENT STATE", agent_state)
-
             if agent_state.split_thread_agent:
                 print("MY AGENT STATE HAS SPLIT THREAD AGENT")
                 agent_name = agent_state.name
                 conversation_agent_state = self.ms.get_agent(user_id=user_id, agent_name=f"{agent_name}_conversation")
-                assert conversation_agent_state, f"conversation agent state not found for {agent_id}"
+                assert conversation_agent_state, f"conversation agent state not found for {agent_name}_conversation, {agent_id}"
                 conversation_tools = self._get_tools_from_agent_state(agent_state=conversation_agent_state, user_id=user_id)
 
                 memory_agent_state = self.ms.get_agent(user_id=user_id, agent_name=f"{agent_name}_memory")
-                assert memory_agent_state, f"memory agent state not found for {agent_id}"
+                assert memory_agent_state, f"memory agent state not found for {agent_name}_memory, {agent_id}"
                 memory_tools = self._get_tools_from_agent_state(agent_state=memory_agent_state, user_id=user_id)
 
                 memgpt_agent = SplitThreadAgent(
@@ -729,9 +727,8 @@ class SyncServer(Server):
                     split_thread_agent=False,
                 )
 
-                print("THIS IS NEVER SAVED??")
                 agent_state = AgentState(
-                    name=f"{request.name}-ASFJASJFHASKJ",
+                    name=request.name,
                     user_id=user_id,
                     tools=request.tools,  # name=id for tools
                     llm_config=llm_config,

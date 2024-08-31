@@ -215,4 +215,5 @@ def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
     # save conversational agent
     save_agent(agent=agent.agent, ms=ms)
     save_agent(agent=agent.conversation_agent, ms=ms)
+    print("THE ONE I SAVED IS!! ", agent.memory_agent.agent_state.user_id, agent.memory_agent.agent_state.name)
     save_agent(agent=agent.memory_agent, ms=ms)
