@@ -708,9 +708,6 @@ class RESTClient(AbstractClient):
         response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
         return [AgentState(**agent) for agent in response.json()]
 
-    def get_agent_id(self, agent_name: str) -> str:
-        raise NotImplementedError
-
     def agent_exists(self, agent_id: str) -> bool:
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
         if response.status_code == 404:
