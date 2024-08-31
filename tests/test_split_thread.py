@@ -1,13 +1,22 @@
+import json
+
 from memgpt.client.client import create_client
 
 
 def parse_messages(messages):
-    return [i.text for i in messages]
-    parsed_messages = {}
-    for message in messages:
-        parsed_messages[message.id] = message
-    sorted_messages = sorted(parsed_messages.values(), key=lambda x: x.created_at)
-    return [i.text for i in sorted_messages]
+    for i in messages:
+        print("THIS IS A MESSAGE: ", i)
+        print("\n" * 5)
+
+    return_messages = []
+    for msg in messages:
+        if hasattr(msg, "tool_calls") and msg.tool_calls is not None:
+            for tool_call in msg.tool_calls:
+                if tool_call.type == "function" and tool_call.function.name == "send_message":
+                    arguments = json.loads(tool_call.function.arguments)
+                    return_messages.append(arguments["message"])
+
+    return return_messages
 
 
 def print_messages(messages):

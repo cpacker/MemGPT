@@ -224,7 +224,6 @@ class SyncServer(Server):
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
         for d in self.active_agents:
-            print("I HAVE AGENTS: ", d)
             if d["user_id"] == str(user_id) and d["agent_id"] == str(agent_id):
                 return d["agent"]
         return None
@@ -262,7 +261,6 @@ class SyncServer(Server):
                 raise ValueError(f"agent_id {agent_id} does not exist")
 
             if agent_state.split_thread_agent:
-                print("MY AGENT STATE HAS SPLIT THREAD AGENT")
                 agent_name = agent_state.name
                 conversation_agent_state = self.ms.get_agent(user_id=user_id, agent_name=f"{agent_name}_conversation")
                 assert conversation_agent_state, f"conversation agent state not found for {agent_name}_conversation, {agent_id}"
@@ -331,7 +329,6 @@ class SyncServer(Server):
 
             # Get the agent object (loaded in memory)
             memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
-            print("I GOT AGENT", memgpt_agent)
             if memgpt_agent is None:
                 raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
@@ -715,7 +712,7 @@ class SyncServer(Server):
                 )
 
                 memory_agent_state = AgentState(
-                    name=f"{request.name}_memory",
+                    name=f"{request.name}_memory",
                     user_id=user_id,
                     tools=request.tools,  # name=id for tools
                     llm_config=llm_config,

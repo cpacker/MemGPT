@@ -1,59 +1,19 @@
 import datetime
-import inspect
-import traceback
 
 from abc import ABC, abstractmethod
-from typing import List, Literal, Optional, Tuple, Union
-from tqdm import tqdm
+from typing import List, Optional, Tuple, Union
 
 from memgpt.agent import Agent, save_agent
-from memgpt.agent_store.storage import StorageConnector
 from memgpt.constants import (
-    CLI_WARNING_PREFIX,
     FIRST_MESSAGE_ATTEMPTS,
-    IN_CONTEXT_MEMORY_KEYWORD,
-    LLM_MAX_TOKENS,
-    MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
-    MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
-    MESSAGE_SUMMARY_WARNING_FRAC,
 )
 from memgpt.interface import AgentInterface
-from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
-from memgpt.memory import ArchivalMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
-from memgpt.persistence_manager import LocalStateManager
 from memgpt.schemas.agent import AgentState
-from memgpt.schemas.block import Block
-from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.memory import Memory
 from memgpt.schemas.message import Message
-from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
-from memgpt.schemas.openai.chat_completion_response import (
-    Message as ChatCompletionMessage,
-)
-from memgpt.schemas.passage import Passage
 from memgpt.schemas.tool import Tool
-from memgpt.system import (
-    get_initial_boot_messages,
-    get_login_event,
-    package_function_response,
-    package_summarize_message,
-)
-from memgpt.utils import (
-    count_tokens,
-    get_local_time,
-    get_tool_call_id,
-    get_utc_time,
-    is_utc_datetime,
-    json_dumps,
-    json_loads,
-    parse_json,
-    printd,
-    united_diff,
-    validate_function_response,
-    verify_first_message_correctness,
-)
 
 
 class AbstractAgent(ABC):
@@ -61,9 +21,9 @@ class AbstractAgent(ABC):
     Abstract class for conversational agents.
     """
 
-    # agent_state: AgentState
-    # memory: Memory
-    # interface: AgentInterface
+    agent_state: AgentState
+    memory: Memory
+    interface: AgentInterface
 
     @abstractmethod
     def step(
@@ -84,23 +44,6 @@ class AbstractAgent(ABC):
         """
         pass
 
-    # @abstractmethod
-    # def update_state(self) -> AgentState:
-    #     """
-    #     Update the agent state.
-    #     """
-    #     pass
-
-    # @property
-    # @abstractmethod
-    # def messages(self) -> List[dict]:
-    #     pass
-
-    # @messages.setter
-    # @abstractmethod
-    # def messages(self, value: List[dict]):
-    #     pass
-
 
 class SplitThreadAgent(AbstractAgent):
     def __init__(
@@ -116,7 +59,6 @@ class SplitThreadAgent(AbstractAgent):
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
-        print("I AM CREATING AN AGENT!")
         self.conversation_agent = Agent(
             interface=interface,
             agent_state=conversation_agent_state,
@@ -148,6 +90,14 @@ class SplitThreadAgent(AbstractAgent):
     def agent_state(self, value: AgentState):
         self.agent.agent_state = value
 
+    @property
+    def memory(self) -> Memory:
+        return self.agent.memory
+
+    @memory.setter
+    def memory(self, value: Memory):
+        self.agent.memory = value
+
     def step(
         self,
         user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
@@ -161,9 +111,6 @@ class SplitThreadAgent(AbstractAgent):
         inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
-        print("I AM STEPPING")
-        raise NotImplementedError
-
         memory_step = self.memory_agent.step(
             user_message=user_message,
             first_message=first_message,
@@ -176,7 +123,11 @@ class SplitThreadAgent(AbstractAgent):
             inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             ms=ms,
         )
-        print("I GOT MEMORY STEP: ", memory_step)
+
+        for i in memory_step[0]:
+            if not i.text:
+                continue
+            i.text = f"MEMORY: {i.text}"
 
         conversation_step = self.conversation_agent.step(
             user_message=user_message,
@@ -197,6 +148,7 @@ class SplitThreadAgent(AbstractAgent):
             memory_step[1] or conversation_step[1],
             memory_step[2] or conversation_step[2],
             memory_step[3] or conversation_step[3],
+            memory_step[4] + conversation_step[4],
         )
         return combined_steps
 
@@ -215,5 +167,4 @@ def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
     # save conversational agent
     save_agent(agent=agent.agent, ms=ms)
     save_agent(agent=agent.conversation_agent, ms=ms)
-    print("THE ONE I SAVED IS!! ", agent.memory_agent.agent_state.user_id, agent.memory_agent.agent_state.name)
     save_agent(agent=agent.memory_agent, ms=ms)
