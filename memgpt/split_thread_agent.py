@@ -52,22 +52,6 @@ class SplitThreadAgent(BaseAgent):
         )
         self.interface = interface
 
-    @property
-    def agent_state(self) -> AgentState:
-        return self.agent.agent_state
-
-    @agent_state.setter
-    def agent_state(self, value: AgentState):
-        self.agent.agent_state = value
-
-    @property
-    def memory(self) -> Memory:
-        return self.agent.memory
-
-    @memory.setter
-    def memory(self, value: Memory):
-        self.agent.memory = value
-
     def step(
         self,
         user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
@@ -121,6 +105,22 @@ class SplitThreadAgent(BaseAgent):
         self.memory_agent.update_state()
         self.agent.update_state()
         return self.agent_state
+
+    @property
+    def agent_state(self) -> AgentState:
+        return self.agent.agent_state
+
+    @agent_state.setter
+    def agent_state(self, value: AgentState):
+        self.agent.agent_state = value
+
+    @property
+    def memory(self) -> Memory:
+        return self.agent.memory
+
+    @memory.setter
+    def memory(self, value: Memory):
+        self.agent.memory = value
 
 
 def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
