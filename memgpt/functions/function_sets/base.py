@@ -1,10 +1,10 @@
-import datetime
-import math
 from typing import Optional
 
 from memgpt.agent import Agent
 from memgpt.constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-from memgpt.utils import json_dumps
+
+# import math
+# from memgpt.utils import json_dumps
 
 ### Functions / tools the agent can use
 # All functions should return a response string (or None)
@@ -39,6 +39,8 @@ Returns:
 
 
 def pause_heartbeats(self: Agent, minutes: int) -> Optional[str]:
+    import datetime
+
     minutes = min(MAX_PAUSE_HEARTBEATS, minutes)
 
     # Record the current time
@@ -63,6 +65,11 @@ def conversation_search(self: Agent, query: str, page: Optional[int] = 0) -> Opt
     Returns:
         str: Query result string
     """
+
+    import math
+
+    from memgpt.constants import RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+
     if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
         page = 0
     try:
@@ -93,6 +100,10 @@ def conversation_search_date(self: Agent, start_date: str, end_date: str, page: 
     Returns:
         str: Query result string
     """
+    import math
+
+    from memgpt.constants import RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+
     if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
         page = 0
     try:
