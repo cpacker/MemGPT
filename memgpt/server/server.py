@@ -1,5 +1,3 @@
-"""See memgpt/server/README.md for context on SyncServer"""
-
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
 import warnings
 from abc import abstractmethod
@@ -52,7 +50,7 @@ from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.schemas.user import User, UserCreate
-from memgpt.utils import create_random_username
+from memgpt.utils import create_random_username, json_dumps, json_loads
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -448,6 +446,11 @@ class SyncServer(Server):
         elif command.lower() == "memorywarning":
             input_message = system.get_token_limit_warning()
             self._step(user_id, agent_id=agent_id, input_message=input_message)
+
+        if not usage:
+            usage = MemGPTUsageStatistics()
+
+        return usage
 
     def user_message(
         self,
@@ -1237,7 +1240,7 @@ class SyncServer(Server):
         """Delete an agent in the database"""
         if self.ms.get_user(id=user_id) is None:
             raise ValueError(f"{user_id=} does not exist")
-        
+
         # Raises a NoResultFound error if not found
         agent_state = self.ms.get_agent(id=agent_id, user_id=user_id)
 
@@ -1350,6 +1353,11 @@ class SyncServer(Server):
     def list_jobs(self, user_id: str) -> List[Job]:
         """List all jobs for a user"""
         return self.ms.list_jobs(user_id=user_id)
+
+    def list_active_jobs(self, user_id: str) -> List[Job]:
+        """List all active jobs for a user"""
+        jobs = self.ms.list_jobs(user_id=user_id)
+        return [job for job in jobs if job.status in [JobStatus.created, JobStatus.running]]
 
     def load_file_to_source(self, source_id: str, file_path: str, job_id: str) -> Job:
 
@@ -1507,13 +1515,39 @@ class SyncServer(Server):
         """Update an existing tool"""
         return self.ms.update_tool(request)
 
-    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = False) -> Tool:  # TODO: add other fields
+    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = True) -> Tool:  # TODO: add other fields
         """Create a new tool"""
 
-        if request.tags and "memory" in request.tags:
-            # special modifications to memory functions
-            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
-            request.source_code = request.source_code.replace("self.memory", "self.memory.memory")
+        # NOTE: deprecated code that existed when we were trying to pretend that `self` was the memory object
+        # if request.tags and "memory" in request.tags:
+        #    # special modifications to memory functions
+        #    # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
+        #    request.source_code = request.source_code.replace("self.memory", "self.memory.memory")
+
+        if not request.json_schema:
+            # auto-generate openai schema
+            try:
+                env = {}
+                env.update(globals())
+                exec(request.source_code, env)
+
+                # get available functions
+                functions = [f for f in env if callable(env[f])]
+
+            except Exception as e:
+                logger.error(f"Failed to execute source code: {e}")
+
+            # TODO: not sure if this always works
+            func = env[functions[-1]]
+            json_schema = generate_schema(func, request.name)
+        else:
+            # provided by client
+            json_schema = request.json_schema
+
+        if not request.name:
+            # use name from JSON schema
+            request.name = json_schema["name"]
+            assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
 
         # check if already exists:
         tool_name = request.json_schema["name"]
@@ -1521,12 +1555,21 @@ class SyncServer(Server):
         if existing_tool:
             if update:
                 updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
-                assert updated_tool is not None, f"Failed to update tool {tool_name}"
+                assert updated_tool is not None, f"Failed to update tool {request.name}"
                 return updated_tool
             else:
-                raise ValueError(f"Tool {tool_name} already exists and update=False")
+                raise ValueError(f"Tool {request.name} already exists and update=False")
 
-        created_tool = self.ms.create_tool(request)
+        tool = Tool(
+            name=request.name,
+            source_code=request.source_code,
+            source_type=request.source_type,
+            tags=request.tags,
+            json_schema=json_schema,
+            user_id=user_id,
+        )
+        self.ms.create_tool(tool)
+        created_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
         return created_tool
 
     def delete_tool(self, tool_id: str):

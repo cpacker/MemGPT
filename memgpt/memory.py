@@ -276,6 +276,7 @@ def summarize_messages(
         llm_config=agent_state.llm_config,
         user_id=agent_state.user_id,
         messages=message_sequence,
+        stream=False,
     )
 
     printd(f"summarize_messages gpt reply: {response.choices[0]}")

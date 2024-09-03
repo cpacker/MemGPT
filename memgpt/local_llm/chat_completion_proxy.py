@@ -33,7 +33,7 @@ from memgpt.schemas.openai.chat_completion_response import (
     ToolCall,
     UsageStatistics,
 )
-from memgpt.utils import get_tool_call_id, get_utc_time
+from memgpt.utils import get_tool_call_id, get_utc_time, json_dumps
 
 has_shown_warning = False
 grammar_supported_backends = ["koboldcpp", "llamacpp", "webui", "webui-legacy"]

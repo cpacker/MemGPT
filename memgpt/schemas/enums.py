@@ -5,6 +5,7 @@ class MessageRole(str, Enum):
     assistant = "assistant"
     user = "user"
     tool = "tool"
+    function = "function"
     system = "system"
 
 

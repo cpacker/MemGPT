@@ -1,14 +1,13 @@
 import inspect
-import json
 import os
+
 import pytest
 
 from memgpt import create_client
-from memgpt.utils import json_loads
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.schemas.message import Message
-from memgpt.utils import assistant_function_to_tool
-
+from memgpt.utils import assistant_function_to_tool, json_dumps, json_loads
+from tests.utils import create_config, wipe_config
 from tests.mock_factory.models import MockUserFactory, MockTokenFactory
 
 
@@ -57,7 +56,7 @@ def ai_function_call():
                 "content": "I will now call hello world",
                 "function_call": {
                     "name": "hello_world",
-                    "arguments": json.dumps({}),
+                    "arguments": json_dumps({}),
                 },
             }
         )

@@ -9,7 +9,6 @@ from memgpt.constants import BASE_TOOLS
 from memgpt.settings import settings
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.functions.functions import parse_source_code
-from memgpt.functions.schema_generator import generate_schema
 from memgpt.memory import get_memory_functions
 
 # This is a hack for now, should be using new schemas
@@ -27,6 +26,7 @@ from memgpt.schemas.block import (
     CreatePersona,
     Human,
     Persona,
+    UpdateBlock,
     UpdateHuman,
     UpdatePersona,
 )
@@ -421,7 +421,8 @@ class RESTClient(AbstractClient):
         return [Message(**message) for message in response.json()]
 
     # agent interactions
-    def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
+
+    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
         return self.send_message(agent_id, message, role="user")
 
     def run_command(self, agent_id: str, command: str) -> Union[Message, str, None]:
@@ -487,7 +488,7 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.get(f"/blocks/", params=params)
         if response.status_code != 200:
             raise ValueError(f"Failed to list blocks: {response.text}")
-        
+
         match label:
             case "human":
                 Schema = Human
@@ -522,8 +523,15 @@ class RESTClient(AbstractClient):
 
         return Schema(**response.json())
 
-    async def get_persona(self, name: str) -> Persona:
-        response = await self.httpx_client.get(f"/personas/{name}/")
+    async def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
+        request = UpdateBlock(id=block_id, name=name, value=text)
+        response = await self.httpx.post(f"{self.base_url}/api/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update block: {response.text}")
+        return Block(**response.json())
+
+    async def get_block(self, block_id: str) -> Block:
+        response = await self.httpx.get(f"{self.base_url}/api/blocks/{block_id}", headers=self.headers)
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
@@ -619,9 +627,19 @@ class RESTClient(AbstractClient):
         response = self.httpx_client.delete(f"/sources/{source_id}/")
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
-    def get_job_status(self, job_id: uuid.UUID):
-        response = self.httpx_client.get(f"/sources/status/{job_id}/")
+    def get_job(self, job_id: str) -> Job:
+        response = requests.get(f"{self.base_url}/api/jobs/{job_id}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get job: {response.text}")
         return Job(**response.json())
+
+    def list_jobs(self):
+        response = requests.get(f"{self.base_url}/api/jobs", headers=self.headers)
+        return [Job(**job) for job in response.json()]
+
+    def list_active_jobs(self):
+        response = requests.get(f"{self.base_url}/api/jobs/active", headers=self.headers)
+        return [Job(**job) for job in response.json()]
 
     def load_file_into_source(self, filename: str, source_id: str, blocking=True):
         """Load {filename} and insert into source"""
@@ -637,7 +655,7 @@ class RESTClient(AbstractClient):
         if blocking:
             # wait until job is completed
             while True:
-                job = self.get_job_status(job.id)
+                job = self.get_job(job.id)
                 if job.status == JobStatus.completed:
                     break
                 elif job.status == JobStatus.failed:
@@ -649,6 +667,20 @@ class RESTClient(AbstractClient):
         """Create a new source"""
         payload = {"name": name}
         response = self.httpx_client.post("/sources/", json=payload)
+        response_json = response.json()
+        return Source(**response_json)
+
+    def list_attached_sources(self, agent_id: str) -> List[Source]:
+        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/sources", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list attached sources: {response.text}")
+        return [Source(**source) for source in response.json()]
+
+    def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
+        request = SourceUpdate(id=source_id, name=name)
+        response = requests.post(f"{self.base_url}/api/sources/{source_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update source: {response.text}")
         return Source(**response.json())
 
     def attach_source_to_agent(self, source_id: str, agent_id: str):
@@ -704,7 +736,6 @@ class RESTClient(AbstractClient):
         # TODO: how to load modules?
         # parse source code/schema
         source_code = parse_source_code(func)
-        json_schema = generate_schema(func, name)
         source_type = "python"
         tool_name = json_schema["name"]
 
@@ -739,13 +770,10 @@ class RESTClient(AbstractClient):
         """
         if func:
             source_code = parse_source_code(func)
-            json_schema = generate_schema(func, name)
         else:
             source_code = None
-            json_schema = None
 
         source_type = "python"
-        tool_name = json_schema["name"] if name else name
 
         request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
         response = await self.httpx_client.post(f"/tools/{id}/", json=request.model_dump(), headers=self.headers)
@@ -1051,6 +1079,8 @@ class LocalClient(AbstractClient):
         self.server.delete_block(id)
 
     # tools
+
+    # TODO: merge this into create_tool
     def add_tool(self, tool: Tool, update: Optional[bool] = True) -> None:
         """
         Adds a tool directly.
@@ -1111,23 +1141,12 @@ class LocalClient(AbstractClient):
         # TODO: how to load modules?
         # parse source code/schema
         source_code = parse_source_code(func)
-        json_schema = generate_schema(func, name)
         source_type = "python"
-        tool_name = json_schema["name"]
-
-        assert name is None or name == tool_name, f"Tool name {name} does not match schema name {tool_name}"
-
-        # check if tool exists
-        existing_tool_id = self.get_tool_id(tool_name)
-        if existing_tool_id:
-            if update:
-                return self.update_tool(existing_tool_id, name=name, func=func, tags=tags)
-            else:
-                raise ValueError(f"Tool with name {tool_name} already exists")
 
         # call server function
         return self.server.create_tool(
-            ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
+            # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
+            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags),
             user_id=self.user_id,
             update=update,
         )
@@ -1151,17 +1170,12 @@ class LocalClient(AbstractClient):
         """
         if func:
             source_code = parse_source_code(func)
-            json_schema = generate_schema(func, name)
         else:
             source_code = None
-            json_schema = None
 
         source_type = "python"
-        tool_name = json_schema["name"] if name else name
 
-        return self.server.update_tool(
-            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
-        )
+        return self.server.update_tool(ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name))
 
     def list_tools(self):
         """List available tools.
@@ -1194,6 +1208,15 @@ class LocalClient(AbstractClient):
         # TODO: implement blocking vs. non-blocking
         self.server.load_file_to_source(source_id=source_id, file_path=filename, job_id=job.id)
         return job
+
+    def get_job(self, job_id: str):
+        return self.server.get_job(job_id=job_id)
+
+    def list_jobs(self):
+        return self.server.list_jobs(user_id=self.user_id)
+
+    def list_active_jobs(self):
+        return self.server.list_active_jobs(user_id=self.user_id)
 
     def create_source(self, name: str) -> Source:
         request = SourceCreate(name=name)

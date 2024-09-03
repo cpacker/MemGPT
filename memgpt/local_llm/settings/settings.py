@@ -1,7 +1,7 @@
 import json
 import os
 
-from memgpt.constants import  MEMGPT_DIR
+from memgpt.constants import MEMGPT_DIR
 from memgpt.local_llm.settings.deterministic_mirostat import (
     settings as det_miro_settings,
 )

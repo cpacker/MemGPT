@@ -1,6 +1,5 @@
 import datetime
 import inspect
-import json
 import traceback
 from typing import List, Literal, Optional, Tuple, Union
 
@@ -30,6 +29,9 @@ from memgpt.schemas.enums import OptionState
 from memgpt.schemas.memory import Memory
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
+from memgpt.schemas.openai.chat_completion_response import (
+    Message as ChatCompletionMessage,
+)
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.tool import Tool
 from memgpt.system import (
@@ -44,6 +46,8 @@ from memgpt.utils import (
     get_tool_call_id,
     get_utc_time,
     is_utc_datetime,
+    json_dumps,
+    json_loads,
     parse_json,
     printd,
     united_diff,
@@ -108,7 +112,7 @@ def compile_system_message(
             archival_memory=archival_memory,
             recall_memory=recall_memory,
         )
-        full_memory_string = memory_metadata_string + "\n" + str(in_context_memory)
+        full_memory_string = memory_metadata_string + "\n" + in_context_memory.compile()
 
         # Add to the variables list to inject
         variables[IN_CONTEXT_MEMORY_KEYWORD] = full_memory_string
@@ -216,7 +220,7 @@ class Agent(object):
         # Initialize the memory object
         self.memory = self.agent_state.memory
         assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
-        printd("Initialized memory object", self.memory)
+        printd("Initialized memory object", self.memory.compile())
 
         # Interface must implement:
         # - internal_monologue
@@ -441,8 +445,20 @@ class Agent(object):
         except Exception as e:
             raise e
 
-    def _handle_ai_response(self, response_message: Message, override_tool_call_id: bool = True) -> Tuple[List[Message], bool, bool]:
+    def _handle_ai_response(
+        self,
+        response_message: ChatCompletionMessage,  # TODO should we eventually move the Message creation outside of this function?
+        override_tool_call_id: bool = True,
+        # If we are streaming, we needed to create a Message ID ahead of time,
+        # and now we want to use it in the creation of the Message object
+        # TODO figure out a cleaner way to do this
+        response_message_id: Optional[str] = None,
+    ) -> Tuple[List[Message], bool, bool]:
         """Handles parsing and function execution"""
+
+        # Hacky failsafe for now to make sure we didn't implement the streaming Message ID creation incorrectly
+        if response_message_id is not None:
+            assert response_message_id.startswith("message-"), response_message_id
 
         messages = []  # append these to the history when done
 
@@ -474,6 +490,7 @@ class Agent(object):
                 # NOTE: we're recreating the message here
                 # TODO should probably just overwrite the fields?
                 Message.dict_to_message(
+                    id=response_message_id,
                     agent_id=self.agent_state.id,
                     user_id=self.agent_state.user_id,
                     model=self.model,
@@ -619,6 +636,7 @@ class Agent(object):
             # Standard non-function reply
             messages.append(
                 Message.dict_to_message(
+                    id=response_message_id,
                     agent_id=self.agent_state.id,
                     user_id=self.agent_state.user_id,
                     model=self.model,
@@ -765,7 +783,12 @@ class Agent(object):
             # (if yes) Step 5: send the info on the function call and function response to LLM
             response_message = response.choices[0].message
             response_message.model_copy()  # TODO why are we copying here?
-            all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(response_message)
+            all_response_messages, heartbeat_request, function_failed = self._handle_ai_response(
+                response_message,
+                # TODO this is kind of hacky, find a better way to handle this
+                # the only time we set up message creation ahead of time is when streaming is on
+                response_message_id=response.id if stream else None,
+            )
 
             # Add the extra metadata to the assistant response
             # (e.g. enough metadata to enable recreating the API call)
@@ -992,7 +1015,7 @@ class Agent(object):
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
 
         # NOTE: This is a hacky way to check if the memory has changed
-        memory_repr = str(self.memory)
+        memory_repr = self.memory.compile()
         if not force and memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
             printd(f"Memory has not changed, not rebuilding system")
             return
@@ -1017,7 +1040,7 @@ class Agent(object):
                     printd(f"skipping block update, unexpected value: {block_id=}")
                     continue
                 # TODO: we may want to update which columns we're updating from shared memory e.g. the limit
-                self.memory.update_block_value(name=block.get("name", ""), value=db_block.value)
+                self.memory.update_block_value(name=block.get("label", ""), value=db_block.value)
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False

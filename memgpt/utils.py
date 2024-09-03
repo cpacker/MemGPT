@@ -1039,5 +1039,6 @@ def create_uuid_from_string(val: str):
 def json_dumps(data, indent=2):
     return json.dumps(data, indent=indent, ensure_ascii=False)
 
+
 def json_loads(data):
     return json.loads(data, strict=False)

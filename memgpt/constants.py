@@ -3,6 +3,11 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
 
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
+# String in the error message for when the context window is too large
+# Example full message:
+# This model's maximum context length is 8192 tokens. However, your messages resulted in 8198 tokens (7450 in the messages, 748 in the functions). Please reduce the length of the messages or functions.
+OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING = "maximum context length"
+
 # System prompt templating
 IN_CONTEXT_MEMORY_KEYWORD = "CORE_MEMORY"
 

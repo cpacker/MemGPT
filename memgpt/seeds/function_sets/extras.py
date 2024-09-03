@@ -1,4 +1,3 @@
-import json
 import os
 import uuid
 from typing import Optional
@@ -6,13 +5,12 @@ from typing import Optional
 import requests
 
 from memgpt.constants import (
-
-
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
 )
 from memgpt.llm_api.llm_api_tools import create
 from memgpt.schemas.message import Message
+from memgpt.utils import json_dumps, json_loads
 
 
 def message_chatgpt(self, message: str):

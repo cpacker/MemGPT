@@ -19,8 +19,8 @@ class Memory(BaseModel, validate_assignment=True):
             obj.memory[key] = Block(**value)
         return obj
 
-    def __str__(self) -> str:
-        """Representation of the memory in-context"""
+    def compile(self) -> str:
+        """Generate a string representation of the memory in-context"""
         section_strs = []
         for section, module in self.memory.items():
             section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
@@ -133,3 +133,7 @@ class ArchivalMemorySummary(BaseModel):
 
 class RecallMemorySummary(BaseModel):
     size: int = Field(..., description="Number of rows in recall memory")
+
+
+class CreateArchivalMemory(BaseModel):
+    text: str = Field(..., description="Text to write to archival memory.")

@@ -47,6 +47,17 @@ jobs:
     #    MEMGPT_CONFIG_PATH: configs/server_config.yaml
 
     #  run: docker compose up -d
+    #
+    - name: Run tools tests
+      env:
+        MEMGPT_PG_PORT: 8888
+        MEMGPT_PG_USER: memgpt
+        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_PG_DB: memgpt
+        MEMGPT_PG_HOST: localhost
+        MEMGPT_SERVER_PASS: test_server_token
+      run: |
+        poetry run pytest -s -vv tests/test_tools.py
 
     - name: Run server tests
       env:
@@ -69,4 +80,4 @@ jobs:
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
-        poetry run pytest -s -vv -k "not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client" tests
+        poetry run pytest -s -vv -k "not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client" tests

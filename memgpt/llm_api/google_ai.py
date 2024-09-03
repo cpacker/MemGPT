@@ -4,7 +4,7 @@ from typing import List, Optional
 
 import requests
 
-from memgpt.constants import  NON_USER_MSG_PREFIX
+from memgpt.constants import NON_USER_MSG_PREFIX
 from memgpt.local_llm.json_parser import clean_json_string_extra_backslash
 from memgpt.local_llm.utils import count_tokens
 from memgpt.schemas.openai.chat_completion_request import Tool
@@ -16,7 +16,7 @@ from memgpt.schemas.openai.chat_completion_response import (
     ToolCall,
     UsageStatistics,
 )
-from memgpt.utils import get_tool_call_id, get_utc_time
+from memgpt.utils import get_tool_call_id, get_utc_time, json_dumps
 
 
 SUPPORTED_MODELS = [
