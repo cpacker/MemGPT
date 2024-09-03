@@ -56,14 +56,21 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return list(session.execute(query).scalars())
 
     @classmethod
-    def to_uid(cls, identifier) -> "UUID":
+    def to_uid(cls, identifier, indifferent:Optional[bool] = False) -> "UUID":
+        """converts the id into a uuid object
+        Args:
+            indifferent: if True, will not enforce the prefix check
+        """
+
         try:
             return UUID(identifier)
         except AttributeError:
             return identifier
         except:
             try:
-                return UUID(identifier.replace(f"{cls.__prefix__()}-",""))
+                uuid_string = identifier.split("-",1)[1] if indifferent \
+                else identifier.replace(f"{cls.__prefix__()}-","")
+                return UUID(uuid_string)
             except ValueError as e:
                 raise ValueError(f"{identifier} is not a valid identifier for class {cls.__name__}") from e
 
