@@ -1,7 +1,7 @@
 from typing import Optional
 
 from memgpt.agent import Agent
-from memgpt.constants import MAX_PAUSE_HEARTBEATS, RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+from memgpt.constants import MAX_PAUSE_HEARTBEATS
 
 # import math
 # from memgpt.utils import json_dumps
@@ -40,6 +40,8 @@ Returns:
 
 def pause_heartbeats(self: Agent, minutes: int) -> Optional[str]:
     import datetime
+
+    from memgpt.constants import MAX_PAUSE_HEARTBEATS
 
     minutes = min(MAX_PAUSE_HEARTBEATS, minutes)
 
@@ -147,6 +149,10 @@ def archival_memory_search(self: Agent, query: str, page: Optional[int] = 0) -> 
     Returns:
         str: Query result string
     """
+    import math
+
+    from memgpt.constants import RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+
     if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
         page = 0
     try:
