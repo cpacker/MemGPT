@@ -1,6 +1,5 @@
 from pytest import mark as m
 from memgpt.schemas.memory import ChatMemory
-from tests.mock_factory.models import MockAgentFactory
 
 @m.describe("When performing basic interactions with Agents")
 class TestUnitAgent:

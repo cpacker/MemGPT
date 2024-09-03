@@ -102,7 +102,7 @@ def user_and_agent_seed(db_session):
     """ seed a single user and an Agent for that user
     """
     user = MockUserFactory(db_session=db_session).generate()
-    agent = MockAgentFactory(db_session=db_session, user_id=user.id).generate()
+    agent = MockAgentFactory(db_session=db_session, users=[user]).generate()
     return user, agent
 
 # Fixture to create clients with different configurations

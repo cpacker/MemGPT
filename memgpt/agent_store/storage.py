@@ -5,7 +5,7 @@ We originally tried to use Llama Index VectorIndex, but their limited API was ex
 
 import uuid
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING, Enum
+from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 from memgpt.config import MemGPTConfig
 
@@ -19,13 +19,14 @@ from memgpt.schemas.enums import TableType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from memgpt.orm.base import Base as SQLBase
 
 
 
 class StorageConnector:
     """Defines a DB connection that is user-specific to access data: Documents, Passages, Archival/Recall Memory"""
 
-    SQLModel: SQLBase
+    SQLModel: "SQLBase" = None
     db_session: "Session" = None
 
     def __init__(
@@ -39,6 +40,7 @@ class StorageConnector:
         self.user_id = user_id
         self.agent_id = agent_id
         self.table_type = table_type
+        self.config = config
 
         self.db_session = db_session or get_db_session()
 
@@ -58,10 +60,9 @@ class StorageConnector:
         if self.table_type == TableType.ARCHIVAL_MEMORY or self.table_type == TableType.RECALL_MEMORY:
             # agent-specific table
             assert agent_id is not None, "Agent ID must be provided for agent-specific tables"
-            self.filters = {"user_id": self.user_id, "agent_id": self.agent_id}
+            self.filters = {"user_id": self.user_id, "_agent_id": self.agent_id}
         elif self.table_type == TableType.PASSAGES or self.table_type == TableType.DOCUMENTS:
             # setup base filters for user-specific tables
-            assert agent_id is None, "Agent ID must not be provided for user-specific tables"
             self.filters = {"user_id": self.user_id}
         else:
             raise ValueError(f"Table type {table_type} not implemented")

@@ -41,13 +41,20 @@ class BaseMessage(MemGPTBase):
     __id_prefix__ = "message"
     __sqlalchemy_model__ = "Message"
 
+    role: MessageRole = Field(..., description="The role of the participant.")
+    text: Optional[str] = Field(None, description="The text of the message.")
+    agent_id: str = Field(None, description="The unique identifier of the agent.")
+    user_id: str = Field(None, description="The unique identifier of the user.")
+
+    name: Optional[str] = Field(None, description="The name of the participant.")
+    model: Optional[str] = Field(None, description="The model used to make the function call.")
+    tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
+    tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
+
 
 class MessageCreate(BaseMessage):
     """Request to create a message"""
-
-    role: MessageRole = Field(..., description="The role of the participant.")
-    text: str = Field(..., description="The text of the message.")
-    name: Optional[str] = Field(None, description="The name of the participant.")
+    pass
 
 
 class Message(BaseMessage):
@@ -61,15 +68,7 @@ class Message(BaseMessage):
     """
 
     id: str = BaseMessage.generate_id_field()
-    role: MessageRole = Field(..., description="The role of the participant.")
-    text: Optional[str] = Field(None, description="The text of the message.")
-    user_id: Optional[str] = Field(None, description="The unique identifier of the user.")
-    agent_id: Optional[str] = Field(None, description="The unique identifier of the agent.")
-    model: Optional[str] = Field(None, description="The model used to make the function call.")
-    name: Optional[str] = Field(None, description="The name of the participant.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The time the message was created.")
-    tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
-    tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
 
     @field_validator("role")
     @classmethod

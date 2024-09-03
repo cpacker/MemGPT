@@ -100,7 +100,7 @@ class DocumentMixin(Base):
 
     __abstract__ = True
 
-    _document_id: Mapped[UUID] = mapped_column(
+    _document_id: Mapped[Optional[UUID]] = mapped_column(
         SQLUUID(), ForeignKey("document._id")
     )
 

@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from memgpt.orm.source import Source
     from memgpt.orm.user import User
     from memgpt.orm.tool import Tool
+    from memgpt.orm.passage import Passage
 
 class Agent(SqlalchemyBase, OrganizationMixin):
     __tablename__ = 'agent'
@@ -41,6 +42,7 @@ class Agent(SqlalchemyBase, OrganizationMixin):
     tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_agents", lazy="selectin")
     core_memory: Mapped[List["Block"]] = relationship("Block", secondary="blocks_agents", lazy="selectin")
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="agent", lazy="selectin")
+    passages: Mapped[List["Passage"]] = relationship("Passage", back_populates="agent", lazy="selectin")
 
 
     def to_pydantic(self) -> Type["BaseModel"]:

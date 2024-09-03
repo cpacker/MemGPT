@@ -11,6 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.sql import func
 from tqdm import tqdm
 
+from memgpt.orm.errors import NoResultFound
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 
@@ -29,7 +30,8 @@ class SQLStorageConnector(StorageConnector):
 
     def get_filters(self, filters: Optional[Dict] = {}):
         filter_conditions = {**self.filters, **(filters or {})}
-        all_filters = [getattr(self.SQLModel, key) == value for key, value in filter_conditions.items()]
+        all_filters = [getattr(self.SQLModel, key) == value for key, value in filter_conditions.items() if hasattr(self.SQLModel, key)]
+        breakpoint()
         return all_filters
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0):
@@ -44,7 +46,7 @@ class SQLStorageConnector(StorageConnector):
                 break
 
             # Yield a list of Record objects converted from the chunk
-            yield [record.to_record() for record in db_record_chunk]
+            yield [record.to_pydantic() for record in db_record_chunk]
 
             # Increment the offset to get the next chunk in the next iteration
             offset += page_size
@@ -88,7 +90,7 @@ class SQLStorageConnector(StorageConnector):
             db_record_chunk = query.limit(limit).all()
         if not db_record_chunk:
             return (None, [])
-        records = [record.to_record() for record in db_record_chunk]
+        records = [record.to_pydantic() for record in db_record_chunk]
         next_cursor = db_record_chunk[-1].id
         assert isinstance(next_cursor, str)
 
@@ -98,18 +100,21 @@ class SQLStorageConnector(StorageConnector):
     def get_all(self, filters: Optional[Dict] = {}, limit=None):
         filters = self.get_filters(filters)
         with self.db_session as session:
+            query = select(self.SQLModel).filter(*filters)
             if limit:
-                db_records = session.query(self.SQLModel).filter(*filters).limit(limit).all()
-            else:
-                db_records = session.query(self.SQLModel).filter(*filters).all()
-        return [record.to_record() for record in db_records]
+                query = query.limit(limit)
+            breakpoint()
+            db_records = session.execute(query).all()
+
+        return [record.to_pydantic() for record in db_records]
 
     def get(self, id: str):
-        with self.db_session as session:
-            db_record = session.get(self.SQLModel, id)
-        if db_record is None:
+        try:
+            db_record = self.SQLModel.read(db_session=self.db_session, identifier=id)
+        except NoResultFound:
             return None
-        return db_record.to_record()
+        
+        return db_record.to_pydantic()
 
     def size(self, filters: Optional[Dict] = {}) -> int:
         # return size of table
@@ -147,7 +152,7 @@ class SQLStorageConnector(StorageConnector):
             with self.db_session as session:
                 iterable = tqdm(records) if show_progress else records
                 for record in iterable:
-                    db_record = self.SQLModel(**record.dict())
+                    db_record = self.SQLModel(**record.model_dump(exclude_none=True))
                     session.add(db_record)
                 session.commit()
 
@@ -159,12 +164,11 @@ class SQLStorageConnector(StorageConnector):
             ).all()
 
         # Convert the results into Pydantic objects
-        records = [result.to_record() for result in results]
+        records = [result.to_pydantic() for result in results]
         return records
 
     def update(self, record: MemGPTBase):
         """Updates a record in the database based on the provided Pydantic Record object."""
-    
         self.SQLModel(**record.model_dump(exclude_none=True)).update(self.db_session)
 
     def list_data_sources(self):
@@ -188,7 +192,7 @@ class SQLStorageConnector(StorageConnector):
             if limit:
                 query = query.limit(limit)
             results = query.all()
-        return [result.to_record() for result in results]
+        return [result.to_pydantic() for result in results]
 
     def query_text(self, query, limit=None, offset=0):
         # todo: make fuzz https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql/42390204#42390204
@@ -205,7 +209,7 @@ class SQLStorageConnector(StorageConnector):
             if limit:
                 query = query.limit(limit)
             results = query.all()
-        return [result.to_record() for result in results]
+        return [result.to_pydantic() for result in results]
 
 
     def delete(self, filters: Optional[Dict] = {}):
@@ -251,7 +255,7 @@ class PostgresStorageConnector(SQLStorageConnector):
             if limit:
                 query = query.limit(limit)
             results = query.all()
-        return [result.to_record() for result in results]
+        return [result.to_pydantic() for result in results]
 
 
 class SQLLiteStorageConnector(SQLStorageConnector):

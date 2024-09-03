@@ -40,9 +40,10 @@ class User(SqlalchemyBase, OrganizationMixin):
         """Get the default user, or create it if it doesn't exist.
         Note: this is only for local client use.
         """
+        default_user_label = "Default User"
         try:
-            return db_session.query(cls).one()
+            return db_session.query(cls).filter(cls.name == default_user_label).one()
         except NoResultFound:
             org = Organization.default(db_session)
-            return cls(name="Default User",
+            return cls(name=default_user_label,
                        organization=org).create(db_session)
