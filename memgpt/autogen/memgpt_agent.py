@@ -16,11 +16,12 @@ import memgpt.system as system
 import memgpt.utils as utils
 from memgpt.agent import Agent as MemGPTAgent
 from memgpt.agent import save_agent
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.autogen.interface import AutoGenInterface
 from memgpt.cli.cli_load import load_directory, load_vector_database
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
+from memgpt.schemas.enums import TableType
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.user import User

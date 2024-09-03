@@ -147,6 +147,10 @@ def patch_local_db_calls(test_get_db_session: Callable):
             test_get_db_session,
         ),
         patch(
+            "memgpt.server.rest_api.app.get_db_session",
+            test_get_db_session,
+        ),
+        patch(
             "memgpt.server.rest_api.utils.get_db_session",
             test_get_db_session,
         ),

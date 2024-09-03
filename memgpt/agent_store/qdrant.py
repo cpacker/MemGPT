@@ -3,11 +3,12 @@ import uuid
 from copy import deepcopy
 from typing import Dict, Iterator, List, Optional, cast
 
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 from memgpt.constants import MAX_EMBEDDING_DIM
 from memgpt.utils import datetime_to_timestamp, timestamp_to_datetime
 from memgpt.schemas.passage import Passage
+from memgpt.schemas.enums import TableType
 class Record:
     """
     Base class for an agent's memory unit. Each memory unit is represented in the database as a single row.

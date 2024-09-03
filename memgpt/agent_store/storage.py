@@ -5,7 +5,7 @@ We originally tried to use Llama Index VectorIndex, but their limited API was ex
 
 import uuid
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, Type, Union, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING, Enum
 
 from memgpt.config import MemGPTConfig
 
@@ -15,28 +15,11 @@ from memgpt.orm.passage import Passage as SQLPassage
 from memgpt.orm.document import Document as SQLDocument
 from memgpt.orm.utilities import get_db_session
 
+from memgpt.schemas.enums import TableType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-# ENUM representing table types in MemGPT
-# each table corresponds to a different table schema  (specified in data_types.py)
-class TableType:
-    ARCHIVAL_MEMORY = "archival_memory"  # recall memory table: memgpt_agent_{agent_id}
-    RECALL_MEMORY = "recall_memory"  # archival memory table: memgpt_agent_recall_{agent_id}
-    PASSAGES = "passages"  # TODO
-    DOCUMENTS = "documents"  # TODO
-
-
-# table names used by MemGPT
-
-# agent tables
-RECALL_TABLE_NAME = "memgpt_recall_memory_agent"  # agent memory
-ARCHIVAL_TABLE_NAME = "memgpt_archival_memory_agent"  # agent memory
-
-# external data source tables
-PASSAGE_TABLE_NAME = "memgpt_passages"  # chunked/embedded passages (from source)
-DOCUMENT_TABLE_NAME = "memgpt_documents"  # original documents (from source)
 
 
 class StorageConnector:
