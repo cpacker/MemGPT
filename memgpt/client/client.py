@@ -365,8 +365,8 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
 
-    def rename_agent(self, agent_id: str, new_name: str):
-        return self.update_agent(agent_id, name=new_name)
+    # def rename_agent(self, agent_id: str, new_name: str):
+    #     return self.update_agent(agent_id, name=new_name)
 
     async def delete_agent(self, agent_id: str):
         """Delete the agent."""
@@ -389,7 +389,6 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.post(f"/agents/{agent_id}/memory/", json=new_memory_contents)
         return Memory(**response.json())
 
-    # memory
     async def get_in_context_memory(self, agent_id: uuid.UUID) -> Memory:
         response = await self.httpx_client.get(f"/agents/{agent_id}/memory/")
         if response.status_code != 200:
@@ -422,7 +421,6 @@ class RESTClient(AbstractClient):
         return [Message(**message) for message in response.json()]
 
     # agent interactions
-
     def user_message(self, agent_id: str, message: str) -> Union[List[Dict], Tuple[List[Dict], int]]:
         return self.send_message(agent_id, message, role="user")
 
@@ -434,7 +432,6 @@ class RESTClient(AbstractClient):
         raise NotImplementedError
 
     # archival memory
-
     def get_archival_memory(
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> List[Passage]:
@@ -459,7 +456,6 @@ class RESTClient(AbstractClient):
         assert response.status_code == 200, f"Failed to delete archival memory: {response.text}"
 
     # messages (recall memory)
-
     def get_messages(
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> MemGPTResponse:
@@ -477,26 +473,30 @@ class RESTClient(AbstractClient):
         return MemGPTResponse(**response.json())
 
     # humans / personas
-
     async def list_humans(self) -> ListHumansResponse:
         response = await self.httpx_client.get("/humans/")
         return ListHumansResponse(**response.json())
 
-    def create_human(self, name: str, human: str) -> Human:
+    async def create_human(self, name: str, human: str) -> Human:
         data = {"name": name, "text": human}
-        response = self.httpx_client.post("/humans/", json=data)
+        response = await self.httpx_client.post("/humans/", json=data)
+        return Human(**response.json())
 
     async def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
         params = {"label": label, "templates_only": templates_only}
         response = await self.httpx_client.get(f"/blocks/", params=params)
         if response.status_code != 200:
             raise ValueError(f"Failed to list blocks: {response.text}")
-        if label == "human":
-            return [Human(**human) for human in response.json()]
-        elif label == "persona":
-            return [Persona(**persona) for persona in response.json()]
-        else:
-            return [Block(**block) for block in response.json()]
+        
+        match label:
+            case "human":
+                Schema = Human
+            case "persona":
+                Schema = Persona
+            case _:
+                Schema = Block
+
+        return [Schema(**block) for block in response.json()]
 
     async def list_personas(self) -> ListPersonasResponse:
         response = await self.httpx_client.get("/persona/")
@@ -505,18 +505,22 @@ class RESTClient(AbstractClient):
     async def create_persona(self, name: str, persona: str) -> Persona:
         data = {"name": name, "text": persona}
         response = await self.httpx_client.post("/personas/", json=data)
+        return Persona(**response.json())
 
-    async def create_block(self, label: str, name: str, text: str) -> Block:  #
+    async def create_block(self, label: str, name: str, text: str) -> Block:
         request = CreateBlock(label=label, name=name, value=text)
         response = await self.httpx_client.post(f"/blocks/", json=request.model_dump())
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
-        if request.label == "human":
-            return Human(**response.json())
-        elif request.label == "persona":
-            return Persona(**response.json())
-        else:
-            return Block(**response.json())
+        match label:
+            case "human":
+                Schema = Human
+            case "persona":
+                Schema = Persona
+            case _:
+                Schema = Block
+
+        return Schema(**response.json())
 
     async def get_persona(self, name: str) -> Persona:
         response = await self.httpx_client.get(f"/personas/{name}/")
@@ -530,6 +534,7 @@ class RESTClient(AbstractClient):
         response = await self.httpx_client.get("/humans/{name}/")
         if response.status_code == 404:
             return None
+        return Human(**response.json())
 
     async def get_block(self, block_id: str) -> Block:
         response = await self.httpx_client.get(f"/blocks/{block_id}/")
@@ -565,7 +570,7 @@ class RESTClient(AbstractClient):
 
     def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
         request = UpdateHuman(id=human_id, name=name, value=text)
-        response = self.httpx_client.post(f"{self.base_url}/api/blocks/{human_id}/", json=request.model_dump(), headers=self.headers)
+        response = self.httpx_client.post(f"/blocks/{human_id}", json=request.model_dump())
         if response.status_code != 200:
             raise ValueError(f"Failed to update human: {response.text}")
         return Human(**response.json())
@@ -603,7 +608,6 @@ class RESTClient(AbstractClient):
         return self.delete_block(human_id)
 
     # sources
-
     async def list_sources(self) -> List[Source]:
         """List loaded sources"""
         response = await self.httpx_client.get("/sources/")
@@ -754,7 +758,6 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
         return [Tool(**tool) for tool in response.json()]
-        return [Tool(**tool) for tool in response.json()]
 
     async def delete_tool(self, name: str):
         response = await self.httpx_client.delete(f"/tools/{name}/")
@@ -767,7 +770,6 @@ class RESTClient(AbstractClient):
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
-        return Tool(**response.json())
         return Tool(**response.json())
 
 

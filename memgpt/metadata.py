@@ -142,8 +142,8 @@ class MetadataStore:
     def list_agents(self, **kwargs) -> List[DataAgentState]:
         return self.list_agent(**kwargs)
 
-    def list_tools(self) -> List[Tool]:
-        return [a.to_pydantic() for a in SQLTool.list(self.db_session)]
+    def list_tools(self, **kwargs) -> List[Tool]:
+        return self.list_tool(**kwargs)
 
     def get_tool(self, id: Optional[str]=None, name: Optional[str]=None, user_id: uuid.UUID=None) -> Optional[Tool]:
         try:
@@ -155,10 +155,6 @@ class MetadataStore:
                 return None
         except NoResultFound:
             return None
-
-    def create_tool(self, tool: Tool) -> Tool:
-        splatted_pydantic = {"created_by_id": self.actor.id, **tool.model_dump(exclude_none=True), "organization_id": SQLOrganization.default(self.db_session).id}
-        return SQLTool(**splatted_pydantic).create(self.db_session).to_pydantic()
 
     def get_organization(self, name: str = "Default Organization") -> SQLOrganization:
         return SQLOrganization.default(self.db_session)

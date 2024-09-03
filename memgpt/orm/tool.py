@@ -64,7 +64,6 @@ class Tool(SqlalchemyBase, OrganizationMixin):
         org = Organization.default(db_session)
         for name, schema in functions_to_schema.items():
             source_code = getsource(schema["python_function"])
-            # TODO: this needs to create a new instance not update the existing one
             sql_tools.append(cls(
                 name=name,
                 organization=org,

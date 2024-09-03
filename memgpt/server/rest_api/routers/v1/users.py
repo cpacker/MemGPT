@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 
-from memgpt.server.rest_api.utils import  get_current_interface, get_memgpt_server
+from memgpt.server.rest_api.utils import  get_memgpt_server
 from memgpt.server.schemas.users import (
     CreateUserRequest,
     CreateUserResponse,
@@ -17,17 +17,17 @@ if TYPE_CHECKING:
     from uuid import UUID
     from memgpt.schemas.user import User
     from memgpt.server.server import SyncServer
-    from memgpt.server.rest_api.interface import QueuingInterface
 
 
 router = APIRouter(prefix="/users", tags=["users","admin"])
 
 
-
-
-
 @router.get("/users", tags=["admin"], response_model=GetAllUsersResponse)
-def get_all_users(cursor: Optional["UUID"] = Query(None), limit: Optional[int] = Query(50)):
+def get_all_users(
+    cursor: Optional["UUID"] = Query(None),
+    limit: Optional[int] = Query(50),
+    server: SyncServer = Depends(get_memgpt_server),
+    ):
     """
     Get a list of all users in the database
     """
@@ -41,7 +41,10 @@ def get_all_users(cursor: Optional["UUID"] = Query(None), limit: Optional[int] =
     return GetAllUsersResponse(cursor=next_cursor, user_list=processed_users)
 
 @router.post("/users", tags=["admin"], response_model=CreateUserResponse)
-def create_user(request: Optional[CreateUserRequest] = Body(None)):
+def create_user(
+    request: Optional[CreateUserRequest] = Body(None),
+    server: SyncServer = Depends(get_memgpt_server),
+    ):
     """
     Create a new user in the database
     """
@@ -73,6 +76,7 @@ def create_user(request: Optional[CreateUserRequest] = Body(None)):
 @router.delete("/users", tags=["admin"], response_model=DeleteUserResponse)
 def delete_user(
     user_id: "UUID" = Query(..., description="The user_id key to be deleted."),
+    server: SyncServer = Depends(get_memgpt_server),
 ):
     # TODO make a soft deletion, instead of a hard deletion
     try:
@@ -90,7 +94,6 @@ def delete_user(
 def create_new_api_key(
     create_key: CreateAPIKeyRequest = Body(...),
     server: "SyncServer" = Depends(get_memgpt_server),
-
 ):
     """
     Create a new API key for a user

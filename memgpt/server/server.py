@@ -233,26 +233,20 @@ class SyncServer(Server):
             logger.info(f"Grabbing agent {user_id=} {agent_id=} from database")
             agent_state = self.ms.get_agent(id=agent_id, user_id=user_id)
             if not agent_state:
-                logger.exception(f"agent_id {agent_id} does not exist")
-                raise ValueError(f"agent_id {agent_id} does not exist")
+                logger.exception(f"{agent_id=} does not exist")
+                raise ValueError(f"{agent_id=} does not exist")
 
-            # Instantiate an agent object using the state retrieved
-            logger.info(f"Creating an agent object")
-            tool_objs = []
-            for name in agent_state.tools:
-                tool_obj = self.ms.get_tool(name=name, user_id=user_id)
-                if not tool_obj:
-                    logger.exception(f"Tool {name} does not exist for user {user_id}")
-                    raise ValueError(f"Tool {name} does not exist for user {user_id}")
-                tool_objs.append(tool_obj)
-
+            tool_objs = agent_state.tools
+            agent_state.tools = [t.name for t in tool_objs]
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
+            # Instantiate an agent object using the state retrieved
+            logger.info(f"Creating an agent object in memory")
             memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
-            logger.info(f"Adding agent to the agent cache: {user_id}, agent_id={agent_id}")
+            logger.info(f"Adding agent to the agent cache: {user_id=}, {agent_id=}")
             self._add_agent(user_id, agent_id=agent_id, agent_obj=memgpt_agent)
             return memgpt_agent
 
