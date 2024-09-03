@@ -1,10 +1,6 @@
 import pytest
 from faker import Faker
 
-from memgpt.settings import settings
-from memgpt import Admin, create_client
-from memgpt.constants import DEFAULT_PRESET
-from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.message import Message
 from memgpt.schemas.usage import MemGPTUsageStatistics
 

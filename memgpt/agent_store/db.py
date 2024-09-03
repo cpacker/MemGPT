@@ -31,7 +31,6 @@ class SQLStorageConnector(StorageConnector):
     def get_filters(self, filters: Optional[Dict] = {}):
         filter_conditions = {**self.filters, **(filters or {})}
         all_filters = [getattr(self.SQLModel, key) == value for key, value in filter_conditions.items() if hasattr(self.SQLModel, key)]
-        breakpoint()
         return all_filters
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: Optional[int] = 1000, offset=0):
@@ -65,7 +64,7 @@ class SQLStorageConnector(StorageConnector):
 
         # generate query
         with self.db_session as session:
-            query = session.query(self.SQLModel).filter(*filters)
+            query = select(self.SQLModel).filter(*filters).limit(limit)
             # query = query.order_by(asc(self.SQLModel.id))
 
             # records are sorted by the order_by field first, and then by the ID if two fields are the same
@@ -87,7 +86,7 @@ class SQLStorageConnector(StorageConnector):
                 query = query.filter(or_(sort_exp, and_(getattr(self.SQLModel, order_by) == before_value, self.SQLModel.id < before)))
 
             # get records
-            db_record_chunk = query.limit(limit).all()
+            db_record_chunk = session.execute(query).scalars()
         if not db_record_chunk:
             return (None, [])
         records = [record.to_pydantic() for record in db_record_chunk]
@@ -103,10 +102,10 @@ class SQLStorageConnector(StorageConnector):
             query = select(self.SQLModel).filter(*filters)
             if limit:
                 query = query.limit(limit)
-            breakpoint()
-            db_records = session.execute(query).all()
+            db_records = session.execute(query).scalars()
+            
+            return [record.to_pydantic() for record in db_records]
 
-        return [record.to_pydantic() for record in db_records]
 
     def get(self, id: str):
         try:
@@ -159,13 +158,10 @@ class SQLStorageConnector(StorageConnector):
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
         filters = self.get_filters(filters)
         with self.db_session as session:
-            results = session.scalars(
-                select(self.SQLModel).filter(*filters).order_by(self.SQLModel.embedding.l2_distance(query_vec)).limit(top_k)
-            ).all()
-
-        # Convert the results into Pydantic objects
-        records = [result.to_pydantic() for result in results]
-        return records
+            query = select(self.SQLModel).filter(*filters).order_by(self.SQLModel.embedding.l2_distance(query_vec)).limit(top_k)
+            results = session.execute(query).scalars()
+            
+            return [result.to_pydantic() for result in results]
 
     def update(self, record: MemGPTBase):
         """Updates a record in the database based on the provided Pydantic Record object."""
@@ -181,7 +177,7 @@ class SQLStorageConnector(StorageConnector):
         filters = self.get_filters({})
         with self.db_session as session:
             query = (
-                session.query(self.SQLModel)
+                select(self.SQLModel)
                 .filter(*filters)
                 .filter(self.SQLModel.created_at >= start_date)
                 .filter(self.SQLModel.created_at <= end_date)
@@ -191,15 +187,15 @@ class SQLStorageConnector(StorageConnector):
             )
             if limit:
                 query = query.limit(limit)
-            results = query.all()
-        return [result.to_pydantic() for result in results]
+            results = session.execute(query).scalars()
+            return [result.to_pydantic() for result in results]
 
     def query_text(self, query, limit=None, offset=0):
         # todo: make fuzz https://stackoverflow.com/questions/42388956/create-a-full-text-search-index-with-sqlalchemy-on-postgresql/42390204#42390204
         filters = self.get_filters({})
         with self.db_session as session:
             query = (
-                session.query(self.SQLModel)
+                select(self.SQLModel)
                 .filter(*filters)
                 .filter(func.lower(self.SQLModel.text).contains(func.lower(query)))
                 .filter(self.SQLModel.role != "system")
@@ -208,8 +204,9 @@ class SQLStorageConnector(StorageConnector):
             )
             if limit:
                 query = query.limit(limit)
-            results = query.all()
-        return [result.to_pydantic() for result in results]
+            results = session.execute(query).scalars()
+
+            return [result.to_pydantic() for result in results]
 
 
     def delete(self, filters: Optional[Dict] = {}):
@@ -244,7 +241,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         _end_date = self.str_to_datetime(end_date) if isinstance(end_date, str) else end_date
         with self.db_session as session:
             query = (
-                session.query(self.SQLModel)
+                select(self.SQLModel)
                 .filter(*filters)
                 .filter(self.SQLModel.created_at >= _start_date)
                 .filter(self.SQLModel.created_at <= _end_date)
@@ -254,8 +251,9 @@ class PostgresStorageConnector(SQLStorageConnector):
             )
             if limit:
                 query = query.limit(limit)
-            results = query.all()
-        return [result.to_pydantic() for result in results]
+            results = session.execute(query).scalars()
+            
+            return [result.to_pydantic() for result in results]
 
 
 class SQLLiteStorageConnector(SQLStorageConnector):

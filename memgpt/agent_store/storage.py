@@ -9,7 +9,7 @@ from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 from memgpt.config import MemGPTConfig
 
-from memgpt.orm.base import Base as SQLBase
+from memgpt.orm.sqlalchemy_base import SqlalchemyBase as SQLBase
 from memgpt.orm.message import Message as SQLMessage
 from memgpt.orm.passage import Passage as SQLPassage
 from memgpt.orm.document import Document as SQLDocument
@@ -19,7 +19,7 @@ from memgpt.schemas.enums import TableType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-    from memgpt.orm.base import Base as SQLBase
+    from memgpt.orm.sqlalchemy_base import SqlalchemyBase as SQLBase
 
 
 
@@ -60,7 +60,7 @@ class StorageConnector:
         if self.table_type == TableType.ARCHIVAL_MEMORY or self.table_type == TableType.RECALL_MEMORY:
             # agent-specific table
             assert agent_id is not None, "Agent ID must be provided for agent-specific tables"
-            self.filters = {"user_id": self.user_id, "_agent_id": self.agent_id}
+            self.filters = {"user_id": self.user_id, "_agent_id": SQLBase.to_uid(self.agent_id, True)}
         elif self.table_type == TableType.PASSAGES or self.table_type == TableType.DOCUMENTS:
             # setup base filters for user-specific tables
             self.filters = {"user_id": self.user_id}

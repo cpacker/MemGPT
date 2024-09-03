@@ -56,7 +56,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return list(session.execute(query).scalars())
 
     @classmethod
-    def to_uid(cls, identifier, indifferent:Optional[bool] = False) -> "UUID":
+    def to_uid(cls, identifier, indifferent: Optional[bool] = False) -> "UUID":
         """converts the id into a uuid object
         Args:
             indifferent: if True, will not enforce the prefix check
