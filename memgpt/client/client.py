@@ -27,7 +27,7 @@ from memgpt.schemas.enums import JobStatus, MessageRole
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memgpt_request import MemGPTRequest
-from memgpt.schemas.memgpt_response import MemGPTResponse
+from memgpt.schemas.memgpt_response import MemGPTResponse, MemGPTStreamingResponse
 from memgpt.schemas.memory import (
     ArchivalMemorySummary,
     ChatMemory,
@@ -426,7 +426,7 @@ class RESTClient(AbstractClient):
         name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
-    ) -> Union[MemGPTResponse, Generator[dict, None, None]]:
+    ) -> Union[MemGPTResponse, Generator[MemGPTStreamingResponse, None, None]]:
         messages = [MessageCreate(role=MessageRole(role), text=message, name=name)]
         # TODO: figure out how to handle stream_steps and stream_tokens
 

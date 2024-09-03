@@ -43,11 +43,6 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[MemGPTStreamingR
 
             try:
                 for sse in event_source.iter_sse():
-                    print()
-                    print("=" * 12)
-                    print(sse.event, sse.data, sse.id, sse.retry)
-                    print("=" * 12)
-                    print()
                     # if sse.data == OPENAI_SSE_DONE:
                     # print("finished")
                     # break

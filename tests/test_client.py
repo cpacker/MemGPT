@@ -10,7 +10,10 @@ from dotenv import load_dotenv
 from memgpt import Admin, create_client
 from memgpt.client.client import LocalClient, RESTClient
 from memgpt.constants import DEFAULT_PRESET
-from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.enums import JobStatus, MessageStreamStatus
+from memgpt.schemas.memgpt_message import FunctionCallMessage, InternalMonologue
+from memgpt.schemas.memgpt_response import MemGPTStreamingResponse
 from memgpt.schemas.message import Message
 from memgpt.schemas.usage import MemGPTUsageStatistics
 
@@ -79,7 +82,7 @@ def client(request):
 
 # Fixture for test agent
 @pytest.fixture(scope="module")
-def agent(client):
+def agent(client: Union[LocalClient, RESTClient]):
     agent_state = client.create_agent(name=test_agent_name)
     print("AGENT ID", agent_state.id)
     yield agent_state
@@ -88,7 +91,7 @@ def agent(client):
     client.delete_agent(agent_state.id)
 
 
-def test_agent(client, agent):
+def test_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # test client.rename_agent
     new_name = "RenamedTestAgent"
@@ -103,7 +106,7 @@ def test_agent(client, agent):
     assert client.agent_exists(agent_id=delete_agent.id) == False, "Agent deletion failed"
 
 
-def test_memory(client, agent):
+def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     memory_response = client.get_in_context_memory(agent_id=agent.id)
@@ -119,7 +122,7 @@ def test_memory(client, agent):
     ), "Memory update failed"
 
 
-def test_agent_interactions(client, agent):
+def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     message = "Hello, agent!"
@@ -136,7 +139,7 @@ def test_agent_interactions(client, agent):
     # TODO: add streaming tests
 
 
-def test_archival_memory(client, agent):
+def test_archival_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     memory_content = "Archival memory content"
@@ -170,7 +173,7 @@ def test_archival_memory(client, agent):
     client.get_archival_memory(agent.id)
 
 
-def test_core_memory(client, agent):
+def test_core_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     response = client.send_message(agent_id=agent.id, message="Update your core memory to remember that my name is Timber!", role="user")
     print("Response", response)
 
@@ -178,7 +181,7 @@ def test_core_memory(client, agent):
     assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
 
 
-def test_messages(client, agent):
+def test_messages(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
@@ -188,20 +191,60 @@ def test_messages(client, agent):
     assert len(messages_response) > 0, "Retrieving messages failed"
 
 
-def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent):
+def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: AgentState):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_streaming_send_message because LocalClient does not support streaming")
     assert isinstance(client, RESTClient), client
 
-    response = client.send_message(agent_id=agent.id, message="Hello, is anyone there?", role="user", stream_steps=True, stream_tokens=True)
-    print(response)
+    # First, try streaming just steps
+
+    # Next, try streaming both steps and tokens
+    response = client.send_message(
+        agent_id=agent.id,
+        message="This is a test. Repeat after me: 'banana'",
+        role="user",
+        stream_steps=True,
+        stream_tokens=True,
+    )
+
+    # Some manual checks to run
+    # 1. Check that there were inner thoughts
+    inner_thoughts_exist = False
+    # 2. Check that the agent runs `send_message`
+    send_message_ran = False
+    # 3. Check that we get all the start/stop/end tokens we want
+    #    This includes all of the MessageStreamStatus enums
+    done_gen = False
+    done_step = False
+    done = False
+
+    # print(response)
     assert response, "Sending message failed"
     for chunk in response:
-        print("\n\n\n")
-        print(chunk)
+        assert isinstance(chunk, MemGPTStreamingResponse)
+        if isinstance(chunk, InternalMonologue) and chunk.internal_monologue and chunk.internal_monologue != "":
+            inner_thoughts_exist = True
+        if isinstance(chunk, FunctionCallMessage) and chunk.function_call and chunk.function_call.name == "send_message":
+            send_message_ran = True
+        if isinstance(chunk, MessageStreamStatus):
+            if chunk == MessageStreamStatus.done:
+                assert not done, "Message stream already done"
+                done = True
+            elif chunk == MessageStreamStatus.done_step:
+                assert not done_step, "Message stream already done step"
+                done_step = True
+            elif chunk == MessageStreamStatus.done_generation:
+                assert not done_gen, "Message stream already done generation"
+                done_gen = True
+
+    assert inner_thoughts_exist, "No inner thoughts found"
+    assert send_message_ran, "send_message function call not found"
+    assert done, "Message stream not done"
+    assert done_step, "Message stream not done step"
+    assert done_gen, "Message stream not done generation"
 
 
-def test_humans_personas(client, agent):
+def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     humans_response = client.list_humans()
@@ -236,7 +279,7 @@ def test_humans_personas(client, agent):
 #    assert tool_response, "Creating tool failed"
 
 
-def test_config(client, agent):
+def test_config(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     models_response = client.list_models()
@@ -251,7 +294,7 @@ def test_config(client, agent):
     # print("CONFIG", config_response)
 
 
-def test_sources(client, agent):
+def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     # clear sources
