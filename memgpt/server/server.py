@@ -1,14 +1,11 @@
 # inspecting tools
 import importlib
 import inspect
-import json
 import os
 import traceback
 import warnings
 from abc import abstractmethod
 from datetime import datetime
-from functools import wraps
-from threading import Lock
 from typing import Callable, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
@@ -33,7 +30,7 @@ from memgpt.data_sources.connectors import DataConnector, load_data
 #    Token,
 #    User,
 # )
-from memgpt.functions.functions import load_function_set
+from memgpt.functions.functions import generate_schema, load_function_set
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
@@ -1404,6 +1401,11 @@ class SyncServer(Server):
         """List all jobs for a user"""
         return self.ms.list_jobs(user_id=user_id)
 
+    def list_active_jobs(self, user_id: str) -> List[Job]:
+        """List all active jobs for a user"""
+        jobs = self.ms.list_jobs(user_id=user_id)
+        return [job for job in jobs if job.status in [JobStatus.created, JobStatus.running]]
+
     def load_file_to_source(self, source_id: str, file_path: str, job_id: str) -> Job:
 
         # update job
@@ -1582,35 +1584,60 @@ class SyncServer(Server):
         self.ms.update_tool(existing_tool)
         return self.ms.get_tool(tool_id=request.id)
 
-    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = False) -> Tool:  # TODO: add other fields
+    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = True) -> Tool:  # TODO: add other fields
         """Create a new tool"""
 
-        if request.tags and "memory" in request.tags:
-            # special modifications to memory functions
-            # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
-            request.source_code = request.source_code.replace("self.memory", "self.memory.memory")
+        # NOTE: deprecated code that existed when we were trying to pretend that `self` was the memory object
+        # if request.tags and "memory" in request.tags:
+        #    # special modifications to memory functions
+        #    # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
+        #    request.source_code = request.source_code.replace("self.memory", "self.memory.memory")
+
+        if not request.json_schema:
+            # auto-generate openai schema
+            try:
+                env = {}
+                env.update(globals())
+                exec(request.source_code, env)
+
+                # get available functions
+                functions = [f for f in env if callable(env[f])]
+
+            except Exception as e:
+                logger.error(f"Failed to execute source code: {e}")
+
+            # TODO: not sure if this always works
+            func = env[functions[-1]]
+            json_schema = generate_schema(func, request.name)
+        else:
+            # provided by client
+            json_schema = request.json_schema
+
+        if not request.name:
+            # use name from JSON schema
+            request.name = json_schema["name"]
+            assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
 
         # check if already exists:
-        tool_name = request.json_schema["name"]
-        existing_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+        existing_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
         if existing_tool:
             if update:
                 updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
-                assert updated_tool is not None, f"Failed to update tool {tool_name}"
+                assert updated_tool is not None, f"Failed to update tool {request.name}"
                 return updated_tool
             else:
-                raise ValueError(f"Tool {tool_name} already exists and update=False")
+                raise ValueError(f"Tool {request.name} already exists and update=False")
 
         tool = Tool(
             name=request.name,
             source_code=request.source_code,
             source_type=request.source_type,
             tags=request.tags,
-            json_schema=request.json_schema,
+            json_schema=json_schema,
             user_id=user_id,
         )
         self.ms.create_tool(tool)
-        created_tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+        created_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
         return created_tool
 
     def delete_tool(self, tool_id: str):

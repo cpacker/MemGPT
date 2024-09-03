@@ -179,3 +179,7 @@ class ArchivalMemorySummary(BaseModel):
 
 class RecallMemorySummary(BaseModel):
     size: int = Field(..., description="Number of rows in recall memory")
+
+
+class CreateArchivalMemory(BaseModel):
+    text: str = Field(..., description="Text to write to archival memory.")

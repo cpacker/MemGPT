@@ -4,6 +4,7 @@ from typing import List
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from memgpt.schemas.source import Source
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
@@ -90,5 +91,16 @@ def setup_agents_index_router(server: SyncServer, interface: QueuingInterface, p
             raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"{e}")
+
+    @router.get("/agents/{agent_id}/sources", tags=["agents"], response_model=List[Source])
+    def get_agent_sources(
+        agent_id: str,
+        user_id: str = Depends(get_current_user_with_server),
+    ):
+        """
+        Get the sources associated with an agent.
+        """
+        interface.clear()
+        return server.list_attached_sources(agent_id)
 
     return router
