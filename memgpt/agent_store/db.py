@@ -11,9 +11,10 @@ from sqlalchemy import (
 from sqlalchemy.sql import func
 from tqdm import tqdm
 
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 
+from memgpt.schemas.enums import TableType
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.memgpt_base import MemGPTBase
 

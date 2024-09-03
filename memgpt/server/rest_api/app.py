@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.settings import settings
+from memgpt.orm.utilities import get_db_session
 from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
 
@@ -36,40 +37,35 @@ def create_application() -> "FastAPI":
 
     # / static files
     mount_static_files(app)
+
+    @app.on_event("startup")
+    def on_startup():
+        # load the default tools
+        from memgpt.orm.tool import Tool
+        Tool.load_default_tools(get_db_session())
+
+        # Update the OpenAPI schema
+        if not app.openapi_schema:
+            app.openapi_schema = app.openapi()
+
+        openai_docs, memgpt_docs = [app.openapi_schema.copy() for _ in range(2)]
+
+        openai_docs["paths"] = {k:v for k,v in openai_docs["paths"].items() if k.startswith("/openai")}
+        openai_docs["info"]["title"] = "OpenAI Assistants API"
+        memgpt_docs["paths"] = {k:v for k,v in memgpt_docs["paths"].items() if not k.startswith("/openai")}
+        memgpt_docs["info"]["title"] = "MemGPT API"
+
+        # Split the API docs into MemGPT API, and OpenAI Assistants compatible API
+        for name, docs in [("openai", openai_docs,), ("memgpt", memgpt_docs,)]:
+            docs["servers"] = [{"url": host} for host in settings.cors_origins]
+            Path(f"openapi_{name}.json").write_text(json.dumps(docs, indent=2))
+
+    @app.on_event("shutdown")
+    def on_shutdown():
+        global server
+        server.save_agents()
+        server = None
+
     return app
 
 app = create_application()
-
-@app.on_event("startup")
-def on_startup():
-    # load the default tools
-    from memgpt.orm.tool import Tool
-    from memgpt.orm.utilities import get_db_session
-    Tool.load_default_tools(get_db_session())
-
-    # Update the OpenAPI schema
-    if not app.openapi_schema:
-        app.openapi_schema = app.openapi()
-
-    openai_docs, memgpt_docs = [app.openapi_schema.copy() for _ in range(2)]
-
-    openai_docs["paths"] = {k:v for k,v in openai_docs["paths"].items() if k.startswith("/openai")}
-    openai_docs["info"]["title"] = "OpenAI Assistants API"
-    memgpt_docs["paths"] = {k:v for k,v in memgpt_docs["paths"].items() if not k.startswith("/openai")}
-    memgpt_docs["info"]["title"] = "MemGPT API"
-
-    # Split the API docs into MemGPT API, and OpenAI Assistants compatible API
-    for name, docs in [("openai", openai_docs,), ("memgpt", memgpt_docs,)]:
-        docs["servers"] = [{"url": host} for host in settings.cors_origins]
-        Path(f"openapi_{name}.json").write_text(json.dumps(docs, indent=2))
-
-
-
-
-@app.on_event("shutdown")
-def on_shutdown():
-    global server
-    server.save_agents()
-    server = None
-
-

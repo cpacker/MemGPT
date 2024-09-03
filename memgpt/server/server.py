@@ -14,7 +14,7 @@ import memgpt.server.utils as server_utils
 import memgpt.system as system
 from memgpt.utils import json_dumps, json_loads
 from memgpt.agent import Agent, save_agent
-from memgpt.agent_store.storage import StorageConnector, TableType
+from memgpt.agent_store.storage import StorageConnector
 from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
@@ -39,6 +39,7 @@ from memgpt.schemas.block import (
 )
 from memgpt.schemas.document import Document
 from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.enums import TableType
 
 # openai schemas
 from memgpt.schemas.enums import JobStatus

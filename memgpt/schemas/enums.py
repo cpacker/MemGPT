@@ -28,3 +28,10 @@ class MessageStreamStatus(str, Enum):
     done_generation = "[DONE_GEN]"
     done_step = "[DONE_STEP]"
     done = "[DONE]"
+
+
+class TableType(str, Enum):
+    ARCHIVAL_MEMORY = "archival_memory"
+    RECALL_MEMORY = "recall_memory"
+    PASSAGES = "passages"
+    DOCUMENTS = "documents"

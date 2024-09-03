@@ -60,12 +60,12 @@ class MemGPTConfig:
     archival_storage_uri: str = None  # TODO: eventually allow external vector DB
 
     # database configs: recall
-    recall_storage_type: str = "sqlite"  # local, db
+    recall_storage_type: str = "postgres"  # local, db
     recall_storage_path: str = MEMGPT_DIR
     recall_storage_uri: str = None  # TODO: eventually allow external vector DB
 
     # database configs: metadata storage (sources, agents, data sources)
-    metadata_storage_type: str = "sqlite"
+    metadata_storage_type: str = "postgres"
     metadata_storage_path: str = MEMGPT_DIR
     metadata_storage_uri: str = None
 
