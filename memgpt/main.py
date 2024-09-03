@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 import traceback
@@ -190,9 +189,9 @@ def run_agent_loop(
 
                 elif user_input.lower() == "/memory":
                     print(f"\nDumping memory contents:\n")
-                    print(f"{str(memgpt_agent.memory)}")
-                    print(f"{str(memgpt_agent.persistence_manager.archival_memory)}")
-                    print(f"{str(memgpt_agent.persistence_manager.recall_memory)}")
+                    print(f"{memgpt_agent.memory.compile()}")
+                    print(f"{memgpt_agent.persistence_manager.archival_memory.compile()}")
+                    print(f"{memgpt_agent.persistence_manager.recall_memory.compile()}")
                     continue
 
                 elif user_input.lower() == "/model":
