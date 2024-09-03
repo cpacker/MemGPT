@@ -70,13 +70,6 @@ class Message(BaseMessage):
     id: str = BaseMessage.generate_id_field()
     created_at: datetime = Field(default_factory=get_utc_time, description="The time the message was created.")
 
-    @field_validator("role")
-    @classmethod
-    def validate_role(cls, v: str) -> str:
-        roles = ["system", "assistant", "user", "tool"]
-        assert v in roles, f"Role must be one of {roles}"
-        return v
-
     def to_json(self):
         json_message = vars(self)
         if json_message["tool_calls"] is not None:

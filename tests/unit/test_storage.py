@@ -38,6 +38,7 @@ class TestMemoryStorage:
             case TableType.RECALL_MEMORY:
                 data = [MessageCreate(
                     agent_id=agent_id,
+                    user_id=user_id,
                     role=random.choice(list(MessageRole)),
                     text=faker.text(),
                     name=faker.name(),
@@ -59,8 +60,12 @@ class TestMemoryStorage:
 
         storage.insert_many(records=_data)
         storage_records = storage.get_all()
-
+        item_ids = [item.id for item in storage_records]
         with db_session as session:
             records = storage.SQLModel.list(db_session=session)
 
             assert len(records) == len(_data) == len(storage_records)
+
+        random_item = storage.get(random.choice(item_ids))
+        assert random_item is not None
+        assert random_item.text in [item.text for item in _data]
