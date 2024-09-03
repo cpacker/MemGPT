@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Optional
 
 from pydantic import Field, model_validator
 from typing_extensions import Self
@@ -14,7 +14,7 @@ class BaseBlock(MemGPTBase, validate_assignment=True):
     __id_prefix__ = "block"
 
     # data value
-    value: Optional[Union[List[str], str]] = Field(None, description="Value of the block.")
+    value: Optional[str] = Field(None, description="Value of the block.")
     limit: int = Field(2000, description="Character limit of the block.")
 
     name: Optional[str] = Field(None, description="Name of the block.")

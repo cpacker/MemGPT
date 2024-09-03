@@ -70,7 +70,7 @@ def test_memory_jinja2_template_load(sample_memory: Memory):
 
     # Test loading a memory with a template
     memory_dict = sample_memory.to_dict()
-    memory_dict["template"] = sample_memory.get_prompt_template()
+    memory_dict["prompt_template"] = sample_memory.get_prompt_template()
     new_memory = Memory.load(memory_dict)
     assert new_memory.get_prompt_template() == sample_memory.get_prompt_template()
 
