@@ -18,13 +18,13 @@ class Memory(BaseModel, validate_assignment=True):
 
     # Memory.template is a Jinja2 template for compiling memory module into a prompt string.
     prompt_template: str = Field(
-        default="{% for section, module in memory.items() %}"
-        '<{{ section }} characters="{{ module.value|length }}/{{ module.limit }}">\n'
-        "{{ module.value }}\n"
+        default="{% for section, block in memory.items() %}"
+        '<{{ section }} characters="{{ block.value|length }}/{{ block.limit }}">\n'
+        "{{ block.value }}\n"
         "</{{ section }}>"
         "{% if not loop.last %}\n{% endif %}"
         "{% endfor %}",
-        description="Jinja2 template for compiling memory module into a prompt string",
+        description="Jinja2 template for compiling memory blocks into a prompt string",
     )
 
     def get_prompt_template(self) -> str:
