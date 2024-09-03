@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.constants import DEFAULT_PRESET
+from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.message import Message
 from memgpt.schemas.usage import MemGPTUsageStatistics
 
@@ -167,6 +168,14 @@ def test_archival_memory(client, agent):
     client.get_archival_memory(agent.id)
 
 
+def test_core_memory(client, agent):
+    response = client.send_message(agent_id=agent.id, message="Update your core memory to remember that my name is Timber!", role="user")
+    print("Response", response)
+
+    memory = client.get_in_context_memory(agent_id=agent.id)
+    assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
+
+
 def test_messages(client, agent):
     # _reset_config()
 
@@ -230,8 +239,9 @@ def test_config(client, agent):
 def test_sources(client, agent):
     # _reset_config()
 
-    if not hasattr(client, "base_url"):
-        pytest.skip("Skipping test_sources because base_url is None")
+    # clear sources
+    for source in client.list_sources():
+        client.delete_source(source.id)
 
     # list sources
     sources = client.list_sources()
@@ -269,10 +279,33 @@ def test_sources(client, agent):
     print(archival_memories)
     assert len(archival_memories) == 0
 
-    # load a file into a source
-    filename = "CONTRIBUTING.md"
-    upload_job = client.load_file_into_source(filename=filename, source_id=source.id)
+    # load a file into a source (non-blocking job)
+    filename = "tests/data/memgpt_paper.pdf"
+    upload_job = client.load_file_into_source(filename=filename, source_id=source.id, blocking=False)
     print("Upload job", upload_job, upload_job.status, upload_job.metadata_)
+
+    # view active jobs
+    active_jobs = client.list_active_jobs()
+    jobs = client.list_jobs()
+    print(jobs)
+    assert upload_job.id in [j.id for j in jobs]
+    assert len(active_jobs) == 1
+
+    # wait for job to finish (with timeout)
+    timeout = 60
+    start_time = time.time()
+    while True:
+        status = client.get_job(upload_job.id).status
+        print(status)
+        if status == JobStatus.completed:
+            break
+        time.sleep(1)
+        if time.time() - start_time > timeout:
+            raise ValueError("Job did not finish in time")
+    job = client.get_job(upload_job.id)
+    created_passages = job.metadata_["num_passages"]
+
+    # TODO: add test for blocking job
 
     # TODO: make sure things run in the right order
     archival_memories = client.get_archival_memory(agent_id=agent.id)
@@ -281,10 +314,15 @@ def test_sources(client, agent):
     # attach a source
     client.attach_source_to_agent(source_id=source.id, agent_id=agent.id)
 
+    # list attached sources
+    attached_sources = client.list_attached_sources(agent_id=agent.id)
+    print("attached sources", attached_sources)
+    assert source.id in [s.id for s in attached_sources], f"Attached sources: {attached_sources}"
+
     # list archival memory
     archival_memories = client.get_archival_memory(agent_id=agent.id)
     # print(archival_memories)
-    assert len(archival_memories) == 20 or len(archival_memories) == 21
+    assert len(archival_memories) == created_passages
 
     # check number of passages
     sources = client.list_sources()

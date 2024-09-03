@@ -40,6 +40,7 @@ class QuickstartChoice(Enum):
     openai = "openai"
     # azure = "azure"
     memgpt_hosted = "memgpt"
+    anthropic = "anthropic"
 
 
 def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
@@ -228,6 +229,26 @@ def quickstart(
             except FileNotFoundError:
                 typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
                 return
+
+    elif backend == QuickstartChoice.anthropic:
+        # Make sure we have an API key
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        while api_key is None or len(api_key) == 0:
+            # Ask for API key as input
+            api_key = questionary.password("Enter your Anthropic API key:").ask()
+        credentials.anthropic_key = api_key
+        credentials.save()
+
+        script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
+        backup_config_path = os.path.join(script_dir, "..", "configs", "anthropic.json")
+        try:
+            with open(backup_config_path, "r", encoding="utf-8") as file:
+                backup_config = json.load(file)
+            printd("Loaded config file successfully.")
+            new_config, config_was_modified = set_config_with_dict(backup_config)
+        except FileNotFoundError:
+            typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
+            return
 
     else:
         raise NotImplementedError(backend)

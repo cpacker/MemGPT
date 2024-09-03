@@ -1,5 +1,6 @@
+import json
 from datetime import datetime, timezone
-from typing import Literal, Union
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, field_serializer
 
@@ -12,7 +13,11 @@ class BaseMemGPTMessage(BaseModel):
 
     @field_serializer("date")
     def serialize_datetime(self, dt: datetime, _info):
-        return dt.now(timezone.utc).isoformat()
+        if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        # Remove microseconds since it seems like we're inconsistent with getting them
+        # TODO figure out why we don't always get microseconds (get_utc_time() does)
+        return dt.isoformat(timespec="seconds")
 
 
 class InternalMonologue(BaseMemGPTMessage):
@@ -32,6 +37,20 @@ class FunctionCall(BaseModel):
     arguments: str
 
 
+class FunctionCallDelta(BaseModel):
+    name: Optional[str]
+    arguments: Optional[str]
+
+    # NOTE: this is a workaround to exclude None values from the JSON dump,
+    # since the OpenAI style of returning chunks doesn't include keys with null values
+    def model_dump(self, *args, **kwargs):
+        kwargs["exclude_none"] = True
+        return super().model_dump(*args, **kwargs)
+
+    def json(self, *args, **kwargs):
+        return json.dumps(self.model_dump(exclude_none=True), *args, **kwargs)
+
+
 class FunctionCallMessage(BaseMemGPTMessage):
     """
     {
@@ -44,7 +63,21 @@ class FunctionCallMessage(BaseMemGPTMessage):
     }
     """
 
-    function_call: FunctionCall
+    function_call: Union[FunctionCall, FunctionCallDelta]
+
+    # NOTE: this is required for the FunctionCallDelta exclude_none to work correctly
+    def model_dump(self, *args, **kwargs):
+        kwargs["exclude_none"] = True
+        data = super().model_dump(*args, **kwargs)
+        if isinstance(data["function_call"], dict):
+            data["function_call"] = {k: v for k, v in data["function_call"].items() if v is not None}
+        return data
+
+    class Config:
+        json_encoders = {
+            FunctionCallDelta: lambda v: v.model_dump(exclude_none=True),
+            FunctionCall: lambda v: v.model_dump(exclude_none=True),
+        }
 
 
 class FunctionReturn(BaseMemGPTMessage):

@@ -16,3 +16,8 @@ class MemGPTRequest(BaseModel):
         default=False,
         description="Flag to determine if individual tokens should be streamed. Set to True for token streaming (requires stream_steps = True).",
     )
+
+    return_message_object: bool = Field(
+        default=False,
+        description="Set True to return the raw Message object. Set False to return the Message in the format of the MemGPT API.",
+    )

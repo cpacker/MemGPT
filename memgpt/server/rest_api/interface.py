@@ -2,6 +2,7 @@ import asyncio
 import json
 import queue
 from collections import deque
+from datetime import datetime
 from typing import AsyncGenerator, Literal, Optional, Union
 
 from memgpt.interface import AgentInterface
@@ -9,6 +10,7 @@ from memgpt.schemas.enums import MessageStreamStatus
 from memgpt.schemas.memgpt_message import (
     AssistantMessage,
     FunctionCall,
+    FunctionCallDelta,
     FunctionCallMessage,
     FunctionReturn,
     InternalMonologue,
@@ -93,6 +95,18 @@ class QueuingInterface(AgentInterface):
                 break
         if len(items) > 1 and items[-1] == "STOP":
             items.pop()
+
+        # If the style is "obj", then we need to deduplicate any messages
+        # Filter down items for duplicates based on item.id
+        if style == "obj":
+            seen_ids = set()
+            unique_items = []
+            for item in reversed(items):
+                if item.id not in seen_ids:
+                    seen_ids.add(item.id)
+                    unique_items.append(item)
+            items = list(reversed(unique_items))
+
         return items
 
     def clear(self):
@@ -355,13 +369,24 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             raise StopIteration("The stream has not been started or has been ended.")
         return self._create_generator()
 
-    def _push_to_buffer(self, item: Union[MemGPTMessage, LegacyMemGPTMessage, MessageStreamStatus]):
+    def _push_to_buffer(
+        self,
+        item: Union[
+            # signal on SSE stream status [DONE_GEN], [DONE_STEP], [DONE]
+            MessageStreamStatus,
+            # the non-streaming message types
+            MemGPTMessage,
+            LegacyMemGPTMessage,
+            # the streaming message types
+            ChatCompletionChunkResponse,
+        ],
+    ):
         """Add an item to the deque"""
         assert self._active, "Generator is inactive"
-        # assert isinstance(item, dict) or isinstance(item, MessageStreamStatus), f"Wrong type: {type(item)}"
         assert (
             isinstance(item, MemGPTMessage) or isinstance(item, LegacyMemGPTMessage) or isinstance(item, MessageStreamStatus)
         ), f"Wrong type: {type(item)}"
+
         self._chunks.append(item)
         self._event.set()  # Signal that new data is available
 
@@ -414,7 +439,9 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
     def clear():
         return
 
-    def _process_chunk_to_memgpt_style(self, chunk: ChatCompletionChunkResponse) -> Optional[dict]:
+    def _process_chunk_to_memgpt_style(
+        self, chunk: ChatCompletionChunkResponse, message_id: str, message_date: datetime
+    ) -> Optional[Union[InternalMonologue, FunctionCallMessage]]:
         """
         Example data from non-streaming response looks like:
 
@@ -429,9 +456,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
         # inner thoughts
         if message_delta.content is not None:
-            processed_chunk = {
-                "internal_monologue": message_delta.content,
-            }
+            processed_chunk = InternalMonologue(
+                id=message_id,
+                date=message_date,
+                internal_monologue=message_delta.content,
+            )
         elif message_delta.tool_calls is not None and len(message_delta.tool_calls) > 0:
             tool_call = message_delta.tool_calls[0]
 
@@ -444,16 +473,16 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                 if tool_call.function.name:
                     tool_call_delta["name"] = tool_call.function.name
 
-            processed_chunk = {
-                "function_call": tool_call_delta,
-            }
+            processed_chunk = FunctionCallMessage(
+                id=message_id,
+                date=message_date,
+                function_call=FunctionCallDelta(name=tool_call_delta.get("name"), arguments=tool_call_delta.get("arguments")),
+            )
         elif choice.finish_reason is not None:
             # skip if there's a finish
             return None
         else:
             raise ValueError(f"Couldn't find delta in chunk: {chunk}")
-
-        processed_chunk["date"] = chunk.created.isoformat()
 
         return processed_chunk
 
@@ -508,11 +537,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                             # Replace with 'content'
                             proxy_chunk.choices[0].delta.content = cleaned_func_args
 
-        processed_chunk = proxy_chunk.model_dump_json(exclude_none=True)
+        processed_chunk = proxy_chunk.model_dump(exclude_none=True)
 
         return processed_chunk
 
-    def process_chunk(self, chunk: ChatCompletionChunkResponse, msg_obj: Optional[Message] = None):
+    def process_chunk(self, chunk: ChatCompletionChunkResponse, message_id: str, message_date: datetime):
         """Process a streaming chunk from an OpenAI-compatible server.
 
         Example data from non-streaming response looks like:
@@ -529,15 +558,13 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         # processed_chunk = chunk.model_dump_json(exclude_none=True)
 
         if self.streaming_chat_completion_mode:
-            processed_chunk = self._process_chunk_to_openai_style(chunk)
+            # processed_chunk = self._process_chunk_to_openai_style(chunk)
+            raise NotImplementedError("OpenAI proxy streaming temporarily disabled")
         else:
-            processed_chunk = self._process_chunk_to_memgpt_style(chunk)
+            processed_chunk = self._process_chunk_to_memgpt_style(chunk=chunk, message_id=message_id, message_date=message_date)
 
         if processed_chunk is None:
             return
-
-        if msg_obj:
-            processed_chunk["id"] = str(msg_obj.id)
 
         self._push_to_buffer(processed_chunk)
 

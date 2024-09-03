@@ -49,7 +49,7 @@ def setup_block_index_router(server: SyncServer, interface: QueuingInterface, pa
         interface.clear()
         # TODO: should this be in the param or the POST data?
         assert block_id == request.id
-        return server.update_block(user_id=user_id, request=request)
+        return server.update_block(request)
 
     @router.delete("/blocks/{block_id}", tags=["block"], response_model=Block)
     async def delete_block(
