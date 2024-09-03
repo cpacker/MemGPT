@@ -51,7 +51,7 @@ from memgpt.schemas.document import Document
 from memgpt.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
-from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.enums import JobStatus, MessageRole
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
@@ -1708,7 +1708,35 @@ class SyncServer(Server):
         message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
         return message
 
-    def update_agent_message(self, request: UpdateMessage, user_id: str):
-        """Update a single message from the agent's memory"""
-        # Get the agent object (loaded in memory)
-        raise NotImplementedError
+    def update_agent_message(self, agent_id: str, request: UpdateMessage) -> Message:
+        """Update the details of a message associated with an agent"""
+
+        # Get the current message
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=request.id)
+        if message is None:
+            raise ValueError(f"Message with id {request.id} not found")
+
+        # Override fields
+        # NOTE: we try to do some sanity checking here (see asserts), but it's not foolproof
+        if request.role:
+            message.role = request.role
+        if request.text:
+            message.text = request.text
+        if request.name:
+            message.name = request.name
+        if request.tool_calls:
+            assert message.role == MessageRole.assistant, "Tool calls can only be added to assistant messages"
+            message.tool_calls = request.tool_calls
+        if request.tool_call_id:
+            assert message.role == MessageRole.tool, "tool_call_id can only be added to tool messages"
+            message.tool_call_id = request.tool_call_id
+
+        # Save the updated message
+        memgpt_agent.persistence_manager.recall_memory.storage.update(record=message)
+
+        # Return the updated message
+        updated_message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message.id)
+        if updated_message is None:
+            raise ValueError(f"Error persisting message - message with id {request.id} not found")
+        return updated_message
