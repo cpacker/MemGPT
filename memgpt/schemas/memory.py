@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from jinja2 import Template, TemplateSyntaxError
 from pydantic import BaseModel, Field
@@ -103,12 +103,12 @@ class Memory(BaseModel, validate_assignment=True):
 
         self.memory[name] = block
 
-    def update_block_value(self, name: str, value: Union[List[str], str]):
+    def update_block_value(self, name: str, value: str):
         """Update the value of a block"""
         if name not in self.memory:
             raise ValueError(f"Block with name {name} does not exist")
-        if not (isinstance(value, str) or (isinstance(value, list) and all(isinstance(v, str) for v in value))):
-            raise ValueError(f"Provided value must be a string or list of strings")
+        if not isinstance(value, str):
+            raise ValueError(f"Provided value must be a string")
 
         self.memory[name].value = value
 

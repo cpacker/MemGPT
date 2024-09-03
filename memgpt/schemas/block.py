@@ -62,7 +62,7 @@ class Block(BaseBlock):
     """Block of the LLM context"""
 
     id: str = BaseBlock.generate_id_field()
-    value: Union[str, List[str]] = Field(..., description="Value of the block.")
+    value: str = Field(..., description="Value of the block.")
 
 
 class Human(Block):
