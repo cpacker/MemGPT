@@ -55,7 +55,7 @@ from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
-from memgpt.schemas.message import Message
+from memgpt.schemas.message import Message, UpdateMessage
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
@@ -1701,9 +1701,14 @@ class SyncServer(Server):
             name = os.path.basename(human_file).replace(".txt", "")
             self.create_block(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
 
-    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
+    def get_agent_message(self, agent_id: str, message_id: str) -> Optional[Message]:
         """Get a single message from the agent's memory"""
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
         return message
+
+    def update_agent_message(self, request: UpdateMessage, user_id: str):
+        """Update a single message from the agent's memory"""
+        # Get the agent object (loaded in memory)
+        raise NotImplementedError
