@@ -6,27 +6,27 @@ from typing_extensions import Self
 from memgpt.schemas.memgpt_base import MemGPTBase
 
 # block of the LLM context
-
-
 class BaseBlock(MemGPTBase, validate_assignment=True):
-    """Base block of the LLM context"""
+    """Blocks are sections of the LLM context, representing a specific part of the total Memory"""
 
     __id_prefix__ = "block"
+    __sqlalchemy_model__ = "Block"
 
     # data value
     value: Optional[Union[List[str], str]] = Field(None, description="Value of the block.")
     limit: int = Field(2000, description="Character limit of the block.")
 
     name: Optional[str] = Field(None, description="Name of the block.")
-    template: bool = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
+    is_template: bool = Field(False, alias="template", description="Whether the block is a template (e.g. saved human/persona options).")
     label: Optional[str] = Field(None, description="Label of the block (e.g. 'human', 'persona').")
 
-    # metadat
+    # metadata
     description: Optional[str] = Field(None, description="Description of the block.")
     metadata_: Optional[dict] = Field({}, description="Metadata of the block.")
 
     # associated user/agent
-    user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the block.")
+    # user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the block.")
+    organization_id: Optional[str] = Field(None, description="The unique identifier of the organization associated with the block.")
 
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
@@ -101,7 +101,7 @@ class CreateHuman(BaseBlock):
 class UpdateBlock(BaseBlock):
     """Update a block"""
 
-    id: str = Field(..., description="The unique identifier of the block.")
+    id: Optional[str] = Field(default=None, description="The unique identifier of the block.")
     limit: Optional[int] = Field(2000, description="Character limit of the block.")
 
 

@@ -145,3 +145,11 @@ If you prefer to keep your resources isolated by developing purely in containers
 docker compose -f compose.yaml -f development.compose.yml up
 ```
 This will volume mount your local codebase and reload the server on file changes.
+
+MemGPT supports 2 alternate application backends, Postgres (with PGVector) and SQLite + Chromadb. Any time your unit or integration tests interact with the application data model (so almost always), the test suite will be run against _both_ database backends to ensure compatability.
+After each run you can find test artifacts in the `.persist` folder. Connect to the `SQLite`, `Chroma` and `pgdata` directories to inspect individual test artifacts.
+
+- for Postgres, each individual test will have a schema named after that test with the full data model.
+- For SQLite, each individual test will be a unique database file (named after the test).
+
+

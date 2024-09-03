@@ -1,3 +1,7 @@
+import inspect
+
+import memgpt.seeds.function_sets.base as base_functions
+import memgpt.seeds.function_sets.extras as extras_functions
 from memgpt.functions.schema_generator import generate_schema
 
 

@@ -14,8 +14,8 @@ services:
       - .env
     environment:
       - MEMGPT_SERVER_PASS=test_server_token
-      - WATCHFILES_FORCE_POLLING=true
-
+      - MEMGPT_PG_URI=postgresql://memgpt:memgpt@memgpt-db:5432/memgpt
+      # - WATCHFILES_FORCE_POLLING=true
     volumes:
       - ./memgpt:/memgpt
       - ~/.memgpt/credentials:/root/.memgpt/credentials
@@ -25,6 +25,7 @@ services:
       - ./tests/pytest.ini:/memgpt/pytest.ini
       - ./pyproject.toml:/pyproject.toml
       - ./tests:/tests
+      - ./.persist/sqlite:/sqlite
     ports:
       - "8083:8083"
       - "8283:8283"

@@ -1,25 +1,18 @@
-import json
 import traceback
-from enum import Enum
 from typing import AsyncGenerator, Union
 
+from memgpt.utils import json_dumps
 from pydantic import BaseModel
-
-# from memgpt.orm.user import User
-# from memgpt.orm.utilities import get_db_session
-
-SSE_PREFIX = "data: "
-SSE_SUFFIX = "\n\n"
-SSE_FINISH_MSG = "[DONE]"  # mimic openai
-SSE_ARTIFICIAL_DELAY = 0.1
+from enum import Enum
+from memgpt.server.server import SyncServer
+from memgpt.server.rest_api.interface import StreamingServerInterface
 
 
 def sse_formatter(data: Union[dict, str]) -> str:
     """Prefix with 'data: ', and always include double newlines"""
     assert type(data) in [dict, str], f"Expected type dict or str, got type {type(data)}"
-    data_str = json.dumps(data, separators=(",", ":")) if isinstance(data, dict) else data
+    data_str = json_dumps(data) if isinstance(data, dict) else data
     return f"data: {data_str}\n\n"
-
 
 async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
     """
@@ -49,5 +42,13 @@ async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
 
     finally:
         if finish_message:
-            # Signal that the stream is complete
-            yield sse_formatter(SSE_FINISH_MSG)
+            yield sse_formatter("[DONE]")  # mimic openai and signal that the stream is complete
+
+
+# TODO: why does this double up the interface?
+def get_memgpt_server() -> SyncServer:
+    server = SyncServer(default_interface_factory=lambda: StreamingServerInterface())
+    return server
+
+def get_current_interface() -> StreamingServerInterface:
+    return StreamingServerInterface

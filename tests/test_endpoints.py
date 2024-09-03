@@ -4,9 +4,13 @@ import uuid
 
 from memgpt import create_client
 from memgpt.agent import Agent
-from memgpt.config import MemGPTConfig
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.message import Message
 from memgpt.embeddings import embedding_model
 from memgpt.llm_api.llm_api_tools import create
+from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.llm_config import LLMConfig
+from memgpt.server.server import SyncServer
 from memgpt.prompts import gpt_system
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
@@ -28,19 +32,18 @@ def run_llm_endpoint(filename):
     print(config_data)
     llm_config = LLMConfig(**config_data)
     embedding_config = EmbeddingConfig(**json.load(open(embedding_config_path)))
-
-    # setup config
-    config = MemGPTConfig()
-    config.default_llm_config = llm_config
-    config.default_embedding_config = embedding_config
-    config.save()
-
-    client = create_client()
-    agent_state = client.create_agent(name="test_agent", llm_config=llm_config, embedding_config=embedding_config)
-    tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tools]
+    agent_state = AgentState(
+        name="test_agent",
+        tools=[tool.name for tool in SyncServer.add_default_tools()],
+        embedding_config=embedding_config,
+        llm_config=llm_config,
+        user_id=uuid.UUID(int=1),
+        state={"persona": "", "human": "", "messages": None, "memory": {}},
+        system="",
+    )
     agent = Agent(
         interface=None,
-        tools=tools,
+        tools=SyncServer.add_default_tools(),
         agent_state=agent_state,
         # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
         first_message_verify_mono=True,

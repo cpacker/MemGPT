@@ -11,15 +11,10 @@ from memgpt.server.server import SyncServer
 
 router = APIRouter()
 
-
-class ListModelsResponse(BaseModel):
-    models: List[LLMConfig] = Field(..., description="List of model configurations.")
-
-
 def setup_models_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     partial(partial(get_current_user, server), password)
 
-    @router.get("/models", tags=["models"], response_model=ListModelsResponse)
+    @router.get("/models", tags=["models"], response_model=List[LLMConfig])
     async def list_models():
         # Clear the interface
         interface.clear()
@@ -33,6 +28,6 @@ def setup_models_index_router(server: SyncServer, interface: QueuingInterface, p
             context_window=server.server_llm_config.context_window,
         )
 
-        return ListModelsResponse(models=[llm_config])
+        return [llm_config]
 
     return router

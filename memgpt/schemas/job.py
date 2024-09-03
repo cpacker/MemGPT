@@ -10,6 +10,8 @@ from memgpt.utils import get_utc_time
 
 class JobBase(MemGPTBase):
     __id_prefix__ = "job"
+    __sqlalchemy_model__ = "Job"
+
     metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
 
 

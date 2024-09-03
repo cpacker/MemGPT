@@ -4,6 +4,7 @@ import uuid
 
 import requests
 
+from memgpt.utils import json_dumps
 from memgpt.constants import CLI_WARNING_PREFIX
 from memgpt.errors import LocalLLMConnectionError, LocalLLMError
 from memgpt.local_llm.constants import DEFAULT_WRAPPER

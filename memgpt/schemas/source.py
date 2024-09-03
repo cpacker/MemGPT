@@ -15,6 +15,8 @@ class BaseSource(MemGPTBase):
     """
 
     __id_prefix__ = "source"
+    __sqlalchemy_model__ = "Source"
+
     description: Optional[str] = Field(None, description="The description of the source.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the passage.")
     # NOTE: .metadata is a reserved attribute on SQLModel

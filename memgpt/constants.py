@@ -25,9 +25,6 @@ EMBEDDING_TO_TOKENIZER_DEFAULT = "cl100k_base"
 
 
 DEFAULT_MEMGPT_MODEL = "gpt-4"
-DEFAULT_PERSONA = "sam_pov"
-DEFAULT_HUMAN = "basic"
-DEFAULT_PRESET = "memgpt_chat"
 
 # Tools
 BASE_TOOLS = [
@@ -38,9 +35,6 @@ BASE_TOOLS = [
     "archival_memory_insert",
     "archival_memory_search",
 ]
-
-# LOGGER_LOG_LEVEL is use to convert Text to Logging level value for logging mostly for Cli input to setting level
-LOGGER_LOG_LEVELS = {"CRITICAL": CRITICAL, "ERROR": ERROR, "WARN": WARN, "WARNING": WARNING, "INFO": INFO, "DEBUG": DEBUG, "NOTSET": NOTSET}
 
 FIRST_MESSAGE_ATTEMPTS = 10
 
@@ -99,10 +93,6 @@ MESSAGE_SUMMARY_REQUEST_ACK = "Understood, I will respond with a summary of the 
 # Even when summarizing, we want to keep a handful of recent messages
 # These serve as in-context examples of how to use functions / what user messages look like
 MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST = 3
-
-# Default memory limits
-CORE_MEMORY_PERSONA_CHAR_LIMIT = 2000
-CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
 
 # Function return limits
 FUNCTION_RETURN_CHAR_LIMIT = 3000  # ~300 words

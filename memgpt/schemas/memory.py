@@ -6,7 +6,7 @@ from memgpt.schemas.block import Block
 
 
 class Memory(BaseModel, validate_assignment=True):
-    """Represents the in-context memory of the agent"""
+    """Represents the whole in-context memory of the agent"""
 
     # Private variable to avoid assignments with incorrect types
     memory: Dict[str, Block] = Field(default_factory=dict, description="Mapping from memory block section to memory block.")
@@ -47,10 +47,6 @@ class Memory(BaseModel, validate_assignment=True):
 
     def link_block(self, name: str, block: Block, override: Optional[bool] = False):
         """Link a new block to the memory object"""
-        if not isinstance(block, Block):
-            raise ValueError(f"Param block must be type Block (not {type(block)})")
-        if not isinstance(name, str):
-            raise ValueError(f"Name must be str (not type {type(name)})")
         if not override and name in self.memory:
             raise ValueError(f"Block with name {name} already exists")
 
@@ -109,6 +105,7 @@ class ChatMemory(BaseChatMemory):
 
     def __init__(self, persona: str, human: str, limit: int = 2000):
         super().__init__()
+        print("persona", persona)
         self.link_block(name="persona", block=Block(name="persona", value=persona, limit=limit, label="persona"))
         self.link_block(name="human", block=Block(name="human", value=human, limit=limit, label="human"))
 

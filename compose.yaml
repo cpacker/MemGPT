@@ -1,11 +1,12 @@
 services:
   memgpt_db:
-    image: ankane/pgvector:v0.5.1
+    image: pgvector/pgvector:0.7.4-pg15
     networks:
       default:
         aliases:
           - pgvector_db
           - memgpt-db
+          - memgpt
     environment:
       - POSTGRES_USER=${MEMGPT_PG_USER}
       - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD}
@@ -15,6 +16,11 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   memgpt_server:
     image: memgpt/memgpt-server:latest
     hostname: memgpt-server

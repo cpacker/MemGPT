@@ -1,5 +1,4 @@
-import json
-
+from memgpt.utils import json_dumps, json_loads
 from memgpt.errors import LLMJSONParsingError
 from memgpt.local_llm.json_parser import clean_json
 from memgpt.local_llm.llm_chat_completion_wrappers.wrapper_base import (

@@ -16,9 +16,7 @@ from memgpt.schemas.openai.chat_completion_response import (
     ToolCall,
     UsageStatistics,
 )
-from memgpt.utils import get_tool_call_id, get_utc_time
-
-# from memgpt.data_types import ToolCall
+from memgpt.utils import get_tool_call_id, get_utc_time, json_dumps
 
 
 SUPPORTED_MODELS = [
@@ -374,8 +372,12 @@ def convert_google_ai_response_to_chatcompletion(
         else:
             # Count it ourselves
             assert input_messages is not None, f"Didn't get UsageMetadata from the API response, so input_messages is required"
-            prompt_tokens = count_tokens(json_dumps(input_messages))  # NOTE: this is a very rough approximation
-            completion_tokens = count_tokens(json_dumps(openai_response_message.model_dump()))  # NOTE: this is also approximate
+            prompt_tokens = count_tokens(
+                json_dumps(input_messages)
+            )  # NOTE: this is a very rough approximation
+            completion_tokens = count_tokens(
+                json_dumps(openai_response_message.model_dump())
+            )  # NOTE: this is also approximate
             total_tokens = prompt_tokens + completion_tokens
             usage = UsageStatistics(
                 prompt_tokens=prompt_tokens,
