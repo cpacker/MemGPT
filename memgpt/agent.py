@@ -698,7 +698,7 @@ class Agent(object):
             # TODO: ensure we're passing in metadata store from all surfaces
             if ms is not None:
                 should_update = False
-                for block in self.agent_state.memory.to_dict().values():
+                for block in self.agent_state.memory.to_dict()["memory"].values():
                     if not block.get("template", False):
                         should_update = True
                 if should_update:
@@ -1020,7 +1020,7 @@ class Agent(object):
             return
 
         if ms:
-            for block in self.memory.to_dict().values():
+            for block in self.memory.to_dict()["memory"].values():
                 if block.get("templates", False):
                     # we don't expect to update shared memory blocks that
                     # are templates. this is something we could update in the
@@ -1225,7 +1225,7 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
     NOTE: we are assuming agent.update_state has already been called.
     """
 
-    for block_dict in agent.memory.to_dict().values():
+    for block_dict in agent.memory.to_dict()["memory"].values():
         # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
         if block_dict.get("user_id", None) is None:
             block_dict["user_id"] = agent.agent_state.user_id

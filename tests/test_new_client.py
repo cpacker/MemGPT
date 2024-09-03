@@ -42,7 +42,7 @@ def test_agent(client: Union[LocalClient, RESTClient]):
     print("TOOLS", [t.name for t in tools])
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
-    for block in agent_state.memory.to_dict().values():
+    for block in agent_state.memory.to_dict()["memory"].values():
         db_block = client.server.ms.get_block(block.get("id"))
         assert db_block is not None, "memory block not persisted on agent create"
         assert db_block.value == block.get("value"), "persisted block data does not match in-memory data"
@@ -134,7 +134,7 @@ def test_agent_with_shared_blocks(client):
         )
         assert isinstance(first_agent_state_test.memory, Memory)
 
-        first_blocks_dict = first_agent_state_test.memory.to_dict()
+        first_blocks_dict = first_agent_state_test.memory.to_dict()["memory"]
         assert persona_block.id == first_blocks_dict.get("persona", {}).get("id")
         assert human_block.id == first_blocks_dict.get("human", {}).get("id")
         client.update_in_context_memory(first_agent_state_test.id, section="human", value="I'm an analyst therapist.")
@@ -148,7 +148,7 @@ def test_agent_with_shared_blocks(client):
         )
 
         assert isinstance(second_agent_state_test.memory, Memory)
-        second_blocks_dict = second_agent_state_test.memory.to_dict()
+        second_blocks_dict = second_agent_state_test.memory.to_dict()["memory"]
         assert persona_block.id == second_blocks_dict.get("persona", {}).get("id")
         assert human_block.id == second_blocks_dict.get("human", {}).get("id")
         assert second_blocks_dict.get("human", {}).get("value") == "I'm an analyst therapist."
