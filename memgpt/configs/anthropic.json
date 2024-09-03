@@ -1,0 +1,13 @@
+{
+    "context_window": 200000,
+    "model": "claude-3-opus-20240229",
+    "model_endpoint_type": "anthropic",
+    "model_endpoint": "https://api.anthropic.com/v1",
+    "model_wrapper": null,
+    "embedding_endpoint_type": "hugging-face",
+    "embedding_endpoint": "https://embeddings.memgpt.ai",
+    "embedding_model": "BAAI/bge-large-en-v1.5",
+    "embedding_dim": 1024,
+    "embedding_chunk_size": 300
+
+}
