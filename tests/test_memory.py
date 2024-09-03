@@ -100,10 +100,10 @@ def test_memory_jinja2_template(sample_memory: Memory):
 def test_memory_jinja2_set_template(sample_memory: Memory):
     """Test setting the template for the memory"""
 
-    example_template = sample_memory.get_template()
+    example_template = sample_memory.get_prompt_template()
 
     # Try setting a valid template
-    sample_memory.set_template(template=example_template)
+    sample_memory.set_prompt_template(prompt_template=example_template)
 
     # Try setting an invalid template (bad jinja2)
     template_bad_jinja = (
@@ -115,7 +115,7 @@ def test_memory_jinja2_set_template(sample_memory: Memory):
         "{% endfor %"  # Missing closing curly brace
     )
     with pytest.raises(ValueError):
-        sample_memory.set_template(template=template_bad_jinja)
+        sample_memory.set_prompt_template(prompt_template=template_bad_jinja)
 
     # Try setting an invalid template (not compatible with memory structure)
     template_bad_memory_structure = (
@@ -127,4 +127,4 @@ def test_memory_jinja2_set_template(sample_memory: Memory):
         "{% endfor %}"
     )
     with pytest.raises(ValueError):
-        sample_memory.set_template(template=template_bad_memory_structure)
+        sample_memory.set_prompt_template(prompt_template=template_bad_memory_structure)
