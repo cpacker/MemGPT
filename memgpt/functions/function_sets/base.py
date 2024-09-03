@@ -71,6 +71,7 @@ def conversation_search(self: Agent, query: str, page: Optional[int] = 0) -> Opt
     import math
 
     from memgpt.constants import RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+    from memgpt.utils import json_dumps
 
     if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
         page = 0
@@ -105,6 +106,7 @@ def conversation_search_date(self: Agent, start_date: str, end_date: str, page: 
     import math
 
     from memgpt.constants import RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+    from memgpt.utils import json_dumps
 
     if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
         page = 0
@@ -152,6 +154,7 @@ def archival_memory_search(self: Agent, query: str, page: Optional[int] = 0) -> 
     import math
 
     from memgpt.constants import RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
+    from memgpt.utils import json_dumps
 
     if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
         page = 0
