@@ -1,5 +1,4 @@
 [defaults]
-preset = memgpt_chat
 persona = sam_pov
 human = basic
 
@@ -32,7 +31,7 @@ path = /root/.memgpt
 uri = postgresql+pg8000://memgpt:memgpt@memgpt-db:5432/memgpt
 
 [version]
-memgpt_version = 0.3.14
+memgpt_version = 0.3.24
 
 [client]
 anon_clientid = 00000000-0000-0000-0000-000000000000

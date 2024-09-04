@@ -41,8 +41,13 @@ class StorageConnector:
         self.agent_id = agent_id
         self.table_type = table_type
         self.config = config
-
+        if db_session:
+            raise ValueError(db_session)
         self.db_session = db_session or get_db_session()
+        from sqlalchemy import text
+        schema = self.db_session.execute(text("show search_path")).fetchone()[0]
+        if "postgres" not in schema:
+            raise ValueError(f"parent init Schema: {schema}")
 
         match table_type:
             case TableType.ARCHIVAL_MEMORY:

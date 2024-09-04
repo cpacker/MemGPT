@@ -26,6 +26,10 @@ class SQLStorageConnector(StorageConnector):
 
     def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
+        from sqlalchemy import text
+        schema = self.db_session.execute(text("show search_path")).fetchone()[0]
+        if "postgres" not in schema:
+            raise ValueError(f"init Schema: {schema}")
         self.config = config
 
     def get_filters(self, filters: Optional[Dict] = {}):
@@ -109,6 +113,10 @@ class SQLStorageConnector(StorageConnector):
 
     def get(self, id: str):
         try:
+            from sqlalchemy import text
+            schema = self.db_session.execute(text("show search_path")).fetchone()[0]
+            if "postgres" not in schema:
+                raise ValueError(f"get Schema: {schema}")
             db_record = self.SQLModel.read(db_session=self.db_session, identifier=id)
         except NoResultFound:
             return None
