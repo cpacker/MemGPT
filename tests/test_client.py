@@ -13,7 +13,7 @@ from memgpt.constants import DEFAULT_PRESET
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.enums import JobStatus, MessageStreamStatus
 from memgpt.schemas.memgpt_message import FunctionCallMessage, InternalMonologue
-from memgpt.schemas.memgpt_response import MemGPTStreamingResponse
+from memgpt.schemas.memgpt_response import MemGPTResponse, MemGPTStreamingResponse
 from memgpt.schemas.message import Message
 from memgpt.schemas.usage import MemGPTUsageStatistics
 
@@ -395,3 +395,38 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # delete the source
     client.delete_source(source.id)
+
+
+def test_message_update_rethink(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can update the details of a message
+
+    - Mimic the /rethink command in the CLI
+    - "rethink" replaces the inner thoughts of the last assistant message
+    """
+    # create a message
+    # message = client.send_message(agent_id=agent.id, message="Hello, is anyone there?", role="user")
+    # message.
+
+    # print("Message", message)
+
+
+def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can update the details of a message"""
+    if isinstance(client, RESTClient):
+        pytest.skip("Skipping because RESTClient does not support message updates")
+    assert isinstance(client, LocalClient), client
+
+    # create a message
+    message_response = client.send_message(
+        agent_id=agent.id,
+        message="Test message",
+        role="user",
+    )
+    print("Messages=", message_response)
+    assert isinstance(message_response, MemGPTResponse)
+    assert isinstance(message_response.messages[-1], Message)
+    message = message_response.messages[-1]
+
+    new_text = "This exact string would never show up in the message???"
+    new_message = client.update_message(message_id=message.id, text=new_text, agent_id=agent.id)
+    assert new_message.text == new_text
