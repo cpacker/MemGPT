@@ -241,7 +241,6 @@ class RESTClient(AbstractClient):
         app: Optional[Union["WSGITransport","ASGITransport"]] = None,
     ):
         super().__init__(debug=debug)
-
         httpx_client_args = {
             "headers": {"accept": "application/json", "authorization": f"Bearer {token}"},
             "base_url": base_url,

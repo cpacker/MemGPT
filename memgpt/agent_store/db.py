@@ -103,7 +103,7 @@ class SQLStorageConnector(StorageConnector):
             if limit:
                 query = query.limit(limit)
             db_records = session.execute(query).scalars()
-            
+
             return [record.to_pydantic() for record in db_records]
 
 
@@ -112,7 +112,7 @@ class SQLStorageConnector(StorageConnector):
             db_record = self.SQLModel.read(db_session=self.db_session, identifier=id)
         except NoResultFound:
             return None
-        
+
         return db_record.to_pydantic()
 
     def size(self, filters: Optional[Dict] = {}) -> int:
@@ -160,7 +160,7 @@ class SQLStorageConnector(StorageConnector):
         with self.db_session as session:
             query = select(self.SQLModel).filter(*filters).order_by(self.SQLModel.embedding.l2_distance(query_vec)).limit(top_k)
             results = session.execute(query).scalars()
-            
+
             return [result.to_pydantic() for result in results]
 
     def update(self, record: MemGPTBase):
@@ -252,7 +252,7 @@ class PostgresStorageConnector(SQLStorageConnector):
             if limit:
                 query = query.limit(limit)
             results = session.execute(query).scalars()
-            
+
             return [result.to_pydantic() for result in results]
 
 

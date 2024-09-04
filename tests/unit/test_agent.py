@@ -16,7 +16,6 @@ class TestUnitAgent:
     async def test_update_agent(self, client):
         agent_name = "TestAgent"
         agent = await client.create_agent(name=agent_name)
-
         new_system_prompt = "New system prompt"
         updated_agent = await client.update_agent(agent_id=agent.id, system=new_system_prompt)
         assert updated_agent.system == new_system_prompt

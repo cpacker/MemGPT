@@ -205,7 +205,7 @@ class Agent(object):
         # Hold a copy of the state that was used to init the agent
         self.agent_state = agent_state
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
-        
+
         try:
             self.link_tools(tools)
         except Exception as e:
@@ -1242,9 +1242,9 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
             block = ms.create_block(block)
 
         blocks.append(block)
-    
+
     # Need to attach blocks to the Agent in one session instance
-    sql_agent = SQLAgent.read(db_session=ms.db_session, identifier=agent.agent_state.id)    
+    sql_agent = SQLAgent.read(db_session=ms.db_session, identifier=agent.agent_state.id)
     [sql_agent.core_memory.append(block.to_sqlalchemy(ms.db_session)) for block in blocks]
     ms.db_session.commit()
 
