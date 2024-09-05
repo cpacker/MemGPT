@@ -16,48 +16,49 @@ def generate_config(package):
             descriptive_class_title=False,
         ),
     )
-    return config 
+    return config
 
-def generate_modules(config): 
+
+def generate_modules(config):
     modules = config.load_modules()
     config.process(modules)
     return modules
 
+
 folder = "/Users/sarahwooders/repos/mintlify-docs/python-reference"
 
 
-
-# Generate client documentation. This takes the documentation from the AbstractClient, but then appends the documentation from the LocalClient and RESTClient. 
+# Generate client documentation. This takes the documentation from the AbstractClient, but then appends the documentation from the LocalClient and RESTClient.
 config = generate_config("memgpt.client")
 modules = generate_modules(config)
 
 ## Get members from AbstractClient
-##for module in generate_modules(config): 
-#for module in modules:
+##for module in generate_modules(config):
+# for module in modules:
 #    client_members = [m for m in module.members if m.name == "AbstractClient"]
 #    if len(client_members) > 0:
 #        break
 #
-#client_members = client_members[0].members
-#print(client_members)
+# client_members = client_members[0].members
+# print(client_members)
 
 # Add members and render for LocalClient and RESTClient
-#config = generate_config("memgpt.client")
+# config = generate_config("memgpt.client")
 
 for module_name in ["LocalClient", "RESTClient"]:
     for module in generate_modules(config):
-    #for module in modules:
+        # for module in modules:
         members = [m for m in module.members if m.name == module_name]
         if len(members) > 0:
             print(module_name)
-            #module.members = members + client_members
-            #print(module_name, members)
+            # module.members = members + client_members
+            # print(module_name, members)
             module.members = members
             open(os.path.join(folder, f"{module_name}.mdx"), "w").write(config.renderer.render_to_string([module]))
             break
 
 
-# Documentation of schemas 
+# Documentation of schemas
 schema_config = generate_config("memgpt.schemas")
 
 schema_models = [
@@ -66,29 +67,20 @@ schema_models = [
     "Message",
     "Passage",
     "AgentState",
-    "Document", 
+    "Document",
     "Source",
     "LLMConfig",
     "EmbeddingConfig",
     "MemGPTRequest",
-    "MemGPTResponse", 
-    [
-        "MemGPTMessage", 
-        "FunctionCallMessage",
-        "FunctionReturn",
-        "InternalMonologue"
-    ],
+    "MemGPTResponse",
+    ["MemGPTMessage", "FunctionCallMessage", "FunctionReturn", "InternalMonologue"],
     "MemGPTUsageStatistics",
-    [
-        "Memory", 
-        "BasicBlockMemory", 
-        "ChatMemory"
-    ],
+    ["Memory", "BasicBlockMemory", "ChatMemory"],
     "Block",
-    #["Job", "JobStatus"],
+    # ["Job", "JobStatus"],
     "Job",
-    "Tool", 
-    "User"
+    "Tool",
+    "User",
 ]
 for module_name in schema_models:
     for module in generate_modules(schema_config):
@@ -96,7 +88,7 @@ for module_name in schema_models:
             # multiple objects in the same file
             members = [m for m in module.members if m.name in module_name]
             title = module_name[0]
-        else: 
+        else:
             # single object in a file
             members = [m for m in module.members if m.name == module_name]
             title = module_name
@@ -105,12 +97,9 @@ for module_name in schema_models:
             module.members = members
             open(os.path.join(folder, f"{title}.mdx"), "w").write(config.renderer.render_to_string([module]))
             break
- 
+
 # Documentation for connectors
-connectors = [
-    "DataConnector", 
-    "DirectoryConnector"
-]
+connectors = ["DataConnector", "DirectoryConnector"]
 connector_config = generate_config("memgpt.data_sources")
 for module_name in connectors:
     for module in generate_modules(connector_config):
@@ -124,21 +113,19 @@ for module_name in connectors:
 
 ## TODO: append the rendering from LocalClient and RESTClient from AbstractClient
 #
-## TODO: add documentation of schemas 
+## TODO: add documentation of schemas
 #
-#for module in modules:
+# for module in modules:
 #    print(module.name, type(module))
 #    print(module)
-#   
+#
 #    #module_name = "AbstractClient"
 #    #members = [m for m in module.members if m.name == module_name]
 #    #print([m.name for m in members])
 #    #module.members = members
 #
-#    if "__" in module.name: 
+#    if "__" in module.name:
 #        continue
 #    #if len(members) > 0:
 #    #    open(os.path.join(folder, f"{module_name}.md"), "w").write(config.renderer.render_to_string([module]))
 #    open(os.path.join(folder, f"{module.name}.md"), "w").write(config.renderer.render_to_string([module]))
-
-
