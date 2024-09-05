@@ -403,11 +403,7 @@ def test_message_update_rethink(client: Union[LocalClient, RESTClient], agent: A
     - Mimic the /rethink command in the CLI
     - "rethink" replaces the inner thoughts of the last assistant message
     """
-    # create a message
-    # message = client.send_message(agent_id=agent.id, message="Hello, is anyone there?", role="user")
-    # message.
-
-    # print("Message", message)
+    # TODO
 
 
 def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentState):

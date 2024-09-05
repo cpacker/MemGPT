@@ -1,6 +1,7 @@
 import datetime
 import inspect
 import traceback
+import warnings
 from abc import ABC, abstractmethod
 from typing import List, Literal, Optional, Tuple, Union
 
@@ -24,9 +25,9 @@ from memgpt.persistence_manager import LocalStateManager
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.block import Block
 from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.enums import OptionState
+from memgpt.schemas.enums import MessageRole, OptionState
 from memgpt.schemas.memory import Memory
-from memgpt.schemas.message import Message
+from memgpt.schemas.message import Message, UpdateMessage
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
 from memgpt.schemas.openai.chat_completion_response import (
     Message as ChatCompletionMessage,
@@ -1208,6 +1209,146 @@ class Agent(BaseAgent):
         printd(
             f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
         )
+
+    def update_message(self, request: UpdateMessage) -> Message:
+        """Update the details of a message associated with an agent"""
+
+        message = self.persistence_manager.recall_memory.storage.get(id=request.id)
+        if message is None:
+            raise ValueError(f"Message with id {request.id} not found")
+        assert isinstance(message, Message), f"Message is not a Message object: {type(message)}"
+
+        # Override fields
+        # NOTE: we try to do some sanity checking here (see asserts), but it's not foolproof
+        if request.role:
+            message.role = request.role
+        if request.text:
+            message.text = request.text
+        if request.name:
+            message.name = request.name
+        if request.tool_calls:
+            assert message.role == MessageRole.assistant, "Tool calls can only be added to assistant messages"
+            message.tool_calls = request.tool_calls
+        if request.tool_call_id:
+            assert message.role == MessageRole.tool, "tool_call_id can only be added to tool messages"
+            message.tool_call_id = request.tool_call_id
+
+        # Save the updated message
+        self.persistence_manager.recall_memory.storage.update(record=message)
+
+        # Return the updated message
+        updated_message = self.persistence_manager.recall_memory.storage.get(id=message.id)
+        if updated_message is None:
+            raise ValueError(f"Error persisting message - message with id {request.id} not found")
+        return updated_message
+
+    # TODO(sarah): should we be creating a new message here, or just editing a message?
+    def rethink_message(self, new_thought: str) -> Message:
+        """Rethink / update the last message"""
+        for x in range(len(self.messages) - 1, 0, -1):
+            msg_obj = self._messages[x]
+            if msg_obj.role == MessageRole.assistant:
+                return self.update_message(
+                    request=UpdateMessage(
+                        id=msg_obj.id,
+                        text=new_thought,
+                    )
+                )
+        raise ValueError(f"No assistant message found to update")
+
+    # TODO(sarah): should we be creating a new message here, or just editing a message?
+    def rewrite_message(self, new_text: str) -> Message:
+        """Rewrite / update the send_message text on the last message"""
+
+        # Walk backwards through the messages until we find an assistant message
+        for x in range(len(self._messages) - 1, 0, -1):
+            if self._messages[x].role == MessageRole.assistant:
+                # Get the current message content
+                message_obj = self._messages[x]
+
+                # The rewrite target is the output of send_message
+                if message_obj.tool_calls is not None and len(message_obj.tool_calls) > 0:
+
+                    # Check that we hit an assistant send_message call
+                    name_string = message_obj.tool_calls[0].function.name
+                    if name_string is None or name_string != "send_message":
+                        raise ValueError("Assistant missing send_message function call")
+
+                    args_string = message_obj.tool_calls[0].function.arguments
+                    if args_string is None:
+                        raise ValueError("Assistant missing send_message function arguments")
+
+                    args_json = json_loads(args_string)
+                    if "message" not in args_json:
+                        raise ValueError("Assistant missing send_message message argument")
+
+                    # Once we found our target, rewrite it
+                    args_json["message"] = new_text
+                    new_args_string = json_dumps(args_json)
+                    message_obj.tool_calls[0].function.arguments = new_args_string
+
+                    # Write the update to the DB
+                    return self.update_message(
+                        request=UpdateMessage(
+                            id=message_obj.id,
+                            tool_calls=message_obj.tool_calls,
+                        )
+                    )
+
+        raise ValueError("No assistant message found to update")
+
+    def pop_message(self, count: int = 1) -> List[Message]:
+        """Pop the last N messages from the agent's memory"""
+        n_messages = len(self._messages)
+        popped_messages = []
+        MIN_MESSAGES = 2
+        if n_messages <= MIN_MESSAGES:
+            raise ValueError(f"Agent only has {n_messages} messages in stack, none left to pop")
+        elif n_messages - count < MIN_MESSAGES:
+            raise ValueError(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
+        else:
+            # print(f"Popping last {count} messages from stack")
+            for _ in range(min(count, len(self._messages))):
+                # remove the message from the internal state of the agent
+                deleted_message = self._messages.pop()
+                # then also remove it from recall storage
+                try:
+                    self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+                    popped_messages.append(deleted_message)
+                except Exception as e:
+                    warnings.warn(f"Error deleting message {deleted_message.id} from recall memory: {e}")
+                    break
+
+        return popped_messages
+
+    def pop_until_user(self) -> List[Message]:
+        """Pop all messages until the last user message"""
+        raise NotImplementedError()
+        # popped_messages = []
+        # while len(self._messages) > 0:
+        #     if self._messages[-1].role == "user":
+        #         # we want to pop up to the last user message and send it again
+        #         user_message = self._messages[-1].text
+        #         deleted_message = self._messages.pop()
+        #         # then also remove it from recall storage
+        #         self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+        #         break
+        #     deleted_message = self._messages.pop()
+
+    def retry_message(self) -> Message:
+        """Retry / regenerate the last message"""
+        raise NotImplementedError()
+        # while len(self._messages) > 0:
+        #     if self._messages[-1].role == "user":
+        #         # we want to pop up to the last user message and send it again
+        #         user_message = self._messages[-1].text
+        #         deleted_message = self._messages.pop()
+        #         # then also remove it from recall storage
+        #         self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+        #         break
+        #     deleted_message = self._messages.pop()
+        #     # then also remove it from recall storage
+        #     self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
 
 
 def save_agent(agent: Agent, ms: MetadataStore):

@@ -51,7 +51,7 @@ from memgpt.schemas.document import Document
 from memgpt.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
-from memgpt.schemas.enums import JobStatus, MessageRole
+from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
@@ -1692,6 +1692,16 @@ class SyncServer(Server):
 
         # Get the current message
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        return memgpt_agent.update_message(request=request)
+
+        # TODO decide whether this should be done in the server.py or agent.py
+        # Reason to put it in agent.py:
+        # - we use the agent object's persistence_manager to update the message
+        # - it makes it easy to do things like `retry`, `rethink`, etc.
+        # Reason to put it in server.py:
+        # - fundamentally, we should be able to edit a message (without agent id)
+        #   in the server by directly accessing the DB / message store
+        """
         message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=request.id)
         if message is None:
             raise ValueError(f"Message with id {request.id} not found")
@@ -1719,3 +1729,4 @@ class SyncServer(Server):
         if updated_message is None:
             raise ValueError(f"Error persisting message - message with id {request.id} not found")
         return updated_message
+        """
