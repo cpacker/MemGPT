@@ -22,11 +22,11 @@ class JobStatus(str, Enum):
     Status of the job.
     """
 
-    created = "created", "The job has been created."
-    running = "running", "The job is currently running."
-    completed = "completed", "The job has been completed."
-    failed = "failed", "The job has failed."
-    pending = "pending", "The job is pending (has not started running)."
+    created = "created"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+    pending = "pending"
 
 
 class MessageStreamStatus(str, Enum):
