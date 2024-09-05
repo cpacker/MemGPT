@@ -1474,7 +1474,18 @@ class SyncServer(Server):
         source_name: Optional[str] = None,
     ) -> Source:
         # TODO: remove all passages coresponding to source from agent's archival memory
-        raise NotImplementedError
+        if not source_id:
+            assert source_name is not None, "source_name must be provided if source_id is not"
+            source = self.ms.get_source(source_name=source_name, user_id=user_id)
+            source_id = source.id
+        else:
+            source = self.ms.get_source(source_id=source_id)
+
+        # delete all Passage objects with source_id==source_id from agent's archival memory
+        agent = self._get_or_load_agent(agent_id=agent_id)
+        archival_memory = agent.persistence_manager.archival_memory
+        archival_memory.storage.delete({"source_id": source_id})
+        return source
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         # list all attached sources to an agent
