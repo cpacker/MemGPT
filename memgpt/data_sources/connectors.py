@@ -12,11 +12,29 @@ from memgpt.utils import create_uuid_from_string
 
 
 class DataConnector:
+    """
+    Base class for data connectors that can be extended to generate documents and passages from a custom data source.
+    """
+
     def generate_documents(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
-        pass
+        """
+        Generate document text and metadata from a data source.
+
+        Returns:
+            documents (Iterator[Tuple[str, Dict]]): Generate a tuple of string text and metadata dictionary for each document.
+        """
 
     def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Passage]:
-        pass
+        """
+        Generate passage text and metadata from a list of documents.
+
+        Args:
+            documents (List[Document]): List of documents to generate passages from.
+            chunk_size (int, optional): Chunk size for splitting passages. Defaults to 1024.
+
+        Returns:
+            passages (Iterator[Tuple[str, Dict]]): Generate a tuple of string text and metadata dictionary for each passage.
+        """
 
 
 def load_data(
@@ -50,7 +68,6 @@ def load_data(
 
         # generate passages
         for passage_text, passage_metadata in connector.generate_passages([document], chunk_size=embedding_config.embedding_chunk_size):
-
             # for some reason, llama index parsers sometimes return empty strings
             if len(passage_text) == 0:
                 typer.secho(
@@ -108,6 +125,15 @@ def load_data(
 
 class DirectoryConnector(DataConnector):
     def __init__(self, input_files: List[str] = None, input_directory: str = None, recursive: bool = False, extensions: List[str] = None):
+        """
+        Connector for reading text data from a directory of files.
+
+        Args:
+            input_files (List[str], optional): List of file paths to read. Defaults to None.
+            input_directory (str, optional): Directory to read files from. Defaults to None.
+            recursive (bool, optional): Whether to read files recursively from the input directory. Defaults to False.
+            extensions (List[str], optional): List of file extensions to read. Defaults to None.
+        """
         self.connector_type = "directory"
         self.input_files = input_files
         self.input_directory = input_directory

@@ -23,6 +23,17 @@ class BaseTool(MemGPTBase):
 
 
 class Tool(BaseTool):
+    """
+    Representation of a tool, which is a function that can be called by the agent.
+
+    Parameters:
+        id (str): The unique identifier of the tool.
+        name (str): The name of the function.
+        tags (List[str]): Metadata tags.
+        source_code (str): The source code of the function.
+        json_schema (Dict): The JSON schema of the function.
+
+    """
 
     id: str = BaseTool.generate_id_field()
 
@@ -34,7 +45,9 @@ class Tool(BaseTool):
     json_schema: Dict = Field(default_factory=dict, description="The JSON schema of the function.")
 
     def to_dict(self):
-        """Convert into OpenAI representation"""
+        """
+        Convert tool into OpenAI representation.
+        """
         return vars(
             ToolCall(
                 tool_id=self.id,
@@ -52,7 +65,7 @@ class Tool(BaseTool):
             crewai_tool (CrewAIBaseTool): An instance of a crewAI BaseTool (BaseTool from crewai)
 
         Returns:
-            Tool: A memGPT Tool initialized with attributes derived from the provided crewAI BaseTool object.
+            Tool: A MemGPT Tool initialized with attributes derived from the provided crewAI BaseTool object.
         """
         crewai_tool.name
         description = crewai_tool.description

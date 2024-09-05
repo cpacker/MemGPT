@@ -11,6 +11,15 @@ class UserBase(MemGPTBase):
 
 
 class User(UserBase):
+    """
+    Representation of a user.
+
+    Parameters:
+        id (str): The unique identifier of the user.
+        name (str): The name of the user.
+        created_at (datetime): The creation date of the user.
+    """
+
     id: str = UserBase.generate_id_field()
     name: str = Field(..., description="The name of the user.")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the user.")

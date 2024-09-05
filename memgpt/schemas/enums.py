@@ -18,6 +18,10 @@ class OptionState(str, Enum):
 
 
 class JobStatus(str, Enum):
+    """
+    Status of the job.
+    """
+
     created = "created"
     running = "running"
     completed = "completed"

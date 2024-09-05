@@ -25,6 +25,20 @@ class PassageBase(MemGPTBase):
 
 
 class Passage(PassageBase):
+    """
+    Representation of a passage, which is stored in archival memory.
+
+    Parameters:
+        text (str): The text of the passage.
+        embedding (List[float]): The embedding of the passage.
+        embedding_config (EmbeddingConfig): The embedding configuration used by the passage.
+        created_at (datetime): The creation date of the passage.
+        user_id (str): The unique identifier of the user associated with the passage.
+        agent_id (str): The unique identifier of the agent associated with the passage.
+        source_id (str): The data source of the passage.
+        doc_id (str): The unique identifier of the document associated with the passage.
+    """
+
     id: str = PassageBase.generate_id_field()
 
     # passage text
@@ -39,7 +53,7 @@ class Passage(PassageBase):
     @field_validator("embedding")
     @classmethod
     def pad_embeddings(cls, embedding: List[float]) -> List[float]:
-        """Pad embeddings to MAX_EMBEDDING_SIZE. This is necessary to ensure all stored embeddings are the same size."""
+        """Pad embeddings to `MAX_EMBEDDING_SIZE`. This is necessary to ensure all stored embeddings are the same size."""
         import numpy as np
 
         if embedding and len(embedding) != MAX_EMBEDDING_DIM:

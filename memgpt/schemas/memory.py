@@ -11,7 +11,14 @@ from memgpt.schemas.block import Block
 
 
 class Memory(BaseModel, validate_assignment=True):
-    """Represents the in-context memory of the agent"""
+    """
+
+    Represents the in-context memory of the agent. This includes both the `Block` objects (labelled by sections), as well as tools to edit the blocks.
+
+    Attributes:
+        memory (Dict[str, Block]): Mapping from memory block section to memory block.
+
+    """
 
     # Memory.memory is a dict mapping from memory block section to memory block.
     memory: Dict[str, Block] = Field(default_factory=dict, description="Mapping from memory block section to memory block.")
@@ -114,7 +121,30 @@ class Memory(BaseModel, validate_assignment=True):
 
 
 # TODO: ideally this is refactored into ChatMemory and the subclasses are given more specific names.
-class BaseChatMemory(Memory):
+class BasicBlockMemory(Memory):
+    """
+    BasicBlockMemory is a basic implemention of the Memory class, which takes in a list of blocks and links them to the memory object. These are editable by the agent via the core memory functions.
+
+    Attributes:
+        memory (Dict[str, Block]): Mapping from memory block section to memory block.
+
+    Methods:
+        core_memory_append: Append to the contents of core memory.
+        core_memory_replace: Replace the contents of core memory.
+    """
+
+    def __init__(self, blocks: List[Block] = []):
+        """
+        Initialize the BasicBlockMemory object with a list of pre-defined blocks.
+
+        Args:
+            blocks (List[Block]): List of blocks to be linked to the memory object.
+        """
+        super().__init__()
+        for block in blocks:
+            # TODO: centralize these internal schema validations
+            assert block.name is not None and block.name != "", "each existing chat block must have a name"
+            self.link_block(name=block.name, block=block)
 
     def core_memory_append(self: "Agent", name: str, content: str) -> Optional[str]:  # type: ignore
         """
@@ -150,28 +180,23 @@ class BaseChatMemory(Memory):
         return None
 
 
-class ChatMemory(BaseChatMemory):
+class ChatMemory(BasicBlockMemory):
     """
-    ChatMemory initializes a BaseChatMemory with two default blocks
+    ChatMemory initializes a BaseChatMemory with two default blocks, `human` and `persona`.
     """
 
     def __init__(self, persona: str, human: str, limit: int = 2000):
+        """
+        Initialize the ChatMemory object with a persona and human string.
+
+        Args:
+            persona (str): The starter value for the persona block.
+            human (str): The starter value for the human block.
+            limit (int): The character limit for each block.
+        """
         super().__init__()
         self.link_block(name="persona", block=Block(name="persona", value=persona, limit=limit, label="persona"))
         self.link_block(name="human", block=Block(name="human", value=human, limit=limit, label="human"))
-
-
-class BlockChatMemory(BaseChatMemory):
-    """
-    BlockChatMemory is a subclass of BaseChatMemory which uses shared memory blocks specified at initialization-time.
-    """
-
-    def __init__(self, blocks: List[Block] = []):
-        super().__init__()
-        for block in blocks:
-            # TODO: centralize these internal schema validations
-            assert block.name is not None and block.name != "", "each existing chat block must have a name"
-            self.link_block(name=block.name, block=block)
 
 
 class UpdateMemory(BaseModel):
