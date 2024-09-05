@@ -317,7 +317,7 @@ class RESTClient(AbstractClient):
             tool_calls=tool_calls,
             tool_call_id=tool_call_id,
         )
-        response = requests.put(
+        response = requests.patch(
             f"{self.base_url}/api/agents/{agent_id}/messages/{message_id}", json=request.model_dump(), headers=self.headers
         )
         if response.status_code != 200:
