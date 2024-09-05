@@ -8,58 +8,24 @@ from abc import abstractmethod
 from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 from memgpt.config import MemGPTConfig
-
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase as SQLBase
-from memgpt.orm.message import Message as SQLMessage
-from memgpt.orm.passage import Passage as SQLPassage
-from memgpt.orm.document import Document as SQLDocument
-from memgpt.orm.utilities import get_db_session
-
 from memgpt.schemas.enums import TableType
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-    from memgpt.orm.sqlalchemy_base import SqlalchemyBase as SQLBase
-
 
 
 class StorageConnector:
     """Defines a DB connection that is user-specific to access data: Documents, Passages, Archival/Recall Memory"""
-
-    SQLModel: "SQLBase" = None
-    db_session: "Session" = None
 
     def __init__(
         self,
         table_type: TableType,
         config: MemGPTConfig,
         user_id: str,
-        agent_id: str = None,
-        db_session: Optional["Session"] = None
+        agent_id: Optional[str] = None,
     ):
         self.user_id = user_id
         self.agent_id = agent_id
         self.table_type = table_type
         self.config = config
-        if db_session:
-            raise ValueError(db_session)
-        self.db_session = db_session or get_db_session()
-        from sqlalchemy import text
-        schema = self.db_session.execute(text("show search_path")).fetchone()[0]
-        if "postgres" not in schema:
-            raise ValueError(f"parent init Schema: {schema}")
-
-        match table_type:
-            case TableType.ARCHIVAL_MEMORY:
-                self.SQLModel = SQLPassage
-            case TableType.RECALL_MEMORY:
-                self.SQLModel = SQLMessage
-            case TableType.DOCUMENTS:
-                self.SQLModel = SQLDocument
-            case TableType.PASSAGES:
-                self.SQLModel = SQLPassage
-            case _:
-                raise ValueError(f"Table type {table_type} not implemented")
 
         # setup base filters for agent-specific tables
         if self.table_type == TableType.ARCHIVAL_MEMORY or self.table_type == TableType.RECALL_MEMORY:
@@ -72,13 +38,16 @@ class StorageConnector:
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
+    
     @staticmethod
     def get_storage_connector(
         table_type: TableType,
         config: MemGPTConfig,
         user_id: str,
-        agent_id: str = None,
+        agent_id: Optional[str] = None,
     ):
+        """Factory method to get a storage connector based on the storage type"""
+
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             storage_type = config.archival_storage_type
         elif table_type == TableType.RECALL_MEMORY:
@@ -101,12 +70,18 @@ class StorageConnector:
                 raise NotImplementedError(f"Storage type {storage_type} not implemented")
 
     @staticmethod
-    def get_archival_storage_connector(user_id, agent_id):
+    def get_archival_storage_connector(
+        user_id: str,
+        agent_id: Optional[str] = None,
+    ):
         config = MemGPTConfig.load()
         return StorageConnector.get_storage_connector(TableType.ARCHIVAL_MEMORY, config, user_id, agent_id)
 
     @staticmethod
-    def get_recall_storage_connector(user_id, agent_id):
+    def get_recall_storage_connector(
+        user_id: str,
+        agent_id: Optional[str] = None,
+    ):
         config = MemGPTConfig.load()
         return StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, config, user_id, agent_id)
 

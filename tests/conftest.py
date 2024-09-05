@@ -3,7 +3,6 @@ from urllib.parse import urlsplit, urlunsplit
 import pytest
 from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
-from unittest.mock import patch
 
 from memgpt import create_client
 from memgpt.settings import settings, BackendConfiguration
@@ -16,7 +15,6 @@ from memgpt.server.rest_api.app import app
 
 from tests.mock_factory.models import (
     MockUserFactory,
-    MockOrganizationFactory,
     MockTokenFactory,
     MockAgentFactory,
 )
@@ -81,9 +79,9 @@ def test_get_db_session(test_session_maker) -> Callable:
     return test_session_maker()
 
 @pytest.fixture
-def db_session(test_get_db_session) -> "Session":
-    with test_get_db_session() as session:
-        yield session
+def db_session(test_session_maker) -> "Session":
+    bound_session = test_session_maker()
+    return bound_session()
 
 @pytest.fixture
 def server(db_session):
@@ -128,27 +126,15 @@ def client(request, db_session, test_app):
         }
     yield create_client(**client_args)
 
-
 @pytest.fixture(autouse=True)
-def patch_local_db_calls(test_get_db_session: Callable):
-    # TODO: I'm not happy about this, but it's either make the tests messy without hooks,
-    # or make the code messy with hooks. I'm choosing the former for now.
-    with (
-        patch(
-            "memgpt.metadata.get_db_session",
-            test_get_db_session,
-        ),
-        patch(
-            "memgpt.agent_store.storage.get_db_session",
-            test_get_db_session,
-        ),
-        patch(
-            "memgpt.server.server.get_db_session",
-            test_get_db_session,
-        ),
-        patch(
-            "memgpt.server.rest_api.app.get_db_session",
-            test_get_db_session,
-        ),
-    ):
-        yield
+def patch_local_db_calls(monkeypatch, db_session):
+    """Patch all local db calls to use the same session"""
+    # TODO: this is a hack to get around the fact that the db session is dependency injected
+    modules = [
+        "memgpt.metadata.get_db_session",
+        "memgpt.agent_store.db.get_db_session",
+        "memgpt.server.server.get_db_session",
+        "memgpt.server.rest_api.app.get_db_session",
+    ]
+    for module in modules:
+        monkeypatch.setattr(module, lambda: db_session)

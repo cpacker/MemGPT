@@ -1,5 +1,5 @@
 from pytest import mark as m
-from memgpt.schemas.memory import ChatMemory
+from memgpt.schemas.memory import BlockChatMemory, Block
 
 @m.describe("When performing basic interactions with Agents")
 class TestUnitAgent:
@@ -20,7 +20,18 @@ class TestUnitAgent:
         updated_agent = await client.update_agent(agent_id=agent.id, system=new_system_prompt)
         assert updated_agent.system == new_system_prompt
 
-        new_memory = ChatMemory(human="New human memory", persona="New persona memory")
+        new_name = "UpdatedAgentName"
+        updated_agent = await client.rename_agent(agent_id=agent.id, new_name=new_name)
+        assert updated_agent.name == new_name
+
+        new_description = "Updated description"
+        updated_agent = await client.update_agent(agent_id=agent.id, description=new_description)
+        assert updated_agent.description == new_description
+
+        new_memory = BlockChatMemory(blocks=[
+            Block(name="human block", value="human testing", label="human"),
+            Block(name="persona block", value="persona testing", label="persona")
+            ]),
         updated_agent = await client.update_agent(agent_id=agent.id, memory=new_memory)
         assert updated_agent.memory.human == "New human memory"
         assert updated_agent.memory.persona == "New persona memory"
@@ -32,14 +43,6 @@ class TestUnitAgent:
         new_tools = ["tool1", "tool2"]
         updated_agent = await client.update_agent(agent_id=agent.id, tools=new_tools)
         assert updated_agent.tools == new_tools
-
-        new_name = "UpdatedAgentName"
-        updated_agent = await client.rename_agent(agent_id=agent.id, new_name=new_name)
-        assert updated_agent.name == new_name
-
-        new_description = "Updated description"
-        updated_agent = await client.update_agent(agent_id=agent.id, description=new_description)
-        assert updated_agent.description == new_description
 
 
     @m.it("should delete an agent")

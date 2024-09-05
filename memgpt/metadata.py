@@ -111,7 +111,7 @@ class MetadataStore:
 
         if agent_state.tools:
             splatted_pydantic["tools"] = [SQLTool.read(self.db_session, name=r) if not isinstance(r, Tool) else r.to_sqlalchemy() for r in agent_state.tools]
-        if agent_state.message_ids:
+        if agent_state.message_ids and action == "create":
             splatted_pydantic["messages"] = [SQLMessage.read(self.db_session, identifier=r) if not isinstance(r, Message) else r.to_sqlalchemy() for r in agent_state.message_ids]
 
         # Blocks/Memory are a bit more complex, so we'll handle them separately in controller

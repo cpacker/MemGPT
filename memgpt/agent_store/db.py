@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 from sqlalchemy import (
     and_,
@@ -7,11 +7,17 @@ from sqlalchemy import (
     desc,
     or_,
     select,
+    text,
 )
 from sqlalchemy.sql import func
 from tqdm import tqdm
 
 from memgpt.orm.errors import NoResultFound
+from memgpt.orm.utilities import get_db_session
+from memgpt.orm.message import Message as SQLMessage
+from memgpt.orm.passage import Passage as SQLPassage
+from memgpt.orm.document import Document as SQLDocument
+
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
 
@@ -19,18 +25,49 @@ from memgpt.schemas.enums import TableType
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.memgpt_base import MemGPTBase
 
+if TYPE_CHECKING:
+    from memgpt.orm.sqlalchemy_base import SqlalchemyBase as SQLBase
+    from sqlalchemy.orm import Session
+
 
 class SQLStorageConnector(StorageConnector):
-    """Storage via SQL"""
-    engine_type: str = "sql-generic"
+    """Storage via SQL Alchemy"""
 
-    def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
+    engine_type: str = "sql-generic"
+    SQLModel: "SQLBase" = None
+    db_session: "Session" = None
+
+    def __init__(
+            self,
+            table_type: str,
+            config: MemGPTConfig,
+            user_id: str,
+            agent_id: Optional[str] = None,
+            db_session: Optional["Session"] = None
+        ):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
+
+        match table_type:
+            case TableType.ARCHIVAL_MEMORY:
+                self.SQLModel = SQLPassage
+            case TableType.RECALL_MEMORY:
+                self.SQLModel = SQLMessage
+            case TableType.DOCUMENTS:
+                self.SQLModel = SQLDocument
+            case TableType.PASSAGES:
+                self.SQLModel = SQLPassage
+            case _:
+                raise ValueError(f"Table type {table_type} not implemented")
+
+        self.db_session = db_session or get_db_session()
+
+        self.check_db_session()
+
+    def check_db_session(self):
         from sqlalchemy import text
         schema = self.db_session.execute(text("show search_path")).fetchone()[0]
         if "postgres" not in schema:
-            raise ValueError(f"init Schema: {schema}")
-        self.config = config
+            raise ValueError(f"Schema: {schema}")
 
     def get_filters(self, filters: Optional[Dict] = {}):
         filter_conditions = {**self.filters, **(filters or {})}
@@ -44,15 +81,15 @@ class SQLStorageConnector(StorageConnector):
             with self.db_session as session:
                 db_record_chunk = session.query(self.SQLModel).filter(*filters).offset(offset).limit(page_size).all()
 
-            # If the chunk is empty, we've retrieved all records
-            if not db_record_chunk:
-                break
+                # If the chunk is empty, we've retrieved all records
+                if not db_record_chunk:
+                    break
 
-            # Yield a list of Record objects converted from the chunk
-            yield [record.to_pydantic() for record in db_record_chunk]
+                # Yield a list of Record objects converted from the chunk
+                yield [record.to_pydantic() for record in db_record_chunk]
 
-            # Increment the offset to get the next chunk in the next iteration
-            offset += page_size
+                # Increment the offset to get the next chunk in the next iteration
+                offset += page_size
 
     def get_all_cursor(
         self,
@@ -91,14 +128,15 @@ class SQLStorageConnector(StorageConnector):
 
             # get records
             db_record_chunk = session.execute(query).scalars()
-        if not db_record_chunk:
-            return (None, [])
-        records = [record.to_pydantic() for record in db_record_chunk]
-        next_cursor = db_record_chunk[-1].id
-        assert isinstance(next_cursor, str)
 
-        # return (cursor, list[records])
-        return (next_cursor, records)
+            if not db_record_chunk:
+                return (None, [])
+            records = [record.to_pydantic() for record in db_record_chunk]
+            next_cursor = db_record_chunk[-1].id
+            assert isinstance(next_cursor, str)
+
+            # return (cursor, list[records])
+            return (next_cursor, records)
 
     def get_all(self, filters: Optional[Dict] = {}, limit=None):
         filters = self.get_filters(filters)
@@ -113,10 +151,8 @@ class SQLStorageConnector(StorageConnector):
 
     def get(self, id: str):
         try:
-            from sqlalchemy import text
-            schema = self.db_session.execute(text("show search_path")).fetchone()[0]
-            if "postgres" not in schema:
-                raise ValueError(f"get Schema: {schema}")
+            self.check_db_session()
+
             db_record = self.SQLModel.read(db_session=self.db_session, identifier=id)
         except NoResultFound:
             return None
@@ -179,7 +215,7 @@ class SQLStorageConnector(StorageConnector):
         assert self.table_type == TableType.ARCHIVAL_MEMORY, f"list_data_sources only implemented for ARCHIVAL_MEMORY"
         with self.db_session as session:
             unique_data_sources = session.query(self.SQLModel.data_source).filter(*self.filters).distinct().all()
-        return unique_data_sources
+            return unique_data_sources
 
     def query_date(self, start_date, end_date, limit=None, offset=0):
         filters = self.get_filters({})
@@ -227,16 +263,12 @@ class SQLStorageConnector(StorageConnector):
 class PostgresStorageConnector(SQLStorageConnector):
     """Storage via Postgres"""
 
-    def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
-        self.engine_type = "sql-postgres"
-        from pgvector.sqlalchemy import Vector
+    engine_type = "sql-postgres"
 
-        super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
-
-        for c in self.SQLModel.__table__.columns:
-            if c.name == "embedding":
-                assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
-
+    # from pgvector.sqlalchemy import Vector
+    # for c in self.SQLModel.__table__.columns:
+    #     if c.name == "embedding":
+    #         assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
 
     def str_to_datetime(self, str_date: str) -> datetime:
         val = str_date.split("-")
@@ -265,7 +297,4 @@ class PostgresStorageConnector(SQLStorageConnector):
 
 
 class SQLLiteStorageConnector(SQLStorageConnector):
-    def __init__(self, table_type: str, config: MemGPTConfig, user_id, agent_id=None):
-        self.engine_type = "sql-sqlite"
-
-        super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
+    engine_type = "sql-sqlite"

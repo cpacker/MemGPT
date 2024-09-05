@@ -180,7 +180,7 @@ class SyncServer(Server):
         assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
 
         # Initialize the metadata store
-        self.ms = MetadataStore(db_session=db_session, actor = self.get_current_user())
+        self.ms = MetadataStore(db_session=self.db_session, actor = self.get_current_user())
 
     def get_current_user(self) -> SQLUser:
         """ returns the currently authed user.
@@ -359,7 +359,7 @@ class SyncServer(Server):
                 raise ValueError(command)
 
             # attach data to agent from source
-            source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+            source_connector = StorageConnector().get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id, db_session=self.ms.db_session)
             memgpt_agent.attach_source(data_source, source_connector, self.ms)
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
@@ -792,7 +792,7 @@ class SyncServer(Server):
         for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
             # Get the agent object (loaded in memory)
-            memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_state.id)
+            memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_state.id)
 
             # TODO remove this eventually when return type get pydanticfied
             # this is to add persona_name and human_name so that the columns in UI can populate
@@ -1047,7 +1047,7 @@ class SyncServer(Server):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
 
         # Assume passages
         records = memgpt_agent.persistence_manager.archival_memory.storage.get_all()
@@ -1061,7 +1061,7 @@ class SyncServer(Server):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
 
         # Insert into archival memory
         passage_ids = memgpt_agent.persistence_manager.archival_memory.insert(memory_string=memory_contents, return_ids=True)
@@ -1185,10 +1185,11 @@ class SyncServer(Server):
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(user_id, agent_id=agent_id)
+        memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
 
-        old_core_memory = self.get_agent_memory(user_id, agent_id=agent_id)["core_memory"]
-        new_core_memory = old_core_memory.copy()
+        # TODO: 
+        # old_core_memory = self.get_agent_memory(agent_id=agent_id)["core_memory"]
+        # new_core_memory = old_core_memory.copy()
 
         modified = False
         for key, value in new_memory_contents.items():
@@ -1408,7 +1409,7 @@ class SyncServer(Server):
             raise ValueError(f"Data source {source_name} does not exist for user {user_id}")
 
         # get the data connectors
-        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id, db_session=self.ms.db_session)
         # TODO: add document store support
         document_store = None  # StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
 

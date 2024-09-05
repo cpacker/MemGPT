@@ -17,8 +17,8 @@ faker = Faker()
 
 
 @m.describe("When working with StorageConnectors")
-class TestMemoryStorage:
-    
+class TestUnitStorage:
+
     @fixture(params=[t for t in TableType if t != TableType.DOCUMENTS]) # Document is not currently supported
     def storage(self, request, user_and_agent_seed):
         config = MemGPTConfig.load()
@@ -26,7 +26,7 @@ class TestMemoryStorage:
         user = user.to_pydantic()
         agent = agent.to_pydantic()
         return StorageConnector.get_storage_connector(request.param, config, user.id, agent.id)
-    
+
     def _storage_data(self, type: TableType, user_id: str = None, agent_id: str = None, count: int = 3) -> list:
         match type:
             case TableType.ARCHIVAL_MEMORY | TableType.PASSAGES:
@@ -46,7 +46,7 @@ class TestMemoryStorage:
             case _:
                 return []
         return data
-    
+
     @m.context("and choosing a table type")
     @m.it("should select an ORM model")
     def test_create_storage(self, storage):
@@ -61,10 +61,11 @@ class TestMemoryStorage:
         storage.insert_many(records=_data)
         storage_records = storage.get_all()
         item_ids = [item.id for item in storage_records]
+
         with db_session as session:
             records = storage.SQLModel.list(db_session=session)
 
-            assert len(records) == len(_data) == len(storage_records)
+        assert len(records) == len(_data) == len(storage_records)
 
         random_item = storage.get(random.choice(item_ids))
         assert random_item is not None
