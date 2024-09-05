@@ -317,7 +317,6 @@ class RESTClient(AbstractClient):
             tool_calls=tool_calls,
             tool_call_id=tool_call_id,
         )
-        raise NotImplementedError("Message update route not yet implemented on FastAPI")
         response = requests.put(
             f"{self.base_url}/api/agents/{agent_id}/messages/{message_id}", json=request.model_dump(), headers=self.headers
         )

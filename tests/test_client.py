@@ -412,9 +412,6 @@ def test_message_update_rethink(client: Union[LocalClient, RESTClient], agent: A
 
 def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentState):
     """Test that we can update the details of a message"""
-    if isinstance(client, RESTClient):
-        pytest.skip("Skipping because RESTClient does not support message updates")
-    assert isinstance(client, LocalClient), client
 
     # create a message
     message_response = client.send_message(
