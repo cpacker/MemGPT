@@ -24,7 +24,7 @@ def setup_user_tools_index_router(server: SyncServer, interface: QueuingInterfac
         """
         # Clear the interface
         interface.clear()
-        server.delete_tool(id)
+        server.delete_tool(tool_id)
 
     @router.get("/tools/{tool_id}", tags=["tools"], response_model=Tool)
     async def get_tool(
