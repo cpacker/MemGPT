@@ -2048,19 +2048,8 @@ class LocalClient(AbstractClient):
         """
         self.server.attach_source_to_agent(source_id=source_id, source_name=source_name, agent_id=agent_id, user_id=self.user_id)
 
-    def detach_source_from_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None) -> Source:
-        """
-        Detach a source from an agent by removing all `Passage` objects that were loaded from the source from archival memory.
-
-        Args:
-            agent_id (str): ID of the agent
-            source_id (str): ID of the source
-            source_name (str): Name of the source
-
-        Returns:
-            source (Source): Detached source
-        """
-        return self.server.detach_source_from_agent(source_id=source_id, source_name=source_name, agent_id=agent_id, user_id=self.user_id)
+    def detach_source_from_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
+        self.server.detach_source_from_agent(source_id=source_id, source_name=source_name, agent_id=agent_id, user_id=self.user_id)
 
     def list_sources(self) -> List[Source]:
         """
