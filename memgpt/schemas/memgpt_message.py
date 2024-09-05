@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 from typing import Literal, Optional, Union
 
-from pydantic import BaseModel, field_serializer
+from pydantic import BaseModel, field_serializer, field_validator
 
 # MemGPT API style responses (intended to be easier to use vs getting true Message types)
 
@@ -86,6 +86,21 @@ class FunctionCallMessage(MemGPTMessage):
             FunctionCallDelta: lambda v: v.model_dump(exclude_none=True),
             FunctionCall: lambda v: v.model_dump(exclude_none=True),
         }
+
+    # NOTE: this is required to cast dicts into FunctionCallMessage objects
+    # Without this extra validator, Pydantic will throw an error if 'name' or 'arguments' are None
+    # (instead of properly casting to FunctionCallDelta instead of FunctionCall)
+    @field_validator("function_call", mode="before")
+    @classmethod
+    def validate_function_call(cls, v):
+        if isinstance(v, dict):
+            if "name" in v and "arguments" in v:
+                return FunctionCall(name=v["name"], arguments=v["arguments"])
+            elif "name" in v or "arguments" in v:
+                return FunctionCallDelta(name=v.get("name"), arguments=v.get("arguments"))
+            else:
+                raise ValueError("function_call must contain either 'name' or 'arguments'")
+        return v
 
 
 class FunctionReturn(MemGPTMessage):

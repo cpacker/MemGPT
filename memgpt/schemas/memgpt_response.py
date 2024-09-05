@@ -2,6 +2,7 @@ from typing import List, Union
 
 from pydantic import BaseModel, Field
 
+from memgpt.schemas.enums import MessageStreamStatus
 from memgpt.schemas.memgpt_message import MemGPTMessage
 from memgpt.schemas.message import Message
 from memgpt.schemas.usage import MemGPTUsageStatistics
@@ -21,3 +22,7 @@ class MemGPTResponse(BaseModel):
 
     messages: Union[List[Message], List[MemGPTMessage]] = Field(..., description="The messages returned by the agent.")
     usage: MemGPTUsageStatistics = Field(..., description="The usage statistics of the agent.")
+
+
+# The streaming response is either [DONE], [DONE_STEP], [DONE], an error, or a MemGPTMessage
+MemGPTStreamingResponse = Union[MemGPTMessage, MessageStreamStatus]

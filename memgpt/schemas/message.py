@@ -70,8 +70,8 @@ class Message(BaseMessage):
     id: str = BaseMessage.generate_id_field()
     role: MessageRole = Field(..., description="The role of the participant.")
     text: Optional[str] = Field(None, description="The text of the message.")
-    user_id: str = Field(None, description="The unique identifier of the user.")
-    agent_id: str = Field(None, description="The unique identifier of the agent.")
+    user_id: Optional[str] = Field(None, description="The unique identifier of the user.")
+    agent_id: Optional[str] = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
     name: Optional[str] = Field(None, description="The name of the participant.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The time the message was created.")
@@ -379,8 +379,8 @@ class Message(BaseMessage):
                         {
                             "type": "tool_use",
                             "id": tool_call.id,
-                            "name": tool_call.function["name"],
-                            "input": json.loads(tool_call.function["arguments"]),
+                            "name": tool_call.function.name,
+                            "input": json.loads(tool_call.function.arguments),
                         }
                     )
 

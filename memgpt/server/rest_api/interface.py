@@ -95,6 +95,18 @@ class QueuingInterface(AgentInterface):
                 break
         if len(items) > 1 and items[-1] == "STOP":
             items.pop()
+
+        # If the style is "obj", then we need to deduplicate any messages
+        # Filter down items for duplicates based on item.id
+        if style == "obj":
+            seen_ids = set()
+            unique_items = []
+            for item in reversed(items):
+                if item.id not in seen_ids:
+                    seen_ids.add(item.id)
+                    unique_items.append(item)
+            items = list(reversed(unique_items))
+
         return items
 
     def clear(self):
