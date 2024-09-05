@@ -1,7 +1,6 @@
 import datetime
-import uuid
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union
 
 from memgpt.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING_FRAC
 from memgpt.embeddings import embedding_model, parse_and_chunk_text, query_embedding
@@ -20,7 +19,7 @@ from memgpt.utils import (
 )
 
 
-def get_memory_functions(cls: Memory) -> List[callable]:
+def get_memory_functions(cls: Memory) -> Dict[str, Callable]:
     """Get memory functions for a memory class"""
     functions = {}
 
@@ -113,7 +112,11 @@ class ArchivalMemory(ABC):
 
     @abstractmethod
     def compile(self) -> str:
-        pass
+        """Convert archival memory into a string representation for a prompt"""
+
+    @abstractmethod
+    def count(self) -> int:
+        """Count the number of memories in the archival memory"""
 
 
 class RecallMemory(ABC):
@@ -127,7 +130,11 @@ class RecallMemory(ABC):
 
     @abstractmethod
     def compile(self) -> str:
-        pass
+        """Convert recall memory into a string representation for a prompt"""
+
+    @abstractmethod
+    def count(self) -> int:
+        """Count the number of memories in the recall memory"""
 
     @abstractmethod
     def insert(self, message: Message):
@@ -153,6 +160,9 @@ class DummyRecallMemory(RecallMemory):
 
     def __len__(self):
         return len(self._message_logs)
+
+    def count(self) -> int:
+        return len(self)
 
     def compile(self) -> str:
         # don't dump all the conversations, just statistics
@@ -186,6 +196,8 @@ class DummyRecallMemory(RecallMemory):
     def text_search(self, query_string, count=None, start=None):
         # in the dummy version, run an (inefficient) case-insensitive match search
         message_pool = [d for d in self._message_logs if d["message"]["role"] not in ["system", "function"]]
+        start = 0 if start is None else int(start)
+        count = 0 if count is None else int(count)
 
         printd(
             f"recall_memory.text_search: searching for {query_string} (c={count}, s={start}) in {len(self._message_logs)} total messages"
@@ -224,8 +236,8 @@ class DummyRecallMemory(RecallMemory):
         ]
 
         # start/count support paging through results
-        start = int(start) if start is None else start
-        count = int(count) if count is None else count
+        start = 0 if start is None else int(start)
+        count = 0 if count is None else int(count)
         if start is not None and count is not None:
             return matches[start : start + count], len(matches)
         elif start is None and count is not None:
@@ -257,16 +269,22 @@ class BaseRecallMemory(RecallMemory):
         self.cache = {}
 
     def get_all(self, start=0, count=None):
+        start = 0 if start is None else int(start)
+        count = 0 if count is None else int(count)
         results = self.storage.get_all(start, count)
         results_json = [message.to_openai_dict() for message in results]
         return results_json, len(results)
 
     def text_search(self, query_string, count=None, start=None):
+        start = 0 if start is None else int(start)
+        count = 0 if count is None else int(count)
         results = self.storage.query_text(query_string, count, start)
         results_json = [message.to_openai_dict_search_results() for message in results]
         return results_json, len(results)
 
     def date_search(self, start_date, end_date, count=None, start=None):
+        start = 0 if start is None else int(start)
+        count = 0 if count is None else int(count)
         results = self.storage.query_date(start_date, end_date, count, start)
         results_json = [message.to_openai_dict_search_results() for message in results]
         return results_json, len(results)
@@ -302,11 +320,14 @@ class BaseRecallMemory(RecallMemory):
     def __len__(self):
         return self.storage.size()
 
+    def count(self) -> int:
+        return len(self)
+
 
 class EmbeddingArchivalMemory(ArchivalMemory):
     """Archival memory with embedding based search"""
 
-    def __init__(self, agent_state: AgentState, top_k: Optional[int] = 100):
+    def __init__(self, agent_state: AgentState, top_k: int = 100):
         """Init function for archival memory
 
         :param archival_memory_database: name of dataset to pre-fill archival with
@@ -319,8 +340,10 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
         # create embedding model
         self.embed_model = embedding_model(agent_state.embedding_config)
-        self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
-        assert self.embedding_chunk_size, f"Must set {agent_state.embedding_config.embedding_chunk_size}"
+        if agent_state.embedding_config.embedding_chunk_size is None:
+            raise ValueError(f"Must set {agent_state.embedding_config.embedding_chunk_size}")
+        else:
+            self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
 
         # create storage backend
         self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
@@ -340,7 +363,7 @@ class EmbeddingArchivalMemory(ArchivalMemory):
         """Save the index to disk"""
         self.storage.save()
 
-    def insert(self, memory_string, return_ids=False) -> Union[bool, List[uuid.UUID]]:
+    def insert(self, memory_string, return_ids=False) -> Union[bool, List[str]]:
         """Embed and save memory string"""
 
         if not isinstance(memory_string, str):
@@ -381,6 +404,9 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
     def search(self, query_string, count=None, start=None):
         """Search query string"""
+        start = 0 if start is None else int(start)
+        count = self.top_k if count is None else int(count)
+
         if not isinstance(query_string, str):
             return TypeError("query must be a string")
 
@@ -390,8 +416,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
                 query_vec = query_embedding(self.embed_model, query_string)
                 self.cache[query_string] = self.storage.query(query_string, query_vec, top_k=self.top_k)
 
-            start = int(start if start else 0)
-            count = int(count if count else self.top_k)
             end = min(count + start, len(self.cache[query_string]))
 
             results = self.cache[query_string][start:end]
@@ -411,3 +435,6 @@ class EmbeddingArchivalMemory(ArchivalMemory):
 
     def __len__(self):
         return self.storage.size()
+
+    def count(self) -> int:
+        return len(self)
