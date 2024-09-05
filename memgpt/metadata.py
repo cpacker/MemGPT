@@ -31,6 +31,7 @@ from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import Memory
+from memgpt.schemas.openai.chat_completion_request import ToolCall, ToolCallFunction
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
@@ -77,6 +78,35 @@ class EmbeddingConfigColumn(TypeDecorator):
     def process_result_value(self, value, dialect):
         if value:
             return EmbeddingConfig(**value)
+        return value
+
+
+class ToolCallColumn(TypeDecorator):
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value, dialect):
+        if value:
+            print("TOOL", value)
+            # return [vars(tool) for tool in value]
+            return value
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value:
+            tools = []
+            for tool_value in value:
+                if "function" in tool_value:
+                    tool_call_function = ToolCallFunction(**tool_value["function"])
+                    del tool_value["function"]
+                else:
+                    tool_call_function = None
+                tools.append(ToolCall(function=tool_call_function, **tool_value))
+            return tools
         return value
 
 
