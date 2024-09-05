@@ -5,7 +5,7 @@ import pytest
 from memgpt import create_client
 from memgpt.client.client import LocalClient, RESTClient
 from memgpt.schemas.block import Block
-from memgpt.schemas.memory import BlockChatMemory, ChatMemory, Memory
+from memgpt.schemas.memory import BasicBlockMemory, ChatMemory, Memory
 
 
 @pytest.fixture(scope="module")
@@ -23,7 +23,6 @@ def agent(client):
 
 
 def test_agent(client: Union[LocalClient, RESTClient]):
-
     tools = client.list_tools()
 
     # create agent
@@ -129,7 +128,7 @@ def test_agent_with_shared_blocks(client):
     try:
         first_agent_state_test = client.create_agent(
             name="first_test_agent_shared_memory_blocks",
-            memory=BlockChatMemory(blocks=existing_non_template_blocks),
+            memory=BasicBlockMemory(blocks=existing_non_template_blocks),
             description="This is a test agent using shared memory blocks",
         )
         assert isinstance(first_agent_state_test.memory, Memory)
@@ -143,7 +142,7 @@ def test_agent_with_shared_blocks(client):
         # have this latest value set by the other agent.
         second_agent_state_test = client.create_agent(
             name="second_test_agent_shared_memory_blocks",
-            memory=BlockChatMemory(blocks=existing_non_template_blocks_no_values),
+            memory=BasicBlockMemory(blocks=existing_non_template_blocks_no_values),
             description="This is a test agent using shared memory blocks",
         )
 
@@ -161,7 +160,6 @@ def test_agent_with_shared_blocks(client):
 
 
 def test_memory(client, agent):
-
     # get agent memory
     original_memory = client.get_in_context_memory(agent.id)
     assert original_memory is not None
@@ -214,7 +212,6 @@ def test_recall_memory(client, agent):
 
 
 def test_tools(client):
-
     def print_tool(message: str):
         """
         A tool to print a message
@@ -303,7 +300,6 @@ def test_tools_from_crewai(client):
 
 
 def test_sources(client, agent):
-
     # list sources (empty)
     sources = client.list_sources()
     assert len(sources) == 0
