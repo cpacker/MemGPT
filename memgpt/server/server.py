@@ -780,27 +780,6 @@ class SyncServer(Server):
         # TODO: probably reload the agent somehow?
         return memgpt_agent.agent_state
 
-    def delete_agent(
-        self,
-        user_id: str,
-        agent_id: str,
-    ):
-        # TODO: delete agent data
-
-        if self.ms.get_user(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # TODO: delete related tables (recall/archival memory)
-
-        # TODO: Make sure the user owns the agent
-        # TODO: consider clean up any blocks associated with this agent
-        # and no other agents (e.g. not templates, but not used as shared blocks either)
-        agent = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
-        if agent is not None:
-            self.ms.delete_agent(agent_id=agent_id)
-
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
         assert agent_state is not None
