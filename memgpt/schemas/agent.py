@@ -39,6 +39,9 @@ class AgentState(BaseAgent):
     # llm information
     llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
+    
+    # split thread agent
+    split_thread_agent: Optional[bool] = Field(default=False, description="Whether the agent is a split thread agent.")
 
 
 class CreateAgent(BaseAgent):
@@ -50,6 +53,7 @@ class CreateAgent(BaseAgent):
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
+    split_thread_agent: Optional[bool] = Field(None, description="Whether the agent is a split thread agent.")
 
     @field_validator("name")
     @classmethod
