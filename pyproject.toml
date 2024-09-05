@@ -20,7 +20,6 @@ typer = {extras = ["all"], version = "^0.9.0"}
 questionary = "^2.0.1"
 pytz = "^2023.3.post1"
 tqdm = "^4.66.1"
-black = {extras = ["jupyter"], version = "^24.2.0"}
 setuptools = "^68.2.2"
 datasets = { version = "^2.14.6", optional = true}
 prettytable = "^3.9.0"
@@ -28,7 +27,6 @@ pgvector = { version = "^0.2.3", optional = true }
 pre-commit = {version = "^3.5.0", optional = true }
 pg8000 = {version = "^1.30.3", optional = true}
 websockets = {version = "^12.0", optional = true}
-docstring-parser = ">=0.16,<0.17"
 httpx = "^0.25.2"
 numpy = "^1.26.2"
 demjson3 = "^3.0.6"
@@ -62,7 +60,6 @@ pydantic-settings = "^2.2.1"
 httpx-sse = "^0.4.0"
 isort = { version = "^5.13.2", optional = true }
 llama-index-embeddings-ollama = {version = "^0.1.2", optional = true}
-crewai = {version = "^0.41.1", optional = true}
 crewai-tools = {version = "^0.8.3", optional = true}
 docker = {version = "^7.1.0", optional = true}
 tiktoken = "^0.7.0"
@@ -73,6 +70,7 @@ mkdocs-material = {version = "^9.5.26", optional = true}
 sphinx-markdown-builder = "^0.6.7"
 sphinx = "^8.0.2"
 sphinxcontrib-napoleon = "^0.7"
+pydoc-markdown = "^4.8.2"
 
 [tool.poetry.extras]
 local = ["llama-index-embeddings-huggingface"]
@@ -86,7 +84,6 @@ ollama = ["llama-index-embeddings-ollama"]
 crewai-tools = ["crewai", "docker", "crewai-tools"]
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.4.2"
 ipykernel = "^6.29.5"
 
 [tool.black]

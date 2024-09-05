@@ -62,16 +62,6 @@ class AbstractClient(object):
         self.debug = debug
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        """
-        Check if an agent exists
-
-        Args:
-            agent_id (str): ID of the agent
-            agent_name (str): Name of the agent
-
-        Returns:
-            exists (bool): `True` if the agent exists, `False` otherwise
-        """
         raise NotImplementedError
 
     def create_agent(
@@ -86,22 +76,6 @@ class AbstractClient(object):
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
     ) -> AgentState:
-        """Create an agent
-
-        Args:
-            name (str): Name of the agent
-            embedding_config (EmbeddingConfig): Embedding configuration
-            llm_config (LLMConfig): LLM configuration
-            memory (Memory): Memory configuration
-            system (str): System configuration
-            tools (List[str]): List of tools
-            include_base_tools (bool): Include base tools
-            metadata (Dict): Metadata
-            description (str): Description
-
-        Returns:
-            agent_state (AgentState): State of the created agent
-        """
         raise NotImplementedError
 
     def update_agent(
@@ -117,44 +91,12 @@ class AbstractClient(object):
         message_ids: Optional[List[str]] = None,
         memory: Optional[Memory] = None,
     ):
-        """
-        Update an existing agent
-
-        Args:
-            agent_id (str): ID of the agent
-            name (str): Name of the agent
-            description (str): Description of the agent
-            system (str): System configuration
-            tools (List[str]): List of tools
-            metadata (Dict): Metadata
-            llm_config (LLMConfig): LLM configuration
-            embedding_config (EmbeddingConfig): Embedding configuration
-            message_ids (List[str]): List of message IDs
-            memory (Memory): Memory configuration
-
-        Returns:
-            agent_state (AgentState): State of the updated agent
-        """
         raise NotImplementedError
 
     def rename_agent(self, agent_id: str, new_name: str):
-        """
-        Rename an agent
-
-        Args:
-            agent_id (str): ID of the agent
-            new_name (str): New name for the agent
-
-        """
         raise NotImplementedError
 
     def delete_agent(self, agent_id: str):
-        """
-        Delete an agent
-
-        Args:
-            agent_id (str): ID of the agent to delete
-        """
         raise NotImplementedError
 
     def get_agent(self, agent_id: str) -> AgentState:
@@ -694,12 +636,28 @@ class AbstractClient(object):
 
 
 class RESTClient(AbstractClient):
+    """
+    REST client for MemGPT
+
+    Attributes:
+        base_url (str): Base URL of the REST API
+        headers (Dict): Headers for the REST API (includes token)
+    """
+
     def __init__(
         self,
         base_url: str,
         token: str,
         debug: bool = False,
     ):
+        """
+        Initializes a new instance of Client class.
+
+        Args:
+            auto_save (bool): Whether to automatically save changes.
+            user_id (str): The user ID.
+            debug (bool): Whether to print debug information.
+        """
         super().__init__(debug=debug)
         self.base_url = base_url
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
@@ -709,6 +667,17 @@ class RESTClient(AbstractClient):
         return [AgentState(**agent) for agent in response.json()]
 
     def agent_exists(self, agent_id: str) -> bool:
+        """
+        Check if an agent exists
+
+        Args:
+            agent_id (str): ID of the agent
+            agent_name (str): Name of the agent
+
+        Returns:
+            exists (bool): `True` if the agent exists, `False` otherwise
+        """
+
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
         if response.status_code == 404:
             # not found error
@@ -741,16 +710,21 @@ class RESTClient(AbstractClient):
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
     ) -> AgentState:
-        """
-        Create an agent
+        """Create an agent
 
         Args:
             name (str): Name of the agent
-            tools (List[str]): List of tools (by name) to attach to the agent
-            include_base_tools (bool): Whether to include base tools (default: `True`)
+            embedding_config (EmbeddingConfig): Embedding configuration
+            llm_config (LLMConfig): LLM configuration
+            memory (Memory): Memory configuration
+            system (str): System configuration
+            tools (List[str]): List of tools
+            include_base_tools (bool): Include base tools
+            metadata (Dict): Metadata
+            description (str): Description
 
         Returns:
-            agent_state (AgentState): State of the the created agent.
+            agent_state (AgentState): State of the created agent
         """
 
         # TODO: implement this check once name lookup works
@@ -802,6 +776,24 @@ class RESTClient(AbstractClient):
         message_ids: Optional[List[str]] = None,
         memory: Optional[Memory] = None,
     ):
+        """
+        Update an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            name (str): Name of the agent
+            description (str): Description of the agent
+            system (str): System configuration
+            tools (List[str]): List of tools
+            metadata (Dict): Metadata
+            llm_config (LLMConfig): LLM configuration
+            embedding_config (EmbeddingConfig): Embedding configuration
+            message_ids (List[str]): List of message IDs
+            memory (Memory): Memory configuration
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
         request = UpdateAgentState(
             id=agent_id,
             name=name,
@@ -820,10 +812,23 @@ class RESTClient(AbstractClient):
         return AgentState(**response.json())
 
     def rename_agent(self, agent_id: str, new_name: str):
+        """
+        Rename an agent
+
+        Args:
+            agent_id (str): ID of the agent
+            new_name (str): New name for the agent
+
+        """
         return self.update_agent(agent_id, name=new_name)
 
     def delete_agent(self, agent_id: str):
-        """Delete the agent."""
+        """
+        Delete an agent
+
+        Args:
+            agent_id (str): ID of the agent to delete
+        """
         response = requests.delete(f"{self.base_url}/api/agents/{str(agent_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
@@ -1256,6 +1261,17 @@ class RESTClient(AbstractClient):
 
 
 class LocalClient(AbstractClient):
+    """
+    A local client for MemGPT, which corresponds to a single user.
+
+    Attributes:
+        auto_save (bool): Whether to automatically save changes.
+        user_id (str): The user ID.
+        debug (bool): Whether to print debug information.
+        interface (QueuingInterface): The interface for the client.
+        server (SyncServer): The server for the client.
+    """
+
     def __init__(
         self,
         auto_save: bool = False,
@@ -1264,10 +1280,11 @@ class LocalClient(AbstractClient):
     ):
         """
         Initializes a new instance of Client class.
-        :param auto_save: indicates whether to automatically save after every message.
-        :param quickstart: allows running quickstart on client init.
-        :param config: optional config settings to apply after quickstart
-        :param debug: indicates whether to display debug messages.
+
+        Args:
+            auto_save (bool): Whether to automatically save changes.
+            user_id (str): The user ID.
+            debug (bool): Whether to print debug information.
         """
         self.auto_save = auto_save
 
@@ -1303,6 +1320,17 @@ class LocalClient(AbstractClient):
         return self.server.ms.list_agents(user_id=self.user_id)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        """
+        Check if an agent exists
+
+        Args:
+            agent_id (str): ID of the agent
+            agent_name (str): Name of the agent
+
+        Returns:
+            exists (bool): `True` if the agent exists, `False` otherwise
+        """
+
         if not (agent_id or agent_name):
             raise ValueError(f"Either agent_id or agent_name must be provided")
         if agent_id and agent_name:
@@ -1330,6 +1358,23 @@ class LocalClient(AbstractClient):
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
     ) -> AgentState:
+        """Create an agent
+
+        Args:
+            name (str): Name of the agent
+            embedding_config (EmbeddingConfig): Embedding configuration
+            llm_config (LLMConfig): LLM configuration
+            memory (Memory): Memory configuration
+            system (str): System configuration
+            tools (List[str]): List of tools
+            include_base_tools (bool): Include base tools
+            metadata (Dict): Metadata
+            description (str): Description
+
+        Returns:
+            agent_state (AgentState): State of the created agent
+        """
+
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 
@@ -1377,6 +1422,24 @@ class LocalClient(AbstractClient):
         message_ids: Optional[List[str]] = None,
         memory: Optional[Memory] = None,
     ):
+        """
+        Update an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            name (str): Name of the agent
+            description (str): Description of the agent
+            system (str): System configuration
+            tools (List[str]): List of tools
+            metadata (Dict): Metadata
+            llm_config (LLMConfig): LLM configuration
+            embedding_config (EmbeddingConfig): Embedding configuration
+            message_ids (List[str]): List of message IDs
+            memory (Memory): Memory configuration
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
         self.interface.clear()
         agent_state = self.server.update_agent(
             UpdateAgentState(
@@ -1396,9 +1459,22 @@ class LocalClient(AbstractClient):
         return agent_state
 
     def rename_agent(self, agent_id: str, new_name: str):
-        return self.update_agent(agent_id, name=new_name)
+        """
+        Rename an agent
+
+        Args:
+            agent_id (str): ID of the agent
+            new_name (str): New name for the agent
+        """
+        self.update_agent(agent_id, name=new_name)
 
     def delete_agent(self, agent_id: str):
+        """
+        Delete an agent
+
+        Args:
+            agent_id (str): ID of the agent to delete
+        """
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
     def get_agent(self, agent_id: str) -> AgentState:

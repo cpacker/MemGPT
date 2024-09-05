@@ -51,12 +51,20 @@ class MessageCreate(BaseMessage):
 
 class Message(BaseMessage):
     """
-    Representation of a message sent.
+    MemGPT's internal representation of a message. Includes methods to convert to/from LLM provider formats.
 
-    Messages can be:
-    - agent->user (role=='agent')
-    - user->agent and system->agent (role=='user')
-    - or function/tool call returns (role=='function'/'tool').
+    Attributes:
+        id (str): The unique identifier of the message.
+        role (MessageRole): The role of the participant.
+        text (str): The text of the message.
+        user_id (str): The unique identifier of the user.
+        agent_id (str): The unique identifier of the agent.
+        model (str): The model used to make the function call.
+        name (str): The name of the participant.
+        created_at (datetime): The time the message was created.
+        tool_calls (List[ToolCall]): The list of tool calls requested.
+        tool_call_id (str): The id of the tool call.
+
     """
 
     id: str = BaseMessage.generate_id_field()
@@ -89,10 +97,9 @@ class Message(BaseMessage):
         return json_message
 
     def to_memgpt_message(self) -> Union[List[MemGPTMessage], List[LegacyMemGPTMessage]]:
-        """Convert message object (in DB format) to the style used by the original MemGPT API
+        """Convert message object (in DB format) to the style used by the original MemGPT API"""
 
-        NOTE: this may split the message into two pieces (e.g. if the assistant has inner thoughts + function call)
-        """
+        # NOTE: this may split the message into two pieces (e.g. if the assistant has inner thoughts + function call)
         raise NotImplementedError
 
     @staticmethod
@@ -329,7 +336,12 @@ class Message(BaseMessage):
         return openai_message
 
     def to_anthropic_dict(self, inner_thoughts_xml_tag="thinking") -> dict:
-        # raise NotImplementedError
+        """
+        Convert to an Anthropic message dictionary
+
+        Args:
+            inner_thoughts_xml_tag (str): The XML tag to wrap around inner thoughts
+        """
 
         def add_xml_tag(string: str, xml_tag: Optional[str]):
             # NOTE: Anthropic docs recommends using <thinking> tag when using CoT + tool use
@@ -401,12 +413,13 @@ class Message(BaseMessage):
         return anthropic_message
 
     def to_google_ai_dict(self, put_inner_thoughts_in_kwargs: bool = True) -> dict:
-        """Go from Message class to Google AI REST message object
-
-        type Content: https://ai.google.dev/api/rest/v1/Content / https://ai.google.dev/api/rest/v1beta/Content
-            parts[]: Part
-            role: str ('user' or 'model')
         """
+        Go from Message class to Google AI REST message object
+        """
+        # type Content: https://ai.google.dev/api/rest/v1/Content / https://ai.google.dev/api/rest/v1beta/Content
+        #     parts[]: Part
+        #     role: str ('user' or 'model')
+
         if self.role != "tool" and self.name is not None:
             raise UserWarning(f"Using Google AI with non-null 'name' field ({self.name}) not yet supported.")
 
@@ -513,20 +526,21 @@ class Message(BaseMessage):
         function_response_prefix: Optional[str] = "[CHATBOT function returned]",
         inner_thoughts_as_kwarg: Optional[bool] = False,
     ) -> List[dict]:
-        """Cohere chat_history dicts only have 'role' and 'message' fields
-
-        NOTE: returns a list of dicts so that we can convert:
-          assistant [cot]: "I'll send a message"
-          assistant [func]: send_message("hi")
-          tool: {'status': 'OK'}
-        to:
-          CHATBOT.text: "I'll send a message"
-          SYSTEM.text: [CHATBOT called function] send_message("hi")
-          SYSTEM.text: [CHATBOT function returned] {'status': 'OK'}
-
-        TODO: update this prompt style once guidance from Cohere on
-        embedded function calls in multi-turn conversation become more clear
         """
+        Cohere chat_history dicts only have 'role' and 'message' fields
+        """
+
+        # NOTE: returns a list of dicts so that we can convert:
+        #  assistant [cot]: "I'll send a message"
+        #  assistant [func]: send_message("hi")
+        #  tool: {'status': 'OK'}
+        # to:
+        #  CHATBOT.text: "I'll send a message"
+        #  SYSTEM.text: [CHATBOT called function] send_message("hi")
+        #  SYSTEM.text: [CHATBOT function returned] {'status': 'OK'}
+
+        # TODO: update this prompt style once guidance from Cohere on
+        # embedded function calls in multi-turn conversation become more clear
 
         if self.role == "system":
             """
