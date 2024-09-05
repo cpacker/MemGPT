@@ -13,7 +13,7 @@ from autogen.agentchat import (
 import memgpt.constants as constants
 import memgpt.system as system
 import memgpt.utils as utils
-from memgpt.agent import Agent as MemGPTAgent
+from memgpt.agent import Agent as Agent
 from memgpt.agent import save_agent
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.autogen.interface import AutoGenInterface
@@ -29,7 +29,7 @@ class MemGPTConversableAgent(ConversableAgent):
     def __init__(
         self,
         name: str,
-        agent: MemGPTAgent,
+        agent: Agent,
         skip_verify: bool = False,
         auto_save: bool = False,
         concat_other_agent_messages: bool = False,
@@ -271,7 +271,7 @@ def load_autogen_memgpt_agent(
 
     # Create the agent object directly from the loaded state (not via preset creation)
     try:
-        memgpt_agent = MemGPTAgent(agent_state=agent_state, interface=interface)
+        memgpt_agent = Agent(agent_state=agent_state, interface=interface)
     except Exception:
         print(f"Failed to create an agent object from agent state =\n{agent_state}")
         raise
@@ -359,7 +359,7 @@ def create_autogen_memgpt_agent(
         preset_obj.human = agent_config["human"] if "human" in agent_config else get_human_text(config.human)
         preset_obj.persona = agent_config["persona"] if "persona" in agent_config else get_persona_text(config.persona)
 
-        memgpt_agent = MemGPTAgent(
+        memgpt_agent = Agent(
             interface=interface,
             name=agent_config["name"] if "name" in agent_config else None,
             created_by=user.id,
