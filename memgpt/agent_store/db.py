@@ -32,7 +32,7 @@ from memgpt.metadata import EmbeddingConfigColumn, ToolCallColumn
 
 # from memgpt.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from memgpt.schemas.message import Message
-from memgpt.schemas.openai.chat_completion_request import ToolCall
+from memgpt.schemas.openai.chat_completions import ToolCall
 from memgpt.schemas.passage import Passage
 from memgpt.settings import settings
 
@@ -185,8 +185,6 @@ def get_db_model(
                 # )
                 # if calls:
                 #    assert isinstance(calls[0], ToolCall)
-                print("TOOL DB", type(self.tool_calls))
-                print(self.tool_calls)
                 if self.tool_calls and len(self.tool_calls) > 0:
                     assert isinstance(self.tool_calls[0], ToolCall), type(self.tool_calls[0])
                     for tool in self.tool_calls:

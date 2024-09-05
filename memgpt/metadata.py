@@ -31,7 +31,7 @@ from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import Memory
-from memgpt.schemas.openai.chat_completion_request import ToolCall, ToolCallFunction
+from memgpt.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
@@ -91,7 +91,6 @@ class ToolCallColumn(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value:
-            print("TOOL", value)
             # return [vars(tool) for tool in value]
             return value
         return value
