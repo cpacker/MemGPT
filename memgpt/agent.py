@@ -201,7 +201,7 @@ class BaseAgent(ABC):
         raise NotImplementedError
 
 
-class Agent(object):
+class Agent(BaseAgent):
     def __init__(
         self,
         interface: AgentInterface,
