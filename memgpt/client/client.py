@@ -1,24 +1,18 @@
 import time
 import uuid
-from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
+
 import httpx
 
 from memgpt.config import MemGPTConfig
-from memgpt.log import get_logger
 from memgpt.constants import BASE_TOOLS
-from memgpt.settings import settings
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.functions.functions import parse_source_code
+from memgpt.log import get_logger
 from memgpt.memory import get_memory_functions
-
-# This is a hack for now, should be using new schemas
-from memgpt.server.schemas.humans import ListHumansResponse
-from memgpt.server.schemas.personas import ListPersonasResponse
-from memgpt.server.schemas.config import ConfigResponse
+from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 
 # new schemas
-from memgpt.schemas.block import Human, Persona
-from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.block import (
     Block,
     CreateBlock,
@@ -40,23 +34,22 @@ from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.memory import (
     ArchivalMemorySummary,
-    ChatMemory,
     BlockChatMemory,
     Memory,
     RecallMemorySummary,
 )
-from memgpt.schemas.job import Job
-from memgpt.schemas.enums import JobStatus
-from memgpt.schemas.message import (
-    Message,
-    MessageCreate
-)
+from memgpt.schemas.message import Message, MessageCreate
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
-from memgpt.schemas.user import UserCreate
 from memgpt.server.rest_api.interface import QueuingInterface
+from memgpt.server.schemas.config import ConfigResponse
+
+# This is a hack for now, should be using new schemas
+from memgpt.server.schemas.humans import ListHumansResponse
+from memgpt.server.schemas.personas import ListPersonasResponse
 from memgpt.server.server import SyncServer
+from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 
 if TYPE_CHECKING:
@@ -64,11 +57,14 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-def create_client(base_url: Optional[str] = None,
-                  token: Optional[str] = None,
-                  config: Optional[MemGPTConfig] = None,
-                  app: Optional[str] = None,
-                  debug: Optional[bool] = False) -> Union["RESTClient", "LocalClient"]:
+
+def create_client(
+    base_url: Optional[str] = None,
+    token: Optional[str] = None,
+    config: Optional[MemGPTConfig] = None,
+    app: Optional[str] = None,
+    debug: Optional[bool] = False,
+) -> Union["RESTClient", "LocalClient"]:
     """factory method to create either a local or rest api enabled client.
     _TODO: link to docs on the difference between the two._
 
@@ -238,7 +234,7 @@ class RESTClient(AbstractClient):
         base_url: str,
         token: str,
         debug: bool = False,
-        app: Optional[Union["WSGITransport","ASGITransport"]] = None,
+        app: Optional[Union["WSGITransport", "ASGITransport"]] = None,
     ):
         super().__init__(debug=debug)
         httpx_client_args = {
@@ -266,7 +262,6 @@ class RESTClient(AbstractClient):
                 return True
         return False
 
-
     def get_tool(self, tool_name: str):
         response = self.httpx_client.get(f"/tools/{tool_name}/")
         if response.status_code != 200:
@@ -280,7 +275,12 @@ class RESTClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = BlockChatMemory(blocks=[Block(name="human block", value=get_human_text(settings.human), label="human"), Block(name="persona block", value=get_persona_text(settings.persona), label="persona")]),
+        memory: Memory = BlockChatMemory(
+            blocks=[
+                Block(name="human block", value=get_human_text(settings.human), label="human"),
+                Block(name="persona block", value=get_persona_text(settings.persona), label="persona"),
+            ]
+        ),
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
@@ -327,12 +327,8 @@ class RESTClient(AbstractClient):
 
         return AgentState(**response.json())
 
-
     async def rename_agent(self, agent_id: str, new_name: str):
-        response = await self.httpx_client.patch(f"/agents/{agent_id}/rename/", json={"agent_name": new_name})
-        assert response.status_code == 200, f"Failed to rename agent: {response.text}"
-
-        return AgentState(**response.json())
+        return await self.update_agent(agent_id, name=new_name)
 
     async def update_agent(
         self,
@@ -466,7 +462,9 @@ class RESTClient(AbstractClient):
         return [Message(**message) for message in response.json()]
 
     async def send_message(self, agent_id: str, message: str, role: str, stream: Optional[bool] = False) -> MemGPTResponse:
-        request = MemGPTRequest(messages=[MessageCreate(text=message, role=role)], run_async=False, stream_steps=stream, stream_tokens=stream)
+        request = MemGPTRequest(
+            messages=[MessageCreate(text=message, role=role)], run_async=False, stream_steps=stream, stream_tokens=stream
+        )
         response = await self.httpx_client.post(f"/agents/{agent_id}/messages", json=request.model_dump(exclude_none=True))
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
@@ -741,10 +739,11 @@ class RESTClient(AbstractClient):
 
         # make REST request
         request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
-        response = await self.httpx_client.post("/tools/",
-                                                json=request.model_dump(exclude_none=True),
-                                                params={"update": update},
-                                                )
+        response = await self.httpx_client.post(
+            "/tools/",
+            json=request.model_dump(exclude_none=True),
+            params={"update": update},
+        )
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return Tool(**response.json())
@@ -816,26 +815,28 @@ class LocalClient(AbstractClient):
         """
         self.auto_save = auto_save
 
-        # determine user_id (pulled from local config)
-        config = config or MemGPTConfig.load()
-        if user_id:
-            self.user_id = user_id
-        else:
-            # TODO: find a neater way to do this
-            self.user_id = config.anon_clientid
+        ## determine user_id (pulled from local config)
+        # config = config or MemGPTConfig.load()
+        # if user_id:
+        #    self.user_id = user_id
+        # else:
+        #    # TODO: find a neater way to do this
+        #    self.user_id = config.anon_clientid
 
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
+        self.user_id = self.server.get_current_user()
+        print(f"User ID: {self.user_id}")
 
-        # create user if does not exist
-        existing_user = self.server.get_user(self.user_id)
-        if not existing_user:
-            self.user = self.server.create_user(UserCreate())
-            self.user_id = self.user.id
+        ## create user if does not exist
+        # existing_user = self.server.get_user(self.user_id)
+        # if not existing_user:
+        #    self.user = self.server.create_user(UserCreate())
+        #    self.user_id = self.user.id
 
-            # update config
-            config.anon_clientid = str(self.user_id)
-            config.save()
+        #    # update config
+        #    config.anon_clientid = str(self.user_id)
+        #    config.save()
 
     # agents
 
@@ -860,7 +861,12 @@ class LocalClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         # memory
-        memory: Memory = BlockChatMemory(blocks=[Block(name="human block", value=get_human_text(settings.human), label="human"), Block(name="persona block", value=get_persona_text(settings.persona), label="persona")]),
+        memory: Memory = BlockChatMemory(
+            blocks=[
+                Block(name="human block", value=get_human_text(settings.human), label="human"),
+                Block(name="persona block", value=get_persona_text(settings.persona), label="persona"),
+            ]
+        ),
         # system
         system: Optional[str] = None,
         # tools
