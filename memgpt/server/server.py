@@ -885,7 +885,7 @@ class SyncServer(Server):
         block.limit = request.limit if request.limit is not None else block.limit
         block.value = request.value if request.value is not None else block.value
         block.name = request.name if request.name is not None else block.name
-        self.ms.update_block(block=block)
+        self.ms.update_block(block)
         return block
 
     def delete_block(self, block_id: str):

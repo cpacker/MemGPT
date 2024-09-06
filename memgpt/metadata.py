@@ -9,7 +9,6 @@ from sqlalchemy.exc import NoResultFound
 
 from memgpt.log import get_logger
 from memgpt.orm.agent import Agent
-from memgpt.orm.block import Block as SQLBlock
 from memgpt.orm.enums import JobStatus
 from memgpt.orm.errors import NoResultFound
 from memgpt.orm.job import Job
@@ -249,9 +248,18 @@ class MetadataStore:
         sql_persona = PersonaMemoryTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
         return sql_persona.to_pydantic()
 
-    def update_block(self, block: Block) -> "Block":
-        sql_block = SQLBlock(**block.model_dump(exclude_none=True)).create(self.db_session)
-        return sql_block.to_pydantic()
+    # def update_block(self, block: Block) -> "Block":
+    #    sql_block = SQLBlock(**block.model_dump(exclude_none=True)).create(self.db_session)
+    #    return sql_block.to_pydantic()
+
+    # def update_block(self, block: Block) -> Block:
+    #    # TODO: change this to be general, not hard coded to human/persona
+    #    if block.label == "human":
+    #        self.update_human(block)
+    #    elif block.label == "persona":
+    #        self.update_persona(block)
+    #    else:
+    #        raise ValueError(f"Block label {block.label} not recognized")
 
     def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
         del limit  # TODO: implement pagination as part of predicate
