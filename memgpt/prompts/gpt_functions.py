@@ -3,7 +3,7 @@ from ..constants import MAX_PAUSE_HEARTBEATS
 request_heartbeat = {
     "request_heartbeat": {
         "type": "boolean",
-        "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function."
+        "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function.",
     }
 }
 
