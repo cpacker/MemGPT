@@ -1,5 +1,5 @@
 # The builder image, used to build the virtual environment
-FROM python:3.12.2-bookworm as builder
+FROM python:3.12.2-bookworm AS builder
 ARG MEMGPT_ENVIRONMENT=PRODUCTION
 ENV MEMGPT_ENVIRONMENT=${MEMGPT_ENVIRONMENT}
 RUN pip install poetry==1.8.2
@@ -14,7 +14,7 @@ WORKDIR /app
 COPY pyproject.toml poetry.lock ./
 RUN poetry lock --no-update
 RUN if [ "$MEMGPT_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
-    poetry install --no-root -E "postgres server dev autogen" ; \
+    poetry install --no-root -E "postgres server dev autogen local" ; \
     else \
     poetry install --no-root -E "postgres server" && \
     rm -rf $POETRY_CACHE_DIR ;  \
@@ -22,7 +22,7 @@ RUN if [ "$MEMGPT_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
 
 
 # The runtime image, used to just run the code provided its virtual environment
-FROM python:3.12.2-slim-bookworm as runtime
+FROM python:3.12.2-slim-bookworm AS runtime
 ARG MEMGPT_ENVIRONMENT=PRODUCTION
 ENV MEMGPT_ENVIRONMENT=${MEMGPT_ENVIRONMENT}
 ENV VIRTUAL_ENV=/app/.venv \
@@ -37,7 +37,7 @@ EXPOSE 8083
 CMD ./memgpt/server/startup.sh
 
 # allow for in-container development and testing
-FROM builder as development
+FROM builder AS development
 ARG MEMGPT_ENVIRONMENT=PRODUCTION
 ENV MEMGPT_ENVIRONMENT=${MEMGPT_ENVIRONMENT}
 ENV VIRTUAL_ENV=/app/.venv \
