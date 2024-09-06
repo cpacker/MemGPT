@@ -18,7 +18,9 @@ class BaseBlock(MemGPTBase, validate_assignment=True):
     limit: int = Field(2000, description="Character limit of the block.")
 
     name: Optional[str] = Field(None, description="Name of the block.")
-    is_template: bool = Field(False, alias="template", description="Whether the block is a template (e.g. saved human/persona options).")
+    # is_template: bool = Field(False, alias="template", description="Whether the block is a template (e.g. saved human/persona options).")
+    is_template: bool = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
+
     label: Optional[str] = Field(None, description="Label of the block (e.g. 'human', 'persona').")
 
     # metadata
@@ -81,21 +83,21 @@ class Persona(Block):
 class CreateBlock(BaseBlock):
     """Create a block"""
 
-    template: bool = True
+    is_template: bool = True
     label: str = Field(..., description="Label of the block.")
 
 
 class CreatePersona(BaseBlock):
     """Create a persona block"""
 
-    template: bool = True
+    is_template: bool = True
     label: str = "persona"
 
 
 class CreateHuman(BaseBlock):
     """Create a human block"""
 
-    template: bool = True
+    is_template: bool = True
     label: str = "human"
 
 

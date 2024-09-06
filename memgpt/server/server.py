@@ -852,7 +852,7 @@ class SyncServer(Server):
         id: Optional[str] = None,
     ):
 
-        return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+        return self.ms.list_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
 
     def get_block(self, block_id: str):
 
@@ -864,14 +864,18 @@ class SyncServer(Server):
         return blocks[0]
 
     def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_blocks = self.ms.get_blocks(name=request.name, user_id=user_id, template=request.template, label=request.label)
-        if existing_blocks is not None:
+        existing_blocks = self.ms.list_blocks(name=request.name, user_id=user_id, is_template=request.is_template, label=request.label)
+        if existing_blocks is not None and len(existing_blocks) > 0:
             existing_block = existing_blocks[0]
             assert len(existing_blocks) == 1
             if update:
-                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)), user_id)
+                print("USER ID", user_id)
+                print(vars(request))
+                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
             else:
                 raise ValueError(f"Block with name {request.name} already exists")
+
+        print(vars(request))
         block = Block(**vars(request))
         self.ms.create_block(block)
         return block
@@ -916,10 +920,6 @@ class SyncServer(Server):
     def get_user(self, user_id: str) -> User:
         """Get the user"""
         return self.ms.get_user(user_id)
-
-    def get_user_default(self) -> User:
-        """Get the user"""
-        return SQLUser.default(db_session=self.ms.db_session)
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1584,27 +1584,6 @@ class SyncServer(Server):
         """List tools available to user_id"""
         tools = self.ms.list_tools(user_id)
         return tools
-
-    def add_default_blocks(self, user_id: str):
-        from memgpt.utils import (
-            get_human_text,
-            get_persona_text,
-            list_human_files,
-            list_persona_files,
-        )
-
-        assert user_id is not None, "User ID must be provided"
-
-        for persona_file in list_persona_files():
-            text = get_persona_text(persona_file.stem)
-            self.create_block(
-                CreatePersona(user_id=user_id, name=persona_file.stem, value=text, template=True), user_id=user_id, update=True
-            )
-
-        for human_file in list_human_files():
-            text = get_human_text(human_file.stem)
-            self.create_block(CreateHuman(user_id=user_id, name=human_file.stem, value=text, template=True), user_id=user_id, update=True)
-
 
 def get_agent_message(self, agent_id: str, message_id: str) -> Message:
     """Get a single message from the agent's memory"""

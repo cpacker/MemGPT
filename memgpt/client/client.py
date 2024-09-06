@@ -853,7 +853,7 @@ class LocalClient(AbstractClient):
         if user_id:
             self.user_id = user_id
         else:
-            self.user_id = str(self.server.get_user_default()._id)
+            self.user_id = str(self.server.get_current_user()._id)
 
     # agents
 

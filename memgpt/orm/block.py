@@ -8,6 +8,8 @@ from memgpt.orm.mixins import OrganizationMixin
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.schemas.block import Block as PydanticBlock
 from memgpt.schemas.block import Human, Persona
+import memgpt.utils as utils
+
 
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization
@@ -66,3 +68,14 @@ class Block(OrganizationMixin, SqlalchemyBase):
             case _:
                 Schema = PydanticBlock
         return Schema.model_validate(self)
+
+    @classmethod
+    def load_default_blocks(cls, db_session: "Session") -> None:
+        """populates the db with default blocks"""
+        org = Organization.default(db_session)
+        for scope in ("human", "persona"):
+            list_files = getattr(utils, f"list_{scope}_files")
+            get_text = getattr(utils, f"get_{scope}_text")
+            for file in list_files():
+            db_session.add(cls(organization=org, name=file.stem, label=scope, value=get_text(file.stem), is_template=True))
+        db_session.commit()

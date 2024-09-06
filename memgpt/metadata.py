@@ -9,6 +9,7 @@ from sqlalchemy.exc import NoResultFound
 
 from memgpt.log import get_logger
 from memgpt.orm.agent import Agent
+from memgpt.orm.block import Block as SQLBlock
 from memgpt.orm.enums import JobStatus
 from memgpt.orm.errors import NoResultFound
 from memgpt.orm.job import Job
@@ -21,7 +22,7 @@ from memgpt.orm.tool import Tool as SQLTool
 from memgpt.orm.user import User as SQLUser
 from memgpt.orm.utilities import get_db_session
 from memgpt.schemas.agent import AgentState as DataAgentState
-from memgpt.schemas.block import Human, Persona
+from memgpt.schemas.block import Block, Human, Persona
 from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.message import Message
@@ -231,7 +232,7 @@ class MetadataStore:
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org
                 def list(*args, **kwargs):
                     filters = kwargs.get("filters", {})
-                    if user_uuid := kwargs.get("id"):
+                    if user_uuid := kwargs.get("user_id"):
                         filters["_organization_id"] = SQLUser.read(self.db_session, user_uuid).organization._id
                     # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
                     return [r.to_pydantic() for r in Model.list(db_session=self.db_session, **filters)]
@@ -247,6 +248,10 @@ class MetadataStore:
     def update_persona(self, persona: Persona) -> "Persona":
         sql_persona = PersonaMemoryTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
         return sql_persona.to_pydantic()
+
+    def update_block(self, block: Block) -> "Block":
+        sql_block = SQLBlock(**block.model_dump(exclude_none=True)).create(self.db_session)
+        return sql_block.to_pydantic()
 
     def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
         del limit  # TODO: implement pagination as part of predicate
