@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pymemgpt"
-version = "0.3.22"
+version = "0.3.25"
 packages = [
     {include = "memgpt"}
 ]
@@ -78,6 +78,7 @@ ollama = ["llama-index-embeddings-ollama"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
+ipykernel = "^6.29.5"
 
 [tool.black]
 line-length = 140
