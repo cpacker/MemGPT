@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import HTTPException
 
+from memgpt.functions.schema_generator import generate_schema
 from memgpt.orm.utilities import get_db_session
 import memgpt.constants as constants
 import memgpt.server.utils as server_utils
@@ -920,7 +921,11 @@ class SyncServer(Server):
     def get_user(self, user_id: str) -> User:
         """Get the user"""
         return self.ms.get_user(user_id)
-
+    
+    def get_user_default(self) -> User:
+        """Get the user"""
+        return SQLUser.default(db_session=self.ms.db_session)
+    
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
         agent = self._get_or_load_agent(agent_id=agent_id)

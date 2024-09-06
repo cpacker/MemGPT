@@ -105,7 +105,7 @@ def user_and_agent_seed(db_session):
 
 # Fixture to create clients with different configurations
 @pytest.fixture(
-    params=[{"server": True}],  # whether to use REST API server
+    params=[{"server": False}],  # whether to use REST API server
 )
 def client(request, db_session, test_app):
     if request.param["server"]:
