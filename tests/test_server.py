@@ -8,7 +8,9 @@ from memgpt.constants import BASE_TOOLS
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
 from memgpt.schemas.agent import CreateAgent
+from memgpt.schemas.memgpt_message import MemGPTMessage
 from memgpt.schemas.memory import ChatMemory
+from memgpt.schemas.message import Message
 from memgpt.schemas.source import SourceCreate
 from memgpt.schemas.user import UserCreate
 from memgpt.server.server import SyncServer
@@ -83,7 +85,7 @@ def test_error_on_nonexistent_agent(server, user_id, agent_id):
 
 
 @pytest.mark.order(1)
-def test_user_message(server, user_id, agent_id):
+def test_user_message_memory(server, user_id, agent_id):
     try:
         server.user_message(user_id=user_id, agent_id=agent_id, message="/memory")
         raise Exception("user_message call should have failed")
@@ -223,3 +225,11 @@ def test_get_archival_memory(server, user_id, agent_id):
     # test safe empty return
     passage_none = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=1000, count=1000)
     assert len(passage_none) == 0
+
+
+def test_get_messages_memgpt_format(server, user_id, agent_id):
+    messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000)
+    assert all(isinstance(m, Message) for m in messages)
+
+    messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000, return_message_object=False)
+    assert all(isinstance(m, MemGPTMessage) for m in messages)

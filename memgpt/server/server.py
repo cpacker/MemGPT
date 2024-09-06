@@ -54,6 +54,7 @@ from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.memgpt_message import MemGPTMessage
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
@@ -990,7 +991,9 @@ class SyncServer(Server):
         message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
         return message
 
-    def get_agent_messages(self, agent_id: str, start: int, count: int) -> List[Message]:
+    def get_agent_messages(
+        self, agent_id: str, start: int, count: int, return_message_object: bool = True
+    ) -> Union[List[Message], List[MemGPTMessage]]:
         """Paginated query of all messages in agent message queue"""
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
@@ -1025,6 +1028,7 @@ class SyncServer(Server):
 
             # return messages in reverse chronological order
             messages = sorted(page, key=lambda x: x.created_at, reverse=True)
+            assert all(isinstance(m, Message) for m in messages)
 
             ## Convert to json
             ## Add a tag indicating in-context or not
@@ -1032,6 +1036,9 @@ class SyncServer(Server):
             # in_context_message_ids = [str(m.id) for m in memgpt_agent._messages]
             # for d in json_messages:
             #    d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
+
+        if not return_message_object:
+            messages = [msg for m in messages for msg in m.to_memgpt_message()]
 
         return messages
 

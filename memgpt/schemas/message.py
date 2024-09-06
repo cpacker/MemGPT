@@ -16,6 +16,7 @@ from memgpt.schemas.memgpt_message import (
     FunctionReturn,
     InternalMonologue,
     MemGPTMessage,
+    SystemMessage,
     UserMessage,
 )
 from memgpt.schemas.openai.chat_completions import ToolCall, ToolCallFunction
@@ -168,6 +169,16 @@ class Message(BaseMessage):
             assert self.text is not None, self
             messages.append(
                 UserMessage(
+                    id=self.id,
+                    date=self.created_at,
+                    message=self.text,
+                )
+            )
+        elif self.role == MessageRole.system:
+            # This is type SystemMessage
+            assert self.text is not None, self
+            messages.append(
+                SystemMessage(
                     id=self.id,
                     date=self.created_at,
                     message=self.text,
