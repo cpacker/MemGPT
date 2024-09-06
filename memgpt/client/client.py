@@ -1164,6 +1164,8 @@ class LocalClient(AbstractClient):
         source_code = parse_source_code(func)
         source_type = "python"
 
+        print("USER ID", self.user_id)
+
         # call server function
         return self.server.create_tool(
             # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),

@@ -3,6 +3,7 @@ import warnings
 from abc import abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
+from sqlalchemy.exc import IntegrityError
 
 from fastapi import HTTPException
 
@@ -636,11 +637,15 @@ class SyncServer(Server):
             embedding_config = request.embedding_config if request.embedding_config else self.server_embedding_config
 
             # get tools + make sure they exist
+            # TODO: cleanup this code
             tool_objs = []
             for tool_name in request.tools:
-                tool_obj = self.ms.get_tool(name=tool_name, user_id=user_id)
-                assert tool_obj, f"Tool {tool_name} does not exist"
-                tool_objs.append(tool_obj)
+                for tool_obj in self.ms.list_tools():
+                    if tool_obj.name == tool_name:
+                        tool_objs.append(tool_obj)
+                        break
+
+                # assert tool_obj, f"Tool {tool_name} does not exist"
 
             agent_state = AgentState(
                 name=request.name,
@@ -1543,7 +1548,11 @@ class SyncServer(Server):
 
             # TODO: not sure if this always works
             func = env[functions[-1]]
+            print("FUNCTIONS", functions)
             json_schema = generate_schema(func, request.name)
+            from pprint import pprint
+
+            pprint(json_schema)
         else:
             # provided by client
             json_schema = request.json_schema
@@ -1552,29 +1561,23 @@ class SyncServer(Server):
             # use name from JSON schema
             request.name = json_schema["name"]
             assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
-
-        # check if already exists:
-        tool_name = request.json_schema.get("name") if request.json_schema else request.name
-        existing_tool = self.ms.get_tool(name=tool_name, user_id=user_id)
-        if existing_tool:
-            if update:
-                updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
-                assert updated_tool is not None, f"Failed to update tool {request.name}"
-                return updated_tool
-            else:
-                raise ValueError(f"Tool {request.name} already exists and update=False")
-
-        tool = Tool(
-            name=request.name,
-            source_code=request.source_code,
-            source_type=request.source_type,
-            tags=request.tags,
-            json_schema=json_schema,
-            user_id=user_id,
-        )
-        self.ms.create_tool(tool)
-        created_tool = self.ms.get_tool(name=request.name, user_id=user_id)
-        return created_tool
+        try:
+            print("SAVING SCHEMA", json_schema)
+            assert json_schema is not None, "JSON schema must be provided"
+            print("user_id", user_id)
+            tool = Tool(
+                name=request.name,
+                source_code=request.source_code,
+                source_type=request.source_type,
+                tags=request.tags,
+                json_schema=json_schema,
+                # user_id=user_id,
+            )
+            return self.ms.create_tool(tool)
+        except IntegrityError as e:
+            if not update:
+                raise e
+            return self.update_tool(ToolUpdate(id=tool_id, **vars(request)))
 
     def delete_tool(self, tool_id: str):
         """Delete a tool"""

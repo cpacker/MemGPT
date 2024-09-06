@@ -108,7 +108,7 @@ class MetadataStore:
 
         if agent_state.tools:
             splatted_pydantic["tools"] = [
-                SQLTool.read(self.db_session, name=r) if not isinstance(r, Tool) else r.to_sqlalchemy() for r in agent_state.tools
+                SQLTool.read_by_name(self.db_session, name=r) if not isinstance(r, Tool) else r.to_sqlalchemy() for r in agent_state.tools
             ]
         if agent_state.message_ids and action == "create":
             splatted_pydantic["messages"] = [
@@ -150,17 +150,6 @@ class MetadataStore:
 
     def list_blocks(self, **kwargs) -> List[Block]:
         return self.list_block(**kwargs)
-
-    def get_tool(self, id: Optional[str] = None, name: Optional[str] = None, user_id: Optional[str] = None) -> Optional[Tool]:
-        try:
-            if id:
-                return SQLTool.read(self.db_session, identifier=id).to_pydantic()
-            if name:
-                return SQLTool.read(self.db_session, name=name).to_pydantic()
-            else:
-                return None
-        except NoResultFound:
-            return None
 
     def get_organization(self, name: str = "Default Organization") -> SQLOrganization:
         return SQLOrganization.default(self.db_session)

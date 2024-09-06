@@ -583,8 +583,10 @@ def run(
 
         # create agent
         client = create_client()
+        print("crated client", client.user_id)
         human_obj = client.get_human(client.get_human_id(name=human))
         persona_obj = client.get_persona(client.get_persona_id(name=persona))
+        print("get humans", client.user_id)
         if human_obj is None:
             typer.secho(f"Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
             sys.exit(1)
@@ -603,9 +605,12 @@ def run(
 
         memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
         metadata = {"human": human_obj.name, "persona": persona_obj.name}
+        print("created memory", client.user_id)
 
         typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
         typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
+
+        print("before create agent", client.user_id)
 
         # add tools
         agent_state = client.create_agent(
@@ -616,6 +621,8 @@ def run(
             memory=memory,
             metadata=metadata,
         )
+
+        print(client.user_id)
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
         typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
         tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]

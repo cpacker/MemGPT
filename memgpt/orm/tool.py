@@ -46,19 +46,10 @@ class Tool(SqlalchemyBase, OrganizationMixin):
     organization: Mapped["Organization"] = relationship("Organization", back_populates="tools", lazy="selectin")
 
     @classmethod
-    def read(cls, db_session:"Session", identifier:Optional[str] = None, name:Optional[str] = None) -> "Tool":
-        if name:
-            if found := db_session.query(cls).filter(cls.name == name, cls.is_deleted == False).scalar():
-                return found
-        elif identifier:
-            return cls.read_by_id(db_session, identifier)
-        raise NoResultFound(f"{cls.__name__} with name {name} not found")
-
-    @classmethod
-    def read_by_id(cls, db_session: "Session", id: str) -> "Tool":
-        if found := db_session.query(cls).filter(cls.id == id, cls.is_deleted == False).scalar():
+    def read_by_name(cls, db_session: "Session", name: str) -> "Tool":
+        if found := db_session.query(cls).filter(cls.name == name, cls.is_deleted == False).scalar():
             return found
-        raise NoResultFound(f"{cls.__name__} with id {id} not found")
+        raise NoResultFound(f"{cls.__name__} with name {name} not found")
 
     @classmethod
     def load_default_tools(cls, db_session: "Session") -> None:
