@@ -815,28 +815,15 @@ class LocalClient(AbstractClient):
         """
         self.auto_save = auto_save
 
-        ## determine user_id (pulled from local config)
-        # config = config or MemGPTConfig.load()
-        # if user_id:
-        #    self.user_id = user_id
-        # else:
-        #    # TODO: find a neater way to do this
-        #    self.user_id = config.anon_clientid
-
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
         self.user_id = self.server.get_current_user()
         print(f"User ID: {self.user_id}")
 
-        ## create user if does not exist
-        # existing_user = self.server.get_user(self.user_id)
-        # if not existing_user:
-        #    self.user = self.server.create_user(UserCreate())
-        #    self.user_id = self.user.id
-
-        #    # update config
-        #    config.anon_clientid = str(self.user_id)
-        #    config.save()
+        if user_id:
+            self.user_id = user_id
+        else:
+            self.user_id = self.server.get_user_default()._id
 
     # agents
 
