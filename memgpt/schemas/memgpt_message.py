@@ -29,6 +29,19 @@ class MemGPTMessage(BaseModel):
         return dt.isoformat(timespec="seconds")
 
 
+class UserMessage(MemGPTMessage):
+    """
+    A message sent by the user. Never streamed back on a response, only used for cursor pagination.
+
+    Attributes:
+        message (str): The message sent by the user
+        id (str): The ID of the message
+        date (datetime): The date the message was created in ISO format
+    """
+
+    message: str
+
+
 class InternalMonologue(MemGPTMessage):
     """
     Representation of an agent's internal monologue.

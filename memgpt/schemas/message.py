@@ -2,7 +2,7 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from pydantic import Field, field_validator
 
@@ -10,7 +10,14 @@ from memgpt.constants import TOOL_CALL_ID_MAX_LEN
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 from memgpt.schemas.enums import MessageRole
 from memgpt.schemas.memgpt_base import MemGPTBase
-from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
+from memgpt.schemas.memgpt_message import (
+    FunctionCall,
+    FunctionCallMessage,
+    FunctionReturn,
+    InternalMonologue,
+    MemGPTMessage,
+    UserMessage,
+)
 from memgpt.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from memgpt.utils import get_utc_time, is_utc_datetime, json_dumps
 
@@ -96,11 +103,80 @@ class Message(BaseMessage):
         json_message["created_at"] = self.created_at.isoformat()
         return json_message
 
-    def to_memgpt_message(self) -> Union[List[MemGPTMessage], List[LegacyMemGPTMessage]]:
+    def to_memgpt_message(self) -> List[MemGPTMessage]:
         """Convert message object (in DB format) to the style used by the original MemGPT API"""
 
-        # NOTE: this may split the message into two pieces (e.g. if the assistant has inner thoughts + function call)
-        raise NotImplementedError
+        messages = []
+
+        if self.role == MessageRole.assistant:
+            # TODO: split the message into inner thoughts + function call
+            if self.text is not None:
+                # This is InnerThoughts
+                messages.append(
+                    InternalMonologue(
+                        id=self.id,
+                        date=self.created_at,
+                        internal_monologue=self.text,
+                    )
+                )
+            if self.tool_calls is not None:
+                for tool_call in self.tool_calls:
+                    messages.append(
+                        FunctionCallMessage(
+                            id=self.id,
+                            date=self.created_at,
+                            function_call=FunctionCall(
+                                name=tool_call.function.name,
+                                arguments=tool_call.function.arguments,
+                            ),
+                        )
+                    )
+        elif self.role == MessageRole.tool:
+            # This is type FunctionCall
+            # Try to interpret the function return, recall that this is how we packaged:
+            # def package_function_response(was_success, response_string, timestamp=None):
+            #     formatted_time = get_local_time() if timestamp is None else timestamp
+            #     packaged_message = {
+            #         "status": "OK" if was_success else "Failed",
+            #         "message": response_string,
+            #         "time": formatted_time,
+            #     }
+            assert self.text is not None, self
+            try:
+                function_return = json.loads(self.text)
+                status = function_return["status"]
+                if status == "OK":
+                    status_enum = "success"
+                elif status == "Failed":
+                    status_enum = "error"
+                else:
+                    raise ValueError(f"Invalid status: {status}")
+            except json.JSONDecodeError:
+                raise ValueError(f"Failed to decode function return: {self.text}")
+            messages.append(
+                # TODO make sure this is what the API returns
+                # function_return may not match exactly...
+                FunctionReturn(
+                    id=self.id,
+                    date=self.created_at,
+                    function_return=self.text,
+                    status=status_enum,
+                )
+            )
+        elif self.role == MessageRole.user:
+            # This is type UserMessage
+            assert self.text is not None, self
+            messages.append(
+                UserMessage(
+                    id=self.id,
+                    date=self.created_at,
+                    message=self.text,
+                )
+            )
+        else:
+            raise ValueError(self.role)
+
+        return messages
 
     @staticmethod
     def dict_to_message(
