@@ -4,11 +4,19 @@ import pytest
 
 import memgpt.utils as utils
 from memgpt.constants import BASE_TOOLS
+from memgpt.schemas.enums import MessageRole
 
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
 from memgpt.schemas.agent import CreateAgent
-from memgpt.schemas.memgpt_message import MemGPTMessage
+from memgpt.schemas.memgpt_message import (
+    FunctionCallMessage,
+    FunctionReturn,
+    InternalMonologue,
+    MemGPTMessage,
+    SystemMessage,
+    UserMessage,
+)
 from memgpt.schemas.memory import ChatMemory
 from memgpt.schemas.message import Message
 from memgpt.schemas.source import SourceCreate
@@ -231,5 +239,48 @@ def test_get_messages_memgpt_format(server, user_id, agent_id):
     messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000)
     assert all(isinstance(m, Message) for m in messages)
 
-    messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000, return_message_object=False)
-    assert all(isinstance(m, MemGPTMessage) for m in messages)
+    memgpt_messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000, return_message_object=False)
+    assert all(isinstance(m, MemGPTMessage) for m in memgpt_messages)
+
+    # Loop through `messages` while also looping through `memgpt_messages`
+    # Each message in `messages` should have 1+ corresponding messages in `memgpt_messages`
+    # If role of message (in `messages`) is `assistant`,
+    # then there should be two messages in `memgpt_messages`, one which is type InternalMonologue and one which is type FunctionCallMessage.
+    # If role of message (in `messages`) is `user`, then there should be one message in `memgpt_messages` which is type UserMessage.
+    # If role of message (in `messages`) is `system`, then there should be one message in `memgpt_messages` which is type SystemMessage.
+    # If role of message (in `messages`) is `tool`, then there should be one message in `memgpt_messages` which is type FunctionReturn.
+
+    for m in messages:
+        # print(m)
+        print(m.role, m.text[:50])
+        # print(m.role)
+    print("###")
+    for m in memgpt_messages:
+        print(type(m))
+
+    for message in messages:
+        memgpt_message_index = 0
+        while memgpt_message_index < len(memgpt_messages):
+            memgpt_message = memgpt_messages[memgpt_message_index]
+
+            if message.role == MessageRole.assistant:
+                # Assistant messages should have two corresponding MemGPT messages
+                assert isinstance(memgpt_message, InternalMonologue)
+                memgpt_message_index += 1
+                if memgpt_message_index < len(memgpt_messages):
+                    assert isinstance(memgpt_messages[memgpt_message_index], FunctionCallMessage)
+                    memgpt_message_index += 1
+            elif message.role == MessageRole.user:
+                assert isinstance(memgpt_message, UserMessage)
+                memgpt_message_index += 1
+            elif message.role == MessageRole.system:
+                assert isinstance(memgpt_message, SystemMessage)
+                memgpt_message_index += 1
+            elif message.role == MessageRole.tool:
+                assert isinstance(memgpt_message, FunctionReturn)
+                memgpt_message_index += 1
+            else:
+                raise ValueError(f"Unexpected message role: {message.role}")
+
+            # Move to the next message in the original messages list
+            break

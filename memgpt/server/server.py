@@ -992,7 +992,11 @@ class SyncServer(Server):
         return message
 
     def get_agent_messages(
-        self, agent_id: str, start: int, count: int, return_message_object: bool = True
+        self,
+        agent_id: str,
+        start: int,
+        count: int,
+        return_message_object: bool = True,
     ) -> Union[List[Message], List[MemGPTMessage]]:
         """Paginated query of all messages in agent message queue"""
         # Get the agent object (loaded in memory)
@@ -1125,7 +1129,8 @@ class SyncServer(Server):
         order_by: Optional[str] = "created_at",
         order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
-    ) -> List[Message]:
+        return_message_object: bool = True,
+    ) -> Union[List[Message], List[MemGPTMessage]]:
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
@@ -1138,6 +1143,12 @@ class SyncServer(Server):
         cursor, records = memgpt_agent.persistence_manager.recall_memory.storage.get_all_cursor(
             after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
         )
+
+        assert all(isinstance(m, Message) for m in records)
+
+        if not return_message_object:
+            records = [msg for m in records for msg in m.to_memgpt_message()]
+
         return records
 
     def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> Optional[AgentState]:
