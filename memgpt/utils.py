@@ -780,6 +780,29 @@ def count_tokens(s: str, model: str = "gpt-4") -> int:
     return len(encoding.encode(s))
 
 
+def truncate_to_token_limit(message: str, token_limit: int, model: str = "gpt-4") -> str:
+    """
+    Truncate the message to ensure it does not exceed the token limit.
+
+    Args:
+        message (str): The message to be truncated.
+        token_limit (int): The maximum number of tokens allowed.
+        model (str): The model to use for token encoding.
+
+    Returns:
+        str: The truncated message.
+    """
+    encoding = tiktoken.encoding_for_model(model)
+    tokens = encoding.encode(message)
+    if len(tokens) <= token_limit:
+        return message
+
+    truncated_tokens = tokens[:token_limit]
+    truncated_message = encoding.decode(truncated_tokens)
+
+    return truncated_message
+
+
 def printd(*args, **kwargs):
     if DEBUG:
         print(*args, **kwargs)

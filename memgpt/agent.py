@@ -42,6 +42,7 @@ from memgpt.utils import (
     is_utc_datetime,
     parse_json,
     printd,
+    truncate_to_token_limit,
     united_diff,
     validate_function_response,
     verify_first_message_correctness,
@@ -805,6 +806,15 @@ class Agent(object):
         # Start at index 1 (past the system message),
         # and collect messages for summarization until we reach the desired truncation token fraction (eg 50%)
         # Do not allow truncation of the last N messages, since these are needed for in-context examples of function calling
+
+        # Get the context window size from the LLM config, or default to maximum if not defined
+        context_window = self.agent_state.llm_config.context_window
+        if context_window is None:
+            context_window = LLM_MAX_TOKENS.get(self.model, LLM_MAX_TOKENS["DEFAULT"])
+
+        # Set a token limit for individual messages
+        MAX_MESSAGE_TOKENS = int(0.4 * context_window)
+
         token_counts = [count_tokens(str(msg)) for msg in self.messages]
         message_buffer_token_count = sum(token_counts[1:])  # no system message
         desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
@@ -837,12 +847,18 @@ class Agent(object):
                 f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(self.messages)}, preserve_N={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}]"
             )
 
+        # Exclude or truncate overly large messages
+        candidate_messages_to_summarize = [
+            msg if count_tokens(str(msg)) <= MAX_MESSAGE_TOKENS else truncate_to_token_limit(str(msg), MAX_MESSAGE_TOKENS)
+            for msg in candidate_messages_to_summarize
+        ]
+
         # Walk down the message buffer (front-to-back) until we hit the target token count
         tokens_so_far = 0
         cutoff = 0
         for i, msg in enumerate(candidate_messages_to_summarize):
             cutoff = i
-            tokens_so_far += token_counts[i]
+            tokens_so_far += count_tokens(str(msg))
             if tokens_so_far > desired_token_count_to_summarize:
                 break
         # Account for system message
