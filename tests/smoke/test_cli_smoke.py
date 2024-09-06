@@ -1,5 +1,6 @@
 from pytest import mark as m
 
+
 @m.describe("When interacting with MemGPT via the command line tool")
 class TestCLIClient:
 

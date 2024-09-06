@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from typing import Optional
 
 import memgpt
-from memgpt.settings import settings
 import memgpt.utils as utils
 from memgpt.constants import MEMGPT_DIR
 from memgpt.log import get_logger
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.settings import settings
 
 logger = get_logger(__name__)
 
@@ -80,6 +80,7 @@ class MemGPTConfig:
     # Default memory limits
     core_memory_persona_char_limit: int = 2000
     core_memory_human_char_limit: int = 2000
+
     def __post_init__(self):
         # ensure types
         # self.embedding_chunk_size = int(self.embedding_chunk_size)

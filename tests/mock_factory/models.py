@@ -1,16 +1,16 @@
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
-from copy import deepcopy
+
 from faker import Faker
 
-from memgpt.orm.organization import Organization
+from memgpt.config import MemGPTConfig
 from memgpt.orm.agent import Agent
-from memgpt.orm.user import User
-from memgpt.orm.tool import Tool
+from memgpt.orm.organization import Organization
 from memgpt.orm.source import Source
 from memgpt.orm.token import Token
-
-from memgpt.config import MemGPTConfig
+from memgpt.orm.tool import Tool
+from memgpt.orm.user import User
 
 config = MemGPTConfig.load()
 
@@ -69,6 +69,7 @@ class MockUserFactory(BaseMockFactory):
 
 class MockAgentFactory(BaseMockFactory):
     __model__ = Agent
+
     # TDODO: these defaults should be in the model
     def __init__(self, db_session: "Session", **kwargs):
         self.default_dict = {
@@ -93,6 +94,7 @@ class MockToolFactory(BaseMockFactory):
             "tags": ["test"],
         }
         super().__init__(db_session, **kwargs)
+
 
 class MockSourceFactory(BaseMockFactory):
     __model__ = Source

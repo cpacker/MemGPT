@@ -1,24 +1,25 @@
-from typing import TYPE_CHECKING
 import uuid
-from logging import getLogger
-from typing import Optional
-from uuid import UUID
-from humps import pascalize
 from importlib import import_module
+from logging import getLogger
+from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
+from humps import pascalize
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.errors import NoResultFound
+from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+
     from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 
 # from: https://gist.github.com/norton120/22242eadb80bf2cf1dd54a961b151c61
 
 
 logger = getLogger(__name__)
+
 
 def get_paired_model(model_name: str) -> "SqlalchemyBase":
     """gets a sqlalchemy model for a pydantic model"""
@@ -27,6 +28,7 @@ def get_paired_model(model_name: str) -> "SqlalchemyBase":
     if Model is None:
         raise AttributeError(f"SQL Model {model_name} not found")
     return Model
+
 
 class MemGPTBase(BaseModel):
     """Base schema for MemGPT schemas (does not include model provider schemas, e.g. OpenAI)"""

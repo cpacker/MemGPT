@@ -13,9 +13,9 @@ import os
 
 import autogen
 
-from memgpt.settings import settings
 from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
 from memgpt.constants import LLM_MAX_TOKENS
+from memgpt.settings import settings
 
 LLM_BACKEND = "openai"
 # LLM_BACKEND = "azure"

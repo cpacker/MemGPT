@@ -1,7 +1,9 @@
 from typing import List
+
 from pydantic import BaseModel, Field
 
 from memgpt.schemas.block import Human
+
 
 class ListHumansResponse(BaseModel):
     humans: List[Human] = Field(..., description="List of human configurations.")

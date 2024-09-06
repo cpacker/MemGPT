@@ -1,5 +1,6 @@
 from pytest import mark as m
 
+
 @m.describe("When calling the MemGPT REST API")
 class TestAPI:
 

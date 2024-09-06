@@ -12,7 +12,6 @@ import requests
 import typer
 
 import memgpt.utils as utils
-from memgpt.settings import settings
 from memgpt import create_client
 from memgpt.agent import Agent, save_agent
 from memgpt.cli.cli_config import configure
@@ -25,9 +24,7 @@ from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ChatMemory, Memory
-from memgpt.server.constants import WS_DEFAULT_PORT
-from memgpt.cli.start_remote_server import start_server
-from memgpt.server.server import logger as server_logger
+from memgpt.settings import settings
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import (
@@ -323,6 +320,7 @@ def server(
 
         try:
             from memgpt.cli.start_remote_server import start_server
+
             start_server(
                 port=port,
                 host=host,
@@ -335,10 +333,9 @@ def server(
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
-        port = port or 8282 # WS default
+        port = port or 8282  # WS default
         if debug:
             settings.debug = debug
-
 
         # Change to the desired directory
         script_path = Path(__file__).resolve()
