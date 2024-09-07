@@ -235,11 +235,26 @@ def test_get_archival_memory(server, user_id, agent_id):
     assert len(passage_none) == 0
 
 
-def test_get_messages_memgpt_format(server, user_id, agent_id):
-    messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000)
+def _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=False):
+    """Reverse is off by default, the GET goes in chronological order"""
+
+    messages = server.get_agent_recall_cursor(
+        user_id=user_id,
+        agent_id=agent_id,
+        limit=1000,
+        reverse=reverse,
+    )
+    # messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000)
     assert all(isinstance(m, Message) for m in messages)
 
-    memgpt_messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000, return_message_object=False)
+    memgpt_messages = server.get_agent_recall_cursor(
+        user_id=user_id,
+        agent_id=agent_id,
+        limit=1000,
+        reverse=reverse,
+        return_message_object=False,
+    )
+    # memgpt_messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000, return_message_object=False)
     assert all(isinstance(m, MemGPTMessage) for m in memgpt_messages)
 
     # Loop through `messages` while also looping through `memgpt_messages`
@@ -250,37 +265,105 @@ def test_get_messages_memgpt_format(server, user_id, agent_id):
     # If role of message (in `messages`) is `system`, then there should be one message in `memgpt_messages` which is type SystemMessage.
     # If role of message (in `messages`) is `tool`, then there should be one message in `memgpt_messages` which is type FunctionReturn.
 
-    for m in messages:
+    print("MESSAGES (obj):")
+    for i, m in enumerate(messages):
         # print(m)
-        print(m.role, m.text[:50])
+        print(f"{i}: {m.role}, {m.text[:50]}...")
         # print(m.role)
-    print("###")
-    for m in memgpt_messages:
-        print(type(m))
 
-    for message in messages:
-        memgpt_message_index = 0
+    print("MEMGPT_MESSAGES:")
+    for i, m in enumerate(memgpt_messages):
+        print(f"{i}: {type(m)} ...{str(m)[-50:]}")
+
+    # Collect system messages and their texts
+    system_messages = [m for m in messages if m.role == MessageRole.system]
+    system_texts = [m.text for m in system_messages]
+
+    # If there are multiple system messages, print the diff
+    if len(system_messages) > 1:
+        print("Differences between system messages:")
+        for i in range(len(system_texts) - 1):
+            for j in range(i + 1, len(system_texts)):
+                import difflib
+
+                diff = difflib.unified_diff(
+                    system_texts[i].splitlines(),
+                    system_texts[j].splitlines(),
+                    fromfile=f"System Message {i+1}",
+                    tofile=f"System Message {j+1}",
+                    lineterm="",
+                )
+                print("\n".join(diff))
+    else:
+        print("There is only one or no system message.")
+
+    memgpt_message_index = 0
+    for i, message in enumerate(messages):
+        print(f"\n\nmessage {i}: {message.role}, {message.text[:50]}")
         while memgpt_message_index < len(memgpt_messages):
             memgpt_message = memgpt_messages[memgpt_message_index]
+            print(f"memgpt_message {memgpt_message_index}: {str(memgpt_message)[:50]}")
 
             if message.role == MessageRole.assistant:
-                # Assistant messages should have two corresponding MemGPT messages
-                assert isinstance(memgpt_message, InternalMonologue)
-                memgpt_message_index += 1
-                if memgpt_message_index < len(memgpt_messages):
-                    assert isinstance(memgpt_messages[memgpt_message_index], FunctionCallMessage)
-                    memgpt_message_index += 1
+                print(f"i={i}, M=assistant, MM={type(memgpt_message)}")
+
+                # If reverse, function call will come first
+                if reverse:
+
+                    # If there are multiple tool calls, we should have multiple back to back FunctionCallMessages
+                    if message.tool_calls is not None:
+                        for tool_call in message.tool_calls:
+                            assert isinstance(memgpt_message, FunctionCallMessage)
+                            memgpt_message_index += 1
+                            memgpt_message = memgpt_messages[memgpt_message_index]
+
+                    if message.text is not None:
+                        assert isinstance(memgpt_message, InternalMonologue)
+                        memgpt_message_index += 1
+                        memgpt_message = memgpt_messages[memgpt_message_index]
+                    else:
+                        # If there's no inner thoughts then there needs to be a tool call
+                        assert message.tool_calls is not None
+
+                else:
+
+                    if message.text is not None:
+                        assert isinstance(memgpt_message, InternalMonologue)
+                        memgpt_message_index += 1
+                        memgpt_message = memgpt_messages[memgpt_message_index]
+                    else:
+                        # If there's no inner thoughts then there needs to be a tool call
+                        assert message.tool_calls is not None
+
+                    # If there are multiple tool calls, we should have multiple back to back FunctionCallMessages
+                    if message.tool_calls is not None:
+                        for tool_call in message.tool_calls:
+                            assert isinstance(memgpt_message, FunctionCallMessage)
+                            memgpt_message_index += 1
+                            memgpt_message = memgpt_messages[memgpt_message_index]
+
             elif message.role == MessageRole.user:
+                print(f"i={i}, M=user, MM={type(memgpt_message)}")
                 assert isinstance(memgpt_message, UserMessage)
                 memgpt_message_index += 1
+
             elif message.role == MessageRole.system:
+                print(f"i={i}, M=system, MM={type(memgpt_message)}")
                 assert isinstance(memgpt_message, SystemMessage)
                 memgpt_message_index += 1
+
             elif message.role == MessageRole.tool:
+                print(f"i={i}, M=tool, MM={type(memgpt_message)}")
                 assert isinstance(memgpt_message, FunctionReturn)
                 memgpt_message_index += 1
+
             else:
                 raise ValueError(f"Unexpected message role: {message.role}")
 
             # Move to the next message in the original messages list
             break
+
+
+def test_get_messages_memgpt_format(server, user_id, agent_id):
+    _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=False)
+    _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=True)
