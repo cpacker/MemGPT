@@ -48,9 +48,7 @@ def get_completions_settings(defaults="simple") -> dict:
             with open(settings_file, "r", encoding="utf-8") as file:
                 user_settings = json.load(file)
             if len(user_settings) > 0:
-                printd(
-                    f"Updating base settings with the following user settings:\n{json_dumps(user_settings,indent=2)}"
-                )
+                printd(f"Updating base settings with the following user settings:\n{json_dumps(user_settings,indent=2)}")
                 settings.update(user_settings)
             else:
                 printd(f"'{settings_file}' was empty, ignoring...")

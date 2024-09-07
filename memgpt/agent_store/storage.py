@@ -5,7 +5,7 @@ We originally tried to use Llama Index VectorIndex, but their limited API was ex
 
 import uuid
 from abc import abstractmethod
-from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, Union
 
 from memgpt.config import MemGPTConfig
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase as SQLBase
@@ -38,7 +38,6 @@ class StorageConnector:
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
-    
     @staticmethod
     def get_storage_connector(
         table_type: TableType,
@@ -58,9 +57,11 @@ class StorageConnector:
         match storage_type:
             case "postgres":
                 from memgpt.agent_store.db import PostgresStorageConnector
+
                 return PostgresStorageConnector(table_type, config, user_id, agent_id)
             case "sqlite":
                 from memgpt.agent_store.db import SQLLiteStorageConnector
+
                 return SQLLiteStorageConnector(table_type, config, user_id, agent_id)
             # TODO: implement other storage types
             # case "chroma":

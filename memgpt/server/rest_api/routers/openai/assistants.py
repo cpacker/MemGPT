@@ -1,27 +1,21 @@
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from fastapi import APIRouter, Body, HTTPException, Path, Query
 
-from memgpt.settings import settings
+from memgpt.models.openai import AssistantFile, OpenAIAssistant
 from memgpt.server.schemas.openai.assistants import (
     CreateAssistantFileRequest,
     CreateAssistantRequest,
     DeleteAssistantFileResponse,
     DeleteAssistantResponse,
 )
-from memgpt.models.openai import (
-    AssistantFile,
-    OpenAIAssistant,
-)
-
+from memgpt.settings import settings
 
 if TYPE_CHECKING:
-    from memgpt.orm.user import User
-    from memgpt.server.server import SyncServer
-    from memgpt.server.rest_api.interface import QueuingInterface
     from memgpt.utils import get_utc_time
 
 router = APIRouter(prefix="/v1/assistants", tags=["assistants"])
+
 
 @router.post("/", response_model=OpenAIAssistant)
 def create_assistant(
@@ -40,6 +34,7 @@ def create_assistant(
         metadata=request.metadata,
     )
 
+
 @router.post("/{assistant_id}/files", response_model=AssistantFile)
 def create_assistant_file(
     assistant_id: str = Path(..., description="The unique identifier of the assistant."),
@@ -52,34 +47,29 @@ def create_assistant_file(
         assistant_id=assistant_id,
     )
 
+
 @router.get("/", response_model=List[OpenAIAssistant])
 def list_assistants(
     limit: int = Query(1000, description="How many assistants to retrieve."),
     order: str = Query("asc", description="Order of assistants to retrieve (either 'asc' or 'desc')."),
-    after: str = Query(
-        None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."
-    ),
-    before: str = Query(
-        None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."
-    ),
+    after: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
+    before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
 ):
     # TODO: implement list assistants (i.e. list available MemGPT presets)
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
+
 
 @router.get("/{assistant_id}/files", response_model=List[AssistantFile])
 def list_assistant_files(
     assistant_id: str = Path(..., description="The unique identifier of the assistant."),
     limit: int = Query(1000, description="How many files to retrieve."),
     order: str = Query("asc", description="Order of files to retrieve (either 'asc' or 'desc')."),
-    after: str = Query(
-        None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."
-    ),
-    before: str = Query(
-        None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."
-    ),
+    after: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
+    before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
 ):
     # TODO: list attached data sources to preset
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
+
 
 @router.get("/{assistant_id}", response_model=OpenAIAssistant)
 def retrieve_assistant(
@@ -87,6 +77,7 @@ def retrieve_assistant(
 ):
     # TODO: get and return preset
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
+
 
 @router.get("//{assistant_id}/files/{file_id}", response_model=AssistantFile)
 def retrieve_assistant_file(
@@ -96,6 +87,7 @@ def retrieve_assistant_file(
     # TODO: return data source attached to preset
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
+
 @router.post("/{assistant_id}", response_model=OpenAIAssistant)
 def modify_assistant(
     assistant_id: str = Path(..., description="The unique identifier of the assistant."),
@@ -104,12 +96,14 @@ def modify_assistant(
     # TODO: modify preset
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
 
+
 @router.delete("//{assistant_id}", response_model=DeleteAssistantResponse)
 def delete_assistant(
     assistant_id: str = Path(..., description="The unique identifier of the assistant."),
 ):
     # TODO: delete preset
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
+
 
 @router.delete("/{assistant_id}/files/{file_id}", response_model=DeleteAssistantFileResponse)
 def delete_assistant_file(
@@ -118,6 +112,3 @@ def delete_assistant_file(
 ):
     # TODO: delete source on preset
     raise HTTPException(status_code=404, detail="Not yet implemented (coming soon)")
-
-
-

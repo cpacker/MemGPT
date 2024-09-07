@@ -10,7 +10,6 @@ from autogen.agentchat import (
     UserProxyAgent,
 )
 
-from memgpt.settings import settings
 import memgpt.constants as constants
 import memgpt.system as system
 import memgpt.utils as utils
@@ -21,11 +20,12 @@ from memgpt.autogen.interface import AutoGenInterface
 from memgpt.cli.cli_load import load_directory, load_vector_database
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
-from memgpt.schemas.enums import TableType
+from memgpt.metadata import MetadataStore
 from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.enums import TableType
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.user import User
-from memgpt.metadata import MetadataStore
+from memgpt.settings import settings
 from memgpt.utils import get_human_text, get_persona_text
 
 

@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Body, Depends, HTTPException
 from typing import List
+
+from fastapi import APIRouter, Body, Depends, HTTPException
 
 from memgpt.schemas.tool import Tool, ToolCreate
 from memgpt.server.rest_api.utils import get_memgpt_server
@@ -17,7 +18,7 @@ def delete_tool(
     Delete a tool by name
     """
     actor = server.get_current_user()
-    
+
     server.ms.delete_tool(id=tool_id, user_id=actor.id)
 
 
@@ -31,7 +32,7 @@ def get_tool(
     """
     actor = server.get_current_user()
     # Clear the interface
-    
+
     if tool := server.ms.get_tool(tool_id=tool_id, user_id=actor.id):
         return tool
     # return 404 error
@@ -48,7 +49,7 @@ def list_all_tools(
     """
     actor = server.get_current_user()
     # Clear the interface
-    
+
     return server.ms.list_tools(user_id=actor.id)
 
 

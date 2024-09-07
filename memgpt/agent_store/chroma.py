@@ -5,8 +5,8 @@ from chromadb.api.types import Include
 
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
-from memgpt.schemas.enums import TableType
 from memgpt.schemas.embedding_config import EmbeddingConfig
+from memgpt.schemas.enums import TableType
 from memgpt.schemas.passage import Passage
 from memgpt.utils import datetime_to_timestamp, printd, timestamp_to_datetime
 

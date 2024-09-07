@@ -1,25 +1,27 @@
 from typing import TYPE_CHECKING, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
 
-from memgpt.server.rest_api.utils import  get_memgpt_server
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
+
+from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.server.schemas.users import (
-    CreateUserRequest,
-    CreateUserResponse,
     CreateAPIKeyRequest,
     CreateAPIKeyResponse,
-    GetAPIKeysResponse,
+    CreateUserRequest,
+    CreateUserResponse,
     DeleteAPIKeyResponse,
     DeleteUserResponse,
     GetAllUsersResponse,
+    GetAPIKeysResponse,
 )
 
 if TYPE_CHECKING:
     from uuid import UUID
+
     from memgpt.schemas.user import User
     from memgpt.server.server import SyncServer
 
 
-router = APIRouter(prefix="/users", tags=["users","admin"])
+router = APIRouter(prefix="/users", tags=["users", "admin"])
 
 
 @router.get("/users", tags=["admin"], response_model=GetAllUsersResponse)
@@ -27,7 +29,7 @@ def get_all_users(
     cursor: Optional["UUID"] = Query(None),
     limit: Optional[int] = Query(50),
     server: SyncServer = Depends(get_memgpt_server),
-    ):
+):
     """
     Get a list of all users in the database
     """
@@ -40,11 +42,12 @@ def get_all_users(
         raise HTTPException(status_code=500, detail=f"{e}")
     return GetAllUsersResponse(cursor=next_cursor, user_list=processed_users)
 
+
 @router.post("/users", tags=["admin"], response_model=CreateUserResponse)
 def create_user(
     request: Optional[CreateUserRequest] = Body(None),
     server: SyncServer = Depends(get_memgpt_server),
-    ):
+):
     """
     Create a new user in the database
     """
@@ -73,6 +76,7 @@ def create_user(
         raise HTTPException(status_code=500, detail=f"{e}")
     return CreateUserResponse(user_id=new_user_ret.id, api_key=token.token)
 
+
 @router.delete("/users", tags=["admin"], response_model=DeleteUserResponse)
 def delete_user(
     user_id: "UUID" = Query(..., description="The user_id key to be deleted."),
@@ -90,6 +94,7 @@ def delete_user(
         raise HTTPException(status_code=500, detail=f"{e}")
     return DeleteUserResponse(message="User successfully deleted.", user_id_deleted=user_id)
 
+
 @router.post("/keys", response_model=CreateAPIKeyResponse)
 def create_new_api_key(
     create_key: CreateAPIKeyRequest = Body(...),
@@ -100,6 +105,7 @@ def create_new_api_key(
     """
     token = server.ms.create_api_key(user_id=create_key.user_id, name=create_key.name)
     return CreateAPIKeyResponse(api_key=token.token)
+
 
 @router.get("/keys", response_model=GetAPIKeysResponse)
 def get_api_keys(
@@ -115,13 +121,13 @@ def get_api_keys(
     processed_tokens = [t.token for t in tokens]
     return GetAPIKeysResponse(api_key_list=processed_tokens)
 
+
 @router.delete("/keys", response_model=DeleteAPIKeyResponse)
 def delete_api_key(
     api_key: str = Query(..., description="The API key to be deleted."),
     server: "SyncServer" = Depends(get_memgpt_server),
-
 ):
-    actor = server.get_current_user()
+    server.get_current_user()
     token = server.ms.get_api_key(api_key=api_key)
     if token is None:
         raise HTTPException(status_code=404, detail=f"API key does not exist")

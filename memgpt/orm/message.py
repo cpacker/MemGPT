@@ -1,16 +1,19 @@
 from typing import TYPE_CHECKING
-from sqlalchemy import JSON
-from sqlalchemy.orm import relationship, Mapped, mapped_column
 
-from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from sqlalchemy import JSON
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from memgpt.orm.mixins import AgentMixin
+from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.schemas.message import Message as PydanticMessage
 
 if TYPE_CHECKING:
     from memgpt.orm.agent import Agent
 
+
 class Message(AgentMixin, SqlalchemyBase):
     """Text from an Agent or User that may include function call data."""
+
     __tablename__ = "message"
     __pydantic_model__ = PydanticMessage
 
@@ -21,6 +24,6 @@ class Message(AgentMixin, SqlalchemyBase):
     tool_calls: Mapped[dict] = mapped_column(JSON, nullable=True, doc="tool call results for this message.")
     tool_call_id: Mapped[str] = mapped_column(nullable=True, doc="Optional tool call ID for this message.")
     user_id: Mapped[str] = mapped_column(nullable=True, doc="The user ID of the user who created this message.")
-    
+
     # relationships
     agent: Mapped["Agent"] = relationship("Agent", back_populates="messages")

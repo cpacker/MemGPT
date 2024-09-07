@@ -1,10 +1,11 @@
 from pytest import mark as m
+
 from tests.mock_factory.models import (
-    MockUserFactory,
+    MockAgentFactory,
     MockOrganizationFactory,
     MockTokenFactory,
-    MockAgentFactory,
     MockToolFactory,
+    MockUserFactory,
 )
 
 
@@ -20,7 +21,7 @@ class TestORM:
             MockTokenFactory,
             MockAgentFactory,
             MockToolFactory,
-        ]
+        ],
     )
     def test_read_models(self, mockModel, db_session):
         model = mockModel(db_session=db_session).generate()
@@ -32,17 +33,16 @@ class TestORM:
 
         assert obj.id == model.id
 
-
     @m.context("and creating a User model")
     @m.it("should have the correct prefixes")
     def test_prefixed_ids(self, db_session):
 
         user = MockUserFactory(db_session=db_session).generate()
 
-        assert user.id.startswith('user-')
+        assert user.id.startswith("user-")
         assert str(user._id) in user.id
-        
+
         with db_session as session:
             session.add(user)
-            assert user.organization.id.startswith('organization-'), "Organization id is prefixed incorrectly"
+            assert user.organization.id.startswith("organization-"), "Organization id is prefixed incorrectly"
             assert str(user.organization._id) in user.organization.id, "Organization id is not using the correct uuid"

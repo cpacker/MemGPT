@@ -1,21 +1,22 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Depends
 
-from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.server.rest_api.utils import get_memgpt_server
 from memgpt.server.schemas.large_language_models import ListModelsResponse
 
 if TYPE_CHECKING:
     from memgpt.server.server import SyncServer
-    from memgpt.orm.user import User
 
-router = APIRouter(prefix="/models", tags=["models","large_language_models"])
+router = APIRouter(prefix="/models", tags=["models", "large_language_models"])
+
 
 @router.get("/", response_model=ListModelsResponse)
 def list_models(
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
-    actor = server.get_current_user()
+    server.get_current_user()
 
     # currently, the server only supports one model, however this may change in the future
     llm_config = LLMConfig(

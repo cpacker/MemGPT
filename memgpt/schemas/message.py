@@ -4,7 +4,7 @@ import warnings
 from datetime import datetime, timezone
 from typing import List, Optional, Union
 
-from pydantic import Field, field_validator
+from pydantic import Field
 
 from memgpt.constants import TOOL_CALL_ID_MAX_LEN
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
@@ -54,7 +54,6 @@ class BaseMessage(MemGPTBase):
 
 class MessageCreate(BaseMessage):
     """Request to create a message"""
-    pass
 
 
 class Message(BaseMessage):

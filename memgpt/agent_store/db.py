@@ -1,33 +1,25 @@
 from datetime import datetime
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-from sqlalchemy import (
-    and_,
-    asc,
-    desc,
-    or_,
-    select,
-    text,
-)
+from sqlalchemy import and_, asc, desc, or_, select
 from sqlalchemy.sql import func
 from tqdm import tqdm
 
-from memgpt.orm.errors import NoResultFound
-from memgpt.orm.utilities import get_db_session
-from memgpt.orm.message import Message as SQLMessage
-from memgpt.orm.passage import Passage as SQLPassage
-from memgpt.orm.document import Document as SQLDocument
-
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.config import MemGPTConfig
-
+from memgpt.orm.document import Document as SQLDocument
+from memgpt.orm.errors import NoResultFound
+from memgpt.orm.message import Message as SQLMessage
+from memgpt.orm.passage import Passage as SQLPassage
+from memgpt.orm.utilities import get_db_session
 from memgpt.schemas.enums import TableType
-from memgpt.schemas.passage import Passage
 from memgpt.schemas.memgpt_base import MemGPTBase
+from memgpt.schemas.passage import Passage
 
 if TYPE_CHECKING:
-    from memgpt.orm.sqlalchemy_base import SqlalchemyBase as SQLBase
     from sqlalchemy.orm import Session
+
+    from memgpt.orm.sqlalchemy_base import SqlalchemyBase as SQLBase
 
 
 class SQLStorageConnector(StorageConnector):
@@ -38,13 +30,8 @@ class SQLStorageConnector(StorageConnector):
     db_session: "Session" = None
 
     def __init__(
-            self,
-            table_type: str,
-            config: MemGPTConfig,
-            user_id: str,
-            agent_id: Optional[str] = None,
-            db_session: Optional["Session"] = None
-        ):
+        self, table_type: str, config: MemGPTConfig, user_id: str, agent_id: Optional[str] = None, db_session: Optional["Session"] = None
+    ):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
 
         match table_type:
@@ -65,6 +52,7 @@ class SQLStorageConnector(StorageConnector):
 
     def check_db_session(self):
         from sqlalchemy import text
+
         schema = self.db_session.execute(text("show search_path")).fetchone()[0]
         if "postgres" not in schema:
             raise ValueError(f"Schema: {schema}")
@@ -147,7 +135,6 @@ class SQLStorageConnector(StorageConnector):
             db_records = session.execute(query).scalars()
 
             return [record.to_pydantic() for record in db_records]
-
 
     def get(self, id: str):
         try:
@@ -251,7 +238,6 @@ class SQLStorageConnector(StorageConnector):
             results = session.execute(query).scalars()
 
             return [result.to_pydantic() for result in results]
-
 
     def delete(self, filters: Optional[Dict] = {}):
         # TODO: do we want to support soft deletes here?

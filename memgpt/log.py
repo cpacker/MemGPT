@@ -25,9 +25,7 @@ DEVELOPMENT_LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,
     "formatters": {
-        "standard": {
-            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        },
+        "standard": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"},
         "no_datetime": {
             "format": "%(name)s - %(levelname)s - %(message)s",
         },
@@ -46,7 +44,7 @@ DEVELOPMENT_LOGGING = {
             "maxBytes": 1024**2 * 10,
             "backupCount": 3,
             "formatter": "standard",
-        }
+        },
     },
     "loggers": {
         "MemGPT": {

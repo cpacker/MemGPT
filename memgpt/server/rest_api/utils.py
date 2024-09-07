@@ -1,11 +1,12 @@
 import traceback
+from enum import Enum
 from typing import AsyncGenerator, Union
 
-from memgpt.utils import json_dumps
 from pydantic import BaseModel
-from enum import Enum
-from memgpt.server.server import SyncServer
+
 from memgpt.server.rest_api.interface import StreamingServerInterface
+from memgpt.server.server import SyncServer
+from memgpt.utils import json_dumps
 
 
 def sse_formatter(data: Union[dict, str]) -> str:
@@ -13,6 +14,7 @@ def sse_formatter(data: Union[dict, str]) -> str:
     assert type(data) in [dict, str], f"Expected type dict or str, got type {type(data)}"
     data_str = json_dumps(data) if isinstance(data, dict) else data
     return f"data: {data_str}\n\n"
+
 
 async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
     """
@@ -49,6 +51,7 @@ async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
 def get_memgpt_server() -> SyncServer:
     server = SyncServer(default_interface_factory=lambda: StreamingServerInterface())
     return server
+
 
 def get_current_interface() -> StreamingServerInterface:
     return StreamingServerInterface

@@ -1,21 +1,27 @@
 from typing import TYPE_CHECKING
+
 from fastapi import APIRouter, Body, Depends, HTTPException
 
-from memgpt.server.rest_api.utils import get_memgpt_server, get_current_interface
 from memgpt.models.chat_completion_request import ChatCompletionRequest
-from memgpt.models.chat_completion_response import ChatCompletionResponse, Choice, Message, UsageStatistics
+from memgpt.models.chat_completion_response import (
+    ChatCompletionResponse,
+    Choice,
+    Message,
+    UsageStatistics,
+)
+
 # TODO this belongs in a controller!
 from memgpt.server.rest_api.routers.v1.agents import send_message_to_agent
+from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 
 if TYPE_CHECKING:
-    from uuid import UUID
-    from memgpt.orm.user import User
-    from memgpt.server.server import SyncServer
+    pass
+
     from memgpt.server.rest_api.interface import QueuingInterface
+    from memgpt.server.server import SyncServer
     from memgpt.utils import get_utc_time
 
 router = APIRouter(prefix="/v1/chat/completions", tags=["chat_completions"])
-
 
 
 @router.post("/", response_model=ChatCompletionResponse)

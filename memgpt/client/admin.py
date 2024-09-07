@@ -5,8 +5,8 @@ from requests import HTTPError
 
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
-from memgpt.schemas.tool import Tool
 from memgpt.schemas.api_key import APIKey, APIKeyCreate
+from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User, UserCreate
 
 

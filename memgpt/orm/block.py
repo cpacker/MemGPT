@@ -1,14 +1,17 @@
-from typing import TYPE_CHECKING, Optional, Type, Union, List
-from sqlalchemy import Integer, JSON
-from sqlalchemy.orm import mapped_column, Mapped, relationship
+from typing import TYPE_CHECKING, List, Optional, Type, Union
+
+from sqlalchemy import JSON, Integer
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
-from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.mixins import OrganizationMixin
-from memgpt.schemas.block import Block as PydanticBlock, Human, Persona
+from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from memgpt.schemas.block import Block as PydanticBlock
+from memgpt.schemas.block import Human, Persona
 
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization
+
 
 class BlockValue(TypeDecorator):
     """block content can be a string or a list of strings, and we want to preserve that in the database
@@ -35,14 +38,19 @@ class BlockValue(TypeDecorator):
 
 class Block(OrganizationMixin, SqlalchemyBase):
     """Blocks are sections of the LLM context, representing a specific part of the total Memory"""
-    __tablename__ = 'block'
+
+    __tablename__ = "block"
     __pydantic_model__ = PydanticBlock
 
     name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="the unique name that identifies a block in a human-readable way")
     description: Mapped[Optional[str]] = mapped_column(nullable=True, doc="a description of the block for context")
     label: Mapped[str] = mapped_column(doc="the type of memory block in use, ie 'human', 'persona', 'system'", primary_key=True)
-    is_template: Mapped[bool] = mapped_column(doc="whether the block is a template (e.g. saved human/persona options as baselines for other templates)")
-    value: Mapped[Optional[Union[List, str]]] = mapped_column(BlockValue, nullable=True, doc="Text content of the block for the respective section of core memory.")
+    is_template: Mapped[bool] = mapped_column(
+        doc="whether the block is a template (e.g. saved human/persona options as baselines for other templates)"
+    )
+    value: Mapped[Optional[Union[List, str]]] = mapped_column(
+        BlockValue, nullable=True, doc="Text content of the block for the respective section of core memory."
+    )
     limit: Mapped[int] = mapped_column(Integer, default=2000, doc="Character limit of the block.")
     metadata_: Mapped[Optional[dict]] = mapped_column(JSON, default={}, doc="arbitrary information related to the block.")
 
