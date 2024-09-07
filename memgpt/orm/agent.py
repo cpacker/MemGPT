@@ -11,10 +11,13 @@ from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
+from memgpt.orm.users_agents import UsersAgents
+from memgpt.orm.sources_agents import SourcesAgents
+from memgpt.orm.tools_agents import ToolsAgents
+from memgpt.orm.blocks_agents import BlocksAgents
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
-
     from memgpt.orm.organization import Organization
     from memgpt.orm.passage import Passage
     from memgpt.orm.source import Source
