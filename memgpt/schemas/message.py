@@ -110,9 +110,8 @@ class Message(BaseMessage):
         messages = []
 
         if self.role == MessageRole.assistant:
-            # TODO: split the message into inner thoughts + function call
             if self.text is not None:
-                # This is InnerThoughts
+                # This is type InnerThoughts
                 messages.append(
                     InternalMonologue(
                         id=self.id,
@@ -121,6 +120,7 @@ class Message(BaseMessage):
                     )
                 )
             if self.tool_calls is not None:
+                # This is type FunctionCall
                 for tool_call in self.tool_calls:
                     messages.append(
                         FunctionCallMessage(
@@ -133,7 +133,7 @@ class Message(BaseMessage):
                         )
                     )
         elif self.role == MessageRole.tool:
-            # This is type FunctionCall
+            # This is type FunctionReturn
             # Try to interpret the function return, recall that this is how we packaged:
             # def package_function_response(was_success, response_string, timestamp=None):
             #     formatted_time = get_local_time() if timestamp is None else timestamp
