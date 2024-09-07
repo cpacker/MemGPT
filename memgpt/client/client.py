@@ -1,9 +1,6 @@
-import asyncio
-import threading
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING, Any, Coroutine, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import httpx
 
@@ -250,38 +247,12 @@ class RESTClient(AbstractClient):
 
         self.httpx_client = httpx.AsyncClient(**httpx_client_args)
 
-    def run_sync(self, coroutine: Coroutine) -> Any:
-        """converts the api async calls to sync for sync use
-        https://stackoverflow.com/questions/55647753/call-async-function-from-sync-function-while-the-synchronous-function-continues
-        """
-
-        def run_in_new_loop():
-            new_loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(new_loop)
-            try:
-                return new_loop.run_until_complete(coroutine)
-            finally:
-                new_loop.close()
-
-        try:
-            loop = asyncio.get_running_loop()
-            if not threading.current_thread() is threading.main_thread():
-                return asyncio.run_coroutine_threadsafe(coroutine, loop).result()
-            if not loop.is_running():
-                return loop.run_until_complete(coroutine)
-            else:
-                with ThreadPoolExecutor() as pool:
-                    future = pool.submit(run_in_new_loop)
-                    return future.result(timeout=30.0)
-        except RuntimeError:
-            return asyncio.run(coroutine)
-
-    def list_agents(self) -> List[AgentState]:
-        response = self.run_sync(self.httpx_client.get("/agents/"))
+    async def list_agents(self) -> List[AgentState]:
+        response = await self.httpx_client.get("/agents/")
         return response.json()
 
-    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        response = self.run_sync(self.httpx_client.get("/agents/"))
+    async def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        response = await self.httpx_client.get("/agents/")
         if response.status_code != 200:
             raise ValueError(f"Failed to list agents: {response.text}")
         for agent in response.json():
@@ -297,7 +268,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get tool: {response.text}")
         return Tool(**response.json())
 
-    def create_agent(
+    async def create_agent(
         self,
         name: Optional[str] = None,
         # model configs
@@ -350,7 +321,7 @@ class RESTClient(AbstractClient):
             embedding_config=embedding_config,
         )
 
-        response = self.run_sync(self.httpx_client.post("/agents/", json=request.model_dump(exclude_none=True)))
+        response = await self.httpx_client.post("/agents/", json=request.model_dump(exclude_none=True))
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
 
