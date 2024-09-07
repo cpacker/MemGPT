@@ -8,6 +8,7 @@ faker = Faker()
 
 test_agent_name = "TestAgent"
 
+
 # Fixture for test agent
 @pytest.fixture
 def agent(client):
@@ -17,6 +18,7 @@ def agent(client):
 
     # delete agent
     client.delete_agent(agent_state.id)
+
 
 class TestClientAgent:
     """CRUD for agents via the client"""
@@ -42,7 +44,6 @@ class TestClientAgent:
         client.delete_agent(agent_id=delete_agent.id)
         assert client.agent_exists(agent_id=delete_agent.id) == False, "Agent deletion failed"
 
-
     def test_memory(self, client, agent):
         # _reset_config()
 
@@ -57,7 +58,6 @@ class TestClientAgent:
             updated_memory_response.get_block("human").value == updated_memory["human"]
             and updated_memory_response.get_block("persona").value == updated_memory["persona"]
         ), "Memory update failed"
-
 
     def test_agent_interactions(self, client, agent):
         # _reset_config()
@@ -75,14 +75,14 @@ class TestClientAgent:
 
         # TODO: add streaming tests
 
-
     def test_core_memory(self, client, agent):
-        response = client.send_message(agent_id=agent.id, message="Update your core memory to remember that my name is Timber!", role="user")
+        response = client.send_message(
+            agent_id=agent.id, message="Update your core memory to remember that my name is Timber!", role="user"
+        )
         print("Response", response)
 
         memory = client.get_in_context_memory(agent_id=agent.id)
         assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
-
 
     def test_messages(self, client, agent):
 
@@ -116,7 +116,6 @@ class TestClientAgent:
         # TODO: check deletion
         client.get_archival_memory(agent.id)
 
-
     def test_messages(self, client, agent):
 
         send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
@@ -124,7 +123,6 @@ class TestClientAgent:
 
         messages_response = client.get_messages(agent_id=agent.id, limit=1)
         assert len(messages_response) > 0, "Retrieving messages failed"
-
 
     def test_humans_personas(self, client):
 
@@ -150,7 +148,6 @@ class TestClientAgent:
         assert human.name == human_name
         assert human.value == "Human text", "Creating human failed"
 
-
         # def test_tools(client, agent):
         #    tools_response = client.list_tools()
         #    print("TOOLS", tools_response)
@@ -158,7 +155,6 @@ class TestClientAgent:
         #    tool_name = "TestTool"
         #    tool_response = client.create_tool(name=tool_name, source_code="print('Hello World')", source_type="python")
         #    assert tool_response, "Creating tool failed"
-
 
     def test_config(self, client):
 
@@ -172,7 +168,6 @@ class TestClientAgent:
         # config_response = client.get_config()
         # TODO: ensure config is the same as the one in the server
         # print("CONFIG", config_response)
-
 
     def test_sources(self, client, agent):
 

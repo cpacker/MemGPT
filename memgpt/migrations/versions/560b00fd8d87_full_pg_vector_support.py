@@ -8,10 +8,10 @@ Create Date: 2024-08-26 15:07:28.171897
 
 from typing import Sequence, Union
 
+from alembic import op
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects import postgresql
 
-from alembic import op
 from memgpt.constants import MAX_EMBEDDING_DIM
 
 # revision identifiers, used by Alembic.

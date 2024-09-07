@@ -5,11 +5,11 @@ from sqlalchemy import MetaData, Table, create_engine
 
 from memgpt import create_client
 from memgpt.config import MemGPTConfig
+from memgpt.metadata import MetadataStore
+from memgpt.prompts import gpt_system
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
-from memgpt.metadata import MetadataStore
-from memgpt.prompts import gpt_system
 
 # Replace this with your actual database connection URL
 config = MemGPTConfig.load()
