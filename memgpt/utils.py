@@ -28,6 +28,8 @@ from memgpt.constants import (
     FUNCTION_RETURN_CHAR_LIMIT,
     MEMGPT_DIR,
     TOOL_CALL_ID_MAX_LEN,
+    CORE_MEMORY_HUMAN_CHAR_LIMIT,
+    CORE_MEMORY_PERSONA_CHAR_LIMIT
 )
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
 

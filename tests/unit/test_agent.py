@@ -8,9 +8,9 @@ class TestUnitAgent:
 
     @m.context("and interacting with agents via Client")
     @m.it("should create an agent")
-    async def test_create_agent(self, client):
+    def test_create_agent(self, client):
         agent_name = "TestAgent"
-        agent = await client.create_agent(name=agent_name)
+        agent = client.create_agent(name=agent_name)
         assert agent.name == agent_name
 
     @m.it("should update an agent")
