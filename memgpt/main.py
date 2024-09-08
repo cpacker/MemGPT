@@ -24,6 +24,7 @@ from memgpt.schemas.enums import OptionState
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import AgentRefreshStreamingInterface
+from memgpt.utils import json_dumps, json_loads
 
 # interface = interface()
 
@@ -261,11 +262,11 @@ def run_agent_loop(
                             message_obj = memgpt_agent._messages[x]
                             if message_obj.tool_calls is not None and len(message_obj.tool_calls) > 0:
                                 # Check that we hit an assistant send_message call
-                                name_string = message_obj.tool_calls[0].function.get("name")
+                                name_string = message_obj.tool_calls[0].function.name
                                 if name_string is None or name_string != "send_message":
                                     print("Assistant missing send_message function call")
                                     break  # cancel op
-                                args_string = message_obj.tool_calls[0].function.get("arguments")
+                                args_string = message_obj.tool_calls[0].function.arguments
                                 if args_string is None:
                                     print("Assistant missing send_message function arguments")
                                     break  # cancel op
@@ -277,7 +278,7 @@ def run_agent_loop(
                                 # Once we found our target, rewrite it
                                 args_json["message"] = text
                                 new_args_string = json_dumps(args_json)
-                                message_obj.tool_calls[0].function["arguments"] = new_args_string
+                                message_obj.tool_calls[0].function.arguments = new_args_string
 
                                 # To persist to the database, all we need to do is "re-insert" into recall memory
                                 memgpt_agent.persistence_manager.recall_memory.storage.update(record=message_obj)
