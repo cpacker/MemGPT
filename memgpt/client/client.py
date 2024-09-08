@@ -35,7 +35,8 @@ from memgpt.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from memgpt.schemas.message import Message, MessageCreate
+from memgpt.schemas.message import Message, MessageCreate, UpdateMessage
+from memgpt.schemas.openai.chat_completions import ToolCall
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
@@ -377,6 +378,31 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
         return AgentState(**response.json())
 
+    def update_message(
+        self,
+        agent_id: str,
+        message_id: str,
+        role: Optional[MessageRole] = None,
+        text: Optional[str] = None,
+        name: Optional[str] = None,
+        tool_calls: Optional[List[ToolCall]] = None,
+        tool_call_id: Optional[str] = None,
+    ) -> Message:
+        request = UpdateMessage(
+            id=message_id,
+            role=role,
+            text=text,
+            name=name,
+            tool_calls=tool_calls,
+            tool_call_id=tool_call_id,
+        )
+        response = requests.patch(
+            f"{self.base_url}/api/agents/{agent_id}/messages/{message_id}", json=request.model_dump(), headers=self.headers
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update message: {response.text}")
+        return Message(**response.json())
+
     def update_agent(
         self,
         agent_id: str,
@@ -642,7 +668,7 @@ class RESTClient(AbstractClient):
             messages (List[Message]): List of messages
         """
 
-        params = {"before": before, "after": after, "limit": limit}
+        params = {"before": before, "after": after, "limit": limit, "msg_object": True}
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
@@ -1402,6 +1428,29 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
+    def update_message(
+        self,
+        agent_id: str,
+        message_id: str,
+        role: Optional[MessageRole] = None,
+        text: Optional[str] = None,
+        name: Optional[str] = None,
+        tool_calls: Optional[List[ToolCall]] = None,
+        tool_call_id: Optional[str] = None,
+    ) -> Message:
+        message = self.server.update_agent_message(
+            agent_id=agent_id,
+            request=UpdateMessage(
+                id=message_id,
+                role=role,
+                text=text,
+                name=name,
+                tool_calls=tool_calls,
+                tool_call_id=tool_call_id,
+            ),
+        )
+        return message
+
     def update_agent(
         self,
         agent_id: str,
@@ -2151,7 +2200,13 @@ class LocalClient(AbstractClient):
 
         self.interface.clear()
         return self.server.get_agent_recall_cursor(
-            user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit, reverse=True
+            user_id=self.user_id,
+            agent_id=agent_id,
+            before=before,
+            after=after,
+            limit=limit,
+            reverse=True,
+            return_message_object=True,
         )
 
     def list_models(self) -> List[LLMConfig]:
