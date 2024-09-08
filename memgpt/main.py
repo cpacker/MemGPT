@@ -24,7 +24,6 @@ from memgpt.schemas.enums import OptionState
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import AgentRefreshStreamingInterface
-from memgpt.utils import json_dumps, json_loads
 
 # interface = interface()
 
