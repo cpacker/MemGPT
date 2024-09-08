@@ -370,6 +370,14 @@ class Agent(BaseAgent):
         # also sync the message IDs attribute
         self.agent_state.message_ids = message_ids
 
+    def refresh_message_buffer(self):
+        """Refresh the message buffer from the database"""
+
+        messages_to_sync = self.agent_state.message_ids
+        assert messages_to_sync and all([isinstance(msg_id, str) for msg_id in messages_to_sync])
+
+        self.set_message_buffer(message_ids=messages_to_sync)
+
     def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
         self.persistence_manager.trim_messages(num)
@@ -1248,12 +1256,14 @@ class Agent(BaseAgent):
         for x in range(len(self.messages) - 1, 0, -1):
             msg_obj = self._messages[x]
             if msg_obj.role == MessageRole.assistant:
-                return self.update_message(
+                updated_message = self.update_message(
                     request=UpdateMessage(
                         id=msg_obj.id,
                         text=new_thought,
                     )
                 )
+                self.refresh_message_buffer()
+                return updated_message
         raise ValueError(f"No assistant message found to update")
 
     # TODO(sarah): should we be creating a new message here, or just editing a message?
