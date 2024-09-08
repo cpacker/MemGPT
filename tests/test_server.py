@@ -299,7 +299,9 @@ def _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=False):
 
     memgpt_message_index = 0
     for i, message in enumerate(messages):
-        print(f"\n\nmessage {i}: {message.role}, {message.text[:50]}")
+        assert isinstance(message, Message)
+
+        print(f"\n\nmessage {i}: {message.role}, {message.text[:50] if message.text else 'null'}")
         while memgpt_message_index < len(memgpt_messages):
             memgpt_message = memgpt_messages[memgpt_message_index]
             print(f"memgpt_message {memgpt_message_index}: {str(memgpt_message)[:50]}")
@@ -339,22 +341,28 @@ def _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=False):
                     if message.tool_calls is not None:
                         for tool_call in message.tool_calls:
                             assert isinstance(memgpt_message, FunctionCallMessage)
+                            assert tool_call.function.name == memgpt_message.function_call.name
+                            assert tool_call.function.arguments == memgpt_message.function_call.arguments
                             memgpt_message_index += 1
                             memgpt_message = memgpt_messages[memgpt_message_index]
 
             elif message.role == MessageRole.user:
                 print(f"i={i}, M=user, MM={type(memgpt_message)}")
                 assert isinstance(memgpt_message, UserMessage)
+                assert message.text == memgpt_message.message
                 memgpt_message_index += 1
 
             elif message.role == MessageRole.system:
                 print(f"i={i}, M=system, MM={type(memgpt_message)}")
                 assert isinstance(memgpt_message, SystemMessage)
+                assert message.text == memgpt_message.message
                 memgpt_message_index += 1
 
             elif message.role == MessageRole.tool:
                 print(f"i={i}, M=tool, MM={type(memgpt_message)}")
                 assert isinstance(memgpt_message, FunctionReturn)
+                # Check the the value in `text` is the same
+                assert message.text == memgpt_message.function_return
                 memgpt_message_index += 1
 
             else:
