@@ -10,7 +10,7 @@ from memgpt.schemas.enums import MessageRole, MessageStreamStatus
 from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
 from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
-from memgpt.schemas.message import Message
+from memgpt.schemas.message import Message, UpdateMessage
 from memgpt.server.rest_api.auth_token import get_current_user
 from memgpt.server.rest_api.interface import QueuingInterface, StreamingServerInterface
 from memgpt.server.rest_api.utils import sse_async_generator
@@ -180,5 +180,18 @@ def setup_agents_message_router(server: SyncServer, interface: QueuingInterface,
             stream_tokens=request.stream_tokens,
             return_message_object=request.return_message_object,
         )
+
+    @router.patch("/agents/{agent_id}/messages/{message_id}", tags=["agents"], response_model=Message)
+    async def update_message(
+        agent_id: str,
+        message_id: str,
+        request: UpdateMessage = Body(...),
+        user_id: str = Depends(get_current_user_with_server),
+    ):
+        """
+        Update the details of a message associated with an agent.
+        """
+        assert request.id == message_id, f"Message ID mismatch: {request.id} != {message_id}"
+        return server.update_agent_message(agent_id=agent_id, request=request)
 
     return router
