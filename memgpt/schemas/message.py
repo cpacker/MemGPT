@@ -375,7 +375,7 @@ class Message(BaseMessage):
     def to_openai_dict(
         self,
         max_tool_id_length: int = TOOL_CALL_ID_MAX_LEN,
-        put_inner_thoughts_in_kwargs: bool = True,
+        put_inner_thoughts_in_kwargs: bool = False,
     ) -> dict:
         """Go from Message class to ChatCompletion message object"""
 
