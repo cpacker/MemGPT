@@ -212,20 +212,13 @@ def run_agent_loop(
                         print(f"Error popping messages: {e}")
                     continue
 
-                # TODO implement
                 elif user_input.lower() == "/retry":
-                    print(f"Retrying for another answer")
-                    while len(memgpt_agent._messages) > 0:
-                        if memgpt_agent._messages[-1].role == "user":
-                            # we want to pop up to the last user message and send it again
-                            user_message = memgpt_agent._messages[-1].text
-                            deleted_message = memgpt_agent._messages.pop()
-                            # then also remove it from recall storage
-                            memgpt_agent.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
-                            break
-                        deleted_message = memgpt_agent._messages.pop()
-                        # then also remove it from recall storage
-                        memgpt_agent.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+                    print(f"Retrying for another answer...")
+                    try:
+                        memgpt_agent.retry_message()
+                    except Exception as e:
+                        print(f"Error retrying message: {e}")
+                    continue
 
                 elif user_input.lower() == "/rethink" or user_input.lower().startswith("/rethink "):
                     if len(user_input) < len("/rethink "):

@@ -1329,38 +1329,32 @@ class Agent(BaseAgent):
                     popped_messages.append(deleted_message)
                 except Exception as e:
                     warnings.warn(f"Error deleting message {deleted_message.id} from recall memory: {e}")
+                    self._messages.append(deleted_message)
                     break
 
         return popped_messages
 
     def pop_until_user(self) -> List[Message]:
         """Pop all messages until the last user message"""
-        raise NotImplementedError()
-        # popped_messages = []
-        # while len(self._messages) > 0:
-        #     if self._messages[-1].role == "user":
-        #         # we want to pop up to the last user message and send it again
-        #         user_message = self._messages[-1].text
-        #         deleted_message = self._messages.pop()
-        #         # then also remove it from recall storage
-        #         self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
-        #         break
-        #     deleted_message = self._messages.pop()
+        if MessageRole.user not in [msg.role for msg in self._messages]:
+            raise ValueError("No user message found in buffer")
 
-    def retry_message(self) -> Message:
+        popped_messages = []
+        while len(self._messages) > 0:
+            if self._messages[-1].role == MessageRole.user:
+                # we want to pop up to the last user message
+                return popped_messages
+            else:
+                popped_messages.append(self.pop_message(count=1))
+
+        raise ValueError("No user message found in buffer")
+
+    def retry_message(self):
         """Retry / regenerate the last message"""
-        raise NotImplementedError()
-        # while len(self._messages) > 0:
-        #     if self._messages[-1].role == "user":
-        #         # we want to pop up to the last user message and send it again
-        #         user_message = self._messages[-1].text
-        #         deleted_message = self._messages.pop()
-        #         # then also remove it from recall storage
-        #         self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
-        #         break
-        #     deleted_message = self._messages.pop()
-        #     # then also remove it from recall storage
-        #     self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+
+        self.pop_until_user()
+        user_message = self.pop_message(count=1)[0]
+        return self.step(user_message=user_message.text)
 
 
 def save_agent(agent: Agent, ms: MetadataStore):
