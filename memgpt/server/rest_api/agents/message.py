@@ -129,32 +129,26 @@ async def send_message_to_agent(
 def setup_agents_message_router(server: SyncServer, interface: QueuingInterface, password: str):
     get_current_user_with_server = partial(partial(get_current_user, server), password)
 
-    @router.get("/agents/{agent_id}/messages/context/", tags=["agents"], response_model=List[Message])
-    def get_agent_messages_in_context(
-        agent_id: str,
-        start: int = Query(..., description="Message index to start on (reverse chronological)."),
-        count: int = Query(..., description="How many messages to retrieve."),
-        user_id: str = Depends(get_current_user_with_server),
-    ):
-        """
-        Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
-        """
-        interface.clear()
-        messages = server.get_agent_messages(agent_id=agent_id, start=start, count=count)
-        return messages
-
     @router.get("/agents/{agent_id}/messages", tags=["agents"], response_model=List[Message])
     def get_agent_messages(
         agent_id: str,
         before: Optional[str] = Query(None, description="Message before which to retrieve the returned messages."),
         limit: int = Query(10, description="Maximum number of messages to retrieve."),
+        msg_object: bool = Query(False, description="If true, returns Message objects. If false, return MemGPTMessage objects."),
         user_id: str = Depends(get_current_user_with_server),
     ):
         """
         Retrieve message history for an agent.
         """
         interface.clear()
-        return server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, before=before, limit=limit, reverse=True)
+        return server.get_agent_recall_cursor(
+            user_id=user_id,
+            agent_id=agent_id,
+            before=before,
+            limit=limit,
+            reverse=True,
+            return_message_object=msg_object,
+        )
 
     @router.post("/agents/{agent_id}/messages", tags=["agents"], response_model=MemGPTResponse)
     async def send_message(

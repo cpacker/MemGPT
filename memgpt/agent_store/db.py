@@ -6,7 +6,6 @@ from typing import Dict, List, Optional
 import numpy as np
 from sqlalchemy import (
     BINARY,
-    JSON,
     Column,
     DateTime,
     Index,
@@ -29,11 +28,11 @@ from tqdm import tqdm
 from memgpt.agent_store.storage import StorageConnector, TableType
 from memgpt.config import MemGPTConfig
 from memgpt.constants import MAX_EMBEDDING_DIM
-from memgpt.metadata import EmbeddingConfigColumn
+from memgpt.metadata import EmbeddingConfigColumn, ToolCallColumn
 
 # from memgpt.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from memgpt.schemas.message import Message
-from memgpt.schemas.openai.chat_completion_request import ToolCall, ToolCallFunction
+from memgpt.schemas.openai.chat_completions import ToolCall
 from memgpt.schemas.passage import Passage
 from memgpt.settings import settings
 
@@ -164,7 +163,7 @@ def get_db_model(
             # if role != "assistant", this must be null
             # TODO align with OpenAI spec of multiple tool calls
             # tool_calls = Column(ToolCallColumn)
-            tool_calls = Column(JSON)
+            tool_calls = Column(ToolCallColumn)
 
             # tool call response info
             # if role == "tool", then this must be specified
@@ -179,13 +178,17 @@ def get_db_model(
                 return f"<Message(message_id='{self.id}', text='{self.text}')>"
 
             def to_record(self):
-                calls = (
-                    [ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls]
-                    if self.tool_calls
-                    else None
-                )
-                if calls:
-                    assert isinstance(calls[0], ToolCall)
+                # calls = (
+                #    [ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls]
+                #    if self.tool_calls
+                #    else None
+                # )
+                # if calls:
+                #    assert isinstance(calls[0], ToolCall)
+                if self.tool_calls and len(self.tool_calls) > 0:
+                    assert isinstance(self.tool_calls[0], ToolCall), type(self.tool_calls[0])
+                    for tool in self.tool_calls:
+                        assert isinstance(tool, ToolCall), type(tool)
                 return Message(
                     user_id=self.user_id,
                     agent_id=self.agent_id,

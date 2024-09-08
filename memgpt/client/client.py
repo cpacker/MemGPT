@@ -668,7 +668,7 @@ class RESTClient(AbstractClient):
             messages (List[Message]): List of messages
         """
 
-        params = {"before": before, "after": after, "limit": limit}
+        params = {"before": before, "after": after, "limit": limit, "msg_object": True}
         response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
@@ -2200,7 +2200,13 @@ class LocalClient(AbstractClient):
 
         self.interface.clear()
         return self.server.get_agent_recall_cursor(
-            user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit, reverse=True
+            user_id=self.user_id,
+            agent_id=agent_id,
+            before=before,
+            after=after,
+            limit=limit,
+            reverse=True,
+            return_message_object=True,
         )
 
     def list_models(self) -> List[LLMConfig]:
