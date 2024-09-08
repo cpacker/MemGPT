@@ -25,22 +25,16 @@ jobs:
         run: poetry run black --check .
         continue-on-error: true
 
-      - name: Check Black Output
-        if: steps.black.outcome == 'failure'
+      - name: Auto-fix with Black and commit
+        if: steps.black.outcome == 'failure' || ${{ !contains(github.event.issue.labels.*.name, 'check-only') }}
         run: |
-          echo "Black check failed. To fix, please run 'poetry run black .'"
-          exit 1
+          black .
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -am "Apply Black formatting" || echo "No changes to commit"
+          git push
+      - name: Error if 'check-only' label is present
+        if: steps.black.outcome == 'failure' && contains(github.event.issue.labels.*.name, 'check-only')
+        run: echo "Black formatting check failed. Please run 'black .' locally to fix formatting issues." && exit 1
 
 
-
-      # (Optional) If you want to automatically fix formatting issues
-      # Uncomment the following steps:
-
-      # - name: Auto-fix with Black and commit
-      #   if: failure()
-      #   run: |
-      #     black .
-      #     git config --local user.email "action@github.com"
-      #     git config --local user.name "GitHub Action"
-      #     git commit -am "Apply Black formatting" || echo "No changes to commit"
-      #     git push
