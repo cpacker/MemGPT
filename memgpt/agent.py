@@ -1349,12 +1349,15 @@ class Agent(BaseAgent):
 
         raise ValueError("No user message found in buffer")
 
-    def retry_message(self):
+    def retry_message(self) -> List[Message]:
         """Retry / regenerate the last message"""
 
         self.pop_until_user()
         user_message = self.pop_message(count=1)[0]
-        return self.step(user_message=user_message.text)
+        messages, _, _, _, _ = self.step(user_message=user_message.text, return_dicts=False)
+
+        assert messages is not None and all(isinstance(msg, Message) for msg in messages), "step() returned non-Message objects"
+        return messages
 
 
 def save_agent(agent: Agent, ms: MetadataStore):

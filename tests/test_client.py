@@ -397,15 +397,6 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     client.delete_source(source.id)
 
 
-def test_message_update_rethink(client: Union[LocalClient, RESTClient], agent: AgentState):
-    """Test that we can update the details of a message
-
-    - Mimic the /rethink command in the CLI
-    - "rethink" replaces the inner thoughts of the last assistant message
-    """
-    # TODO
-
-
 def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentState):
     """Test that we can update the details of a message"""
 

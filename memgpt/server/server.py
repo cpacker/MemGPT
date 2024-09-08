@@ -1752,3 +1752,21 @@ class SyncServer(Server):
             raise ValueError(f"Error persisting message - message with id {request.id} not found")
         return updated_message
         """
+
+    def rewrite_agent_message(self, agent_id: str, new_text: str) -> Message:
+
+        # Get the current message
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        return memgpt_agent.rewrite_message(new_text=new_text)
+
+    def rethink_agent_message(self, agent_id: str, new_thought: str) -> Message:
+
+        # Get the current message
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        return memgpt_agent.rethink_message(new_thought=new_thought)
+
+    def retry_agent_message(self, agent_id: str) -> List[Message]:
+
+        # Get the current message
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        return memgpt_agent.retry_message()
