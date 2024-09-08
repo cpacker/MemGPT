@@ -1298,12 +1298,14 @@ class Agent(BaseAgent):
                     message_obj.tool_calls[0].function.arguments = new_args_string
 
                     # Write the update to the DB
-                    return self.update_message(
+                    updated_message = self.update_message(
                         request=UpdateMessage(
                             id=message_obj.id,
                             tool_calls=message_obj.tool_calls,
                         )
                     )
+                    self.refresh_message_buffer()
+                    return updated_message
 
         raise ValueError("No assistant message found to update")
 
