@@ -206,82 +206,40 @@ def run_agent_loop(
                     # Check if there's an additional argument that's an integer
                     command = user_input.strip().split()
                     pop_amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
-                    n_messages = len(memgpt_agent._messages)
-                    MIN_MESSAGES = 2
-                    if n_messages <= MIN_MESSAGES:
-                        print(f"Agent only has {n_messages} messages in stack, none left to pop")
-                    elif n_messages - pop_amount < MIN_MESSAGES:
-                        print(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
-                    else:
-                        print(f"Popping last {pop_amount} messages from stack")
-                        for _ in range(min(pop_amount, len(memgpt_agent._messages))):
-                            # remove the message from the internal state of the agent
-                            deleted_message = memgpt_agent._messages.pop()
-                            # then also remove it from recall storage
-                            memgpt_agent.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+                    try:
+                        popped_messages = memgpt_agent.pop_message(count=pop_amount)
+                    except ValueError as e:
+                        print(f"Error popping messages: {e}")
                     continue
 
                 elif user_input.lower() == "/retry":
-                    print(f"Retrying for another answer")
-                    while len(memgpt_agent._messages) > 0:
-                        if memgpt_agent._messages[-1].role == "user":
-                            # we want to pop up to the last user message and send it again
-                            user_message = memgpt_agent._messages[-1].text
-                            deleted_message = memgpt_agent._messages.pop()
-                            # then also remove it from recall storage
-                            memgpt_agent.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
-                            break
-                        deleted_message = memgpt_agent._messages.pop()
-                        # then also remove it from recall storage
-                        memgpt_agent.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+                    print(f"Retrying for another answer...")
+                    try:
+                        memgpt_agent.retry_message()
+                    except Exception as e:
+                        print(f"Error retrying message: {e}")
+                    continue
 
                 elif user_input.lower() == "/rethink" or user_input.lower().startswith("/rethink "):
                     if len(user_input) < len("/rethink "):
                         print("Missing text after the command")
                         continue
-                    for x in range(len(memgpt_agent.messages) - 1, 0, -1):
-                        msg_obj = memgpt_agent._messages[x]
-                        if msg_obj.role == "assistant":
-                            clean_new_text = user_input[len("/rethink ") :].strip()
-                            msg_obj.text = clean_new_text
-                            # To persist to the database, all we need to do is "re-insert" into recall memory
-                            memgpt_agent.persistence_manager.recall_memory.storage.update(record=msg_obj)
-                            break
+                    try:
+                        memgpt_agent.rethink_message(new_thought=user_input[len("/rethink ") :].strip())
+                    except Exception as e:
+                        print(f"Error rethinking message: {e}")
                     continue
 
                 elif user_input.lower() == "/rewrite" or user_input.lower().startswith("/rewrite "):
                     if len(user_input) < len("/rewrite "):
                         print("Missing text after the command")
                         continue
-                    for x in range(len(memgpt_agent.messages) - 1, 0, -1):
-                        if memgpt_agent.messages[x].get("role") == "assistant":
-                            text = user_input[len("/rewrite ") :].strip()
-                            # Get the current message content
-                            # The rewrite target is the output of send_message
-                            message_obj = memgpt_agent._messages[x]
-                            if message_obj.tool_calls is not None and len(message_obj.tool_calls) > 0:
-                                # Check that we hit an assistant send_message call
-                                name_string = message_obj.tool_calls[0].function.get("name")
-                                if name_string is None or name_string != "send_message":
-                                    print("Assistant missing send_message function call")
-                                    break  # cancel op
-                                args_string = message_obj.tool_calls[0].function.get("arguments")
-                                if args_string is None:
-                                    print("Assistant missing send_message function arguments")
-                                    break  # cancel op
-                                args_json = json_loads(args_string)
-                                if "message" not in args_json:
-                                    print("Assistant missing send_message message argument")
-                                    break  # cancel op
 
-                                # Once we found our target, rewrite it
-                                args_json["message"] = text
-                                new_args_string = json_dumps(args_json)
-                                message_obj.tool_calls[0].function["arguments"] = new_args_string
-
-                                # To persist to the database, all we need to do is "re-insert" into recall memory
-                                memgpt_agent.persistence_manager.recall_memory.storage.update(record=message_obj)
-                                break
+                    text = user_input[len("/rewrite ") :].strip()
+                    try:
+                        memgpt_agent.rewrite_message(new_text=text)
+                    except Exception as e:
+                        print(f"Error rewriting message: {e}")
                     continue
 
                 elif user_input.lower() == "/summarize":
