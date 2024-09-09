@@ -1770,3 +1770,6 @@ class SyncServer(Server):
         # Get the current message
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return memgpt_agent.retry_message()
+
+    def get_current_user(self) -> User:
+        raise NotImplementedError

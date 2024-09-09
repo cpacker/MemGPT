@@ -9,7 +9,7 @@ from memgpt.server.server import SyncServer
 router = APIRouter(prefix="/tools", tags=["tools"])
 
 
-@router.delete("/{tool_id}")
+@router.delete("/{tool_id}", tags=["tools"])
 def delete_tool(
     tool_id: str,
     server: SyncServer = Depends(get_memgpt_server),
@@ -17,9 +17,8 @@ def delete_tool(
     """
     Delete a tool by name
     """
-    actor = server.get_current_user()
-
-    server.ms.delete_tool(id=tool_id, user_id=actor.id)
+    # actor = server.get_current_user()
+    server.delete_tool(tool_id=tool_id)
 
 
 @router.get("/{tool_id}", tags=["tools"], response_model=Tool)
@@ -30,14 +29,30 @@ def get_tool(
     """
     Get a tool by name
     """
-    actor = server.get_current_user()
-    # Clear the interface
+    # actor = server.get_current_user()
 
-    if tool := server.ms.get_tool(tool_id=tool_id, user_id=actor.id):
-        return tool
-    # return 404 error
-    # TODO issue #13 in the big spreadsheet: Standardize errors and correct error codes
-    raise HTTPException(status_code=404, detail=f"Tool with id {tool_id} not found.")
+    tool = server.get_tool(tool_id=tool_id)
+    if tool is None:
+        # return 404 error
+        raise HTTPException(status_code=404, detail=f"Tool with id {tool_id} not found.")
+    return tool
+
+
+@router.get("/name/{tool_name}", tags=["tools"], response_model=str)
+def get_tool_id(
+    tool_name: str,
+    server: SyncServer = Depends(get_memgpt_server),
+):
+    """
+    Get a tool by name
+    """
+    actor = server.get_current_user()
+
+    tool = server.get_tool_id(tool_name, user_id=actor.id)
+    if tool is None:
+        # return 404 error
+        raise HTTPException(status_code=404, detail=f"Tool with name {tool_name} not found.")
+    return tool
 
 
 @router.get("/", tags=["tools"], response_model=List[Tool])
@@ -47,10 +62,11 @@ def list_all_tools(
     """
     Get a list of all tools available to agents created by a user
     """
-    actor = server.get_current_user()
-    # Clear the interface
+    server.get_current_user()
 
-    return server.ms.list_tools(user_id=actor.id)
+    # TODO: add back when user-specific
+    # return server.list_tools(user_id=actor.id)
+    return server.ms.list_tools(user_id=None)
 
 
 @router.post("/", tags=["tools"], response_model=Tool)
@@ -63,6 +79,7 @@ def create_tool(
     Create a new tool
     """
     actor = server.get_current_user()
+
     return server.create_tool(
         request=tool,
         update=update,
