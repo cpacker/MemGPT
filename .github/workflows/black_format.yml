@@ -28,7 +28,7 @@ jobs:
       - name: Auto-fix with Black and commit
         if: steps.black.outcome == 'failure' || ${{ !contains(github.event.issue.labels.*.name, 'check-only') }}
         run: |
-          black .
+          poetry run black .
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git commit -am "Apply Black formatting" || echo "No changes to commit"
@@ -36,5 +36,3 @@ jobs:
       - name: Error if 'check-only' label is present
         if: steps.black.outcome == 'failure' && contains(github.event.issue.labels.*.name, 'check-only')
         run: echo "Black formatting check failed. Please run 'black .' locally to fix formatting issues." && exit 1
-
-
