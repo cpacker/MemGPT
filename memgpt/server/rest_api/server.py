@@ -36,7 +36,7 @@ from memgpt.server.rest_api.routers.openai.assistants.threads import (
 # from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
 #     setup_openai_chat_completions_router,
 # )
-from memgpt.server.rest_api.routers.openai.completions.completions import (
+from memgpt.server.rest_api.routers.openai.chat_completions.chat_completions import (
     router as openai_chat_completions_router,
 )
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
