@@ -193,6 +193,7 @@ class MetadataStore:
                     splatted_pydantic = {k: v for k,v in splatted_pydantic.items() if hasattr(Model, k)}
                     print("Creating", self.actor.id, splatted_pydantic["name"] if "name" in splatted_pydantic else "")
                     print(splatted_pydantic)
+                    assert self.actor.id, "Actor ID must be set"
                     return Model(created_by_id=self.actor.id, **splatted_pydantic).create(self.db_session).to_pydantic()
 
                 return create

@@ -870,8 +870,7 @@ class SyncServer(Server):
         if id:
             filters["id"] = id
         blocks = self.ms.list_blocks(filters=filters)
-        print("LIST BLOCKS", filters)
-        print(blocks)
+        return blocks
 
     def get_block(self, block_id: str):
         return self.ms.get_block(id=block_id)
@@ -1531,7 +1530,12 @@ class SyncServer(Server):
         request: ToolUpdate,
     ) -> Tool:
         """Update an existing tool"""
-        return self.ms.update_tool(request)
+        tool = self.ms.get_tool(request.id)
+        tool.name = request.name if request.name is not None else tool.name
+        tool.source_code = request.source_code if request.source_code is not None else tool.source_code
+        tool.source_type = request.source_type if request.source_type is not None else tool.source_type
+        tool.tags = request.tags if request.tags is not None else tool.tags
+        return self.ms.update_tool(tool)
 
     def create_tool(self, request: ToolCreate, update: bool = True) -> Tool:  # TODO: add other fields
         """Create a new tool"""
