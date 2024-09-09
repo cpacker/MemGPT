@@ -22,7 +22,7 @@ jobs:
       - name: Run isort
         id: isort
         run: |
-          output=$(poetry run isort --profile black --check-only --diff .)
+          output=$(poetry run isort --profile black --check-only --diff . | grep -v "Skipped" || true)
           echo "$output"
           if [ -n "$output" ]; then
             echo "isort_changed=true" >> $GITHUB_OUTPUT
@@ -36,9 +36,13 @@ jobs:
           poetry run isort --profile black .
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add -A
-          git commit -m "Apply isort import ordering"
-          git push
+          if [[ -n $(git status -s) ]]; then
+            git add -A
+            git commit -m "Apply isort import ordering"
+            git push
+          else
+            echo "No changes to commit"
+          fi
       - name: Error if 'check-only' label is present and changes are needed
         if: steps.isort.outputs.isort_changed == 'true' && contains(github.event.pull_request.labels.*.name, 'check-only')
         run: echo "Isort check failed. Please run 'isort .' locally to fix import orders." && exit 1
