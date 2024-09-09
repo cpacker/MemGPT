@@ -1791,3 +1791,17 @@ class SyncServer(Server):
             config.save()
 
         return user
+
+    def list_models(self) -> List[LLMConfig]:
+        """List available models"""
+
+        # TODO support multiple models
+        llm_config = self.server_llm_config
+        return [llm_config]
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        """List available embedding models"""
+
+        # TODO support multiple models
+        embedding_config = self.server_embedding_config
+        return [embedding_config]

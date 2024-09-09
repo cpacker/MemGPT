@@ -1107,7 +1107,7 @@ class RESTClient(AbstractClient):
         Returns:
             models (List[LLMConfig]): List of LLM models
         """
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/config/llm", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/models", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list models: {response.text}")
         return [LLMConfig(**model) for model in response.json()]
@@ -1119,7 +1119,7 @@ class RESTClient(AbstractClient):
         Returns:
             models (List[EmbeddingConfig]): List of embedding models
         """
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/config/embedding", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/models/embedding", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list embedding models: {response.text}")
         return [EmbeddingConfig(**model) for model in response.json()]
@@ -2254,7 +2254,7 @@ class LocalClient(AbstractClient):
         Returns:
             models (List[LLMConfig]): List of LLM models
         """
-        return [self.server.server_llm_config]
+        return self.server.list_models()
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         """
@@ -2263,7 +2263,7 @@ class LocalClient(AbstractClient):
         Returns:
             models (List[EmbeddingConfig]): List of embedding models
         """
-        return [self.server.server_embedding_config]
+        return self.server.list_embedding_models()
 
     def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
         """

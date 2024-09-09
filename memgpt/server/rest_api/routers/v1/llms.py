@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING, List
 
 from fastapi import APIRouter, Depends
 
+from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.server.rest_api.utils import get_memgpt_server
 
@@ -12,18 +13,16 @@ router = APIRouter(prefix="/models", tags=["models", "llms"])
 
 
 @router.get("/", response_model=List[LLMConfig])
-def list_models(
+def list_llm_backends(
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
-    server.get_current_user()
 
-    # currently, the server only supports one model, however this may change in the future
-    llm_config = LLMConfig(
-        model=server.server_llm_config.model,
-        model_endpoint=server.server_llm_config.model_endpoint,
-        model_endpoint_type=server.server_llm_config.model_endpoint_type,
-        model_wrapper=server.server_llm_config.model_wrapper,
-        context_window=server.server_llm_config.context_window,
-    )
+    return server.list_models()
 
-    return [llm_config]
+
+@router.get("/embedding", response_model=List[EmbeddingConfig])
+def list_embedding_backends(
+    server: "SyncServer" = Depends(get_memgpt_server),
+):
+
+    return server.list_embedding_models()
