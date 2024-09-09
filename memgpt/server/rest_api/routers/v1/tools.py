@@ -9,7 +9,7 @@ from memgpt.server.server import SyncServer
 router = APIRouter(prefix="/tools", tags=["tools"])
 
 
-@router.delete("/{tool_id}", tags=["tools"])
+@router.delete("/{tool_id}")
 def delete_tool(
     tool_id: str,
     server: SyncServer = Depends(get_memgpt_server),
@@ -21,7 +21,7 @@ def delete_tool(
     server.delete_tool(tool_id=tool_id)
 
 
-@router.get("/{tool_id}", tags=["tools"], response_model=Tool)
+@router.get("/{tool_id}", response_model=Tool)
 def get_tool(
     tool_id: str,
     server: SyncServer = Depends(get_memgpt_server),
@@ -38,7 +38,7 @@ def get_tool(
     return tool
 
 
-@router.get("/name/{tool_name}", tags=["tools"], response_model=str)
+@router.get("/name/{tool_name}", response_model=str)
 def get_tool_id(
     tool_name: str,
     server: SyncServer = Depends(get_memgpt_server),
@@ -55,7 +55,7 @@ def get_tool_id(
     return tool
 
 
-@router.get("/", tags=["tools"], response_model=List[Tool])
+@router.get("/", response_model=List[Tool])
 def list_all_tools(
     server: SyncServer = Depends(get_memgpt_server),
 ):
@@ -70,7 +70,7 @@ def list_all_tools(
     return server.ms.list_tools(user_id=None)
 
 
-@router.post("/", tags=["tools"], response_model=Tool)
+@router.post("/", response_model=Tool)
 def create_tool(
     tool: ToolCreate = Body(...),
     update: bool = False,
