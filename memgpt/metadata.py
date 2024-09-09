@@ -306,7 +306,17 @@ class BlockModel(Base):
                 user_id=self.user_id,
             )
         else:
-            raise ValueError(f"Block with label {self.label} is not supported")
+            return Block(
+                id=self.id,
+                value=self.value,
+                limit=self.limit,
+                name=self.name,
+                template=self.template,
+                label=self.label,
+                metadata_=self.metadata_,
+                description=self.description,
+                user_id=self.user_id,
+            )
 
 
 class ToolModel(Base):
@@ -725,13 +735,13 @@ class MetadataStore:
         self,
         user_id: Optional[str],
         label: Optional[str] = None,
-        template: bool = True,
+        template: Optional[bool] = None,
         name: Optional[str] = None,
         id: Optional[str] = None,
     ) -> List[Block]:
         """List available blocks"""
         with self.session_maker() as session:
-            query = session.query(BlockModel).filter(BlockModel.template == template)
+            query = session.query(BlockModel)
 
             if user_id:
                 query = query.filter(BlockModel.user_id == user_id)
@@ -744,6 +754,9 @@ class MetadataStore:
 
             if id:
                 query = query.filter(BlockModel.id == id)
+
+            if template:
+                query = query.filter(BlockModel.template == template)
 
             results = query.all()
 

@@ -1,8 +1,10 @@
+import logging
 import time
 from typing import Dict, Generator, List, Optional, Union
 
 import requests
 
+import memgpt.utils
 from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_sources.connectors import DataConnector
@@ -1289,6 +1291,10 @@ class LocalClient(AbstractClient):
             # TODO: find a neater way to do this
             self.user_id = config.anon_clientid
 
+        # set logging levels
+        memgpt.utils.DEBUG = debug
+        logging.getLogger().setLevel(logging.CRITICAL)
+
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
@@ -2177,3 +2183,68 @@ class LocalClient(AbstractClient):
             models (List[EmbeddingConfig]): List of embedding models
         """
         return [self.server.server_embedding_config]
+
+    def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
+        """
+        List available blocks
+
+        Args:
+            label (str): Label of the block
+            templates_only (bool): List only templates
+
+        Returns:
+            blocks (List[Block]): List of blocks
+        """
+        return self.server.get_blocks(label=label, template=templates_only)
+
+    def create_block(self, name: str, text: str, label: Optional[str] = None) -> Block:  #
+        """
+        Create a block
+
+        Args:
+            label (str): Label of the block
+            name (str): Name of the block
+            text (str): Text of the block
+
+        Returns:
+            block (Block): Created block
+        """
+        return self.server.create_block(CreateBlock(label=label, name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
+        """
+        Update a block
+
+        Args:
+            block_id (str): ID of the block
+            name (str): Name of the block
+            text (str): Text of the block
+
+        Returns:
+            block (Block): Updated block
+        """
+        return self.server.update_block(UpdateBlock(id=block_id, name=name, value=text))
+
+    def get_block(self, block_id: str) -> Block:
+        """
+        Get a block
+
+        Args:
+            block_id (str): ID of the block
+
+        Returns:
+            block (Block): Block
+        """
+        return self.server.get_block(block_id)
+
+    def delete_block(self, id: str) -> Block:
+        """
+        Delete a block
+
+        Args:
+            id (str): ID of the block
+
+        Returns:
+            block (Block): Deleted block
+        """
+        return self.server.delete_block(id)
