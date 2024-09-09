@@ -220,11 +220,12 @@ def insert_agent_archival_memory(
 
 
 # TODO(ethan): query or path parameter for memory_id?
-# @router.delete("/{agent_id}/archival/{memory_id}")
-@router.delete("/{agent_id}/archival")
+# @router.delete("/{agent_id}/archival")
+@router.delete("/{agent_id}/archival/{memory_id}")
 def delete_agent_archival_memory(
     agent_id: str,
-    memory_id: str = Query(..., description="Unique ID of the memory to be deleted."),
+    memory_id: str,
+    # memory_id: str = Query(..., description="Unique ID of the memory to be deleted."),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """

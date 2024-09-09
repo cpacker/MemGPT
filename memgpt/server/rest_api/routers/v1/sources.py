@@ -2,14 +2,7 @@ import os
 import tempfile
 from typing import List
 
-from fastapi import (
-    APIRouter,
-    BackgroundTasks,
-    Depends,
-    HTTPException,
-    Query,
-    UploadFile,
-)
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, UploadFile
 
 from memgpt.schemas.document import Document
 from memgpt.schemas.job import Job
@@ -135,26 +128,6 @@ def detach_source_from_agent(
     server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor.id)
 
 
-@router.get("/status/{job_id}", response_model=Job)
-def get_job_status(
-    job_id: str,
-    server: "SyncServer" = Depends(get_memgpt_server),
-):
-    """
-    Get the status of a job.
-    """
-    job = server.get_job(job_id=job_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail=f"Job with id={job_id} not found.")
-    return job
-
-    # TODO(ethan): move to new error handling style if supported on server, not server.ms?
-    # try:
-    # return server.ms.get_job(job_id=job_id)
-    # except (MultipleResultsFound, NoResultFound) as e:
-    # raise HTTPException(status_code=404, detail=f"Job with id={job_id} not found.") from e
-
-
 @router.post("/{source_id}/upload", response_model=Job)
 def upload_file_to_source(
     file: UploadFile,
@@ -181,6 +154,7 @@ def upload_file_to_source(
 
     # return job information
     job = server.ms.get_job(job_id=job_id)
+    assert job is not None, "Job not found"
     return job
 
 

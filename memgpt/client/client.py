@@ -450,7 +450,7 @@ class RESTClient(AbstractClient):
             message_ids=message_ids,
             memory=memory,
         )
-        response = requests.post(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
+        response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
@@ -531,7 +531,7 @@ class RESTClient(AbstractClient):
 
         """
         memory_update_dict = {section: value}
-        response = requests.post(
+        response = requests.patch(
             f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory", json=memory_update_dict, headers=self.headers
         )
         if response.status_code != 200:
@@ -1074,7 +1074,7 @@ class RESTClient(AbstractClient):
             source (Source): Updated source
         """
         request = SourceUpdate(id=source_id, name=name)
-        response = requests.post(f"{self.base_url}/{self.api_prefix}/sources/{source_id}", json=request.model_dump(), headers=self.headers)
+        response = requests.patch(f"{self.base_url}/{self.api_prefix}/sources/{source_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update source: {response.text}")
         return Source(**response.json())
