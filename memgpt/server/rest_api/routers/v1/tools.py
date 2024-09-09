@@ -62,7 +62,8 @@ def list_all_tools(
     """
     Get a list of all tools available to agents created by a user
     """
-    server.get_current_user()
+    actor = server.get_current_user()
+    actor.id
 
     # TODO: add back when user-specific
     # return server.list_tools(user_id=actor.id)
