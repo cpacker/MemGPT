@@ -1,8 +1,6 @@
+import os
 import tempfile
 from typing import List
-
-# These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
-from uuid import UUID
 
 from fastapi import (
     APIRouter,
@@ -12,34 +10,49 @@ from fastapi import (
     Query,
     UploadFile,
 )
-from sqlalchemy.exc import MultipleResultsFound, NoResultFound
 
+from memgpt.schemas.document import Document
 from memgpt.schemas.job import Job
-from memgpt.schemas.source import Source, SourceCreate
+from memgpt.schemas.passage import Passage
+from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.server.rest_api.utils import get_memgpt_server
-from memgpt.server.schemas.sources import (
-    GetSourceDocumentsResponse,
-    GetSourcePassagesResponse,
-)
 from memgpt.server.server import SyncServer
+
+# These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
+
 
 router = APIRouter(prefix="/sources", tags=["sources"])
 
 
 @router.get("/{source_id}", response_model=Source)
-async def get_source(
+def get_source(
     source_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Get all sources
     """
+    actor = server.get_current_user()
 
-    return server.get_source(source_id=source_id, user_id=server.get_current_user().id)
+    return server.get_source(source_id=source_id, user_id=actor.id)
+
+
+@router.get("/name/{source_name}", response_model=str)
+def get_source_id_by_name(
+    source_name: str,
+    server: "SyncServer" = Depends(get_memgpt_server),
+):
+    """
+    Get a source by name
+    """
+    actor = server.get_current_user()
+
+    source = server.get_source_id(source_name=source_name, user_id=actor.id)
+    return source
 
 
 @router.get("/", response_model=List[Source])
-async def list_sources(
+def list_sources(
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -51,7 +64,7 @@ async def list_sources(
 
 
 @router.post("/", response_model=Source)
-async def create_source(
+def create_source(
     source: SourceCreate,
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -63,9 +76,24 @@ async def create_source(
     return server.create_source(request=source, user_id=actor.id)
 
 
+@router.patch("/{source_id}", response_model=Source)
+def update_source(
+    source_id: str,
+    source: SourceUpdate,
+    server: "SyncServer" = Depends(get_memgpt_server),
+):
+    """
+    Update the name or documentation of an existing data source.
+    """
+    actor = server.get_current_user()
+    assert source.id == source_id, "Source ID in path must match ID in request body"
+
+    return server.update_source(request=source, user_id=actor.id)
+
+
 @router.delete("/{source_id}")
-async def delete_source(
-    source_id: "str",
+def delete_source(
+    source_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -76,10 +104,10 @@ async def delete_source(
     server.delete_source(source_id=source_id, user_id=actor.id)
 
 
-@router.post("/{source_id}/attach")
-async def attach_source_to_agent(
-    source_id: "str",
-    agent_id: "str" = Query(..., description="The unique identifier of the agent to attach the source to."),
+@router.post("/{source_id}/attach", response_model=Source)
+def attach_source_to_agent(
+    source_id: str,
+    agent_id: str = Query(..., description="The unique identifier of the agent to attach the source to."),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -88,48 +116,49 @@ async def attach_source_to_agent(
     actor = server.get_current_user()
 
     source = server.ms.get_source(source_id=source_id, user_id=actor.id)
-    source = server.attach_source_to_agent(source_name=source.name, agent_id=agent_id, user_id=actor.id)
-    return Source(
-        name=source.name,
-        description=None,  # TODO: actually store descriptions
-        user_id=source.user_id,
-        id=source.id,
-        embedding_config=server.server_embedding_config,
-        created_at=source.created_at,
-    )
+    assert source is not None, f"Source with id={source_id} not found."
+    source = server.attach_source_to_agent(source_id=source.id, agent_id=agent_id, user_id=actor.id)
+    return source
 
 
 @router.post("/{source_id}/detach")
-async def detach_source_from_agent(
-    source_id: "UUID",
-    agent_id: "UUID" = Query(..., description="The unique identifier of the agent to detach the source from."),
+def detach_source_from_agent(
+    source_id: str,
+    agent_id: str = Query(..., description="The unique identifier of the agent to detach the source from."),
     server: "SyncServer" = Depends(get_memgpt_server),
 ) -> None:
     """
     Detach a data source from an existing agent.
     """
     actor = server.get_current_user()
+
     server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor.id)
 
 
 @router.get("/status/{job_id}", response_model=Job)
-async def get_job_status(
-    job_id: "UUID",
+def get_job_status(
+    job_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Get the status of a job.
     """
-    try:
-        return server.ms.get_job(job_id=job_id)
-    except (MultipleResultsFound, NoResultFound) as e:
-        raise HTTPException(status_code=404, detail=f"Job with id={job_id} not found.") from e
+    job = server.get_job(job_id=job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"Job with id={job_id} not found.")
+    return job
+
+    # TODO(ethan): move to new error handling style if supported on server, not server.ms?
+    # try:
+    # return server.ms.get_job(job_id=job_id)
+    # except (MultipleResultsFound, NoResultFound) as e:
+    # raise HTTPException(status_code=404, detail=f"Job with id={job_id} not found.") from e
 
 
 @router.post("/{source_id}/upload", response_model=Job)
-async def upload_file_to_source(
+def upload_file_to_source(
     file: UploadFile,
-    source_id: "UUID",
+    source_id: str,
     background_tasks: BackgroundTasks,
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -139,24 +168,25 @@ async def upload_file_to_source(
     actor = server.get_current_user()
 
     source = server.ms.get_source(source_id=source_id, user_id=actor.id)
+    assert source is not None, f"Source with id={source_id} not found."
     bytes = file.file.read()
 
     # create job
-    job = Job(user_id=actor.id, metadata={"type": "embedding", "filename": file.filename, "source_id": source_id})
+    job = Job(user_id=actor.id, metadata_={"type": "embedding", "filename": file.filename, "source_id": source_id})
     job_id = job.id
     server.ms.create_job(job)
 
     # create background task
-    background_tasks.add_task(load_file_to_source_async, server, actor.id, source, job_id, file, bytes)
+    background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, job_id=job.id, file=file, bytes=bytes)
 
     # return job information
     job = server.ms.get_job(job_id=job_id)
     return job
 
 
-@router.get("/{source_id}/passages")
-async def list_passages(
-    source_id: "UUID",
+@router.get("/{source_id}/passages", response_model=List[Passage])
+def list_passages(
+    source_id: str,
     server: SyncServer = Depends(get_memgpt_server),
 ):
     """
@@ -164,26 +194,27 @@ async def list_passages(
     """
     actor = server.get_current_user()
     passages = server.list_data_source_passages(user_id=actor.id, source_id=source_id)
-    return GetSourcePassagesResponse(passages=passages)
+    return passages
 
 
-@router.get("/{source_id}/documents")
-async def list_documents(
-    source_id: "UUID",
+@router.get("/{source_id}/documents", response_model=List[Document])
+def list_documents(
+    source_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     List all documents associated with a data source.
     """
     actor = server.get_current_user()
+
     documents = server.list_data_source_documents(user_id=actor.id, source_id=source_id)
-    return GetSourceDocumentsResponse(documents=documents)
+    return documents
 
 
 def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):
     # write the file to a temporary directory (deleted after the context manager exits)
     with tempfile.TemporaryDirectory() as tmpdirname:
-        file_path = os.path.join(tmpdirname, file.filename)
+        file_path = os.path.join(str(tmpdirname), str(file.filename))
         with open(file_path, "wb") as buffer:
             buffer.write(bytes)
 
