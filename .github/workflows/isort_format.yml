@@ -25,10 +25,15 @@ jobs:
         run: poetry run isort --profile black --check-only .
         continue-on-error: true
 
-      - name: Check isort Output
-        if: steps.isort.outcome == 'failure'
+      - name: Auto-fix with isort and commit
+        if: steps.isort.outcome == 'failure' || ${{ !contains(github.event.issue.labels.*.name, 'check-only') }}
         run: |
-          poetry run isort --version
-          poetry run python --version
-          echo "isort check failed. To fix, please run 'poetry run isort --profile black .'"
-          exit 1
+          poetry run isort --profile black .
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -am "Apply isort import ordering" || echo "No changes to commit"
+          git push
+      - name: Error if 'check-only' label is present
+        if: steps.isort.outcome == 'failure' && contains(github.event.issue.labels.*.name, 'check-only')
+        run: echo "Isort check failed. Please run 'isort .' locally to fix import orders." && exit 1
+
