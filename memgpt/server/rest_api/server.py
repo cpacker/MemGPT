@@ -12,27 +12,32 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
-from memgpt.server.rest_api.admin.agents import setup_agents_admin_router
-from memgpt.server.rest_api.admin.tools import setup_tools_index_router
-from memgpt.server.rest_api.admin.users import setup_admin_router
-from memgpt.server.rest_api.agents.index import setup_agents_index_router
-from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
-from memgpt.server.rest_api.agents.message import setup_agents_message_router
+
+# from memgpt.server.rest_api.admin.tools import setup_tools_index_router
+# from memgpt.server.rest_api.admin.users import setup_admin_router
+# from memgpt.server.rest_api.agents.index import setup_agents_index_router
+# from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
+# from memgpt.server.rest_api.agents.message import setup_agents_message_router
 from memgpt.server.rest_api.auth.index import setup_auth_router
-from memgpt.server.rest_api.block.index import setup_block_index_router
-from memgpt.server.rest_api.config.index import setup_config_index_router
+
+# from memgpt.server.rest_api.block.index import setup_block_index_router
+# from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.interface import StreamingServerInterface
-from memgpt.server.rest_api.jobs.index import setup_jobs_index_router
-from memgpt.server.rest_api.models.index import setup_models_index_router
+
+# from memgpt.server.rest_api.jobs.index import setup_jobs_index_router
+# from memgpt.server.rest_api.models.index import setup_models_index_router
 from memgpt.server.rest_api.openai_assistants.assistants import (
     setup_openai_assistant_router,
 )
 from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
     setup_openai_chat_completions_router,
 )
-from memgpt.server.rest_api.sources.index import setup_sources_index_router
+from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
+
+# from memgpt.server.rest_api.sources.index import setup_sources_index_router
 from memgpt.server.rest_api.static_files import mount_static_files
-from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
+
+# from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
 
@@ -81,28 +86,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# v1_routes are the MemGPT API routes
+for route in v1_routes:
+    app.include_router(route, prefix=API_PREFIX)
+    # this gives undocumented routes for "latest" and bare api calls.
+    # we should always tie this to the newest version of the api.
+    app.include_router(route, prefix="", include_in_schema=False)
+    app.include_router(route, prefix="/latest", include_in_schema=False)
+
 # /api/auth endpoints
 app.include_router(setup_auth_router(server, interface, password), prefix=API_PREFIX)
 
 # /admin/users endpoints
-app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
-app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
+# app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
+# app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
 
 # /api/admin/agents endpoints
-app.include_router(setup_agents_admin_router(server, interface), prefix=ADMIN_API_PREFIX, dependencies=[Depends(verify_password)])
+# app.include_router(setup_agents_admin_router(server, interface), prefix=ADMIN_API_PREFIX, dependencies=[Depends(verify_password)])
 
 # /api/agents endpoints
-app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_block_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_jobs_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_user_tools_index_router(server, interface, password), prefix=API_PREFIX)
-app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
+# app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
+# app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
+# app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
+# app.include_router(setup_block_index_router(server, interface, password), prefix=API_PREFIX)
+# app.include_router(setup_jobs_index_router(server, interface, password), prefix=API_PREFIX)
+# app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
+# app.include_router(setup_user_tools_index_router(server, interface, password), prefix=API_PREFIX)
+# app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
 
 # /api/config endpoints
-app.include_router(setup_config_index_router(server, interface, password), prefix=API_PREFIX)
+# app.include_router(setup_config_index_router(server, interface, password), prefix=API_PREFIX)
 
 # /v1/assistants endpoints
 app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
