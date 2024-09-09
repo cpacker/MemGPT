@@ -7,8 +7,7 @@ from memgpt import create_client
 from memgpt.functions.functions import USER_FUNCTIONS_DIR
 from memgpt.schemas.message import Message
 from memgpt.utils import assistant_function_to_tool, json_dumps, json_loads
-from tests.utils import create_config, wipe_config
-from tests.mock_factory.models import MockUserFactory, MockTokenFactory
+from tests.mock_factory.models import MockTokenFactory, MockUserFactory
 
 
 def hello_world(self) -> str:
@@ -26,12 +25,7 @@ def agent(request, db_session, test_app):
     requesting_user = MockUserFactory(db_session=db_session).generate()
     api_token = MockTokenFactory(db_session=db_session, user_id=requesting_user.id).generate()
     token = api_token.api_key
-    client_args = {
-        "base_url": "http://test",
-        "token": token,
-        "debug": True,
-        "app": test_app
-    }
+    client_args = {"base_url": "http://test", "token": token, "debug": True, "app": test_app}
 
     # create memgpt client
     client = create_client(**client_args)

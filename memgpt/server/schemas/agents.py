@@ -1,12 +1,12 @@
-from typing import Optional, List, TYPE_CHECKING, Annotated
 from datetime import datetime
+from typing import Annotated, List, Optional
+from uuid import UUID
+
 from pydantic import BaseModel, Field, StringConstraints
 
-from memgpt.schemas.usage import MemGPTUsageStatistics
-from memgpt.schemas.agent import AgentState
 from memgpt.orm.enums import MessageRoleType
-
-from uuid import UUID
+from memgpt.schemas.agent import AgentState
+from memgpt.schemas.usage import MemGPTUsageStatistics
 
 
 class AgentCommandRequest(BaseModel):
@@ -16,17 +16,19 @@ class AgentCommandRequest(BaseModel):
 class AgentCommandResponse(BaseModel):
     response: str = Field(..., description="The result of the executed command.")
 
+
 class AgentRenameRequest(BaseModel):
-    agent_name: Annotated[str, StringConstraints(min_length=1,
-                                                 max_length=50,
-                                              pattern="^[A-Za-z0-9 _-]+$")] = Field(...,
-                                              description="New name for the agent.")
+    agent_name: Annotated[str, StringConstraints(min_length=1, max_length=50, pattern="^[A-Za-z0-9 _-]+$")] = Field(
+        ..., description="New name for the agent."
+    )
+
 
 class GetAgentResponse(BaseModel):
     # config: dict = Field(..., description="The agent configuration object.")
     agent_state: AgentState = Field(..., description="The state of the agent.")
     sources: List[str] = Field(..., description="The list of data sources associated with the agent.")
     last_run_at: Optional[int] = Field(None, description="The unix timestamp of when the agent was last run.")
+
 
 class ListAgentsResponse(BaseModel):
     num_agents: int = Field(..., description="The number of agents available to the user.")
@@ -41,6 +43,7 @@ class CreateAgentRequest(BaseModel):
 
 class CreateAgentResponse(BaseModel):
     agent_state: "AgentState" = Field(..., description="The state of the newly created agent.")
+
 
 class CoreMemory(BaseModel):
     human: str | None = Field(None, description="Human element of the core memory.")
@@ -87,6 +90,7 @@ class InsertAgentArchivalMemoryResponse(BaseModel):
 
 class DeleteAgentArchivalMemoryRequest(BaseModel):
     id: str = Field(..., description="Unique identifier for the new archival memory object.")
+
 
 class UserMessageRequest(BaseModel):
     message: str = Field(..., description="The message content to be processed by the agent.")

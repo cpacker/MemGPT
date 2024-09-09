@@ -3,6 +3,7 @@ import pytest
 from memgpt.schemas.block import Block
 from memgpt.schemas.memory import BlockChatMemory, ChatMemory, Memory
 
+
 @pytest.fixture(scope="module")
 async def agent(client):
     agent_state = await client.create_agent(name="test_agent")

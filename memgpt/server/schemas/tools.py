@@ -1,8 +1,9 @@
-from typing import List, Optional, Literal
+from typing import List, Literal, Optional
+
 from pydantic import BaseModel, Field
 
-
 from memgpt.schemas.tool import Tool
+
 
 class ListToolsResponse(BaseModel):
     tools: List[Tool] = Field(..., description="List of tools (functions).")

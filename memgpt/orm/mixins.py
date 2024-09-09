@@ -1,6 +1,8 @@
 from typing import Optional, Type
 from uuid import UUID
-from sqlalchemy import UUID as SQLUUID, ForeignKey
+
+from sqlalchemy import UUID as SQLUUID
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from memgpt.orm.base import Base
@@ -47,9 +49,7 @@ class OrganizationMixin(Base):
 
     __abstract__ = True
 
-    _organization_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("organization._id")
-    )
+    _organization_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("organization._id"))
 
     @property
     def organization_id(self) -> str:
@@ -65,9 +65,7 @@ class UserMixin(Base):
 
     __abstract__ = True
 
-    _user_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("user._id")
-    )
+    _user_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("user._id"))
 
     @property
     def user_id(self) -> str:
@@ -77,14 +75,13 @@ class UserMixin(Base):
     def user_id(self, value: str) -> None:
         _relation_setter(self, "user", value)
 
+
 class AgentMixin(Base):
     """Mixin for models that belong to an agent."""
 
     __abstract__ = True
 
-    _agent_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("agent._id")
-    )
+    _agent_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("agent._id"))
 
     @property
     def agent_id(self) -> str:
@@ -100,9 +97,7 @@ class DocumentMixin(Base):
 
     __abstract__ = True
 
-    _document_id: Mapped[Optional[UUID]] = mapped_column(
-        SQLUUID(), ForeignKey("document._id")
-    )
+    _document_id: Mapped[Optional[UUID]] = mapped_column(SQLUUID(), ForeignKey("document._id"))
 
     @property
     def document_id(self) -> str:
@@ -112,14 +107,13 @@ class DocumentMixin(Base):
     def document_id(self, value: str) -> None:
         _relation_setter(self, "document", value)
 
+
 class HumanMemoryTemplateMixin(Base):
     """Mixin for models that have one human memory template relationships."""
 
     __abstract__ = True
 
-    _human_memory_template_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("memory_template._id")
-    )
+    _human_memory_template_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("memory_template._id"))
 
     @property
     def human_memory_template_id(self) -> str:
@@ -129,14 +123,13 @@ class HumanMemoryTemplateMixin(Base):
     def human_memory_template_id(self, value: str) -> None:
         _relation_setter(self, "human_memory_template", value)
 
+
 class SystemMemoryTemplateMixin(Base):
     """Mixin for models that have one system memory template relationships."""
 
     __abstract__ = True
 
-    _system_memory_template_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("memory_template._id")
-    )
+    _system_memory_template_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("memory_template._id"))
 
     @property
     def system_memory_template_id(self) -> str:
@@ -146,14 +139,13 @@ class SystemMemoryTemplateMixin(Base):
     def system_memory_template_id(self, value: str) -> None:
         _relation_setter(self, "system_memory_template", value)
 
+
 class PersonaMemoryTemplateMixin(Base):
     """Mixin for models that have one persona memory template relationships."""
 
     __abstract__ = True
 
-    _persona_memory_template_id: Mapped[UUID] = mapped_column(
-        SQLUUID(), ForeignKey("memory_template._id")
-    )
+    _persona_memory_template_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("memory_template._id"))
 
     @property
     def persona_memory_template_id(self) -> str:

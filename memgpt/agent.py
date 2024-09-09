@@ -5,7 +5,6 @@ from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
 
-from memgpt.utils import json_dumps, json_loads
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.constants import (
     CLI_WARNING_PREFIX,
@@ -16,11 +15,11 @@ from memgpt.constants import (
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
 )
-from memgpt.orm.agent import Agent as SQLAgent
 from memgpt.interface import AgentInterface
 from memgpt.llm_api.llm_api_tools import create, is_context_overflow_error
 from memgpt.memory import ArchivalMemory, RecallMemory, summarize_messages
 from memgpt.metadata import MetadataStore
+from memgpt.orm.agent import Agent as SQLAgent
 from memgpt.persistence_manager import LocalStateManager
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.block import Block
@@ -1238,7 +1237,7 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
 
         try:
             block = ms.update_block(block)
-        except Exception as e:
+        except Exception:
             block = ms.create_block(block)
 
         blocks.append(block)
@@ -1247,4 +1246,3 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
     sql_agent = SQLAgent.read(db_session=ms.db_session, identifier=agent.agent_state.id)
     [sql_agent.core_memory.append(block.to_sqlalchemy(ms.db_session)) for block in blocks]
     ms.db_session.commit()
-

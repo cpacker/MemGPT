@@ -1,17 +1,15 @@
-from pytest import mark as m, fixture
-from faker import Faker
 import random
 
-from memgpt.agent_store.storage import StorageConnector
-from memgpt.schemas.enums import TableType, MessageRole
-from memgpt.config import MemGPTConfig
-from memgpt.orm.__all__ import (
-    Base
-)
+from faker import Faker
+from pytest import fixture
+from pytest import mark as m
 
+from memgpt.agent_store.storage import StorageConnector
+from memgpt.config import MemGPTConfig
+from memgpt.orm.__all__ import Base
+from memgpt.schemas.enums import MessageRole, TableType
 from memgpt.schemas.message import MessageCreate
 from memgpt.schemas.passage import PassageCreate
-from memgpt.schemas.document import Document
 
 faker = Faker()
 
@@ -19,7 +17,7 @@ faker = Faker()
 @m.describe("When working with StorageConnectors")
 class TestUnitStorage:
 
-    @fixture(params=[t for t in TableType if t != TableType.DOCUMENTS]) # Document is not currently supported
+    @fixture(params=[t for t in TableType if t != TableType.DOCUMENTS])  # Document is not currently supported
     def storage(self, request, user_and_agent_seed):
         config = MemGPTConfig.load()
         user, agent = user_and_agent_seed
@@ -30,19 +28,25 @@ class TestUnitStorage:
     def _storage_data(self, type: TableType, user_id: str = None, agent_id: str = None, count: int = 3) -> list:
         match type:
             case TableType.ARCHIVAL_MEMORY | TableType.PASSAGES:
-                data = [PassageCreate(
-                    user_id=user_id,
-                    agent_id=agent_id,
-                    text=faker.text(),
-                ) for _ in range(count)]
+                data = [
+                    PassageCreate(
+                        user_id=user_id,
+                        agent_id=agent_id,
+                        text=faker.text(),
+                    )
+                    for _ in range(count)
+                ]
             case TableType.RECALL_MEMORY:
-                data = [MessageCreate(
-                    agent_id=agent_id,
-                    user_id=user_id,
-                    role=random.choice(list(MessageRole)),
-                    text=faker.text(),
-                    name=faker.name(),
-                ) for _ in range(count)]
+                data = [
+                    MessageCreate(
+                        agent_id=agent_id,
+                        user_id=user_id,
+                        role=random.choice(list(MessageRole)),
+                        text=faker.text(),
+                        name=faker.name(),
+                    )
+                    for _ in range(count)
+                ]
             case _:
                 return []
         return data

@@ -1,11 +1,12 @@
-from typing import Optional, List
+from typing import List, Optional
+
 from fastapi import UploadFile
 from pydantic import BaseModel, Field
-
 
 from memgpt.schemas.document import Document
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source
+
 
 class ListSourcesResponse(BaseModel):
     sources: List[Source] = Field(..., description="List of available sources.")

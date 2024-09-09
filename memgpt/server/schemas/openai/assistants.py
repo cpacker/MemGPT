@@ -1,8 +1,10 @@
 from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 from memgpt.models.openai import OpenAIMessage, OpenAIThread, ToolCall, ToolCallOutput
 from memgpt.orm.enums import MessageRoleType
+
 
 class CreateAssistantRequest(BaseModel):
     model: str = Field(..., description="The model to use for the assistant.")

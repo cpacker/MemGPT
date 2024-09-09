@@ -1,5 +1,4 @@
 import copy
-from pathlib import Path
 import difflib
 import hashlib
 import inspect
@@ -16,6 +15,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+from pathlib import Path
 from typing import List, Union, _GenericAlias, get_type_hints
 from urllib.parse import urljoin, urlparse
 
@@ -23,14 +23,13 @@ import demjson3 as demjson
 import pytz
 import tiktoken
 
-import memgpt
 from memgpt.constants import (
     CLI_WARNING_PREFIX,
-    CORE_MEMORY_HUMAN_CHAR_LIMIT,
-    CORE_MEMORY_PERSONA_CHAR_LIMIT,
     FUNCTION_RETURN_CHAR_LIMIT,
     MEMGPT_DIR,
     TOOL_CALL_ID_MAX_LEN,
+    CORE_MEMORY_HUMAN_CHAR_LIMIT,
+    CORE_MEMORY_PERSONA_CHAR_LIMIT
 )
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
 
@@ -781,6 +780,7 @@ class OpenAIBackcompatUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
         if module == "openai.openai_object":
             from memgpt.openai_backcompat.openai_object import OpenAIObject
+
             return OpenAIObject
         return super().find_class(module, name)
 
@@ -952,7 +952,7 @@ def list_agent_config_files(sort="last_modified"):
     return files
 
 
-def _list_block_files(blocktype:str) -> List[Path]:
+def _list_block_files(blocktype: str) -> List[Path]:
     """gets all the sorted example files for a given block type
     Args:
         blocktype (str): the block type (human, persona, banana etc) to list
@@ -967,6 +967,7 @@ def _list_block_files(blocktype:str) -> List[Path]:
             all_files.extend(parent.glob("*.txt"))
     return all_files
 
+
 def list_human_files():
     """List all humans files"""
     return _list_block_files("humans")
@@ -975,6 +976,7 @@ def list_human_files():
 def list_persona_files():
     """List all personas files"""
     return _list_block_files("personas")
+
 
 def _get_block_text(name: str, blocktype: str, enforce_limit=True):
     """actually extract the text from the seeed file"""
@@ -989,12 +991,14 @@ def _get_block_text(name: str, blocktype: str, enforce_limit=True):
     except StopIteration as e:
         raise ValueError(f"{blocktype} {name}.txt not found") from e
 
+
 def get_human_text(name: str, enforce_limit=True):
     return _get_block_text(name, "human", enforce_limit)
 
 
 def get_persona_text(name: str, enforce_limit=True):
     return _get_block_text(name, "persona", enforce_limit)
+
 
 def get_schema_diff(schema_a, schema_b):
     # Assuming f_schema and linked_function['json_schema'] are your JSON schemas

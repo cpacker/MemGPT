@@ -2,7 +2,6 @@ from functools import partial
 from typing import List
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
 
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.server.rest_api.auth_token import get_current_user
@@ -10,6 +9,7 @@ from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 
 router = APIRouter()
+
 
 def setup_models_index_router(server: SyncServer, interface: QueuingInterface, password: str):
     partial(partial(get_current_user, server), password)

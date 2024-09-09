@@ -1,31 +1,29 @@
-from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
+import uuid
 import warnings
 from abc import abstractmethod
 from datetime import datetime
-import uuid
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
 
-from memgpt.functions.schema_generator import generate_schema
-from memgpt.orm.utilities import get_db_session
 import memgpt.constants as constants
 import memgpt.server.utils as server_utils
 import memgpt.system as system
-from memgpt.utils import json_dumps, json_loads
 from memgpt.agent import Agent, save_agent
 from memgpt.agent_store.storage import StorageConnector
 from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
-from memgpt.orm.user import User as SQLUser
-from memgpt.orm.agent import Agent as SQLAgent
+from memgpt.functions.schema_generator import generate_schema
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
 from memgpt.metadata import MetadataStore
+from memgpt.orm.user import User as SQLUser
+from memgpt.orm.utilities import get_db_session
 from memgpt.prompts import gpt_system
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.api_key import APIKey, APIKeyCreate
@@ -38,10 +36,9 @@ from memgpt.schemas.block import (
 )
 from memgpt.schemas.document import Document
 from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.enums import TableType
 
 # openai schemas
-from memgpt.schemas.enums import JobStatus
+from memgpt.schemas.enums import JobStatus, TableType
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
@@ -153,8 +150,7 @@ class SyncServer(Server):
 
         # Initialize the connection to the DB
         self.config = config or MemGPTConfig.load()
-        msg = "server :: loading configuration as passed" if config else \
-        f"server :: loading configuration from '{self.config.config_path}'"
+        msg = "server :: loading configuration as passed" if config else f"server :: loading configuration from '{self.config.config_path}'"
         print(msg)
         assert self.config.persona is not None, "Persona must be set in the config"
         assert self.config.human is not None, "Human must be set in the config"
@@ -181,15 +177,14 @@ class SyncServer(Server):
         assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
 
         # Initialize the metadata store
-        self.ms = MetadataStore(db_session=self.db_session, actor = self.get_current_user())
+        self.ms = MetadataStore(db_session=self.db_session, actor=self.get_current_user())
 
     def get_current_user(self) -> SQLUser:
-        """ returns the currently authed user.
+        """returns the currently authed user.
         since server is the core gateway this needs to pass through server as the
         first touchpoint.
         """
         return SQLUser.default(self.db_session).to_pydantic()
-
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -360,7 +355,9 @@ class SyncServer(Server):
                 raise ValueError(command)
 
             # attach data to agent from source
-            source_connector = StorageConnector().get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id, db_session=self.ms.db_session)
+            source_connector = StorageConnector().get_storage_connector(
+                TableType.PASSAGES, self.config, user_id=user_id, db_session=self.ms.db_session
+            )
             memgpt_agent.attach_source(data_source, source_connector, self.ms)
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
@@ -431,9 +428,7 @@ class SyncServer(Server):
                         text = command[len("rewrite ") :].strip()
                         args = json_loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
                         args["message"] = text
-                        memgpt_agent.messages[x].get("function_call").update(
-                            {"arguments": json_dumps(args)}
-                        )
+                        memgpt_agent.messages[x].get("function_call").update({"arguments": json_dumps(args)})
                         break
 
         # No skip options
@@ -788,7 +783,7 @@ class SyncServer(Server):
         # TODO add a get_message_obj_from_message_id(...) function
         #      this would allow grabbing Message.created_by without having to load the agent object
         # all_available_tools = self.ms.list_tools(user_id) # TODO: add back when user-specific
-        all_available_tools = self.ms.list_tools()
+        self.ms.list_tools()
 
         for agent_state, return_dict in zip(agents_states, agents_states_dicts):
 
@@ -921,11 +916,11 @@ class SyncServer(Server):
     def get_user(self, user_id: str) -> User:
         """Get the user"""
         return self.ms.get_user(user_id)
-    
+
     def get_user_default(self) -> User:
         """Get the user"""
         return SQLUser.default(db_session=self.ms.db_session)
-    
+
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
         agent = self._get_or_load_agent(agent_id=agent_id)
@@ -1192,7 +1187,7 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(user_id=user_id, agent_id=agent_id)
 
-        # TODO: 
+        # TODO:
         # old_core_memory = self.get_agent_memory(agent_id=agent_id)["core_memory"]
         # new_core_memory = old_core_memory.copy()
 
@@ -1414,7 +1409,9 @@ class SyncServer(Server):
             raise ValueError(f"Data source {source_name} does not exist for user {user_id}")
 
         # get the data connectors
-        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id, db_session=self.ms.db_session)
+        passage_store = StorageConnector.get_storage_connector(
+            TableType.PASSAGES, self.config, user_id=user_id, db_session=self.ms.db_session
+        )
         # TODO: add document store support
         document_store = None  # StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
 
@@ -1589,21 +1586,29 @@ class SyncServer(Server):
         return tools
 
     def add_default_blocks(self, user_id: str):
-        from memgpt.utils import list_human_files, list_persona_files, get_human_text, get_persona_text
+        from memgpt.utils import (
+            get_human_text,
+            get_persona_text,
+            list_human_files,
+            list_persona_files,
+        )
 
         assert user_id is not None, "User ID must be provided"
 
         for persona_file in list_persona_files():
             text = get_persona_text(persona_file.stem)
-            self.create_block(CreatePersona(user_id=user_id, name=persona_file.stem, value=text, template=True), user_id=user_id, update=True)
+            self.create_block(
+                CreatePersona(user_id=user_id, name=persona_file.stem, value=text, template=True), user_id=user_id, update=True
+            )
 
         for human_file in list_human_files():
             text = get_human_text(human_file.stem)
             self.create_block(CreateHuman(user_id=user_id, name=human_file.stem, value=text, template=True), user_id=user_id, update=True)
 
+
 def get_agent_message(self, agent_id: str, message_id: str) -> Message:
-        """Get a single message from the agent's memory"""
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
-        message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
-        return message
+    """Get a single message from the agent's memory"""
+    # Get the agent object (loaded in memory)
+    memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+    message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
+    return message

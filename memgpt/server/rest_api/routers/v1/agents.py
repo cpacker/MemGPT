@@ -1,38 +1,37 @@
-from typing import Union, Optional, List, Dict
-from datetime import datetime
 import asyncio
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from datetime import datetime
+from typing import Dict, List, Optional, Union
+
+# These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
+from uuid import UUID
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.responses import StreamingResponse
 
-from memgpt.settings import settings
-from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
-from memgpt.schemas.agent import AgentState, UpdateAgentState, CreateAgent
-from memgpt.schemas.message import Message
-from memgpt.schemas.passage import Passage
-from memgpt.schemas.memory import Memory, RecallMemorySummary, ArchivalMemorySummary
-from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.llm_config import LLMConfig
+from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.enums import MessageRole, MessageStreamStatus
 from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
 from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
-from memgpt.server.rest_api.utils import sse_async_generator
-from memgpt.server.schemas.agents import AgentCommandResponse, GetAgentResponse, AgentRenameRequest, CreateAgentRequest, CreateAgentResponse, GetAgentMemoryResponse, UpdateAgentMemoryRequest, UpdateAgentMemoryResponse, GetAgentArchivalMemoryResponse, ArchivalMemoryObject, InsertAgentArchivalMemoryRequest, InsertAgentArchivalMemoryResponse, UserMessageRequest, UserMessageResponse, GetAgentMessagesRequest, GetAgentMessagesResponse, GetAgentMessagesCursorRequest
+from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
+from memgpt.schemas.message import Message
+from memgpt.schemas.passage import Passage
 from memgpt.server.rest_api.interface import StreamingServerInterface
-from memgpt.utils import deduplicate
-
-# These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
-from uuid import UUID
-from memgpt.orm.user import User
+from memgpt.server.rest_api.utils import get_memgpt_server, sse_async_generator
+from memgpt.server.schemas.agents import (
+    GetAgentMessagesCursorRequest,
+    GetAgentMessagesResponse,
+    InsertAgentArchivalMemoryRequest,
+)
 from memgpt.server.server import SyncServer
-from memgpt.server.schemas.agents import AgentCommandRequest
+from memgpt.utils import deduplicate
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
+
 @router.get("/", response_model=List[AgentState])
 def list_agents(
-
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -44,10 +43,10 @@ def list_agents(
 
     return server.list_agents(user_id=actor.id)
 
+
 @router.post("/", response_model=AgentState)
 def create_agent(
     agent: CreateAgent = Body(...),
-
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -58,12 +57,12 @@ def create_agent(
 
     return server.create_agent(agent, user_id=actor.id)
 
+
 @router.post("/{agent_id}", tags=["agents"], response_model=AgentState)
 def update_agent(
     agent_id: str,
     update_agent: UpdateAgentState = Body(...),
     server: "SyncServer" = Depends(get_memgpt_server),
-
 ):
     """Update an exsiting agent"""
 
@@ -71,16 +70,15 @@ def update_agent(
     actor = server.get_current_user()
     return server.update_agent(update_agent, user_id=actor.id)
 
+
 @router.get("/{agent_id}", response_model=AgentState)
 def get_agent_state(
     agent_id: str,
-
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Get the state of the agent.
     """
-
 
     actor = server.get_current_user()
     if not server.ms.get_agent(user_id=actor.id, agent_id=agent_id):
@@ -94,7 +92,6 @@ def get_agent_state(
 def delete_agent(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
-
 ):
     """
     Delete an agent.
@@ -103,10 +100,10 @@ def delete_agent(
     actor = server.get_current_user()
     return server.delete_agent(user_id=actor.id, agent_id=agent_id)
 
+
 @router.get("/{agent_id}/memory/messages", response_model=List[Message])
 def get_agent_in_context_messages(
     agent_id: str,
-
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -120,7 +117,6 @@ def get_agent_in_context_messages(
 def get_agent_memory(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
-
 ):
     """
     Retrieve the memory state of a specific agent.
@@ -130,12 +126,12 @@ def get_agent_memory(
 
     return server.get_agent_memory(agent_id=agent_id)
 
+
 @router.post("/{agent_id}/memory", response_model=Memory)
 def update_agent_memory(
     agent_id: str,
     request: Dict = Body(...),
     server: "SyncServer" = Depends(get_memgpt_server),
-
 ):
     """
     Update the core memory of a specific agent.
@@ -147,11 +143,11 @@ def update_agent_memory(
     memory = server.update_agent_core_memory(user_id=actor.id, agent_id=agent_id, new_memory_contents=request)
     return memory
 
+
 @router.get("/{agent_id}/memory/recall", response_model=RecallMemorySummary)
 def get_agent_recall_memory_summary(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
-
 ):
     """
     Retrieve the summary of the recall memory of a specific agent.
@@ -159,10 +155,10 @@ def get_agent_recall_memory_summary(
 
     return server.get_recall_memory_summary(agent_id=agent_id)
 
+
 @router.get("/{agent_id}/memory/archival", response_model=ArchivalMemorySummary)
 def get_agent_archival_memory_summary(
     agent_id: str,
-
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -172,16 +168,13 @@ def get_agent_archival_memory_summary(
     return server.get_archival_memory_summary(agent_id=agent_id)
 
 
-
 @router.get("/{agent_id}/archival", response_model=List[Passage])
 def get_agent_archival_memory(
     agent_id: "str",
-
     server: "SyncServer" = Depends(get_memgpt_server),
     after: Optional[int] = Query(None, description="Unique ID of the memory to start the query range at."),
     before: Optional[int] = Query(None, description="Unique ID of the memory to end the query range at."),
     limit: Optional[int] = Query(None, description="How many results to include in the response."),
-
 ):
     """
     Retrieve the memories in an agent's archival memory store (paginated query).
@@ -200,11 +193,11 @@ def get_agent_archival_memory(
         limit=limit,
     )
 
+
 @router.post("/{agent_id}/archival", response_model=List[Passage])
 def insert_agent_archival_memory(
     agent_id: "str",
     request: InsertAgentArchivalMemoryRequest = Body(...),
-
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -214,11 +207,11 @@ def insert_agent_archival_memory(
 
     return server.insert_archival_memory(user_id=actor.id, agent_id=agent_id, memory_contents=request.content)
 
+
 @router.delete("/{agent_id}/archival")
 def delete_agent_archival_memory(
     agent_id: "str",
     memory_id: str = Query(..., description="Unique ID of the memory to be deleted."),
-
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -233,7 +226,6 @@ def delete_agent_archival_memory(
 @router.get("/{agent_id}/messages", response_model=List[Message])
 def get_agent_messages(
     agent_id: "str",
-
     server: "SyncServer" = Depends(get_memgpt_server),
     start: int = Query(..., description="Message index to start on (reverse chronological)."),
     count: int = Query(..., description="How many messages to retrieve."),
@@ -245,17 +237,16 @@ def get_agent_messages(
     actor = server.get_current_user()
 
     # this was in the migrated code - confirm this is incorrect?
-    #return server.get_agent_recall_cursor(user_id=actor.id, agent_id=agent_id, before=before, limit=limit, reverse=True)
+    # return server.get_agent_recall_cursor(user_id=actor.id, agent_id=agent_id, before=before, limit=limit, reverse=True)
     return server.get_agent_messages(user_id=actor.id, agent_id=agent_id, start=start, count=count)
+
 
 @router.get("/{agent_id}/messages-cursor", response_model=GetAgentMessagesResponse)
 def get_agent_messages_cursor(
     agent_id: UUID,
-
     server: "SyncServer" = Depends(get_memgpt_server),
     before: Optional[UUID] = Query(None, description="Message before which to retrieve the returned messages."),
     limit: int = Query(10, description="Maximum number of messages to retrieve."),
-
 ):
     """
     Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
@@ -264,11 +255,11 @@ def get_agent_messages_cursor(
     # Validate with the Pydantic model (optional)
     request = GetAgentMessagesCursorRequest(agent_id=agent_id, before=before, limit=limit)
 
-
     [_, messages] = server.get_agent_recall_cursor(
         user_id=actor.id, agent_id=agent_id, before=request.before, limit=request.limit, reverse=True
     )
     return GetAgentMessagesResponse(messages=messages)
+
 
 @router.get("/{agent_id}/messages/context/", response_model=List[Message])
 def get_agent_messages_in_context(
@@ -276,7 +267,6 @@ def get_agent_messages_in_context(
     start: int = Query(..., description="Message index to start on (reverse chronological)."),
     count: int = Query(..., description="How many messages to retrieve."),
     server: "SyncServer" = Depends(get_memgpt_server),
-
 ):
     """
     Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
@@ -420,120 +410,120 @@ async def send_message_to_agent(
 
 ##### MISSING #######
 
-#@router.post("/{agent_id}/command")
-#def run_command(
-    #agent_id: "UUID",
-    #command: "AgentCommandRequest",
-    #
-    #server: "SyncServer" = Depends(get_memgpt_server),
-#):
-    #"""
-    #Execute a command on a specified agent.
+# @router.post("/{agent_id}/command")
+# def run_command(
+# agent_id: "UUID",
+# command: "AgentCommandRequest",
+#
+# server: "SyncServer" = Depends(get_memgpt_server),
+# ):
+# """
+# Execute a command on a specified agent.
 
-    #This endpoint receives a command to be executed on an agent. It uses the user and agent identifiers to authenticate and route the command appropriately.
+# This endpoint receives a command to be executed on an agent. It uses the user and agent identifiers to authenticate and route the command appropriately.
 
-    #Raises an HTTPException for any processing errors.
-    #"""
-    #actor = server.get_current_user()
-    #
-    #response = server.run_command(user_id=actor.id,
-                                  #agent_id=agent_id,
-                                  #command=command.command)
+# Raises an HTTPException for any processing errors.
+# """
+# actor = server.get_current_user()
+#
+# response = server.run_command(user_id=actor.id,
+# agent_id=agent_id,
+# command=command.command)
 
-    #return AgentCommandResponse(response=response)
+# return AgentCommandResponse(response=response)
 
-#@router.get("/{agent_id}/config")
-#def get_agent_config(
-    #agent_id: "UUID",
-    #
-    #server: "SyncServer" = Depends(get_memgpt_server),
-#):
-    #"""
-    #Retrieve the configuration for a specific agent.
+# @router.get("/{agent_id}/config")
+# def get_agent_config(
+# agent_id: "UUID",
+#
+# server: "SyncServer" = Depends(get_memgpt_server),
+# ):
+# """
+# Retrieve the configuration for a specific agent.
 
-    #This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
-    #"""
-    #actor = server.get_current_user()
-    #
-    #if not server.ms.get_agent(user_id=actor.id, agent_id=agent_id):
-        ## agent does not exist
-        #raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
+# This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
+# """
+# actor = server.get_current_user()
+#
+# if not server.ms.get_agent(user_id=actor.id, agent_id=agent_id):
+## agent does not exist
+# raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
 
-    #agent_state = server.get_agent_config(user_id=actor.id, agent_id=agent_id)
-    ## get sources
-    #attached_sources = server.list_attached_sources(agent_id=agent_id)
+# agent_state = server.get_agent_config(user_id=actor.id, agent_id=agent_id)
+## get sources
+# attached_sources = server.list_attached_sources(agent_id=agent_id)
 
-    ## configs
-    #llm_config = LLMConfig(**vars(agent_state.llm_config))
-    #embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
+## configs
+# llm_config = LLMConfig(**vars(agent_state.llm_config))
+# embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
 
-    #return GetAgentResponse(
-        #agent_state=AgentState(
-            #id=agent_state.id,
-            #name=agent_state.name,
-            #user_id=agent_state.user_id,
-            #llm_config=llm_config,
-            #embedding_config=embedding_config,
-            #state=agent_state.state,
-            #created_at=int(agent_state.created_at.timestamp()),
-            #tools=agent_state.tools,
-            #system=agent_state.system,
-            #metadata=agent_state._metadata,
-        #),
-        #last_run_at=None,  # TODO
-        #sources=attached_sources,
-    #)
+# return GetAgentResponse(
+# agent_state=AgentState(
+# id=agent_state.id,
+# name=agent_state.name,
+# user_id=agent_state.user_id,
+# llm_config=llm_config,
+# embedding_config=embedding_config,
+# state=agent_state.state,
+# created_at=int(agent_state.created_at.timestamp()),
+# tools=agent_state.tools,
+# system=agent_state.system,
+# metadata=agent_state._metadata,
+# ),
+# last_run_at=None,  # TODO
+# sources=attached_sources,
+# )
 
-#@router.patch("/{agent_id}/rename", response_model=GetAgentResponse)
-#def update_agent_name(
-    #agent_id: "UUID",
-    #agent_rename: AgentRenameRequest,
-    #
-    #server: "SyncServer" = Depends(get_memgpt_server),
-#):
-    #"""
-    #Updates the name of a specific agent.
+# @router.patch("/{agent_id}/rename", response_model=GetAgentResponse)
+# def update_agent_name(
+# agent_id: "UUID",
+# agent_rename: AgentRenameRequest,
+#
+# server: "SyncServer" = Depends(get_memgpt_server),
+# ):
+# """
+# Updates the name of a specific agent.
 
-    #This changes the name of the agent in the database but does NOT edit the agent's persona.
-    #"""
-    #valid_name = agent_rename.agent_name
-    #actor = server.get_current_user()
-    #
-    #agent_state = server.rename_agent(user_id=actor.id, agent_id=agent_id, new_agent_name=valid_name)
-    ## get sources
-    #attached_sources = server.list_attached_sources(agent_id=agent_id)
-    #llm_config = LLMConfig(**vars(agent_state.llm_config))
-    #embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
+# This changes the name of the agent in the database but does NOT edit the agent's persona.
+# """
+# valid_name = agent_rename.agent_name
+# actor = server.get_current_user()
+#
+# agent_state = server.rename_agent(user_id=actor.id, agent_id=agent_id, new_agent_name=valid_name)
+## get sources
+# attached_sources = server.list_attached_sources(agent_id=agent_id)
+# llm_config = LLMConfig(**vars(agent_state.llm_config))
+# embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
 
-    #return GetAgentResponse(
-        #agent_state=AgentState(
-            #id=agent_state.id,
-            #name=agent_state.name,
-            #user_id=agent_state.user_id,
-            #llm_config=llm_config,
-            #embedding_config=embedding_config,
-            #state=agent_state.state,
-            #created_at=int(agent_state.created_at.timestamp()),
-            #tools=agent_state.tools,
-            #system=agent_state.system,
-        #),
-        #last_run_at=None,  # TODO
-        #sources=attached_sources,
-    #)
+# return GetAgentResponse(
+# agent_state=AgentState(
+# id=agent_state.id,
+# name=agent_state.name,
+# user_id=agent_state.user_id,
+# llm_config=llm_config,
+# embedding_config=embedding_config,
+# state=agent_state.state,
+# created_at=int(agent_state.created_at.timestamp()),
+# tools=agent_state.tools,
+# system=agent_state.system,
+# ),
+# last_run_at=None,  # TODO
+# sources=attached_sources,
+# )
 
 
-#@router.get("/{agent_id}/archival/all", response_model=GetAgentArchivalMemoryResponse)
-#def get_agent_archival_memory_all(
-    #agent_id: "UUID",
-    #
-    #server: "SyncServer" = Depends(get_memgpt_server),
-#):
-    #"""
-    #Retrieve the memories in an agent's archival memory store (non-paginated, returns all entries at once).
-    #"""
-    #actor = server.get_current_user()
-    #
-    #archival_memories = server.get_all_archival_memories(user_id=actor.id, agent_id=agent_id)
-    #print("archival_memories:", archival_memories)
-    #archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["contents"]) for passage in archival_memories]
-    #return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)
+# @router.get("/{agent_id}/archival/all", response_model=GetAgentArchivalMemoryResponse)
+# def get_agent_archival_memory_all(
+# agent_id: "UUID",
+#
+# server: "SyncServer" = Depends(get_memgpt_server),
+# ):
+# """
+# Retrieve the memories in an agent's archival memory store (non-paginated, returns all entries at once).
+# """
+# actor = server.get_current_user()
+#
+# archival_memories = server.get_all_archival_memories(user_id=actor.id, agent_id=agent_id)
+# print("archival_memories:", archival_memories)
+# archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["contents"]) for passage in archival_memories]
+# return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)

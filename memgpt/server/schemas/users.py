@@ -1,8 +1,10 @@
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
+
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from uuid import UUID
+
 
 class GetAllUsersResponse(BaseModel):
     cursor: Optional["UUID"] = Field(None, description="Cursor for the next page in the response.")

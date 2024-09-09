@@ -29,12 +29,12 @@ router = APIRouter(prefix="/sources", tags=["sources"])
 @router.get("/{source_id}", response_model=Source)
 async def get_source(
     source_id: str,
-    server: "SyncServer" = Depends(get_memgpt_server),  
+    server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Get all sources
     """
-    
+
     return server.get_source(source_id=source_id, user_id=server.get_current_user().id)
 
 
@@ -46,7 +46,7 @@ async def list_sources(
     List all data sources created by a user.
     """
     actor = server.get_current_user()
-    
+
     return server.list_all_sources(user_id=actor.id)
 
 
@@ -59,7 +59,7 @@ async def create_source(
     Create a new data source.
     """
     actor = server.get_current_user()
-    
+
     return server.create_source(request=source, user_id=actor.id)
 
 
@@ -72,7 +72,7 @@ async def delete_source(
     Delete a data source.
     """
     actor = server.get_current_user()
-    
+
     server.delete_source(source_id=source_id, user_id=actor.id)
 
 
@@ -86,7 +86,7 @@ async def attach_source_to_agent(
     Attach a data source to an existing agent.
     """
     actor = server.get_current_user()
-    
+
     source = server.ms.get_source(source_id=source_id, user_id=actor.id)
     source = server.attach_source_to_agent(source_name=source.name, agent_id=agent_id, user_id=actor.id)
     return Source(
@@ -137,7 +137,7 @@ async def upload_file_to_source(
     Upload a file to a data source.
     """
     actor = server.get_current_user()
-    
+
     source = server.ms.get_source(source_id=source_id, user_id=actor.id)
     bytes = file.file.read()
 

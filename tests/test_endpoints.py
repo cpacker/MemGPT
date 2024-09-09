@@ -2,19 +2,15 @@ import json
 import os
 import uuid
 
-from memgpt import create_client
 from memgpt.agent import Agent
-from memgpt.schemas.agent import AgentState
-from memgpt.schemas.message import Message
 from memgpt.embeddings import embedding_model
 from memgpt.llm_api.llm_api_tools import create
-from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.llm_config import LLMConfig
-from memgpt.server.server import SyncServer
 from memgpt.prompts import gpt_system
+from memgpt.schemas.agent import AgentState
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.message import Message
+from memgpt.server.server import SyncServer
 
 messages = [Message(role="system", text=gpt_system.get_system_text("memgpt_chat")), Message(role="user", text="How are you?")]
 

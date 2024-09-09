@@ -5,6 +5,7 @@ from typing_extensions import Self
 
 from memgpt.schemas.memgpt_base import MemGPTBase
 
+
 # block of the LLM context
 class BaseBlock(MemGPTBase, validate_assignment=True):
     """Blocks are sections of the LLM context, representing a specific part of the total Memory"""
