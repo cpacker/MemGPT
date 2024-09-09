@@ -13,7 +13,7 @@ router = APIRouter(prefix="/blocks", tags=["blocks"])
 
 
 @router.get("/", response_model=List[Block])
-async def list_blocks(
+def list_blocks(
     # query parameters
     label: Optional[str] = Query(None, description="Labels to include (e.g. human, persona)"),
     templates_only: bool = Query(True, description="Whether to include only templates"),
@@ -29,7 +29,7 @@ async def list_blocks(
 
 
 @router.post("/", response_model=Block)
-async def create_block(
+def create_block(
     create_block: CreateBlock = Body(...),
     server: SyncServer = Depends(get_memgpt_server),
 ):
@@ -40,7 +40,7 @@ async def create_block(
 
 
 @router.patch("/{block_id}", response_model=Block)
-async def update_block(
+def update_block(
     block_id: str,
     updated_block: UpdateBlock = Body(...),
     server: SyncServer = Depends(get_memgpt_server),
@@ -53,7 +53,7 @@ async def update_block(
 
 # TODO: delete should not return anything
 @router.delete("/{block_id}", response_model=Block)
-async def delete_block(
+def delete_block(
     block_id: str,
     server: SyncServer = Depends(get_memgpt_server),
 ):
@@ -62,7 +62,7 @@ async def delete_block(
 
 
 @router.get("/{block_id}", response_model=Block)
-async def get_block(
+def get_block(
     block_id: str,
     server: SyncServer = Depends(get_memgpt_server),
 ):

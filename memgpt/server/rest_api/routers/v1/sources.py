@@ -145,7 +145,11 @@ def upload_file_to_source(
     bytes = file.file.read()
 
     # create job
-    job = Job(user_id=actor.id, metadata_={"type": "embedding", "filename": file.filename, "source_id": source_id})
+    job = Job(
+        user_id=actor.id,
+        metadata_={"type": "embedding", "filename": file.filename, "source_id": source_id},
+        completed_at=None,
+    )
     job_id = job.id
     server.ms.create_job(job)
 
