@@ -1771,5 +1771,15 @@ class SyncServer(Server):
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return memgpt_agent.retry_message()
 
+    # TODO(ethan) wire back to real method in future ORM PR
     def get_current_user(self) -> User:
-        raise NotImplementedError
+        """Returns the currently authed user.
+
+        Since server is the core gateway this needs to pass through server as the
+        first touchpoint.
+        """
+        # NOTE: same code as local client to get the default user
+        config = MemGPTConfig.load()
+        user_id = config.anon_clientid
+        user = self.get_user(user_id)
+        return user
