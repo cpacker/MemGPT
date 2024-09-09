@@ -1,7 +1,9 @@
 import time
+import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
 import uuid
-from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
-
+from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING, Any, Coroutine
 import httpx
 
 from memgpt.config import MemGPTConfig
@@ -247,12 +249,39 @@ class RESTClient(AbstractClient):
 
         self.httpx_client = httpx.AsyncClient(**httpx_client_args)
 
-    async def list_agents(self) -> List[AgentState]:
-        response = await self.httpx_client.get("/agents/")
+    def run_sync(self, coroutine:Coroutine) -> Any:
+        """converts the api calls to sync for sync use
+        https://stackoverflow.com/questions/55647753/call-async-function-from-sync-function-while-the-synchronous-function-continues
+        """
+
+        def run_in_new_loop():
+            new_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(new_loop)
+            try:
+                return new_loop.run_until_complete(coroutine)
+            finally:
+                new_loop.close()
+        try:
+            loop = asyncio.get_running_loop()
+            if not threading.current_thread() is threading.main_thread():
+                return asyncio.run_coroutine_threadsafe(coroutine, loop).result()
+            if not loop.is_running():
+                return loop.run_until_complete(coroutine)
+            else:
+                with ThreadPoolExecutor() as pool:
+                    future = pool.submit(run_in_new_loop)
+                    return future.result(timeout=30.0)
+        except RuntimeError:
+            return asyncio.run(coroutine)
+
+
+
+    def list_agents(self) -> List[AgentState]:
+        response = self.run_sync(self.httpx_client.get("/agents/"))
         return response.json()
 
-    async def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
-        response = await self.httpx_client.get("/agents/")
+    def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
+        response = self.run_sync(self.httpx_client.get("/agents/"))
         if response.status_code != 200:
             raise ValueError(f"Failed to list agents: {response.text}")
         for agent in response.json():
@@ -268,7 +297,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get tool: {response.text}")
         return Tool(**response.json())
 
-    async def create_agent(
+    def create_agent(
         self,
         name: Optional[str] = None,
         # model configs
@@ -308,7 +337,7 @@ class RESTClient(AbstractClient):
         # add memory tools
         # memory_functions = get_memory_functions(memory)
         # for func_name, func in memory_functions.items():
-        #     tool = await self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True)
+        #     tool = self.run_sync(self.create_tool(func, name=func_name, tags=["memory", "memgpt-base"], update=True))
         #     tool_names.append(tool.name)
 
         request = CreateAgent(
@@ -321,19 +350,22 @@ class RESTClient(AbstractClient):
             embedding_config=embedding_config,
         )
 
-        response = await self.httpx_client.post("/agents/", json=request.model_dump(exclude_none=True))
+
+        response = self.run_sync(self.httpx_client.post("/agents/", json=request.model_dump(exclude_none=True)))
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
 
         return AgentState(**response.json())
 
-    async def rename_agent(self, agent_id: str, new_name: str):
-        response = await self.httpx_client.patch(f"/agents/{agent_id}/rename/", json={"agent_name": new_name})
+    def rename_agent(self, agent_id: str, new_name: str):
+        # NOTE: this route no longer exists
+        response = self.run_sync(self.httpx_client.patch(f"/agents/{agent_id}/rename/", json={"agent_name": new_name}))
+
         assert response.status_code == 200, f"Failed to rename agent: {response.text}"
 
         return AgentState(**response.json())
 
-    async def update_agent(
+    def update_agent(
         self,
         agent_id: str,
         name: Optional[str] = None,
@@ -358,7 +390,7 @@ class RESTClient(AbstractClient):
             message_ids=message_ids,
             memory=memory,
         )
-        response = await self.httpx_client.post(f"/agents/{agent_id}", json=request.model_dump(exclude_none=True))
+        response = self.run_sync(self.httpx_client.post(f"/agents/{agent_id}", json=request.model_dump(exclude_none=True)))
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
@@ -366,72 +398,72 @@ class RESTClient(AbstractClient):
     # def rename_agent(self, agent_id: str, new_name: str):
     #     return self.update_agent(agent_id, name=new_name)
 
-    async def delete_agent(self, agent_id: str):
+    def delete_agent(self, agent_id: str):
         """Delete the agent."""
-        response = await self.httpx_client.delete(f"/agents/{agent_id}")
+        response = self.run_sync(self.httpx_client.delete(f"/agents/{agent_id}"))
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
-    async def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
-        response = await self.httpx_client.get(f"/agents/{agent_id}/config/")
+    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
+        response = self.run_sync(self.httpx_client.get(f"/agents/{agent_id}/config/"))
         # TODO: this should be a 404 without details, don't share failed response with a bad actor
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
 
         return AgentState(**response.json())
 
     # memory
-    async def get_agent_memory(self, agent_id: uuid.UUID) -> Memory:
-        response = await self.httpx_client.get(f"/agents/{agent_id}/memory/")
+    def get_agent_memory(self, agent_id: uuid.UUID) -> Memory:
+        response = self.run_sync(self.httpx_client.get(f"/agents/{agent_id}/memory/"))
         return Memory(**response.json())
 
-    async def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Memory:
-        response = await self.httpx_client.post(f"/agents/{agent_id}/memory/", json=new_memory_contents)
+    def update_agent_core_memory(self, agent_id: str, new_memory_contents: Dict) -> Memory:
+        response = self.run_sync(self.httpx_client.post(f"/agents/{agent_id}/memory/", json=new_memory_contents))
         return Memory(**response.json())
 
-    async def get_in_context_memory(self, agent_id: uuid.UUID) -> Memory:
-        response = await self.httpx_client.get(f"/agents/{agent_id}/memory/")
+    def get_in_context_memory(self, agent_id: uuid.UUID) -> Memory:
+        response = self.run_sync(self.httpx_client.get(f"/agents/{agent_id}/memory/"))
         if response.status_code != 200:
             raise ValueError(f"Failed to get in-context memory: {response.text}")
         return Memory(**response.json())
 
-    async def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
+    def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
         memory_update_dict = {section: value}
-        response = await self.httpx_client.post(f"/agents/{agent_id}/memory/", json=memory_update_dict)
+        response = self.run_sync(self.httpx_client.post(f"/agents/{agent_id}/memory/", json=memory_update_dict))
         if response.status_code != 200:
             raise ValueError(f"Failed to update in-context memory: {response.text}")
         return Memory(**response.json())
 
-    async def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
-        response = await self.httpx_client.get(f"/agents/{agent_id}/memory/archival/")
+    def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
+        response = self.run_sync(self.httpx_client.get(f"/agents/{agent_id}/memory/archival/"))
         if response.status_code != 200:
             raise ValueError(f"Failed to get archival memory summary: {response.text}")
         return ArchivalMemorySummary(**response.json())
 
-    async def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
-        response = await self.httpx_client.get(f"/agents/{agent_id}/memory/recall/")
+    def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
+        response = self.run_sync(self.httpx_client.get(f"/agents/{agent_id}/memory/recall/"))
         if response.status_code != 200:
             raise ValueError(f"Failed to get recall memory summary: {response.text}")
         return RecallMemorySummary(**response.json())
 
-    async def get_in_context_messages(self, agent_id: str) -> List[Message]:
-        response = await self.httpx_client.get(f"/agents/{agent_id}/memory/messages/")
+    def get_in_context_messages(self, agent_id: str) -> List[Message]:
+        response = self.run_sync(self.httpx_client.get(f"/agents/{agent_id}/memory/messages/"))
         if response.status_code != 200:
             raise ValueError(f"Failed to get in-context messages: {response.text}")
         return [Message(**message) for message in response.json()]
 
     # agent interactions
 
-    async def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
-        return await self.send_message(agent_id, message, role="user")
+    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
+        return self.run_sync(self.send_message(agent_id, message, role="user"))
 
-    async def run_command(self, agent_id: str, command: str) -> Union[Message, str, None]:
-        response = await self.httpx_client.post(f"/agents/{agent_id}/command/", json={"command": command})
+    def run_command(self, agent_id: str, command: str) -> Union[Message, str, None]:
+        response = self.run_sync(self.httpx_client.post(f"/agents/{agent_id}/command/", json={"command": command}))
         return Message(**response.json())
 
     def save(self):
         raise NotImplementedError
 
     # archival memory
-    async def get_archival_memory(
+    def get_archival_memory(
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> List[Passage]:
         """Paginated get for the archival memory for an agent"""
@@ -440,52 +472,50 @@ class RESTClient(AbstractClient):
             params["before"] = str(before)
         if after:
             params["after"] = str(after)
-        response = await self.httpx_client.get(f"/agents/{agent_id}/archival/", params=params)
+        response = self.run_sync(self.httpx_client.get(f"/agents/{agent_id}/archival/", params=params))
         assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
         return [Passage(**passage) for passage in response.json()]
 
-    async def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> List[Passage]:
-        response = await self.httpx_client.post(f"/agents/{agent_id}/archival/{memory}/")
+    def insert_archival_memory(self, agent_id: uuid.UUID, memory: str) -> List[Passage]:
+        response = self.run_sync(self.httpx_client.post(f"/agents/{agent_id}/archival/{memory}/"))
         if response.status_code != 200:
             raise ValueError(f"Failed to insert archival memory: {response.text}")
         return [Passage(**passage) for passage in response.json()]
 
-    async def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
-        response = await self.httpx_client.delete(f"/agents/{agent_id}/archival/?id={memory_id}")
+    def delete_archival_memory(self, agent_id: uuid.UUID, memory_id: uuid.UUID):
+        response = self.run_sync(self.httpx_client.delete(f"/agents/{agent_id}/archival/?id={memory_id}"))
         assert response.status_code == 200, f"Failed to delete archival memory: {response.text}"
 
     # messages (recall memory)
-    async def get_messages(
+    def get_messages(
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
     ) -> MemGPTResponse:
         params = {"before": before, "after": after, "limit": limit}
-        response = await self.httpx_client.get(f"/agents/{agent_id}/messages-cursor/", params=params)
+        response = self.run_sync(self.httpx_client.get(f"/agents/{agent_id}/messages-cursor/", params=params))
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
         return [Message(**message) for message in response.json()]
 
-    async def send_message(self, agent_id: str, message: str, role: str, stream: Optional[bool] = False) -> MemGPTResponse:
-        request = MemGPTRequest(
-            messages=[MessageCreate(text=message, role=role)], run_async=False, stream_steps=stream, stream_tokens=stream
-        )
-        response = await self.httpx_client.post(f"/agents/{agent_id}/messages", json=request.model_dump(exclude_none=True))
+    def send_message(self, agent_id: str, message: str, role: str, stream: Optional[bool] = False) -> MemGPTResponse:
+        request = MemGPTRequest(messages=[MessageCreate(text=message, role=role)], run_async=False, stream_steps=stream, stream_tokens=stream)
+        response = self.run_sync(self.httpx_client.post(f"/agents/{agent_id}/messages", json=request.model_dump(exclude_none=True)))
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
         return MemGPTResponse(**response.json())
 
     # humans / personas
-    async def list_humans(self) -> ListHumansResponse:
-        response = await self.httpx_client.get("/humans/")
+    def list_humans(self) -> ListHumansResponse:
+        response = self.run_sync(self.httpx_client.get("/humans/"))
         return ListHumansResponse(**response.json())
 
-    async def create_human(self, name: str, human: str) -> Human:
+    def create_human(self, name: str, human: str) -> Human:
         data = {"name": name, "text": human}
-        response = await self.httpx_client.post("/humans/", json=data)
+        response = self.run_sync(self.httpx_client.post("/humans/", json=data))
         return Human(**response.json())
 
-    async def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
+    def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
         params = {"label": label, "templates_only": templates_only}
-        response = await self.httpx_client.get(f"/blocks/", params=params)
+        response = self.run_sync(self.httpx_client.get(f"/blocks/", params=params))
         if response.status_code != 200:
             raise ValueError(f"Failed to list blocks: {response.text}")
 
@@ -499,18 +529,18 @@ class RESTClient(AbstractClient):
 
         return [Schema(**block) for block in response.json()]
 
-    async def list_personas(self) -> ListPersonasResponse:
-        response = await self.httpx_client.get("/persona/")
+    def list_personas(self) -> ListPersonasResponse:
+        response = self.run_sync(self.httpx_client.get("/persona/"))
         return ListPersonasResponse(**response.json())
 
-    async def create_persona(self, name: str, persona: str) -> Persona:
+    def create_persona(self, name: str, persona: str) -> Persona:
         data = {"name": name, "text": persona}
-        response = await self.httpx_client.post("/personas/", json=data)
+        response = self.run_sync(self.httpx_client.post("/personas/", json=data))
         return Persona(**response.json())
 
-    async def create_block(self, label: str, name: str, text: str) -> Block:
+    def create_block(self, label: str, name: str, text: str) -> Block:
         request = CreateBlock(label=label, name=name, value=text)
-        response = await self.httpx_client.post(f"/blocks/", json=request.model_dump())
+        response = self.run_sync(self.httpx_client.post(f"/blocks/", json=request.model_dump()))
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
         match label:
@@ -523,36 +553,36 @@ class RESTClient(AbstractClient):
 
         return Schema(**response.json())
 
-    async def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
         request = UpdateBlock(id=block_id, name=name, value=text)
-        response = await self.httpx.post(f"{self.base_url}/api/blocks/{block_id}", json=request.model_dump())
+        response = self.run_sync(self.httpx.post(f"{self.base_url}/api/blocks/{block_id}", json=request.model_dump()))
         if response.status_code != 200:
             raise ValueError(f"Failed to update block: {response.text}")
         return Block(**response.json())
 
-    async def get_block(self, block_id: str) -> Block:
-        response = await self.httpx.get(f"{self.base_url}/api/blocks/{block_id}")
+    def get_block(self, block_id: str) -> Block:
+        response = self.run_sync(self.httpx.get(f"{self.base_url}/api/blocks/{block_id}"))
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get persona: {response.text}")
         return Persona(**response.json())
 
-    async def get_human(self, name: str) -> Human:
-        response = await self.httpx_client.get("/humans/{name}/")
+    def get_human(self, name: str) -> Human:
+        response = self.run_sync(self.httpx_client.get("/humans/{name}/"))
         if response.status_code == 404:
             return None
         return Human(**response.json())
 
-    async def get_block(self, block_id: str) -> Block:
-        response = await self.httpx_client.get(f"/blocks/{block_id}/")
+    def get_block(self, block_id: str) -> Block:
+        response = self.run_sync(self.httpx_client.get(f"/blocks/{block_id}/"))
         if response.status_code != 200:
             raise ValueError(f"Failed to get block: {response.text}")
         return Block(**response.json())
 
-    async def get_block_id(self, name: str, label: str) -> str:
+    def get_block_id(self, name: str, label: str) -> str:
         params = {"name": name, "label": label}
-        response = await self.httpx_client.get(f"/blocks/", params=params)
+        response = self.run_sync(self.httpx_client.get(f"/blocks/", params=params))
         if response.status_code != 200:
             raise ValueError(f"Failed to get block ID: {response.text}")
         blocks = [Block(**block) for block in response.json()]
@@ -562,91 +592,91 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Multiple blocks found with name {name} and label {label}")
         return blocks[0].id
 
-    async def delete_block(self, id: str) -> Block:
-        response = await self.httpx_client.delete(f"/blocks/{id}/")
+    def delete_block(self, id: str) -> Block:
+        response = self.run_sync(self.httpx_client.delete(f"/blocks/{id}/"))
         assert response.status_code == 200, f"Failed to delete block: {response.text}"
         if response.status_code != 200:
             raise ValueError(f"Failed to delete block: {response.text}")
         return Block(**response.json())
 
-    async def list_humans(self):
-        blocks = await self.list_blocks(label="human")
+    def list_humans(self):
+        blocks = self.run_sync(self.list_blocks(label="human"))
         return [Human(**block.model_dump()) for block in blocks]
 
-    async def create_human(self, name: str, text: str) -> Human:
-        return await self.create_block(label="human", name=name, text=text)
+    def create_human(self, name: str, text: str) -> Human:
+        return self.run_sync(self.create_block(label="human", name=name, text=text))
 
-    async def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
+    def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
         request = UpdateHuman(id=human_id, name=name, value=text)
-        response = await self.httpx_client.post(f"/blocks/{human_id}", json=request.model_dump())
+        response = self.run_sync(self.httpx_client.post(f"/blocks/{human_id}", json=request.model_dump()))
         if response.status_code != 200:
             raise ValueError(f"Failed to update human: {response.text}")
         return Human(**response.json())
 
-    async def list_personas(self):
-        blocks = await self.list_blocks(label="persona")
+    def list_personas(self):
+        blocks = self.run_sync(self.list_blocks(label="persona"))
         return [Persona(**block.model_dump()) for block in blocks]
 
-    async def create_persona(self, name: str, text: str) -> Persona:
-        return await self.create_block(label="persona", name=name, text=text)
+    def create_persona(self, name: str, text: str) -> Persona:
+        return self.run_sync(self.create_block(label="persona", name=name, text=text))
 
-    async def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
+    def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
         request = UpdatePersona(id=persona_id, name=name, value=text)
-        response = await self.httpx_client.post(f"/blocks/{persona_id}/", json=request.model_dump())
+        response = self.run_sync(self.httpx_client.post(f"/blocks/{persona_id}/", json=request.model_dump()))
         if response.status_code != 200:
             raise ValueError(f"Failed to update persona: {response.text}")
         return Persona(**response.json())
 
-    async def get_persona(self, persona_id: str) -> Persona:
-        return await self.get_block(persona_id)
+    def get_persona(self, persona_id: str) -> Persona:
+        return self.run_sync(self.get_block(persona_id))
 
-    async def get_persona_id(self, name: str) -> str:
-        return await self.get_block_id(name, "persona")
+    def get_persona_id(self, name: str) -> str:
+        return self.run_sync(self.get_block_id(name, "persona"))
 
-    async def delete_persona(self, persona_id: str) -> Persona:
-        return await self.delete_block(persona_id)
+    def delete_persona(self, persona_id: str) -> Persona:
+        return self.run_sync(self.delete_block(persona_id))
 
-    async def get_human(self, human_id: str) -> Human:
-        return await self.get_block(human_id)
+    def get_human(self, human_id: str) -> Human:
+        return self.run_sync(self.get_block(human_id))
 
-    async def get_human_id(self, name: str) -> str:
-        return await self.get_block_id(name, "human")
+    def get_human_id(self, name: str) -> str:
+        return self.run_sync(self.get_block_id(name, "human"))
 
-    async def delete_human(self, human_id: str) -> Human:
-        return await self.delete_block(human_id)
+    def delete_human(self, human_id: str) -> Human:
+        return self.run_sync(self.delete_block(human_id))
 
     # sources
-    async def list_sources(self) -> List[Source]:
+    def list_sources(self) -> List[Source]:
         """List loaded sources"""
-        response = await self.httpx_client.get("/sources/")
+        response = self.run_sync(self.httpx_client.get("/sources/"))
         response_json = response.json()
         return [i for i in response_json["sources"]]
 
-    async def delete_source(self, source_id: str):
+    def delete_source(self, source_id: str):
         """Delete a source and associated data (including attached to agents)"""
-        response = await self.httpx_client.delete(f"/sources/{source_id}/")
+        response = self.run_sync(self.httpx_client.delete(f"/sources/{source_id}/"))
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
-    async def get_job(self, job_id: str) -> Job:
+    def get_job(self, job_id: str) -> Job:
         response = self.httpx_client.get(f"/jobs/{job_id}")
         if response.status_code != 200:
             raise ValueError(f"Failed to get job: {response.text}")
         return Job(**response.json())
 
-    async def list_jobs(self):
-        response = await self.httpx_client.get(f"/jobs")
+    def list_jobs(self):
+        response = self.run_sync(self.httpx_client.get(f"/jobs"))
         return [Job(**job) for job in response.json()]
 
-    async def list_active_jobs(self):
-        response = await self.httpx_client.get(f"{self.base_url}/jobs/active")
+    def list_active_jobs(self):
+        response = self.run_sync(self.httpx_client.get(f"{self.base_url}/jobs/active"))
         return [Job(**job) for job in response.json()]
 
-    async def load_file_into_source(self, filename: str, source_id: str, blocking=True):
+    def load_file_into_source(self, filename: str, source_id: str, blocking=True):
         """Load {filename} and insert into source"""
         files = {"file": open(filename, "rb")}
 
         # create job
-        response = await self.httpx_client.post(f"/sources/{source_id}/upload/", files=files)
+        response = self.run_sync(self.httpx_client.post(f"/sources/{source_id}/upload/", files=files))
         if response.status_code != 200:
             raise ValueError(f"Failed to upload file to source: {response.text}")
 
@@ -654,7 +684,7 @@ class RESTClient(AbstractClient):
         if blocking:
             # wait until job is completed
             while True:
-                job = await self.get_job(job.id)
+                job = self.run_sync(self.get_job(job.id))
                 if job.status == JobStatus.completed:
                     break
                 elif job.status == JobStatus.failed:
@@ -662,57 +692,57 @@ class RESTClient(AbstractClient):
                 time.sleep(1)
         return job
 
-    async def create_source(self, name: str) -> Source:
+    def create_source(self, name: str) -> Source:
         """Create a new source"""
         payload = {"name": name}
-        response = await self.httpx_client.post("/sources/", json=payload)
+        response = self.run_sync(self.httpx_client.post("/sources/", json=payload))
         response_json = response.json()
         return Source(**response_json)
 
-    async def list_attached_sources(self, agent_id: str) -> List[Source]:
-        response = await self.httpx_client.get(f"/agents/{agent_id}/sources")
+    def list_attached_sources(self, agent_id: str) -> List[Source]:
+        response = self.run_sync(self.httpx_client.get(f"/agents/{agent_id}/sources"))
         if response.status_code != 200:
             raise ValueError(f"Failed to list attached sources: {response.text}")
         return [Source(**source) for source in response.json()]
 
-    async def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
+    def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         request = SourceUpdate(id=source_id, name=name)
-        response = await self.httpx_client.post(f"/sources/{source_id}", json=request.model_dump(exclude_none=True))
+        response = self.run_sync(self.httpx_client.post(f"/sources/{source_id}", json=request.model_dump(exclude_none=True)))
         if response.status_code != 200:
             raise ValueError(f"Failed to update source: {response.text}")
         return Source(**response.json())
 
-    async def attach_source_to_agent(self, source_id: str, agent_id: str):
+    def attach_source_to_agent(self, source_id: str, agent_id: str):
         """Attach a source to an agent"""
         params = {"agent_id": agent_id}
-        response = await self.httpx_client.post(f"/sources/{source_id}/attach/", params=params)
+        response = self.run_sync(self.httpx_client.post(f"/sources/{source_id}/attach/", params=params))
         assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
 
-    async def detach_source(self, source_id: str, agent_id: str):
+    def detach_source(self, source_id: str, agent_id: str):
         """Detach a source from an agent"""
         params = {"agent_id": str(agent_id)}
-        response = await self.httpx_client.post(f"/sources/{source_id}/detach/", params=params)
+        response = self.run_sync(self.httpx_client.post(f"/sources/{source_id}/detach/", params=params))
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
 
     # server configuration commands
-    async def list_models(self) -> List[LLMConfig]:
-        response = await self.httpx_client.get("/models/")
+    def list_models(self) -> List[LLMConfig]:
+        response = self.run_sync(self.httpx_client.get("/models/"))
         return response.json()
 
-    async def get_config(self) -> ConfigResponse:
-        response = await self.httpx_client.get("/config/")
+    def get_config(self) -> ConfigResponse:
+        response = self.run_sync(self.httpx_client.get("/config/"))
         return ConfigResponse(**response.json())
 
     # tools
-    async def get_tool_id(self, tool_name: str):
-        response = await self.httpx_client.get(f"/tools/name/{tool_name}/")
+    def get_tool_id(self, tool_name: str):
+        response = self.run_sync(self.httpx_client.get(f"/tools/name/{tool_name}/"))
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
         return response.json()
 
-    async def create_tool(
+    def create_tool(
         self,
         func,
         name: Optional[str] = None,
@@ -742,16 +772,15 @@ class RESTClient(AbstractClient):
 
         # make REST request
         request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
-        response = await self.httpx_client.post(
-            "/tools/",
-            json=request.model_dump(exclude_none=True),
-            params={"update": update},
-        )
+        response = self.run_sync(self.httpx_client.post("/tools/"),
+                                                json=request.model_dump(exclude_none=True),
+                                                params={"update": update},
+                                                )
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return Tool(**response.json())
 
-    async def update_tool(
+    def update_tool(
         self,
         id: str,
         name: Optional[str] = None,
@@ -776,24 +805,24 @@ class RESTClient(AbstractClient):
         source_type = "python"
 
         request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, json_schema=json_schema, name=tool_name)
-        response = await self.httpx_client.post(f"/tools/{id}/", json=request.model_dump())
+        response = self.run_sync(self.httpx_client.post(f"/tools/{id}/", json=request.model_dump()))
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
         return Tool(**response.json())
 
-    async def list_tools(self) -> List[Tool]:
-        response = await self.httpx_client.get("/tools/")
+    def list_tools(self) -> List[Tool]:
+        response = self.run_sync(self.httpx_client.get("/tools/"))
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
         return [Tool(**tool) for tool in response.json()]
 
-    async def delete_tool(self, name: str):
-        response = await self.httpx_client.delete(f"/tools/{name}/")
+    def delete_tool(self, name: str):
+        response = self.run_sync(self.httpx_client.delete(f"/tools/{name}/"))
         if response.status_code != 200:
             raise ValueError(f"Failed to delete tool: {response.text}")
 
-    async def get_tool(self, name: str):
-        response = await self.httpx_client.get(f"/tools/{name}/")
+    def get_tool(self, name: str):
+        response = self.run_sync(self.httpx_client.get(f"/tools/{name}/"))
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
