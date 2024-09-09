@@ -2,9 +2,6 @@ import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-# These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
-from uuid import UUID
-
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.responses import StreamingResponse
@@ -14,18 +11,22 @@ from memgpt.schemas.enums import MessageRole, MessageStreamStatus
 from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
 from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
-from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
-from memgpt.schemas.message import Message
+from memgpt.schemas.memory import (
+    ArchivalMemorySummary,
+    CreateArchivalMemory,
+    Memory,
+    RecallMemorySummary,
+)
+from memgpt.schemas.message import Message, UpdateMessage
 from memgpt.schemas.passage import Passage
+from memgpt.schemas.source import Source
 from memgpt.server.rest_api.interface import StreamingServerInterface
 from memgpt.server.rest_api.utils import get_memgpt_server, sse_async_generator
-from memgpt.server.schemas.agents import (
-    GetAgentMessagesCursorRequest,
-    GetAgentMessagesResponse,
-    InsertAgentArchivalMemoryRequest,
-)
 from memgpt.server.server import SyncServer
 from memgpt.utils import deduplicate
+
+# These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
+
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
@@ -57,16 +58,16 @@ def create_agent(
     return server.create_agent(agent, user_id=actor.id)
 
 
-@router.post("/{agent_id}", tags=["agents"], response_model=AgentState)
+@router.patch("/{agent_id}", response_model=AgentState)
 def update_agent(
     agent_id: str,
     update_agent: UpdateAgentState = Body(...),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """Update an exsiting agent"""
+    actor = server.get_current_user()
 
     update_agent.id = agent_id
-    actor = server.get_current_user()
     return server.update_agent(update_agent, user_id=actor.id)
 
 
@@ -78,8 +79,8 @@ def get_agent_state(
     """
     Get the state of the agent.
     """
-
     actor = server.get_current_user()
+
     if not server.ms.get_agent(user_id=actor.id, agent_id=agent_id):
         # agent does not exist
         raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
@@ -95,9 +96,22 @@ def delete_agent(
     """
     Delete an agent.
     """
-
     actor = server.get_current_user()
+
     return server.delete_agent(user_id=actor.id, agent_id=agent_id)
+
+
+@router.get("/{agent_id}/sources", response_model=List[Source])
+def get_agent_sources(
+    agent_id: str,
+    server: "SyncServer" = Depends(get_memgpt_server),
+):
+    """
+    Get the sources associated with an agent.
+    """
+    server.get_current_user()
+
+    return server.list_attached_sources(agent_id)
 
 
 @router.get("/{agent_id}/memory/messages", response_model=List[Message])
@@ -125,7 +139,7 @@ def get_agent_memory(
     return server.get_agent_memory(agent_id=agent_id)
 
 
-@router.post("/{agent_id}/memory", response_model=Memory)
+@router.patch("/{agent_id}/memory", response_model=Memory)
 def update_agent_memory(
     agent_id: str,
     request: Dict = Body(...),
@@ -135,8 +149,8 @@ def update_agent_memory(
     Update the core memory of a specific agent.
     This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
     """
-
     actor = server.get_current_user()
+
     memory = server.update_agent_core_memory(user_id=actor.id, agent_id=agent_id, new_memory_contents=request)
     return memory
 
@@ -167,7 +181,7 @@ def get_agent_archival_memory_summary(
 
 @router.get("/{agent_id}/archival", response_model=List[Passage])
 def get_agent_archival_memory(
-    agent_id: "str",
+    agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
     after: Optional[int] = Query(None, description="Unique ID of the memory to start the query range at."),
     before: Optional[int] = Query(None, description="Unique ID of the memory to end the query range at."),
@@ -193,8 +207,8 @@ def get_agent_archival_memory(
 
 @router.post("/{agent_id}/archival", response_model=List[Passage])
 def insert_agent_archival_memory(
-    agent_id: "str",
-    request: InsertAgentArchivalMemoryRequest = Body(...),
+    agent_id: str,
+    request: CreateArchivalMemory = Body(...),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
@@ -202,12 +216,14 @@ def insert_agent_archival_memory(
     """
     actor = server.get_current_user()
 
-    return server.insert_archival_memory(user_id=actor.id, agent_id=agent_id, memory_contents=request.content)
+    return server.insert_archival_memory(user_id=actor.id, agent_id=agent_id, memory_contents=request.text)
 
 
+# TODO(ethan): query or path parameter for memory_id?
+# @router.delete("/{agent_id}/archival/{memory_id}")
 @router.delete("/{agent_id}/archival")
 def delete_agent_archival_memory(
-    agent_id: "str",
+    agent_id: str,
     memory_id: str = Query(..., description="Unique ID of the memory to be deleted."),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -222,56 +238,39 @@ def delete_agent_archival_memory(
 
 @router.get("/{agent_id}/messages", response_model=List[Message])
 def get_agent_messages(
-    agent_id: "str",
-    server: "SyncServer" = Depends(get_memgpt_server),
-    start: int = Query(..., description="Message index to start on (reverse chronological)."),
-    count: int = Query(..., description="How many messages to retrieve."),
-):
-    """
-    Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
-    """
-    # Validate with the Pydantic model (optional)
-    actor = server.get_current_user()
-
-    # this was in the migrated code - confirm this is incorrect?
-    # return server.get_agent_recall_cursor(user_id=actor.id, agent_id=agent_id, before=before, limit=limit, reverse=True)
-    return server.get_agent_messages(user_id=actor.id, agent_id=agent_id, start=start, count=count)
-
-
-@router.get("/{agent_id}/messages-cursor", response_model=GetAgentMessagesResponse)
-def get_agent_messages_cursor(
-    agent_id: UUID,
-    server: "SyncServer" = Depends(get_memgpt_server),
-    before: Optional[UUID] = Query(None, description="Message before which to retrieve the returned messages."),
-    limit: int = Query(10, description="Maximum number of messages to retrieve."),
-):
-    """
-    Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
-    """
-    actor = server.get_current_user()
-    # Validate with the Pydantic model (optional)
-    request = GetAgentMessagesCursorRequest(agent_id=agent_id, before=before, limit=limit)
-
-    [_, messages] = server.get_agent_recall_cursor(
-        user_id=actor.id, agent_id=agent_id, before=request.before, limit=request.limit, reverse=True
-    )
-    return GetAgentMessagesResponse(messages=messages)
-
-
-@router.get("/{agent_id}/messages/context/", response_model=List[Message])
-def get_agent_messages_in_context(
     agent_id: str,
-    start: int = Query(..., description="Message index to start on (reverse chronological)."),
-    count: int = Query(..., description="How many messages to retrieve."),
+    server: "SyncServer" = Depends(get_memgpt_server),
+    before: Optional[str] = Query(None, description="Message before which to retrieve the returned messages."),
+    limit: int = Query(10, description="Maximum number of messages to retrieve."),
+    msg_object: bool = Query(False, description="If true, returns Message objects. If false, return MemGPTMessage objects."),
+):
+    """
+    Retrieve message history for an agent.
+    """
+    actor = server.get_current_user()
+
+    return server.get_agent_recall_cursor(
+        user_id=actor.id,
+        agent_id=agent_id,
+        before=before,
+        limit=limit,
+        reverse=True,
+        return_message_object=msg_object,
+    )
+
+
+@router.patch("/{agent_id}/messages/{message_id}", response_model=Message)
+def update_message(
+    agent_id: str,
+    message_id: str,
+    request: UpdateMessage = Body(...),
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
-    Retrieve the in-context messages of a specific agent. Paginated, provide start and count to iterate.
+    Update the details of a message associated with an agent.
     """
-
-    actor = server.get_current_user()
-    messages = server.get_agent_messages(user_id=actor.id, agent_id=agent_id, start=start, count=count)
-    return messages
+    assert request.id == message_id, f"Message ID mismatch: {request.id} != {message_id}"
+    return server.update_agent_message(agent_id=agent_id, request=request)
 
 
 @router.post("/{agent_id}/messages", response_model=MemGPTResponse)
@@ -283,10 +282,14 @@ async def send_message(
     """
     Process a user message and return the agent's response.
     This endpoint accepts a message from a user and processes it through the agent.
-    It can optionally stream the response if 'stream' is set to True.
+    It can optionally stream the response if 'stream_steps' or 'stream_tokens' is set to True.
     """
     actor = server.get_current_user()
+
+    # TODO(charles): support sending multiple messages
+    assert len(request.messages) == 1, f"Multiple messages not supported: {request.messages}"
     message = request.messages[0]
+
     return await send_message_to_agent(
         server=server,
         agent_id=agent_id,
@@ -295,10 +298,10 @@ async def send_message(
         message=message.text,
         stream_steps=request.stream_steps,
         stream_tokens=request.stream_tokens,
+        return_message_object=request.return_message_object,
     )
 
 
-# TODO: cpacker should check this file
 # TODO: move this into server.py?
 async def send_message_to_agent(
     server: SyncServer,
@@ -308,10 +311,10 @@ async def send_message_to_agent(
     message: str,
     stream_steps: bool,
     stream_tokens: bool,
+    return_message_object: bool,  # Should be True for Python Client, False for REST API
     chat_completion_mode: Optional[bool] = False,
     timestamp: Optional[datetime] = None,
     # related to whether or not we return `MemGPTMessage`s or `Message`s
-    return_message_object: bool = True,  # Should be True for Python Client, False for REST API
 ) -> Union[StreamingResponse, MemGPTResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
     # TODO: @charles is this the correct way to handle?
