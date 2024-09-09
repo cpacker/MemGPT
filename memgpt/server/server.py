@@ -1550,14 +1550,14 @@ class SyncServer(Server):
 
         return sources_with_metadata
 
-    def get_tool(self, tool_id: str) -> Tool:
+    def get_tool(self, tool_id: str) -> Optional[Tool]:
         """Get tool by ID."""
         return self.ms.get_tool(tool_id=tool_id)
 
-    def get_tool_id(self, name: str, user_id: str) -> str:
+    def get_tool_id(self, name: str, user_id: str) -> Optional[str]:
         """Get tool ID from name and user_id."""
         tool = self.ms.get_tool(tool_name=name, user_id=user_id)
-        if not tool:
+        if not tool or tool.id is None:
             return None
         return tool.id
 

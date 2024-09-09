@@ -13,8 +13,6 @@ from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
 
-# from memgpt.server.rest_api.admin.tools import setup_tools_index_router
-# from memgpt.server.rest_api.admin.users import setup_admin_router
 # from memgpt.server.rest_api.agents.index import setup_agents_index_router
 # from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
 # from memgpt.server.rest_api.agents.message import setup_agents_message_router
@@ -33,13 +31,18 @@ from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
     setup_openai_chat_completions_router,
 )
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
-
-# from memgpt.server.rest_api.sources.index import setup_sources_index_router
-from memgpt.server.rest_api.static_files import mount_static_files
+from memgpt.server.rest_api.routers.v1.users import router as users_router
 
 # from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
+
+# from memgpt.server.rest_api.admin.tools import setup_tools_index_router
+# from memgpt.server.rest_api.admin.users import setup_admin_router
+
+
+# from memgpt.server.rest_api.sources.index import setup_sources_index_router
+
 
 """
 Basic REST API sitting on top of the internal MemGPT python server (SyncServer)
@@ -72,9 +75,10 @@ def verify_password(credentials: HTTPAuthorizationCredentials = Depends(security
 
 
 ADMIN_PREFIX = "/admin"
-ADMIN_API_PREFIX = "/api/admin"
-API_PREFIX = "/api"
-OPENAI_API_PREFIX = "/v1"
+# ADMIN_API_PREFIX = "/api/admin"
+# API_PREFIX = "/api"
+API_PREFIX = "/v1"
+OPENAI_API_PREFIX = "/openai/v1"
 
 app = FastAPI()
 
@@ -93,6 +97,9 @@ for route in v1_routes:
     # we should always tie this to the newest version of the api.
     app.include_router(route, prefix="", include_in_schema=False)
     app.include_router(route, prefix="/latest", include_in_schema=False)
+
+# admin/users
+app.include_router(users_router, prefix=ADMIN_PREFIX)
 
 # /api/auth endpoints
 app.include_router(setup_auth_router(server, interface, password), prefix=API_PREFIX)
@@ -124,7 +131,7 @@ app.include_router(setup_openai_assistant_router(server, interface), prefix=OPEN
 app.include_router(setup_openai_chat_completions_router(server, interface, password), prefix=OPENAI_API_PREFIX)
 
 # / static files
-mount_static_files(app)
+# mount_static_files(app)
 
 
 @app.on_event("startup")

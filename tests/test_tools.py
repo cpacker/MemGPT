@@ -2,12 +2,14 @@ import os
 import threading
 import time
 import uuid
+from typing import Union
 
 import pytest
 from dotenv import load_dotenv
 
 from memgpt import Admin, create_client
 from memgpt.agent import Agent
+from memgpt.client.client import LocalClient, RESTClient
 from memgpt.constants import DEFAULT_PRESET
 from memgpt.schemas.memory import ChatMemory
 
@@ -86,7 +88,7 @@ def agent(client):
     client.delete_agent(agent_state.id)
 
 
-def test_create_tool(client):
+def test_create_tool(client: Union[LocalClient, RESTClient]):
     """Test creation of a simple tool"""
 
     def print_tool(message: str):
@@ -111,7 +113,9 @@ def test_create_tool(client):
     print(f"Updated tools {[t.name for t in tools]}")
 
     # check tool id
-    tool = client.get_tool(tool.name)
+    tool = client.get_tool(tool.id)
+    assert tool is not None, "Expected tool to be created"
+    assert tool.id == tool.id, f"Expected {tool.id} to be {tool.id}"
 
 
 # TODO: add back once we fix admin client tool creation
