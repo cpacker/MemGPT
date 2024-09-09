@@ -21,14 +21,23 @@ from memgpt.server.rest_api.auth.index import setup_auth_router
 # from memgpt.server.rest_api.block.index import setup_block_index_router
 # from memgpt.server.rest_api.config.index import setup_config_index_router
 from memgpt.server.rest_api.interface import StreamingServerInterface
+from memgpt.server.rest_api.routers.openai.assistants.assistants import (
+    router as openai_assistants_router,
+)
+from memgpt.server.rest_api.routers.openai.assistants.threads import (
+    router as openai_threads_router,
+)
 
 # from memgpt.server.rest_api.jobs.index import setup_jobs_index_router
 # from memgpt.server.rest_api.models.index import setup_models_index_router
-from memgpt.server.rest_api.openai_assistants.assistants import (
-    setup_openai_assistant_router,
-)
-from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
-    setup_openai_chat_completions_router,
+# from memgpt.server.rest_api.openai_assistants.assistants import (
+#     setup_openai_assistant_router,
+# )
+# from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
+#     setup_openai_chat_completions_router,
+# )
+from memgpt.server.rest_api.routers.openai.completions.completions import (
+    router as openai_chat_completions_router,
 )
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
 from memgpt.server.rest_api.routers.v1.users import router as users_router
@@ -78,7 +87,7 @@ ADMIN_PREFIX = "/admin"
 # ADMIN_API_PREFIX = "/api/admin"
 # API_PREFIX = "/api"
 API_PREFIX = "/v1"
-OPENAI_API_PREFIX = "/openai/v1"
+OPENAI_API_PREFIX = "/openai"
 
 app = FastAPI()
 
@@ -100,6 +109,11 @@ for route in v1_routes:
 
 # admin/users
 app.include_router(users_router, prefix=ADMIN_PREFIX)
+
+# openai
+app.include_router(openai_assistants_router, prefix=OPENAI_API_PREFIX)
+app.include_router(openai_threads_router, prefix=OPENAI_API_PREFIX)
+app.include_router(openai_chat_completions_router, prefix=OPENAI_API_PREFIX)
 
 # /api/auth endpoints
 app.include_router(setup_auth_router(server, interface, password), prefix=API_PREFIX)
@@ -125,10 +139,10 @@ app.include_router(setup_auth_router(server, interface, password), prefix=API_PR
 # app.include_router(setup_config_index_router(server, interface, password), prefix=API_PREFIX)
 
 # /v1/assistants endpoints
-app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
+# app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
 
 # /v1/chat/completions endpoints
-app.include_router(setup_openai_chat_completions_router(server, interface, password), prefix=OPENAI_API_PREFIX)
+# app.include_router(setup_openai_chat_completions_router(server, interface, password), prefix=OPENAI_API_PREFIX)
 
 # / static files
 # mount_static_files(app)
