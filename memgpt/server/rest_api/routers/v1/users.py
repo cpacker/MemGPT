@@ -18,8 +18,6 @@ from memgpt.server.rest_api.utils import get_memgpt_server
 # )
 
 if TYPE_CHECKING:
-    pass
-
     from memgpt.schemas.user import User
     from memgpt.server.server import SyncServer
 
@@ -31,7 +29,7 @@ router = APIRouter(prefix="/users", tags=["users", "admin"])
 def get_all_users(
     cursor: Optional[str] = Query(None),
     limit: Optional[int] = Query(50),
-    server: SyncServer = Depends(get_memgpt_server),
+    server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Get a list of all users in the database
@@ -49,7 +47,7 @@ def get_all_users(
 @router.post("/", tags=["admin"], response_model=User)
 def create_user(
     request: UserCreate = Body(...),
-    server: SyncServer = Depends(get_memgpt_server),
+    server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Create a new user in the database
@@ -62,7 +60,7 @@ def create_user(
 @router.delete("/", tags=["admin"], response_model=User)
 def delete_user(
     user_id: str = Query(..., description="The user_id key to be deleted."),
-    server: SyncServer = Depends(get_memgpt_server),
+    server: "SyncServer" = Depends(get_memgpt_server),
 ):
     # TODO make a soft deletion, instead of a hard deletion
     try:
