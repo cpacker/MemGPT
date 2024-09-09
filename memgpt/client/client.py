@@ -1291,12 +1291,12 @@ class LocalClient(AbstractClient):
             # TODO: find a neater way to do this
             self.user_id = config.anon_clientid
 
+        self.interface = QueuingInterface(debug=debug)
+        self.server = SyncServer(default_interface_factory=lambda: self.interface)
+
         # set logging levels
         memgpt.utils.DEBUG = debug
         logging.getLogger().setLevel(logging.CRITICAL)
-
-        self.interface = QueuingInterface(debug=debug)
-        self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
         # create user if does not exist
         existing_user = self.server.get_user(self.user_id)
@@ -1623,7 +1623,10 @@ class LocalClient(AbstractClient):
         messages = self.interface.to_list()
         for m in messages:
             assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
-        return MemGPTResponse(messages=messages, usage=usage)
+        memgpt_messages = []
+        for m in messages:
+            memgpt_messages += m.to_memgpt_message()
+        return MemGPTResponse(messages=memgpt_messages, usage=usage)
 
     def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
         """
