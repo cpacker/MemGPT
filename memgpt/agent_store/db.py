@@ -48,14 +48,14 @@ class SQLStorageConnector(StorageConnector):
 
         self.db_session = db_session or get_db_session()
 
-        self.check_db_session()
+        # self.check_db_session()
 
-    def check_db_session(self):
-        from sqlalchemy import text
+    # def check_db_session(self):
+    #    from sqlalchemy import text
 
-        schema = self.db_session.execute(text("show search_path")).fetchone()[0]
-        if "postgres" not in schema:
-            raise ValueError(f"Schema: {schema}")
+    #    schema = self.db_session.execute(text("show search_path")).fetchone()[0]
+    #    if "postgres" not in schema:
+    #        raise ValueError(f"Schema: {schema}")
 
     def get_filters(self, filters: Optional[Dict] = {}):
         filter_conditions = {**self.filters, **(filters or {})}

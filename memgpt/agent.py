@@ -205,10 +205,11 @@ class Agent(object):
         self.agent_state = agent_state
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
-        try:
-            self.link_tools(tools)
-        except Exception as e:
-            raise ValueError(f"Encountered an error while trying to link agent tools during initialization:\n{str(e)}")
+        # try:
+        #    self.link_tools(tools)
+        # except Exception as e:
+        #    raise ValueError(f"Encountered an error while trying to link agent tools during initialization:\n{str(e)}")
+        self.link_tools(tools)
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
@@ -303,7 +304,7 @@ class Agent(object):
         # tools
         for tool in tools:
             assert tool, f"Tool is None - must be error in querying tool from DB"
-            assert tool.name in self.agent_state.tools, f"Tool {tool} not found in agent_state.tools"
+            assert tool.name in self.agent_state.tools, f"Tool {tool.name} not found in {[t.name for t in self.agent_state.tools]}"
         for tool_name in self.agent_state.tools:
             assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
 

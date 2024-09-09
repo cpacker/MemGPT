@@ -643,7 +643,7 @@ class SyncServer(Server):
             # TODO: cleanup this code
             tool_objs = []
             for tool_name in request.tools:
-                for tool_obj in self.ms.list_tools():
+                for tool_obj in self.ms.list_tools(user_id=user_id):
                     if tool_obj.name == tool_name:
                         tool_objs.append(tool_obj)
                         break
@@ -669,6 +669,7 @@ class SyncServer(Server):
                 logger.exception(e)
                 raise e
 
+            print("AGENT TOOLS", tool_objs)
             agent = Agent(
                 interface=interface,
                 agent_state=agent_state,

@@ -624,8 +624,11 @@ def run(
 
         print(client.user_id)
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
-        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-        tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
+        # tools = [t.name for t in agent_state.tools if isinstance(t, Tool) else t]
+        # typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
+        # tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
+        tools = agent_state.tools
+        print("TOOLS", [t.name for t in tools])
 
         memgpt_agent = Agent(
             interface=interface(),

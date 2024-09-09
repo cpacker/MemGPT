@@ -106,10 +106,12 @@ class MetadataStore:
 
         splatted_pydantic = agent_state.model_dump(exclude_none=True, exclude=excluded_fields)
 
+        actor = SQLUser.read(db_session=self.db_session, identifier=SQLUser.to_uid(self.actor.id))
+
         if agent_state.tools:
             # tools need to be read by name
             splatted_pydantic["tools"] = [
-                SQLTool.read_by_name(self.db_session, name=r, actor=self.actor) if not isinstance(r, Tool) else r.to_sqlalchemy()
+                SQLTool.read_by_name(self.db_session, name=r, actor=actor) if not isinstance(r, Tool) else r.to_sqlalchemy()
                 for r in agent_state.tools
             ]
         if agent_state.message_ids and action == "create":
