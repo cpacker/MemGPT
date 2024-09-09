@@ -889,10 +889,10 @@ class SyncServer(Server):
         self,
         user_id: Optional[str] = None,
         label: Optional[str] = None,
-        template: Optional[bool] = True,
+        template: bool = True,
         name: Optional[str] = None,
         id: Optional[str] = None,
-    ):
+    ) -> Optional[List[Block]]:
 
         return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
 
