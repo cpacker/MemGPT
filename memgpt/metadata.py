@@ -107,8 +107,10 @@ class MetadataStore:
         splatted_pydantic = agent_state.model_dump(exclude_none=True, exclude=excluded_fields)
 
         if agent_state.tools:
+            # tools need to be read by name
             splatted_pydantic["tools"] = [
-                SQLTool.read_by_name(self.db_session, name=r) if not isinstance(r, Tool) else r.to_sqlalchemy() for r in agent_state.tools
+                SQLTool.read_by_name(self.db_session, name=r, actor=self.actor) if not isinstance(r, Tool) else r.to_sqlalchemy()
+                for r in agent_state.tools
             ]
         if agent_state.message_ids and action == "create":
             splatted_pydantic["messages"] = [
@@ -189,6 +191,8 @@ class MetadataStore:
                 def create(schema):
                     splatted_pydantic = schema.model_dump(exclude_none=True)
                     splatted_pydantic = {k: v for k,v in splatted_pydantic.items() if hasattr(Model, k)}
+                    print("Creating", self.actor.id, splatted_pydantic["name"] if "name" in splatted_pydantic else "")
+                    print(splatted_pydantic)
                     return Model(created_by_id=self.actor.id, **splatted_pydantic).create(self.db_session).to_pydantic()
 
                 return create
@@ -222,6 +226,12 @@ class MetadataStore:
                     filters = kwargs.get("filters", {})
                     if user_uuid := kwargs.get("user_id"):
                         filters["_organization_id"] = SQLUser.read(self.db_session, user_uuid).organization._id
+
+                    print("LIST FILTERS", filters)
+
+                    # TODO: what is the difference between created_by_id and _organization_id?
+                    # filters["created_by_id"] = self.actor.id
+                    # print("LIST FILTERS", filters)
                     # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
                     return [r.to_pydantic() for r in Model.list(db_session=self.db_session, **filters)]
 

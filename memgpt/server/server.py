@@ -1,3 +1,5 @@
+import importlib
+import inspect
 import uuid
 import warnings
 from abc import abstractmethod
@@ -16,6 +18,7 @@ from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
+from memgpt.functions.functions import generate_schema, load_function_set
 from memgpt.functions.schema_generator import generate_schema
 
 # TODO use custom interface
@@ -852,41 +855,47 @@ class SyncServer(Server):
         self,
         user_id: Optional[str] = None,
         label: Optional[str] = None,
-        template: Optional[bool] = True,
+        template: Optional[bool] = None,
         name: Optional[str] = None,
         id: Optional[str] = None,
     ):
-
-        return self.ms.list_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+        # blocks = self.ms.list_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+        filters = {}
+        if label:
+            filters["label"] = label
+        if template:
+            filters["is_template"] = template
+        if name:
+            filters["name"] = name
+        if id:
+            filters["id"] = id
+        blocks = self.ms.list_blocks(filters=filters)
+        print("LIST BLOCKS", filters)
+        print(blocks)
 
     def get_block(self, block_id: str):
+        return self.ms.get_block(id=block_id)
 
-        blocks = self.get_blocks(id=block_id)
-        if blocks is None or len(blocks) == 0:
-            return None
-        if len(blocks) > 1:
-            raise ValueError("Multiple blocks with the same id")
-        return blocks[0]
-
-    def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_blocks = self.ms.list_blocks(name=request.name, user_id=user_id, is_template=request.is_template, label=request.label)
+    def create_block(self, request: CreateBlock, update: bool = False) -> Block:
+        existing_blocks = self.ms.list_blocks(
+            filters={"name": request.name, "is_template": request.is_template}, user_id=self.get_user_default().id
+        )
         if existing_blocks is not None and len(existing_blocks) > 0:
             existing_block = existing_blocks[0]
             assert len(existing_blocks) == 1
+            assert self.ms.get_block(id=existing_block.id) is not None, f"Block {existing_block.id} does not exist"
             if update:
-                print("USER ID", user_id)
-                print(vars(request))
                 return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
             else:
                 raise ValueError(f"Block with name {request.name} already exists")
 
-        print(vars(request))
         block = Block(**vars(request))
         self.ms.create_block(block)
+        print("BLOCK", block.name)
         return block
 
     def update_block(self, request: UpdateBlock) -> Block:
-        block = self.get_block(request.id)
+        block = self.ms.get_block(request.id)
         block.limit = request.limit if request.limit is not None else block.limit
         block.value = request.value if request.value is not None else block.value
         block.name = request.name if request.name is not None else block.name
@@ -1524,7 +1533,7 @@ class SyncServer(Server):
         """Update an existing tool"""
         return self.ms.update_tool(request)
 
-    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = True) -> Tool:  # TODO: add other fields
+    def create_tool(self, request: ToolCreate, update: bool = True) -> Tool:  # TODO: add other fields
         """Create a new tool"""
 
         # NOTE: deprecated code that existed when we were trying to pretend that `self` was the memory object
@@ -1548,7 +1557,6 @@ class SyncServer(Server):
 
             # TODO: not sure if this always works
             func = env[functions[-1]]
-            print("FUNCTIONS", functions)
             json_schema = generate_schema(func, request.name)
             from pprint import pprint
 

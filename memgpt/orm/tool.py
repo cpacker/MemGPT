@@ -1,9 +1,9 @@
 import importlib
 from inspect import getsource, isfunction
 from types import ModuleType
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Union, Literal
 
-from sqlalchemy import JSON, String
+from sqlalchemy import JSON, String, select
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # TODO everything in functions should live in this model
@@ -17,7 +17,9 @@ from memgpt.schemas.tool import Tool as PydanticTool
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-
+    from memgpt.orm.user import User as SQLUser
+    from memgpt.schemas.user import User
+    from uuid import UUID
 
 class Tool(SqlalchemyBase, OrganizationMixin):
     """Represents an available tool that the LLM can invoke.
@@ -46,10 +48,33 @@ class Tool(SqlalchemyBase, OrganizationMixin):
     organization: Mapped["Organization"] = relationship("Organization", back_populates="tools", lazy="selectin")
 
     @classmethod
-    def read_by_name(cls, db_session: "Session", name: str) -> "Tool":
-        if found := db_session.query(cls).filter(cls.name == name, cls.is_deleted == False).scalar():
-            return found
-        raise NoResultFound(f"{cls.__name__} with name {name} not found")
+    def read(
+        cls,
+        db_session: "Session",
+        actor: Optional["User"] = None,
+        access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
+        identifier: Optional[Union[str, "UUID"]] = None,
+        name: Optional[str] = None,
+        **kwargs,
+    ) -> "Tool":
+        if not (identifier or name):
+            raise ValueError("Either identifier or name must be provided to read a tool.")
+        if identifier:
+            return super().read(db_session,
+                                identifier,
+                                actor=actor,
+                                access=access)
+        if actor: # name lookup always needs an actor
+            query = select(cls).where(cls.name == identifier)
+            query = cls.apply_access_predicate(query, actor, access).where(cls.is_deleted == False)
+            if found := db_session.execute(query).scalar():
+                return found
+        raise NoResultFound(f"{cls.__name__} with id {identifier} not found")
+
+    @classmethod
+    def read_by_name(cls, db_session: "Session", name: str, actor: Union["SQLUser","User"]) -> "Tool":
+        print("SEARCH TOOL", name, actor.id)
+        return cls.read(db_session, actor=actor, name=name)
 
     @classmethod
     def load_default_tools(cls, db_session: "Session") -> None:
