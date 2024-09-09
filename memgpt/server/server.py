@@ -1782,4 +1782,12 @@ class SyncServer(Server):
         config = MemGPTConfig.load()
         user_id = config.anon_clientid
         user = self.get_user(user_id)
+
+        if not user:
+            user = self.create_user(UserCreate())
+
+            # # update config
+            config.anon_clientid = str(user.id)
+            config.save()
+
         return user
