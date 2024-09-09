@@ -3,8 +3,12 @@ from memgpt.server.rest_api.routers.v1.blocks import router as blocks_router
 from memgpt.server.rest_api.routers.v1.llms import router as llm_router
 from memgpt.server.rest_api.routers.v1.sources import router as sources_router
 from memgpt.server.rest_api.routers.v1.tools import router as tools_router
+from memgpt.server.rest_api.routers.v1.users import (
+    router as users_router,  # TODO(ethan) remove?
+)
 
 ROUTERS = [
+    users_router,
     tools_router,
     sources_router,
     agents_router,
