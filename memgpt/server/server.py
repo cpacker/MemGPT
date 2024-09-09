@@ -889,7 +889,7 @@ class SyncServer(Server):
         self,
         user_id: Optional[str] = None,
         label: Optional[str] = None,
-        template: Optional[bool] = True,
+        template: Optional[bool] = None,
         name: Optional[str] = None,
         id: Optional[str] = None,
     ):
@@ -900,7 +900,7 @@ class SyncServer(Server):
 
         blocks = self.get_blocks(id=block_id)
         if blocks is None or len(blocks) == 0:
-            return None
+            raise ValueError("Block does not exist")
         if len(blocks) > 1:
             raise ValueError("Multiple blocks with the same id")
         return blocks[0]
