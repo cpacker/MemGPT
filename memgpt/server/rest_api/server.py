@@ -15,14 +15,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
-
-# from memgpt.server.rest_api.agents.index import setup_agents_index_router
-# from memgpt.server.rest_api.agents.memory import setup_agents_memory_router
-# from memgpt.server.rest_api.agents.message import setup_agents_message_router
-from memgpt.server.rest_api.auth.index import setup_auth_router
-
-# from memgpt.server.rest_api.block.index import setup_block_index_router
-# from memgpt.server.rest_api.config.index import setup_config_index_router
+from memgpt.server.rest_api.auth.index import (
+    setup_auth_router,  # TODO: probably remove right?
+)
 from memgpt.server.rest_api.interface import StreamingServerInterface
 from memgpt.server.rest_api.routers.openai.assistants.assistants import (
     router as openai_assistants_router,
@@ -30,32 +25,15 @@ from memgpt.server.rest_api.routers.openai.assistants.assistants import (
 from memgpt.server.rest_api.routers.openai.assistants.threads import (
     router as openai_threads_router,
 )
-
-# from memgpt.server.rest_api.jobs.index import setup_jobs_index_router
-# from memgpt.server.rest_api.models.index import setup_models_index_router
-# from memgpt.server.rest_api.openai_assistants.assistants import (
-#     setup_openai_assistant_router,
-# )
-# from memgpt.server.rest_api.openai_chat_completions.chat_completions import (
-#     setup_openai_chat_completions_router,
-# )
 from memgpt.server.rest_api.routers.openai.chat_completions.chat_completions import (
     router as openai_chat_completions_router,
 )
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
-from memgpt.server.rest_api.routers.v1.users import router as users_router
-
-# from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
+from memgpt.server.rest_api.routers.v1.users import (
+    router as users_router,  # TODO: decide on admin
+)
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
-
-# from memgpt.server.rest_api.sources.index import setup_sources_index_router
-# from memgpt.server.rest_api.static_files import mount_static_files
-
-
-# from memgpt.server.rest_api.admin.tools import setup_tools_index_router
-# from memgpt.server.rest_api.admin.users import setup_admin_router
-
 
 """
 Basic REST API sitting on top of the internal MemGPT python server (SyncServer)
@@ -65,8 +43,6 @@ Start the server with:
   poetry run uvicorn server:app --reload
 """
 
-# interface: QueuingInterface = QueuingInterface()
-# interface: StreamingServerInterface = StreamingServerInterface()
 interface: StreamingServerInterface = StreamingServerInterface
 server: SyncServer = SyncServer(default_interface_factory=lambda: interface())
 
@@ -88,8 +64,6 @@ def verify_password(credentials: HTTPAuthorizationCredentials = Depends(security
 
 
 ADMIN_PREFIX = "/v1/admin"
-# ADMIN_API_PREFIX = "/api/admin"
-# API_PREFIX = "/api"
 API_PREFIX = "/v1"
 OPENAI_API_PREFIX = "/openai"
 
@@ -122,34 +96,6 @@ app.include_router(openai_chat_completions_router, prefix=OPENAI_API_PREFIX)
 # /api/auth endpoints
 app.include_router(setup_auth_router(server, interface, password), prefix=API_PREFIX)
 
-# /admin/users endpoints
-# app.include_router(setup_admin_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
-# app.include_router(setup_tools_index_router(server, interface), prefix=ADMIN_PREFIX, dependencies=[Depends(verify_password)])
-
-# /api/admin/agents endpoints
-# app.include_router(setup_agents_admin_router(server, interface), prefix=ADMIN_API_PREFIX, dependencies=[Depends(verify_password)])
-
-# /api/agents endpoints
-# app.include_router(setup_agents_index_router(server, interface, password), prefix=API_PREFIX)
-# app.include_router(setup_agents_memory_router(server, interface, password), prefix=API_PREFIX)
-# app.include_router(setup_agents_message_router(server, interface, password), prefix=API_PREFIX)
-# app.include_router(setup_block_index_router(server, interface, password), prefix=API_PREFIX)
-# app.include_router(setup_jobs_index_router(server, interface, password), prefix=API_PREFIX)
-# app.include_router(setup_models_index_router(server, interface, password), prefix=API_PREFIX)
-# app.include_router(setup_user_tools_index_router(server, interface, password), prefix=API_PREFIX)
-# app.include_router(setup_sources_index_router(server, interface, password), prefix=API_PREFIX)
-
-# /api/config endpoints
-# app.include_router(setup_config_index_router(server, interface, password), prefix=API_PREFIX)
-
-# /v1/assistants endpoints
-# app.include_router(setup_openai_assistant_router(server, interface), prefix=OPENAI_API_PREFIX)
-
-# /v1/chat/completions endpoints
-# app.include_router(setup_openai_chat_completions_router(server, interface, password), prefix=OPENAI_API_PREFIX)
-
-# / static files
-
 # Serve static files
 static_files_path = os.path.join(os.path.dirname(importlib.util.find_spec("memgpt").origin), "server", "static_files")
 app.mount("/assets", StaticFiles(directory=os.path.join(static_files_path, "assets")), name="static")
@@ -174,44 +120,6 @@ async def handle_api_routes(request: Request, call_next):
 # Catch-all route for SPA
 async def serve_spa(full_path: str):
     return FileResponse(os.path.join(static_files_path, "index.html"))
-
-
-# # Middleware to check if the request should be handled by API or SPA
-# @app.middleware("http")
-# async def check_route(request: Request, call_next):
-#     if request.url.path.startswith(("/v1/", "/openai/")):
-#         response = await call_next(request)
-#         if response.status_code == 404:
-#             return FileResponse(os.path.join(static_files_path, "index.html"))
-#         return response
-#     return await call_next(request)
-
-
-# # Catch-all route for SPA
-# @app.get("/{full_path:path}")
-# async def serve_spa(full_path: str):
-#     return FileResponse(os.path.join(static_files_path, "index.html"))
-
-
-# # # Catch-all route for SPA
-# @app.get("/{full_path:path}")
-# async def serve_spa(full_path: str):
-#     return FileResponse(os.path.join(static_files_path, "index.html"))
-
-
-# static_files_path = os.path.join(os.path.dirname(importlib.util.find_spec("memgpt").origin), "server", "static_files")
-
-
-# @app.get("/{full_path:path}")
-# async def serve_spa(full_path: str):
-#     if full_path == "favicon.ico":
-#         return FileResponse(os.path.join(static_files_path, "favicon.ico"))
-
-#     file_path = os.path.join(static_files_path, full_path)
-#     if os.path.isfile(file_path):
-#         return FileResponse(file_path)
-
-#     return FileResponse(os.path.join(static_files_path, "index.html"))
 
 
 # mount_static_files(app)
