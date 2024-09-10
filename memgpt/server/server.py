@@ -889,10 +889,10 @@ class SyncServer(Server):
         self,
         user_id: Optional[str] = None,
         label: Optional[str] = None,
-        template: Optional[bool] = None,
+        template: bool = True,
         name: Optional[str] = None,
         id: Optional[str] = None,
-    ):
+    ) -> Optional[List[Block]]:
 
         return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
 
@@ -1550,14 +1550,14 @@ class SyncServer(Server):
 
         return sources_with_metadata
 
-    def get_tool(self, tool_id: str) -> Tool:
+    def get_tool(self, tool_id: str) -> Optional[Tool]:
         """Get tool by ID."""
         return self.ms.get_tool(tool_id=tool_id)
 
-    def get_tool_id(self, name: str, user_id: str) -> str:
+    def get_tool_id(self, name: str, user_id: str) -> Optional[str]:
         """Get tool ID from name and user_id."""
         tool = self.ms.get_tool(tool_name=name, user_id=user_id)
-        if not tool:
+        if not tool or tool.id is None:
             return None
         return tool.id
 
@@ -1770,3 +1770,38 @@ class SyncServer(Server):
         # Get the current message
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return memgpt_agent.retry_message()
+
+    # TODO(ethan) wire back to real method in future ORM PR
+    def get_current_user(self) -> User:
+        """Returns the currently authed user.
+
+        Since server is the core gateway this needs to pass through server as the
+        first touchpoint.
+        """
+        # NOTE: same code as local client to get the default user
+        config = MemGPTConfig.load()
+        user_id = config.anon_clientid
+        user = self.get_user(user_id)
+
+        if not user:
+            user = self.create_user(UserCreate())
+
+            # # update config
+            config.anon_clientid = str(user.id)
+            config.save()
+
+        return user
+
+    def list_models(self) -> List[LLMConfig]:
+        """List available models"""
+
+        # TODO support multiple models
+        llm_config = self.server_llm_config
+        return [llm_config]
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        """List available embedding models"""
+
+        # TODO support multiple models
+        embedding_config = self.server_embedding_config
+        return [embedding_config]

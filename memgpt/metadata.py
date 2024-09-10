@@ -744,7 +744,7 @@ class MetadataStore:
         template: Optional[bool] = None,
         name: Optional[str] = None,
         id: Optional[str] = None,
-    ) -> List[Block]:
+    ) -> Optional[List[Block]]:
         """List available blocks"""
         with self.session_maker() as session:
             query = session.query(BlockModel)

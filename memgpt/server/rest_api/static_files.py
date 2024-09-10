@@ -21,7 +21,8 @@ def mount_static_files(app: FastAPI):
     static_files_path = os.path.join(os.path.dirname(importlib.util.find_spec("memgpt").origin), "server", "static_files")
     if os.path.exists(static_files_path):
         app.mount(
-            "/",
+            # "/",
+            "/app",
             SPAStaticFiles(
                 directory=static_files_path,
                 html=True,

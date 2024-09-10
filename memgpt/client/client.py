@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Dict, Generator, List, Optional, Union
+from typing import Callable, Dict, Generator, List, Optional, Union
 
 import requests
 
@@ -185,7 +185,7 @@ class AbstractClient(object):
         self,
         id: str,
         name: Optional[str] = None,
-        func: Optional[callable] = None,
+        func: Optional[Callable] = None,
         tags: Optional[List[str]] = None,
     ) -> Tool:
         raise NotImplementedError
@@ -271,6 +271,7 @@ class RESTClient(AbstractClient):
         self,
         base_url: str,
         token: str,
+        api_prefix: str = "v1",
         debug: bool = False,
     ):
         """
@@ -283,10 +284,11 @@ class RESTClient(AbstractClient):
         """
         super().__init__(debug=debug)
         self.base_url = base_url
+        self.api_prefix = api_prefix
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
 
     def list_agents(self) -> List[AgentState]:
-        response = requests.get(f"{self.base_url}/api/agents", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers)
         return [AgentState(**agent) for agent in response.json()]
 
     def agent_exists(self, agent_id: str) -> bool:
@@ -301,7 +303,7 @@ class RESTClient(AbstractClient):
             exists (bool): `True` if the agent exists, `False` otherwise
         """
 
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", headers=self.headers)
         if response.status_code == 404:
             # not found error
             return False
@@ -375,7 +377,7 @@ class RESTClient(AbstractClient):
             embedding_config=embedding_config,
         )
 
-        response = requests.post(f"{self.base_url}/api/agents", json=request.model_dump(), headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/agents", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
         return AgentState(**response.json())
@@ -399,7 +401,7 @@ class RESTClient(AbstractClient):
             tool_call_id=tool_call_id,
         )
         response = requests.patch(
-            f"{self.base_url}/api/agents/{agent_id}/messages/{message_id}", json=request.model_dump(), headers=self.headers
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages/{message_id}", json=request.model_dump(), headers=self.headers
         )
         if response.status_code != 200:
             raise ValueError(f"Failed to update message: {response.text}")
@@ -448,7 +450,7 @@ class RESTClient(AbstractClient):
             message_ids=message_ids,
             memory=memory,
         )
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
+        response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
@@ -471,7 +473,7 @@ class RESTClient(AbstractClient):
         Args:
             agent_id (str): ID of the agent to delete
         """
-        response = requests.delete(f"{self.base_url}/api/agents/{str(agent_id)}", headers=self.headers)
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/agents/{str(agent_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
     def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
@@ -484,7 +486,7 @@ class RESTClient(AbstractClient):
         Returns:
             agent_state (AgentState): State representation of the agent
         """
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
         return AgentState(**response.json())
 
@@ -512,7 +514,7 @@ class RESTClient(AbstractClient):
         Returns:
             memory (Memory): In-context memory of the agent
         """
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get in-context memory: {response.text}")
         return Memory(**response.json())
@@ -529,7 +531,9 @@ class RESTClient(AbstractClient):
 
         """
         memory_update_dict = {section: value}
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/memory", json=memory_update_dict, headers=self.headers)
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory", json=memory_update_dict, headers=self.headers
+        )
         if response.status_code != 200:
             raise ValueError(f"Failed to update in-context memory: {response.text}")
         return Memory(**response.json())
@@ -545,7 +549,7 @@ class RESTClient(AbstractClient):
             summary (ArchivalMemorySummary): Summary of the archival memory
 
         """
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory/archival", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/archival", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get archival memory summary: {response.text}")
         return ArchivalMemorySummary(**response.json())
@@ -560,7 +564,7 @@ class RESTClient(AbstractClient):
         Returns:
             summary (RecallMemorySummary): Summary of the recall memory
         """
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory/recall", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/recall", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get recall memory summary: {response.text}")
         return RecallMemorySummary(**response.json())
@@ -575,7 +579,7 @@ class RESTClient(AbstractClient):
         Returns:
             messages (List[Message]): List of in-context messages
         """
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/memory/messages", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/messages", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get in-context messages: {response.text}")
         return [Message(**message) for message in response.json()]
@@ -620,7 +624,7 @@ class RESTClient(AbstractClient):
             params["before"] = str(before)
         if after:
             params["after"] = str(after)
-        response = requests.get(f"{self.base_url}/api/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{str(agent_id)}/archival", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to get archival memory: {response.text}"
         return [Passage(**passage) for passage in response.json()]
 
@@ -636,7 +640,9 @@ class RESTClient(AbstractClient):
             passages (List[Passage]): List of inserted passages
         """
         request = CreateArchivalMemory(text=memory)
-        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/archival", headers=self.headers, json=request.model_dump())
+        response = requests.post(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/archival", headers=self.headers, json=request.model_dump()
+        )
         if response.status_code != 200:
             raise ValueError(f"Failed to insert archival memory: {response.text}")
         return [Passage(**passage) for passage in response.json()]
@@ -649,7 +655,7 @@ class RESTClient(AbstractClient):
             agent_id (str): ID of the agent
             memory_id (str): ID of the memory
         """
-        response = requests.delete(f"{self.base_url}/api/agents/{agent_id}/archival/{memory_id}", headers=self.headers)
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/archival/{memory_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete archival memory: {response.text}"
 
     # messages (recall memory)
@@ -671,7 +677,7 @@ class RESTClient(AbstractClient):
         """
 
         params = {"before": before, "after": after, "limit": limit, "msg_object": True}
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/messages", params=params, headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
         return [Message(**message) for message in response.json()]
@@ -708,9 +714,11 @@ class RESTClient(AbstractClient):
             from memgpt.client.streaming import _sse_post
 
             request.return_message_object = False
-            return _sse_post(f"{self.base_url}/api/agents/{agent_id}/messages", request.model_dump(), self.headers)
+            return _sse_post(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages", request.model_dump(), self.headers)
         else:
-            response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers)
+            response = requests.post(
+                f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers
+            )
             if response.status_code != 200:
                 raise ValueError(f"Failed to send message: {response.text}")
             return MemGPTResponse(**response.json())
@@ -719,7 +727,7 @@ class RESTClient(AbstractClient):
 
     def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
         params = {"label": label, "templates_only": templates_only}
-        response = requests.get(f"{self.base_url}/api/blocks", params=params, headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/blocks", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list blocks: {response.text}")
 
@@ -732,7 +740,7 @@ class RESTClient(AbstractClient):
 
     def create_block(self, label: str, name: str, text: str) -> Block:  #
         request = CreateBlock(label=label, name=name, value=text)
-        response = requests.post(f"{self.base_url}/api/blocks", json=request.model_dump(), headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
         if request.label == "human":
@@ -744,13 +752,13 @@ class RESTClient(AbstractClient):
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
         request = UpdateBlock(id=block_id, name=name, value=text)
-        response = requests.post(f"{self.base_url}/api/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update block: {response.text}")
         return Block(**response.json())
 
     def get_block(self, block_id: str) -> Block:
-        response = requests.get(f"{self.base_url}/api/blocks/{block_id}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", headers=self.headers)
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
@@ -759,7 +767,7 @@ class RESTClient(AbstractClient):
 
     def get_block_id(self, name: str, label: str) -> str:
         params = {"name": name, "label": label}
-        response = requests.get(f"{self.base_url}/api/blocks", params=params, headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/blocks", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get block ID: {response.text}")
         blocks = [Block(**block) for block in response.json()]
@@ -770,7 +778,7 @@ class RESTClient(AbstractClient):
         return blocks[0].id
 
     def delete_block(self, id: str) -> Block:
-        response = requests.delete(f"{self.base_url}/api/blocks/{id}", headers=self.headers)
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/blocks/{id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete block: {response.text}"
         if response.status_code != 200:
             raise ValueError(f"Failed to delete block: {response.text}")
@@ -811,7 +819,7 @@ class RESTClient(AbstractClient):
             human (Human): Updated human block
         """
         request = UpdateHuman(id=human_id, name=name, value=text)
-        response = requests.post(f"{self.base_url}/api/blocks/{human_id}", json=request.model_dump(), headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{human_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update human: {response.text}")
         return Human(**response.json())
@@ -851,7 +859,7 @@ class RESTClient(AbstractClient):
             persona (Persona): Updated persona block
         """
         request = UpdatePersona(id=persona_id, name=name, value=text)
-        response = requests.post(f"{self.base_url}/api/blocks/{persona_id}", json=request.model_dump(), headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{persona_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update persona: {response.text}")
         return Persona(**response.json())
@@ -934,7 +942,7 @@ class RESTClient(AbstractClient):
         Returns:
             source (Source): Source
         """
-        response = requests.get(f"{self.base_url}/api/sources/{source_id}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/sources/{source_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get source: {response.text}")
         return Source(**response.json())
@@ -949,7 +957,7 @@ class RESTClient(AbstractClient):
         Returns:
             source_id (str): ID of the source
         """
-        response = requests.get(f"{self.base_url}/api/sources/name/{source_name}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/sources/name/{source_name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get source ID: {response.text}")
         return response.json()
@@ -961,7 +969,7 @@ class RESTClient(AbstractClient):
         Returns:
             sources (List[Source]): List of sources
         """
-        response = requests.get(f"{self.base_url}/api/sources", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/sources", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list sources: {response.text}")
         return [Source(**source) for source in response.json()]
@@ -973,21 +981,21 @@ class RESTClient(AbstractClient):
         Args:
             source_id (str): ID of the source
         """
-        response = requests.delete(f"{self.base_url}/api/sources/{str(source_id)}", headers=self.headers)
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/sources/{str(source_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete source: {response.text}"
 
     def get_job(self, job_id: str) -> Job:
-        response = requests.get(f"{self.base_url}/api/jobs/{job_id}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/jobs/{job_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get job: {response.text}")
         return Job(**response.json())
 
     def list_jobs(self):
-        response = requests.get(f"{self.base_url}/api/jobs", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/jobs", headers=self.headers)
         return [Job(**job) for job in response.json()]
 
     def list_active_jobs(self):
-        response = requests.get(f"{self.base_url}/api/jobs/active", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/jobs/active", headers=self.headers)
         return [Job(**job) for job in response.json()]
 
     def load_data(self, connector: DataConnector, source_name: str):
@@ -1008,7 +1016,7 @@ class RESTClient(AbstractClient):
         files = {"file": open(filename, "rb")}
 
         # create job
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/upload", files=files, headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/upload", files=files, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to upload file to source: {response.text}")
 
@@ -1035,7 +1043,7 @@ class RESTClient(AbstractClient):
             source (Source): Created source
         """
         payload = {"name": name}
-        response = requests.post(f"{self.base_url}/api/sources", json=payload, headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/sources", json=payload, headers=self.headers)
         response_json = response.json()
         return Source(**response_json)
 
@@ -1049,7 +1057,7 @@ class RESTClient(AbstractClient):
         Returns:
             sources (List[Source]): List of sources
         """
-        response = requests.get(f"{self.base_url}/api/agents/{agent_id}/sources", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/sources", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list attached sources: {response.text}")
         return [Source(**source) for source in response.json()]
@@ -1066,7 +1074,7 @@ class RESTClient(AbstractClient):
             source (Source): Updated source
         """
         request = SourceUpdate(id=source_id, name=name)
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}", json=request.model_dump(), headers=self.headers)
+        response = requests.patch(f"{self.base_url}/{self.api_prefix}/sources/{source_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update source: {response.text}")
         return Source(**response.json())
@@ -1081,13 +1089,13 @@ class RESTClient(AbstractClient):
             source_name (str): Name of the source
         """
         params = {"agent_id": agent_id}
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/attach", params=params, headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/attach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to attach source to agent: {response.text}"
 
     def detach_source(self, source_id: str, agent_id: str):
         """Detach a source from an agent"""
         params = {"agent_id": str(agent_id)}
-        response = requests.post(f"{self.base_url}/api/sources/{source_id}/detach", params=params, headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/detach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
 
     # server configuration commands
@@ -1099,7 +1107,7 @@ class RESTClient(AbstractClient):
         Returns:
             models (List[LLMConfig]): List of LLM models
         """
-        response = requests.get(f"{self.base_url}/api/config/llm", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/models", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list models: {response.text}")
         return [LLMConfig(**model) for model in response.json()]
@@ -1111,7 +1119,7 @@ class RESTClient(AbstractClient):
         Returns:
             models (List[EmbeddingConfig]): List of embedding models
         """
-        response = requests.get(f"{self.base_url}/api/config/embedding", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/models/embedding", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list embedding models: {response.text}")
         return [EmbeddingConfig(**model) for model in response.json()]
@@ -1128,7 +1136,7 @@ class RESTClient(AbstractClient):
         Returns:
             id (str): ID of the tool (`None` if not found)
         """
-        response = requests.get(f"{self.base_url}/api/tools/name/{tool_name}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/tools/name/{tool_name}", headers=self.headers)
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
@@ -1137,7 +1145,7 @@ class RESTClient(AbstractClient):
 
     def create_tool(
         self,
-        func,
+        func: Callable,
         name: Optional[str] = None,
         update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
@@ -1157,14 +1165,21 @@ class RESTClient(AbstractClient):
 
         # TODO: check tool update code
         # TODO: check if tool already exists
+
         # TODO: how to load modules?
         # parse source code/schema
         source_code = parse_source_code(func)
         source_type = "python"
 
+        # TODO: Check if tool already exists
+        # if name:
+        #     tool_id = self.get_tool_id(tool_name=name)
+        #     if tool_id:
+        #         raise ValueError(f"Tool with name {name} (id={tool_id}) already exists")
+
         # call server function
         request = ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags)
-        response = requests.post(f"{self.base_url}/api/tools", json=request.model_dump(), headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/tools", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return Tool(**response.json())
@@ -1173,7 +1188,7 @@ class RESTClient(AbstractClient):
         self,
         id: str,
         name: Optional[str] = None,
-        func: Optional[callable] = None,
+        func: Optional[Callable] = None,
         tags: Optional[List[str]] = None,
     ) -> Tool:
         """
@@ -1196,7 +1211,7 @@ class RESTClient(AbstractClient):
         source_type = "python"
 
         request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name)
-        response = requests.post(f"{self.base_url}/api/tools/{id}", json=request.model_dump(), headers=self.headers)
+        response = requests.patch(f"{self.base_url}/{self.api_prefix}/tools/{id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
         return Tool(**response.json())
@@ -1235,7 +1250,7 @@ class RESTClient(AbstractClient):
     #        raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
 
     #    # make REST request
-    #    response = requests.post(f"{self.base_url}/api/tools", json=data, headers=self.headers)
+    #    response = requests.post(f"{self.base_url}/{self.api_prefix}/tools", json=data, headers=self.headers)
     #    if response.status_code != 200:
     #        raise ValueError(f"Failed to create tool: {response.text}")
     #    return ToolModel(**response.json())
@@ -1247,7 +1262,7 @@ class RESTClient(AbstractClient):
         Returns:
             tools (List[Tool]): List of tools
         """
-        response = requests.get(f"{self.base_url}/api/tools", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/tools", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
         return [Tool(**tool) for tool in response.json()]
@@ -1259,11 +1274,11 @@ class RESTClient(AbstractClient):
         Args:
             id (str): ID of the tool
         """
-        response = requests.delete(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/tools/{name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to delete tool: {response.text}")
 
-    def get_tool(self, name: str):
+    def get_tool(self, id: str) -> Optional[Tool]:
         """
         Get a tool give its ID.
 
@@ -1273,12 +1288,29 @@ class RESTClient(AbstractClient):
         Returns:
             tool (Tool): Tool
         """
-        response = requests.get(f"{self.base_url}/api/tools/{name}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/tools/{id}", headers=self.headers)
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
         return Tool(**response.json())
+
+    def get_tool_id(self, name: str) -> Optional[str]:
+        """
+        Get a tool ID by its name.
+
+        Args:
+            id (str): ID of the tool
+
+        Returns:
+            tool (Tool): Tool
+        """
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/tools/name/{name}", headers=self.headers)
+        if response.status_code == 404:
+            return None
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to get tool: {response.text}")
+        return response.json()
 
 
 class LocalClient(AbstractClient):
@@ -1972,7 +2004,7 @@ class LocalClient(AbstractClient):
         tools = self.server.list_tools(user_id=self.user_id)
         return tools
 
-    def get_tool(self, id: str) -> Tool:
+    def get_tool(self, id: str) -> Optional[Tool]:
         """
         Get a tool give its ID.
 
@@ -2222,7 +2254,7 @@ class LocalClient(AbstractClient):
         Returns:
             models (List[LLMConfig]): List of LLM models
         """
-        return [self.server.server_llm_config]
+        return self.server.list_models()
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         """
@@ -2231,7 +2263,7 @@ class LocalClient(AbstractClient):
         Returns:
             models (List[EmbeddingConfig]): List of embedding models
         """
-        return [self.server.server_embedding_config]
+        return self.server.list_embedding_models()
 
     def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
         """

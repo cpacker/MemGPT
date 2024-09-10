@@ -5,6 +5,9 @@ from typing import AsyncGenerator, Union
 
 from pydantic import BaseModel
 
+from memgpt.server.rest_api.interface import StreamingServerInterface
+from memgpt.server.server import SyncServer
+
 # from memgpt.orm.user import User
 # from memgpt.orm.utilities import get_db_session
 
@@ -51,3 +54,13 @@ async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
         if finish_message:
             # Signal that the stream is complete
             yield sse_formatter(SSE_FINISH_MSG)
+
+
+# TODO: why does this double up the interface?
+def get_memgpt_server() -> SyncServer:
+    server = SyncServer(default_interface_factory=lambda: StreamingServerInterface())
+    return server
+
+
+def get_current_interface() -> StreamingServerInterface:
+    return StreamingServerInterface
