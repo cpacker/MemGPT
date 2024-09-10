@@ -12,7 +12,7 @@ test_server_token = "test_server_token"
 
 
 def run_server():
-    from memgpt.server.rest_api.server import start_server
+    from memgpt.server.rest_api.app import start_server
 
     print("Starting server...")
     start_server(debug=True)
