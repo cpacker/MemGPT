@@ -17,7 +17,7 @@ from memgpt.server.server import SyncServer
 router = APIRouter(prefix="/sources", tags=["sources"])
 
 
-@router.get("/{source_id}", response_model=Source)
+@router.get("/{source_id}", response_model=Source, operation_id="get_source")
 def get_source(
     source_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -30,7 +30,7 @@ def get_source(
     return server.get_source(source_id=source_id, user_id=actor.id)
 
 
-@router.get("/name/{source_name}", response_model=str)
+@router.get("/name/{source_name}", response_model=str, operation_id="get_source_id_by_name")
 def get_source_id_by_name(
     source_name: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -40,11 +40,11 @@ def get_source_id_by_name(
     """
     actor = server.get_current_user()
 
-    source = server.get_source_id(source_name=source_name, user_id=actor.id)
-    return source
+    source_id = server.get_source_id(source_name=source_name, user_id=actor.id)
+    return source_id
 
 
-@router.get("/", response_model=List[Source])
+@router.get("/", response_model=List[Source], operation_id="list_sources")
 def list_sources(
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -56,7 +56,7 @@ def list_sources(
     return server.list_all_sources(user_id=actor.id)
 
 
-@router.post("/", response_model=Source)
+@router.post("/", response_model=Source, operation_id="create_source")
 def create_source(
     source: SourceCreate,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -69,7 +69,7 @@ def create_source(
     return server.create_source(request=source, user_id=actor.id)
 
 
-@router.patch("/{source_id}", response_model=Source)
+@router.patch("/{source_id}", response_model=Source, operation_id="update_source")
 def update_source(
     source_id: str,
     source: SourceUpdate,
@@ -84,7 +84,7 @@ def update_source(
     return server.update_source(request=source, user_id=actor.id)
 
 
-@router.delete("/{source_id}")
+@router.delete("/{source_id}", response_model=None, operation_id="delete_source")
 def delete_source(
     source_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -97,7 +97,7 @@ def delete_source(
     server.delete_source(source_id=source_id, user_id=actor.id)
 
 
-@router.post("/{source_id}/attach", response_model=Source)
+@router.post("/{source_id}/attach", response_model=Source, operation_id="attach_agent_to_source")
 def attach_source_to_agent(
     source_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to attach the source to."),
@@ -114,7 +114,7 @@ def attach_source_to_agent(
     return source
 
 
-@router.post("/{source_id}/detach")
+@router.post("/{source_id}/detach", response_model=None, operation_id="detach_agent_from_source")
 def detach_source_from_agent(
     source_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to detach the source from."),
@@ -128,7 +128,7 @@ def detach_source_from_agent(
     server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor.id)
 
 
-@router.post("/{source_id}/upload", response_model=Job)
+@router.post("/{source_id}/upload", response_model=Job, operation_id="upload_file_to_source")
 def upload_file_to_source(
     file: UploadFile,
     source_id: str,
@@ -162,7 +162,7 @@ def upload_file_to_source(
     return job
 
 
-@router.get("/{source_id}/passages", response_model=List[Passage])
+@router.get("/{source_id}/passages", response_model=List[Passage], operation_id="list_source_passages")
 def list_passages(
     source_id: str,
     server: SyncServer = Depends(get_memgpt_server),
@@ -175,7 +175,7 @@ def list_passages(
     return passages
 
 
-@router.get("/{source_id}/documents", response_model=List[Document])
+@router.get("/{source_id}/documents", response_model=List[Document], operation_id="list_source_documents")
 def list_documents(
     source_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),

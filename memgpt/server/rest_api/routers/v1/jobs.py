@@ -9,7 +9,7 @@ from memgpt.server.server import SyncServer
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-@router.get("/", response_model=List[Job])
+@router.get("/", response_model=List[Job], operation_id="list_jobs")
 def list_jobs(
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -22,7 +22,7 @@ def list_jobs(
     return server.list_jobs(user_id=actor.id)
 
 
-@router.get("/active", response_model=List[Job])
+@router.get("/active", response_model=List[Job], operation_id="list_active_jobs")
 def list_active_jobs(
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -34,7 +34,7 @@ def list_active_jobs(
     return server.list_active_jobs(user_id=actor.id)
 
 
-@router.get("/{job_id}", response_model=Job)
+@router.get("/{job_id}", response_model=Job, operation_id="get_job")
 def get_job(
     job_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
