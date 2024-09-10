@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 router = APIRouter(prefix="/blocks", tags=["blocks"])
 
 
-@router.get("/", response_model=List[Block])
+@router.get("/", response_model=List[Block], operation_id="list_memory_blocks")
 def list_blocks(
     # query parameters
     label: Optional[str] = Query(None, description="Labels to include (e.g. human, persona)"),
@@ -28,7 +28,7 @@ def list_blocks(
     return blocks
 
 
-@router.post("/", response_model=Block)
+@router.post("/", response_model=Block, operation_id="create_memory_block")
 def create_block(
     create_block: CreateBlock = Body(...),
     server: SyncServer = Depends(get_memgpt_server),
@@ -39,7 +39,7 @@ def create_block(
     return server.create_block(user_id=actor.id, request=create_block)
 
 
-@router.patch("/{block_id}", response_model=Block)
+@router.patch("/{block_id}", response_model=Block, operation_id="update_memory_block")
 def update_block(
     block_id: str,
     updated_block: UpdateBlock = Body(...),
@@ -52,7 +52,7 @@ def update_block(
 
 
 # TODO: delete should not return anything
-@router.delete("/{block_id}", response_model=Block)
+@router.delete("/{block_id}", response_model=Block, operation_id="delete_memory_block")
 def delete_block(
     block_id: str,
     server: SyncServer = Depends(get_memgpt_server),
@@ -61,7 +61,7 @@ def delete_block(
     return server.delete_block(block_id=block_id)
 
 
-@router.get("/{block_id}", response_model=Block)
+@router.get("/{block_id}", response_model=Block, operation_id="get_memory_block")
 def get_block(
     block_id: str,
     server: SyncServer = Depends(get_memgpt_server),

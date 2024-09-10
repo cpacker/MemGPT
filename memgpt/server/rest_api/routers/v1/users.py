@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 router = APIRouter(prefix="/users", tags=["users", "admin"])
 
 
-@router.get("/", tags=["admin"], response_model=List[User])
+@router.get("/", tags=["admin"], response_model=List[User], operation_id="list_users")
 def get_all_users(
     cursor: Optional[str] = Query(None),
     limit: Optional[int] = Query(50),
@@ -44,7 +44,7 @@ def get_all_users(
     return users
 
 
-@router.post("/", tags=["admin"], response_model=User)
+@router.post("/", tags=["admin"], response_model=User, operation_id="create_user")
 def create_user(
     request: UserCreate = Body(...),
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -57,7 +57,7 @@ def create_user(
     return user
 
 
-@router.delete("/", tags=["admin"], response_model=User)
+@router.delete("/", tags=["admin"], response_model=User, operation_id="delete_user")
 def delete_user(
     user_id: str = Query(..., description="The user_id key to be deleted."),
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -75,7 +75,7 @@ def delete_user(
     return user
 
 
-@router.post("/keys", response_model=APIKey)
+@router.post("/keys", response_model=APIKey, operation_id="create_api_key")
 def create_new_api_key(
     create_key: APIKeyCreate = Body(...),
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -87,7 +87,7 @@ def create_new_api_key(
     return api_key
 
 
-@router.get("/keys", response_model=List[APIKey])
+@router.get("/keys", response_model=List[APIKey], operation_id="list_api_keys")
 def get_api_keys(
     user_id: str = Query(..., description="The unique identifier of the user."),
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -101,7 +101,7 @@ def get_api_keys(
     return api_keys
 
 
-@router.delete("/keys", response_model=APIKey)
+@router.delete("/keys", response_model=APIKey, operation_id="delete_api_key")
 def delete_api_key(
     api_key: str = Query(..., description="The API key to be deleted."),
     server: "SyncServer" = Depends(get_memgpt_server),

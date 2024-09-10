@@ -31,7 +31,7 @@ from memgpt.utils import deduplicate
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-@router.get("/", response_model=List[AgentState])
+@router.get("/", response_model=List[AgentState], operation_id="list_agents")
 def list_agents(
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -44,7 +44,7 @@ def list_agents(
     return server.list_agents(user_id=actor.id)
 
 
-@router.post("/", response_model=AgentState)
+@router.post("/", response_model=AgentState, operation_id="create_agent")
 def create_agent(
     agent: CreateAgent = Body(...),
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -58,7 +58,7 @@ def create_agent(
     return server.create_agent(agent, user_id=actor.id)
 
 
-@router.patch("/{agent_id}", response_model=AgentState)
+@router.patch("/{agent_id}", response_model=AgentState, operation_id="update_agent")
 def update_agent(
     agent_id: str,
     update_agent: UpdateAgentState = Body(...),
@@ -71,7 +71,7 @@ def update_agent(
     return server.update_agent(update_agent, user_id=actor.id)
 
 
-@router.get("/{agent_id}", response_model=AgentState)
+@router.get("/{agent_id}", response_model=AgentState, operation_id="get_agent")
 def get_agent_state(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -88,7 +88,7 @@ def get_agent_state(
     return server.get_agent_state(user_id=actor.id, agent_id=agent_id)
 
 
-@router.delete("/{agent_id}")
+@router.delete("/{agent_id}", response_model=None, operation_id="delete_agent")
 def delete_agent(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -101,7 +101,7 @@ def delete_agent(
     return server.delete_agent(user_id=actor.id, agent_id=agent_id)
 
 
-@router.get("/{agent_id}/sources", response_model=List[Source])
+@router.get("/{agent_id}/sources", response_model=List[Source], operation_id="get_agent_sources")
 def get_agent_sources(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -114,7 +114,7 @@ def get_agent_sources(
     return server.list_attached_sources(agent_id)
 
 
-@router.get("/{agent_id}/memory/messages", response_model=List[Message])
+@router.get("/{agent_id}/memory/messages", response_model=List[Message], operation_id="list_agent_in_context_messages")
 def get_agent_in_context_messages(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -126,7 +126,7 @@ def get_agent_in_context_messages(
     return server.get_in_context_messages(agent_id=agent_id)
 
 
-@router.get("/{agent_id}/memory", response_model=Memory)
+@router.get("/{agent_id}/memory", response_model=Memory, operation_id="get_agent_memory")
 def get_agent_memory(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -139,7 +139,7 @@ def get_agent_memory(
     return server.get_agent_memory(agent_id=agent_id)
 
 
-@router.patch("/{agent_id}/memory", response_model=Memory)
+@router.patch("/{agent_id}/memory", response_model=Memory, operation_id="update_agent_memory")
 def update_agent_memory(
     agent_id: str,
     request: Dict = Body(...),
@@ -155,7 +155,7 @@ def update_agent_memory(
     return memory
 
 
-@router.get("/{agent_id}/memory/recall", response_model=RecallMemorySummary)
+@router.get("/{agent_id}/memory/recall", response_model=RecallMemorySummary, operation_id="get_agent_recall_memory_summary")
 def get_agent_recall_memory_summary(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -167,7 +167,7 @@ def get_agent_recall_memory_summary(
     return server.get_recall_memory_summary(agent_id=agent_id)
 
 
-@router.get("/{agent_id}/memory/archival", response_model=ArchivalMemorySummary)
+@router.get("/{agent_id}/memory/archival", response_model=ArchivalMemorySummary, operation_id="get_agent_archival_memory_summary")
 def get_agent_archival_memory_summary(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -179,7 +179,7 @@ def get_agent_archival_memory_summary(
     return server.get_archival_memory_summary(agent_id=agent_id)
 
 
-@router.get("/{agent_id}/archival", response_model=List[Passage])
+@router.get("/{agent_id}/archival", response_model=List[Passage], operation_id="list_agent_archival_memory")
 def get_agent_archival_memory(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -205,7 +205,7 @@ def get_agent_archival_memory(
     )
 
 
-@router.post("/{agent_id}/archival", response_model=List[Passage])
+@router.post("/{agent_id}/archival", response_model=List[Passage], operation_id="create_agent_archival_memory")
 def insert_agent_archival_memory(
     agent_id: str,
     request: CreateArchivalMemory = Body(...),
@@ -221,7 +221,7 @@ def insert_agent_archival_memory(
 
 # TODO(ethan): query or path parameter for memory_id?
 # @router.delete("/{agent_id}/archival")
-@router.delete("/{agent_id}/archival/{memory_id}")
+@router.delete("/{agent_id}/archival/{memory_id}", response_model=None, operation_id="delete_agent_archival_memory")
 def delete_agent_archival_memory(
     agent_id: str,
     memory_id: str,
@@ -237,7 +237,7 @@ def delete_agent_archival_memory(
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Memory id={memory_id} successfully deleted"})
 
 
-@router.get("/{agent_id}/messages", response_model=List[Message])
+@router.get("/{agent_id}/messages", response_model=List[Message], operation_id="list_agent_messages")
 def get_agent_messages(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
@@ -260,7 +260,7 @@ def get_agent_messages(
     )
 
 
-@router.patch("/{agent_id}/messages/{message_id}", response_model=Message)
+@router.patch("/{agent_id}/messages/{message_id}", response_model=Message, operation_id="update_agent_message")
 def update_message(
     agent_id: str,
     message_id: str,
@@ -274,7 +274,7 @@ def update_message(
     return server.update_agent_message(agent_id=agent_id, request=request)
 
 
-@router.post("/{agent_id}/messages", response_model=MemGPTResponse)
+@router.post("/{agent_id}/messages", response_model=MemGPTResponse, operation_id="create_agent_message")
 async def send_message(
     agent_id: str,
     server: SyncServer = Depends(get_memgpt_server),
