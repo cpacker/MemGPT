@@ -22,7 +22,6 @@ from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ChatMemory, Memory
-from memgpt.server.rest_api.app import start_server
 from memgpt.server.server import logger as server_logger
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
@@ -321,6 +320,8 @@ def server(
             sys.exit(1)
 
         try:
+            from memgpt.server.rest_api.app import start_server
+
             start_server(port=port, host=host, debug=debug)
 
         except KeyboardInterrupt:
