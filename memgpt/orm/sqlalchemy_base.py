@@ -15,7 +15,8 @@ if TYPE_CHECKING:
     from sqlalchemy import Select
     from sqlalchemy.orm import Session
 
-    from memgpt.orm.user import User
+    from memgpt.orm.user import User as SQLUser
+    from memgpt.schemas.user import User as SchemaUser
 
 logger = get_logger(__name__)
 
@@ -137,7 +138,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     def apply_access_predicate(
         cls,
         query: "Select",
-        actor: "User",
+        actor: Union["SQLUser","SchemaUser"],
         access: List[Literal["read", "write", "admin"]],
     ) -> "Select":
         """applies a WHERE clause restricting results to the given actor and access level
@@ -152,10 +153,9 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             the sqlalchemy select statement restricted to the given access.
         """
         del access  # entrypoint for row-level permissions. Defaults to "same org as the actor, all permissions" at the moment
-        org_uid = getattr(actor, "_organization_id", getattr(actor.organization, "_id", None))
-        if not org_uid:
-            raise ValueError("object %s has no organization accessor", actor)
-        return query.where(cls._organization_id == org_uid, cls.is_deleted == False)
+        from memgpt.orm.user import User # to avoid circular import
+        uid = cls.to_uid(actor.id, indifferent=True)
+        return query.join(User, User._id == uid).where(cls._organization_id == User._organization_id, cls.is_deleted == False)
 
     @property
     def __pydantic_model__(self) -> Type["BaseModel"]:
