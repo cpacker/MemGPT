@@ -62,7 +62,6 @@ def list_all_tools(
     """
     Get a list of all tools available to agents created by a user
     """
-    print("RUNNING LIST TOOLS")
     actor = server.get_current_user()
     actor.id
 
@@ -80,7 +79,6 @@ def create_tool(
     """
     Create a new tool
     """
-    print("RUNNING CREATE TOOL")
     actor = server.get_current_user()
 
     return server.create_tool(
