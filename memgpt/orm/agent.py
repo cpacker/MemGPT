@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List, Optional, Type
 
-from sqlalchemy import JSON, String
+from sqlalchemy import JSON, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from memgpt.orm.block import Block
@@ -25,6 +25,13 @@ if TYPE_CHECKING:
 class Agent(SqlalchemyBase, OrganizationMixin):
     __tablename__ = "agent"
     __pydantic_model__ = AgentState
+    __table_args__ = (
+        UniqueConstraint(
+            "_organization_id",
+            "name",
+            name="unique_agent_name_per_organization",
+        ),
+    )
 
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True, doc="a human-readable identifier for an agent, non-unique.")
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True, doc="The description of the agent.")

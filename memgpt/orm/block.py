@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List, Optional, Type, Union
 
-from sqlalchemy import JSON, Integer
+from sqlalchemy import JSON, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
@@ -43,6 +43,13 @@ class Block(OrganizationMixin, SqlalchemyBase):
 
     __tablename__ = "block"
     __pydantic_model__ = PydanticBlock
+    __table_args__ = (
+        UniqueConstraint(
+            "_organization_id",
+            "name",
+            name="unique_block_name_per_organization",
+        ),
+    )
 
     name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="the unique name that identifies a block in a human-readable way")
     description: Mapped[Optional[str]] = mapped_column(nullable=True, doc="a description of the block for context")

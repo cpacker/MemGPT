@@ -3,7 +3,7 @@ from inspect import getsource, isfunction
 from types import ModuleType
 from typing import TYPE_CHECKING, List, Optional, Union, Literal
 
-from sqlalchemy import JSON, String, select
+from sqlalchemy import JSON, String, select, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # TODO everything in functions should live in this model
@@ -31,7 +31,13 @@ class Tool(SqlalchemyBase, OrganizationMixin):
 
     __tablename__ = "tool"
     __pydantic_model__ = PydanticTool
-
+    __table_args__ = (
+        UniqueConstraint(
+            "_organization_id",
+            "name",
+            name="unique_tool_name_per_organization",
+        ),
+    )
     name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="The display name of the tool.")
     # TODO: this needs to be a lookup table to have any value
     tags: Mapped[List] = mapped_column(JSON, doc="Metadata tags used to filter tools.")
