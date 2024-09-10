@@ -1554,7 +1554,7 @@ class SyncServer(Server):
             assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
 
         # check if already exists:
-        tool_name = request.json_schema["name"]
+        tool_name = request.json_schema.get("name") if request.json_schema else request.name
         existing_tool = self.ms.get_tool(name=tool_name, user_id=user_id)
         if existing_tool:
             if update:
@@ -1573,7 +1573,7 @@ class SyncServer(Server):
             user_id=user_id,
         )
         self.ms.create_tool(tool)
-        created_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
+        created_tool = self.ms.get_tool(name=request.name, user_id=user_id)
         return created_tool
 
     def delete_tool(self, tool_id: str):

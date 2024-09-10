@@ -853,7 +853,7 @@ class LocalClient(AbstractClient):
         if user_id:
             self.user_id = user_id
         else:
-            self.user_id = self.server.get_user_default()._id
+            self.user_id = str(self.server.get_user_default()._id)
 
     # agents
 
@@ -1167,7 +1167,7 @@ class LocalClient(AbstractClient):
         # call server function
         return self.server.create_tool(
             # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
-            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags),
+            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags, user_id=self.user_id),
             user_id=self.user_id,
             update=update,
         )
@@ -1196,7 +1196,7 @@ class LocalClient(AbstractClient):
 
         source_type = "python"
 
-        return self.server.update_tool(ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name))
+        return self.server.update_tool(ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name, user_id=self.user_id))
 
     def list_tools(self):
         """List available tools.

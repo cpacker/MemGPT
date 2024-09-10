@@ -148,10 +148,13 @@ class MetadataStore:
     def list_tools(self, **kwargs) -> List[Tool]:
         return self.list_tool(**kwargs)
 
-    def get_tool(self, id: Optional[str] = None, name: Optional[str] = None, user_id: uuid.UUID = None) -> Optional[Tool]:
+    def list_blocks(self, **kwargs) -> List[Block]:
+        return self.list_block(**kwargs)
+
+    def get_tool(self, id: Optional[str] = None, name: Optional[str] = None, user_id: Optional[str] = None) -> Optional[Tool]:
         try:
             if id:
-                return SQLTool.read_by_id(self.db_session, id=id).to_pydantic()
+                return SQLTool.read(self.db_session, identifier=id).to_pydantic()
             if name:
                 return SQLTool.read(self.db_session, name=name).to_pydantic()
             else:
@@ -183,7 +186,11 @@ class MetadataStore:
                 try:
 
                     def get(id, user_id=None):
-                        return Model.read(self.db_session, id).to_pydantic()
+                        try:
+                            actor = SQLUser.read(db_session=self.db_session, identifier=SQLUser.to_uid(user_id))
+                        except NoResultFound:
+                            actor = None
+                        return Model.read(self.db_session, id, actor).to_pydantic()
 
                     return get
                 except IndexError:
@@ -192,6 +199,7 @@ class MetadataStore:
 
                 def create(schema):
                     splatted_pydantic = schema.model_dump(exclude_none=True)
+                    splatted_pydantic = {k: v for k,v in splatted_pydantic.items() if hasattr(Model, k)}
                     return Model(created_by_id=self.actor.id, **splatted_pydantic).create(self.db_session).to_pydantic()
 
                 return create

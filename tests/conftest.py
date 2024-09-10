@@ -129,7 +129,7 @@ def patch_local_db_calls(monkeypatch, db_session):
     modules = [
         "memgpt.metadata.get_db_session",
         "memgpt.agent_store.db.get_db_session",
-        "memgpt.server.server.get_db_session",
+        # "memgpt.server.server.get_db_session",
         "memgpt.server.rest_api.app.get_db_session",
     ]
     for module in modules:
