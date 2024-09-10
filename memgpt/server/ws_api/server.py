@@ -1,5 +1,4 @@
 import asyncio
-import json
 import signal
 import sys
 import traceback

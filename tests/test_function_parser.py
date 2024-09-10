@@ -1,5 +1,3 @@
-import json
-
 import memgpt.system as system
 from memgpt.local_llm.function_parser import patch_function
 from memgpt.utils import json_dumps
