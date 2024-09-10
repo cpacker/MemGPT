@@ -32,7 +32,7 @@ def run_server():
 
     # _reset_config()
 
-    from memgpt.server.rest_api.server import start_server
+    from memgpt.server.rest_api.app import start_server
 
     print("Starting server...")
     start_server(debug=True)
