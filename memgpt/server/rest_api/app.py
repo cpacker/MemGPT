@@ -72,8 +72,6 @@ def create_application() -> "FastAPI":
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    # Usage in your create_application function:
-    app.add_middleware(SmartStaticFilesMiddleware)
 
     for route in v1_routes:
         app.include_router(route, prefix=API_PREFIX)
