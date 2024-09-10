@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import logging
 import os
@@ -7,8 +8,10 @@ from typing import Optional
 
 import typer
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
@@ -42,12 +45,13 @@ from memgpt.server.rest_api.routers.openai.chat_completions.chat_completions imp
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
 from memgpt.server.rest_api.routers.v1.users import router as users_router
 
-# from memgpt.server.rest_api.sources.index import setup_sources_index_router
-from memgpt.server.rest_api.static_files import mount_static_files
-
 # from memgpt.server.rest_api.tools.index import setup_user_tools_index_router
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
+
+# from memgpt.server.rest_api.sources.index import setup_sources_index_router
+# from memgpt.server.rest_api.static_files import mount_static_files
+
 
 # from memgpt.server.rest_api.admin.tools import setup_tools_index_router
 # from memgpt.server.rest_api.admin.users import setup_admin_router
@@ -83,7 +87,7 @@ def verify_password(credentials: HTTPAuthorizationCredentials = Depends(security
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
-ADMIN_PREFIX = "/admin"
+ADMIN_PREFIX = "/v1/admin"
 # ADMIN_API_PREFIX = "/api/admin"
 # API_PREFIX = "/api"
 API_PREFIX = "/v1"
@@ -145,7 +149,72 @@ app.include_router(setup_auth_router(server, interface, password), prefix=API_PR
 # app.include_router(setup_openai_chat_completions_router(server, interface, password), prefix=OPENAI_API_PREFIX)
 
 # / static files
-mount_static_files(app)
+
+# Serve static files
+static_files_path = os.path.join(os.path.dirname(importlib.util.find_spec("memgpt").origin), "server", "static_files")
+app.mount("/assets", StaticFiles(directory=os.path.join(static_files_path, "assets")), name="static")
+
+
+# Serve favicon
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse(os.path.join(static_files_path, "favicon.ico"))
+
+
+# Middleware to handle API routes first
+@app.middleware("http")
+async def handle_api_routes(request: Request, call_next):
+    if request.url.path.startswith(("/v1/", "/openai/")):
+        response = await call_next(request)
+        if response.status_code != 404:
+            return response
+    return await serve_spa(request.url.path)
+
+
+# Catch-all route for SPA
+async def serve_spa(full_path: str):
+    return FileResponse(os.path.join(static_files_path, "index.html"))
+
+
+# # Middleware to check if the request should be handled by API or SPA
+# @app.middleware("http")
+# async def check_route(request: Request, call_next):
+#     if request.url.path.startswith(("/v1/", "/openai/")):
+#         response = await call_next(request)
+#         if response.status_code == 404:
+#             return FileResponse(os.path.join(static_files_path, "index.html"))
+#         return response
+#     return await call_next(request)
+
+
+# # Catch-all route for SPA
+# @app.get("/{full_path:path}")
+# async def serve_spa(full_path: str):
+#     return FileResponse(os.path.join(static_files_path, "index.html"))
+
+
+# # # Catch-all route for SPA
+# @app.get("/{full_path:path}")
+# async def serve_spa(full_path: str):
+#     return FileResponse(os.path.join(static_files_path, "index.html"))
+
+
+# static_files_path = os.path.join(os.path.dirname(importlib.util.find_spec("memgpt").origin), "server", "static_files")
+
+
+# @app.get("/{full_path:path}")
+# async def serve_spa(full_path: str):
+#     if full_path == "favicon.ico":
+#         return FileResponse(os.path.join(static_files_path, "favicon.ico"))
+
+#     file_path = os.path.join(static_files_path, full_path)
+#     if os.path.isfile(file_path):
+#         return FileResponse(file_path)
+
+#     return FileResponse(os.path.join(static_files_path, "index.html"))
+
+
+# mount_static_files(app)
 
 
 @app.on_event("startup")
