@@ -1,13 +1,31 @@
 import json
+import secrets
 from pathlib import Path
 
+import typer
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+# NOTE(charles): these are extra routes that are not part of v1 but we still need to mount to pass tests
+from memgpt.server.rest_api.auth.index import (
+    setup_auth_router,  # TODO: probably remove right?
+)
 from memgpt.server.rest_api.interface import StreamingServerInterface
+from memgpt.server.rest_api.routers.openai.assistants.assistants import (
+    router as openai_assistants_router,
+)
+from memgpt.server.rest_api.routers.openai.assistants.threads import (
+    router as openai_threads_router,
+)
+from memgpt.server.rest_api.routers.openai.chat_completions.chat_completions import (
+    router as openai_chat_completions_router,
+)
 
 # from memgpt.orm.utilities import get_db_session
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
+from memgpt.server.rest_api.routers.v1.users import (
+    router as users_router,  # TODO: decide on admin
+)
 from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
@@ -16,6 +34,20 @@ from memgpt.settings import settings
 # NOTE(charles): @ethan I had to add this to get the global as the bottom to work
 interface: StreamingServerInterface = StreamingServerInterface
 server: SyncServer = SyncServer(default_interface_factory=lambda: interface())
+
+# TODO(ethan): eventuall remove
+if password := settings.server_pass:
+    # if the pass was specified in the environment, use it
+    print(f"Using existing admin server password from environment.")
+else:
+    # Autogenerate a password for this session and dump it to stdout
+    password = secrets.token_urlsafe(16)
+    typer.secho(f"Generated admin server password for this session: {password}", fg=typer.colors.GREEN)
+
+
+ADMIN_PREFIX = "/v1/admin"
+API_PREFIX = "/v1"
+OPENAI_API_PREFIX = "/openai"
 
 
 def create_application() -> "FastAPI":
@@ -37,11 +69,25 @@ def create_application() -> "FastAPI":
     )
 
     for route in v1_routes:
-        app.include_router(route, prefix="/v1")
+        app.include_router(route, prefix=API_PREFIX)
         # this gives undocumented routes for "latest" and bare api calls.
         # we should always tie this to the newest version of the api.
         app.include_router(route, prefix="", include_in_schema=False)
         app.include_router(route, prefix="/latest", include_in_schema=False)
+
+    # NOTE: ethan these are the extra routes
+    # TODO(ethan) remove
+
+    # admin/users
+    app.include_router(users_router, prefix=ADMIN_PREFIX)
+
+    # openai
+    app.include_router(openai_assistants_router, prefix=OPENAI_API_PREFIX)
+    app.include_router(openai_threads_router, prefix=OPENAI_API_PREFIX)
+    app.include_router(openai_chat_completions_router, prefix=OPENAI_API_PREFIX)
+
+    # /api/auth endpoints
+    app.include_router(setup_auth_router(server, interface, password), prefix=API_PREFIX)
 
     # / static files
     mount_static_files(app)
