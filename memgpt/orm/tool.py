@@ -7,6 +7,7 @@ from sqlalchemy import JSON, String, select, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # TODO everything in functions should live in this model
+from memgpt.settings import settings
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.orm.enums import ToolSourceType
 from memgpt.orm.errors import NoResultFound
@@ -93,9 +94,9 @@ class Tool(SqlalchemyBase, OrganizationMixin):
         for name, schema in functions_to_schema.items():
             source_code = getsource(schema["python_function"])
             sql_tools.append(
-                cls(
+                dict(
                     name=name,
-                    organization=org,
+                    _organization_id=org._id,
                     tags=tags,
                     source_type="python",
                     module=schema["module"],
@@ -103,8 +104,16 @@ class Tool(SqlalchemyBase, OrganizationMixin):
                     json_schema=schema["json_schema"],
                 )
             )
-        db_session.add_all(sql_tools)
-        db_session.commit()
+        match settings.backend.name:
+            case "sqlite_chroma":
+                from sqlalchemy.dialects.sqlite import insert
+            case "postgres":
+                from sqlalchemy.dialects.postgresql import insert
+            case _:
+                raise ValueError(f"Unsupported backend for bulk loading tools on startup: {settings.backend.name}")
+
+        statement = insert(cls).values(sql_tools).on_conflict_do_nothing()
+        db_session.execute(statement)
 
     @classmethod
     def _load_function_set(cls, target_module: ModuleType) -> dict:
