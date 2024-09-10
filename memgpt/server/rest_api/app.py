@@ -4,10 +4,16 @@ from pathlib import Path
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from memgpt.orm.utilities import get_db_session
+from memgpt.server.rest_api.interface import StreamingServerInterface
+
+# from memgpt.orm.utilities import get_db_session
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
 from memgpt.server.rest_api.static_files import mount_static_files
+from memgpt.server.server import SyncServer
 from memgpt.settings import settings
+
+interface: StreamingServerInterface = StreamingServerInterface
+server: SyncServer = SyncServer(default_interface_factory=lambda: interface())
 
 
 def create_application() -> "FastAPI":
@@ -41,9 +47,9 @@ def create_application() -> "FastAPI":
     @app.on_event("startup")
     def on_startup():
         # load the default tools
-        from memgpt.orm.tool import Tool
+        # from memgpt.orm.tool import Tool
 
-        Tool.load_default_tools(get_db_session())
+        # Tool.load_default_tools(get_db_session())
 
         # Update the OpenAPI schema
         if not app.openapi_schema:
@@ -67,7 +73,8 @@ def create_application() -> "FastAPI":
                 memgpt_docs,
             ),
         ]:
-            docs["servers"] = [{"url": host} for host in settings.cors_origins]
+            if settings.cors_origins:
+                docs["servers"] = [{"url": host} for host in settings.cors_origins]
             Path(f"openapi_{name}.json").write_text(json.dumps(docs, indent=2))
 
     @app.on_event("shutdown")

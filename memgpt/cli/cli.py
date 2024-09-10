@@ -1,15 +1,14 @@
 import json
 import logging
 import os
-import subprocess
 import sys
 from enum import Enum
-from pathlib import Path
 from typing import Annotated, Optional
 
 import questionary
 import requests
 import typer
+import uvicorn
 
 import memgpt.utils as utils
 from memgpt import create_client
@@ -24,7 +23,7 @@ from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ChatMemory, Memory
-from memgpt.server.constants import WS_DEFAULT_PORT
+from memgpt.server.constants import REST_DEFAULT_PORT
 from memgpt.server.server import logger as server_logger
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
@@ -304,10 +303,10 @@ def server(
     type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
-    use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
-    ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
-    ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
-    debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
+    # use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
+    # ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
+    # ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
+    # debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
 ):
     """Launch a MemGPT server process"""
 
@@ -317,21 +316,20 @@ def server(
         if MemGPTConfig.exists():
             config = MemGPTConfig.load()
             MetadataStore(config)
-            client = create_client()  # triggers user creation
+            _ = create_client()  # triggers user creation
         else:
             typer.secho(f"No configuration exists. Run memgpt configure before starting the server.", fg=typer.colors.RED)
             sys.exit(1)
 
         try:
-            from memgpt.server.rest_api.server import start_server
+            from memgpt.server.rest_api.app import app
 
-            start_server(
-                port=port,
-                host=host,
-                use_ssl=use_ssl,
-                ssl_cert=ssl_cert,
-                ssl_key=ssl_key,
-                debug=debug,
+            uvicorn.run(
+                app,
+                host=host or "localhost",
+                port=port or REST_DEFAULT_PORT,
+                # ssl_keyfile=ssl_keyfile,
+                # ssl_certfile=ssl_certfile,
             )
 
         except KeyboardInterrupt:
@@ -340,48 +338,7 @@ def server(
             sys.exit(0)
 
     elif type == ServerChoice.ws_api:
-        if debug:
-            from memgpt.server.server import logger as server_logger
-
-            # Set the logging level
-            server_logger.setLevel(logging.DEBUG)
-            # Create a StreamHandler
-            stream_handler = logging.StreamHandler()
-            # Set the formatter (optional)
-            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-            stream_handler.setFormatter(formatter)
-            # Add the handler to the logger
-            server_logger.addHandler(stream_handler)
-
-        if port is None:
-            port = WS_DEFAULT_PORT
-
-        # Change to the desired directory
-        script_path = Path(__file__).resolve()
-        script_dir = script_path.parent
-
-        server_directory = os.path.join(script_dir.parent, "server", "ws_api")
-        command = f"python server.py {port}"
-
-        # Run the command
-        typer.secho(f"Running WS (websockets) server: {command} (inside {server_directory})")
-
-        process = None
-        try:
-            # Start the subprocess in a new session
-            process = subprocess.Popen(command, shell=True, start_new_session=True, cwd=server_directory)
-            process.wait()
-        except KeyboardInterrupt:
-            # Handle CTRL-C
-            if process is not None:
-                typer.secho("Terminating the server...")
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    typer.secho("Server terminated with kill()")
-            sys.exit(0)
+        raise NotImplementedError("WS suppport deprecated")
 
 
 def run(
