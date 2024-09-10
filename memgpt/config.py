@@ -155,11 +155,11 @@ class MemGPTConfig:
             llm_config_dict = {k: v for k, v in llm_config_dict.items() if v is not None}
             embedding_config_dict = {k: v for k, v in embedding_config_dict.items() if v is not None}
             # Correct the types that aren't strings
-            if llm_config_dict["context_window"] is not None:
+            if "context_window" in llm_config_dict and llm_config_dict["context_window"] is not None:
                 llm_config_dict["context_window"] = int(llm_config_dict["context_window"])
-            if embedding_config_dict["embedding_dim"] is not None:
+            if "embedding_dim" in embedding_config_dict and embedding_config_dict["embedding_dim"] is not None:
                 embedding_config_dict["embedding_dim"] = int(embedding_config_dict["embedding_dim"])
-            if embedding_config_dict["embedding_chunk_size"] is not None:
+            if "embedding_chunk_size" in embedding_config_dict and embedding_config_dict["embedding_chunk_size"] is not None:
                 embedding_config_dict["embedding_chunk_size"] = int(embedding_config_dict["embedding_chunk_size"])
             # Construct the inner properties
             llm_config = LLMConfig(**llm_config_dict)
