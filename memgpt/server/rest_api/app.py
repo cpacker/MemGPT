@@ -77,7 +77,7 @@ def create_application() -> "FastAPI":
         app.include_router(route, prefix=API_PREFIX)
         # this gives undocumented routes for "latest" and bare api calls.
         # we should always tie this to the newest version of the api.
-        app.include_router(route, prefix="", include_in_schema=False)
+        # app.include_router(route, prefix="", include_in_schema=False)
         app.include_router(route, prefix="/latest", include_in_schema=False)
 
     # NOTE: ethan these are the extra routes
