@@ -301,9 +301,6 @@ def server(
     type: Annotated[ServerChoice, typer.Option(help="Server to run")] = "rest",
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
-    # use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
-    # ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
-    # ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
 ):
     """Launch a MemGPT server process"""
