@@ -12,6 +12,8 @@ from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
 
+# TODO(ethan)
+# NOTE(charles): @ethan I had to add this to get the global as the bottom to work
 interface: StreamingServerInterface = StreamingServerInterface
 server: SyncServer = SyncServer(default_interface_factory=lambda: interface())
 
