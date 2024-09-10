@@ -21,7 +21,7 @@ from memgpt.server.rest_api.routers.openai.chat_completions.chat_completions imp
     router as openai_chat_completions_router,
 )
 
-# from memgpt.orm.utilities import get_db_session
+# from memgpt.orm.utilities import get_db_session  # TODO(ethan) reenable once we merge ORM
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
 from memgpt.server.rest_api.routers.v1.users import (
     router as users_router,  # TODO: decide on admin
