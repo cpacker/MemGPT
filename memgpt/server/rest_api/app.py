@@ -1,16 +1,12 @@
-import importlib.util
 import json
 import logging
-import os
 import secrets
 from pathlib import Path
 from typing import Optional
 
 import typer
 import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
@@ -35,6 +31,7 @@ from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
 from memgpt.server.rest_api.routers.v1.users import (
     router as users_router,  # TODO: decide on admin
 )
+from memgpt.server.rest_api.static_files import mount_static_files
 from memgpt.server.server import SyncServer
 from memgpt.settings import settings
 
@@ -56,29 +53,6 @@ else:
 ADMIN_PREFIX = "/v1/admin"
 API_PREFIX = "/v1"
 OPENAI_API_PREFIX = "/openai"
-
-
-class SmartStaticFilesMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # List of API prefixes that should bypass static handling
-        api_prefixes = [API_PREFIX, OPENAI_API_PREFIX, ADMIN_PREFIX]
-        path = request.url.path
-
-        # Check if the request path starts with any API prefix
-        if any(path.startswith(prefix) for prefix in api_prefixes):
-            # If it's an API call, process normally
-            print(f"API request detected: {path}")
-            response = await call_next(request)
-        else:
-            print(f"Static request detected: {path}")
-            # Try to serve static files, catch any errors like 404, etc.
-            static_files_path = os.path.join(os.path.dirname(importlib.util.find_spec("memgpt").origin), "server", "static_files")
-            filepath = os.path.join(static_files_path, path.lstrip("/"))
-            if os.path.isfile(filepath):
-                return FileResponse(filepath)
-            else:
-                response = await call_next(request)
-        return response
 
 
 def create_application() -> "FastAPI":
@@ -123,7 +97,7 @@ def create_application() -> "FastAPI":
     app.include_router(setup_auth_router(server, interface, password), prefix=API_PREFIX)
 
     # / static files
-    # mount_static_files(app)
+    mount_static_files(app)
 
     @app.on_event("startup")
     def on_startup():
