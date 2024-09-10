@@ -2,6 +2,7 @@ import importlib.util
 import os
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles
 
@@ -20,15 +21,43 @@ class SPAStaticFiles(StaticFiles):
 def mount_static_files(app: FastAPI):
     static_files_path = os.path.join(os.path.dirname(importlib.util.find_spec("memgpt").origin), "server", "static_files")
     if os.path.exists(static_files_path):
-        app.mount(
-            "/",
-            # "/app",
-            SPAStaticFiles(
-                directory=static_files_path,
-                html=True,
-            ),
-            name="spa-static-files",
-        )
+        app.mount("/assets", StaticFiles(directory=os.path.join(static_files_path, "assets")), name="assets")
+
+        @app.get("/memgpt_logo_transparent.png", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "memgpt_logo_transparent.png"))
+
+        @app.get("/", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "index.html"))
+
+        @app.get("/agents", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "index.html"))
+
+        @app.get("/data-sources", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "index.html"))
+
+        @app.get("/tools", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "index.html"))
+
+        @app.get("/agent-templates", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "index.html"))
+
+        @app.get("/human-templates", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "index.html"))
+
+        @app.get("/settings/profile", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "index.html"))
+
+        @app.get("/agents/{agent-id}/chat", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "index.html"))
 
 
 # def mount_static_files(app: FastAPI):
