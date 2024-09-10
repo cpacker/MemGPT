@@ -1,10 +1,15 @@
 import json
+import logging
 import secrets
 from pathlib import Path
+from typing import Optional
 
 import typer
+import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
+
+from memgpt.server.constants import REST_DEFAULT_PORT
 
 # NOTE(charles): these are extra routes that are not part of v1 but we still need to mount to pass tests
 from memgpt.server.rest_api.auth.index import (
@@ -135,3 +140,30 @@ def create_application() -> "FastAPI":
 
 
 app = create_application()
+
+
+def start_server(
+    port: Optional[int] = None,
+    host: Optional[str] = None,
+    debug: bool = False,
+):
+    """Convenience method to start the server from within Python"""
+    if debug:
+        from memgpt.server.server import logger as server_logger
+
+        # Set the logging level
+        server_logger.setLevel(logging.DEBUG)
+        # Create a StreamHandler
+        stream_handler = logging.StreamHandler()
+        # Set the formatter (optional)
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        stream_handler.setFormatter(formatter)
+        # Add the handler to the logger
+        server_logger.addHandler(stream_handler)
+
+    print(f"Running: uvicorn server:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
+    uvicorn.run(
+        app,
+        host=host or "localhost",
+        port=port or REST_DEFAULT_PORT,
+    )

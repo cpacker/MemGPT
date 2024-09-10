@@ -8,7 +8,6 @@ from typing import Annotated, Optional
 import questionary
 import requests
 import typer
-import uvicorn
 
 import memgpt.utils as utils
 from memgpt import create_client
@@ -23,7 +22,7 @@ from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ChatMemory, Memory
-from memgpt.server.constants import REST_DEFAULT_PORT
+from memgpt.server.rest_api.app import start_server
 from memgpt.server.server import logger as server_logger
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
@@ -306,7 +305,7 @@ def server(
     # use_ssl: Annotated[bool, typer.Option(help="Run the server using HTTPS?")] = False,
     # ssl_cert: Annotated[Optional[str], typer.Option(help="Path to SSL certificate (if use_ssl is True)")] = None,
     # ssl_key: Annotated[Optional[str], typer.Option(help="Path to SSL key file (if use_ssl is True)")] = None,
-    # debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
+    debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
 ):
     """Launch a MemGPT server process"""
 
@@ -322,15 +321,7 @@ def server(
             sys.exit(1)
 
         try:
-            from memgpt.server.rest_api.app import app
-
-            uvicorn.run(
-                app,
-                host=host or "localhost",
-                port=port or REST_DEFAULT_PORT,
-                # ssl_keyfile=ssl_keyfile,
-                # ssl_certfile=ssl_certfile,
-            )
+            start_server(port=port, host=host, debug=debug)
 
         except KeyboardInterrupt:
             # Handle CTRL-C
