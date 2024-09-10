@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 router = APIRouter(prefix="/models", tags=["models", "llms"])
 
 
-@router.get("/", response_model=List[LLMConfig])
+@router.get("/", response_model=List[LLMConfig], operation_id="list_models")
 def list_llm_backends(
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
@@ -20,7 +20,7 @@ def list_llm_backends(
     return server.list_models()
 
 
-@router.get("/embedding", response_model=List[EmbeddingConfig])
+@router.get("/embedding", response_model=List[EmbeddingConfig], operation_id="list_embedding_models")
 def list_embedding_backends(
     server: "SyncServer" = Depends(get_memgpt_server),
 ):
