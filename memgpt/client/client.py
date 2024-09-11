@@ -852,15 +852,12 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
-        if user_id:
-            self.user_id = user_id
-        else:
-            self.user_id = str(self.server.get_current_user()._id)
+        self.user_id = user_id or self.server.get_current_user().id
 
     # agents
 
     def list_agents(self) -> List[AgentState]:
-        return self.server.list_agents()
+        return self.server.list_agents(self.user_id)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         if not (agent_id or agent_name):
@@ -869,9 +866,9 @@ class LocalClient(AbstractClient):
             raise ValueError(f"Only one of agent_id or agent_name can be provided")
         existing = self.list_agents()
         if agent_id:
-            return str(agent_id) in [str(agent.id) for agent in existing]
+            return agent_id in [agent.id for agent in existing]
         else:
-            return agent_name in [str(agent.name) for agent in existing]
+            return agent_name in [agent.name for agent in existing]
 
     def create_agent(
         self,
@@ -896,7 +893,7 @@ class LocalClient(AbstractClient):
         description: Optional[str] = None,
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
-            raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
+            raise ValueError(f"Agent with name {name} already exists ({self.user_id=})")
 
         # construct list of tools
         tool_names = []
@@ -1134,9 +1131,13 @@ class LocalClient(AbstractClient):
         # call server function
         return self.server.create_tool(
             ToolCreate(
-                source_type=tool.source_type, source_code=tool.source_code, name=tool.name, json_schema=tool.json_schema, tags=tool.tags
+                source_type=tool.source_type,
+                source_code=tool.source_code,
+                name=tool.name,
+                json_schema=tool.json_schema,
+                tags=tool.tags,
+                user_id=self.user_id,
             ),
-            user_id=self.user_id,
             update=update,
         )
 
@@ -1166,11 +1167,15 @@ class LocalClient(AbstractClient):
         source_code = parse_source_code(func)
         source_type = "python"
 
-        print("USER ID", self.user_id)
-
         # call server function
         return self.server.create_tool(
-            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags),
+            ToolCreate(
+                source_type=source_type,
+                source_code=source_code,
+                name=name,
+                tags=tags,
+                user_id=self.user_id,
+            ),
             update=update,
         )
 
@@ -1198,7 +1203,9 @@ class LocalClient(AbstractClient):
 
         source_type = "python"
 
-        return self.server.update_tool(ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name, user_id=self.user_id))
+        return self.server.update_tool(
+            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name, user_id=self.user_id)
+        )
 
     def list_tools(self):
         """List available tools.

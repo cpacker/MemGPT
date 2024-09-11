@@ -20,7 +20,7 @@ class BaseTool(MemGPTBase):
     module: Optional[str] = Field(None, description="The module of the function.")
 
     # optional: user_id (user-specific tools)
-    # user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the function.")
+    user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the function.")
 
 
 class Tool(BaseTool):

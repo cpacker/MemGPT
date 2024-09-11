@@ -86,6 +86,7 @@ def db_session(test_session_maker) -> "Session":
 
 @pytest.fixture
 def server(db_session):
+    Tool.load_default_tools(db_session)
     return SyncServer(db_session=db_session)
 
 
@@ -94,7 +95,6 @@ def test_app(server, db_session):
     """a per-test-function db scoped version of the rest api app"""
     app.dependency_overrides[get_memgpt_server] = lambda: server
     app.dependency_overrides[get_db_session] = lambda: db_session
-    Tool.load_default_tools(db_session)
     return app
 
 
@@ -129,7 +129,7 @@ def patch_local_db_calls(monkeypatch, db_session):
     modules = [
         "memgpt.metadata.get_db_session",
         "memgpt.agent_store.db.get_db_session",
-        # "memgpt.server.server.get_db_session",
+        "memgpt.server.server.get_db_session",
         "memgpt.server.rest_api.app.get_db_session",
     ]
     for module in modules:

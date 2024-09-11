@@ -4,6 +4,7 @@ from sqlalchemy import JSON, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
+from memgpt.settings import settings
 from memgpt.orm.mixins import OrganizationMixin
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
 from memgpt.orm.organization import Organization
@@ -82,9 +83,27 @@ class Block(OrganizationMixin, SqlalchemyBase):
     def load_default_blocks(cls, db_session: "Session") -> None:
         """populates the db with default blocks"""
         org = Organization.default(db_session)
+        sql_blocks = []
         for scope in ("human", "persona"):
             list_files = getattr(utils, f"list_{scope}_files")
             get_text = getattr(utils, f"get_{scope}_text")
             for file in list_files():
-                db_session.add(cls(organization=org, name=file.stem, label=scope, value=get_text(file.stem), is_template=True))
-        db_session.commit()
+                sql_blocks.append(
+                    dict(
+                        _organization_id=org._id,
+                        name=file.stem,
+                        label=scope,
+                        value=get_text(file.stem),
+                        is_template=True,
+                    )
+                )
+        match settings.backend.name:
+            case "sqlite_chroma":
+                from sqlalchemy.dialects.sqlite import insert
+            case "postgres":
+                from sqlalchemy.dialects.postgresql import insert
+            case _:
+                raise ValueError(f"Unsupported backend for bulk loading blocks on startup: {settings.backend.name}")
+
+        statement = insert(cls).values(sql_blocks).on_conflict_do_nothing()
+        db_session.execute(statement)

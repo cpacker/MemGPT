@@ -203,7 +203,7 @@ class Agent(object):
     ):
         # Hold a copy of the state that was used to init the agent
         self.agent_state = agent_state
-        assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
+        # assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
         # try:
         #    self.link_tools(tools)
@@ -219,8 +219,7 @@ class Agent(object):
 
         # Initialize the memory object
         self.memory = self.agent_state.memory
-        assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
-        printd("Initialized memory object", self.memory.compile())
+        # assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
 
         # Interface must implement:
         # - internal_monologue
@@ -284,7 +283,7 @@ class Agent(object):
         # Keep track of the total number of messages throughout all time
         self.messages_total = messages_total if messages_total is not None else (len(self._messages) - 1)  # (-system)
         self.messages_total_init = len(self._messages) - 1
-        printd(f"Agent initialized, self.messages_total={self.messages_total}")
+        printd(f"Agent initialized, {self.messages_total=}")
 
         # Create the agent in the DB
         self.update_state()
@@ -301,12 +300,10 @@ class Agent(object):
     def link_tools(self, tools: List[Tool]):
         """Bind a tool object (schema + python function) to the agent object"""
 
+        agent_state_tool_names = [t.name for t in self.agent_state.tools]
         # tools
         for tool in tools:
-            assert tool, f"Tool is None - must be error in querying tool from DB"
-            assert tool.name in self.agent_state.tools, f"Tool {tool.name} not found in {[t.name for t in self.agent_state.tools]}"
-        for tool_name in self.agent_state.tools:
-            assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
+            assert tool.name in agent_state_tool_names, f"Tool {tool.name} not found in {agent_state_tool_names}"
 
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
         self.functions = []
@@ -328,7 +325,7 @@ class Agent(object):
 
         # Pull the message objects from the database
         message_objs = [self.persistence_manager.recall_memory.storage.get(msg_id) for msg_id in message_ids]
-        assert all([isinstance(msg, Message) for msg in message_objs])
+        # assert all([isinstance(msg, Message) for msg in message_objs])
 
         return message_objs
 
@@ -869,7 +866,7 @@ class Agent(object):
                 raise e
 
     def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True, disallow_tool_as_first=True):
-        assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
+        assert self._messages[0]["role"] == "system", f"self._messages[0] should be system (instead got {self._messages[0]})"
 
         # Start at index 1 (past the system message),
         # and collect messages for summarization until we reach the desired truncation token fraction (eg 50%)
@@ -877,7 +874,7 @@ class Agent(object):
         token_counts = [count_tokens(str(msg)) for msg in self.messages]
         message_buffer_token_count = sum(token_counts[1:])  # no system message
         desired_token_count_to_summarize = int(message_buffer_token_count * MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC)
-        candidate_messages_to_summarize = self.messages[1:]
+        candidate_messages_to_summarize = self._messages[1:]
         token_counts = token_counts[1:]
 
         if preserve_last_N_messages:
@@ -920,9 +917,9 @@ class Agent(object):
         # Try to make an assistant message come after the cutoff
         try:
             printd(f"Selected cutoff {cutoff} was a 'user', shifting one...")
-            if self.messages[cutoff]["role"] == "user":
+            if self._messages[cutoff]["role"] == "user":
                 new_cutoff = cutoff + 1
-                if self.messages[new_cutoff]["role"] == "user":
+                if self._messages[new_cutoff]["role"] == "user":
                     printd(f"Shifted cutoff {new_cutoff} is still a 'user', ignoring...")
                 cutoff = new_cutoff
         except IndexError:
@@ -930,7 +927,7 @@ class Agent(object):
 
         # Make sure the cutoff isn't on a 'tool' or 'function'
         if disallow_tool_as_first:
-            while self.messages[cutoff]["role"] in ["tool", "function"] and cutoff < len(self.messages):
+            while self._messages[cutoff]["role"] in ["tool", "function"] and cutoff < len(self.messages):
                 printd(f"Selected cutoff {cutoff} was a 'tool', shifting one...")
                 cutoff += 1
 
@@ -956,7 +953,7 @@ class Agent(object):
 
         # Metadata that's useful for the agent to see
         all_time_message_count = self.messages_total
-        remaining_message_count = len(self.messages[cutoff:])
+        remaining_message_count = len(self._messages[cutoff:])
         hidden_message_count = all_time_message_count - remaining_message_count
         summary_message_count = len(message_sequence_to_summarize)
         summary_message = package_summarize_message(summary, summary_message_count, hidden_message_count, all_time_message_count)
@@ -1012,7 +1009,7 @@ class Agent(object):
 
     def rebuild_memory(self, force=False, update_timestamp=True, ms: Optional[MetadataStore] = None):
         """Rebuilds the system message with the latest memory object and any shared memory block updates"""
-        curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
+        curr_system_message = self._messages[0]  # this is the system + memory bank, not just the system prompt
 
         # NOTE: This is a hacky way to check if the memory has changed
         memory_repr = self.memory.compile()
@@ -1071,17 +1068,15 @@ class Agent(object):
 
             # Swap the system message out (only if there is a diff)
             self._swap_system_message_in_buffer(new_system_message=new_system_message_str)
-            assert self.messages[0]["content"] == new_system_message["content"], (
-                self.messages[0]["content"],
+            assert self._messages[0]["content"] == new_system_message["content"], (
+                self._messages[0]["content"],
                 new_system_message["content"],
             )
 
     def update_system_prompt(self, new_system_prompt: str):
         """Update the system prompt of the agent (requires rebuilding the memory block if there's a difference)"""
-        assert isinstance(new_system_prompt, str)
 
         if new_system_prompt == self.system:
-            input("same???")
             return
 
         self.system = new_system_prompt

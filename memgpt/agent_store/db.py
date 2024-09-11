@@ -181,9 +181,8 @@ class SQLStorageConnector(StorageConnector):
         else:
             with self.db_session as session:
                 iterable = tqdm(records) if show_progress else records
-                for record in iterable:
-                    db_record = self.SQLModel(**record.model_dump(exclude_none=True))
-                    session.add(db_record)
+                # Using SQLAlchemy Core is way faster than ORM Bulk Operations https://stackoverflow.com/a/34344200
+                session.execute(self.SQLModel.__table__.insert(), [vars(record) for record in iterable])
                 session.commit()
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):

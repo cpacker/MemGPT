@@ -49,7 +49,7 @@ def setup_tools_index_router(server: SyncServer, interface: QueuingInterface):
         # Clear the interface
         interface.clear()
         # tool = server.ms.get_tool(user_id=user_id, tool_name=tool_name) TODO: add back when user-specific
-        tool = server.ms.get_tool(tool_name=tool_name, user_id=None)
+        tool = server.ms.get_tool(name=tool_name, user_id=None)
         if tool is None:
             # return 404 error
             raise HTTPException(status_code=404, detail=f"Tool with name {tool_name} not found.")

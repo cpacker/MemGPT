@@ -13,6 +13,7 @@ class TestUnitAgent:
         agent = client.create_agent(name=agent_name)
         assert agent.name == agent_name
 
+
     @m.it("should update an agent")
     def test_update_agent(self, client):
         agent_name = "TestAgent"
@@ -44,6 +45,7 @@ class TestUnitAgent:
         updated_agent = client.update_agent(agent_id=agent.id, tools=new_tools)
         assert updated_agent.tools == new_tools
 
+
     @m.it("should delete an agent")
     def test_delete_agent(self, client):
         agent_name = "TestAgent"
@@ -58,7 +60,14 @@ class TestUnitAgent:
         agent_name = "TestAgent"
         agent = client.create_agent(name=agent_name)
         agents = client.list_agents()
-        assert any(a["id"] == agent.id for a in agents)
+        assert len(agents) == 1
+        assert any(a.id == agent.id for a in agents)
+
+        agent2 = client.create_agent(name=f"{agent_name}2")
+        agents = client.list_agents()
+        assert len(agents) == 2
+        assert any(a.id == agent2.id for a in agents)
+
 
     @m.context("and a message is sent to the agent")
     @m.it("should get the message and respond")

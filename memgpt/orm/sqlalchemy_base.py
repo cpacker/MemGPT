@@ -48,9 +48,17 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         self._id = UUID(id_)
 
     @classmethod
-    def list(cls, *, db_session: "Session", **kwargs) -> List[Type["SqlalchemyBase"]]:
+    def list(
+        cls,
+        db_session: "Session",
+        actor: Union["SQLUser", "SchemaUser"] = None,
+        access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
+        **kwargs,
+    ) -> List[Type["SqlalchemyBase"]]:
         with db_session as session:
             query = select(cls).filter_by(**kwargs)
+            if actor:
+                query = cls.apply_access_predicate(query, actor, access)
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
             return list(session.execute(query).scalars())
@@ -78,7 +86,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         cls,
         db_session: "Session",
         identifier: Union[str, UUID],
-        actor: Optional["User"] = None,
+        actor: Union["SQLUser", "SchemaUser"] = None,
         access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
         **kwargs,
     ) -> Type["SqlalchemyBase"]:
@@ -138,7 +146,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     def apply_access_predicate(
         cls,
         query: "Select",
-        actor: Union["SQLUser","SchemaUser"],
+        actor: Union["SQLUser", "SchemaUser"],
         access: List[Literal["read", "write", "admin"]],
     ) -> "Select":
         """applies a WHERE clause restricting results to the given actor and access level
@@ -153,9 +161,10 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             the sqlalchemy select statement restricted to the given access.
         """
         del access  # entrypoint for row-level permissions. Defaults to "same org as the actor, all permissions" at the moment
-        from memgpt.orm.user import User # to avoid circular import
-        uid = cls.to_uid(actor.id, indifferent=True)
-        return query.join(User, User._id == uid).where(cls._organization_id == User._organization_id, cls.is_deleted == False)
+        from memgpt.orm.user import User  # to avoid circular import
+
+        uid = User.to_uid(actor.id)
+        return query.join(User, User._id == str(uid)).where(cls._organization_id == User._organization_id)
 
     @property
     def __pydantic_model__(self) -> Type["BaseModel"]:

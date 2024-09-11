@@ -236,9 +236,6 @@ class SyncServer(Server):
                 raise ValueError(f"{agent_id=} does not exist")
 
             tool_objs = agent_state.tools
-            agent_state.tools = [t.name for t in tool_objs]
-            # Make sure the memory is a memory object
-            assert isinstance(agent_state.memory, Memory)
 
             # Instantiate an agent object using the state retrieved
             logger.info(f"Creating an agent object in memory")
@@ -326,7 +323,6 @@ class SyncServer(Server):
 
         except Exception as e:
             logger.error(f"Error in server._step: {e}")
-            print(traceback.print_exc())
             raise
         finally:
             logger.debug("Calling step_yield()")
@@ -618,64 +614,43 @@ class SyncServer(Server):
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
-        # if user := self.ms.get_user(user_id):
-        #     raise ValueError(f"cannot find user with associated id: {user_id}")
 
-        if interface is None:
-            interface = self.default_interface_factory()
+        request.user_id = request.user_id or self.ms.get_user(user_id).id
+
+        interface = interface or self.default_interface_factory()
 
         # create agent name
-        if request.name is None:
-            request.name = create_random_username()
+        request.name = request.name or create_random_username()
 
         # system debug
-        if request.system is None:
-            # TODO: don't hardcode
-            request.system = gpt_system.get_system_text("memgpt_chat")
+        request.system = request.system or gpt_system.get_system_text("memgpt_chat")
 
         agent = None
         try:
             # model configuration
-            llm_config = request.llm_config if request.llm_config else self.server_llm_config
-            embedding_config = request.embedding_config if request.embedding_config else self.server_embedding_config
+            request.llm_config = request.llm_config or self.server_llm_config
+            request.embedding_config = request.embedding_config or self.server_embedding_config
 
             # get tools + make sure they exist
-            # TODO: cleanup this code
-            tool_objs = []
+            tool_names = []
+            existing_tools = self.ms.list_tools(user_id=user_id)
             for tool_name in request.tools:
-                for tool_obj in self.ms.list_tools(user_id=user_id):
-                    if tool_obj.name == tool_name:
-                        tool_objs.append(tool_obj)
-                        break
-
-                # assert tool_obj, f"Tool {tool_name} does not exist"
-
-            agent_state = AgentState(
-                name=request.name,
-                user_id=user_id,
-                tools=request.tools,
-                llm_config=llm_config,
-                embedding_config=embedding_config,
-                system=request.system,
-                memory=request.memory,
-                description=request.description,
-                metadata_=request.metadata_,
-            )
+                if any(tool_obj.name == tool_name for tool_obj in existing_tools):
+                    tool_names.append(tool_name)
+            request.tools = tool_names
 
             try:
-                sql_state = self.ms.create_agent(agent_state)
-                agent_state.id = sql_state._id
+                agent_state = self.ms.create_agent(request)
             except Exception as e:
                 logger.exception(e)
                 raise e
 
-            print("AGENT TOOLS", tool_objs)
             agent = Agent(
                 interface=interface,
                 agent_state=agent_state,
-                tools=tool_objs,
+                tools=agent_state.tools,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                first_message_verify_mono=True if "gpt-4" in agent_state.llm_config.model else False,
             )
 
             logger.info(f"Created new agent from config: {agent}")
@@ -684,12 +659,13 @@ class SyncServer(Server):
             logger.exception(e)
             try:
                 if agent:
-                    self.ms.delete_agent(agent_id=agent.agent_state.id)
+                    self.ms.delete_agent(id=agent.agent_state.id)
             except Exception as delete_e:
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
 
-        assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
+        # Already validated in pydantic model
+        # assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
 
         return agent.agent_state
 
@@ -774,7 +750,7 @@ class SyncServer(Server):
 
     def list_agents(self, user_id: str = None) -> List[AgentState]:
         """List all available agents to a user"""
-        return self.ms.list_agents(id=user_id)
+        return self.ms.list_agents(user_id=user_id)
 
     # TODO make return type pydantic
     def list_agents_legacy(
@@ -878,21 +854,17 @@ class SyncServer(Server):
 
     def create_block(self, request: CreateBlock, update: bool = False) -> Block:
         existing_blocks = self.ms.list_blocks(
-            filters={"name": request.name, "is_template": request.is_template}, user_id=self.get_user_default().id
+            filters={"name": request.name, "is_template": request.is_template}, user_id=self.get_current_user().id
         )
-        if existing_blocks is not None and len(existing_blocks) > 0:
-            existing_block = existing_blocks[0]
-            assert len(existing_blocks) == 1
-            assert self.ms.get_block(id=existing_block.id) is not None, f"Block {existing_block.id} does not exist"
-            if update:
-                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
-            else:
-                raise ValueError(f"Block with name {request.name} already exists")
+        if existing_blocks and len(existing_blocks) > 1:
+            raise ValueError(f"Multiple Blocks already exist with name {request.name}, something is wrong!")
 
-        block = Block(**vars(request))
-        self.ms.create_block(block)
-        print("BLOCK", block.name)
-        return block
+        existing_block = existing_blocks[0]
+
+        if update:
+            return self.update_block(UpdateBlock(id=existing_block.id, **request.model_dump()))
+
+        return self.ms.create_block(request)
 
     def update_block(self, request: UpdateBlock) -> Block:
         block = self.ms.get_block(request.id)
@@ -1528,14 +1500,10 @@ class SyncServer(Server):
 
     def update_tool(
         self,
-        request: ToolUpdate,
+        tool: ToolUpdate,
     ) -> Tool:
         """Update an existing tool"""
-        tool = self.ms.get_tool(request.id)
-        tool.name = request.name if request.name is not None else tool.name
-        tool.source_code = request.source_code if request.source_code is not None else tool.source_code
-        tool.source_type = request.source_type if request.source_type is not None else tool.source_type
-        tool.tags = request.tags if request.tags is not None else tool.tags
+        # ms.update_tool(tool) fetches the tool from the database, updates it, and then returns it back as Pydantic
         return self.ms.update_tool(tool)
 
     def create_tool(self, request: ToolCreate, update: bool = True) -> Tool:  # TODO: add other fields
@@ -1563,9 +1531,6 @@ class SyncServer(Server):
             # TODO: not sure if this always works
             func = env[functions[-1]]
             json_schema = generate_schema(func, request.name)
-            from pprint import pprint
-
-            pprint(json_schema)
         else:
             # provided by client
             json_schema = request.json_schema
@@ -1575,22 +1540,19 @@ class SyncServer(Server):
             request.name = json_schema["name"]
             assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
         try:
-            print("SAVING SCHEMA", json_schema)
-            assert json_schema is not None, "JSON schema must be provided"
-            print("user_id", user_id)
-            tool = Tool(
+            tool = ToolCreate(
                 name=request.name,
                 source_code=request.source_code,
                 source_type=request.source_type,
                 tags=request.tags,
                 json_schema=json_schema,
-                # user_id=user_id,
             )
             return self.ms.create_tool(tool)
         except IntegrityError as e:
             if not update:
                 raise e
-            return self.update_tool(ToolUpdate(id=tool_id, **vars(request)))
+            tool_id = self.ms.get_tool(name=request.name).id
+            return self.update_tool(ToolUpdate(id=tool_id, **request.model_dump()))
 
     def delete_tool(self, tool_id: str):
         """Delete a tool"""
@@ -1600,6 +1562,7 @@ class SyncServer(Server):
         """List tools available to user_id"""
         tools = self.ms.list_tools(user_id)
         return tools
+
 
 def get_agent_message(self, agent_id: str, message_id: str) -> Message:
     """Get a single message from the agent's memory"""

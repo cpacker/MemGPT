@@ -43,6 +43,7 @@ def create_application() -> "FastAPI":
         # load the default tools
         from memgpt.orm.tool import Tool
         from memgpt.orm.block import Block
+
         session_just_for_loading_defaults = get_db_session()
         Tool.load_default_tools(session_just_for_loading_defaults)
         Block.load_default_blocks(session_just_for_loading_defaults)

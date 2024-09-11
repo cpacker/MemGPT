@@ -6,7 +6,6 @@ Create Date: 2024-08-26 15:07:28.171897
 
 """
 
-
 from typing import Sequence, Union
 
 from pgvector.sqlalchemy import Vector
@@ -22,7 +21,6 @@ revision: str = "560b00fd8d87"
 down_revision: Union[str, None] = "496c691962ef"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
-
 
 
 # how to convert the existing JSON column to a PGVector column

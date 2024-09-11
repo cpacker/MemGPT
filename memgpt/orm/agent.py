@@ -64,9 +64,9 @@ class Agent(SqlalchemyBase, OrganizationMixin):
             "metadata_": self.metadata_,
             "llm_config": self.llm_config,
             "embedding_config": self.embedding_config,
-            "user_id": str(self.users[0]._id) if self.users else "",
+            "user_id": self.created_by_id,
             "tools": self.tools,
             "memory": {"memory": {b.name: b for b in self.core_memory}},
-            "message_ids": [str(m._id) for m in self.messages],
+            "message_ids": self.messages,
         }
         return self.__pydantic_model__(**state)
