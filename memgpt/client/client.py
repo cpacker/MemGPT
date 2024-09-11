@@ -730,7 +730,7 @@ class RESTClient(AbstractClient):
             if not include_full_message:
                 messages = []
                 for message in response.messages:
-                    messages += message.to_memgpt_messages()
+                    messages += message.to_memgpt_message()
                 response.messages = messages
 
             return response
