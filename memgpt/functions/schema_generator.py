@@ -168,6 +168,9 @@ def generate_schema_from_args_schema(
 
 def generate_langchain_tool_wrapper(tool_name: str) -> str:
     import_statement = f"from langchain_community.tools import {tool_name}"
+
+    # NOTE: this will fail for tools like 'wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())' since it needs to pass an argument to the tool instantiation
+    # https://python.langchain.com/v0.1/docs/integrations/tools/wikipedia/
     tool_instantiation = f"tool = {tool_name}()"
     run_call = f"return tool._run(**kwargs)"
     func_name = f"run_{tool_name.lower()}"
