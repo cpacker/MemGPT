@@ -127,7 +127,7 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
 
     message = "Hello, agent!"
     print("Sending message", message)
-    response = client.user_message(agent_id=agent.id, message=message)
+    response = client.user_message(agent_id=agent.id, message=message, include_full_message=True)
     print("Response", response)
     assert isinstance(response.usage, MemGPTUsageStatistics)
     assert response.usage.step_count == 1
@@ -401,11 +401,7 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
     """Test that we can update the details of a message"""
 
     # create a message
-    message_response = client.send_message(
-        agent_id=agent.id,
-        message="Test message",
-        role="user",
-    )
+    message_response = client.send_message(agent_id=agent.id, message="Test message", role="user", include_full_message=True)
     print("Messages=", message_response)
     assert isinstance(message_response, MemGPTResponse)
     assert isinstance(message_response.messages[-1], Message)
