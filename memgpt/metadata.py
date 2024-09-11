@@ -192,7 +192,6 @@ class MetadataStore:
             case "get":
                 # this has no support for scoping, but we won't keep this pattern long
                 try:
-
                     def get(id, user_id=None):
                         return Model.read(db_session=self.db_session, identifier=id, actor=self._get_actor(user_id)).to_pydantic()
 

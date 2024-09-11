@@ -852,34 +852,25 @@ class SyncServer(Server):
     def get_block(self, block_id: str):
         return self.ms.get_block(id=block_id)
 
-    def create_block(self, request: CreateBlock, update: bool = False) -> Block:
+    def create_block(self, request: CreateBlock, update: Optional[bool] = False) -> Block:
         existing_blocks = self.ms.list_blocks(
             filters={"name": request.name, "is_template": request.is_template}, user_id=self.get_current_user().id
         )
         if existing_blocks and len(existing_blocks) > 1:
             raise ValueError(f"Multiple Blocks already exist with name {request.name}, something is wrong!")
+        elif existing_blocks and len(existing_blocks) > 0:
+            if update:
+                return self.update_block(UpdateBlock(id=existing_blocks[0].id, **request.model_dump()))
 
-        existing_block = existing_blocks[0]
-
-        if update:
-            return self.update_block(UpdateBlock(id=existing_block.id, **request.model_dump()))
+            raise ValueError(f"Block with name {request.name} already exists")
 
         return self.ms.create_block(request)
 
     def update_block(self, request: UpdateBlock) -> Block:
-        block = self.ms.get_block(request.id)
-        block.limit = request.limit if request.limit is not None else block.limit
-        block.value = request.value if request.value is not None else block.value
-        block.name = request.name if request.name is not None else block.name
-        self.ms.update_block(block)
-        return block
+        return self.ms.update_block(request)
 
     def delete_block(self, block_id: str):
-        block = self.get_block(block_id)
-        self.ms.delete_block(block_id)
-        return block
-
-    # convert name->id
+        return self.ms.delete_block(block_id)
 
     def get_agent_id(self, name: str, user_id: str):
         agent_state = self.ms.get_agent(agent_name=name, user_id=user_id)
