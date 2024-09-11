@@ -1964,6 +1964,8 @@ class LocalClient(AbstractClient):
         # parse source code/schema
         source_code = parse_source_code(func)
         source_type = "python"
+        if not tags:
+            tags = []
 
         # call server function
         return self.server.create_tool(
