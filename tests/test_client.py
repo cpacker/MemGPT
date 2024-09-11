@@ -127,7 +127,7 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
 
     message = "Hello, agent!"
     print("Sending message", message)
-    response = client.user_message(agent_id=agent.id, message=message)
+    response = client.user_message(agent_id=agent.id, message=message, include_full_message=True)
     print("Response", response)
     assert isinstance(response.usage, MemGPTUsageStatistics)
     assert response.usage.step_count == 1
