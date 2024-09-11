@@ -56,7 +56,7 @@ from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memgpt_message import MemGPTMessage
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
-from memgpt.schemas.message import Message
+from memgpt.schemas.message import Message, UpdateMessage
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
@@ -892,7 +892,7 @@ class SyncServer(Server):
         template: Optional[bool] = None,
         name: Optional[str] = None,
         id: Optional[str] = None,
-    ):
+    ) -> Optional[List[Block]]:
 
         return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
 
@@ -1550,14 +1550,14 @@ class SyncServer(Server):
 
         return sources_with_metadata
 
-    def get_tool(self, tool_id: str) -> Tool:
+    def get_tool(self, tool_id: str) -> Optional[Tool]:
         """Get tool by ID."""
         return self.ms.get_tool(tool_id=tool_id)
 
-    def get_tool_id(self, name: str, user_id: str) -> str:
+    def get_tool_id(self, name: str, user_id: str) -> Optional[str]:
         """Get tool ID from name and user_id."""
         tool = self.ms.get_tool(tool_name=name, user_id=user_id)
-        if not tool:
+        if not tool or tool.id is None:
             return None
         return tool.id
 
@@ -1702,9 +1702,106 @@ class SyncServer(Server):
             name = os.path.basename(human_file).replace(".txt", "")
             self.create_block(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
 
-    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
+    def get_agent_message(self, agent_id: str, message_id: str) -> Optional[Message]:
         """Get a single message from the agent's memory"""
         # Get the agent object (loaded in memory)
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message_id)
         return message
+
+    def update_agent_message(self, agent_id: str, request: UpdateMessage) -> Message:
+        """Update the details of a message associated with an agent"""
+
+        # Get the current message
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        return memgpt_agent.update_message(request=request)
+
+        # TODO decide whether this should be done in the server.py or agent.py
+        # Reason to put it in agent.py:
+        # - we use the agent object's persistence_manager to update the message
+        # - it makes it easy to do things like `retry`, `rethink`, etc.
+        # Reason to put it in server.py:
+        # - fundamentally, we should be able to edit a message (without agent id)
+        #   in the server by directly accessing the DB / message store
+        """
+        message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=request.id)
+        if message is None:
+            raise ValueError(f"Message with id {request.id} not found")
+
+        # Override fields
+        # NOTE: we try to do some sanity checking here (see asserts), but it's not foolproof
+        if request.role:
+            message.role = request.role
+        if request.text:
+            message.text = request.text
+        if request.name:
+            message.name = request.name
+        if request.tool_calls:
+            assert message.role == MessageRole.assistant, "Tool calls can only be added to assistant messages"
+            message.tool_calls = request.tool_calls
+        if request.tool_call_id:
+            assert message.role == MessageRole.tool, "tool_call_id can only be added to tool messages"
+            message.tool_call_id = request.tool_call_id
+
+        # Save the updated message
+        memgpt_agent.persistence_manager.recall_memory.storage.update(record=message)
+
+        # Return the updated message
+        updated_message = memgpt_agent.persistence_manager.recall_memory.storage.get(id=message.id)
+        if updated_message is None:
+            raise ValueError(f"Error persisting message - message with id {request.id} not found")
+        return updated_message
+        """
+
+    def rewrite_agent_message(self, agent_id: str, new_text: str) -> Message:
+
+        # Get the current message
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        return memgpt_agent.rewrite_message(new_text=new_text)
+
+    def rethink_agent_message(self, agent_id: str, new_thought: str) -> Message:
+
+        # Get the current message
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        return memgpt_agent.rethink_message(new_thought=new_thought)
+
+    def retry_agent_message(self, agent_id: str) -> List[Message]:
+
+        # Get the current message
+        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+        return memgpt_agent.retry_message()
+
+    # TODO(ethan) wire back to real method in future ORM PR
+    def get_current_user(self) -> User:
+        """Returns the currently authed user.
+
+        Since server is the core gateway this needs to pass through server as the
+        first touchpoint.
+        """
+        # NOTE: same code as local client to get the default user
+        config = MemGPTConfig.load()
+        user_id = config.anon_clientid
+        user = self.get_user(user_id)
+
+        if not user:
+            user = self.create_user(UserCreate())
+
+            # # update config
+            config.anon_clientid = str(user.id)
+            config.save()
+
+        return user
+
+    def list_models(self) -> List[LLMConfig]:
+        """List available models"""
+
+        # TODO support multiple models
+        llm_config = self.server_llm_config
+        return [llm_config]
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        """List available embedding models"""
+
+        # TODO support multiple models
+        embedding_config = self.server_embedding_config
+        return [embedding_config]

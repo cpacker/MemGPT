@@ -13,7 +13,7 @@ from memgpt.constants import DEFAULT_PRESET
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.enums import JobStatus, MessageStreamStatus
 from memgpt.schemas.memgpt_message import FunctionCallMessage, InternalMonologue
-from memgpt.schemas.memgpt_response import MemGPTStreamingResponse
+from memgpt.schemas.memgpt_response import MemGPTResponse, MemGPTStreamingResponse
 from memgpt.schemas.message import Message
 from memgpt.schemas.usage import MemGPTUsageStatistics
 
@@ -37,7 +37,7 @@ def run_server():
 
     # _reset_config()
 
-    from memgpt.server.rest_api.server import start_server
+    from memgpt.server.rest_api.app import start_server
 
     print("Starting server...")
     start_server(debug=True)
@@ -395,3 +395,22 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # delete the source
     client.delete_source(source.id)
+
+
+def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can update the details of a message"""
+
+    # create a message
+    message_response = client.send_message(
+        agent_id=agent.id,
+        message="Test message",
+        role="user",
+    )
+    print("Messages=", message_response)
+    assert isinstance(message_response, MemGPTResponse)
+    assert isinstance(message_response.messages[-1], Message)
+    message = message_response.messages[-1]
+
+    new_text = "This exact string would never show up in the message???"
+    new_message = client.update_message(message_id=message.id, text=new_text, agent_id=agent.id)
+    assert new_message.text == new_text
