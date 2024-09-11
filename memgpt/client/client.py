@@ -130,6 +130,7 @@ class AbstractClient(object):
         agent_id: Optional[str] = None,
         name: Optional[str] = None,
         stream: Optional[bool] = False,
+        include_full_message: Optional[bool] = False,
     ) -> MemGPTResponse:
         raise NotImplementedError
 
@@ -690,6 +691,7 @@ class RESTClient(AbstractClient):
         name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        include_full_message: Optional[bool] = False,
     ) -> Union[MemGPTResponse, Generator[MemGPTStreamingResponse, None, None]]:
         """
         Send a message to an agent
@@ -705,6 +707,7 @@ class RESTClient(AbstractClient):
         Returns:
             response (MemGPTResponse): Response from the agent
         """
+        # TODO: implement include_full_message
         messages = [MessageCreate(role=MessageRole(role), text=message, name=name)]
         # TODO: figure out how to handle stream_steps and stream_tokens
 
@@ -721,7 +724,16 @@ class RESTClient(AbstractClient):
             )
             if response.status_code != 200:
                 raise ValueError(f"Failed to send message: {response.text}")
-            return MemGPTResponse(**response.json())
+            response = MemGPTResponse(**response.json())
+
+            # simplify messages
+            if not include_full_message:
+                messages = []
+                for message in response.messages:
+                    messages += message.to_memgpt_messages()
+                response.messages = messages
+
+            return response
 
     # humans / personas
 
@@ -1666,6 +1678,7 @@ class LocalClient(AbstractClient):
         agent_name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        include_full_message: Optional[bool] = False,
     ) -> MemGPTResponse:
         """
         Send a message to an agent
@@ -1708,9 +1721,15 @@ class LocalClient(AbstractClient):
         messages = self.interface.to_list()
         for m in messages:
             assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
-        memgpt_messages = []
-        for m in messages:
-            memgpt_messages += m.to_memgpt_message()
+
+        # format messages
+        if include_full_message:
+            memgpt_messages = messages
+        else:
+            memgpt_messages = []
+            for m in messages:
+                memgpt_messages += m.to_memgpt_message()
+
         return MemGPTResponse(messages=memgpt_messages, usage=usage)
 
     def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
