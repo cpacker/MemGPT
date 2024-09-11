@@ -134,7 +134,7 @@ class AbstractClient(object):
     ) -> MemGPTResponse:
         raise NotImplementedError
 
-    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
+    def user_message(self, agent_id: str, message: str, include_full_message: Optional[bool] = False) -> MemGPTResponse:
         raise NotImplementedError
 
     def create_human(self, name: str, text: str) -> Human:
@@ -587,7 +587,7 @@ class RESTClient(AbstractClient):
 
     # agent interactions
 
-    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
+    def user_message(self, agent_id: str, message: str, include_full_message: Optional[bool] = False) -> MemGPTResponse:
         """
         Send a message to an agent as a user
 
@@ -598,7 +598,7 @@ class RESTClient(AbstractClient):
         Returns:
             response (MemGPTResponse): Response from the agent
         """
-        return self.send_message(agent_id, message, role="user")
+        return self.send_message(agent_id, message, role="user", include_full_message=include_full_message)
 
     def save(self):
         raise NotImplementedError
@@ -1732,7 +1732,7 @@ class LocalClient(AbstractClient):
 
         return MemGPTResponse(messages=memgpt_messages, usage=usage)
 
-    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
+    def user_message(self, agent_id: str, message: str, include_full_message: Optional[bool] = False) -> MemGPTResponse:
         """
         Send a message to an agent as a user
 
@@ -1744,7 +1744,7 @@ class LocalClient(AbstractClient):
             response (MemGPTResponse): Response from the agent
         """
         self.interface.clear()
-        return self.send_message(role="user", agent_id=agent_id, message=message)
+        return self.send_message(role="user", agent_id=agent_id, message=message, include_full_message=include_full_message)
 
     def run_command(self, agent_id: str, command: str) -> MemGPTResponse:
         """
