@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import pytest
@@ -375,3 +376,67 @@ def _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=False):
 def test_get_messages_memgpt_format(server, user_id, agent_id):
     _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=False)
     _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=True)
+
+
+def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
+    """Test the /rethink, /rewrite, and /retry commands in the CLI
+
+    - "rethink" replaces the inner thoughts of the last assistant message
+    - "rewrite" replaces the text of the last assistant message
+    - "retry" retries the last assistant message
+    """
+
+    # Send an initial message
+    server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
+
+    # Grab the raw Agent object
+    memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
+    assert memgpt_agent._messages[-1].role == MessageRole.tool
+    assert memgpt_agent._messages[-2].role == MessageRole.assistant
+    last_agent_message = memgpt_agent._messages[-2]
+
+    # Try "rethink"
+    new_thought = "I am thinking about the meaning of life, the universe, and everything. Bananas?"
+    assert last_agent_message.text is not None and last_agent_message.text != new_thought
+    server.rethink_agent_message(agent_id=agent_id, new_thought=new_thought)
+
+    # Grab the agent object again (make sure it's live)
+    memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
+    assert memgpt_agent._messages[-1].role == MessageRole.tool
+    assert memgpt_agent._messages[-2].role == MessageRole.assistant
+    last_agent_message = memgpt_agent._messages[-2]
+    assert last_agent_message.text == new_thought
+
+    # Try "rewrite"
+    assert last_agent_message.tool_calls is not None
+    assert last_agent_message.tool_calls[0].function.name == "send_message"
+    assert last_agent_message.tool_calls[0].function.arguments is not None
+    args_json = json.loads(last_agent_message.tool_calls[0].function.arguments)
+    assert "message" in args_json and args_json["message"] is not None and args_json["message"] != ""
+
+    new_text = "Why hello there my good friend! Is 42 what you're looking for? Bananas?"
+    server.rewrite_agent_message(agent_id=agent_id, new_text=new_text)
+
+    # Grab the agent object again (make sure it's live)
+    memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
+    assert memgpt_agent._messages[-1].role == MessageRole.tool
+    assert memgpt_agent._messages[-2].role == MessageRole.assistant
+    last_agent_message = memgpt_agent._messages[-2]
+    args_json = json.loads(last_agent_message.tool_calls[0].function.arguments)
+    assert "message" in args_json and args_json["message"] is not None and args_json["message"] == new_text
+
+    # Try retry
+    server.retry_agent_message(agent_id=agent_id)
+
+    # Grab the agent object again (make sure it's live)
+    memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
+    assert memgpt_agent._messages[-1].role == MessageRole.tool
+    assert memgpt_agent._messages[-2].role == MessageRole.assistant
+    last_agent_message = memgpt_agent._messages[-2]
+
+    # Make sure the inner thoughts changed
+    assert last_agent_message.text is not None and last_agent_message.text != new_thought
+
+    # Make sure the message changed
+    args_json = json.loads(last_agent_message.tool_calls[0].function.arguments)
+    assert "message" in args_json and args_json["message"] is not None and args_json["message"] != new_text

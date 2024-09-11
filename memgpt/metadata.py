@@ -91,8 +91,14 @@ class ToolCallColumn(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value:
-            # return [vars(tool) for tool in value]
-            return value
+            values = []
+            for v in value:
+                if isinstance(v, ToolCall):
+                    values.append(v.model_dump())
+                else:
+                    values.append(v)
+            return values
+
         return value
 
     def process_result_value(self, value, dialect):
@@ -738,7 +744,7 @@ class MetadataStore:
         template: Optional[bool] = None,
         name: Optional[str] = None,
         id: Optional[str] = None,
-    ) -> List[Block]:
+    ) -> Optional[List[Block]]:
         """List available blocks"""
         with self.session_maker() as session:
             query = session.query(BlockModel)

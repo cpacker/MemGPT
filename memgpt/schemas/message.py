@@ -57,6 +57,24 @@ class MessageCreate(BaseMessage):
     name: Optional[str] = Field(None, description="The name of the participant.")
 
 
+class UpdateMessage(BaseMessage):
+    """Request to update a message"""
+
+    id: str = Field(..., description="The id of the message.")
+    role: Optional[MessageRole] = Field(None, description="The role of the participant.")
+    text: Optional[str] = Field(None, description="The text of the message.")
+    # NOTE: probably doesn't make sense to allow remapping user_id or agent_id (vs creating a new message)
+    # user_id: Optional[str] = Field(None, description="The unique identifier of the user.")
+    # agent_id: Optional[str] = Field(None, description="The unique identifier of the agent.")
+    # NOTE: we probably shouldn't allow updating the model field, otherwise this loses meaning
+    # model: Optional[str] = Field(None, description="The model used to make the function call.")
+    name: Optional[str] = Field(None, description="The name of the participant.")
+    # NOTE: we probably shouldn't allow updating the created_at field, right?
+    # created_at: Optional[datetime] = Field(None, description="The time the message was created.")
+    tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
+    tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
+
+
 class Message(BaseMessage):
     """
     MemGPT's internal representation of a message. Includes methods to convert to/from LLM provider formats.
