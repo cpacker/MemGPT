@@ -178,7 +178,8 @@ def generate_langchain_tool_wrapper(tool_name: str) -> str:
     # Combine all parts into the wrapper function
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
-    del kwargs['self']
+    if 'self' in kwargs:
+        del kwargs['self']
     {import_statement}
     {tool_instantiation}
     {run_call}
@@ -195,7 +196,8 @@ def generate_crewai_tool_wrapper(tool_name: str) -> str:
     # Combine all parts into the wrapper function
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
-    del kwargs['self']
+    if 'self' in kwargs:
+        del kwargs['self']
     {import_statement}
     {tool_instantiation}
     {run_call}
