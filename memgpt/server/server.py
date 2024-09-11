@@ -889,7 +889,7 @@ class SyncServer(Server):
         self,
         user_id: Optional[str] = None,
         label: Optional[str] = None,
-        template: bool = True,
+        template: Optional[bool] = None,
         name: Optional[str] = None,
         id: Optional[str] = None,
     ) -> Optional[List[Block]]:
