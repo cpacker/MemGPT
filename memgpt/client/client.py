@@ -130,10 +130,11 @@ class AbstractClient(object):
         agent_id: Optional[str] = None,
         name: Optional[str] = None,
         stream: Optional[bool] = False,
+        include_full_message: Optional[bool] = False,
     ) -> MemGPTResponse:
         raise NotImplementedError
 
-    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
+    def user_message(self, agent_id: str, message: str, include_full_message: Optional[bool] = False) -> MemGPTResponse:
         raise NotImplementedError
 
     def create_human(self, name: str, text: str) -> Human:
@@ -586,7 +587,7 @@ class RESTClient(AbstractClient):
 
     # agent interactions
 
-    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
+    def user_message(self, agent_id: str, message: str, include_full_message: Optional[bool] = False) -> MemGPTResponse:
         """
         Send a message to an agent as a user
 
@@ -597,7 +598,7 @@ class RESTClient(AbstractClient):
         Returns:
             response (MemGPTResponse): Response from the agent
         """
-        return self.send_message(agent_id, message, role="user")
+        return self.send_message(agent_id, message, role="user", include_full_message=include_full_message)
 
     def save(self):
         raise NotImplementedError
@@ -690,6 +691,7 @@ class RESTClient(AbstractClient):
         name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        include_full_message: Optional[bool] = False,
     ) -> Union[MemGPTResponse, Generator[MemGPTStreamingResponse, None, None]]:
         """
         Send a message to an agent
@@ -705,6 +707,7 @@ class RESTClient(AbstractClient):
         Returns:
             response (MemGPTResponse): Response from the agent
         """
+        # TODO: implement include_full_message
         messages = [MessageCreate(role=MessageRole(role), text=message, name=name)]
         # TODO: figure out how to handle stream_steps and stream_tokens
 
@@ -721,7 +724,16 @@ class RESTClient(AbstractClient):
             )
             if response.status_code != 200:
                 raise ValueError(f"Failed to send message: {response.text}")
-            return MemGPTResponse(**response.json())
+            response = MemGPTResponse(**response.json())
+
+            # simplify messages
+            if not include_full_message:
+                messages = []
+                for message in response.messages:
+                    messages += message.to_memgpt_message()
+                response.messages = messages
+
+            return response
 
     # humans / personas
 
@@ -1356,6 +1368,10 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
+        # set logging levels
+        memgpt.utils.DEBUG = debug
+        logging.getLogger().setLevel(logging.CRITICAL)
+
         # create user if does not exist
         existing_user = self.server.get_user(self.user_id)
         if not existing_user:
@@ -1662,6 +1678,7 @@ class LocalClient(AbstractClient):
         agent_name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        include_full_message: Optional[bool] = False,
     ) -> MemGPTResponse:
         """
         Send a message to an agent
@@ -1704,9 +1721,18 @@ class LocalClient(AbstractClient):
         messages = self.interface.to_list()
         for m in messages:
             assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
-        return MemGPTResponse(messages=messages, usage=usage)
 
-    def user_message(self, agent_id: str, message: str) -> MemGPTResponse:
+        # format messages
+        if include_full_message:
+            memgpt_messages = messages
+        else:
+            memgpt_messages = []
+            for m in messages:
+                memgpt_messages += m.to_memgpt_message()
+
+        return MemGPTResponse(messages=memgpt_messages, usage=usage)
+
+    def user_message(self, agent_id: str, message: str, include_full_message: Optional[bool] = False) -> MemGPTResponse:
         """
         Send a message to an agent as a user
 
@@ -1718,7 +1744,7 @@ class LocalClient(AbstractClient):
             response (MemGPTResponse): Response from the agent
         """
         self.interface.clear()
-        return self.send_message(role="user", agent_id=agent_id, message=message)
+        return self.send_message(role="user", agent_id=agent_id, message=message, include_full_message=include_full_message)
 
     def run_command(self, agent_id: str, command: str) -> MemGPTResponse:
         """
@@ -1957,6 +1983,8 @@ class LocalClient(AbstractClient):
         # parse source code/schema
         source_code = parse_source_code(func)
         source_type = "python"
+        if not tags:
+            tags = []
 
         # call server function
         return self.server.create_tool(
@@ -2263,7 +2291,7 @@ class LocalClient(AbstractClient):
         Returns:
             models (List[EmbeddingConfig]): List of embedding models
         """
-        return self.server.list_embedding_models()
+        return [self.server.server_embedding_config]
 
     def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
         """
