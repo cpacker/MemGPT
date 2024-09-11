@@ -401,11 +401,7 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
     """Test that we can update the details of a message"""
 
     # create a message
-    message_response = client.send_message(
-        agent_id=agent.id,
-        message="Test message",
-        role="user",
-    )
+    message_response = client.send_message(agent_id=agent.id, message="Test message", role="user", include_full_message=True)
     print("Messages=", message_response)
     assert isinstance(message_response, MemGPTResponse)
     assert isinstance(message_response.messages[-1], Message)
