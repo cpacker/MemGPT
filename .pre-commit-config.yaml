@@ -11,12 +11,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: autoflake
-        name: autoflake
-        entry: poetry run autoflake
-        language: system
-        types: [python]
-        args: ['--remove-all-unused-imports', '--remove-unused-variables', '--in-place', '--recursive', '--ignore-init-module-imports']
       - id: isort
         name: isort
         entry: poetry run isort

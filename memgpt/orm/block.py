@@ -6,6 +6,7 @@ from sqlalchemy.types import TypeDecorator
 
 from memgpt.orm.mixins import OrganizationMixin
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from memgpt.orm.organization import Organization
 from memgpt.schemas.block import Block as PydanticBlock
 from memgpt.schemas.block import Human, Persona
 import memgpt.utils as utils
@@ -13,6 +14,7 @@ import memgpt.utils as utils
 
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization
+    from sqlalchemy.orm import Session
 
 
 class BlockValue(TypeDecorator):
@@ -84,5 +86,5 @@ class Block(OrganizationMixin, SqlalchemyBase):
             list_files = getattr(utils, f"list_{scope}_files")
             get_text = getattr(utils, f"get_{scope}_text")
             for file in list_files():
-            db_session.add(cls(organization=org, name=file.stem, label=scope, value=get_text(file.stem), is_template=True))
+                db_session.add(cls(organization=org, name=file.stem, label=scope, value=get_text(file.stem), is_template=True))
         db_session.commit()
