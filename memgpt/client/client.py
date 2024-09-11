@@ -1721,6 +1721,10 @@ class LocalClient(AbstractClient):
         messages = self.interface.to_list()
         for m in messages:
             assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
+        memgpt_messages = []
+        for m in messages:
+            memgpt_messages += m.to_memgpt_message()
+        return MemGPTResponse(messages=memgpt_messages, usage=usage)
 
         # format messages
         if include_full_message:
