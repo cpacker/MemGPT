@@ -341,7 +341,7 @@ class Agent(BaseAgent):
 
         # Pull the message objects from the database
         message_objs = [self.persistence_manager.recall_memory.storage.get(msg_id) for msg_id in message_ids]
-        assert all([isinstance(msg, Message) for msg in message_objs])
+        assert all([isinstance(msg, Message) for msg in message_objs]), [type(msg) for msg in message_objs]
 
         return message_objs
 
