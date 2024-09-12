@@ -1,8 +1,8 @@
 import json
 from datetime import datetime, timezone
-from typing import Literal, Optional, Union
+from typing import Annotated, Literal, Optional, Union
 
-from pydantic import BaseModel, field_serializer, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 # MemGPT API style responses (intended to be easier to use vs getting true Message types)
 
@@ -16,6 +16,9 @@ class MemGPTMessage(BaseModel):
         date (datetime): The date the message was created in ISO format
 
     """
+
+    # NOTE: use Pydantic's discriminated unions feature: https://docs.pydantic.dev/latest/concepts/unions/#discriminated-unions
+    # see `message_type` attribute
 
     id: str
     date: datetime
@@ -39,6 +42,7 @@ class SystemMessage(MemGPTMessage):
         date (datetime): The date the message was created in ISO format
     """
 
+    message_type: Literal["system_message"] = "system_message"
     message: str
 
 
@@ -52,6 +56,7 @@ class UserMessage(MemGPTMessage):
         date (datetime): The date the message was created in ISO format
     """
 
+    message_type: Literal["user_message"] = "user_message"
     message: str
 
 
@@ -65,15 +70,18 @@ class InternalMonologue(MemGPTMessage):
         date (datetime): The date the message was created in ISO format
     """
 
+    message_type: Literal["internal_monologue"] = "internal_monologue"
     internal_monologue: str
 
 
 class FunctionCall(BaseModel):
+
     name: str
     arguments: str
 
 
 class FunctionCallDelta(BaseModel):
+
     name: Optional[str]
     arguments: Optional[str]
 
@@ -97,6 +105,7 @@ class FunctionCallMessage(MemGPTMessage):
         date (datetime): The date the message was created in ISO format
     """
 
+    message_type: Literal["function_call"] = "function_call"
     function_call: Union[FunctionCall, FunctionCallDelta]
 
     # NOTE: this is required for the FunctionCallDelta exclude_none to work correctly
@@ -140,17 +149,16 @@ class FunctionReturn(MemGPTMessage):
         date (datetime): The date the message was created in ISO format
     """
 
+    message_type: Literal["function_return"] = "function_return"
     function_return: str
     status: Literal["success", "error"]
-
-
-# MemGPTMessage = Union[InternalMonologue, FunctionCallMessage, FunctionReturn]
 
 
 # Legacy MemGPT API had an additional type "assistant_message" and the "function_call" was a formatted string
 
 
 class AssistantMessage(MemGPTMessage):
+    message_type: Literal["assistant_message"] = "assistant_message"
     assistant_message: str
 
 
@@ -159,3 +167,9 @@ class LegacyFunctionCallMessage(MemGPTMessage):
 
 
 LegacyMemGPTMessage = Union[InternalMonologue, AssistantMessage, LegacyFunctionCallMessage, FunctionReturn]
+
+
+MemGPTMessageUnion = Annotated[
+    Union[SystemMessage, UserMessage, InternalMonologue, FunctionCallMessage, FunctionReturn, AssistantMessage],
+    Field(discriminator="message_type"),
+]
