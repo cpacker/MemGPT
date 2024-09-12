@@ -18,7 +18,7 @@ class MemGPTMessage(BaseModel):
     """
 
     # NOTE: use Pydantic's discriminated unions feature: https://docs.pydantic.dev/latest/concepts/unions/#discriminated-unions
-    # message_type: str = Field(discriminator="message_type")
+    # see `message_type` attribute
 
     id: str
     date: datetime
@@ -76,7 +76,6 @@ class InternalMonologue(MemGPTMessage):
 
 class FunctionCall(BaseModel):
 
-    message_type: Literal["function_call"] = "function_call"
     name: str
     arguments: str
 
@@ -153,9 +152,6 @@ class FunctionReturn(MemGPTMessage):
     message_type: Literal["function_return"] = "function_return"
     function_return: str
     status: Literal["success", "error"]
-
-
-# MemGPTMessage = Union[InternalMonologue, FunctionCallMessage, FunctionReturn]
 
 
 # Legacy MemGPT API had an additional type "assistant_message" and the "function_call" was a formatted string
