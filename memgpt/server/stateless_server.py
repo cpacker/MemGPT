@@ -171,12 +171,12 @@ def delete_agent(session: Session, agent_id: str) -> AgentState:
     pass
 
 
-def list_agents(session: Session, filters, cursor: str, limit: int) -> List[AgentState]:
+def list_agents(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[AgentState]:
     # TODO: add org_id?
     pass
 
 
-def get_agent_name(session: Session, agent_id: str) -> str:
+def get_agent_id(session: Session, org_id: str, name: str) -> str:
     # TODO: add org_id?
     pass
 
