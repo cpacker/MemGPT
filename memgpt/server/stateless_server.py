@@ -181,6 +181,14 @@ def get_agent_name(session: Session, agent_id: str) -> str:
     pass
 
 
+def list_llm_configs(session: Session, org_id: str) -> List[LLMConfig]:
+    pass
+
+
+def list_embedding_configs(session: Session, org_id: str) -> List[EmbeddingConfig]:
+    pass
+
+
 # More advanced private methods
 
 
