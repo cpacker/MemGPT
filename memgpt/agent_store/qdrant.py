@@ -73,7 +73,7 @@ class QdrantStorageConnector(StorageConnector):
         )
         return self.to_records(results)
 
-    def get(self, id: uuid.UUID) -> Optional[RecordType]:
+    def get(self, id: str) -> Optional[RecordType]:
         results = self.qdrant_client.retrieve(
             collection_name=self.table_name,
             ids=[str(id)],
