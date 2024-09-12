@@ -64,9 +64,6 @@ def get_memgpt_server() -> SyncServer:
     assert isinstance(server, SyncServer)
     return server
 
-    # server = SyncServer(default_interface_factory=lambda: StreamingServerInterface())
-    # return server
-
 
 def get_current_interface() -> StreamingServerInterface:
     return StreamingServerInterface
