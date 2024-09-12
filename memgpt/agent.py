@@ -340,8 +340,18 @@ class Agent(BaseAgent):
         """Load a list of messages from recall storage"""
 
         # Pull the message objects from the database
-        message_objs = [self.persistence_manager.recall_memory.storage.get(msg_id) for msg_id in message_ids]
-        assert all([isinstance(msg, Message) for msg in message_objs]), [type(msg) for msg in message_objs]
+        message_objs = []
+        for msg_id in message_ids:
+            msg_obj = self.persistence_manager.recall_memory.storage.get(msg_id)
+            if msg_obj:
+                if isinstance(msg_obj, Message):
+                    message_objs.append(msg_obj)
+                else:
+                    printd(f"Warning - message ID {msg_id} is not a Message object")
+                    warnings.warn(f"Warning - message ID {msg_id} is not a Message object")
+            else:
+                printd(f"Warning - message ID {msg_id} not found in recall storage")
+                warnings.warn(f"Warning - message ID {msg_id} not found in recall storage")
 
         return message_objs
 
