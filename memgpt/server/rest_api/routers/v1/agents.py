@@ -237,7 +237,7 @@ def delete_agent_archival_memory(
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Memory id={memory_id} successfully deleted"})
 
 
-@router.get("/{agent_id}/messages", response_model=List[Message], operation_id="list_agent_messages")
+@router.get("/{agent_id}/messages", response_model=Union[List[Message], List[MemGPTMessage]], operation_id="list_agent_messages")
 def get_agent_messages(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),
