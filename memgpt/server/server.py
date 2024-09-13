@@ -1777,6 +1777,12 @@ class SyncServer(Server):
         NOTE: clearly not thread-safe, only exists to provide basic user_id support for REST API for now
         """
 
+        # Make sure the user_id actually exists
+        if user_id is not None:
+            user_obj = self.get_user(user_id)
+            if not user_obj:
+                raise ValueError(f"User with id {user_id} not found")
+
         self._current_user = user_id
 
     # TODO(ethan) wire back to real method in future ORM PR
