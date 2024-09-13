@@ -1771,6 +1771,14 @@ class SyncServer(Server):
         memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
         return memgpt_agent.retry_message()
 
+    def set_current_user(self, user_id: Optional[str]):
+        """Very hacky way to set the current user for the server, to be replaced once server becomes stateless
+
+        NOTE: clearly not thread-safe, only exists to provide basic user_id support for REST API for now
+        """
+
+        self._current_user = user_id
+
     # TODO(ethan) wire back to real method in future ORM PR
     def get_current_user(self) -> User:
         """Returns the currently authed user.
@@ -1778,6 +1786,15 @@ class SyncServer(Server):
         Since server is the core gateway this needs to pass through server as the
         first touchpoint.
         """
+
+        # Check if _current_user is set and if it's non-null:
+        if hasattr(self, "_current_user") and self._current_user is not None:
+            current_user = self.get_user(self._current_user)
+            if not current_user:
+                warnings.warn(f"Provided user '{self._current_user}' not found, using default user")
+            else:
+                return current_user
+
         # NOTE: same code as local client to get the default user
         config = MemGPTConfig.load()
         user_id = config.anon_clientid
