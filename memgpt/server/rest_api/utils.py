@@ -58,7 +58,10 @@ async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
 
 # TODO: why does this double up the interface?
 def get_memgpt_server() -> SyncServer:
-    server = SyncServer(default_interface_factory=lambda: StreamingServerInterface())
+    # Check if a global server is already instantiated
+    from memgpt.server.rest_api.app import server
+
+    assert isinstance(server, SyncServer)
     return server
 
 
