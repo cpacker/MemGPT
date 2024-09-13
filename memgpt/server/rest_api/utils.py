@@ -61,7 +61,7 @@ def get_memgpt_server() -> SyncServer:
     # Check if a global server is already instantiated
     from memgpt.server.rest_api.app import server
 
-    assert isinstance(server, SyncServer)
+    # assert isinstance(server, SyncServer)
     return server
 
 

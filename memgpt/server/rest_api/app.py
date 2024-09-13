@@ -38,7 +38,9 @@ from memgpt.settings import settings
 # TODO(ethan)
 # NOTE(charles): @ethan I had to add this to get the global as the bottom to work
 interface: StreamingServerInterface = StreamingServerInterface
-server: SyncServer = None
+# global server
+# server: SyncServer = None
+server = SyncServer(default_interface_factory=lambda: interface())
 
 # TODO(ethan): eventuall remove
 if password := settings.server_pass:
@@ -57,8 +59,8 @@ OPENAI_API_PREFIX = "/openai"
 
 def create_application() -> "FastAPI":
     """the application start routine"""
-    global server
-    server = SyncServer(default_interface_factory=lambda: interface())
+    # global server
+    # server = SyncServer(default_interface_factory=lambda: interface())
 
     app = FastAPI(
         swagger_ui_parameters={"docExpansion": "none"},
@@ -136,7 +138,7 @@ def create_application() -> "FastAPI":
     def on_shutdown():
         global server
         server.save_agents()
-        server = None
+        # server = None
 
     return app
 
