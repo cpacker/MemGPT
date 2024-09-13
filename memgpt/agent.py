@@ -1,6 +1,8 @@
 import datetime
 import inspect
 import traceback
+import warnings
+from abc import ABC, abstractmethod
 from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
@@ -23,9 +25,9 @@ from memgpt.persistence_manager import LocalStateManager
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.block import Block
 from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.enums import OptionState
+from memgpt.schemas.enums import MessageRole, OptionState
 from memgpt.schemas.memory import Memory
-from memgpt.schemas.message import Message
+from memgpt.schemas.message import Message, UpdateMessage
 from memgpt.schemas.openai.chat_completion_response import ChatCompletionResponse
 from memgpt.schemas.openai.chat_completion_response import (
     Message as ChatCompletionMessage,
@@ -68,8 +70,8 @@ def compile_memory_metadata_block(
     memory_metadata_block = "\n".join(
         [
             f"### Memory [last modified: {timestamp_str}]",
-            f"{len(recall_memory) if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
-            f"{len(archival_memory) if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
+            f"{recall_memory.count() if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
+            f"{archival_memory.count() if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
             "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
         ]
     )
@@ -188,7 +190,19 @@ def initialize_message_sequence(
     return messages
 
 
-class Agent(object):
+class BaseAgent(ABC):
+    """Base class for all agents. Only two interfaces are required: step and update_state."""
+
+    @abstractmethod
+    def step(self, message: Message) -> List[Message]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def update_state(self) -> AgentState:
+        raise NotImplementedError
+
+
+class Agent(BaseAgent):
     def __init__(
         self,
         interface: AgentInterface,
@@ -326,8 +340,18 @@ class Agent(object):
         """Load a list of messages from recall storage"""
 
         # Pull the message objects from the database
-        message_objs = [self.persistence_manager.recall_memory.storage.get(msg_id) for msg_id in message_ids]
-        assert all([isinstance(msg, Message) for msg in message_objs])
+        message_objs = []
+        for msg_id in message_ids:
+            msg_obj = self.persistence_manager.recall_memory.storage.get(msg_id)
+            if msg_obj:
+                if isinstance(msg_obj, Message):
+                    message_objs.append(msg_obj)
+                else:
+                    printd(f"Warning - message ID {msg_id} is not a Message object")
+                    warnings.warn(f"Warning - message ID {msg_id} is not a Message object")
+            else:
+                printd(f"Warning - message ID {msg_id} not found in recall storage")
+                warnings.warn(f"Warning - message ID {msg_id} not found in recall storage")
 
         return message_objs
 
@@ -355,6 +379,14 @@ class Agent(object):
 
         # also sync the message IDs attribute
         self.agent_state.message_ids = message_ids
+
+    def refresh_message_buffer(self):
+        """Refresh the message buffer from the database"""
+
+        messages_to_sync = self.agent_state.message_ids
+        assert messages_to_sync and all([isinstance(msg_id, str) for msg_id in messages_to_sync])
+
+        self.set_message_buffer(message_ids=messages_to_sync)
 
     def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
@@ -698,7 +730,7 @@ class Agent(object):
             # TODO: ensure we're passing in metadata store from all surfaces
             if ms is not None:
                 should_update = False
-                for block in self.agent_state.memory.to_dict().values():
+                for block in self.agent_state.memory.to_dict()["memory"].values():
                     if not block.get("template", False):
                         should_update = True
                 if should_update:
@@ -1020,7 +1052,7 @@ class Agent(object):
             return
 
         if ms:
-            for block in self.memory.to_dict().values():
+            for block in self.memory.to_dict()["memory"].values():
                 if block.get("templates", False):
                     # we don't expect to update shared memory blocks that
                     # are templates. this is something we could update in the
@@ -1196,6 +1228,147 @@ class Agent(object):
             f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
         )
 
+    def update_message(self, request: UpdateMessage) -> Message:
+        """Update the details of a message associated with an agent"""
+
+        message = self.persistence_manager.recall_memory.storage.get(id=request.id)
+        if message is None:
+            raise ValueError(f"Message with id {request.id} not found")
+        assert isinstance(message, Message), f"Message is not a Message object: {type(message)}"
+
+        # Override fields
+        # NOTE: we try to do some sanity checking here (see asserts), but it's not foolproof
+        if request.role:
+            message.role = request.role
+        if request.text:
+            message.text = request.text
+        if request.name:
+            message.name = request.name
+        if request.tool_calls:
+            assert message.role == MessageRole.assistant, "Tool calls can only be added to assistant messages"
+            message.tool_calls = request.tool_calls
+        if request.tool_call_id:
+            assert message.role == MessageRole.tool, "tool_call_id can only be added to tool messages"
+            message.tool_call_id = request.tool_call_id
+
+        # Save the updated message
+        self.persistence_manager.recall_memory.storage.update(record=message)
+
+        # Return the updated message
+        updated_message = self.persistence_manager.recall_memory.storage.get(id=message.id)
+        if updated_message is None:
+            raise ValueError(f"Error persisting message - message with id {request.id} not found")
+        return updated_message
+
+    # TODO(sarah): should we be creating a new message here, or just editing a message?
+    def rethink_message(self, new_thought: str) -> Message:
+        """Rethink / update the last message"""
+        for x in range(len(self.messages) - 1, 0, -1):
+            msg_obj = self._messages[x]
+            if msg_obj.role == MessageRole.assistant:
+                updated_message = self.update_message(
+                    request=UpdateMessage(
+                        id=msg_obj.id,
+                        text=new_thought,
+                    )
+                )
+                self.refresh_message_buffer()
+                return updated_message
+        raise ValueError(f"No assistant message found to update")
+
+    # TODO(sarah): should we be creating a new message here, or just editing a message?
+    def rewrite_message(self, new_text: str) -> Message:
+        """Rewrite / update the send_message text on the last message"""
+
+        # Walk backwards through the messages until we find an assistant message
+        for x in range(len(self._messages) - 1, 0, -1):
+            if self._messages[x].role == MessageRole.assistant:
+                # Get the current message content
+                message_obj = self._messages[x]
+
+                # The rewrite target is the output of send_message
+                if message_obj.tool_calls is not None and len(message_obj.tool_calls) > 0:
+
+                    # Check that we hit an assistant send_message call
+                    name_string = message_obj.tool_calls[0].function.name
+                    if name_string is None or name_string != "send_message":
+                        raise ValueError("Assistant missing send_message function call")
+
+                    args_string = message_obj.tool_calls[0].function.arguments
+                    if args_string is None:
+                        raise ValueError("Assistant missing send_message function arguments")
+
+                    args_json = json_loads(args_string)
+                    if "message" not in args_json:
+                        raise ValueError("Assistant missing send_message message argument")
+
+                    # Once we found our target, rewrite it
+                    args_json["message"] = new_text
+                    new_args_string = json_dumps(args_json)
+                    message_obj.tool_calls[0].function.arguments = new_args_string
+
+                    # Write the update to the DB
+                    updated_message = self.update_message(
+                        request=UpdateMessage(
+                            id=message_obj.id,
+                            tool_calls=message_obj.tool_calls,
+                        )
+                    )
+                    self.refresh_message_buffer()
+                    return updated_message
+
+        raise ValueError("No assistant message found to update")
+
+    def pop_message(self, count: int = 1) -> List[Message]:
+        """Pop the last N messages from the agent's memory"""
+        n_messages = len(self._messages)
+        popped_messages = []
+        MIN_MESSAGES = 2
+        if n_messages <= MIN_MESSAGES:
+            raise ValueError(f"Agent only has {n_messages} messages in stack, none left to pop")
+        elif n_messages - count < MIN_MESSAGES:
+            raise ValueError(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
+        else:
+            # print(f"Popping last {count} messages from stack")
+            for _ in range(min(count, len(self._messages))):
+                # remove the message from the internal state of the agent
+                deleted_message = self._messages.pop()
+                # then also remove it from recall storage
+                try:
+                    self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+                    popped_messages.append(deleted_message)
+                except Exception as e:
+                    warnings.warn(f"Error deleting message {deleted_message.id} from recall memory: {e}")
+                    self._messages.append(deleted_message)
+                    break
+
+        return popped_messages
+
+    def pop_until_user(self) -> List[Message]:
+        """Pop all messages until the last user message"""
+        if MessageRole.user not in [msg.role for msg in self._messages]:
+            raise ValueError("No user message found in buffer")
+
+        popped_messages = []
+        while len(self._messages) > 0:
+            if self._messages[-1].role == MessageRole.user:
+                # we want to pop up to the last user message
+                return popped_messages
+            else:
+                popped_messages.append(self.pop_message(count=1))
+
+        raise ValueError("No user message found in buffer")
+
+    def retry_message(self) -> List[Message]:
+        """Retry / regenerate the last message"""
+
+        self.pop_until_user()
+        user_message = self.pop_message(count=1)[0]
+        messages, _, _, _, _ = self.step(user_message=user_message.text, return_dicts=False)
+
+        assert messages is not None and all(isinstance(msg, Message) for msg in messages), "step() returned non-Message objects"
+        return messages
+
 
 def save_agent(agent: Agent, ms: MetadataStore):
     """Save agent to metadata store"""
@@ -1225,7 +1398,7 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
     NOTE: we are assuming agent.update_state has already been called.
     """
 
-    for block_dict in agent.memory.to_dict().values():
+    for block_dict in agent.memory.to_dict()["memory"].values():
         # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
         if block_dict.get("user_id", None) is None:
             block_dict["user_id"] = agent.agent_state.user_id

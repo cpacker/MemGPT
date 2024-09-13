@@ -21,7 +21,7 @@ from typing import (
 from docstring_parser import parse
 from pydantic import BaseModel, create_model
 
-from memgpt.utils import json_dumps, json_loads
+from memgpt.utils import json_dumps
 
 
 class PydanticDataType(Enum):

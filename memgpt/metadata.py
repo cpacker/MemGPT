@@ -31,6 +31,7 @@ from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import Memory
+from memgpt.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
@@ -77,6 +78,40 @@ class EmbeddingConfigColumn(TypeDecorator):
     def process_result_value(self, value, dialect):
         if value:
             return EmbeddingConfig(**value)
+        return value
+
+
+class ToolCallColumn(TypeDecorator):
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value, dialect):
+        if value:
+            values = []
+            for v in value:
+                if isinstance(v, ToolCall):
+                    values.append(v.model_dump())
+                else:
+                    values.append(v)
+            return values
+
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value:
+            tools = []
+            for tool_value in value:
+                if "function" in tool_value:
+                    tool_call_function = ToolCallFunction(**tool_value["function"])
+                    del tool_value["function"]
+                else:
+                    tool_call_function = None
+                tools.append(ToolCall(function=tool_call_function, **tool_value))
+            return tools
         return value
 
 
@@ -277,7 +312,17 @@ class BlockModel(Base):
                 user_id=self.user_id,
             )
         else:
-            raise ValueError(f"Block with label {self.label} is not supported")
+            return Block(
+                id=self.id,
+                value=self.value,
+                limit=self.limit,
+                name=self.name,
+                template=self.template,
+                label=self.label,
+                metadata_=self.metadata_,
+                description=self.description,
+                user_id=self.user_id,
+            )
 
 
 class ToolModel(Base):
@@ -696,13 +741,13 @@ class MetadataStore:
         self,
         user_id: Optional[str],
         label: Optional[str] = None,
-        template: bool = True,
+        template: Optional[bool] = None,
         name: Optional[str] = None,
         id: Optional[str] = None,
-    ) -> List[Block]:
+    ) -> Optional[List[Block]]:
         """List available blocks"""
         with self.session_maker() as session:
-            query = session.query(BlockModel).filter(BlockModel.template == template)
+            query = session.query(BlockModel)
 
             if user_id:
                 query = query.filter(BlockModel.user_id == user_id)
@@ -715,6 +760,9 @@ class MetadataStore:
 
             if id:
                 query = query.filter(BlockModel.id == id)
+
+            if template:
+                query = query.filter(BlockModel.template == template)
 
             results = query.all()
 

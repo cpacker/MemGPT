@@ -2,7 +2,7 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from pydantic import Field, field_validator
 
@@ -10,7 +10,15 @@ from memgpt.constants import TOOL_CALL_ID_MAX_LEN
 from memgpt.local_llm.constants import INNER_THOUGHTS_KWARG
 from memgpt.schemas.enums import MessageRole
 from memgpt.schemas.memgpt_base import MemGPTBase
-from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
+from memgpt.schemas.memgpt_message import (
+    FunctionCall,
+    FunctionCallMessage,
+    FunctionReturn,
+    InternalMonologue,
+    MemGPTMessage,
+    SystemMessage,
+    UserMessage,
+)
 from memgpt.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from memgpt.utils import get_utc_time, is_utc_datetime, json_dumps
 
@@ -49,14 +57,40 @@ class MessageCreate(BaseMessage):
     name: Optional[str] = Field(None, description="The name of the participant.")
 
 
+class UpdateMessage(BaseMessage):
+    """Request to update a message"""
+
+    id: str = Field(..., description="The id of the message.")
+    role: Optional[MessageRole] = Field(None, description="The role of the participant.")
+    text: Optional[str] = Field(None, description="The text of the message.")
+    # NOTE: probably doesn't make sense to allow remapping user_id or agent_id (vs creating a new message)
+    # user_id: Optional[str] = Field(None, description="The unique identifier of the user.")
+    # agent_id: Optional[str] = Field(None, description="The unique identifier of the agent.")
+    # NOTE: we probably shouldn't allow updating the model field, otherwise this loses meaning
+    # model: Optional[str] = Field(None, description="The model used to make the function call.")
+    name: Optional[str] = Field(None, description="The name of the participant.")
+    # NOTE: we probably shouldn't allow updating the created_at field, right?
+    # created_at: Optional[datetime] = Field(None, description="The time the message was created.")
+    tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
+    tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
+
+
 class Message(BaseMessage):
     """
-    Representation of a message sent.
+    MemGPT's internal representation of a message. Includes methods to convert to/from LLM provider formats.
 
-    Messages can be:
-    - agent->user (role=='agent')
-    - user->agent and system->agent (role=='user')
-    - or function/tool call returns (role=='function'/'tool').
+    Attributes:
+        id (str): The unique identifier of the message.
+        role (MessageRole): The role of the participant.
+        text (str): The text of the message.
+        user_id (str): The unique identifier of the user.
+        agent_id (str): The unique identifier of the agent.
+        model (str): The model used to make the function call.
+        name (str): The name of the participant.
+        created_at (datetime): The time the message was created.
+        tool_calls (List[ToolCall]): The list of tool calls requested.
+        tool_call_id (str): The id of the tool call.
+
     """
 
     id: str = BaseMessage.generate_id_field()
@@ -88,12 +122,90 @@ class Message(BaseMessage):
         json_message["created_at"] = self.created_at.isoformat()
         return json_message
 
-    def to_memgpt_message(self) -> Union[List[MemGPTMessage], List[LegacyMemGPTMessage]]:
-        """Convert message object (in DB format) to the style used by the original MemGPT API
+    def to_memgpt_message(self) -> List[MemGPTMessage]:
+        """Convert message object (in DB format) to the style used by the original MemGPT API"""
 
-        NOTE: this may split the message into two pieces (e.g. if the assistant has inner thoughts + function call)
-        """
-        raise NotImplementedError
+        messages = []
+
+        if self.role == MessageRole.assistant:
+            if self.text is not None:
+                # This is type InnerThoughts
+                messages.append(
+                    InternalMonologue(
+                        id=self.id,
+                        date=self.created_at,
+                        internal_monologue=self.text,
+                    )
+                )
+            if self.tool_calls is not None:
+                # This is type FunctionCall
+                for tool_call in self.tool_calls:
+                    messages.append(
+                        FunctionCallMessage(
+                            id=self.id,
+                            date=self.created_at,
+                            function_call=FunctionCall(
+                                name=tool_call.function.name,
+                                arguments=tool_call.function.arguments,
+                            ),
+                        )
+                    )
+        elif self.role == MessageRole.tool:
+            # This is type FunctionReturn
+            # Try to interpret the function return, recall that this is how we packaged:
+            # def package_function_response(was_success, response_string, timestamp=None):
+            #     formatted_time = get_local_time() if timestamp is None else timestamp
+            #     packaged_message = {
+            #         "status": "OK" if was_success else "Failed",
+            #         "message": response_string,
+            #         "time": formatted_time,
+            #     }
+            assert self.text is not None, self
+            try:
+                function_return = json.loads(self.text)
+                status = function_return["status"]
+                if status == "OK":
+                    status_enum = "success"
+                elif status == "Failed":
+                    status_enum = "error"
+                else:
+                    raise ValueError(f"Invalid status: {status}")
+            except json.JSONDecodeError:
+                raise ValueError(f"Failed to decode function return: {self.text}")
+            messages.append(
+                # TODO make sure this is what the API returns
+                # function_return may not match exactly...
+                FunctionReturn(
+                    id=self.id,
+                    date=self.created_at,
+                    function_return=self.text,
+                    status=status_enum,
+                )
+            )
+        elif self.role == MessageRole.user:
+            # This is type UserMessage
+            assert self.text is not None, self
+            messages.append(
+                UserMessage(
+                    id=self.id,
+                    date=self.created_at,
+                    message=self.text,
+                )
+            )
+        elif self.role == MessageRole.system:
+            # This is type SystemMessage
+            assert self.text is not None, self
+            messages.append(
+                SystemMessage(
+                    id=self.id,
+                    date=self.created_at,
+                    message=self.text,
+                )
+            )
+        else:
+            raise ValueError(self.role)
+
+        return messages
 
     @staticmethod
     def dict_to_message(
@@ -263,7 +375,7 @@ class Message(BaseMessage):
     def to_openai_dict(
         self,
         max_tool_id_length: int = TOOL_CALL_ID_MAX_LEN,
-        put_inner_thoughts_in_kwargs: bool = True,
+        put_inner_thoughts_in_kwargs: bool = False,
     ) -> dict:
         """Go from Message class to ChatCompletion message object"""
 
@@ -329,7 +441,12 @@ class Message(BaseMessage):
         return openai_message
 
     def to_anthropic_dict(self, inner_thoughts_xml_tag="thinking") -> dict:
-        # raise NotImplementedError
+        """
+        Convert to an Anthropic message dictionary
+
+        Args:
+            inner_thoughts_xml_tag (str): The XML tag to wrap around inner thoughts
+        """
 
         def add_xml_tag(string: str, xml_tag: Optional[str]):
             # NOTE: Anthropic docs recommends using <thinking> tag when using CoT + tool use
@@ -401,12 +518,13 @@ class Message(BaseMessage):
         return anthropic_message
 
     def to_google_ai_dict(self, put_inner_thoughts_in_kwargs: bool = True) -> dict:
-        """Go from Message class to Google AI REST message object
-
-        type Content: https://ai.google.dev/api/rest/v1/Content / https://ai.google.dev/api/rest/v1beta/Content
-            parts[]: Part
-            role: str ('user' or 'model')
         """
+        Go from Message class to Google AI REST message object
+        """
+        # type Content: https://ai.google.dev/api/rest/v1/Content / https://ai.google.dev/api/rest/v1beta/Content
+        #     parts[]: Part
+        #     role: str ('user' or 'model')
+
         if self.role != "tool" and self.name is not None:
             raise UserWarning(f"Using Google AI with non-null 'name' field ({self.name}) not yet supported.")
 
@@ -513,20 +631,21 @@ class Message(BaseMessage):
         function_response_prefix: Optional[str] = "[CHATBOT function returned]",
         inner_thoughts_as_kwarg: Optional[bool] = False,
     ) -> List[dict]:
-        """Cohere chat_history dicts only have 'role' and 'message' fields
-
-        NOTE: returns a list of dicts so that we can convert:
-          assistant [cot]: "I'll send a message"
-          assistant [func]: send_message("hi")
-          tool: {'status': 'OK'}
-        to:
-          CHATBOT.text: "I'll send a message"
-          SYSTEM.text: [CHATBOT called function] send_message("hi")
-          SYSTEM.text: [CHATBOT function returned] {'status': 'OK'}
-
-        TODO: update this prompt style once guidance from Cohere on
-        embedded function calls in multi-turn conversation become more clear
         """
+        Cohere chat_history dicts only have 'role' and 'message' fields
+        """
+
+        # NOTE: returns a list of dicts so that we can convert:
+        #  assistant [cot]: "I'll send a message"
+        #  assistant [func]: send_message("hi")
+        #  tool: {'status': 'OK'}
+        # to:
+        #  CHATBOT.text: "I'll send a message"
+        #  SYSTEM.text: [CHATBOT called function] send_message("hi")
+        #  SYSTEM.text: [CHATBOT function returned] {'status': 'OK'}
+
+        # TODO: update this prompt style once guidance from Cohere on
+        # embedded function calls in multi-turn conversation become more clear
 
         if self.role == "system":
             """

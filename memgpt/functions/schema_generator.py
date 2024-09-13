@@ -144,7 +144,15 @@ def generate_schema_from_args_schema(
     properties = {}
     required = []
     for field_name, field in args_schema.__fields__.items():
-        properties[field_name] = {"type": field.type_.__name__, "description": field.field_info.description}
+        if field.type_.__name__ == "str":
+            field_type = "string"
+        elif field.type_.__name__ == "int":
+            field_type = "integer"
+        elif field.type_.__name__ == "bool":
+            field_type = "boolean"
+        else:
+            field_type = field.type_.__name__
+        properties[field_name] = {"type": field_type, "description": field.field_info.description}
         if field.required:
             required.append(field_name)
 
@@ -158,7 +166,28 @@ def generate_schema_from_args_schema(
     return function_call_json
 
 
-def generate_tool_wrapper(tool_name: str) -> str:
+def generate_langchain_tool_wrapper(tool_name: str) -> str:
+    import_statement = f"from langchain_community.tools import {tool_name}"
+
+    # NOTE: this will fail for tools like 'wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())' since it needs to pass an argument to the tool instantiation
+    # https://python.langchain.com/v0.1/docs/integrations/tools/wikipedia/
+    tool_instantiation = f"tool = {tool_name}()"
+    run_call = f"return tool._run(**kwargs)"
+    func_name = f"run_{tool_name.lower()}"
+
+    # Combine all parts into the wrapper function
+    wrapper_function_str = f"""
+def {func_name}(**kwargs):
+    if 'self' in kwargs:
+        del kwargs['self']
+    {import_statement}
+    {tool_instantiation}
+    {run_call}
+"""
+    return func_name, wrapper_function_str
+
+
+def generate_crewai_tool_wrapper(tool_name: str) -> str:
     import_statement = f"from crewai_tools import {tool_name}"
     tool_instantiation = f"tool = {tool_name}()"
     run_call = f"return tool._run(**kwargs)"
@@ -167,6 +196,8 @@ def generate_tool_wrapper(tool_name: str) -> str:
     # Combine all parts into the wrapper function
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
+    if 'self' in kwargs:
+        del kwargs['self']
     {import_statement}
     {tool_instantiation}
     {run_call}

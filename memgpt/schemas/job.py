@@ -14,7 +14,17 @@ class JobBase(MemGPTBase):
 
 
 class Job(JobBase):
-    """Representation of offline jobs."""
+    """
+    Representation of offline jobs, used for tracking status of data loading tasks (involving parsing and embedding documents).
+
+    Parameters:
+        id (str): The unique identifier of the job.
+        status (JobStatus): The status of the job.
+        created_at (datetime): The unix timestamp of when the job was created.
+        completed_at (datetime): The unix timestamp of when the job was completed.
+        user_id (str): The unique identifier of the user associated with the.
+
+    """
 
     id: str = JobBase.generate_id_field()
     status: JobStatus = Field(default=JobStatus.created, description="The status of the job.")

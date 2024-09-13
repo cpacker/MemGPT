@@ -1,14 +1,25 @@
+import json
 import uuid
 
 import pytest
 
 import memgpt.utils as utils
 from memgpt.constants import BASE_TOOLS
+from memgpt.schemas.enums import MessageRole
 
 utils.DEBUG = True
 from memgpt.config import MemGPTConfig
 from memgpt.schemas.agent import CreateAgent
+from memgpt.schemas.memgpt_message import (
+    FunctionCallMessage,
+    FunctionReturn,
+    InternalMonologue,
+    MemGPTMessage,
+    SystemMessage,
+    UserMessage,
+)
 from memgpt.schemas.memory import ChatMemory
+from memgpt.schemas.message import Message
 from memgpt.schemas.source import SourceCreate
 from memgpt.schemas.user import UserCreate
 from memgpt.server.server import SyncServer
@@ -83,7 +94,7 @@ def test_error_on_nonexistent_agent(server, user_id, agent_id):
 
 
 @pytest.mark.order(1)
-def test_user_message(server, user_id, agent_id):
+def test_user_message_memory(server, user_id, agent_id):
     try:
         server.user_message(user_id=user_id, agent_id=agent_id, message="/memory")
         raise Exception("user_message call should have failed")
@@ -223,3 +234,209 @@ def test_get_archival_memory(server, user_id, agent_id):
     # test safe empty return
     passage_none = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=1000, count=1000)
     assert len(passage_none) == 0
+
+
+def _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=False):
+    """Reverse is off by default, the GET goes in chronological order"""
+
+    messages = server.get_agent_recall_cursor(
+        user_id=user_id,
+        agent_id=agent_id,
+        limit=1000,
+        reverse=reverse,
+    )
+    # messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000)
+    assert all(isinstance(m, Message) for m in messages)
+
+    memgpt_messages = server.get_agent_recall_cursor(
+        user_id=user_id,
+        agent_id=agent_id,
+        limit=1000,
+        reverse=reverse,
+        return_message_object=False,
+    )
+    # memgpt_messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000, return_message_object=False)
+    assert all(isinstance(m, MemGPTMessage) for m in memgpt_messages)
+
+    # Loop through `messages` while also looping through `memgpt_messages`
+    # Each message in `messages` should have 1+ corresponding messages in `memgpt_messages`
+    # If role of message (in `messages`) is `assistant`,
+    # then there should be two messages in `memgpt_messages`, one which is type InternalMonologue and one which is type FunctionCallMessage.
+    # If role of message (in `messages`) is `user`, then there should be one message in `memgpt_messages` which is type UserMessage.
+    # If role of message (in `messages`) is `system`, then there should be one message in `memgpt_messages` which is type SystemMessage.
+    # If role of message (in `messages`) is `tool`, then there should be one message in `memgpt_messages` which is type FunctionReturn.
+
+    print("MESSAGES (obj):")
+    for i, m in enumerate(messages):
+        # print(m)
+        print(f"{i}: {m.role}, {m.text[:50]}...")
+        # print(m.role)
+
+    print("MEMGPT_MESSAGES:")
+    for i, m in enumerate(memgpt_messages):
+        print(f"{i}: {type(m)} ...{str(m)[-50:]}")
+
+    # Collect system messages and their texts
+    system_messages = [m for m in messages if m.role == MessageRole.system]
+    system_texts = [m.text for m in system_messages]
+
+    # If there are multiple system messages, print the diff
+    if len(system_messages) > 1:
+        print("Differences between system messages:")
+        for i in range(len(system_texts) - 1):
+            for j in range(i + 1, len(system_texts)):
+                import difflib
+
+                diff = difflib.unified_diff(
+                    system_texts[i].splitlines(),
+                    system_texts[j].splitlines(),
+                    fromfile=f"System Message {i+1}",
+                    tofile=f"System Message {j+1}",
+                    lineterm="",
+                )
+                print("\n".join(diff))
+    else:
+        print("There is only one or no system message.")
+
+    memgpt_message_index = 0
+    for i, message in enumerate(messages):
+        assert isinstance(message, Message)
+
+        print(f"\n\nmessage {i}: {message.role}, {message.text[:50] if message.text else 'null'}")
+        while memgpt_message_index < len(memgpt_messages):
+            memgpt_message = memgpt_messages[memgpt_message_index]
+            print(f"memgpt_message {memgpt_message_index}: {str(memgpt_message)[:50]}")
+
+            if message.role == MessageRole.assistant:
+                print(f"i={i}, M=assistant, MM={type(memgpt_message)}")
+
+                # If reverse, function call will come first
+                if reverse:
+
+                    # If there are multiple tool calls, we should have multiple back to back FunctionCallMessages
+                    if message.tool_calls is not None:
+                        for tool_call in message.tool_calls:
+                            assert isinstance(memgpt_message, FunctionCallMessage)
+                            memgpt_message_index += 1
+                            memgpt_message = memgpt_messages[memgpt_message_index]
+
+                    if message.text is not None:
+                        assert isinstance(memgpt_message, InternalMonologue)
+                        memgpt_message_index += 1
+                        memgpt_message = memgpt_messages[memgpt_message_index]
+                    else:
+                        # If there's no inner thoughts then there needs to be a tool call
+                        assert message.tool_calls is not None
+
+                else:
+
+                    if message.text is not None:
+                        assert isinstance(memgpt_message, InternalMonologue)
+                        memgpt_message_index += 1
+                        memgpt_message = memgpt_messages[memgpt_message_index]
+                    else:
+                        # If there's no inner thoughts then there needs to be a tool call
+                        assert message.tool_calls is not None
+
+                    # If there are multiple tool calls, we should have multiple back to back FunctionCallMessages
+                    if message.tool_calls is not None:
+                        for tool_call in message.tool_calls:
+                            assert isinstance(memgpt_message, FunctionCallMessage)
+                            assert tool_call.function.name == memgpt_message.function_call.name
+                            assert tool_call.function.arguments == memgpt_message.function_call.arguments
+                            memgpt_message_index += 1
+                            memgpt_message = memgpt_messages[memgpt_message_index]
+
+            elif message.role == MessageRole.user:
+                print(f"i={i}, M=user, MM={type(memgpt_message)}")
+                assert isinstance(memgpt_message, UserMessage)
+                assert message.text == memgpt_message.message
+                memgpt_message_index += 1
+
+            elif message.role == MessageRole.system:
+                print(f"i={i}, M=system, MM={type(memgpt_message)}")
+                assert isinstance(memgpt_message, SystemMessage)
+                assert message.text == memgpt_message.message
+                memgpt_message_index += 1
+
+            elif message.role == MessageRole.tool:
+                print(f"i={i}, M=tool, MM={type(memgpt_message)}")
+                assert isinstance(memgpt_message, FunctionReturn)
+                # Check the the value in `text` is the same
+                assert message.text == memgpt_message.function_return
+                memgpt_message_index += 1
+
+            else:
+                raise ValueError(f"Unexpected message role: {message.role}")
+
+            # Move to the next message in the original messages list
+            break
+
+
+def test_get_messages_memgpt_format(server, user_id, agent_id):
+    _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=False)
+    _test_get_messages_memgpt_format(server, user_id, agent_id, reverse=True)
+
+
+def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
+    """Test the /rethink, /rewrite, and /retry commands in the CLI
+
+    - "rethink" replaces the inner thoughts of the last assistant message
+    - "rewrite" replaces the text of the last assistant message
+    - "retry" retries the last assistant message
+    """
+
+    # Send an initial message
+    server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
+
+    # Grab the raw Agent object
+    memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
+    assert memgpt_agent._messages[-1].role == MessageRole.tool
+    assert memgpt_agent._messages[-2].role == MessageRole.assistant
+    last_agent_message = memgpt_agent._messages[-2]
+
+    # Try "rethink"
+    new_thought = "I am thinking about the meaning of life, the universe, and everything. Bananas?"
+    assert last_agent_message.text is not None and last_agent_message.text != new_thought
+    server.rethink_agent_message(agent_id=agent_id, new_thought=new_thought)
+
+    # Grab the agent object again (make sure it's live)
+    memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
+    assert memgpt_agent._messages[-1].role == MessageRole.tool
+    assert memgpt_agent._messages[-2].role == MessageRole.assistant
+    last_agent_message = memgpt_agent._messages[-2]
+    assert last_agent_message.text == new_thought
+
+    # Try "rewrite"
+    assert last_agent_message.tool_calls is not None
+    assert last_agent_message.tool_calls[0].function.name == "send_message"
+    assert last_agent_message.tool_calls[0].function.arguments is not None
+    args_json = json.loads(last_agent_message.tool_calls[0].function.arguments)
+    assert "message" in args_json and args_json["message"] is not None and args_json["message"] != ""
+
+    new_text = "Why hello there my good friend! Is 42 what you're looking for? Bananas?"
+    server.rewrite_agent_message(agent_id=agent_id, new_text=new_text)
+
+    # Grab the agent object again (make sure it's live)
+    memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
+    assert memgpt_agent._messages[-1].role == MessageRole.tool
+    assert memgpt_agent._messages[-2].role == MessageRole.assistant
+    last_agent_message = memgpt_agent._messages[-2]
+    args_json = json.loads(last_agent_message.tool_calls[0].function.arguments)
+    assert "message" in args_json and args_json["message"] is not None and args_json["message"] == new_text
+
+    # Try retry
+    server.retry_agent_message(agent_id=agent_id)
+
+    # Grab the agent object again (make sure it's live)
+    memgpt_agent = server._get_or_load_agent(agent_id=agent_id)
+    assert memgpt_agent._messages[-1].role == MessageRole.tool
+    assert memgpt_agent._messages[-2].role == MessageRole.assistant
+    last_agent_message = memgpt_agent._messages[-2]
+
+    # Make sure the inner thoughts changed
+    assert last_agent_message.text is not None and last_agent_message.text != new_thought
+
+    # Make sure the message changed
+    args_json = json.loads(last_agent_message.tool_calls[0].function.arguments)
+    assert "message" in args_json and args_json["message"] is not None and args_json["message"] != new_text

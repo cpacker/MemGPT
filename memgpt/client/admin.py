@@ -16,8 +16,14 @@ class Admin:
     - Generating user keys
     """
 
-    def __init__(self, base_url: str, token: str):
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        api_prefix: str = "v1",
+    ):
         self.base_url = base_url
+        self.api_prefix = api_prefix
         self.token = token
         self.headers = {"accept": "application/json", "content-type": "application/json", "authorization": f"Bearer {token}"}
 
@@ -27,35 +33,36 @@ class Admin:
             params["cursor"] = str(cursor)
         if limit:
             params["limit"] = limit
-        response = requests.get(f"{self.base_url}/admin/users", params=params, headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/admin/users", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
         return [User(**user) for user in response.json()]
 
     def create_key(self, user_id: str, key_name: Optional[str] = None) -> APIKey:
         request = APIKeyCreate(user_id=user_id, name=key_name)
-        response = requests.post(f"{self.base_url}/admin/users/keys", headers=self.headers, json=request.model_dump())
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/admin/users/keys", headers=self.headers, json=request.model_dump())
         if response.status_code != 200:
             raise HTTPError(response.json())
         return APIKey(**response.json())
 
     def get_keys(self, user_id: str) -> List[APIKey]:
         params = {"user_id": str(user_id)}
-        response = requests.get(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
         return [APIKey(**key) for key in response.json()]
 
     def delete_key(self, api_key: str) -> APIKey:
         params = {"api_key": api_key}
-        response = requests.delete(f"{self.base_url}/admin/users/keys", params=params, headers=self.headers)
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/admin/users/keys", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
         return APIKey(**response.json())
 
     def create_user(self, name: Optional[str] = None) -> User:
         request = UserCreate(name=name)
-        response = requests.post(f"{self.base_url}/admin/users", headers=self.headers, json=request.model_dump())
+        print("YYYYY Pinging", f"{self.base_url}/{self.api_prefix}/admin/users")
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/admin/users", headers=self.headers, json=request.model_dump())
         if response.status_code != 200:
             raise HTTPError(response.json())
         response_json = response.json()
@@ -63,7 +70,7 @@ class Admin:
 
     def delete_user(self, user_id: str) -> User:
         params = {"user_id": str(user_id)}
-        response = requests.delete(f"{self.base_url}/admin/users", params=params, headers=self.headers)
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/admin/users", params=params, headers=self.headers)
         if response.status_code != 200:
             raise HTTPError(response.json())
         return User(**response.json())
@@ -114,23 +121,23 @@ class Admin:
         CreateToolRequest(**data)  # validate
 
         # make REST request
-        response = requests.post(f"{self.base_url}/admin/tools", json=data, headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/admin/tools", json=data, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return ToolModel(**response.json())
 
     def list_tools(self):
-        response = requests.get(f"{self.base_url}/admin/tools", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/admin/tools", headers=self.headers)
         return ListToolsResponse(**response.json()).tools
 
     def delete_tool(self, name: str):
-        response = requests.delete(f"{self.base_url}/admin/tools/{name}", headers=self.headers)
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/admin/tools/{name}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to delete tool: {response.text}")
         return response.json()
 
     def get_tool(self, name: str):
-        response = requests.get(f"{self.base_url}/admin/tools/{name}", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/admin/tools/{name}", headers=self.headers)
         if response.status_code == 404:
             return None
         elif response.status_code != 200:
