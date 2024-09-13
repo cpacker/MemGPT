@@ -155,7 +155,24 @@ logger = get_logger(__name__)
 from sqlmodel import Session
 
 # TODO: eventually import these models from orm/ folder
-from memgpt.metadata import AgentModel
+from memgpt.metadata import AgentModel, PassageModel
+
+## ORGANIZATION
+
+# TODO: users must be created with an organizaiton, or be added to a default organization
+
+
+def get_organization(session: Session, user_id: str) -> Organization:
+    pass
+
+
+def list_organizations(session: Session, filters, cursor: str, limit: int) -> List[Organization]:
+    pass
+
+
+def create_organization(session: Session, request: OrganizationCreate) -> Organization:
+    pass
+
 
 ## AGENTS
 
@@ -359,6 +376,15 @@ def list_messages(session: Session, filters, cursor: str, limit: int) -> List[Me
     pass
 
 
+def query_messages_text(session: Session, query: str, filters) -> List[Message]:
+    # TODO: filters should include agent_id
+    pass
+
+
+def query_messages_date(session: Session, query: str, filters) -> List[Message]:
+    pass
+
+
 ## PASSAGES (Note: called from `Agent`)
 
 
@@ -367,10 +393,15 @@ def create_passage(session: Session, request: Passage) -> Passage:
 
 
 def get_passage(session: Session, passage_id: str) -> Passage:
-    pass
+    return session.query(PassageModel).filter(PassageModel.id == passage_id).scalar()
 
 
 def list_passages(session: Session, filters, cursor: str, limit: int) -> List[Passage]:
+    # TODO: filters should filter by either the source_id or agent_id
+    pass
+
+
+def query_passages_vector(session: Session, query: str, filters) -> List[Passage]:
     # TODO: filters should filter by either the source_id or agent_id
     pass
 

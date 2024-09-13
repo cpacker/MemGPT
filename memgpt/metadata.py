@@ -1,12 +1,15 @@
 """ Metadata store for user/agent/data_source information"""
 
+import base64
 import os
 import secrets
 import traceback
 from typing import List, Optional
 
+import numpy as np
 from sqlalchemy import (
     BIGINT,
+    BINARY,
     JSON,
     Boolean,
     Column,
@@ -19,10 +22,13 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.exc import InterfaceError, OperationalError
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, mapped_column, sessionmaker
 from sqlalchemy.sql import func
+from sqlalchemy_json import MutableJson
 
 from memgpt.config import MemGPTConfig
+from memgpt.constants import MAX_EMBEDDING_DIM
+from memgpt.metadata import EmbeddingConfigColumn, ToolCallColumn
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.api_key import APIKey
 from memgpt.schemas.block import Block, Human, Persona
@@ -31,7 +37,11 @@ from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import Memory
+
+# from memgpt.schemas.message import Message, Passage, Record, RecordType, ToolCall
+from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completions import ToolCall, ToolCallFunction
+from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
@@ -39,6 +49,35 @@ from memgpt.settings import settings
 from memgpt.utils import enforce_types, get_utc_time, printd
 
 Base = declarative_base()
+
+
+class CommonVector(TypeDecorator):
+    """Common type for representing vectors in SQLite"""
+
+    impl = BINARY
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(BINARY())
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return value
+        # Ensure value is a numpy array
+        if isinstance(value, list):
+            value = np.array(value, dtype=np.float32)
+        # Serialize numpy array to bytes, then encode to base64 for universal compatibility
+        return base64.b64encode(value.tobytes())
+
+    def process_result_value(self, value, dialect):
+        if not value:
+            return value
+        # Check database type and deserialize accordingly
+        if dialect.name == "sqlite":
+            # Decode from base64 and convert back to numpy array
+            value = base64.b64decode(value)
+        # For PostgreSQL, value is already in bytes
+        return np.frombuffer(value, dtype=np.float32)
 
 
 class LLMConfigColumn(TypeDecorator):
@@ -378,6 +417,115 @@ class JobModel(Base):
             created_at=self.created_at,
             completed_at=self.completed_at,
             metadata_=self.metadata_,
+        )
+
+
+class MessageModel(Base):
+    """Defines data model for storing Message objects"""
+
+    __abstract__ = True  # this line is necessary
+
+    # Assuming message_id is the primary key
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False)
+    agent_id = Column(String, nullable=False)
+
+    # openai info
+    role = Column(String, nullable=False)
+    text = Column(String)  # optional: can be null if function call
+    model = Column(String)  # optional: can be null if LLM backend doesn't require specifying
+    name = Column(String)  # optional: multi-agent only
+
+    # tool call request info
+    # if role == "assistant", this MAY be specified
+    # if role != "assistant", this must be null
+    # TODO align with OpenAI spec of multiple tool calls
+    # tool_calls = Column(ToolCallColumn)
+    tool_calls = Column(ToolCallColumn)
+
+    # tool call response info
+    # if role == "tool", then this must be specified
+    # if role != "tool", this must be null
+    tool_call_id = Column(String)
+
+    # Add a datetime column, with default value as the current time
+    created_at = Column(DateTime(timezone=True))
+    Index("message_idx_user", user_id, agent_id),
+
+    def __repr__(self):
+        return f"<Message(message_id='{self.id}', text='{self.text}')>"
+
+    def to_record(self):
+        # calls = (
+        #    [ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls]
+        #    if self.tool_calls
+        #    else None
+        # )
+        # if calls:
+        #    assert isinstance(calls[0], ToolCall)
+        if self.tool_calls and len(self.tool_calls) > 0:
+            assert isinstance(self.tool_calls[0], ToolCall), type(self.tool_calls[0])
+            for tool in self.tool_calls:
+                assert isinstance(tool, ToolCall), type(tool)
+        return Message(
+            user_id=self.user_id,
+            agent_id=self.agent_id,
+            role=self.role,
+            name=self.name,
+            text=self.text,
+            model=self.model,
+            # tool_calls=[ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls] if self.tool_calls else None,
+            tool_calls=self.tool_calls,
+            tool_call_id=self.tool_call_id,
+            created_at=self.created_at,
+            id=self.id,
+        )
+
+
+class PassageModel(Base):
+    """Defines data model for storing Passages (consisting of text, embedding)"""
+
+    __abstract__ = True  # this line is necessary
+
+    # Assuming passage_id is the primary key
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False)
+    text = Column(String)
+    doc_id = Column(String)
+    agent_id = Column(String)
+    source_id = Column(String)
+
+    # vector storage
+    if dialect == "sqlite":
+        embedding = Column(CommonVector)
+    else:
+        from pgvector.sqlalchemy import Vector
+
+        embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+
+    embedding_config = Column(EmbeddingConfigColumn)
+    metadata_ = Column(MutableJson)
+
+    # Add a datetime column, with default value as the current time
+    created_at = Column(DateTime(timezone=True))
+
+    Index("passage_idx_user", user_id, agent_id, doc_id),
+
+    def __repr__(self):
+        return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
+
+    def to_record(self):
+        return Passage(
+            text=self.text,
+            embedding=self.embedding,
+            embedding_config=self.embedding_config,
+            doc_id=self.doc_id,
+            user_id=self.user_id,
+            id=self.id,
+            source_id=self.source_id,
+            agent_id=self.agent_id,
+            metadata_=self.metadata_,
+            created_at=self.created_at,
         )
 
 
