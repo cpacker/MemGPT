@@ -6,7 +6,8 @@ from typing import Optional
 
 import typer
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.cors import CORSMiddleware
 
 from memgpt.server.constants import REST_DEFAULT_PORT
@@ -83,7 +84,8 @@ def create_application() -> "FastAPI":
                 server.set_current_user(user_id)
             except ValueError as e:
                 # Return an HTTP 401 Unauthorized response
-                raise HTTPException(status_code=401, detail=str(e))
+                # raise HTTPException(status_code=401, detail=str(e))
+                return JSONResponse(status_code=401, content={"detail": str(e)})
         else:
             server.set_current_user(None)
         response = await call_next(request)
