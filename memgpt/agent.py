@@ -191,11 +191,33 @@ def initialize_message_sequence(
 
 
 class BaseAgent(ABC):
-    """Base class for all agents. Only two interfaces are required: step and update_state."""
+    """
+    Abstract class for all agents.
+    Only two interfaces are required: step and update_state.
+    """
 
+    # @abstractmethod
+    # def step(self, message: Message) -> List[Message]:
+    #     raise NotImplementedError
+
+    # TODO cleanup
     @abstractmethod
-    def step(self, message: Message) -> List[Message]:
-        raise NotImplementedError
+    def step(
+        self,
+        user_message: Union[Message, str],  # NOTE: should be json.dump(dict)
+        first_message: bool = False,
+        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
+        skip_verify: bool = False,
+        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
+        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
+        stream: bool = False,  # TODO move to config?
+        timestamp: Optional[datetime.datetime] = None,
+        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        ms: Optional[MetadataStore] = None,
+    ) -> Tuple[List[Union[dict, Message]], bool, bool, bool]:
+        """
+        Top-level event message handler for the agent.
+        """
 
     @abstractmethod
     def update_state(self) -> AgentState:
