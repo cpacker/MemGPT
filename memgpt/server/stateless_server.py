@@ -54,7 +54,7 @@ from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memgpt_message import MemGPTMessage
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
-from memgpt.schemas.message import Message, UpdateMessage
+from memgpt.schemas.message import Message, MessageCreate, UpdateMessage
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
@@ -154,16 +154,23 @@ logger = get_logger(__name__)
 # CRUID methods (Create, Read, Update, Insert, Delete)
 from sqlmodel import Session
 
+# TODO: eventually import these models from orm/ folder
+from memgpt.metadata import AgentModel
 
-def create_agent(session: Session, agent: CreateAgent) -> AgentState:
-    pass
+## AGENTS
+
+
+def create_agent(session: Session, request: CreateAgent) -> AgentState:
+    # TODO: check if the name is already created in the org?
+    session.add(AgentModel(**request.model_dump()))
+    session.commit()
 
 
 def get_agent(session: Session, agent_id: str) -> AgentState:
-    pass
+    return session.query(AgentModel).filter(AgentModel.id == agent_id).scalar()
 
 
-def update_agent(session: Session, agent_id: str, agent: UpdateAgentState) -> AgentState:
+def update_agent(session: Session, agent_id: str, request: UpdateAgentState) -> AgentState:
     pass
 
 
@@ -181,6 +188,156 @@ def get_agent_id(session: Session, org_id: str, name: str) -> str:
     pass
 
 
+def get_archival_memory_summary(session: Session, agent_id: str) -> ArchivalMemorySummary:
+    pass
+
+
+def get_recall_memory_summary(session: Session, agent_id: str) -> RecallMemorySummary:
+    pass
+
+
+## USERS
+
+
+def create_user(session: Session, request: UserCreate) -> User:
+    pass
+
+
+def get_user(session: Session, user_id: str) -> User:
+    pass
+
+
+def update_user(session: Session, user_id: str, request: UserCreate) -> User:
+    pass
+
+
+def delete_user(session: Session, user_id: str) -> User:
+    pass
+
+
+def list_users(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[User]:
+    pass
+
+
+def get_user_id(session: Session, org_id: str, name: str) -> str:
+    pass
+
+
+## TOOLS
+
+
+def create_tool(session: Session, request: ToolCreate) -> Tool:
+    pass
+
+
+def get_tool(session: Session, tool_id: str) -> Tool:
+    pass
+
+
+def update_tool(session: Session, tool_id: str, request: ToolUpdate) -> Tool:
+    pass
+
+
+def delete_tool(session: Session, tool_id: str) -> Tool:
+    pass
+
+
+def list_tools(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[Tool]:
+    pass
+
+
+def get_tool_id(session: Session, org_id: str, name: str) -> str:
+    pass
+
+
+## SOURCES
+
+
+def create_source(session: Session, request: SourceCreate) -> Source:
+    pass
+
+
+def get_source(session: Session, source_id: str) -> Source:
+    pass
+
+
+def update_source(session: Session, source_id: str, request: SourceUpdate) -> Source:
+    pass
+
+
+def delete_source(session: Session, source_id: str) -> Source:
+    pass
+
+
+def list_sources(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[Source]:
+    pass
+
+
+def get_source_id(session: Session, org_id: str, name: str) -> str:
+    pass
+
+
+## BLOCKS
+
+
+def create_block(session: Session, request: CreateBlock) -> Block:
+    pass
+
+
+def get_block(session: Session, block_id: str) -> Block:
+    pass
+
+
+def update_block(session: Session, block_id: str, request: UpdateBlock) -> Block:
+    pass
+
+
+def delete_block(session: Session, block_id: str) -> Block:
+    pass
+
+
+def list_blocks(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[Block]:
+    pass
+
+
+## MESSAGES (Note: called from `Agent`)
+
+
+def create_message(session: Session, request: MessageCreate) -> Message:
+    pass
+
+
+def get_message(session: Session, message_id: str) -> Message:
+    pass
+
+
+def update_message(session: Session, message_id: str, request: UpdateMessage) -> Message:
+    pass
+
+
+def list_messages(session: Session, filters, cursor: str, limit: int) -> List[Message]:
+    pass
+
+
+## PASSAGES (Note: called from `Agent`)
+
+
+def create_passage(session: Session, request: Passage) -> Passage:
+    pass
+
+
+def get_passage(session: Session, passage_id: str) -> Passage:
+    pass
+
+
+def list_passages(session: Session, filters, cursor: str, limit: int) -> List[Passage]:
+    # TODO: filters should filter by either the source_id or agent_id
+    pass
+
+
+## CONFIGS
+
+
 def list_llm_configs(session: Session, org_id: str) -> List[LLMConfig]:
     pass
 
@@ -188,6 +345,20 @@ def list_llm_configs(session: Session, org_id: str) -> List[LLMConfig]:
 def list_embedding_configs(session: Session, org_id: str) -> List[EmbeddingConfig]:
     pass
 
+
+## ORGNIZATION  (TODO: do last)
+
+# def create_organization(session: Session, request: OrganizationCreate) -> Organization:
+#    pass
+#
+# def get_organization(session: Session, org_id: str) -> Organization:
+#    pass
+#
+# def update_organization(session: Session, org_id: str, request: OrganizationUpdate) -> Organization:
+#    pass
+#
+# def delete_organization(session: Session, org_id: str) -> Organization:
+#    pass
 
 # More advanced private methods
 
