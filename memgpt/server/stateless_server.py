@@ -50,7 +50,7 @@ from memgpt.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from memgpt.schemas.enums import JobStatus
-from memgpt.schemas.job import Job
+from memgpt.schemas.job import Job, JobUpdate
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memgpt_message import MemGPTMessage
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
@@ -166,6 +166,23 @@ def create_agent(session: Session, request: CreateAgent) -> AgentState:
     session.commit()
 
 
+def load_agent(session: Session, agent_state: AgentState) -> Agent:
+    """
+    Loads an instantiated `Agent` class given the persisted `agent_state`.
+    A DB session object is also passed in to allow the agent to interact with the DB (e.g. to save messages, archival memories, search recall/archival)
+
+    Args:
+        session (Session): The DB session object
+        agent_state (AgentState): The persisted agent state
+
+    Returns:
+        agent (Agent): The instantiated agent object
+    """
+    # TODO: add an interface? @charles
+    agent = Agent(agent_state=agent_state, session=session)
+    return agent
+
+
 def get_agent(session: Session, agent_id: str) -> AgentState:
     return session.query(AgentModel).filter(AgentModel.id == agent_id).scalar()
 
@@ -274,6 +291,29 @@ def list_sources(session: Session, org_id: str, filters, cursor: str, limit: int
 
 
 def get_source_id(session: Session, org_id: str, name: str) -> str:
+    pass
+
+
+## JOBS
+
+
+def create_job(session: Session) -> Job:
+    # This simply creates a job with the status CREATED
+    pass
+
+
+def get_job(session: Session, job_id: str) -> Job:
+    pass
+
+
+def update_job(session: Session, job_id: str, request: JobUpdate) -> Job:
+    pass
+
+
+## DATA LOADING
+
+
+def load_data(session: Session, connector: DataConnector, source_id: str) -> List[Document]:
     pass
 
 
