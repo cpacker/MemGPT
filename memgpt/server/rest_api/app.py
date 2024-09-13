@@ -38,7 +38,7 @@ from memgpt.settings import settings
 # TODO(ethan)
 # NOTE(charles): @ethan I had to add this to get the global as the bottom to work
 interface: StreamingServerInterface = StreamingServerInterface
-global server
+# global server
 # server: SyncServer = None
 server = SyncServer(default_interface_factory=lambda: interface())
 
