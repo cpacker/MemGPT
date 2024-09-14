@@ -1,13 +1,15 @@
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
-from pydantic import Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.memory import Memory
+from memgpt.schemas.message import Message
+from memgpt.schemas.openai.chat_completion_response import UsageStatistics
 
 
 class BaseAgent(MemGPTBase, validate_assignment=True):
@@ -102,3 +104,14 @@ class UpdateAgentState(BaseAgent):
     # TODO: determine if these should be editable via this schema?
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
     memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
+
+
+class AgentStepResponse(BaseModel):
+    # TODO remove support for list of dicts
+    messages: Union[List[Message], List[dict]] = Field(..., description="The messages generated during the agent's step.")
+    heartbeat_request: bool = Field(..., description="Whether the agent requested a heartbeat (i.e. follow-up execution).")
+    function_failed: bool = Field(..., description="Whether the agent step ended because a function call failed.")
+    in_context_memory_warning: bool = Field(
+        ..., description="Whether the agent step ended because the in-context memory is near its limit."
+    )
+    usage: UsageStatistics = Field(..., description="Usage statistics of the LLM call during the agent's step.")

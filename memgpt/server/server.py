@@ -320,7 +320,7 @@ class SyncServer(Server):
             total_usage = UsageStatistics()
             step_count = 0
             while True:
-                new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
+                step_response = memgpt_agent.step(
                     next_input_message,
                     first_message=False,
                     skip_verify=no_verify,
@@ -329,6 +329,12 @@ class SyncServer(Server):
                     timestamp=timestamp,
                     ms=self.ms,
                 )
+                step_response.messages
+                heartbeat_request = step_response.heartbeat_request
+                function_failed = step_response.function_failed
+                token_warning = step_response.in_context_memory_warning
+                usage = step_response.usage
+
                 step_count += 1
                 total_usage += usage
                 counter += 1
