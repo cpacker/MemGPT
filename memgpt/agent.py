@@ -607,7 +607,7 @@ class Agent(BaseAgent):
             # (Still parsing function args)
             # Handle requests for immediate heartbeat
             heartbeat_request = function_args.pop("request_heartbeat", None)
-            if not (isinstance(heartbeat_request, bool) or heartbeat_request is None):
+            if not isinstance(heartbeat_request, bool) or heartbeat_request is None:
                 printd(
                     f"{CLI_WARNING_PREFIX}'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}"
                 )
