@@ -12,7 +12,7 @@ from letta.schemas.letta_message import (
     FunctionReturn,
     InternalMonologue,
 )
-from letta.schemas.letta_response import lettaStreamingResponse
+from letta.schemas.letta_response import LettaStreamingResponse
 
 
 def _sse_post(url: str, data: dict, headers: dict) -> Generator[LettaStreamingResponse, None, None]:
