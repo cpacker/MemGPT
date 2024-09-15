@@ -519,6 +519,9 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to get in-context memory: {response.text}")
         return Memory(**response.json())
+    
+    def get_core_memory(self, agent_id: str) -> Memory:
+        return self.get_in_context_memory(agent_id)
 
     def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
         """
@@ -1615,6 +1618,9 @@ class LocalClient(AbstractClient):
         """
         memory = self.server.get_agent_memory(agent_id=agent_id)
         return memory
+    
+    def get_core_memory(self, agent_id: str) -> Memory:
+        return self.get_in_context_memory(agent_id)
 
     def update_in_context_memory(self, agent_id: str, section: str, value: Union[List[str], str]) -> Memory:
         """

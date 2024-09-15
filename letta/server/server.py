@@ -216,7 +216,7 @@ class SyncServer(Server):
         for agent_d in self.active_agents:
             try:
                 save_agent(agent_d["agent"], self.ms)
-                logger.info(f"Saved agent {agent_d['agent_id']}")
+                logger.debug(f"Saved agent {agent_d['agent_id']}")
             except Exception as e:
                 logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}:\n{e}")
 
@@ -253,14 +253,14 @@ class SyncServer(Server):
             interface = self.default_interface_factory()
 
         try:
-            logger.info(f"Grabbing agent user_id={user_id} agent_id={agent_id} from database")
+            logger.debug(f"Grabbing agent user_id={user_id} agent_id={agent_id} from database")
             agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
             if not agent_state:
                 logger.exception(f"agent_id {agent_id} does not exist")
                 raise ValueError(f"agent_id {agent_id} does not exist")
 
             # Instantiate an agent object using the state retrieved
-            logger.info(f"Creating an agent object")
+            logger.debug(f"Creating an agent object")
             tool_objs = []
             for name in agent_state.tools:
                 tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
@@ -275,7 +275,7 @@ class SyncServer(Server):
             letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
-            logger.info(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
+            logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
             self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=letta_agent)
             return letta_agent
 
@@ -431,17 +431,17 @@ class SyncServer(Server):
             n_messages = len(letta_agent.messages)
             MIN_MESSAGES = 2
             if n_messages <= MIN_MESSAGES:
-                logger.info(f"Agent only has {n_messages} messages in stack, none left to pop")
+                logger.debug(f"Agent only has {n_messages} messages in stack, none left to pop")
             elif n_messages - pop_amount < MIN_MESSAGES:
-                logger.info(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
+                logger.debug(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
             else:
-                logger.info(f"Popping last {pop_amount} messages from stack")
+                logger.debug(f"Popping last {pop_amount} messages from stack")
                 for _ in range(min(pop_amount, len(letta_agent.messages))):
                     letta_agent.messages.pop()
 
         elif command.lower() == "retry":
             # TODO this needs to also modify the persistence manager
-            logger.info(f"Retrying for another answer")
+            logger.debug(f"Retrying for another answer")
             while len(letta_agent.messages) > 0:
                 if letta_agent.messages[-1].get("role") == "user":
                     # we want to pop up to the last user message and send it again
@@ -629,7 +629,7 @@ class SyncServer(Server):
             request.name = create_random_username()
         user = User(name=request.name)
         self.ms.create_user(user)
-        logger.info(f"Created new user from config: {user}")
+        logger.debug(f"Created new user from config: {user}")
 
         # add default for the user
         assert user.id is not None, f"User id is None: {user}"
@@ -715,7 +715,7 @@ class SyncServer(Server):
 
         # save agent
         save_agent(agent, self.ms)
-        logger.info(f"Created new agent from config: {agent}")
+        logger.debug(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
         # return AgentState
