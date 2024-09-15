@@ -338,7 +338,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert len(archival_memories) == 0
 
     # load a file into a source (non-blocking job)
-    filename = "tests/data/letta_paper.pdf"
+    filename = "tests/data/memgpt_paper.pdf"
     upload_job = client.load_file_into_source(filename=filename, source_id=source.id, blocking=False)
     print("Upload job", upload_job, upload_job.status, upload_job.metadata_)
 
