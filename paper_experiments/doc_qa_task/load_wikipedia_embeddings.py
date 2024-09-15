@@ -10,9 +10,9 @@ from absl import app, flags
 from icml_experiments.utils import get_experiment_config
 from tqdm import tqdm
 
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.cli.cli_config import delete
-from memgpt.data_types import Passage
+from letta.agent_store.storage import StorageConnector, TableType
+from letta.cli.cli_config import delete
+from letta.data_types import Passage
 
 # Create an empty list to store the JSON objects
 source_name = "wikipedia"

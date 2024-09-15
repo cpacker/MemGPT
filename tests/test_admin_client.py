@@ -3,7 +3,7 @@ import time
 
 import pytest
 
-from memgpt import Admin
+from letta import Admin
 
 test_base_url = "http://localhost:8283"
 
@@ -12,7 +12,7 @@ test_server_token = "test_server_token"
 
 
 def run_server():
-    from memgpt.server.rest_api.app import start_server
+    from letta.server.rest_api.app import start_server
 
     print("Starting server...")
     start_server(debug=True)

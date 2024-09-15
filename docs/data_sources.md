@@ -1,20 +1,20 @@
 ---
 title: Attaching data sources
-excerpt: Connecting external data to your MemGPT agent
+excerpt: Connecting external data to your Letta agent
 category: 6580d34ee5e4d00068bf2a1d
 ---
 
-MemGPT supports pre-loading data into archival memory. In order to made data accessible to your agent, you must load data in with `memgpt load`, then attach the data source to your agent. You can configure where archival memory is stored by configuring the [storage backend](storage).
+Letta supports pre-loading data into archival memory. In order to made data accessible to your agent, you must load data in with `letta load`, then attach the data source to your agent. You can configure where archival memory is stored by configuring the [storage backend](storage).
 
 ### Viewing available data sources
 
 You can view available data sources with:
 
 ```sh CLI
-memgpt list sources
+letta list sources
 ```
 ```python Python
-from memgpt import create_client
+from letta import create_client
 
 # Connect to the server as a user
 client = create_client()
@@ -29,7 +29,7 @@ client.list_sources()
 +----------------+----------+----------+
 | short-stories  |  local   |  agent_1 |
 |      arxiv     |  local   |          |
-|  memgpt-docs   |  local   |  agent_1 |
+|  letta-docs   |  local   |  agent_1 |
 +----------------+----------+----------+
 ```
 
@@ -41,16 +41,16 @@ Attaching a data source to your agent loads the data into your agent's archival 
 
 
 ```sh CLI
-memgpt run 
+letta run 
 ...
 > Enter your message: /attach
 ? Select data source (Use arrow keys)
  » short-stories
    arxiv
-   memgpt-docs
+   letta-docs
 ```
 ```python Python
-from memgpt import create_client
+from letta import create_client
 
 # Connect to the server as a user
 client = create_client()
@@ -67,14 +67,14 @@ client.attach_source_to_agent(source_name="short-storie", agent_id=agent.id)
 
 ### Loading a file or directory
 
-You can load a file, list of files, or directly into MemGPT with the following command:
+You can load a file, list of files, or directly into Letta with the following command:
 
 ```sh
-memgpt load directory --name <NAME> \
+letta load directory --name <NAME> \
     [--input-dir <DIRECTORY>] [--input-files <FILE1> <FILE2>...] [--recursive]
 ```
 ```python Python
-from memgpt import create_client
+from letta import create_client
 
 # Connect to the server as a user
 client = create_client()
@@ -87,10 +87,10 @@ client.load_file_into_source(filename=filename, source_id=source.id)
 ```
 
 ### Loading with custom connectors 
-You can implement your own data connectors in MemGPT, and use them to load data into data sources: 
+You can implement your own data connectors in Letta, and use them to load data into data sources: 
 
 ```python Python
-from memgpt.data_sources.connectors import DataConnector
+from letta.data_sources.connectors import DataConnector
 
 class DummyDataConnector(DataConnector):
     """Fake data connector for texting which yields document/passage texts from a provided list"""

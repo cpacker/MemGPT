@@ -1,11 +1,11 @@
 services:
-  memgpt_db:
+  letta_db:
     image: ankane/pgvector:v0.5.1
     networks:
       default:
         aliases:
           - pgvector_db
-          - memgpt-db
+          - letta-db
     environment:
       - POSTGRES_USER=${MEMGPT_PG_USER}
       - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD}
@@ -15,11 +15,11 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
-  memgpt_server:
-    image: memgpt/memgpt-server:latest
-    hostname: memgpt-server
+  letta_server:
+    image: letta/letta-server:latest
+    hostname: letta-server
     depends_on:
-      - memgpt_db
+      - letta_db
     ports:
       - "8083:8083"
       - "8283:8283"
@@ -27,7 +27,7 @@ services:
       - .env
     environment:
       - POSTGRES_URI=postgresql://${MEMGPT_PG_USER}:${MEMGPT_PG_PASSWORD}@pgvector_db:5432/${MEMGPT_PG_DB} # TODO: deprecate
-      - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # memgpt server password
+      - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # letta server password
       - MEMGPT_PG_DB=${MEMGPT_PG_DB}
       - MEMGPT_PG_USER=${MEMGPT_PG_USER}
       - MEMGPT_PG_PASSWORD=${MEMGPT_PG_PASSWORD}
@@ -35,10 +35,10 @@ services:
       - MEMGPT_PG_PORT=5432
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     volumes:
-      - ./configs/server_config.yaml:/root/.memgpt/config # config file
-      - ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
-  memgpt_nginx:
-    hostname: memgpt-nginx
+      - ./configs/server_config.yaml:/root/.letta/config # config file
+      - ~/.letta/credentials:/root/.letta/credentials # credentials file
+  letta_nginx:
+    hostname: letta-nginx
     image: nginx:stable-alpine3.17-slim
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf

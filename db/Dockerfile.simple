@@ -4,57 +4,57 @@
 # It has no dependencies except for the base image.
 
 # Build with:
-# docker build -t memgpt-db -f db/Dockerfile.simple .
+# docker build -t letta-db -f db/Dockerfile.simple .
 #
-# -t memgpt-db: tag the image with the name memgpt-db (tag defaults to :latest)
+# -t letta-db: tag the image with the name letta-db (tag defaults to :latest)
 # -f db/Dockerfile.simple: use the Dockerfile at db/Dockerfile.simple (this file)
 # .: build the image from the current directory, not really used.
 
 #
 # Run the first time with:
 # docker run -d --rm \
-#   --name memgpt-db \
+#   --name letta-db \
 #   -p 5432:5432 \
 #   -e POSTGRES_PASSWORD=password \
-#   -v memgpt_db:/var/lib/postgresql/data \
-#   memgpt-db:latest
+#   -v letta_db:/var/lib/postgresql/data \
+#   letta-db:latest
 #
 # -d: run in the background
 # --rm: remove the container when it exits
-# --name memgpt-db: name the container memgpt-db
+# --name letta-db: name the container letta-db
 # -p 5432:5432: map port 5432 on the host to port 5432 in the container
-# -v memgpt_db:/var/lib/postgresql/data: map the volume memgpt_db to /var/lib/postgresql/data in the container
-# memgpt-db:latest: use the image memgpt-db:latest
+# -v letta_db:/var/lib/postgresql/data: map the volume letta_db to /var/lib/postgresql/data in the container
+# letta-db:latest: use the image letta-db:latest
 #
 # After the first time, you do not need the POSTGRES_PASSWORD.
 # docker run -d --rm \
-#   --name memgpt-db \
+#   --name letta-db \
 #   -p 5432:5432 \
-#   -v memgpt_db:/var/lib/postgresql/data \
-#   memgpt-db:latest
+#   -v letta_db:/var/lib/postgresql/data \
+#   letta-db:latest
 
-# Rather than a docker volume (memgpt_db), you can use an absolute path to a directory on the host.
+# Rather than a docker volume (letta_db), you can use an absolute path to a directory on the host.
 #
 # You can stop the container with:
-#  docker stop memgpt-db
+#  docker stop letta-db
 #
 # You access the database with:
 # postgresql+pg8000://user:password@localhost:5432/db
-# where user, password, and db are the values you set in the init-memgpt.sql file,
-# all defaulting to 'memgpt'.
+# where user, password, and db are the values you set in the init-letta.sql file,
+# all defaulting to 'letta'.
 
 # Version tags can be found here: https://hub.docker.com/r/ankane/pgvector/tags
 ARG PGVECTOR=v0.5.1
 # Set up a minimal postgres image
 FROM ankane/pgvector:${PGVECTOR}
-RUN sed -e 's/^    //' >/docker-entrypoint-initdb.d/01-initmemgpt.sql <<'EOF'
-    -- Title: Init MemGPT Database
+RUN sed -e 's/^    //' >/docker-entrypoint-initdb.d/01-initletta.sql <<'EOF'
+    -- Title: Init Letta Database
 
     -- Fetch the docker secrets, if they are available.
-    -- Otherwise fall back to environment variables, or hardwired 'memgpt'
-    \set db_user `([ -r /var/run/secrets/memgpt-user ] && cat /var/run/secrets/memgpt-user) || echo "${MEMGPT_USER:-memgpt}"`
-    \set db_password `([ -r /var/run/secrets/memgpt-password ] && cat /var/run/secrets/memgpt-password) || echo "${MEMGPT_PASSWORD:-memgpt}"`
-    \set db_name `([ -r /var/run/secrets/memgpt-db ] && cat /var/run/secrets/memgpt-db) || echo "${MEMGPT_DB:-memgpt}"`
+    -- Otherwise fall back to environment variables, or hardwired 'letta'
+    \set db_user `([ -r /var/run/secrets/letta-user ] && cat /var/run/secrets/letta-user) || echo "${MEMGPT_USER:-letta}"`
+    \set db_password `([ -r /var/run/secrets/letta-password ] && cat /var/run/secrets/letta-password) || echo "${MEMGPT_PASSWORD:-letta}"`
+    \set db_name `([ -r /var/run/secrets/letta-db ] && cat /var/run/secrets/letta-db) || echo "${MEMGPT_DB:-letta}"`
 
     CREATE USER :"db_user"
         WITH PASSWORD :'db_password'

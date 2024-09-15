@@ -1,6 +1,6 @@
 ---
 title: vLLM
-excerpt: Setting up MemGPT with vLLM
+excerpt: Setting up Letta with vLLM
 category: 6580da9a40bb410016b8b0c3
 ---
 
@@ -16,7 +16,7 @@ python -m vllm.entrypoints.openai.api_server \
 
 vLLM will automatically download the model (if it's not already downloaded) and store it in your [HuggingFace cache directory](https://huggingface.co/docs/datasets/cache).
 
-In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at vLLM:
+In your terminal where you're running Letta, run `letta configure` to set the default backend for Letta to point at vLLM:
 
 ```text
 # if you are running vLLM locally, the default IP address + port will be http://localhost:8000
@@ -27,8 +27,8 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ...
 ```
 
-If you have an existing agent that you want to move to the vLLM backend, add extra flags to `memgpt run`:
+If you have an existing agent that you want to move to the vLLM backend, add extra flags to `letta run`:
 
 ```sh
-memgpt run --agent your_agent --model-endpoint-type vllm --model-endpoint http://localhost:8000 --model ehartford/dolphin-2.2.1-mistral-7b
+letta run --agent your_agent --model-endpoint-type vllm --model-endpoint http://localhost:8000 --model ehartford/dolphin-2.2.1-mistral-7b
 ```

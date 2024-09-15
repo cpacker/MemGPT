@@ -1,6 +1,6 @@
-<a id="module-memgpt.client.client"></a>
+<a id="module-letta.client.client"></a>
 
-### *class* memgpt.client.client.AbstractClient(auto_save: bool = False, debug: bool = False)
+### *class* letta.client.client.AbstractClient(auto_save: bool = False, debug: bool = False)
 
 Bases: `object`
 
@@ -364,7 +364,7 @@ Rename an agent
   * **agent_id** (`str`) – ID of the agent
   * **new_name** (`str`) – New name for the agent
 
-#### send_message(message: str, role: str, agent_id: str | None = None, agent_name: str | None = None, stream: bool | None = False) → MemGPTResponse
+#### send_message(message: str, role: str, agent_id: str | None = None, agent_name: str | None = None, stream: bool | None = False) → LettaResponse
 
 Send a message to an agent
 
@@ -375,7 +375,7 @@ Send a message to an agent
   * **agent_name** (`str`) – Name of the agent
   * **stream** (`bool`) – Stream the response
 * **Returns:**
-  *response (MemGPTResponse)* – Response from the agent
+  *response (LettaResponse)* – Response from the agent
 
 #### update_agent(agent_id: str, name: str | None = None, description: str | None = None, system: str | None = None, tools: List[str] | None = None, metadata: Dict | None = None, llm_config: LLMConfig | None = None, embedding_config: EmbeddingConfig | None = None, message_ids: List[str] | None = None, memory: Memory | None = None)
 
@@ -446,7 +446,7 @@ Update a tool
 * **Returns:**
   *tool (Tool)* – Updated tool
 
-#### user_message(agent_id: str, message: str) → MemGPTResponse
+#### user_message(agent_id: str, message: str) → LettaResponse
 
 Send a message to an agent as a user
 
@@ -454,11 +454,11 @@ Send a message to an agent as a user
   * **agent_id** (`str`) – ID of the agent
   * **message** (`str`) – Message to send
 * **Returns:**
-  *response (MemGPTResponse)* – Response from the agent
+  *response (LettaResponse)* – Response from the agent
 
-### *class* memgpt.client.client.LocalClient(auto_save: bool = False, user_id: str | None = None, debug: bool = False)
+### *class* letta.client.client.LocalClient(auto_save: bool = False, user_id: str | None = None, debug: bool = False)
 
-Bases: [`AbstractClient`](#memgpt.client.client.AbstractClient)
+Bases: [`AbstractClient`](#letta.client.client.AbstractClient)
 
 #### \_\_init_\_(auto_save: bool = False, user_id: str | None = None, debug: bool = False)
 
@@ -832,7 +832,7 @@ Rename an agent
   * **agent_id** (`str`) – ID of the agent
   * **new_name** (`str`) – New name for the agent
 
-#### run_command(agent_id: str, command: str) → MemGPTResponse
+#### run_command(agent_id: str, command: str) → LettaResponse
 
 Run a command on the agent
 
@@ -840,11 +840,11 @@ Run a command on the agent
   * **agent_id** (`str`) – The agent ID
   * **command** (`str`) – The command to run
 * **Returns:**
-  *MemGPTResponse* – The response from the agent
+  *LettaResponse* – The response from the agent
 
 #### save()
 
-#### send_message(message: str, role: str, agent_id: str | None = None, agent_name: str | None = None, stream: bool | None = False) → MemGPTResponse
+#### send_message(message: str, role: str, agent_id: str | None = None, agent_name: str | None = None, stream: bool | None = False) → LettaResponse
 
 Send a message to an agent
 
@@ -855,7 +855,7 @@ Send a message to an agent
   * **agent_name** (`str`) – Name of the agent
   * **stream** (`bool`) – Stream the response
 * **Returns:**
-  *response (MemGPTResponse)* – Response from the agent
+  *response (LettaResponse)* – Response from the agent
 
 #### update_agent(agent_id: str, name: str | None = None, description: str | None = None, system: str | None = None, tools: List[str] | None = None, metadata: Dict | None = None, llm_config: LLMConfig | None = None, embedding_config: EmbeddingConfig | None = None, message_ids: List[str] | None = None, memory: Memory | None = None)
 
@@ -923,7 +923,7 @@ Update existing tool
 * **Returns:**
   *tool (Tool)* – Updated tool object
 
-#### user_message(agent_id: str, message: str) → MemGPTResponse
+#### user_message(agent_id: str, message: str) → LettaResponse
 
 Send a message to an agent as a user
 
@@ -931,11 +931,11 @@ Send a message to an agent as a user
   * **agent_id** (`str`) – ID of the agent
   * **message** (`str`) – Message to send
 * **Returns:**
-  *response (MemGPTResponse)* – Response from the agent
+  *response (LettaResponse)* – Response from the agent
 
-### *class* memgpt.client.client.RESTClient(base_url: str, token: str, debug: bool = False)
+### *class* letta.client.client.RESTClient(base_url: str, token: str, debug: bool = False)
 
-Bases: [`AbstractClient`](#memgpt.client.client.AbstractClient)
+Bases: [`AbstractClient`](#letta.client.client.AbstractClient)
 
 #### agent_exists(agent_id: str) → bool
 
@@ -1106,7 +1106,7 @@ Get in-context messages of an agent
 
 #### get_job_status(job_id: str)
 
-#### get_messages(agent_id: str, before: str | None = None, after: str | None = None, limit: int | None = 1000) → MemGPTResponse
+#### get_messages(agent_id: str, before: str | None = None, after: str | None = None, limit: int | None = 1000) → LettaResponse
 
 Get messages from an agent
 
@@ -1257,7 +1257,7 @@ Rename an agent
 
 #### save()
 
-#### send_message(agent_id: str, message: str, role: str, name: str | None = None, stream: bool | None = False) → MemGPTResponse
+#### send_message(agent_id: str, message: str, role: str, name: str | None = None, stream: bool | None = False) → LettaResponse
 
 Send a message to an agent
 
@@ -1268,7 +1268,7 @@ Send a message to an agent
   * **agent_name** (`str`) – Name of the agent
   * **stream** (`bool`) – Stream the response
 * **Returns:**
-  *response (MemGPTResponse)* – Response from the agent
+  *response (LettaResponse)* – Response from the agent
 
 #### update_agent(agent_id: str, name: str | None = None, description: str | None = None, system: str | None = None, tools: List[str] | None = None, metadata: Dict | None = None, llm_config: LLMConfig | None = None, embedding_config: EmbeddingConfig | None = None, message_ids: List[str] | None = None, memory: Memory | None = None)
 
@@ -1338,7 +1338,7 @@ Update existing tool
 * **Returns:**
   *tool (Tool)* – Updated tool object
 
-#### user_message(agent_id: str, message: str) → MemGPTResponse
+#### user_message(agent_id: str, message: str) → LettaResponse
 
 Send a message to an agent as a user
 
@@ -1346,6 +1346,6 @@ Send a message to an agent as a user
   * **agent_id** (`str`) – ID of the agent
   * **message** (`str`) – Message to send
 * **Returns:**
-  *response (MemGPTResponse)* – Response from the agent
+  *response (LettaResponse)* – Response from the agent
 
-### memgpt.client.client.create_client(base_url: str | None = None, token: str | None = None)
+### letta.client.client.create_client(base_url: str | None = None, token: str | None = None)

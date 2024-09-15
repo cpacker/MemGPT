@@ -25,8 +25,8 @@ def test():
     return "Headers received. Check your console."
 
 
-def route_reply_to_memgpt_api(message):
-    # send a POST request to a MemGPT server
+def route_reply_to_letta_api(message):
+    # send a POST request to a Letta server
 
     url = f"{MEMGPT_SERVER_URL}/api/agents/{MEMGPT_AGENT_ID}/messages"
     headers = {
@@ -58,7 +58,7 @@ def sms_reply():
     msg_str = f"New message from {from_number}: {message_body}"
     print(msg_str)
 
-    route_reply_to_memgpt_api(msg_str)
+    route_reply_to_letta_api(msg_str)
     return str("status = OK")
 
     # Start our response

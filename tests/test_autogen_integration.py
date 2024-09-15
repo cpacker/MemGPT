@@ -10,17 +10,17 @@
 # def test_agent_groupchat():
 #
 #    # Define the path to the script you want to test
-#    script_path = "memgpt/autogen/examples/agent_groupchat.py"
+#    script_path = "letta/autogen/examples/agent_groupchat.py"
 #
 #    # Dynamically get the project's root directory (assuming this script is run from the root)
 #    # project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 #    # print(project_root)
-#    # project_root = os.path.join(project_root, "MemGPT")
+#    # project_root = os.path.join(project_root, "Letta")
 #    # print(project_root)
 #    # sys.exit(1)
 #
 #    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-#    project_root = os.path.join(project_root, "memgpt")
+#    project_root = os.path.join(project_root, "letta")
 #    print(f"Adding the following to PATH: {project_root}")
 #
 #    # Prepare the environment, adding the project root to PYTHONPATH

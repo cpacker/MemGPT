@@ -1,14 +1,14 @@
 """
-To evaluate MemGPT's ability to analyze documents, we benchmark MemGPT against fixed-context
+To evaluate Letta's ability to analyze documents, we benchmark Letta against fixed-context
 baselines on the retriever-reader document QA task from Liu et al. (2023a). In this task, a question
 is selected from the NaturalQuestions-Open dataset, and a retriever selects relevant Wikipedia documents for the question.
 A reader model (the LLM) is then fed these documents as input, and is
 asked to use the provided documents to answer the question. Similar to Liu et al. (2023a),
 we evaluate reader accuracy as the number of retrieved documents K increases. In our evaluation setup, both
-the fixed-context baselines and MemGPT use the same retriever, which selects the top K documents
+the fixed-context baselines and Letta use the same retriever, which selects the top K documents
 according using Faiss efficient similarity search (Johnson et al., 2019) (which corresponds to
 approximate nearest neighbor search) on OpenAI's text-embedding-ada-002 embeddings. In
-MemGPT, the entire document set is loaded into archival storage, and the retriever naturally emerges
+Letta, the entire document set is loaded into archival storage, and the retriever naturally emerges
 via the archival storage search functionality (which performs embedding-based similarity search).
 In the fixed-context baselines, the top-K documents are fetched using the retriever independently
 from the LLM inference, similar to the original retriever-reader setup. We use a dump of Wikipedia
@@ -26,16 +26,16 @@ from icml_experiments.utils import get_experiment_config, load_gzipped_file
 from openai import OpenAI
 from tqdm import tqdm
 
-from memgpt import MemGPT, utils
-from memgpt.agent_store.storage import StorageConnector, TableType
-from memgpt.cli.cli_config import delete
-from memgpt.config import MemGPTConfig
-from memgpt.credentials import MemGPTCredentials
-from memgpt.embeddings import embedding_model
-from memgpt.utils import count_tokens
+from letta import letta, utils
+from letta.agent_store.storage import StorageConnector, TableType
+from letta.cli.cli_config import delete
+from letta.config import LettaConfig
+from letta.credentials import LettaCredentials
+from letta.embeddings import embedding_model
+from letta.utils import count_tokens
 
 DATA_SOURCE_NAME = "wikipedia"
-DOC_QA_PERSONA = "You are MemGPT DOC-QA bot. Your job is to answer questions about documents that are stored in your archival memory. The answer to the users question will ALWAYS be in your archival memory, so remember to keep searching if you can't find the answer. Answer the questions as if though the year is 2018."  # TODO decide on a good persona/human
+DOC_QA_PERSONA = "You are Letta DOC-QA bot. Your job is to answer questions about documents that are stored in your archival memory. The answer to the users question will ALWAYS be in your archival memory, so remember to keep searching if you can't find the answer. Answer the questions as if though the year is 2018."  # TODO decide on a good persona/human
 DOC_QA_HUMAN = "The user will ask you questions about documents. Answer them to the best of your ability."
 
 BASELINE_PROMPT = (
@@ -62,7 +62,7 @@ def generate_docqa_baseline_response(
     data_souce_name: str,  # data source containing all relevant documents to put in archival memory
     question: str,  # the question to ask the agent about the data source
     num_documents: int,  # how many documents to put in the prompt
-    config: MemGPTConfig,  # the config to use for the archival memory
+    config: LettaConfig,  # the config to use for the archival memory
 ) -> List[dict]:
     """Format is from the LITM paper:
 
@@ -124,7 +124,7 @@ def generate_docqa_baseline_response(
         # add to the block of prompt
         documents_block_str += doc_prompt
 
-    credentials = MemGPTCredentials().load()
+    credentials = LettaCredentials().load()
     assert credentials.openai_key is not None, credentials.openai_key
 
     client = OpenAI(api_key=credentials.openai_key)
@@ -155,14 +155,14 @@ def generate_docqa_baseline_response(
 
 
 def generate_docqa_response(
-    config: MemGPTConfig,
-    memgpt_client: MemGPT,
+    config: LettaConfig,
+    letta_client: Letta,
     persona: str,
     human: str,
     data_souce_name: str,  # data source containing all relevant documents to put in archival memory
     question: str,  # the question to ask the agent about the data source
 ) -> List[dict]:
-    """Generate a MemGPT QA response given an input scenario
+    """Generate a Letta QA response given an input scenario
 
     Scenario contains:
     - state of the human profile
@@ -181,7 +181,7 @@ def generate_docqa_response(
         print(e)
 
     # Create a new Agent that models the scenario setup
-    agent_state = memgpt_client.create_agent(
+    agent_state = letta_client.create_agent(
         {
             "name": agent_name,
             "persona": persona,
@@ -201,32 +201,32 @@ def generate_docqa_response(
     print(f"Attaching archival memory with {archival_memory.size()} passages")
 
     # override the agent's archival memory with table containing wikipedia embeddings
-    memgpt_client.server._get_or_load_agent(user_id, agent_state.id).persistence_manager.archival_memory.storage = archival_memory
+    letta_client.server._get_or_load_agent(user_id, agent_state.id).persistence_manager.archival_memory.storage = archival_memory
     print("Loaded agent")
 
     ## sanity check: before experiment (agent should have source passages)
-    # memory = memgpt_client.get_agent_memory(agent_state.id)
+    # memory = letta_client.get_agent_memory(agent_state.id)
     # assert memory["archival_memory"] == archival_memory_size, f"Archival memory size is wrong: {memory['archival_memory']}"
 
-    # Run agent.step() / or client.user_message to generate a response from the MemGPT agent
+    # Run agent.step() / or client.user_message to generate a response from the Letta agent
     prompt_message = " ".join(
         [
             MEMGPT_PROMPT,
             f"{question}?",
         ]
     )
-    response = memgpt_client.user_message(agent_id=agent_state.id, message=prompt_message)
+    response = letta_client.user_message(agent_id=agent_state.id, message=prompt_message)
 
     ## sanity check: after experiment (should NOT have inserted anything into archival)
-    # memory = memgpt_client.get_agent_memory(agent_state.id)
+    # memory = letta_client.get_agent_memory(agent_state.id)
     # assert memory["archival_memory"] == archival_memory_size, f"Archival memory size is wrong: {memory['archival_memory']}"
 
     # Return that response (may include multiple messages if the agent does retrieval)
     return response
 
 
-def evaluate_memgpt_response(memgpt_responses: List[dict], gold_answers: List[str]) -> bool:
-    """Score a MemGPT response (which is a list of MemGPT messages) against a gold answer
+def evaluate_letta_response(letta_responses: List[dict], gold_answers: List[str]) -> bool:
+    """Score a Letta response (which is a list of Letta messages) against a gold answer
 
     We evaluate with the following metric: accuracy
     TODO score with LLM judge?
@@ -237,9 +237,9 @@ def evaluate_memgpt_response(memgpt_responses: List[dict], gold_answers: List[st
 
 
 def run_docqa_task(
-    model="gpt-4", provider="openai", baseline="memgpt", num_docs=1, n_samples=50
+    model="gpt-4", provider="openai", baseline="letta", num_docs=1, n_samples=50
 ) -> List[dict]:  # how many samples (questions) from the file
-    """Run the full set of MemGPT doc QA experiments"""
+    """Run the full set of Letta doc QA experiments"""
 
     # Grab the question data
     data_file = "icml_experiments/qa_data/30_total_documents/nq-open-30_total_documents_gold_at_0.jsonl.gz"
@@ -249,7 +249,7 @@ def run_docqa_task(
     config.save()  # save config to file
 
     # result filename
-    if baseline == "memgpt":
+    if baseline == "letta":
         filename = f"results/doc_qa_results_model_{model}.json"
     else:
         filename = f"results/doc_qa_baseline_model_{model}_num_docs_{num_docs}.json"
@@ -260,9 +260,9 @@ def run_docqa_task(
     else:
         all_response_data = []
 
-    # memgpt_client = MemGPT(config=config)
-    memgpt_client = MemGPT()
-    # memgpt_client = MemGPT(quickstart="openai")
+    # letta_client = Letta(config=config)
+    letta_client = Letta()
+    # letta_client = Letta(quickstart="openai")
 
     # Loop through and run the doc QA
     count = 0
@@ -283,10 +283,10 @@ def run_docqa_task(
         # The only thing we actually use here is the 'question'
         # We ignore the documents, and instead rely on a set of documents that is already in a data source
         # TODO make sure this is correct
-        if baseline == "memgpt":
+        if baseline == "letta":
             responses = generate_docqa_response(
                 config=config,
-                memgpt_client=memgpt_client,
+                letta_client=letta_client,
                 persona=DOC_QA_PERSONA,
                 human=DOC_QA_HUMAN,
                 data_souce_name=DATA_SOURCE_NAME,
@@ -304,9 +304,9 @@ def run_docqa_task(
             {
                 "question": question,
                 "true_answers": answers,
-                "memgpt_responses": responses,
+                "letta_responses": responses,
                 "prompt": prompt,
-                # "correct": evaluate_memgpt_response(responses, answers),
+                # "correct": evaluate_letta_response(responses, answers),
             }
         )
         # write to JSON file
@@ -320,7 +320,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Test script")
     parser.add_argument("--model", type=str, help="The model to use")
     parser.add_argument("--provider", default="openai", type=str, help="The provider to use")
-    parser.add_argument("--baseline", default="memgpt", type=str, help="The baseline to use")
+    parser.add_argument("--baseline", default="letta", type=str, help="The baseline to use")
     parser.add_argument("--num_docs", default=5, type=int, help="The number of documents to use in the prompt (baseline-only)")
     args = parser.parse_args()
 

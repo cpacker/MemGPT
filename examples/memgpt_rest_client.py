@@ -1,13 +1,13 @@
 import json
 
-from memgpt import Admin, create_client
-from memgpt.memory import ChatMemory
+from letta import Admin, create_client
+from letta.memory import ChatMemory
 
 """
-Make sure you run the MemGPT server before running this example.
+Make sure you run the Letta server before running this example.
 ```
 export MEMGPT_SERVER_PASS=your_token
-memgpt server
+letta server
 ```
 """
 

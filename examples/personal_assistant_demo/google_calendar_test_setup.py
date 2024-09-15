@@ -11,8 +11,8 @@ from googleapiclient.errors import HttpError
 # SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
-TOKEN_PATH = os.path.expanduser("~/.memgpt/gcal_token.json")
-CREDENTIALS_PATH = os.path.expanduser("~/.memgpt/google_api_credentials.json")
+TOKEN_PATH = os.path.expanduser("~/.letta/gcal_token.json")
+CREDENTIALS_PATH = os.path.expanduser("~/.letta/google_api_credentials.json")
 
 
 def main():

@@ -1,6 +1,6 @@
-import memgpt.system as system
-from memgpt.local_llm.function_parser import patch_function
-from memgpt.utils import json_dumps
+import letta.system as system
+from letta.local_llm.function_parser import patch_function
+from letta.utils import json_dumps
 
 EXAMPLE_FUNCTION_CALL_SEND_MESSAGE = {
     "message_history": [

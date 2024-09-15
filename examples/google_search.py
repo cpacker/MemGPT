@@ -1,19 +1,19 @@
 import json
 from typing import List, Tuple
 
-from memgpt import create_client
-from memgpt.agent import Agent
-from memgpt.memory import ChatMemory
+from letta import create_client
+from letta.agent import Agent
+from letta.memory import ChatMemory
 
 """
-This example show how you can add a google search custom function to your MemGPT agent.
+This example show how you can add a google search custom function to your Letta agent.
 
 First, make sure you run:
 ```
 pip install serpapi
 pip install llama-index-readers-web
 ```
-then setup memgpt with `memgpt configure`.
+then setup letta with `letta configure`.
 """
 
 
@@ -46,9 +46,9 @@ def google_search(self: Agent, query: str) -> List[Tuple[str, str]]:
     import serpapi
     from openai import OpenAI
 
-    from memgpt.credentials import MemGPTCredentials
-    from memgpt.data_sources.connectors import WebConnector
-    from memgpt.utils import printd
+    from letta.credentials import LettaCredentials
+    from letta.data_sources.connectors import WebConnector
+    from letta.utils import printd
 
     printd("Starting google search:", query)
 
@@ -59,7 +59,7 @@ def google_search(self: Agent, query: str) -> List[Tuple[str, str]]:
             + f"\n\n{document_text}"
         )
 
-        credentials = MemGPTCredentials().load()
+        credentials = LettaCredentials().load()
         assert credentials.openai_key is not None, credentials.openai_key
         # model = "gpt-4-1106-preview"
         model = "gpt-3.5-turbo-1106"
@@ -141,7 +141,7 @@ def google_search(self: Agent, query: str) -> List[Tuple[str, str]]:
 
 def main():
 
-    # Create a `LocalClient` (you can also use a `RESTClient`, see the memgpt_rest_client.py example)
+    # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
     client = create_client()
 
     # create tool
@@ -152,14 +152,14 @@ def main():
     # google search persona
     persona = """
 
-    My name is MemGPT.
+    My name is Letta.
 
     I am a personal assistant who answers a user's questionien using google web searches. When a user asks me a question and the answer is not in my context, I will use a tool called google_search which will search the web and return relevant summaries and the link they correspond to. It is my job to construct the best query to input into google_search based on the user's question, and to aggregate the response of google_search construct a final answer that also references the original links the information was pulled from. Here is an example:
 
     ---
 
     User: Who founded OpenAI?
-    MemGPT: OpenAI was founded by  Ilya Sutskever, Greg Brockman, Trevor Blackwell, Vicki Cheung, Andrej Karpathy, Durk Kingma, Jessica Livingston, John Schulman, Pamela Vagata, and Wojciech Zaremba, with Sam Altman and Elon Musk serving as the initial Board of Directors members. [1][2]
+    Letta: OpenAI was founded by  Ilya Sutskever, Greg Brockman, Trevor Blackwell, Vicki Cheung, Andrej Karpathy, Durk Kingma, Jessica Livingston, John Schulman, Pamela Vagata, and Wojciech Zaremba, with Sam Altman and Elon Musk serving as the initial Board of Directors members. [1][2]
 
     [1] https://www.britannica.com/topic/OpenAI
     [2] https://en.wikipedia.org/wiki/OpenAI

@@ -1,18 +1,18 @@
 [tool.poetry]
-name = "pymemgpt"
+name = "letta"
 version = "0.4.0"
 packages = [
-    {include = "memgpt"}
+    {include = "letta"}
 ]
 description = "Create LLM agents with long-term memory and custom tools"
 authors = [
-    "MemGPT Team <hi@memgpt.ai>",
+    "Letta Team <hi@letta.ai>",
 ]
 license = "Apache License"
 readme = "README.md"
 
 [tool.poetry.scripts]
-memgpt = "memgpt.main:app"
+letta = "letta.main:app"
 
 [tool.poetry.dependencies]
 python = "<3.13,>=3.10"

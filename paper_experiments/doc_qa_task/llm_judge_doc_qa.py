@@ -5,7 +5,7 @@ import re
 from openai import OpenAI
 from tqdm import tqdm
 
-from memgpt.credentials import MemGPTCredentials
+from letta.credentials import LettaCredentials
 
 # Note: did not end up using since no cases of cheating were observed
 # CHEATING_PROMPT = \
@@ -43,7 +43,7 @@ EVAL_MODEL = "gpt-4-0613"
 
 
 def evaluate_response(output: str):
-    credentials = MemGPTCredentials().load()
+    credentials = LettaCredentials().load()
     assert credentials.openai_key is not None, credentials.openai_key
 
     client = OpenAI(api_key=credentials.openai_key)
@@ -69,14 +69,14 @@ def evaluate_response(output: str):
         return False
 
 
-# Grab the last thing MemGPT generated, treat it as the reply
-def extract_final_memgpt_response(memgpt_responses: list) -> str:
+# Grab the last thing Letta generated, treat it as the reply
+def extract_final_letta_response(letta_responses: list) -> str:
     final_index = -1
-    if "function_return" in memgpt_responses[final_index]:
+    if "function_return" in letta_responses[final_index]:
         final_index = -2
-    final_memgpt_response = [v for k, v in memgpt_responses[final_index].items()]
-    final_memgpt_response = final_memgpt_response[-1]
-    return final_memgpt_response
+    final_letta_response = [v for k, v in letta_responses[final_index].items()]
+    final_letta_response = final_letta_response[-1]
+    return final_letta_response
 
 
 if __name__ == "__main__":
@@ -106,16 +106,16 @@ if __name__ == "__main__":
         model = re.search(r"model_([-\w.]+)(?:_num_docs_([-\d]+))?.json", args.file).group(1)
 
         num_docs = None
-        baseline = "memgpt"
+        baseline = "letta"
 
     # evaluate data
     for d in tqdm(data):
         answer = d["true_answers"]
         question = d["question"]
-        response = d["memgpt_responses"]
+        response = d["letta_responses"]
         if not args.baseline:
-            # need to parse response for memgpt
-            response = extract_final_memgpt_response(response)
+            # need to parse response for letta
+            response = extract_final_letta_response(response)
         else:
             response = response["response"]
 

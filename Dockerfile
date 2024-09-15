@@ -30,11 +30,11 @@ ENV VIRTUAL_ENV=/app/.venv \
 
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
-COPY ./memgpt /memgpt
+COPY ./letta /letta
 
 EXPOSE 8083
 
-CMD ./memgpt/server/startup.sh
+CMD ./letta/server/startup.sh
 
 # allow for in-container development and testing
 FROM builder as development
@@ -45,8 +45,8 @@ ENV VIRTUAL_ENV=/app/.venv \
 ENV PYTHONPATH=/
 WORKDIR /
 COPY ./tests /tests
-COPY ./memgpt /memgpt
-COPY ./configs/server_config.yaml /root/.memgpt/config
+COPY ./letta /letta
+COPY ./configs/server_config.yaml /root/.letta/config
 EXPOSE 8083
 
-CMD ./memgpt/server/startup.sh
+CMD ./letta/server/startup.sh

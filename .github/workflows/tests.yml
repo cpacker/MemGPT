@@ -36,13 +36,13 @@ jobs:
         install-args: "-E dev -E postgres -E milvus -E crewai-tools"
 
     - name: Initialize credentials
-      run: poetry run memgpt quickstart --backend openai
+      run: poetry run letta quickstart --backend openai
 
     #- name: Run docker compose server
     #  env:
-    #    MEMGPT_PG_DB:   memgpt
-    #    MEMGPT_PG_USER: memgpt
-    #    MEMGPT_PG_PASSWORD: memgpt
+    #    MEMGPT_PG_DB:   letta
+    #    MEMGPT_PG_USER: letta
+    #    MEMGPT_PG_PASSWORD: letta
     #    MEMGPT_SERVER_PASS: test_server_token
     #    MEMGPT_CONFIG_PATH: configs/server_config.yaml
 
@@ -51,9 +51,9 @@ jobs:
     - name: Run tools tests
       env:
         MEMGPT_PG_PORT: 8888
-        MEMGPT_PG_USER: memgpt
-        MEMGPT_PG_PASSWORD: memgpt
-        MEMGPT_PG_DB: memgpt
+        MEMGPT_PG_USER: letta
+        MEMGPT_PG_PASSWORD: letta
+        MEMGPT_PG_DB: letta
         MEMGPT_PG_HOST: localhost
         MEMGPT_SERVER_PASS: test_server_token
       run: |
@@ -62,9 +62,9 @@ jobs:
     - name: Run server tests
       env:
         MEMGPT_PG_PORT: 8888
-        MEMGPT_PG_USER: memgpt
-        MEMGPT_PG_PASSWORD: memgpt
-        MEMGPT_PG_DB: memgpt
+        MEMGPT_PG_USER: letta
+        MEMGPT_PG_PASSWORD: letta
+        MEMGPT_PG_DB: letta
         MEMGPT_PG_HOST: localhost
         MEMGPT_SERVER_PASS: test_server_token
       run: |
@@ -73,10 +73,10 @@ jobs:
     - name: Run tests with pytest
       env:
         MEMGPT_PG_PORT: 8888
-        MEMGPT_PG_USER: memgpt
-        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_PG_USER: letta
+        MEMGPT_PG_PASSWORD: letta
         MEMGPT_PG_HOST: localhost
-        MEMGPT_PG_DB: memgpt
+        MEMGPT_PG_DB: letta
         MEMGPT_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |

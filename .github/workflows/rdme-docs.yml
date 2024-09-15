@@ -13,7 +13,7 @@ on:
 jobs:
   rdme-docs:
     runs-on: ubuntu-latest
-    if: github.repository == 'cpacker/MemGPT'  # TODO: if the repo org ever changes, this must be updated
+    if: github.repository == 'cpacker/Letta'  # TODO: if the repo org ever changes, this must be updated
     steps:
       - name: Check out repo 📚
         uses: actions/checkout@v4

@@ -3,10 +3,10 @@ Privacy Policy
 
 Your privacy is critically important to us. As an overview:
 
-- When you use MemGPT applications/services/websites, we collect basic (anonymous) telemetry data such as clicks, crashes, etc.
-  - This data helps us understand how our users are using the MemGPT application(s) and it informs our roadmap of future features and buxfixes.
+- When you use Letta applications/services/websites, we collect basic (anonymous) telemetry data such as clicks, crashes, etc.
+  - This data helps us understand how our users are using the Letta application(s) and it informs our roadmap of future features and buxfixes.
   - If you would like to opt-out of basic telemetry, you can modify your configuration file to include `telemetry_disabled = True`.
-- When you use MemGPT hosted services (such as the hosted endpoints or Discord Bot), we collect the data that was used to render these services.
+- When you use Letta hosted services (such as the hosted endpoints or Discord Bot), we collect the data that was used to render these services.
   - For example, for the hosted endpoint, this includes the message request and message response.
   - We may use this data to improve our services, for example to train new models in the future.
   - We do NOT collect data on any of your messages or prompts unless you are using our hosted services (for example, if you are running your own model backends, this data will never be collected).
@@ -17,9 +17,9 @@ Below is our full Privacy Policy, which expands the overview in full detail.
 
 This Privacy Policy applies to information that we collect about you when you use:
 
--   Our websites (including memgpt.ai, the MemGPT Discord server, and the repository github.com/cpacker/MemGPT);
+-   Our websites (including letta.ai, the Letta Discord server, and the repository github.com/cpacker/Letta);
 -   Our applications (including the Python package, Discord Bot, and any other hosted services);
--   Our other MemGPT products, services, and features that are available on or through our websites;
+-   Our other Letta products, services, and features that are available on or through our websites;
 
 Throughout this Privacy Policy we'll refer to our websites, mobile applications, and other products and services collectively as "Services."
 
@@ -68,7 +68,7 @@ We use information about you for the purposes listed below:
 
 -   **To provide our Services.** For example, to run a model on our hosted services to deliver a message to your client.
 -   **To ensure quality, maintain safety, and improve our Services.** For example, by providing automatic upgrades and new versions of our Services. Or, for example, by monitoring and analyzing how users interact with our Services so we can create new features that we think our users will enjoy and that will help them create and manage websites more efficiently or make our Services easier to use.
--   **To protect our Services, our users, and the public.** For example, by detecting security incidents; detecting and protecting against malicious, deceptive, fraudulent, or illegal activity; fighting spam; complying with our legal obligations; and protecting the rights and property of MemGPT and others, which may result in us, for example, declining a transaction or terminating Services.
+-   **To protect our Services, our users, and the public.** For example, by detecting security incidents; detecting and protecting against malicious, deceptive, fraudulent, or illegal activity; fighting spam; complying with our legal obligations; and protecting the rights and property of Letta and others, which may result in us, for example, declining a transaction or terminating Services.
 -   **To fix problems with our Services.** For example, by monitoring, debugging, repairing, and preventing issues.
 -   **To customize the user experience.** For example, to personalize your experience by serving you relevant notifications for our Services.
 
@@ -95,8 +95,8 @@ We share information about you in limited circumstances, and with appropriate sa
 -   **Subsidiaries, independent contractors, and research partners:** We may disclose information about you to our subsidiaries, independent contractors, and/or research partners who need the information to help us provide our Services or process the information on our behalf. We require our subsidiaries and independent contractors to follow this Privacy Policy for any personal information that we share with them. This includes the transfer of data collect on our Services to facilitate model training and refinement.
 -   **Third-party vendors:** We may share information about you with third-party vendors who need the information in order to provide their services to us, or to provide their services to you or your site. This includes vendors that help us provide our Services to you (such as intrastructure or model serving companies); those that help us understand and enhance our Services (like analytics providers); those that make tools to help us run our operations (like programs that help us with task management, scheduling, word processing, email and other communications, and collaboration among our teams); other third-party tools that help us manage operations; and companies that make products available on our websites, who may need information about you in order to, for example, provide technical or other support services to you.
 -   **Legal and regulatory requirements:** We may disclose information about you in response to a subpoena, court order, or other governmental request.
--   **To protect rights, property, and others:** We may disclose information about you when we believe in good faith that disclosure is reasonably necessary to protect the property or rights of MemGPT, third parties, or the public at large.
--   **Asset/IP transfers:** If any transfer of MemGPT assets were to happen, this Privacy Policy would continue to apply to your information and the party receiving your information may continue to use your information, but only consistent with this Privacy Policy.
+-   **To protect rights, property, and others:** We may disclose information about you when we believe in good faith that disclosure is reasonably necessary to protect the property or rights of Letta, third parties, or the public at large.
+-   **Asset/IP transfers:** If any transfer of Letta assets were to happen, this Privacy Policy would continue to apply to your information and the party receiving your information may continue to use your information, but only consistent with this Privacy Policy.
 -   **With your consent:** We may share and disclose information with your consent or at your direction.
 -   **Aggregated or de-identified information:** We may share information that has been aggregated or de-identified, so that it can no longer reasonably be used to identify you. For instance, we may publish aggregate statistics about the use of our Services, or share a hashed version of your email address to facilitate customized ad campaigns on other platforms.
 -   **Published support requests:** If you send us a request for assistance (for example, via a support email or one of our other feedback mechanisms), we reserve the right to publish that request in order to clarify or respond to your request, or to help us support other users.
@@ -191,7 +191,7 @@ If you have a question about this Privacy Policy, please contact us through our 
 
 #### *Ads and Analytics Services Provided by Others*
 
-Ads appearing on any of our Services may be delivered by advertising networks. Othjjgger parties may also provide analytics services via our Services. These ad networks and analytics providers may set tracking technologies (like cookies) to collect information about your use of our Services and across other websites and online services. These technologies allow these third parties to recognize your device to compile information about you or others who use your device. This information allows us and other companies to, among other things, analyze and track usage, determine the popularity of certain content, and deliver ads that may be more targeted to your interests. Please note this Privacy Policy only covers the collection of information by MemGPT and does not cover the collection of information by any third-party advertisers or analytics providers.
+Ads appearing on any of our Services may be delivered by advertising networks. Othjjgger parties may also provide analytics services via our Services. These ad networks and analytics providers may set tracking technologies (like cookies) to collect information about your use of our Services and across other websites and online services. These technologies allow these third parties to recognize your device to compile information about you or others who use your device. This information allows us and other companies to, among other things, analyze and track usage, determine the popularity of certain content, and deliver ads that may be more targeted to your interests. Please note this Privacy Policy only covers the collection of information by Letta and does not cover the collection of information by any third-party advertisers or analytics providers.
 
 #### *Third-Party Software and Services*
 

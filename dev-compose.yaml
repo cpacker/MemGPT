@@ -1,11 +1,11 @@
 services:
-  memgpt_db:
+  letta_db:
     image: ankane/pgvector:v0.5.1
     networks:
       default:
         aliases:
           - pgvector_db
-          - memgpt-db
+          - letta-db
     environment:
       - POSTGRES_USER=${MEMGPT_PG_USER}
       - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD}
@@ -15,21 +15,21 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
-  memgpt_server:
-    #image: memgpt/memgpt-server:latest
-    image: memgpt-server
-    hostname: memgpt-server
+  letta_server:
+    #image: letta/letta-server:latest
+    image: letta-server
+    hostname: letta-server
     build:
       context: .
       dockerfile: Dockerfile
       target: runtime
     depends_on:
-      - memgpt_db
+      - letta_db
     ports:
       - "8083:8083"
       - "8283:8283"
     environment:
-      - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # memgpt server password
+      - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # letta server password
       - MEMGPT_PG_DB=${MEMGPT_PG_DB}
       - MEMGPT_PG_USER=${MEMGPT_PG_USER}
       - MEMGPT_PG_PASSWORD=${MEMGPT_PG_PASSWORD}
@@ -38,5 +38,5 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - SERPAPI_API_KEY=${SERPAPI_API_KEY}
     volumes:
-      - ./configs/server_config.yaml:/root/.memgpt/config # config file
-      # ~/.memgpt/credentials:/root/.memgpt/credentials # credentials file
+      - ./configs/server_config.yaml:/root/.letta/config # config file
+      # ~/.letta/credentials:/root/.letta/credentials # credentials file

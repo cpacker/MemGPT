@@ -20,15 +20,15 @@ jobs:
 
     - name: Set permissions for log directory
       run: |
-        mkdir -p /home/runner/.memgpt/logs
-        sudo chown -R $USER:$USER /home/runner/.memgpt/logs
-        chmod -R 755 /home/runner/.memgpt/logs
+        mkdir -p /home/runner/.letta/logs
+        sudo chown -R $USER:$USER /home/runner/.letta/logs
+        chmod -R 755 /home/runner/.letta/logs
 
     - name: Build and run docker dev server
       env:
-        MEMGPT_PG_DB:   memgpt
-        MEMGPT_PG_USER: memgpt
-        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_PG_DB:   letta
+        MEMGPT_PG_USER: letta
+        MEMGPT_PG_PASSWORD: letta
         MEMGPT_PG_PORT: 8888
         MEMGPT_SERVER_PASS: test_server_token
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -46,9 +46,9 @@ jobs:
 
     - name: Run tests with pytest
       env:
-        MEMGPT_PG_DB:   memgpt
-        MEMGPT_PG_USER: memgpt
-        MEMGPT_PG_PASSWORD: memgpt
+        MEMGPT_PG_DB:   letta
+        MEMGPT_PG_USER: letta
+        MEMGPT_PG_PASSWORD: letta
         MEMGPT_PG_PORT: 8888
         MEMGPT_SERVER_PASS: test_server_token
         MEMGPT_SERVER_URL: http://localhost:8083
