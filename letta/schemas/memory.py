@@ -92,6 +92,7 @@ class Memory(BaseModel, validate_assignment=True):
         """Return a list of the block names held inside the memory object"""
         return list(self.memory.keys())
 
+    # TODO: these should actually be label, not name
     def get_block(self, name: str) -> Block:
         """Correct way to index into the memory.memory field, returns a Block"""
         if name not in self.memory:
@@ -143,8 +144,9 @@ class BasicBlockMemory(Memory):
         super().__init__()
         for block in blocks:
             # TODO: centralize these internal schema validations
-            assert block.name is not None and block.name != "", "each existing chat block must have a name"
-            self.link_block(name=block.name, block=block)
+            name = block.name if block.name is not None else block.label
+            assert name is not None, "Block must have a name or label"
+            self.link_block(name=name, block=block)
 
     def core_memory_append(self: "Agent", name: str, content: str) -> Optional[str]:  # type: ignore
         """
@@ -175,6 +177,8 @@ class BasicBlockMemory(Memory):
             Optional[str]: None is always returned as this function does not produce a response.
         """
         current_value = str(self.memory.get_block(name).value)
+        if old_content not in current_value:
+            raise ValueError(f"Old content '{old_content}' not found in memory block '{name}'")
         new_value = current_value.replace(str(old_content), str(new_content))
         self.memory.update_block_value(name=name, value=new_value)
         return None

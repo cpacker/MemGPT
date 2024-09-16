@@ -1700,10 +1700,10 @@ class LocalClient(AbstractClient):
             response (LettaResponse): Response from the agent
         """
         if not agent_id:
+            # lookup agent by name
             assert agent_name, f"Either agent_id or agent_name must be provided"
-            raise NotImplementedError
-            # agent_state = self.get_agent(agent_name=agent_name)
-            # agent_id = agent_state.id
+            agent_id = self.get_agent_id(agent_name=agent_name)
+
         agent_state = self.get_agent(agent_id=agent_id)
 
         if stream_steps or stream_tokens:

@@ -33,10 +33,16 @@ class BaseBlock(LettaBase, validate_assignment=True):
         try:
             assert len(self) <= self.limit
         except AssertionError:
-            error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self)})."
+            error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self)}) - {str(self)}."
             raise ValueError(error_msg)
         except Exception as e:
             raise e
+        return self
+    
+    @model_validator(mode="after")
+    def ensure_label(self) -> Self:
+        if not self.label:
+            self.label = self.name
         return self
 
     def __len__(self):
