@@ -107,6 +107,12 @@ class MetadataStore:
         splatted_pydantic = agent_state.model_dump(exclude_none=True, exclude=excluded_fields)
 
         actor = SQLUser.read(db_session=self.db_session, identifier=SQLUser.to_uid(self.actor.id))
+        
+        if agent_state.memory:
+            splatted_pydantic["core_memory"] = []
+            for name, block in agent_state.memory.memory.items():
+                block.organization_id = actor.organization_id
+                splatted_pydantic["core_memory"].append(block.to_sqlalchemy(self.db_session))
 
         if agent_state.tools:
             # tools need to be read by name
@@ -203,9 +209,7 @@ class MetadataStore:
                 def create(schema):
                     splatted_pydantic = schema.model_dump(exclude_none=True)
                     splatted_pydantic = {k: v for k, v in splatted_pydantic.items() if hasattr(Model, k)}
-                    print("Creating", self.actor.id, splatted_pydantic["name"] if "name" in splatted_pydantic else "")
-                    print(splatted_pydantic)
-                    assert self.actor.id, "Actor ID must be set"
+
                     return Model(created_by_id=self.actor.id, **splatted_pydantic).create(self.db_session).to_pydantic()
 
                 return create

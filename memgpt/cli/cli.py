@@ -24,7 +24,11 @@ from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import ChatMemory, Memory
+from memgpt.schemas.user import User
 from memgpt.settings import settings
+
+from memgpt.orm.tool import Tool
+from memgpt.orm.block import Block
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import (
@@ -454,10 +458,14 @@ def run(
     else:  # load config
         config = MemGPTConfig.load()
 
-    # read user id from config
-    ms = MetadataStore(config)
-    client = create_client()
-    client.user_id
+    # force it to use Postgres for now
+    settings.pg_uri = os.environ.get("POSTGRES_URI")
+
+    client = create_client(debug=settings.debug, config=config)
+
+    # Load defaults idempotently into DB
+    # Tool.load_default_tools(client.server.db_session)
+    Block.load_default_blocks(client.server.db_session)
 
     # determine agent to use, if not provided
     if not yes and not agent:
@@ -581,12 +589,9 @@ def run(
             )
             llm_config.model_endpoint_type = model_endpoint_type
 
-        # create agent
-        client = create_client()
-        print("crated client", client.user_id)
         human_obj = client.get_human(client.get_human_id(name=human))
         persona_obj = client.get_persona(client.get_persona_id(name=persona))
-        print("get humans", client.user_id)
+
         if human_obj is None:
             typer.secho(f"Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
             sys.exit(1)
@@ -605,12 +610,9 @@ def run(
 
         memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
         metadata = {"human": human_obj.name, "persona": persona_obj.name}
-        print("created memory", client.user_id)
 
         typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
         typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
-
-        print("before create agent", client.user_id)
 
         # add tools
         agent_state = client.create_agent(
@@ -621,15 +623,13 @@ def run(
             memory=memory,
             metadata=metadata,
         )
+        print("Agent Memory:", agent_state.memory)
 
-        print(client.user_id)
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
-        # tools = [t.name for t in agent_state.tools if isinstance(t, Tool) else t]
-        # typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-        # tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
-        tools = agent_state.tools
-        print("TOOLS", [t.name for t in tools])
 
+        tools = agent_state.tools
+        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t.name for t in tools])}", fg=typer.colors.WHITE)
+        
         memgpt_agent = Agent(
             interface=interface(),
             agent_state=agent_state,

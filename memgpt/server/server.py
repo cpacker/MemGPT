@@ -836,7 +836,7 @@ class SyncServer(Server):
         name: Optional[str] = None,
         id: Optional[str] = None,
     ):
-        # blocks = self.ms.list_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+        # blocks = self.ms.list_block(user_id=user_id, label=label, template=template, name=name, id=id)
         filters = {}
         if label:
             filters["label"] = label
@@ -846,14 +846,14 @@ class SyncServer(Server):
             filters["name"] = name
         if id:
             filters["id"] = id
-        blocks = self.ms.list_blocks(filters=filters)
+        blocks = self.ms.list_block(filters=filters)
         return blocks
 
     def get_block(self, block_id: str):
         return self.ms.get_block(id=block_id)
 
     def create_block(self, request: CreateBlock, update: Optional[bool] = False) -> Block:
-        existing_blocks = self.ms.list_blocks(
+        existing_blocks = self.ms.list_block(
             filters={"name": request.name, "is_template": request.is_template}, user_id=self.get_current_user().id
         )
         if existing_blocks and len(existing_blocks) > 1:
@@ -873,7 +873,7 @@ class SyncServer(Server):
         return self.ms.delete_block(block_id)
 
     def get_agent_id(self, name: str, user_id: str):
-        agent_state = self.ms.get_agent(agent_name=name, user_id=user_id)
+        agent_state = self.ms.get_agent(name=name, user_id=user_id)
         if not agent_state:
             return None
         return agent_state.id
