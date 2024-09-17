@@ -1,6 +1,8 @@
-from pytest import mark as m
+from pytest import mark as m, raises
+from memgpt.orm.errors import NoResultFound
 
 from tests.mock_factory.models import (
+    Agent,
     MockAgentFactory,
     MockOrganizationFactory,
     MockTokenFactory,
@@ -46,3 +48,31 @@ class TestORM:
             session.add(user)
             assert user.organization.id.startswith("organization-"), "Organization id is prefixed incorrectly"
             assert str(user.organization._id) in user.organization.id, "Organization id is not using the correct uuid"
+
+    @m.context("and retrieving an Agent model")
+    @m.it("should respect the access predicate")
+    def test_access_predicate_basic(self, db_session):
+        star_wars = MockOrganizationFactory(db_session=db_session, name="star_wars").generate()
+        star_trek = MockOrganizationFactory(db_session=db_session, name="star_trek").generate()
+        luke = MockUserFactory(db_session=db_session, organization=star_wars).generate()
+        schema_luke = luke.to_pydantic()
+
+        spock = MockUserFactory(db_session=db_session, organization=star_trek).generate()
+        schema_spock = spock.to_pydantic()
+
+        c3po = MockAgentFactory(db_session=db_session, organization=star_wars).generate()
+        r2d2 = MockAgentFactory(db_session=db_session, organization=star_wars).generate()
+        data = MockAgentFactory(db_session=db_session, organization=star_trek).generate()
+
+
+        _ = Agent.read(identifier=data.id, db_session=db_session, actor=spock, access=["read"])
+        _ = Agent.read(identifier=data.id, db_session=db_session, actor=schema_spock, access=["read"])
+
+        for droid in (c3po, r2d2,):
+            _ = Agent.read(identifier=droid.id, db_session=db_session, actor=luke, access=["read"])
+            _ = Agent.read(identifier=droid.id, db_session=db_session, actor=schema_luke, access=["read"])
+            with raises(NoResultFound):
+                _ = Agent.read(identifier=droid.id, db_session=db_session, actor=spock, access=["read"])
+                _ = Agent.read(identifier=droid.id, db_session=db_session, actor=schema_spock, access=["read"])
+                _ = Agent.read(identifier=data.id, db_session=db_session, actor=luke, access=["read"])
+                _ = Agent.read(identifier=data.id, db_session=db_session, actor=schema_luke, access=["read"])

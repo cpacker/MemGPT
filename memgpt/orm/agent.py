@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List, Optional, Type
 
-from sqlalchemy import JSON, String
+from sqlalchemy import JSON, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from memgpt.orm.block import Block
@@ -18,6 +18,7 @@ from memgpt.orm.blocks_agents import BlocksAgents
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
+
     from memgpt.orm.organization import Organization
     from memgpt.orm.passage import Passage
     from memgpt.orm.source import Source
@@ -28,6 +29,13 @@ if TYPE_CHECKING:
 class Agent(SqlalchemyBase, OrganizationMixin):
     __tablename__ = "agent"
     __pydantic_model__ = AgentState
+    __table_args__ = (
+        UniqueConstraint(
+            "_organization_id",
+            "name",
+            name="unique_agent_name_per_organization",
+        ),
+    )
 
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True, doc="a human-readable identifier for an agent, non-unique.")
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True, doc="The description of the agent.")
@@ -56,9 +64,9 @@ class Agent(SqlalchemyBase, OrganizationMixin):
             "metadata_": self.metadata_,
             "llm_config": self.llm_config,
             "embedding_config": self.embedding_config,
-            "user_id": str(self.users[0]._id) if self.users else "",
+            "user_id": self.created_by_id,
             "tools": self.tools,
             "memory": {"memory": {b.name: b for b in self.core_memory}},
-            "message_ids": [str(m._id) for m in self.messages],
+            "message_ids": self.messages,
         }
         return self.__pydantic_model__(**state)

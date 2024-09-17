@@ -1,9 +1,10 @@
-import time
 import asyncio
 import threading
-from concurrent.futures import ThreadPoolExecutor
+import time
 import uuid
-from typing import Dict, List, Optional, Tuple, Union, TYPE_CHECKING, Any, Coroutine
+from concurrent.futures import ThreadPoolExecutor
+from typing import TYPE_CHECKING, Any, Coroutine, Dict, List, Optional, Tuple, Union
+
 import httpx
 
 from memgpt.config import MemGPTConfig
@@ -249,7 +250,7 @@ class RESTClient(AbstractClient):
 
         self.httpx_client = httpx.AsyncClient(**httpx_client_args)
 
-    def run_sync(self, coroutine:Coroutine) -> Any:
+    def run_sync(self, coroutine: Coroutine) -> Any:
         """converts the api calls to sync for sync use
         https://stackoverflow.com/questions/55647753/call-async-function-from-sync-function-while-the-synchronous-function-continues
         """
@@ -261,6 +262,7 @@ class RESTClient(AbstractClient):
                 return new_loop.run_until_complete(coroutine)
             finally:
                 new_loop.close()
+
         try:
             loop = asyncio.get_running_loop()
             if not threading.current_thread() is threading.main_thread():
@@ -273,8 +275,6 @@ class RESTClient(AbstractClient):
                     return future.result(timeout=30.0)
         except RuntimeError:
             return asyncio.run(coroutine)
-
-
 
     def list_agents(self) -> List[AgentState]:
         response = self.run_sync(self.httpx_client.get("/agents/"))
@@ -349,7 +349,6 @@ class RESTClient(AbstractClient):
             llm_config=llm_config,
             embedding_config=embedding_config,
         )
-
 
         response = self.run_sync(self.httpx_client.post("/agents/", json=request.model_dump(exclude_none=True)))
         if response.status_code != 200:
@@ -497,7 +496,9 @@ class RESTClient(AbstractClient):
         return [Message(**message) for message in response.json()]
 
     def send_message(self, agent_id: str, message: str, role: str, stream: Optional[bool] = False) -> MemGPTResponse:
-        request = MemGPTRequest(messages=[MessageCreate(text=message, role=role)], run_async=False, stream_steps=stream, stream_tokens=stream)
+        request = MemGPTRequest(
+            messages=[MessageCreate(text=message, role=role)], run_async=False, stream_steps=stream, stream_tokens=stream
+        )
         response = self.run_sync(self.httpx_client.post(f"/agents/{agent_id}/messages", json=request.model_dump(exclude_none=True)))
         if response.status_code != 200:
             raise ValueError(f"Failed to send message: {response.text}")
@@ -772,10 +773,11 @@ class RESTClient(AbstractClient):
 
         # make REST request
         request = ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags)
-        response = self.run_sync(self.httpx_client.post("/tools/"),
-                                                json=request.model_dump(exclude_none=True),
-                                                params={"update": update},
-                                                )
+        response = self.run_sync(
+            self.httpx_client.post("/tools/"),
+            json=request.model_dump(exclude_none=True),
+            params={"update": update},
+        )
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return Tool(**response.json())
@@ -850,15 +852,12 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
-        if user_id:
-            self.user_id = user_id
-        else:
-            self.user_id = str(self.server.get_user_default()._id)
+        self.user_id = user_id or self.server.get_current_user().id
 
     # agents
 
     def list_agents(self) -> List[AgentState]:
-        return self.server.list_agents()
+        return self.server.list_agents(self.user_id)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         if not (agent_id or agent_name):
@@ -867,9 +866,9 @@ class LocalClient(AbstractClient):
             raise ValueError(f"Only one of agent_id or agent_name can be provided")
         existing = self.list_agents()
         if agent_id:
-            return str(agent_id) in [str(agent.id) for agent in existing]
+            return agent_id in [agent.id for agent in existing]
         else:
-            return agent_name in [str(agent.name) for agent in existing]
+            return agent_name in [agent.name for agent in existing]
 
     def create_agent(
         self,
@@ -894,7 +893,7 @@ class LocalClient(AbstractClient):
         description: Optional[str] = None,
     ) -> AgentState:
         if name and self.agent_exists(agent_name=name):
-            raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
+            raise ValueError(f"Agent with name {name} already exists ({self.user_id=})")
 
         # construct list of tools
         tool_names = []
@@ -1132,9 +1131,13 @@ class LocalClient(AbstractClient):
         # call server function
         return self.server.create_tool(
             ToolCreate(
-                source_type=tool.source_type, source_code=tool.source_code, name=tool.name, json_schema=tool.json_schema, tags=tool.tags
+                source_type=tool.source_type,
+                source_code=tool.source_code,
+                name=tool.name,
+                json_schema=tool.json_schema,
+                tags=tool.tags,
+                user_id=self.user_id,
             ),
-            user_id=self.user_id,
             update=update,
         )
 
@@ -1166,9 +1169,13 @@ class LocalClient(AbstractClient):
 
         # call server function
         return self.server.create_tool(
-            # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
-            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags, user_id=self.user_id),
-            user_id=self.user_id,
+            ToolCreate(
+                source_type=source_type,
+                source_code=source_code,
+                name=name,
+                tags=tags,
+                user_id=self.user_id,
+            ),
             update=update,
         )
 
@@ -1196,7 +1203,9 @@ class LocalClient(AbstractClient):
 
         source_type = "python"
 
-        return self.server.update_tool(ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name, user_id=self.user_id))
+        return self.server.update_tool(
+            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name, user_id=self.user_id)
+        )
 
     def list_tools(self):
         """List available tools.

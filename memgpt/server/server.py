@@ -1,8 +1,11 @@
+import importlib
+import inspect
 import uuid
 import warnings
 from abc import abstractmethod
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Union
+from sqlalchemy.exc import IntegrityError
 
 from fastapi import HTTPException
 
@@ -15,6 +18,7 @@ from memgpt.cli.cli_config import get_model_options
 from memgpt.config import MemGPTConfig
 from memgpt.credentials import MemGPTCredentials
 from memgpt.data_sources.connectors import DataConnector, load_data
+from memgpt.functions.functions import generate_schema, load_function_set
 from memgpt.functions.schema_generator import generate_schema
 
 # TODO use custom interface
@@ -232,9 +236,6 @@ class SyncServer(Server):
                 raise ValueError(f"{agent_id=} does not exist")
 
             tool_objs = agent_state.tools
-            agent_state.tools = [t.name for t in tool_objs]
-            # Make sure the memory is a memory object
-            assert isinstance(agent_state.memory, Memory)
 
             # Instantiate an agent object using the state retrieved
             logger.info(f"Creating an agent object in memory")
@@ -322,7 +323,6 @@ class SyncServer(Server):
 
         except Exception as e:
             logger.error(f"Error in server._step: {e}")
-            print(traceback.print_exc())
             raise
         finally:
             logger.debug("Calling step_yield()")
@@ -614,49 +614,33 @@ class SyncServer(Server):
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
-        # if user := self.ms.get_user(user_id):
-        #     raise ValueError(f"cannot find user with associated id: {user_id}")
 
-        if interface is None:
-            interface = self.default_interface_factory()
+        request.user_id = request.user_id or self.ms.get_user(user_id).id
+
+        interface = interface or self.default_interface_factory()
 
         # create agent name
-        if request.name is None:
-            request.name = create_random_username()
+        request.name = request.name or create_random_username()
 
         # system debug
-        if request.system is None:
-            # TODO: don't hardcode
-            request.system = gpt_system.get_system_text("memgpt_chat")
+        request.system = request.system or gpt_system.get_system_text("memgpt_chat")
 
         agent = None
         try:
             # model configuration
-            llm_config = request.llm_config if request.llm_config else self.server_llm_config
-            embedding_config = request.embedding_config if request.embedding_config else self.server_embedding_config
+            request.llm_config = request.llm_config or self.server_llm_config
+            request.embedding_config = request.embedding_config or self.server_embedding_config
 
             # get tools + make sure they exist
-            tool_objs = []
+            tool_names = []
+            existing_tools = self.ms.list_tools(user_id=user_id)
             for tool_name in request.tools:
-                tool_obj = self.ms.get_tool(name=tool_name, user_id=user_id)
-                assert tool_obj, f"Tool {tool_name} does not exist"
-                tool_objs.append(tool_obj)
-
-            agent_state = AgentState(
-                name=request.name,
-                user_id=user_id,
-                tools=request.tools,
-                llm_config=llm_config,
-                embedding_config=embedding_config,
-                system=request.system,
-                memory=request.memory,
-                description=request.description,
-                metadata_=request.metadata_,
-            )
+                if any(tool_obj.name == tool_name for tool_obj in existing_tools):
+                    tool_names.append(tool_name)
+            request.tools = tool_names
 
             try:
-                sql_state = self.ms.create_agent(agent_state)
-                agent_state.id = sql_state._id
+                agent_state = self.ms.create_agent(request)
             except Exception as e:
                 logger.exception(e)
                 raise e
@@ -664,9 +648,9 @@ class SyncServer(Server):
             agent = Agent(
                 interface=interface,
                 agent_state=agent_state,
-                tools=tool_objs,
+                tools=agent_state.tools,
                 # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                first_message_verify_mono=True if "gpt-4" in agent_state.llm_config.model else False,
             )
 
             logger.info(f"Created new agent from config: {agent}")
@@ -675,12 +659,13 @@ class SyncServer(Server):
             logger.exception(e)
             try:
                 if agent:
-                    self.ms.delete_agent(agent_id=agent.agent_state.id)
+                    self.ms.delete_agent(id=agent.agent_state.id)
             except Exception as delete_e:
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
 
-        assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
+        # Already validated in pydantic model
+        # assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
 
         return agent.agent_state
 
@@ -765,7 +750,7 @@ class SyncServer(Server):
 
     def list_agents(self, user_id: str = None) -> List[AgentState]:
         """List all available agents to a user"""
-        return self.ms.list_agents(id=user_id)
+        return self.ms.list_agents(user_id=user_id)
 
     # TODO make return type pydantic
     def list_agents_legacy(
@@ -847,52 +832,48 @@ class SyncServer(Server):
         self,
         user_id: Optional[str] = None,
         label: Optional[str] = None,
-        template: Optional[bool] = True,
+        template: Optional[bool] = None,
         name: Optional[str] = None,
         id: Optional[str] = None,
     ):
-
-        return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+        # blocks = self.ms.list_block(user_id=user_id, label=label, template=template, name=name, id=id)
+        filters = {}
+        if label:
+            filters["label"] = label
+        if template:
+            filters["is_template"] = template
+        if name:
+            filters["name"] = name
+        if id:
+            filters["id"] = id
+        blocks = self.ms.list_block(filters=filters)
+        return blocks
 
     def get_block(self, block_id: str):
+        return self.ms.get_block(id=block_id)
 
-        blocks = self.get_blocks(id=block_id)
-        if blocks is None or len(blocks) == 0:
-            return None
-        if len(blocks) > 1:
-            raise ValueError("Multiple blocks with the same id")
-        return blocks[0]
-
-    def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_blocks = self.ms.get_blocks(name=request.name, user_id=user_id, template=request.template, label=request.label)
-        if existing_blocks is not None:
-            existing_block = existing_blocks[0]
-            assert len(existing_blocks) == 1
+    def create_block(self, request: CreateBlock, update: Optional[bool] = False) -> Block:
+        existing_blocks = self.ms.list_block(
+            filters={"name": request.name, "is_template": request.is_template}, user_id=self.get_current_user().id
+        )
+        if existing_blocks and len(existing_blocks) > 1:
+            raise ValueError(f"Multiple Blocks already exist with name {request.name}, something is wrong!")
+        elif existing_blocks and len(existing_blocks) > 0:
             if update:
-                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)), user_id)
-            else:
-                raise ValueError(f"Block with name {request.name} already exists")
-        block = Block(**vars(request))
-        self.ms.create_block(block)
-        return block
+                return self.update_block(UpdateBlock(id=existing_blocks[0].id, **request.model_dump()))
+
+            raise ValueError(f"Block with name {request.name} already exists")
+
+        return self.ms.create_block(request)
 
     def update_block(self, request: UpdateBlock) -> Block:
-        block = self.get_block(request.id)
-        block.limit = request.limit if request.limit is not None else block.limit
-        block.value = request.value if request.value is not None else block.value
-        block.name = request.name if request.name is not None else block.name
-        self.ms.update_block(block=block)
-        return block
+        return self.ms.update_block(request)
 
     def delete_block(self, block_id: str):
-        block = self.get_block(block_id)
-        self.ms.delete_block(block_id)
-        return block
-
-    # convert name->id
+        return self.ms.delete_block(block_id)
 
     def get_agent_id(self, name: str, user_id: str):
-        agent_state = self.ms.get_agent(agent_name=name, user_id=user_id)
+        agent_state = self.ms.get_agent(name=name, user_id=user_id)
         if not agent_state:
             return None
         return agent_state.id
@@ -916,10 +897,6 @@ class SyncServer(Server):
     def get_user(self, user_id: str) -> User:
         """Get the user"""
         return self.ms.get_user(user_id)
-
-    def get_user_default(self) -> User:
-        """Get the user"""
-        return SQLUser.default(db_session=self.ms.db_session)
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1514,12 +1491,13 @@ class SyncServer(Server):
 
     def update_tool(
         self,
-        request: ToolUpdate,
+        tool: ToolUpdate,
     ) -> Tool:
         """Update an existing tool"""
-        return self.ms.update_tool(request)
+        # ms.update_tool(tool) fetches the tool from the database, updates it, and then returns it back as Pydantic
+        return self.ms.update_tool(tool)
 
-    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = True) -> Tool:  # TODO: add other fields
+    def create_tool(self, request: ToolCreate, update: bool = True) -> Tool:  # TODO: add other fields
         """Create a new tool"""
 
         # NOTE: deprecated code that existed when we were trying to pretend that `self` was the memory object
@@ -1552,29 +1530,20 @@ class SyncServer(Server):
             # use name from JSON schema
             request.name = json_schema["name"]
             assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
-
-        # check if already exists:
-        tool_name = request.json_schema.get("name") if request.json_schema else request.name
-        existing_tool = self.ms.get_tool(name=tool_name, user_id=user_id)
-        if existing_tool:
-            if update:
-                updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
-                assert updated_tool is not None, f"Failed to update tool {request.name}"
-                return updated_tool
-            else:
-                raise ValueError(f"Tool {request.name} already exists and update=False")
-
-        tool = Tool(
-            name=request.name,
-            source_code=request.source_code,
-            source_type=request.source_type,
-            tags=request.tags,
-            json_schema=json_schema,
-            user_id=user_id,
-        )
-        self.ms.create_tool(tool)
-        created_tool = self.ms.get_tool(name=request.name, user_id=user_id)
-        return created_tool
+        try:
+            tool = ToolCreate(
+                name=request.name,
+                source_code=request.source_code,
+                source_type=request.source_type,
+                tags=request.tags,
+                json_schema=json_schema,
+            )
+            return self.ms.create_tool(tool)
+        except IntegrityError as e:
+            if not update:
+                raise e
+            tool_id = self.ms.get_tool(name=request.name).id
+            return self.update_tool(ToolUpdate(id=tool_id, **request.model_dump()))
 
     def delete_tool(self, tool_id: str):
         """Delete a tool"""
@@ -1584,26 +1553,6 @@ class SyncServer(Server):
         """List tools available to user_id"""
         tools = self.ms.list_tools(user_id)
         return tools
-
-    def add_default_blocks(self, user_id: str):
-        from memgpt.utils import (
-            get_human_text,
-            get_persona_text,
-            list_human_files,
-            list_persona_files,
-        )
-
-        assert user_id is not None, "User ID must be provided"
-
-        for persona_file in list_persona_files():
-            text = get_persona_text(persona_file.stem)
-            self.create_block(
-                CreatePersona(user_id=user_id, name=persona_file.stem, value=text, template=True), user_id=user_id, update=True
-            )
-
-        for human_file in list_human_files():
-            text = get_human_text(human_file.stem)
-            self.create_block(CreateHuman(user_id=user_id, name=human_file.stem, value=text, template=True), user_id=user_id, update=True)
 
 
 def get_agent_message(self, agent_id: str, message_id: str) -> Message:

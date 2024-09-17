@@ -15,8 +15,6 @@ from memgpt.server.rest_api.routers.v1.agents import send_message_to_agent
 from memgpt.server.rest_api.utils import get_current_interface, get_memgpt_server
 
 if TYPE_CHECKING:
-    pass
-
     from memgpt.server.rest_api.interface import QueuingInterface
     from memgpt.server.server import SyncServer
     from memgpt.utils import get_utc_time

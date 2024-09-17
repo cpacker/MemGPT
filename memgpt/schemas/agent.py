@@ -30,14 +30,13 @@ class AgentState(BaseAgent):
     created_at: datetime = Field(..., description="The datetime the agent was created.", default_factory=datetime.now)
 
     # in-context memory
-    message_ids: Optional[List[Union[Message, str]]] = Field(
+    message_ids: Optional[List[Message]] = Field(
         default=None, alias="messages", description="The ids of the messages in the agent's in-context memory."
     )
-    # TODO: dont skip validation for this!
     memory: Optional[Memory] = Field(default_factory=Memory, alias="core_memory", description="The in-context memory of the agent.")
 
     # tools
-    tools: Optional[List[Union[Tool, str]]] = Field(..., description="The tools used by the agent.")
+    tools: Optional[List[Tool]] = Field(..., description="The tools used by the agent.")
 
     # system prompt
     system: Optional[str] = Field(..., description="The system prompt used by the agent.")
@@ -50,11 +49,9 @@ class AgentState(BaseAgent):
 class CreateAgent(BaseAgent):
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
-    message_ids: Optional[List[Union[Message, str]]] = Field(
-        None, alias="messages", description="The ids of the messages in the agent's in-context memory."
-    )
+    message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
     memory: Optional[Memory] = Field(None, alias="core_memory", description="The in-context memory of the agent.")
-    tools: Optional[List[Union[Tool, str]]] = Field(None, description="The tools used by the agent.")
+    tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")

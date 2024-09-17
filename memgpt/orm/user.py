@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Union, Literal
 
 from pydantic import EmailStr
 from sqlalchemy import String
@@ -12,10 +12,12 @@ from memgpt.schemas.user import User as PydanticUser
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-
     from memgpt.orm.agent import Agent
     from memgpt.orm.job import Job
     from memgpt.orm.token import Token
+    from memgpt.orm.user import User as SQLUser
+    from memgpt.schemas.user import User as SchemaUser
+    from sqlalchemy import Select
 
 
 class User(SqlalchemyBase, OrganizationMixin):
@@ -46,3 +48,25 @@ class User(SqlalchemyBase, OrganizationMixin):
         except NoResultFound:
             org = Organization.default(db_session)
             return cls(name=default_user_label, organization=org).create(db_session)
+
+    @classmethod
+    def apply_access_predicate(
+        cls,
+        query: "Select",
+        actor: Union["SQLUser", "SchemaUser"],
+        access: List[Literal["read", "write", "admin"]],
+    ) -> "Select":
+        """applies a WHERE clause restricting results to the given actor and access level
+        Args:
+            query: The initial sqlalchemy select statement
+            actor: The user acting on the query. **Note**: this is called 'actor' to identify the
+                   person or system acting. Users can act on users, making naming very sticky otherwise.
+            access:
+                what mode of access should the query restrict to? This will be used with granular permissions,
+                but because of how it will impact every query we want to be explicitly calling access ahead of time.
+        Returns:
+            the sqlalchemy select statement restricted to the given access.
+        """
+        del access  # entrypoint for row-level permissions. Defaults to "same org as the actor, all permissions" at the moment
+        org_uid = Organization.to_uid(actor.organization_id)
+        return query.where(cls._organization_id == org_uid)

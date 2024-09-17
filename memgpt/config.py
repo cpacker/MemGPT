@@ -52,7 +52,7 @@ class MemGPTConfig:
     default_embedding_config: EmbeddingConfig = None
 
     # database configs: archival
-    archival_storage_type: str = "chroma"  # local, db
+    archival_storage_type: str = "postgres"  # local, db
     archival_storage_path: str = os.path.join(MEMGPT_DIR, "chroma")
     archival_storage_uri: str = None  # TODO: eventually allow external vector DB
 

@@ -18,7 +18,7 @@ def create_engine(backend_configuration: Optional["BackendConfiguration"] = None
     Returns: a sqlalchemy engine
     """
     backend = backend_configuration or settings.backend
-    return sqlalchemy_create_engine(backend.database_uri)
+    return sqlalchemy_create_engine(backend.database_uri, echo=False)
 
 
 def get_db_session() -> "Session":

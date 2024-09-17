@@ -2,7 +2,7 @@
 
 import uuid
 from importlib import import_module
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from humps import pascalize
 from sqlalchemy.exc import NoResultFound
@@ -21,7 +21,7 @@ from memgpt.orm.tool import Tool as SQLTool
 from memgpt.orm.user import User as SQLUser
 from memgpt.orm.utilities import get_db_session
 from memgpt.schemas.agent import AgentState as DataAgentState
-from memgpt.schemas.block import Human, Persona
+from memgpt.schemas.block import Block, Human, Persona
 from memgpt.schemas.enums import JobStatus
 from memgpt.schemas.job import Job
 from memgpt.schemas.message import Message
@@ -106,13 +106,23 @@ class MetadataStore:
 
         splatted_pydantic = agent_state.model_dump(exclude_none=True, exclude=excluded_fields)
 
+        actor = SQLUser.read(db_session=self.db_session, identifier=SQLUser.to_uid(self.actor.id))
+        
+        if agent_state.memory:
+            splatted_pydantic["core_memory"] = []
+            for name, block in agent_state.memory.memory.items():
+                block.organization_id = actor.organization_id
+                splatted_pydantic["core_memory"].append(block.to_sqlalchemy(self.db_session))
+
         if agent_state.tools:
+            # tools need to be read by name
             splatted_pydantic["tools"] = [
-                SQLTool.read(self.db_session, name=r) if not isinstance(r, Tool) else r.to_sqlalchemy() for r in agent_state.tools
+                SQLTool.read(self.db_session, name=r, actor=actor) if not isinstance(r, Tool) else r.to_sqlalchemy(self.db_session)
+                for r in agent_state.tools
             ]
-        if agent_state.message_ids and action == "create":
+        if agent_state.message_ids:
             splatted_pydantic["messages"] = [
-                SQLMessage.read(self.db_session, identifier=r) if not isinstance(r, Message) else r.to_sqlalchemy()
+                SQLMessage.read(self.db_session, identifier=r, actor=actor) if not isinstance(r, Message) else r.to_sqlalchemy()
                 for r in agent_state.message_ids
             ]
 
@@ -125,8 +135,10 @@ class MetadataStore:
         *Note* There is not currently a clear SQL <> Pydantic mapping for this object.
         Args:
             agent: the agent to create"""
-        return Agent(created_by_id=self.actor.id, **self._clean_agent_state(agent_state=agent_state, action="create")).create(
-            self.db_session
+        return (
+            Agent(created_by_id=self.actor.id, **self._clean_agent_state(agent_state=agent_state, action="create"))
+            .create(self.db_session)
+            .to_pydantic()
         )
 
     def update_agent(self, agent_state: DataAgentState):
@@ -140,7 +152,7 @@ class MetadataStore:
             setattr(instance, k, v)
         instance.update(self.db_session)
 
-        return instance
+        return instance.to_pydantic()
 
     def list_agents(self, **kwargs) -> List[DataAgentState]:
         return self.list_agent(**kwargs)
@@ -151,19 +163,21 @@ class MetadataStore:
     def list_blocks(self, **kwargs) -> List[Block]:
         return self.list_block(**kwargs)
 
-    def get_tool(self, id: Optional[str] = None, name: Optional[str] = None, user_id: Optional[str] = None) -> Optional[Tool]:
-        try:
-            if id:
-                return SQLTool.read(self.db_session, identifier=id).to_pydantic()
-            if name:
-                return SQLTool.read(self.db_session, name=name).to_pydantic()
-            else:
-                return None
-        except NoResultFound:
-            return None
-
     def get_organization(self, name: str = "Default Organization") -> SQLOrganization:
         return SQLOrganization.default(self.db_session)
+
+    def get_tool(self, id: Optional[str] = None, name: Optional[str] = None, user_id: Optional[str] = None) -> "Tool":
+        actor = self._get_actor(user_id)
+        if id:
+            return SQLTool.read(db_session=self.db_session, actor=actor, identifier=id).to_pydantic()
+        if name:
+            return SQLTool.read(db_session=self.db_session, actor=actor, name=name).to_pydantic()
+
+    def _get_actor(self, user_id: Optional[str] = None) -> "SQLUser":
+        if user_id:
+            return SQLUser.read(db_session=self.db_session, identifier=SQLUser.to_uid(user_id))
+        else:
+            return self.actor.to_sqlalchemy(self.db_session)
 
     def __getattr__(self, name):
         """temporary metaprogramming to clean up all the getters and setters here.
@@ -184,13 +198,8 @@ class MetadataStore:
             case "get":
                 # this has no support for scoping, but we won't keep this pattern long
                 try:
-
                     def get(id, user_id=None):
-                        try:
-                            actor = SQLUser.read(db_session=self.db_session, identifier=SQLUser.to_uid(user_id))
-                        except NoResultFound:
-                            actor = None
-                        return Model.read(self.db_session, id, actor).to_pydantic()
+                        return Model.read(db_session=self.db_session, identifier=id, actor=self._get_actor(user_id)).to_pydantic()
 
                     return get
                 except IndexError:
@@ -199,14 +208,15 @@ class MetadataStore:
 
                 def create(schema):
                     splatted_pydantic = schema.model_dump(exclude_none=True)
-                    splatted_pydantic = {k: v for k,v in splatted_pydantic.items() if hasattr(Model, k)}
+                    splatted_pydantic = {k: v for k, v in splatted_pydantic.items() if hasattr(Model, k)}
+
                     return Model(created_by_id=self.actor.id, **splatted_pydantic).create(self.db_session).to_pydantic()
 
                 return create
             case "update":
 
                 def update(schema):
-                    instance = Model.read(self.db_session, schema.id)
+                    instance = Model.read(db_session=self.db_session, identifier=schema.id, actor=self._get_actor())
                     splatted_pydantic = schema.model_dump(exclude_none=True, exclude=["id"])
                     for k, v in splatted_pydantic.items():
                         setattr(instance, k, v)
@@ -231,10 +241,9 @@ class MetadataStore:
                 # hacky temp. look up the org for the user, get all the plural (related set) for that org
                 def list(*args, **kwargs):
                     filters = kwargs.get("filters", {})
-                    if user_uuid := kwargs.get("id"):
+                    if user_uuid := kwargs.get("user_id"):
                         filters["_organization_id"] = SQLUser.read(self.db_session, user_uuid).organization._id
-                    # TODO: this has no scoping, no pagination, and no filtering. it's a placeholder.
-                    return [r.to_pydantic() for r in Model.list(db_session=self.db_session, **filters)]
+                    return [r.to_pydantic() for r in Model.list(self.db_session, self._get_actor(), **filters)]
 
                 return list
             case _:
@@ -248,9 +257,18 @@ class MetadataStore:
         sql_persona = PersonaMemoryTemplate(**persona.model_dump(exclude_none=True)).create(self.db_session)
         return sql_persona.to_pydantic()
 
-    def get_all_users(self, cursor: Optional[uuid.UUID] = None, limit: Optional[int] = 50) -> (Optional[uuid.UUID], List[User]):
+    # def update_block(self, block: Block) -> Block:
+    #    # TODO: change this to be general, not hard coded to human/persona
+    #    if block.label == "human":
+    #        self.update_human(block)
+    #    elif block.label == "persona":
+    #        self.update_persona(block)
+    #    else:
+    #        raise ValueError(f"Block label {block.label} not recognized")
+
+    def get_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Tuple[Optional[str], List[User]]:
         del limit  # TODO: implement pagination as part of predicate
-        return None, [u.to_pydantic() for u in SQLUser.list(self.db_session)]
+        return None, self.list_user(user_id=self.actor.id)
 
     # agent source metadata
     def attach_source(self, user_id: uuid.UUID, agent_id: uuid.UUID, source_id: uuid.UUID) -> None:

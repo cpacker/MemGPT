@@ -1,16 +1,21 @@
 from typing import TYPE_CHECKING, List, Optional, Type, Union
 
-from sqlalchemy import JSON, Integer
+from sqlalchemy import JSON, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
+from memgpt.settings import settings
 from memgpt.orm.mixins import OrganizationMixin
 from memgpt.orm.sqlalchemy_base import SqlalchemyBase
+from memgpt.orm.organization import Organization
 from memgpt.schemas.block import Block as PydanticBlock
 from memgpt.schemas.block import Human, Persona
+import memgpt.utils as utils
+
 
 if TYPE_CHECKING:
     from memgpt.orm.organization import Organization
+    from sqlalchemy.orm import Session
 
 
 class BlockValue(TypeDecorator):
@@ -41,6 +46,13 @@ class Block(OrganizationMixin, SqlalchemyBase):
 
     __tablename__ = "block"
     __pydantic_model__ = PydanticBlock
+    __table_args__ = (
+        UniqueConstraint(
+            "_organization_id",
+            "name",
+            name="unique_block_name_per_organization",
+        ),
+    )
 
     name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="the unique name that identifies a block in a human-readable way")
     description: Mapped[Optional[str]] = mapped_column(nullable=True, doc="a description of the block for context")
@@ -66,3 +78,32 @@ class Block(OrganizationMixin, SqlalchemyBase):
             case _:
                 Schema = PydanticBlock
         return Schema.model_validate(self)
+
+    @classmethod
+    def load_default_blocks(cls, db_session: "Session") -> None:
+        """populates the db with default blocks"""
+        org = Organization.default(db_session)
+        sql_blocks = []
+        for scope in ("human", "persona"):
+            list_files = getattr(utils, f"list_{scope}_files")
+            get_text = getattr(utils, f"get_{scope}_text")
+            for file in list_files():
+                sql_blocks.append(
+                    dict(
+                        _organization_id=org._id,
+                        name=file.stem,
+                        label=scope,
+                        value=get_text(file.stem),
+                        is_template=True,
+                    )
+                )
+        match settings.backend.name:
+            case "sqlite_chroma":
+                from sqlalchemy.dialects.sqlite import insert
+            case "postgres":
+                from sqlalchemy.dialects.postgresql import insert
+            case _:
+                raise ValueError(f"Unsupported backend for bulk loading blocks on startup: {settings.backend.name}")
+
+        statement = insert(cls).values(sql_blocks).on_conflict_do_nothing()
+        db_session.execute(statement)

@@ -42,8 +42,11 @@ def create_application() -> "FastAPI":
     def on_startup():
         # load the default tools
         from memgpt.orm.tool import Tool
+        from memgpt.orm.block import Block
 
-        Tool.load_default_tools(get_db_session())
+        session_just_for_loading_defaults = get_db_session()
+        Tool.load_default_tools(session_just_for_loading_defaults)
+        Block.load_default_blocks(session_just_for_loading_defaults)
 
         # Update the OpenAPI schema
         if not app.openapi_schema:

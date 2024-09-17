@@ -23,8 +23,12 @@ from memgpt.metadata import MetadataStore
 from memgpt.schemas.embedding_config import EmbeddingConfig
 from memgpt.schemas.enums import OptionState
 from memgpt.schemas.llm_config import LLMConfig
-from memgpt.schemas.memory import ChatMemory, Memory
+from memgpt.schemas.memory import BlockChatMemory
 from memgpt.settings import settings
+
+from memgpt.orm.utilities import get_db_session
+from memgpt.orm.tool import Tool
+from memgpt.orm.block import Block
 
 # from memgpt.interface import CLIInterface as interface  # for printing to terminal
 from memgpt.streaming_interface import (
@@ -454,15 +458,22 @@ def run(
     else:  # load config
         config = MemGPTConfig.load()
 
-    # read user id from config
-    ms = MetadataStore(config)
-    client = create_client()
-    client.user_id
+    
+    # set the backend if config uses postgres in any fields
+    storage_types = ["archival_storage_type", "recall_storage_type", "metadata_storage_type"]
+    if any([getattr(config, t) == "postgres" for t in storage_types]):
+        settings.pg_uri = os.environ.get("POSTGRES_URI")
+
+    client = create_client(debug=settings.debug, config=config)
+
+    # Load defaults idempotently into DB
+    with get_db_session() as db_session:
+        Tool.load_default_tools(db_session)
+        Block.load_default_blocks(db_session)
 
     # determine agent to use, if not provided
     if not yes and not agent:
         agents = client.list_agents()
-        agents = [a.name for a in agents]
 
         if len(agents) > 0:
             print()
@@ -470,27 +481,20 @@ def run(
             if select_agent is None:
                 raise KeyboardInterrupt
             if select_agent:
-                agent = questionary.select("Select agent:", choices=agents).ask()
+                agent = questionary.select("Select agent:", choices=[a.name for a in agents]).ask()
 
     # create agent config
     if agent:
-        agent_id = client.get_agent_id(agent)
-        agent_state = client.get_agent(agent_id)
+        agent_state = [a for a in agents if a.name == agent][0]
     else:
         agent_state = None
     human = human if human else config.human
     persona = persona if persona else config.persona
     if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
-        # agent_config = AgentConfig.load(agent)
-        # agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
+
         printd("Loading agent state:", agent_state.id)
-        printd("Agent state:", agent_state.state)
-        # printd("State path:", agent_config.save_state_dir())
-        # printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
-        # printd("Index path:", agent_config.save_agent_index_dir())
-        # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
-        # TODO: load prior agent state
+        printd("Agent state:", agent_state)
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
         if model and model != agent_state.llm_config.model:
@@ -542,7 +546,7 @@ def run(
         )
 
         # create agent
-        memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
+        memgpt_agent = Agent(agent_state=agent_state, interface=interface(), tools=agent_state.tools)
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
@@ -581,10 +585,9 @@ def run(
             )
             llm_config.model_endpoint_type = model_endpoint_type
 
-        # create agent
-        client = create_client()
         human_obj = client.get_human(client.get_human_id(name=human))
         persona_obj = client.get_persona(client.get_persona_id(name=persona))
+
         if human_obj is None:
             typer.secho(f"Couldn't find human {human} in database, please run `memgpt add human`", fg=typer.colors.RED)
             sys.exit(1)
@@ -601,7 +604,7 @@ def run(
                 typer.secho(f"System file not found at {system_file}", fg=typer.colors.RED)
         system_prompt = system if system else None
 
-        memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
+        memory = BlockChatMemory(blocks=[human_obj, persona_obj])
         metadata = {"human": human_obj.name, "persona": persona_obj.name}
 
         typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
@@ -616,10 +619,10 @@ def run(
             memory=memory,
             metadata=metadata,
         )
-        assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
-        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-        tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
 
+        tools = agent_state.tools
+        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t.name for t in tools])}", fg=typer.colors.WHITE)
+        
         memgpt_agent = Agent(
             interface=interface(),
             agent_state=agent_state,
@@ -627,7 +630,7 @@ def run(
             # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
             first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
         )
-        save_agent(agent=memgpt_agent, ms=ms)
+        save_agent(agent=memgpt_agent, ms=client.server.ms)
         typer.secho(f"🎉 Created new agent '{memgpt_agent.agent_state.name}' (id={memgpt_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # start event loop
@@ -638,7 +641,7 @@ def run(
         memgpt_agent=memgpt_agent,
         config=config,
         first=first,
-        ms=ms,
+        ms=client.server.ms,
         no_verify=no_verify,
         stream=stream,
         inner_thoughts_in_kwargs=no_content,

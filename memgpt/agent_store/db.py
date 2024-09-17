@@ -48,14 +48,14 @@ class SQLStorageConnector(StorageConnector):
 
         self.db_session = db_session or get_db_session()
 
-        self.check_db_session()
+        # self.check_db_session()
 
-    def check_db_session(self):
-        from sqlalchemy import text
+    # def check_db_session(self):
+    #    from sqlalchemy import text
 
-        schema = self.db_session.execute(text("show search_path")).fetchone()[0]
-        if "postgres" not in schema:
-            raise ValueError(f"Schema: {schema}")
+    #    schema = self.db_session.execute(text("show search_path")).fetchone()[0]
+    #    if "postgres" not in schema:
+    #        raise ValueError(f"Schema: {schema}")
 
     def get_filters(self, filters: Optional[Dict] = {}):
         filter_conditions = {**self.filters, **(filters or {})}
@@ -181,9 +181,8 @@ class SQLStorageConnector(StorageConnector):
         else:
             with self.db_session as session:
                 iterable = tqdm(records) if show_progress else records
-                for record in iterable:
-                    db_record = self.SQLModel(**record.model_dump(exclude_none=True))
-                    session.add(db_record)
+                # Using SQLAlchemy Core is way faster than ORM Bulk Operations https://stackoverflow.com/a/34344200
+                session.execute(self.SQLModel.__table__.insert(), [vars(record) for record in iterable])
                 session.commit()
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):

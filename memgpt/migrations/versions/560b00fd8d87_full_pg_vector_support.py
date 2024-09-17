@@ -8,13 +8,15 @@ Create Date: 2024-08-26 15:07:28.171897
 
 from typing import Sequence, Union
 
-from alembic import op
 from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
 from memgpt.constants import MAX_EMBEDDING_DIM
 
 # revision identifiers, used by Alembic.
+revision: str = "560b00fd8d87"
+down_revision: Union[str, None] = "496c691962ef"
 revision: str = "560b00fd8d87"
 down_revision: Union[str, None] = "496c691962ef"
 branch_labels: Union[str, Sequence[str], None] = None
