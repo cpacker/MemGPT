@@ -23,6 +23,7 @@ class User(UserBase):
     id: str = UserBase.generate_id_field()
     name: str = Field(..., description="The name of the user.")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the user.")
+    org_id: str = Field(..., description="The organization id of the user.")
 
 
 class UserCreate(UserBase):

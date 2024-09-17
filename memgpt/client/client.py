@@ -42,9 +42,8 @@ from memgpt.schemas.openai.chat_completions import ToolCall
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
-from memgpt.schemas.user import UserCreate
-from memgpt.server.rest_api.interface import QueuingInterface
-from memgpt.server.server import SyncServer
+
+# from memgpt.server.server import SyncServer
 from memgpt.utils import get_human_text, get_persona_text
 
 
@@ -1353,18 +1352,18 @@ class LocalClient(AbstractClient):
         memgpt.utils.DEBUG = debug
         logging.getLogger().setLevel(logging.CRITICAL)
 
-        self.interface = QueuingInterface(debug=debug)
-        self.server = SyncServer(default_interface_factory=lambda: self.interface)
+        # self.interface = QueuingInterface(debug=debug)
+        # self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
-        # create user if does not exist
-        existing_user = self.server.get_user(self.user_id)
-        if not existing_user:
-            self.user = self.server.create_user(UserCreate())
-            self.user_id = self.user.id
+        ## create user if does not exist
+        # existing_user = self.server.get_user(self.user_id)
+        # if not existing_user:
+        #    self.user = self.server.create_user(UserCreate())
+        #    self.user_id = self.user.id
 
-            # update config
-            config.anon_clientid = str(self.user_id)
-            config.save()
+        #    # update config
+        #    config.anon_clientid = str(self.user_id)
+        #    config.save()
 
     # agents
 

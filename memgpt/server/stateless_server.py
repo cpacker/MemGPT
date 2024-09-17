@@ -56,6 +56,7 @@ from memgpt.schemas.memgpt_message import MemGPTMessage
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
 from memgpt.schemas.message import Message, MessageCreate, UpdateMessage
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
+from memgpt.schemas.organization import Organization
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
@@ -151,287 +152,425 @@ logger = get_logger(__name__)
 # self.ms -> db_session
 
 
+from collections.abc import Generator
+
+from sqlalchemy.orm import declarative_base
+
 # CRUID methods (Create, Read, Update, Insert, Delete)
-from sqlmodel import Session
+from sqlmodel import Session, create_engine
 
 # TODO: eventually import these models from orm/ folder
-from memgpt.metadata import AgentModel, PassageModel
+from memgpt.metadata import (
+    AgentModel,
+    AgentSourceMappingModel,
+    APIKeyModel,
+    BlockModel,
+    JobModel,
+    OrganizationModel,
+    PassageModel,
+    SourceModel,
+    ToolModel,
+    UserModel,
+)
+from memgpt.settings import settings
+
+engine = create_engine(settings.db_uri)
+print("ENGINE PATH", settings.db_uri)
+Base = declarative_base()
+DEFAULT_USER_ID = "user-00000000"
+DEFAULT_ORG_ID = "org-00000000"
+
+
+def get_default_llm_config():
+    # TODO: move to settings
+    config = MemGPTConfig.load()
+    return LLMConfig(
+        model=config.default_llm_config.model,
+        model_endpoint_type=config.default_llm_config.model_endpoint_type,
+        model_endpoint=config.default_llm_config.model_endpoint,
+        model_wrapper=config.default_llm_config.model_wrapper,
+        context_window=config.default_llm_config.context_window,
+    )
+
+
+def get_default_embedding_config():
+    # TODO: move to settings
+    config = MemGPTConfig.load()
+    return EmbeddingConfig(
+        embedding_endpoint_type=config.default_embedding_config.embedding_endpoint_type,
+        embedding_endpoint=config.default_embedding_config.embedding_endpoint,
+        embedding_dim=config.default_embedding_config.embedding_dim,
+        embedding_model=config.default_embedding_config.embedding_model,
+        embedding_chunk_size=config.default_embedding_config.embedding_chunk_size,
+    )
+
+
+def get_db() -> Generator[Session, None, None]:
+    with Session(engine) as session:
+        yield session
+
+
+def init_db(session: Session):
+    # TODO: make these into constants
+
+    # Create all database tables
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            UserModel.__table__,
+            AgentModel.__table__,
+            SourceModel.__table__,
+            AgentSourceMappingModel.__table__,
+            APIKeyModel.__table__,
+            BlockModel.__table__,
+            ToolModel.__table__,
+            JobModel.__table__,
+            OrganizationModel.__table__,
+        ],
+    )
+
+    # Create the default organization
+    """
+    Returns a default organization object. This is used in single-user mode to avoid explicit creation of organization and users.
+    Both a default organization and default user are created on the database initialization.
+    """
+    if not session.query(OrganizationModel).filter(OrganizationModel.id == DEFAULT_ORG_ID).scalar():
+        # session.add(Organization(id=DEFAULT_ORG_ID).model_dump())
+        OrganizationModel(**Organization(id=DEFAULT_ORG_ID).model_dump()).create(session)
+        session.commit()
+
+    """
+    Returns a default user object. This is used in single-user mode to avoid explicit creation of organization and users.
+    The default user is part of the default organization.
+    If the BEARER_TOKEN is not set or is an empty string, the default user is used.
+    """
+    # Create the default user
+    if not session.query(UserModel).filter(UserModel.id == DEFAULT_USER_ID).scalar():
+        UserModel(**User(id=DEFAULT_USER_ID, org_id=DEFAULT_ORG_ID, name="default").model_dump()).create(session)
+        session.commit()
+
 
 ## ORGANIZATION
 
+from typing import Callable
+
 # TODO: users must be created with an organizaiton, or be added to a default organization
+from memgpt.settings import Settings
 
 
-def get_organization(session: Session, user_id: str) -> Organization:
-    pass
-
-
-def list_organizations(session: Session, filters, cursor: str, limit: int) -> List[Organization]:
-    pass
-
-
-def create_organization(session: Session, request: OrganizationCreate) -> Organization:
-    pass
-
-
-## AGENTS
-
-
-def create_agent(session: Session, request: CreateAgent) -> AgentState:
-    # TODO: check if the name is already created in the org?
-    session.add(AgentModel(**request.model_dump()))
-    session.commit()
-
-
-def load_agent(session: Session, agent_state: AgentState) -> Agent:
+class Server:
     """
-    Loads an instantiated `Agent` class given the persisted `agent_state`.
-    A DB session object is also passed in to allow the agent to interact with the DB (e.g. to save messages, archival memories, search recall/archival)
-
-    Args:
-        session (Session): The DB session object
-        agent_state (AgentState): The persisted agent state
-
-    Returns:
-        agent (Agent): The instantiated agent object
+    Server object that does *not* hold any state (all state is persisted in the DB) other than settings and the interface.
     """
-    # TODO: add an interface? @charles
-    agent = Agent(agent_state=agent_state, session=session)
-    return agent
 
+    def __init__(
+        self,
+        settings: Settings = Settings(),
+        interface_factory: Callable[[], AgentInterface] = lambda: CLIInterface(),
+    ):
+        self.settings = settings
+        self.default_interface_factory = interface_factory
+
+    def init_organization_data(self, session: Session, org_id: str):
+        # TODO: add default blocks (humans/personas)
+        # TODO: add default tools
+        pass
+
+    def get_organization(self, session: Session, user_id: str) -> Organization:
+        pass
+
+    def list_organizations(self, session: Session, filters, cursor: str, limit: int) -> List[Organization]:
+        pass
+
+    def create_organization(self, session: Session) -> Organization:
+        pass
+
+    ## USERS
+    def create_user(self, session: Session, request: UserCreate) -> User:
+        pass
+
+    def get_user(self, session: Session, user_id: str) -> User:
+        pass
+
+    def update_user(self, session: Session, user_id: str, request: UserCreate) -> User:
+        pass
+
+    def delete_user(self, session: Session, user_id: str) -> User:
+        pass
+
+    def list_users(self, session: Session, org_id: str, filters, cursor: str, limit: int) -> List[User]:
+        pass
+
+    def get_user_id(self, session: Session, org_id: str, name: str) -> str:
+        pass
+
+    ## AGENTS
+
+    def create_agent(self, session: Session, request: CreateAgent, org_id: str) -> AgentState:
+        # TODO: check if the name is already created in the org?
+
+        """Create a new agent"""
+
+        # create default interface
+        interface = self.default_interface_factory()
+
+        # create agent name
+        if request.name is None:
+            request.name = create_random_username()
+
+        # system debug
+        if request.system is None:
+            # TODO: don't hardcode
+            request.system = gpt_system.get_system_text("memgpt_chat")
+
+        if request.llm_config is None:
+            request.llm_config = get_default_llm_config()
+
+        if request.embedding_config is None:
+            request.embedding_config = get_default_embedding_config()
+
+        # get tools and make sure they exist
+        tool_objs = []
+        for tool_name in request.tools:
+            tool_obj = get_tool(session, tool_name)
+            assert tool_obj, f"Tool {tool_name} does not exist"
+            tool_objs.append(tool_obj)
+
+        # save agent
+        agent_state = AgentState(
+            name=request.name,
+            org_id=org_id,
+            tools=request.tools,  # name=id for tools
+            llm_config=request.llm_config,
+            embedding_config=request.embedding_config,
+            system=request.system,
+            memory=request.memory,
+            description=request.description,
+            metadata_=request.metadata_,
+        )
+
+        try:
+
+            agent = Agent(
+                interface=interface,
+                agent_state=agent_state,
+                tools=tool_objs,
+                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                first_message_verify_mono=(
+                    True if (agent_state.llm_config.model is not None and "gpt-4" in agent_state.llm_config.model) else False
+                ),
+                session=session,
+            )
+            # rebuilding agent memory on agent create in case shared memory blocks
+            # were specified in the new agent's memory config. we're doing this for two reasons:
+            # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
+            # 2. if the shared block state changed since this agent initialization started, we can be sure to have the latest value
+            agent.rebuild_memory(force=True)
+            # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
+            # self.ms.update_agent(agent.agent_state)
+        except Exception as e:
+            logger.exception(e)
+            try:
+                if agent:
+                    delete_agent(session, agent.agent_state.id)
+            except Exception as delete_e:
+                logger.exception(f"Failed to delete_agent:\n{delete_e}")
+            raise e
+
+        # save agent with any state updatess
+        AgentState(**agent.agent_state.model_dump()).create(session)
+        logger.info(f"Created new agent from config: {agent}")
 
-def get_agent(session: Session, agent_id: str) -> AgentState:
-    return session.query(AgentModel).filter(AgentModel.id == agent_id).scalar()
+        assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
+        # return AgentState
+        return agent.agent_state
 
+    def load_agent(self, session: Session, agent_id: str) -> Agent:
+        """
+        Loads an instantiated `Agent` class.
 
-def update_agent(session: Session, agent_id: str, request: UpdateAgentState) -> AgentState:
-    pass
+        Args:
+            session (Session): The DB session object
 
+        Returns:
+            agent (Agent): The instantiated agent object
+        """
+        agent_state = AgentState.read(session, agent_id)  # TODO: implement
+        if not agent_state:
+            raise ValueError(f"Agent does not exist")
 
-def delete_agent(session: Session, agent_id: str) -> AgentState:
-    pass
+        # gather tool objects
+        # TODO: eventually just place this in `AgentState`
+        tools = []
+        for tool_name in agent_state.tools:
+            tool_obj = ToolModel.read_by_name(session, tool_name)  # TODO: implement this
+            if not tool_obj:
+                raise ValueError(f"Tool {tool_name} does not exist")
+            tools.append(tool_obj)
 
+        return Agent(
+            interface=self.default_interface_factory(),
+            tools=tools,
+            agent_state=agent_state,
+        )
 
-def list_agents(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[AgentState]:
-    # TODO: add org_id?
-    pass
+    def get_agent(self, session: Session, agent_id: str) -> AgentState:
+        return session.query(AgentModel).filter(AgentModel.id == agent_id).scalar()
 
+    def update_agent(self, session: Session, agent_id: str, request: UpdateAgentState) -> AgentState:
+        pass
 
-def get_agent_id(session: Session, org_id: str, name: str) -> str:
-    # TODO: add org_id?
-    pass
+    def delete_agent(self, session: Session, agent_id: str) -> AgentState:
+        pass
 
+    def list_agents(self, session: Session, org_id: str, filters, cursor: str, limit: int) -> List[AgentState]:
+        # TODO: add org_id?
+        pass
 
-def get_archival_memory_summary(session: Session, agent_id: str) -> ArchivalMemorySummary:
-    pass
+    def get_agent_id(self, session: Session, org_id: str, name: str) -> str:
+        # TODO: add org_id?
+        pass
 
+    def get_archival_memory_summary(self, session: Session, agent_id: str) -> ArchivalMemorySummary:
+        pass
 
-def get_recall_memory_summary(session: Session, agent_id: str) -> RecallMemorySummary:
-    pass
+    def get_recall_memory_summary(self, session: Session, agent_id: str) -> RecallMemorySummary:
+        pass
 
+    ## TOOLS
 
-## USERS
+    def create_tool(self, session: Session, request: ToolCreate) -> Tool:
+        pass
 
+    def get_tool(self, session: Session, tool_id: str) -> Tool:
+        pass
 
-def create_user(session: Session, request: UserCreate) -> User:
-    pass
+    def update_tool(self, session: Session, tool_id: str, request: ToolUpdate) -> Tool:
+        pass
 
+    def delete_tool(self, session: Session, tool_id: str) -> Tool:
+        pass
 
-def get_user(session: Session, user_id: str) -> User:
-    pass
+    def list_tools(self, session: Session, org_id: str, filters, cursor: str, limit: int) -> List[Tool]:
+        pass
 
+    def get_tool_id(self, session: Session, org_id: str, name: str) -> str:
+        pass
 
-def update_user(session: Session, user_id: str, request: UserCreate) -> User:
-    pass
+    ## SOURCES
 
+    def create_source(self, session: Session, request: SourceCreate) -> Source:
+        pass
 
-def delete_user(session: Session, user_id: str) -> User:
-    pass
+    def get_source(self, session: Session, source_id: str) -> Source:
+        pass
 
+    def update_source(self, session: Session, source_id: str, request: SourceUpdate) -> Source:
+        pass
 
-def list_users(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[User]:
-    pass
+    def delete_source(self, session: Session, source_id: str) -> Source:
+        pass
 
+    def list_sources(self, session: Session, org_id: str, filters, cursor: str, limit: int) -> List[Source]:
+        pass
 
-def get_user_id(session: Session, org_id: str, name: str) -> str:
-    pass
+    def get_source_id(self, session: Session, org_id: str, name: str) -> str:
+        pass
 
+    ## JOBS
 
-## TOOLS
+    def create_job(self, session: Session) -> Job:
+        # This simply creates a job with the status CREATED
+        pass
 
+    def get_job(self, session: Session, job_id: str) -> Job:
+        pass
 
-def create_tool(session: Session, request: ToolCreate) -> Tool:
-    pass
+    def update_job(self, session: Session, job_id: str, request: JobUpdate) -> Job:
+        pass
 
+    ## DATA LOADING
 
-def get_tool(session: Session, tool_id: str) -> Tool:
-    pass
+    def load_data(self, session: Session, connector: DataConnector, source_id: str) -> List[Document]:
+        pass
 
+    ## BLOCKS
 
-def update_tool(session: Session, tool_id: str, request: ToolUpdate) -> Tool:
-    pass
+    def create_block(self, session: Session, request: CreateBlock) -> Block:
+        pass
 
+    def get_block(self, session: Session, block_id: str) -> Block:
+        pass
 
-def delete_tool(session: Session, tool_id: str) -> Tool:
-    pass
+    def update_block(self, session: Session, block_id: str, request: UpdateBlock) -> Block:
+        pass
 
+    def delete_block(self, session: Session, block_id: str) -> Block:
+        pass
 
-def list_tools(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[Tool]:
-    pass
+    def list_blocks(self, session: Session, org_id: str, filters, cursor: str, limit: int) -> List[Block]:
+        pass
 
+    ## MESSAGES (Note: called from `Agent`)
 
-def get_tool_id(session: Session, org_id: str, name: str) -> str:
-    pass
+    def create_message(self, session: Session, request: MessageCreate) -> Message:
+        pass
 
+    def get_message(self, session: Session, message_id: str) -> Message:
+        pass
 
-## SOURCES
+    def update_message(self, session: Session, message_id: str, request: UpdateMessage) -> Message:
+        pass
 
+    def list_messages(self, session: Session, filters, cursor: str, limit: int) -> List[Message]:
+        pass
 
-def create_source(session: Session, request: SourceCreate) -> Source:
-    pass
+    def query_messages_text(self, session: Session, query: str, filters) -> List[Message]:
+        # TODO: filters should include agent_id
+        pass
 
+    def query_messages_date(self, session: Session, query: str, filters) -> List[Message]:
+        pass
 
-def get_source(session: Session, source_id: str) -> Source:
-    pass
+    ## PASSAGES (Note: called from `Agent`)
 
+    def create_passage(self, session: Session, request: Passage) -> Passage:
+        pass
 
-def update_source(session: Session, source_id: str, request: SourceUpdate) -> Source:
-    pass
+    def get_passage(self, session: Session, passage_id: str) -> Passage:
+        return session.query(PassageModel).filter(PassageModel.id == passage_id).scalar()
 
+    def list_passages(self, session: Session, filters, cursor: str, limit: int) -> List[Passage]:
+        # TODO: filters should filter by either the source_id or agent_id
+        pass
 
-def delete_source(session: Session, source_id: str) -> Source:
-    pass
+    def query_passages_vector(self, session: Session, query: str, filters) -> List[Passage]:
+        # TODO: filters should filter by either the source_id or agent_id
+        pass
 
+    ## CONFIGS
 
-def list_sources(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[Source]:
-    pass
+    def list_llm_configs(self, session: Session, org_id: str) -> List[LLMConfig]:
+        pass
 
+    def list_embedding_configs(self, session: Session, org_id: str) -> List[EmbeddingConfig]:
+        pass
 
-def get_source_id(session: Session, org_id: str, name: str) -> str:
-    pass
+    ## ORGNIZATION  (TODO: do last)
 
+    # def create_organization(session: Session, request: OrganizationCreate) -> Organization:
+    #    pass
+    #
+    # def get_organization(session: Session, org_id: str) -> Organization:
+    #    pass
+    #
+    # def update_organization(session: Session, org_id: str, request: OrganizationUpdate) -> Organization:
+    #    pass
+    #
+    # def delete_organization(session: Session, org_id: str) -> Organization:
+    #    pass
 
-## JOBS
-
-
-def create_job(session: Session) -> Job:
-    # This simply creates a job with the status CREATED
-    pass
-
-
-def get_job(session: Session, job_id: str) -> Job:
-    pass
-
-
-def update_job(session: Session, job_id: str, request: JobUpdate) -> Job:
-    pass
-
-
-## DATA LOADING
-
-
-def load_data(session: Session, connector: DataConnector, source_id: str) -> List[Document]:
-    pass
-
-
-## BLOCKS
-
-
-def create_block(session: Session, request: CreateBlock) -> Block:
-    pass
-
-
-def get_block(session: Session, block_id: str) -> Block:
-    pass
-
-
-def update_block(session: Session, block_id: str, request: UpdateBlock) -> Block:
-    pass
-
-
-def delete_block(session: Session, block_id: str) -> Block:
-    pass
-
-
-def list_blocks(session: Session, org_id: str, filters, cursor: str, limit: int) -> List[Block]:
-    pass
-
-
-## MESSAGES (Note: called from `Agent`)
-
-
-def create_message(session: Session, request: MessageCreate) -> Message:
-    pass
-
-
-def get_message(session: Session, message_id: str) -> Message:
-    pass
-
-
-def update_message(session: Session, message_id: str, request: UpdateMessage) -> Message:
-    pass
-
-
-def list_messages(session: Session, filters, cursor: str, limit: int) -> List[Message]:
-    pass
-
-
-def query_messages_text(session: Session, query: str, filters) -> List[Message]:
-    # TODO: filters should include agent_id
-    pass
-
-
-def query_messages_date(session: Session, query: str, filters) -> List[Message]:
-    pass
-
-
-## PASSAGES (Note: called from `Agent`)
-
-
-def create_passage(session: Session, request: Passage) -> Passage:
-    pass
-
-
-def get_passage(session: Session, passage_id: str) -> Passage:
-    return session.query(PassageModel).filter(PassageModel.id == passage_id).scalar()
-
-
-def list_passages(session: Session, filters, cursor: str, limit: int) -> List[Passage]:
-    # TODO: filters should filter by either the source_id or agent_id
-    pass
-
-
-def query_passages_vector(session: Session, query: str, filters) -> List[Passage]:
-    # TODO: filters should filter by either the source_id or agent_id
-    pass
-
-
-## CONFIGS
-
-
-def list_llm_configs(session: Session, org_id: str) -> List[LLMConfig]:
-    pass
-
-
-def list_embedding_configs(session: Session, org_id: str) -> List[EmbeddingConfig]:
-    pass
-
-
-## ORGNIZATION  (TODO: do last)
-
-# def create_organization(session: Session, request: OrganizationCreate) -> Organization:
-#    pass
-#
-# def get_organization(session: Session, org_id: str) -> Organization:
-#    pass
-#
-# def update_organization(session: Session, org_id: str, request: OrganizationUpdate) -> Organization:
-#    pass
-#
-# def delete_organization(session: Session, org_id: str) -> Organization:
-#    pass
-
-# More advanced private methods
+    # More advanced private methods
 
 
 def _load_agent(self, user_id: str, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
@@ -830,7 +969,7 @@ def create_user(self, request: UserCreate) -> User:
     return user
 
 
-def create_agent(
+def create_agent_legacy(
     self,
     request: CreateAgent,
     user_id: str,

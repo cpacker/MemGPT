@@ -146,3 +146,25 @@ class LocalStateManager(PersistenceManager):
         printd(f"{self.__class__.__name__}.update_memory")
         assert isinstance(new_memory, Memory), type(new_memory)
         self.memory = new_memory
+
+
+class SessionManager(PersistenceManager):
+    """Session manager for managing state across multiple agents"""
+
+    def __init__(self, agent_state: AgentState):
+        self.agent_state = agent_state
+
+    def trim_messages(self, num):
+        pass
+
+    def prepend_to_messages(self, added_messages):
+        pass
+
+    def append_to_messages(self, added_messages):
+        pass
+
+    def swap_system_message(self, new_system_message):
+        pass
+
+    def update_memory(self, new_memory):
+        pass

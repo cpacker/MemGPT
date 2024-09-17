@@ -11,16 +11,36 @@ class Settings(BaseSettings):
     memgpt_dir: Optional[Path] = Field(Path.home() / ".memgpt", env="MEMGPT_DIR")
     debug: Optional[bool] = False
     server_pass: Optional[str] = None
+
+    # postgres
     pg_db: Optional[str] = None
     pg_user: Optional[str] = None
     pg_password: Optional[str] = None
     pg_host: Optional[str] = None
     pg_port: Optional[int] = None
     pg_uri: Optional[str] = None  # option to specifiy full uri
+
+    # sqlite
+    sqlite_db_path: Optional[str] = None
+
+    # chroma
+    chroma_db_path: Optional[str] = None
+
     cors_origins: Optional[list] = ["http://memgpt.localhost", "http://localhost:8283", "http://localhost:8083"]
 
     # agent configuration defaults
     default_preset: Optional[str] = "memgpt_chat"
+
+    @property
+    def db_uri(self) -> str:
+        if self.pg_uri:
+            return self.pg_uri
+        elif self.pg_db and self.pg_user and self.pg_password and self.pg_host and self.pg_port:
+            return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
+        elif self.sqlite_db_path:
+            return f"sqlite:///{self.sqlite_db_path}"
+        else:
+            return f"sqlite:///{self.memgpt_dir}/sqlite.db"
 
     @property
     def memgpt_pg_uri(self) -> str:

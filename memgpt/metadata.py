@@ -4,7 +4,7 @@ import base64
 import os
 import secrets
 import traceback
-from typing import List, Optional
+from typing import List, Optional, Type
 
 import numpy as np
 from sqlalchemy import (
@@ -20,15 +20,14 @@ from sqlalchemy import (
     create_engine,
     desc,
     func,
+    select,
 )
 from sqlalchemy.exc import InterfaceError, OperationalError
-from sqlalchemy.orm import declarative_base, mapped_column, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.sql import func
 from sqlalchemy_json import MutableJson
 
 from memgpt.config import MemGPTConfig
-from memgpt.constants import MAX_EMBEDDING_DIM
-from memgpt.metadata import EmbeddingConfigColumn, ToolCallColumn
 from memgpt.schemas.agent import AgentState
 from memgpt.schemas.api_key import APIKey
 from memgpt.schemas.block import Block, Human, Persona
@@ -154,13 +153,66 @@ class ToolCallColumn(TypeDecorator):
         return value
 
 
-class UserModel(Base):
+class SQLBase(Base):
+
+    __abstract__ = True
+
+    def create(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+
+        with db_session as session:
+            session.add(self)
+            session.commit()
+            session.refresh(self)
+            return self
+
+    def delete(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+        self.is_deleted = True
+        return self.update(db_session)
+
+    def update(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+        with db_session as session:
+            session.add(self)
+            session.commit()
+            session.refresh(self)
+            return self
+
+    @classmethod
+    def list(cls, db_session: "Session", **kwargs) -> List[Type["SqlalchemyBase"]]:
+        with db_session as session:
+            query = select(cls).filter_by(**kwargs)
+            if hasattr(cls, "is_deleted"):
+                query = query.where(cls.is_deleted == False)
+            return list(session.execute(query).scalars())
+
+    @classmethod
+    def read(cls, db_session: "Session", identifier: str) -> Type["SqlalchemyBase"]:
+        with db_session as session:
+            query = select(cls).where(cls.id == identifier)
+            if hasattr(cls, "is_deleted"):
+                query = query.where(cls.is_deleted == False)
+            if found := session.execute(query).scalar():
+                return found
+            raise ValueError(f"{cls.__name__} with id {identifier} not found")
+
+    @classmethod
+    def read_by_name(cls, b_session: "Session", name: str) -> Type["SqlalchemyBase"]:
+        with db_session as session:
+            query = select(cls).where(cls.name == name)
+            if hasattr(cls, "is_deleted"):
+                query = query.where(cls.is_deleted == False)
+            if found := session.execute(query).scalar():
+                return found
+            raise ValueError(f"{cls.__name__} with name {name} not found")
+
+
+class UserModel(SQLBase):
     __tablename__ = "users"
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True))
+    org_id = Column(String, nullable=False)
 
     # TODO: what is this?
     policies_accepted = Column(Boolean, nullable=False, default=False)
@@ -169,7 +221,15 @@ class UserModel(Base):
         return f"<User(id='{self.id}' name='{self.name}')>"
 
     def to_record(self) -> User:
-        return User(id=self.id, name=self.name, created_at=self.created_at)
+        return User(id=self.id, name=self.name, created_at=self.created_at, org_id=self.org_id)
+
+
+class OrganizationModel(SQLBase):
+    __tablename__ = "organizations"
+    __table_args__ = {"extend_existing": True}
+
+    id = Column(String, primary_key=True)
+    created_at = Column(DateTime(timezone=True))
 
 
 class APIKeyModel(Base):
@@ -496,12 +556,13 @@ class PassageModel(Base):
     source_id = Column(String)
 
     # vector storage
-    if dialect == "sqlite":
-        embedding = Column(CommonVector)
-    else:
-        from pgvector.sqlalchemy import Vector
+    # if dialect == "sqlite":
+    #    embedding = Column(CommonVector)
+    # else:
+    #    from pgvector.sqlalchemy import Vector
 
-        embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+    #    embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+    embedding = Column(CommonVector)
 
     embedding_config = Column(EmbeddingConfigColumn)
     metadata_ = Column(MutableJson)
