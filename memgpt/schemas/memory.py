@@ -117,8 +117,6 @@ class BlockChatMemory(BaseChatMemory):
     def __init__(self, blocks: List[Block] = []):
         super().__init__()
         for block in blocks:
-            # TODO: centralize these internal schema validations
-            assert block.name is not None and block.name != "", "each existing chat block must have a name"
             self.link_block(name=block.name, block=block)
 
 
