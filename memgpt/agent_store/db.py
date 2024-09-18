@@ -374,9 +374,6 @@ class PostgresStorageConnector(SQLStorageConnector):
             else:
                 raise ValueError(f"Table type {table_type} not implemented")
 
-        # create engine
-        # self.engine = create_engine(self.uri)
-
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
                 assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
@@ -384,14 +381,10 @@ class PostgresStorageConnector(SQLStorageConnector):
         from memgpt.server.server import db_context
 
         self.session_maker = db_context
-        # self.session_maker = sessionmaker(bind=self.engine)
 
         # TODO: move to DB init
         with self.session_maker() as session:
             session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
-
-        ## create table
-        # Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
         filters = self.get_filters(filters)
@@ -405,31 +398,19 @@ class PostgresStorageConnector(SQLStorageConnector):
         return records
 
     def insert_many(self, records, exists_ok=True, show_progress=False):
-        from sqlalchemy.dialects.postgresql import insert
+        pass
 
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
         if len(records) == 0:
             return
-        if isinstance(records[0], Passage):
-            with self.engine.connect() as conn:
-                db_records = [vars(record) for record in records]
-                stmt = insert(self.db_model.__table__).values(db_records)
-                if exists_ok:
-                    upsert_stmt = stmt.on_conflict_do_update(
-                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
-                    )
-                    conn.execute(upsert_stmt)
-                else:
-                    conn.execute(stmt)
-                conn.commit()
-        else:
-            with self.session_maker() as session:
-                iterable = tqdm(records) if show_progress else records
-                for record in iterable:
-                    # db_record = self.db_model(**vars(record))
-                    db_record = self.db_model(**record.dict())
-                    session.add(db_record)
-                session.commit()
+        with self.session_maker() as session:
+            iterable = tqdm(records) if show_progress else records
+            for record in iterable:
+                # db_record = self.db_model(**vars(record))
+
+                db_record = self.db_model(**record.dict())
+                session.add(db_record)
+            session.commit()
 
     def insert(self, record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
@@ -494,11 +475,6 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
         self.path = os.path.join(self.path, f"sqlite.db")
 
-        # Create the SQLAlchemy engine
-        # self.engine = create_engine(f"sqlite:///{self.path}")
-        # Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
-        # self.session_maker = sessionmaker(bind=self.engine)
-
         from memgpt.server.server import db_context
 
         self.session_maker = db_context
@@ -509,31 +485,18 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         # sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
 
     def insert_many(self, records, exists_ok=True, show_progress=False):
-        from sqlalchemy.dialects.sqlite import insert
+        pass
 
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
         if len(records) == 0:
             return
-        if isinstance(records[0], Passage):
-            with self.engine.connect() as conn:
-                db_records = [vars(record) for record in records]
-                stmt = insert(self.db_model.__table__).values(db_records)
-                if exists_ok:
-                    upsert_stmt = stmt.on_conflict_do_update(
-                        index_elements=["id"], set_={c.name: c for c in stmt.excluded}  # Replace with your primary key column
-                    )
-                    conn.execute(upsert_stmt)
-                else:
-                    conn.execute(stmt)
-                conn.commit()
-        else:
-            with self.session_maker() as session:
-                iterable = tqdm(records) if show_progress else records
-                for record in iterable:
-                    # db_record = self.db_model(**vars(record))
-                    db_record = self.db_model(**record.dict())
-                    session.add(db_record)
-                session.commit()
+        with self.session_maker() as session:
+            iterable = tqdm(records) if show_progress else records
+            for record in iterable:
+                # db_record = self.db_model(**vars(record))
+                db_record = self.db_model(**record.dict())
+                session.add(db_record)
+            session.commit()
 
     def insert(self, record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)

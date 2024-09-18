@@ -49,7 +49,9 @@ class LLMConfigColumn(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value:
-            return vars(value)
+            # return vars(value)
+            if isinstance(value, LLMConfig):
+                return value.model_dump()
         return value
 
     def process_result_value(self, value, dialect):
@@ -69,7 +71,9 @@ class EmbeddingConfigColumn(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value:
-            return vars(value)
+            # return vars(value)
+            if isinstance(value, EmbeddingConfig):
+                return value.model_dump()
         return value
 
     def process_result_value(self, value, dialect):
