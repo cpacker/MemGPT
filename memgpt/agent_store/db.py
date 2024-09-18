@@ -145,13 +145,12 @@ class PassageModel(Base):
     source_id = Column(String)
 
     # vector storage
-    if config.archival_storage_type == "sqlite":
-        embedding = Column(CommonVector)
-    else:
+    if config.archival_storage_type == "postgres":
         from pgvector.sqlalchemy import Vector
 
         embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
-
+    else:
+        embedding = Column(CommonVector)
     embedding_config = Column(EmbeddingConfigColumn)
     metadata_ = Column(MutableJson)
 
