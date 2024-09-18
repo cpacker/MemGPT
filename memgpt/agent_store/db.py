@@ -403,10 +403,15 @@ class PostgresStorageConnector(SQLStorageConnector):
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
         if len(records) == 0:
             return
+
+        added_ids = []  # avoid adding duplicates
         with self.session_maker() as session:
             iterable = tqdm(records) if show_progress else records
             for record in iterable:
                 # db_record = self.db_model(**vars(record))
+
+                if record.id in added_ids:
+                    continue
 
                 existing_record = session.query(self.db_model).filter_by(id=record.id).first()
                 if existing_record:
@@ -419,6 +424,7 @@ class PostgresStorageConnector(SQLStorageConnector):
 
                 db_record = self.db_model(**record.dict())
                 session.add(db_record)
+                added_ids.append(record.id)
             session.commit()
 
     def insert(self, record, exists_ok=True):
