@@ -17,7 +17,6 @@ from sqlalchemy import (
     desc,
     or_,
     select,
-    text,
 )
 from sqlalchemy.orm import declarative_base, mapped_column, sessionmaker
 from sqlalchemy.orm.session import close_all_sessions
@@ -413,12 +412,15 @@ class PostgresStorageConnector(SQLStorageConnector):
             if c.name == "embedding":
                 assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
 
-        self.session_maker = sessionmaker(bind=self.engine)
-        with self.session_maker() as session:
-            session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+        from memgpt.server.server import db_context
 
-        # create table
-        Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
+        self.session_maker = db_context
+        # self.session_maker = sessionmaker(bind=self.engine)
+        # with self.session_maker() as session:
+        #    session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+
+        ## create table
+        # Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
         filters = self.get_filters(filters)

@@ -2,7 +2,6 @@
 
 import os
 import secrets
-import traceback
 from typing import List, Optional
 
 from sqlalchemy import (
@@ -14,12 +13,10 @@ from sqlalchemy import (
     Index,
     String,
     TypeDecorator,
-    create_engine,
     desc,
     func,
 )
-from sqlalchemy.exc import InterfaceError, OperationalError
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 
 from memgpt.config import MemGPTConfig
@@ -399,41 +396,45 @@ class MetadataStore:
         # Ensure valid URI
         assert self.uri, "Database URI is not provided or is invalid."
 
-        # Check if tables need to be created
-        self.engine = create_engine(self.uri)
-        try:
-            Base.metadata.create_all(
-                self.engine,
-                tables=[
-                    UserModel.__table__,
-                    AgentModel.__table__,
-                    SourceModel.__table__,
-                    AgentSourceMappingModel.__table__,
-                    APIKeyModel.__table__,
-                    BlockModel.__table__,
-                    ToolModel.__table__,
-                    JobModel.__table__,
-                ],
-            )
-        except (InterfaceError, OperationalError) as e:
-            traceback.print_exc()
-            if config.metadata_storage_type == "postgres":
-                raise ValueError(
-                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
-                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
-                    + "\npostgres detected: Make sure the postgres database is running (https://memgpt.readme.io/docs/storage#postgres)."
-                )
-            elif config.metadata_storage_type == "sqlite":
-                raise ValueError(
-                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
-                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
-                    + "\nsqlite detected: Make sure that the sqlite.db file exists at the URI."
-                )
-            else:
-                raise e
-        except:
-            raise
-        self.session_maker = sessionmaker(bind=self.engine)
+        from memgpt.server.server import db_context
+
+        self.session_maker = db_context
+
+    #        # Check if tables need to be created
+    #        self.engine = create_engine(self.uri)
+    #        try:
+    #            Base.metadata.create_all(
+    #                self.engine,
+    #                tables=[
+    #                    UserModel.__table__,
+    #                    AgentModel.__table__,
+    #                    SourceModel.__table__,
+    #                    AgentSourceMappingModel.__table__,
+    #                    APIKeyModel.__table__,
+    #                    BlockModel.__table__,
+    #                    ToolModel.__table__,
+    #                    JobModel.__table__,
+    #                ],
+    #            )
+    #        except (InterfaceError, OperationalError) as e:
+    #            traceback.print_exc()
+    #            if config.metadata_storage_type == "postgres":
+    #                raise ValueError(
+    #                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
+    #                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
+    #                    + "\npostgres detected: Make sure the postgres database is running (https://memgpt.readme.io/docs/storage#postgres)."
+    #                )
+    #            elif config.metadata_storage_type == "sqlite":
+    #                raise ValueError(
+    #                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
+    #                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
+    #                    + "\nsqlite detected: Make sure that the sqlite.db file exists at the URI."
+    #                )
+    #            else:
+    #                raise e
+    #        except:
+    #            raise
+    #        self.session_maker = sessionmaker(bind=self.engine)
 
     @enforce_types
     def create_api_key(self, user_id: str, name: str) -> APIKey:

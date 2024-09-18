@@ -133,6 +133,54 @@ class Server(object):
         raise NotImplementedError
 
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+# NOTE: hack to see if single session management works
+from memgpt.metadata import (
+    AgentModel,
+    AgentSourceMappingModel,
+    APIKeyModel,
+    BlockModel,
+    JobModel,
+    SourceModel,
+    ToolModel,
+    UserModel,
+)
+from memgpt.settings import settings
+
+engine = create_engine(settings.memgpt_pg_uri)
+Base = declarative_base()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base.metadata.create_all(
+    engine,
+    tables=[
+        UserModel.__table__,
+        AgentModel.__table__,
+        SourceModel.__table__,
+        AgentSourceMappingModel.__table__,
+        APIKeyModel.__table__,
+        BlockModel.__table__,
+        ToolModel.__table__,
+        JobModel.__table__,
+    ],
+)
+
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+from contextlib import contextmanager
+
+db_context = contextmanager(get_db)
+
+
 class SyncServer(Server):
     """Simple single-threaded / blocking server process"""
 
