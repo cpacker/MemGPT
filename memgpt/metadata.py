@@ -195,7 +195,7 @@ class SQLBase(Base):
             raise ValueError(f"{cls.__name__} with id {identifier} not found")
 
     @classmethod
-    def read_by_name(cls, b_session: "Session", name: str) -> Type["SqlalchemyBase"]:
+    def read_by_name(cls, db_session: "Session", name: str) -> Type["SqlalchemyBase"]:
         with db_session as session:
             query = select(cls).where(cls.name == name)
             if hasattr(cls, "is_deleted"):
@@ -232,7 +232,7 @@ class OrganizationModel(SQLBase):
     created_at = Column(DateTime(timezone=True))
 
 
-class APIKeyModel(Base):
+class APIKeyModel(SQLBase):
     """Data model for authentication tokens. One-to-many relationship with UserModel (1 User - N tokens)."""
 
     __tablename__ = "tokens"
@@ -268,14 +268,14 @@ def generate_api_key(prefix="sk-", length=51) -> str:
     return new_key
 
 
-class AgentModel(Base):
+class AgentModel(SQLBase):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
     __tablename__ = "agents"
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
+    org_id = Column(String, nullable=False)
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     description = Column(String)
@@ -296,15 +296,13 @@ class AgentModel(Base):
     # tools
     tools = Column(JSON)
 
-    Index(__tablename__ + "_idx_user", user_id),
-
     def __repr__(self) -> str:
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> AgentState:
         return AgentState(
             id=self.id,
-            user_id=self.user_id,
+            org_id=self.org_id,
             name=self.name,
             created_at=self.created_at,
             description=self.description,
@@ -318,7 +316,7 @@ class AgentModel(Base):
         )
 
 
-class SourceModel(Base):
+class SourceModel(SQLBase):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
     __tablename__ = "sources"
@@ -327,13 +325,12 @@ class SourceModel(Base):
     # Assuming passage_id is the primary key
     # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
+    org_id = Column(String, nullable=False)
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     embedding_config = Column(EmbeddingConfigColumn)
     description = Column(String)
     metadata_ = Column(JSON)
-    Index(__tablename__ + "_idx_user", user_id),
 
     # TODO: add num passages
 
@@ -343,7 +340,7 @@ class SourceModel(Base):
     def to_record(self) -> Source:
         return Source(
             id=self.id,
-            user_id=self.user_id,
+            org_id=self.org_id,
             name=self.name,
             created_at=self.created_at,
             embedding_config=self.embedding_config,
@@ -352,22 +349,20 @@ class SourceModel(Base):
         )
 
 
-class AgentSourceMappingModel(Base):
+class AgentSourceMappingModel(SQLBase):
     """Stores mapping between agent -> source"""
 
     __tablename__ = "agent_source_mapping"
 
     id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
     agent_id = Column(String, nullable=False)
     source_id = Column(String, nullable=False)
-    Index(__tablename__ + "_idx_user", user_id, agent_id, source_id),
 
     def __repr__(self) -> str:
-        return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
+        return f"<AgentSourceMapping(agent_id='{self.agent_id}', source_id='{self.source_id}')>"
 
 
-class BlockModel(Base):
+class BlockModel(SQLBase):
     __tablename__ = "block"
     __table_args__ = {"extend_existing": True}
 
@@ -379,11 +374,10 @@ class BlockModel(Base):
     label = Column(String)
     metadata_ = Column(JSON)
     description = Column(String)
-    user_id = Column(String)
-    Index(__tablename__ + "_idx_user", user_id),
+    org_id = Column(String)
 
     def __repr__(self) -> str:
-        return f"<Block(id='{self.id}', name='{self.name}', template='{self.template}', label='{self.label}', user_id='{self.user_id}')>"
+        return f"<Block(id='{self.id}', name='{self.name}', template='{self.template}', label='{self.label}'')>"
 
     def to_record(self) -> Block:
         if self.label == "persona":
@@ -396,7 +390,7 @@ class BlockModel(Base):
                 label=self.label,
                 metadata_=self.metadata_,
                 description=self.description,
-                user_id=self.user_id,
+                org_id=self.org_id,
             )
         elif self.label == "human":
             return Human(
@@ -408,7 +402,7 @@ class BlockModel(Base):
                 label=self.label,
                 metadata_=self.metadata_,
                 description=self.description,
-                user_id=self.user_id,
+                org_id=self.org_id,
             )
         else:
             return Block(
@@ -420,17 +414,17 @@ class BlockModel(Base):
                 label=self.label,
                 metadata_=self.metadata_,
                 description=self.description,
-                user_id=self.user_id,
+                org_id=self.org_id,
             )
 
 
-class ToolModel(Base):
+class ToolModel(SQLBase):
     __tablename__ = "tools"
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
-    user_id = Column(String)
+    org_id = Column(String)
     description = Column(String)
     source_type = Column(String)
     source_code = Column(String)
@@ -445,7 +439,7 @@ class ToolModel(Base):
         return Tool(
             id=self.id,
             name=self.name,
-            user_id=self.user_id,
+            org_id=self.org_id,
             description=self.description,
             source_type=self.source_type,
             source_code=self.source_code,
@@ -455,12 +449,12 @@ class ToolModel(Base):
         )
 
 
-class JobModel(Base):
+class JobModel(SQLBase):
     __tablename__ = "jobs"
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
-    user_id = Column(String)
+    org_id = Column(String)
     status = Column(String, default=JobStatus.pending)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -472,7 +466,7 @@ class JobModel(Base):
     def to_record(self):
         return Job(
             id=self.id,
-            user_id=self.user_id,
+            org_id=self.org_id,
             status=self.status,
             created_at=self.created_at,
             completed_at=self.completed_at,
@@ -480,14 +474,14 @@ class JobModel(Base):
         )
 
 
-class MessageModel(Base):
+class MessageModel(SQLBase):
     """Defines data model for storing Message objects"""
 
     __abstract__ = True  # this line is necessary
 
     # Assuming message_id is the primary key
     id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
+    org_id = Column(String, nullable=False)
     agent_id = Column(String, nullable=False)
 
     # openai info
@@ -510,7 +504,6 @@ class MessageModel(Base):
 
     # Add a datetime column, with default value as the current time
     created_at = Column(DateTime(timezone=True))
-    Index("message_idx_user", user_id, agent_id),
 
     def __repr__(self):
         return f"<Message(message_id='{self.id}', text='{self.text}')>"
@@ -528,7 +521,7 @@ class MessageModel(Base):
             for tool in self.tool_calls:
                 assert isinstance(tool, ToolCall), type(tool)
         return Message(
-            user_id=self.user_id,
+            org_id=self.org_id,
             agent_id=self.agent_id,
             role=self.role,
             name=self.name,
@@ -542,14 +535,14 @@ class MessageModel(Base):
         )
 
 
-class PassageModel(Base):
+class PassageModel(SQLBase):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
     __abstract__ = True  # this line is necessary
 
     # Assuming passage_id is the primary key
     id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
+    org_id = Column(String, nullable=False)
     text = Column(String)
     doc_id = Column(String)
     agent_id = Column(String)
@@ -570,8 +563,6 @@ class PassageModel(Base):
     # Add a datetime column, with default value as the current time
     created_at = Column(DateTime(timezone=True))
 
-    Index("passage_idx_user", user_id, agent_id, doc_id),
-
     def __repr__(self):
         return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
 
@@ -581,7 +572,6 @@ class PassageModel(Base):
             embedding=self.embedding,
             embedding_config=self.embedding_config,
             doc_id=self.doc_id,
-            user_id=self.user_id,
             id=self.id,
             source_id=self.source_id,
             agent_id=self.agent_id,

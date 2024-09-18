@@ -159,6 +159,8 @@ from sqlalchemy.orm import declarative_base
 # CRUID methods (Create, Read, Update, Insert, Delete)
 from sqlmodel import Session, create_engine
 
+from memgpt.constants import DEFAULT_ORG_ID, DEFAULT_USER_ID
+
 # TODO: eventually import these models from orm/ folder
 from memgpt.metadata import (
     AgentModel,
@@ -177,8 +179,6 @@ from memgpt.settings import settings
 engine = create_engine(settings.db_uri)
 print("ENGINE PATH", settings.db_uri)
 Base = declarative_base()
-DEFAULT_USER_ID = "user-00000000"
-DEFAULT_ORG_ID = "org-00000000"
 
 
 def get_default_llm_config():
@@ -210,8 +210,59 @@ def get_db() -> Generator[Session, None, None]:
         yield session
 
 
+def generate_default_tool_requests(module_name: str, org_id: str) -> Generator[ToolCreate]:
+    """Generate default tool requests from a module"""
+    full_module_name = f"memgpt.functions.function_sets.{module_name}"
+    try:
+        module = importlib.import_module(full_module_name)
+    except Exception as e:
+        # Handle other general exceptions
+        raise e
+
+    try:
+        # Load the function set
+        functions_to_schema = load_function_set(module)
+    except ValueError as e:
+        err = f"Error loading function set '{module_name}': {e}"
+
+    # create tool in db
+    for name, schema in functions_to_schema.items():
+        # print([str(inspect.getsource(line)) for line in schema["imports"]])
+        source_code = inspect.getsource(schema["python_function"])
+        tags = [module_name]
+        if module_name == "base":
+            tags.append("memgpt-base")
+
+        # create to tool
+        yield ToolCreate(
+            name=name,
+            tags=tags,
+            source_type="python",
+            module=schema["module"],
+            source_code=source_code,
+            json_schema=schema["json_schema"],
+            org_id=org_id,
+        )
+
+
+def generate_default_block_requests(org_id: str) -> Generator[Block]:
+    """Generate default block requests (default humans/personas)"""
+    from memgpt.utils import list_human_files, list_persona_files
+
+    for persona_file in list_persona_files():
+        text = open(persona_file, "r", encoding="utf-8").read()
+        name = os.path.basename(persona_file).replace(".txt", "")
+        yield CreatePersona(org_id=org_id, name=name, value=text, template=True)
+
+    for human_file in list_human_files():
+        text = open(human_file, "r", encoding="utf-8").read()
+        name = os.path.basename(human_file).replace(".txt", "")
+        yield CreateHuman(org_id=org_id, name=name, value=text, template=True)
+
+
 def init_db(session: Session):
     # TODO: make these into constants
+    print("Running init_db")
 
     # Create all database tables
     Base.metadata.create_all(
@@ -248,6 +299,22 @@ def init_db(session: Session):
     if not session.query(UserModel).filter(UserModel.id == DEFAULT_USER_ID).scalar():
         UserModel(**User(id=DEFAULT_USER_ID, org_id=DEFAULT_ORG_ID, name="default").model_dump()).create(session)
         session.commit()
+
+    """
+    Add default tools to default user
+    """
+    for create_tool in generate_default_tool_requests("base", DEFAULT_ORG_ID):
+        tool = ToolModel(**Tool(**create_tool.model_dump()).model_dump()).create(session)
+        session.commit()
+        print(f"Created tool: {tool}")
+
+    """
+    Add default blocks to default user
+    """
+    for create_block in generate_default_block_requests(DEFAULT_ORG_ID):
+        block = BlockModel(**Block(**create_block.model_dump()).model_dump()).create(session)
+        session.commit()
+        print(f"Created block: {block}")
 
 
 ## ORGANIZATION
@@ -331,10 +398,11 @@ class Server:
 
         # get tools and make sure they exist
         tool_objs = []
-        for tool_name in request.tools:
-            tool_obj = get_tool(session, tool_name)
-            assert tool_obj, f"Tool {tool_name} does not exist"
-            tool_objs.append(tool_obj)
+        if request.tools:
+            for tool_name in request.tools:
+                tool_obj = ToolModel.read_by_name(session, tool_name)
+                assert tool_obj, f"Tool {tool_name} does not exist"
+                tool_objs.append(tool_obj.to_record())
 
         # save agent
         agent_state = AgentState(
@@ -1944,9 +2012,9 @@ def list_all_sources(self, user_id: str) -> List[Source]:
     return sources_with_metadata
 
 
-def get_tool(self, tool_id: str) -> Optional[Tool]:
-    """Get tool by ID."""
-    return self.ms.get_tool(tool_id=tool_id)
+# def get_tool(self, tool_id: str) -> Optional[Tool]:
+#    """Get tool by ID."""
+#    return self.ms.get_tool(tool_id=tool_id)
 
 
 def get_tool_id(self, name: str, user_id: str) -> Optional[str]:

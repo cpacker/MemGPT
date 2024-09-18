@@ -1,6 +1,9 @@
 import os
 from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
 
+DEFAULT_USER_ID = "user-00000000"
+DEFAULT_ORG_ID = "org-00000000"
+
 MEMGPT_DIR = os.path.join(os.path.expanduser("~"), ".memgpt")
 
 # String in the error message for when the context window is too large

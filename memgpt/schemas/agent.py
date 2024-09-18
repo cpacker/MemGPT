@@ -16,7 +16,7 @@ class BaseAgent(MemGPTBase, validate_assignment=True):
 
     # metadata
     metadata_: Optional[Dict] = Field(None, description="The metadata of the agent.", alias="metadata_")
-    user_id: Optional[str] = Field(None, description="The user id of the agent.")
+    org_id: Optional[str] = Field(None, description="The user id of the agent.")
 
 
 class AgentState(BaseAgent):

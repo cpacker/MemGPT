@@ -26,7 +26,7 @@ class BaseBlock(MemGPTBase, validate_assignment=True):
     metadata_: Optional[dict] = Field({}, description="Metadata of the block.")
 
     # associated user/agent
-    user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the block.")
+    org_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the block.")
 
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
@@ -70,7 +70,7 @@ class Block(BaseBlock):
         label (str): The label of the block (e.g. 'human', 'persona'). This defines a category for the block.
         description (str): Description of the block.
         metadata_ (Dict): Metadata of the block.
-        user_id (str): The unique identifier of the user associated with the block.
+        org_id (str): The unique identifier of the user associated with the block.
     """
 
     id: str = BaseBlock.generate_id_field()
