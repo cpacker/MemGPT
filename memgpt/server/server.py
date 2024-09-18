@@ -136,6 +136,9 @@ class Server(object):
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
+from memgpt.agent_store.db import MessageModel, PassageModel
+from memgpt.config import MemGPTConfig
+
 # NOTE: hack to see if single session management works
 from memgpt.metadata import (
     AgentModel,
@@ -149,7 +152,16 @@ from memgpt.metadata import (
 )
 from memgpt.settings import settings
 
-engine = create_engine(settings.memgpt_pg_uri)
+config = MemGPTConfig.load()
+
+# determine the storage type
+if config.recall_storage_type == "postgres":
+    engine = create_engine(settings.memgpt_pg_uri)
+elif config.recall_storage_type == "sqlite":
+    engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
+else:
+    raise ValueError(f"Unknown recall_storage_type: {config.recall_storage_type}")
+
 Base = declarative_base()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base.metadata.create_all(
@@ -163,6 +175,8 @@ Base.metadata.create_all(
         BlockModel.__table__,
         ToolModel.__table__,
         JobModel.__table__,
+        PassageModel.__table__,
+        MessageModel.__table__,
     ],
 )
 

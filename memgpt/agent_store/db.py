@@ -13,12 +13,11 @@ from sqlalchemy import (
     TypeDecorator,
     and_,
     asc,
-    create_engine,
     desc,
     or_,
     select,
 )
-from sqlalchemy.orm import declarative_base, mapped_column, sessionmaker
+from sqlalchemy.orm import declarative_base, mapped_column
 from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
 from sqlalchemy_json import MutableJson
@@ -34,6 +33,9 @@ from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completions import ToolCall
 from memgpt.schemas.passage import Passage
 from memgpt.settings import settings
+
+Base = declarative_base()
+config = MemGPTConfig()
 
 
 class CommonVector(TypeDecorator):
@@ -65,149 +67,149 @@ class CommonVector(TypeDecorator):
         return np.frombuffer(value, dtype=np.float32)
 
 
-# Custom serialization / de-serialization for JSON columns
+class MessageModel(Base):
+    """Defines data model for storing Message objects"""
+
+    __tablename__ = "messages"
+    __table_args__ = {"extend_existing": True}
+
+    # Assuming message_id is the primary key
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False)
+    agent_id = Column(String, nullable=False)
+
+    # openai info
+    role = Column(String, nullable=False)
+    text = Column(String)  # optional: can be null if function call
+    model = Column(String)  # optional: can be null if LLM backend doesn't require specifying
+    name = Column(String)  # optional: multi-agent only
+
+    # tool call request info
+    # if role == "assistant", this MAY be specified
+    # if role != "assistant", this must be null
+    # TODO align with OpenAI spec of multiple tool calls
+    # tool_calls = Column(ToolCallColumn)
+    tool_calls = Column(ToolCallColumn)
+
+    # tool call response info
+    # if role == "tool", then this must be specified
+    # if role != "tool", this must be null
+    tool_call_id = Column(String)
+
+    # Add a datetime column, with default value as the current time
+    created_at = Column(DateTime(timezone=True))
+    Index("message_idx_user", user_id, agent_id),
+
+    def __repr__(self):
+        return f"<Message(message_id='{self.id}', text='{self.text}')>"
+
+    def to_record(self):
+        # calls = (
+        #    [ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls]
+        #    if self.tool_calls
+        #    else None
+        # )
+        # if calls:
+        #    assert isinstance(calls[0], ToolCall)
+        if self.tool_calls and len(self.tool_calls) > 0:
+            assert isinstance(self.tool_calls[0], ToolCall), type(self.tool_calls[0])
+            for tool in self.tool_calls:
+                assert isinstance(tool, ToolCall), type(tool)
+        return Message(
+            user_id=self.user_id,
+            agent_id=self.agent_id,
+            role=self.role,
+            name=self.name,
+            text=self.text,
+            model=self.model,
+            # tool_calls=[ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls] if self.tool_calls else None,
+            tool_calls=self.tool_calls,
+            tool_call_id=self.tool_call_id,
+            created_at=self.created_at,
+            id=self.id,
+        )
 
 
-Base = declarative_base()
+class PassageModel(Base):
+    """Defines data model for storing Passages (consisting of text, embedding)"""
 
+    __tablename__ = "passages"
+    __table_args__ = {"extend_existing": True}
 
-def get_db_model(
-    config: MemGPTConfig,
-    table_name: str,
-    table_type: TableType,
-    user_id: str,
-    agent_id: Optional[str] = None,
-    dialect="postgresql",
-):
-    # Define a helper function to create or get the model class
-    def create_or_get_model(class_name, base_model, table_name):
-        if class_name in globals():
-            return globals()[class_name]
-        Model = type(class_name, (base_model,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
-        globals()[class_name] = Model
-        return Model
+    # Assuming passage_id is the primary key
+    id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False)
+    text = Column(String)
+    doc_id = Column(String)
+    agent_id = Column(String)
+    source_id = Column(String)
 
-    if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
-        # create schema for archival memory
-        class PassageModel(Base):
-            """Defines data model for storing Passages (consisting of text, embedding)"""
-
-            __abstract__ = True  # this line is necessary
-
-            # Assuming passage_id is the primary key
-            id = Column(String, primary_key=True)
-            user_id = Column(String, nullable=False)
-            text = Column(String)
-            doc_id = Column(String)
-            agent_id = Column(String)
-            source_id = Column(String)
-
-            # vector storage
-            if dialect == "sqlite":
-                embedding = Column(CommonVector)
-            else:
-                from pgvector.sqlalchemy import Vector
-
-                embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
-
-            embedding_config = Column(EmbeddingConfigColumn)
-            metadata_ = Column(MutableJson)
-
-            # Add a datetime column, with default value as the current time
-            created_at = Column(DateTime(timezone=True))
-
-            Index("passage_idx_user", user_id, agent_id, doc_id),
-
-            def __repr__(self):
-                return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
-
-            def to_record(self):
-                return Passage(
-                    text=self.text,
-                    embedding=self.embedding,
-                    embedding_config=self.embedding_config,
-                    doc_id=self.doc_id,
-                    user_id=self.user_id,
-                    id=self.id,
-                    source_id=self.source_id,
-                    agent_id=self.agent_id,
-                    metadata_=self.metadata_,
-                    created_at=self.created_at,
-                )
-
-        """Create database model for table_name"""
-        class_name = f"{table_name.capitalize()}Model" + dialect
-        return create_or_get_model(class_name, PassageModel, table_name)
-
-    elif table_type == TableType.RECALL_MEMORY:
-
-        class MessageModel(Base):
-            """Defines data model for storing Message objects"""
-
-            __abstract__ = True  # this line is necessary
-
-            # Assuming message_id is the primary key
-            id = Column(String, primary_key=True)
-            user_id = Column(String, nullable=False)
-            agent_id = Column(String, nullable=False)
-
-            # openai info
-            role = Column(String, nullable=False)
-            text = Column(String)  # optional: can be null if function call
-            model = Column(String)  # optional: can be null if LLM backend doesn't require specifying
-            name = Column(String)  # optional: multi-agent only
-
-            # tool call request info
-            # if role == "assistant", this MAY be specified
-            # if role != "assistant", this must be null
-            # TODO align with OpenAI spec of multiple tool calls
-            # tool_calls = Column(ToolCallColumn)
-            tool_calls = Column(ToolCallColumn)
-
-            # tool call response info
-            # if role == "tool", then this must be specified
-            # if role != "tool", this must be null
-            tool_call_id = Column(String)
-
-            # Add a datetime column, with default value as the current time
-            created_at = Column(DateTime(timezone=True))
-            Index("message_idx_user", user_id, agent_id),
-
-            def __repr__(self):
-                return f"<Message(message_id='{self.id}', text='{self.text}')>"
-
-            def to_record(self):
-                # calls = (
-                #    [ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls]
-                #    if self.tool_calls
-                #    else None
-                # )
-                # if calls:
-                #    assert isinstance(calls[0], ToolCall)
-                if self.tool_calls and len(self.tool_calls) > 0:
-                    assert isinstance(self.tool_calls[0], ToolCall), type(self.tool_calls[0])
-                    for tool in self.tool_calls:
-                        assert isinstance(tool, ToolCall), type(tool)
-                return Message(
-                    user_id=self.user_id,
-                    agent_id=self.agent_id,
-                    role=self.role,
-                    name=self.name,
-                    text=self.text,
-                    model=self.model,
-                    # tool_calls=[ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls] if self.tool_calls else None,
-                    tool_calls=self.tool_calls,
-                    tool_call_id=self.tool_call_id,
-                    created_at=self.created_at,
-                    id=self.id,
-                )
-
-        """Create database model for table_name"""
-        class_name = f"{table_name.capitalize()}Model" + dialect
-        return create_or_get_model(class_name, MessageModel, table_name)
-
+    # vector storage
+    if config.archival_storage_type == "sqlite":
+        embedding = Column(CommonVector)
     else:
-        raise ValueError(f"Table type {table_type} not implemented")
+        from pgvector.sqlalchemy import Vector
+
+        embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+
+    embedding_config = Column(EmbeddingConfigColumn)
+    metadata_ = Column(MutableJson)
+
+    # Add a datetime column, with default value as the current time
+    created_at = Column(DateTime(timezone=True))
+
+    Index("passage_idx_user", user_id, agent_id, doc_id),
+
+    def __repr__(self):
+        return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
+
+    def to_record(self):
+        return Passage(
+            text=self.text,
+            embedding=self.embedding,
+            embedding_config=self.embedding_config,
+            doc_id=self.doc_id,
+            user_id=self.user_id,
+            id=self.id,
+            source_id=self.source_id,
+            agent_id=self.agent_id,
+            metadata_=self.metadata_,
+            created_at=self.created_at,
+        )
+
+
+# def get_db_model(
+#    config: MemGPTConfig,
+#    table_name: str,
+#    table_type: TableType,
+#    #user_id: str,
+#    #agent_id: Optional[str] = None,
+#    dialect="postgresql",
+# ):
+#    # Define a helper function to create or get the model class
+#    def create_or_get_model(class_name, base_model, table_name):
+#        if class_name in globals():
+#            return globals()[class_name]
+#        Model = type(class_name, (base_model,), {"__tablename__": table_name, "__table_args__": {"extend_existing": True}})
+#        globals()[class_name] = Model
+#        return Model
+#
+#    if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
+#        # create schema for archival memory
+#
+#        """Create database model for table_name"""
+#        #class_name = f"{table_name.capitalize()}Model" + dialect
+#        return create_or_get_model(class_name, PassageModel, table_name)
+#
+#    elif table_type == TableType.RECALL_MEMORY:
+#
+#        """Create database model for table_name"""
+#        class_name = f"{table_name.capitalize()}Model" + dialect
+#        return create_or_get_model(class_name, MessageModel, table_name)
+#
+#    else:
+#        raise ValueError(f"Table type {table_type} not implemented")
+#
 
 
 class SQLStorageConnector(StorageConnector):
@@ -386,7 +388,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
 
         # create table
-        self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id)
+        # self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id)
 
         # construct URI from enviornment variables
         if settings.pg_uri:
@@ -396,17 +398,19 @@ class PostgresStorageConnector(SQLStorageConnector):
             # TODO: remove this eventually (config should NOT contain URI)
             if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
                 self.uri = self.config.archival_storage_uri
+                self.db_model = PassageModel
                 if self.config.archival_storage_uri is None:
                     raise ValueError(f"Must specifiy archival_storage_uri in config {self.config.config_path}")
             elif table_type == TableType.RECALL_MEMORY:
                 self.uri = self.config.recall_storage_uri
+                self.db_model = MessageModel
                 if self.config.recall_storage_uri is None:
                     raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
             else:
                 raise ValueError(f"Table type {table_type} not implemented")
 
         # create engine
-        self.engine = create_engine(self.uri)
+        # self.engine = create_engine(self.uri)
 
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
@@ -417,7 +421,7 @@ class PostgresStorageConnector(SQLStorageConnector):
         self.session_maker = db_context
         # self.session_maker = sessionmaker(bind=self.engine)
         # with self.session_maker() as session:
-        #    session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+        #   session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
         ## create table
         # Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
@@ -517,16 +521,21 @@ class SQLLiteStorageConnector(SQLStorageConnector):
             self.path = self.config.recall_storage_path
             if self.path is None:
                 raise ValueError(f"Must specifiy recall_storage_path in config {self.config.recall_storage_path}")
+            self.db_model = MessageModel
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
         self.path = os.path.join(self.path, f"sqlite.db")
 
         # Create the SQLAlchemy engine
-        self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id, dialect="sqlite")
-        self.engine = create_engine(f"sqlite:///{self.path}")
-        Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
-        self.session_maker = sessionmaker(bind=self.engine)
+        # self.db_model = get_db_model(config, self.table_name, table_type, user_id, agent_id, dialect="sqlite")
+        # self.engine = create_engine(f"sqlite:///{self.path}")
+        # Base.metadata.create_all(self.engine, tables=[self.db_model.__table__])  # Create the table if it doesn't exist
+        # self.session_maker = sessionmaker(bind=self.engine)
+
+        from memgpt.server.server import db_context
+
+        self.session_maker = db_context
 
         # import sqlite3
 
