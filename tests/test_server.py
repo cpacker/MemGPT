@@ -1,4 +1,4 @@
-from memgpt.constants import BASE_TOOLS, DEFAULT_ORG_ID
+from memgpt.constants import BASE_TOOLS, DEFAULT_USER_ID
 from memgpt.schemas.agent import CreateAgent
 from memgpt.schemas.memory import ChatMemory
 from memgpt.server.stateless_server import Server, get_db, init_db
@@ -22,7 +22,7 @@ def test_create_agent():
     # create an agent
     server = Server()
     memory = ChatMemory(human="I am Sarah", persona="I am a bot")
-    agent = server.create_agent(session, CreateAgent(name="test_agent", tools=BASE_TOOLS, memory=memory), org_id=DEFAULT_ORG_ID)
+    agent = server.create_agent(session, CreateAgent(name="test_agent", tools=BASE_TOOLS, memory=memory), user_id=DEFAULT_USER_ID)
     print(agent)
 
 

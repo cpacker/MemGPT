@@ -90,7 +90,9 @@ class LLMConfigColumn(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value:
-            return vars(value)
+            # return vars(value)
+            # return value.model_dump()
+            return value
         return value
 
     def process_result_value(self, value, dialect):
@@ -110,7 +112,9 @@ class EmbeddingConfigColumn(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value:
-            return vars(value)
+            # return vars(value)
+            # return value.model_dump()
+            return value
         return value
 
     def process_result_value(self, value, dialect):
@@ -276,6 +280,9 @@ class AgentModel(SQLBase):
 
     id = Column(String, primary_key=True)
     org_id = Column(String, nullable=False)
+    # TODO: remove - only needed for db.py
+    user_id = Column(String, nullable=False)
+
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     description = Column(String)

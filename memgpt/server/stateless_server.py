@@ -344,7 +344,8 @@ class Server:
         pass
 
     def get_organization(self, session: Session, user_id: str) -> Organization:
-        pass
+        org_id = UserModel.read(session, user_id).org_id
+        return OrganizationModel.read(session, org_id)
 
     def list_organizations(self, session: Session, filters, cursor: str, limit: int) -> List[Organization]:
         pass
@@ -373,10 +374,13 @@ class Server:
 
     ## AGENTS
 
-    def create_agent(self, session: Session, request: CreateAgent, org_id: str) -> AgentState:
+    # TODO: should user_org id instead of user_id eventually
+    def create_agent(self, session: Session, request: CreateAgent, user_id: str) -> AgentState:
         # TODO: check if the name is already created in the org?
 
         """Create a new agent"""
+        org_id = self.get_organization(session, user_id).id
+        print("User ID", user_id, org_id)
 
         # create default interface
         interface = self.default_interface_factory()
@@ -415,6 +419,7 @@ class Server:
             memory=request.memory,
             description=request.description,
             metadata_=request.metadata_,
+            user_id=user_id,
         )
 
         try:
@@ -427,7 +432,6 @@ class Server:
                 first_message_verify_mono=(
                     True if (agent_state.llm_config.model is not None and "gpt-4" in agent_state.llm_config.model) else False
                 ),
-                session=session,
             )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
@@ -440,13 +444,13 @@ class Server:
             logger.exception(e)
             try:
                 if agent:
-                    delete_agent(session, agent.agent_state.id)
+                    self.delete_agent(session, agent.agent_state.id)
             except Exception as delete_e:
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
 
         # save agent with any state updatess
-        AgentState(**agent.agent_state.model_dump()).create(session)
+        AgentModel(**agent.agent_state.model_dump()).create(session)
         logger.info(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
@@ -489,7 +493,7 @@ class Server:
         pass
 
     def delete_agent(self, session: Session, agent_id: str) -> AgentState:
-        pass
+        return AgentModel.delete(session, agent_id)
 
     def list_agents(self, session: Session, org_id: str, filters, cursor: str, limit: int) -> List[AgentState]:
         # TODO: add org_id?
