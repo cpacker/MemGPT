@@ -3,8 +3,9 @@ from typing import Dict, List, Optional
 from pydantic import Field
 
 from memgpt.functions.schema_generator import (
+    generate_crewai_tool_wrapper,
+    generate_langchain_tool_wrapper,
     generate_schema_from_args_schema,
-    generate_tool_wrapper,
 )
 from memgpt.schemas.memgpt_base import MemGPTBase
 from memgpt.schemas.openai.chat_completions import ToolCall
@@ -57,6 +58,40 @@ class Tool(BaseTool):
         )
 
     @classmethod
+    def from_langchain(cls, langchain_tool) -> "Tool":
+        """
+        Class method to create an instance of Tool from a Langchain tool (must be from langchain_community.tools).
+
+        Args:
+            langchain_tool (LangchainTool): An instance of a crewAI BaseTool (BaseTool from crewai)
+
+        Returns:
+            Tool: A MemGPT Tool initialized with attributes derived from the provided crewAI BaseTool object.
+        """
+        description = langchain_tool.description
+        source_type = "python"
+        tags = ["langchain"]
+        # NOTE: langchain tools may come from different packages
+        wrapper_func_name, wrapper_function_str = generate_langchain_tool_wrapper(langchain_tool.__class__.__name__)
+        json_schema = generate_schema_from_args_schema(langchain_tool.args_schema, name=wrapper_func_name, description=description)
+
+        # append heartbeat (necessary for triggering another reasoning step after this tool call)
+        json_schema["parameters"]["properties"]["request_heartbeat"] = {
+            "type": "boolean",
+            "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function.",
+        }
+        json_schema["parameters"]["required"].append("request_heartbeat")
+
+        return cls(
+            name=wrapper_func_name,
+            description=description,
+            source_type=source_type,
+            tags=tags,
+            source_code=wrapper_function_str,
+            json_schema=json_schema,
+        )
+
+    @classmethod
     def from_crewai(cls, crewai_tool) -> "Tool":
         """
         Class method to create an instance of Tool from a crewAI BaseTool object.
@@ -71,8 +106,15 @@ class Tool(BaseTool):
         description = crewai_tool.description
         source_type = "python"
         tags = ["crew-ai"]
-        wrapper_func_name, wrapper_function_str = generate_tool_wrapper(crewai_tool.__class__.__name__)
+        wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool.__class__.__name__)
         json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
+
+        # append heartbeat (necessary for triggering another reasoning step after this tool call)
+        json_schema["parameters"]["properties"]["request_heartbeat"] = {
+            "type": "boolean",
+            "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function.",
+        }
+        json_schema["parameters"]["required"].append("request_heartbeat")
 
         return cls(
             name=wrapper_func_name,

@@ -131,7 +131,7 @@ class ChromaStorageConnector(StorageConnector):
             results = self.collection.get(ids=ids, include=self.include, where=filters)
         return self.results_to_records(results)
 
-    def get(self, id):
+    def get(self, id: str):
         results = self.collection.get(ids=[str(id)])
         if len(results["ids"]) == 0:
             return None

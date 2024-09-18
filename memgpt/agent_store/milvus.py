@@ -91,7 +91,7 @@ class MilvusStorageConnector(StorageConnector):
         )
         return self._list_to_records(query_res)
 
-    def get(self, id: uuid.UUID) -> Optional[RecordType]:
+    def get(self, id: str) -> Optional[RecordType]:
         res = self.client.get(collection_name=self.table_name, ids=str(id))
         return self._list_to_records(res)[0] if res else None
 

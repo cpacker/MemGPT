@@ -61,7 +61,6 @@ class Admin:
 
     def create_user(self, name: Optional[str] = None) -> User:
         request = UserCreate(name=name)
-        print("YYYYY Pinging", f"{self.base_url}/{self.api_prefix}/admin/users")
         response = requests.post(f"{self.base_url}/{self.api_prefix}/admin/users", headers=self.headers, json=request.model_dump())
         if response.status_code != 200:
             raise HTTPError(response.json())

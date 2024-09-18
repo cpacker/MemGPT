@@ -8,7 +8,11 @@ from starlette.responses import StreamingResponse
 
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from memgpt.schemas.enums import MessageRole, MessageStreamStatus
-from memgpt.schemas.memgpt_message import LegacyMemGPTMessage, MemGPTMessage
+from memgpt.schemas.memgpt_message import (
+    LegacyMemGPTMessage,
+    MemGPTMessage,
+    MemGPTMessageUnion,
+)
 from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.memory import (
@@ -237,7 +241,7 @@ def delete_agent_archival_memory(
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Memory id={memory_id} successfully deleted"})
 
 
-@router.get("/{agent_id}/messages", response_model=List[Message], operation_id="list_agent_messages")
+@router.get("/{agent_id}/messages", response_model=Union[List[Message], List[MemGPTMessageUnion]], operation_id="list_agent_messages")
 def get_agent_messages(
     agent_id: str,
     server: "SyncServer" = Depends(get_memgpt_server),

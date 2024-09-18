@@ -366,7 +366,7 @@ def run_agent_loop(
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
-            new_messages, heartbeat_request, function_failed, token_warning, tokens_accumulated = memgpt_agent.step(
+            step_response = memgpt_agent.step(
                 user_message,
                 first_message=False,
                 skip_verify=no_verify,
@@ -374,6 +374,11 @@ def run_agent_loop(
                 inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
                 ms=ms,
             )
+            new_messages = step_response.messages
+            heartbeat_request = step_response.heartbeat_request
+            function_failed = step_response.function_failed
+            token_warning = step_response.in_context_memory_warning
+            step_response.usage
 
             agent.save_agent(memgpt_agent, ms)
             skip_next_user_input = False
