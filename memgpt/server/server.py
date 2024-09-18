@@ -133,6 +133,68 @@ class Server(object):
         raise NotImplementedError
 
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+from memgpt.agent_store.db import MessageModel, PassageModel
+from memgpt.config import MemGPTConfig
+
+# NOTE: hack to see if single session management works
+from memgpt.metadata import (
+    AgentModel,
+    AgentSourceMappingModel,
+    APIKeyModel,
+    BlockModel,
+    JobModel,
+    SourceModel,
+    ToolModel,
+    UserModel,
+)
+from memgpt.settings import settings
+
+config = MemGPTConfig.load()
+
+# determine the storage type
+if config.recall_storage_type == "postgres":
+    engine = create_engine(settings.memgpt_pg_uri)
+elif config.recall_storage_type == "sqlite":
+    engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
+else:
+    raise ValueError(f"Unknown recall_storage_type: {config.recall_storage_type}")
+
+Base = declarative_base()
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base.metadata.create_all(
+    engine,
+    tables=[
+        UserModel.__table__,
+        AgentModel.__table__,
+        SourceModel.__table__,
+        AgentSourceMappingModel.__table__,
+        APIKeyModel.__table__,
+        BlockModel.__table__,
+        ToolModel.__table__,
+        JobModel.__table__,
+        PassageModel.__table__,
+        MessageModel.__table__,
+    ],
+)
+
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+from contextlib import contextmanager
+
+db_context = contextmanager(get_db)
+
+
 class SyncServer(Server):
     """Simple single-threaded / blocking server process"""
 

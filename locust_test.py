@@ -21,18 +21,20 @@ class MemGPTUser(HttpUser):
         # Create a user and get the token
         self.client.headers = {"Authorization": "Bearer password"}
         user_data = {"name": f"User-{''.join(random.choices(string.ascii_lowercase + string.digits, k=8))}"}
-        response = self.client.post("/admin/users", json=user_data)
+        response = self.client.post("/v1/admin/users", json=user_data)
         response_json = response.json()
         print(response_json)
         self.user_id = response_json["id"]
 
         # create a token
-        response = self.client.post("/admin/users/keys", json={"user_id": self.user_id})
+        response = self.client.post("/v1/admin/users/keys", json={"user_id": self.user_id})
         self.token = response.json()["key"]
 
         # reset to use user token as headers
         self.client.headers = {"Authorization": f"Bearer {self.token}"}
 
+        # @task(1)
+        # def create_agent(self):
         # generate random name
         name = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
         request = CreateAgent(
@@ -42,7 +44,7 @@ class MemGPTUser(HttpUser):
         )
 
         # create an agent
-        with self.client.post("/api/agents", json=request.model_dump(), headers=self.client.headers, catch_response=True) as response:
+        with self.client.post("/v1/agents", json=request.model_dump(), headers=self.client.headers, catch_response=True) as response:
             if response.status_code != 200:
                 response.failure(f"Failed to create agent: {response.text}")
 
@@ -57,10 +59,10 @@ class MemGPTUser(HttpUser):
         request = MemGPTRequest(messages=messages, stream_steps=False, stream_tokens=False, return_message_object=False)
 
         with self.client.post(
-            f"/api/agents/{self.agent_id}/messages", json=request.model_dump(), headers=self.client.headers, catch_response=True
+            f"/v1/agents/{self.agent_id}/messages", json=request.model_dump(), headers=self.client.headers, catch_response=True
         ) as response:
             if response.status_code != 200:
-                response.failure(f"Failed to send message: {response.text}")
+                response.failure(f"Failed to send message {response.status_code}: {response.text}")
 
             response = MemGPTResponse(**response.json())
             print("Response", response.usage)
