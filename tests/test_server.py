@@ -22,7 +22,7 @@ def test_create_agent():
     # create an agent
     server = Server()
     memory = ChatMemory(human="I am Sarah", persona="I am a bot")
-    agent = server.create_agent(session, CreateAgent(name="test_agent", tools=BASE_TOOLS, memory=memory), user_id=DEFAULT_USER_ID)
+    agent = server.create_agent(session, CreateAgent(name="test_agent2", tools=BASE_TOOLS, memory=memory), user_id=DEFAULT_USER_ID)
     print(agent)
 
 

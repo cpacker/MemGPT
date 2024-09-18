@@ -161,19 +161,24 @@ class SQLBase(Base):
 
     __abstract__ = True
 
-    def create(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+    def create(self, db_session: "Session") -> Type["SQLBase"]:
 
         with db_session as session:
+            # check if 'name' already exists (if name is a field)
+            if hasattr(self, "name"):
+                if session.query(self.__class__).filter_by(name=self.name).count() > 0:
+                    raise ValueError(f"{self.__class__.__name__} with name {self.name} already exists")
+
             session.add(self)
             session.commit()
             session.refresh(self)
             return self
 
-    def delete(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+    def delete(self, db_session: "Session") -> Type["SQLBase"]:
         self.is_deleted = True
         return self.update(db_session)
 
-    def update(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+    def update(self, db_session: "Session") -> Type["SQLBase"]:
         with db_session as session:
             session.add(self)
             session.commit()
@@ -181,7 +186,7 @@ class SQLBase(Base):
             return self
 
     @classmethod
-    def list(cls, db_session: "Session", **kwargs) -> List[Type["SqlalchemyBase"]]:
+    def list(cls, db_session: "Session", **kwargs) -> List[Type["SQLBase"]]:
         with db_session as session:
             query = select(cls).filter_by(**kwargs)
             if hasattr(cls, "is_deleted"):
@@ -189,7 +194,7 @@ class SQLBase(Base):
             return list(session.execute(query).scalars())
 
     @classmethod
-    def read(cls, db_session: "Session", identifier: str) -> Type["SqlalchemyBase"]:
+    def read(cls, db_session: "Session", identifier: str) -> Type["SQLBase"]:
         with db_session as session:
             query = select(cls).where(cls.id == identifier)
             if hasattr(cls, "is_deleted"):
@@ -199,7 +204,7 @@ class SQLBase(Base):
             raise ValueError(f"{cls.__name__} with id {identifier} not found")
 
     @classmethod
-    def read_by_name(cls, db_session: "Session", name: str) -> Type["SqlalchemyBase"]:
+    def read_by_name(cls, db_session: "Session", name: str) -> Type["SQLBase"]:
         with db_session as session:
             query = select(cls).where(cls.name == name)
             if hasattr(cls, "is_deleted"):
@@ -382,6 +387,17 @@ class BlockModel(SQLBase):
     metadata_ = Column(JSON)
     description = Column(String)
     org_id = Column(String)
+
+    @classmethod
+    def read_by_name(cls, db_session: "Session", name: str) -> Type["SQLBase"]:
+        """Override read_by_name to only include templates"""
+        with db_session as session:
+            query = select(cls).where(cls.name == name).where(cls.template == True)
+            if hasattr(cls, "is_deleted"):
+                query = query.where(cls.is_deleted == False)
+            if found := session.execute(query).scalar():
+                return found
+            raise ValueError(f"{cls.__name__} with name {name} not found")
 
     def __repr__(self) -> str:
         return f"<Block(id='{self.id}', name='{self.name}', template='{self.template}', label='{self.label}'')>"

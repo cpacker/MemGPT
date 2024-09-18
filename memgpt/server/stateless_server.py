@@ -304,7 +304,14 @@ def init_db(session: Session):
     Add default tools to default user
     """
     for create_tool in generate_default_tool_requests("base", DEFAULT_ORG_ID):
-        tool = ToolModel(**Tool(**create_tool.model_dump()).model_dump()).create(session)
+        existing_tool = ToolModel.read_by_name(session, create_tool.name)
+        if existing_tool:
+            for k, v in create_tool.model_dump().items():
+                if v:
+                    setattr(existing_tool, k, v)
+            tool = existing_tool.update(session)
+        else:
+            tool = ToolModel(**Tool(**create_tool.model_dump()).model_dump()).create(session)
         session.commit()
         print(f"Created tool: {tool}")
 
@@ -312,7 +319,14 @@ def init_db(session: Session):
     Add default blocks to default user
     """
     for create_block in generate_default_block_requests(DEFAULT_ORG_ID):
-        block = BlockModel(**Block(**create_block.model_dump()).model_dump()).create(session)
+        existing_block = BlockModel.read_by_name(session, create_block.name)
+        if existing_block:
+            for k, v in create_block.model_dump().items():
+                if v:
+                    setattr(existing_block, k, v)
+            block = existing_block.update(session)
+        else:
+            block = BlockModel(**Block(**create_block.model_dump()).model_dump()).create(session)
         session.commit()
         print(f"Created block: {block}")
 
