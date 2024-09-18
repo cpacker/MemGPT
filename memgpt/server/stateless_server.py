@@ -62,7 +62,7 @@ from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
 from memgpt.schemas.usage import MemGPTUsageStatistics
 from memgpt.schemas.user import User, UserCreate
-from memgpt.utils import create_random_username, json_dumps, json_loads
+from memgpt.utils import create_random_username
 
 # from memgpt.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 
@@ -312,7 +312,6 @@ def init_db(session: Session):
             tool = existing_tool.update(session)
         else:
             tool = ToolModel(**Tool(**create_tool.model_dump()).model_dump()).create(session)
-        session.commit()
         print(f"Created tool: {tool}")
 
     """
@@ -327,7 +326,6 @@ def init_db(session: Session):
             block = existing_block.update(session)
         else:
             block = BlockModel(**Block(**create_block.model_dump()).model_dump()).create(session)
-        session.commit()
         print(f"Created block: {block}")
 
 
@@ -471,7 +469,7 @@ class Server:
         # return AgentState
         return agent.agent_state
 
-    def load_agent(self, session: Session, agent_id: str) -> Agent:
+    def _load_agent(self, session: Session, agent_id: str) -> Agent:
         """
         Loads an instantiated `Agent` class.
 
@@ -481,9 +479,7 @@ class Server:
         Returns:
             agent (Agent): The instantiated agent object
         """
-        agent_state = AgentState.read(session, agent_id)  # TODO: implement
-        if not agent_state:
-            raise ValueError(f"Agent does not exist")
+        agent_state = self.get_agent(session, agent_id)
 
         # gather tool objects
         # TODO: eventually just place this in `AgentState`
@@ -501,7 +497,7 @@ class Server:
         )
 
     def get_agent(self, session: Session, agent_id: str) -> AgentState:
-        return session.query(AgentModel).filter(AgentModel.id == agent_id).scalar()
+        return session.query(AgentModel).filter(AgentModel.id == agent_id).scalar().to_record()
 
     def update_agent(self, session: Session, agent_id: str, request: UpdateAgentState) -> AgentState:
         pass
@@ -658,377 +654,320 @@ class Server:
 
     # More advanced private methods
 
-
-def _load_agent(self, user_id: str, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
-    """Loads a saved agent into memory (if it doesn't exist, throw an error)"""
-    assert isinstance(user_id, str), user_id
-    assert isinstance(agent_id, str), agent_id
-
-    # If an interface isn't specified, use the default
-    if interface is None:
-        interface = self.default_interface_factory()
-
-    try:
-        logger.info(f"Grabbing agent user_id={user_id} agent_id={agent_id} from database")
-        agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
-        if not agent_state:
-            logger.exception(f"agent_id {agent_id} does not exist")
-            raise ValueError(f"agent_id {agent_id} does not exist")
-
-        # Instantiate an agent object using the state retrieved
-        logger.info(f"Creating an agent object")
-        tool_objs = []
-        for name in agent_state.tools:
-            tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
-            if not tool_obj:
-                logger.exception(f"Tool {name} does not exist for user {user_id}")
-                raise ValueError(f"Tool {name} does not exist for user {user_id}")
-            tool_objs.append(tool_obj)
-
-        # Make sure the memory is a memory object
-        assert isinstance(agent_state.memory, Memory)
-
-        memgpt_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
-
-        # Add the agent to the in-memory store and return its reference
-        logger.info(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
-        self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=memgpt_agent)
-        return memgpt_agent
-
-    except Exception as e:
-        logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
-        raise
-
-
-def _get_or_load_agent(self, agent_id: str) -> Agent:
-    """Check if the agent is in-memory, then load"""
-    agent_state = self.ms.get_agent(agent_id=agent_id)
-    if not agent_state:
-        raise ValueError(f"Agent does not exist")
-    user_id = agent_state.user_id
-
-    logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
-    # TODO: consider disabling loading cached agents due to potential concurrency issues
-    memgpt_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
-    if not memgpt_agent:
-        logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
-        memgpt_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
-    return memgpt_agent
-
-
-def _step(self, user_id: str, agent_id: str, input_message: Union[str, Message], timestamp: Optional[datetime]) -> MemGPTUsageStatistics:
-    """Send the input message through the agent"""
-    logger.debug(f"Got input message: {input_message}")
-    try:
-
-        # Get the agent object (loaded in memory)
-        memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
-        if memgpt_agent is None:
-            raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
-
-        # Determine whether or not to token stream based on the capability of the interface
-        token_streaming = memgpt_agent.interface.streaming_mode if hasattr(memgpt_agent.interface, "streaming_mode") else False
-
-        logger.debug(f"Starting agent step")
-        no_verify = True
-        next_input_message = input_message
-        counter = 0
-        total_usage = UsageStatistics()
-        step_count = 0
-        while True:
-            new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
-                next_input_message,
-                first_message=False,
-                skip_verify=no_verify,
-                return_dicts=False,
-                stream=token_streaming,
-                timestamp=timestamp,
-                ms=self.ms,
-            )
-            step_count += 1
-            total_usage += usage
-            counter += 1
-            memgpt_agent.interface.step_complete()
-
-            logger.debug("Saving agent state")
-            # save updated state
-            save_agent(memgpt_agent, self.ms)
-
-            # Chain stops
-            if not self.chaining:
-                logger.debug("No chaining, stopping after one step")
-                break
-            elif self.max_chaining_steps is not None and counter > self.max_chaining_steps:
-                logger.debug(f"Hit max chaining steps, stopping after {counter} steps")
-                break
-            # Chain handlers
-            elif token_warning:
-                next_input_message = system.get_token_limit_warning()
-                continue  # always chain
-            elif function_failed:
-                next_input_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
-                continue  # always chain
-            elif heartbeat_request:
-                next_input_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
-                continue  # always chain
-            # MemGPT no-op / yield
-            else:
-                break
-
-    except Exception as e:
-        logger.error(f"Error in server._step: {e}")
-        print(traceback.print_exc())
-        raise
-    finally:
-        logger.debug("Calling step_yield()")
-        memgpt_agent.interface.step_yield()
-
-    return MemGPTUsageStatistics(**total_usage.dict(), step_count=step_count)
-
-
-def _command(self, user_id: str, agent_id: str, command: str) -> MemGPTUsageStatistics:
-    """Process a CLI command"""
-
-    logger.debug(f"Got command: {command}")
-
-    # Get the agent object (loaded in memory)
-    memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
-    usage = None
-
-    if command.lower() == "exit":
-        # exit not supported on server.py
-        raise ValueError(command)
-
-    elif command.lower() == "save" or command.lower() == "savechat":
-        save_agent(memgpt_agent, self.ms)
-
-    elif command.lower() == "attach":
-        # Different from CLI, we extract the data source name from the command
-        command = command.strip().split()
+    def _step(
+        self,
+        session,
+        agent_id: str,
+        input_message: Union[str, Message],
+        chaining: bool = True,
+        max_chaining_steps: Optional[int] = 1,
+        timestamp: Optional[datetime] = None,  # TODO: remove
+    ) -> MemGPTUsageStatistics:
+        """Send the input message through the agent"""
+        logger.debug(f"Got input message: {input_message}")
         try:
-            data_source = int(command[1])
-        except:
-            raise ValueError(command)
 
-        # attach data to agent from source
-        source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        memgpt_agent.attach_source(data_source, source_connector, self.ms)
+            # Get the agent object (loaded in memory)
+            memgpt_agent = self._load_agent(session, agent_id=agent_id)
+            if memgpt_agent is None:
+                raise KeyError(f"Agent agent={agent_id}) is not loaded")
 
-    elif command.lower() == "dump" or command.lower().startswith("dump "):
-        # Check if there's an additional argument that's an integer
-        command = command.strip().split()
-        amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
-        if amount == 0:
-            memgpt_agent.interface.print_messages(memgpt_agent.messages, dump=True)
-        else:
-            memgpt_agent.interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
+            # Determine whether or not to token stream based on the capability of the interface
+            token_streaming = memgpt_agent.interface.streaming_mode if hasattr(memgpt_agent.interface, "streaming_mode") else False
 
-    elif command.lower() == "dumpraw":
-        memgpt_agent.interface.print_messages_raw(memgpt_agent.messages)
+            logger.debug(f"Starting agent step")
+            no_verify = True
+            next_input_message = input_message
+            counter = 0
+            total_usage = UsageStatistics()
+            step_count = 0
+            while True:
+                new_messages, heartbeat_request, function_failed, token_warning, usage = memgpt_agent.step(
+                    next_input_message,
+                    first_message=False,
+                    skip_verify=no_verify,
+                    return_dicts=False,
+                    stream=token_streaming,
+                    timestamp=timestamp,
+                    # ms=self.ms,
+                )
+                step_count += 1
+                total_usage += usage
+                counter += 1
+                memgpt_agent.interface.step_complete()
 
-    elif command.lower() == "memory":
-        ret_str = (
-            f"\nDumping memory contents:\n"
-            + f"\n{str(memgpt_agent.memory)}"
-            + f"\n{str(memgpt_agent.persistence_manager.archival_memory)}"
-            + f"\n{str(memgpt_agent.persistence_manager.recall_memory)}"
-        )
-        return ret_str
+                logger.debug("Saving agent state")
 
-    elif command.lower() == "pop" or command.lower().startswith("pop "):
-        # Check if there's an additional argument that's an integer
-        command = command.strip().split()
-        pop_amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
-        n_messages = len(memgpt_agent.messages)
-        MIN_MESSAGES = 2
-        if n_messages <= MIN_MESSAGES:
-            logger.info(f"Agent only has {n_messages} messages in stack, none left to pop")
-        elif n_messages - pop_amount < MIN_MESSAGES:
-            logger.info(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
-        else:
-            logger.info(f"Popping last {pop_amount} messages from stack")
-            for _ in range(min(pop_amount, len(memgpt_agent.messages))):
-                memgpt_agent.messages.pop()
+                # save updated state
+                self.update_agent(session, agent_id, memgpt_agent.agent_state)
 
-    elif command.lower() == "retry":
-        # TODO this needs to also modify the persistence manager
-        logger.info(f"Retrying for another answer")
-        while len(memgpt_agent.messages) > 0:
-            if memgpt_agent.messages[-1].get("role") == "user":
-                # we want to pop up to the last user message and send it again
-                memgpt_agent.messages[-1].get("content")
-                memgpt_agent.messages.pop()
-                break
-            memgpt_agent.messages.pop()
-
-    elif command.lower() == "rethink" or command.lower().startswith("rethink "):
-        # TODO this needs to also modify the persistence manager
-        if len(command) < len("rethink "):
-            logger.warning("Missing text after the command")
-        else:
-            for x in range(len(memgpt_agent.messages) - 1, 0, -1):
-                if memgpt_agent.messages[x].get("role") == "assistant":
-                    text = command[len("rethink ") :].strip()
-                    memgpt_agent.messages[x].update({"content": text})
+                # Chain stops
+                if not chaining:
+                    logger.debug("No chaining, stopping after one step")
+                    break
+                elif max_chaining_steps is not None and counter > max_chaining_steps:
+                    logger.debug(f"Hit max chaining steps, stopping after {counter} steps")
+                    break
+                # Chain handlers
+                elif token_warning:
+                    next_input_message = system.get_token_limit_warning()
+                    continue  # always chain
+                elif function_failed:
+                    next_input_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                    continue  # always chain
+                elif heartbeat_request:
+                    next_input_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
+                    continue  # always chain
+                # MemGPT no-op / yield
+                else:
                     break
 
-    elif command.lower() == "rewrite" or command.lower().startswith("rewrite "):
-        # TODO this needs to also modify the persistence manager
-        if len(command) < len("rewrite "):
-            logger.warning("Missing text after the command")
+        except Exception as e:
+            logger.error(f"Error in server._step: {e}")
+            print(traceback.print_exc())
+            raise
+        finally:
+            logger.debug("Calling step_yield()")
+            memgpt_agent.interface.step_yield()
+
+        return MemGPTUsageStatistics(**total_usage.dict(), step_count=step_count)
+
+    def user_message(
+        self,
+        session,
+        user_id: str,
+        agent_id: str,
+        message: Union[str, Message],
+        timestamp: Optional[datetime] = None,  # TODO: remove
+    ) -> MemGPTUsageStatistics:
+        """Process an incoming user message and feed it through the MemGPT agent"""
+        # Basic input sanitization
+        if isinstance(message, str):
+            if len(message) == 0:
+                raise ValueError(f"Invalid input: '{message}'")
+
+            # If the input begins with a command prefix, reject
+            elif message.startswith("/"):
+                raise ValueError(f"Invalid input: '{message}'")
+
+            packaged_user_message = system.package_user_message(
+                user_message=message,
+                time=timestamp.isoformat() if timestamp else None,
+            )
+
+            # NOTE: eventually deprecate and only allow passing Message types
+            # Convert to a Message object
+            if timestamp:
+                message = Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="user",
+                    text=packaged_user_message,
+                    created_at=timestamp,
+                )
+            else:
+                message = Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="user",
+                    text=packaged_user_message,
+                )
+
+        # Run the agent state forward
+        usage = self._step(session, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
+        return usage
+
+    def system_message(
+        self,
+        user_id: str,
+        agent_id: str,
+        message: Union[str, Message],
+        timestamp: Optional[datetime] = None,
+    ) -> MemGPTUsageStatistics:
+        """Process an incoming system message and feed it through the MemGPT agent"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Basic input sanitization
+        if isinstance(message, str):
+            if len(message) == 0:
+                raise ValueError(f"Invalid input: '{message}'")
+
+            # If the input begins with a command prefix, reject
+            elif message.startswith("/"):
+                raise ValueError(f"Invalid input: '{message}'")
+
+            packaged_system_message = system.package_system_message(system_message=message)
+
+            # NOTE: eventually deprecate and only allow passing Message types
+            # Convert to a Message object
+
+            if timestamp:
+                message = Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="system",
+                    text=packaged_system_message,
+                    created_at=timestamp,
+                )
+            else:
+                message = Message(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="system",
+                    text=packaged_system_message,
+                )
+
+        if isinstance(message, Message):
+            # Can't have a null text field
+            if len(message.text) == 0 or message.text is None:
+                raise ValueError(f"Invalid input: '{message.text}'")
+            # If the input begins with a command prefix, reject
+            elif message.text.startswith("/"):
+                raise ValueError(f"Invalid input: '{message.text}'")
+
         else:
-            for x in range(len(memgpt_agent.messages) - 1, 0, -1):
-                if memgpt_agent.messages[x].get("role") == "assistant":
-                    text = command[len("rewrite ") :].strip()
-                    args = json_loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
-                    args["message"] = text
-                    memgpt_agent.messages[x].get("function_call").update({"arguments": json_dumps(args)})
-                    break
+            raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
 
-    # No skip options
-    elif command.lower() == "wipe":
-        # exit not supported on server.py
-        raise ValueError(command)
-
-    elif command.lower() == "heartbeat":
-        input_message = system.get_heartbeat()
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
-
-    elif command.lower() == "memorywarning":
-        input_message = system.get_token_limit_warning()
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
-
-    if not usage:
-        usage = MemGPTUsageStatistics()
-
-    return usage
-
-
-def user_message(
-    self,
-    user_id: str,
-    agent_id: str,
-    message: Union[str, Message],
-    timestamp: Optional[datetime] = None,
-) -> MemGPTUsageStatistics:
-    """Process an incoming user message and feed it through the MemGPT agent"""
-    if self.ms.get_user(user_id=user_id) is None:
-        raise ValueError(f"User user_id={user_id} does not exist")
-    if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-        raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-    # Basic input sanitization
-    if isinstance(message, str):
-        if len(message) == 0:
-            raise ValueError(f"Invalid input: '{message}'")
-
-        # If the input begins with a command prefix, reject
-        elif message.startswith("/"):
-            raise ValueError(f"Invalid input: '{message}'")
-
-        packaged_user_message = system.package_user_message(
-            user_message=message,
-            time=timestamp.isoformat() if timestamp else None,
-        )
-
-        # NOTE: eventually deprecate and only allow passing Message types
-        # Convert to a Message object
         if timestamp:
-            message = Message(
-                user_id=user_id,
-                agent_id=agent_id,
-                role="user",
-                text=packaged_user_message,
-                created_at=timestamp,
-            )
-        else:
-            message = Message(
-                user_id=user_id,
-                agent_id=agent_id,
-                role="user",
-                text=packaged_user_message,
-            )
+            # Override the timestamp with what the caller provided
+            message.created_at = timestamp
 
-    # Run the agent state forward
-    usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
-    return usage
+        # Run the agent state forward
+        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message, timestamp=timestamp)
 
+    # def _command(self, user_id: str, agent_id: str, command: str) -> MemGPTUsageStatistics:
+    #    """Process a CLI command"""
 
-def system_message(
-    self,
-    user_id: str,
-    agent_id: str,
-    message: Union[str, Message],
-    timestamp: Optional[datetime] = None,
-) -> MemGPTUsageStatistics:
-    """Process an incoming system message and feed it through the MemGPT agent"""
-    if self.ms.get_user(user_id=user_id) is None:
-        raise ValueError(f"User user_id={user_id} does not exist")
-    if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-        raise ValueError(f"Agent agent_id={agent_id} does not exist")
+    #    logger.debug(f"Got command: {command}")
 
-    # Basic input sanitization
-    if isinstance(message, str):
-        if len(message) == 0:
-            raise ValueError(f"Invalid input: '{message}'")
+    #    # Get the agent object (loaded in memory)
+    #    memgpt_agent = self._get_or_load_agent(agent_id=agent_id)
+    #    usage = None
 
-        # If the input begins with a command prefix, reject
-        elif message.startswith("/"):
-            raise ValueError(f"Invalid input: '{message}'")
+    #    if command.lower() == "exit":
+    #        # exit not supported on server.py
+    #        raise ValueError(command)
 
-        packaged_system_message = system.package_system_message(system_message=message)
+    #    elif command.lower() == "save" or command.lower() == "savechat":
+    #        save_agent(memgpt_agent, self.ms)
 
-        # NOTE: eventually deprecate and only allow passing Message types
-        # Convert to a Message object
+    #    elif command.lower() == "attach":
+    #        # Different from CLI, we extract the data source name from the command
+    #        command = command.strip().split()
+    #        try:
+    #            data_source = int(command[1])
+    #        except:
+    #            raise ValueError(command)
 
-        if timestamp:
-            message = Message(
-                user_id=user_id,
-                agent_id=agent_id,
-                role="system",
-                text=packaged_system_message,
-                created_at=timestamp,
-            )
-        else:
-            message = Message(
-                user_id=user_id,
-                agent_id=agent_id,
-                role="system",
-                text=packaged_system_message,
-            )
+    #        # attach data to agent from source
+    #        source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+    #        memgpt_agent.attach_source(data_source, source_connector, self.ms)
 
-    if isinstance(message, Message):
-        # Can't have a null text field
-        if len(message.text) == 0 or message.text is None:
-            raise ValueError(f"Invalid input: '{message.text}'")
-        # If the input begins with a command prefix, reject
-        elif message.text.startswith("/"):
-            raise ValueError(f"Invalid input: '{message.text}'")
+    #    elif command.lower() == "dump" or command.lower().startswith("dump "):
+    #        # Check if there's an additional argument that's an integer
+    #        command = command.strip().split()
+    #        amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 0
+    #        if amount == 0:
+    #            memgpt_agent.interface.print_messages(memgpt_agent.messages, dump=True)
+    #        else:
+    #            memgpt_agent.interface.print_messages(memgpt_agent.messages[-min(amount, len(memgpt_agent.messages)) :], dump=True)
 
-    else:
-        raise TypeError(f"Invalid input: '{message}' - type {type(message)}")
+    #    elif command.lower() == "dumpraw":
+    #        memgpt_agent.interface.print_messages_raw(memgpt_agent.messages)
 
-    if timestamp:
-        # Override the timestamp with what the caller provided
-        message.created_at = timestamp
+    #    elif command.lower() == "memory":
+    #        ret_str = (
+    #            f"\nDumping memory contents:\n"
+    #            + f"\n{str(memgpt_agent.memory)}"
+    #            + f"\n{str(memgpt_agent.persistence_manager.archival_memory)}"
+    #            + f"\n{str(memgpt_agent.persistence_manager.recall_memory)}"
+    #        )
+    #        return ret_str
 
-    # Run the agent state forward
-    return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message, timestamp=timestamp)
+    #    elif command.lower() == "pop" or command.lower().startswith("pop "):
+    #        # Check if there's an additional argument that's an integer
+    #        command = command.strip().split()
+    #        pop_amount = int(command[1]) if len(command) > 1 and command[1].isdigit() else 3
+    #        n_messages = len(memgpt_agent.messages)
+    #        MIN_MESSAGES = 2
+    #        if n_messages <= MIN_MESSAGES:
+    #            logger.info(f"Agent only has {n_messages} messages in stack, none left to pop")
+    #        elif n_messages - pop_amount < MIN_MESSAGES:
+    #            logger.info(f"Agent only has {n_messages} messages in stack, cannot pop more than {n_messages - MIN_MESSAGES}")
+    #        else:
+    #            logger.info(f"Popping last {pop_amount} messages from stack")
+    #            for _ in range(min(pop_amount, len(memgpt_agent.messages))):
+    #                memgpt_agent.messages.pop()
 
+    #    elif command.lower() == "retry":
+    #        # TODO this needs to also modify the persistence manager
+    #        logger.info(f"Retrying for another answer")
+    #        while len(memgpt_agent.messages) > 0:
+    #            if memgpt_agent.messages[-1].get("role") == "user":
+    #                # we want to pop up to the last user message and send it again
+    #                memgpt_agent.messages[-1].get("content")
+    #                memgpt_agent.messages.pop()
+    #                break
+    #            memgpt_agent.messages.pop()
 
-# @LockingServer.agent_lock_decorator
-def run_command(self, user_id: str, agent_id: str, command: str) -> MemGPTUsageStatistics:
-    """Run a command on the agent"""
-    if self.ms.get_user(user_id=user_id) is None:
-        raise ValueError(f"User user_id={user_id} does not exist")
-    if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-        raise ValueError(f"Agent agent_id={agent_id} does not exist")
+    #    elif command.lower() == "rethink" or command.lower().startswith("rethink "):
+    #        # TODO this needs to also modify the persistence manager
+    #        if len(command) < len("rethink "):
+    #            logger.warning("Missing text after the command")
+    #        else:
+    #            for x in range(len(memgpt_agent.messages) - 1, 0, -1):
+    #                if memgpt_agent.messages[x].get("role") == "assistant":
+    #                    text = command[len("rethink ") :].strip()
+    #                    memgpt_agent.messages[x].update({"content": text})
+    #                    break
 
-    # If the input begins with a command prefix, attempt to process it as a command
-    if command.startswith("/"):
-        if len(command) > 1:
-            command = command[1:]  # strip the prefix
-    return self._command(user_id=user_id, agent_id=agent_id, command=command)
+    #    elif command.lower() == "rewrite" or command.lower().startswith("rewrite "):
+    #        # TODO this needs to also modify the persistence manager
+    #        if len(command) < len("rewrite "):
+    #            logger.warning("Missing text after the command")
+    #        else:
+    #            for x in range(len(memgpt_agent.messages) - 1, 0, -1):
+    #                if memgpt_agent.messages[x].get("role") == "assistant":
+    #                    text = command[len("rewrite ") :].strip()
+    #                    args = json_loads(memgpt_agent.messages[x].get("function_call").get("arguments"))
+    #                    args["message"] = text
+    #                    memgpt_agent.messages[x].get("function_call").update({"arguments": json_dumps(args)})
+    #                    break
+
+    #    # No skip options
+    #    elif command.lower() == "wipe":
+    #        # exit not supported on server.py
+    #        raise ValueError(command)
+
+    #    elif command.lower() == "heartbeat":
+    #        input_message = system.get_heartbeat()
+    #        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+
+    #    elif command.lower() == "memorywarning":
+    #        input_message = system.get_token_limit_warning()
+    #        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+
+    #    if not usage:
+    #        usage = MemGPTUsageStatistics()
+
+    #    return usage
+
+    ## @LockingServer.agent_lock_decorator
+    # def run_command(self, user_id: str, agent_id: str, command: str) -> MemGPTUsageStatistics:
+    #    """Run a command on the agent"""
+    #    if self.ms.get_user(user_id=user_id) is None:
+    #        raise ValueError(f"User user_id={user_id} does not exist")
+    #    if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+    #        raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+    #    # If the input begins with a command prefix, attempt to process it as a command
+    #    if command.startswith("/"):
+    #        if len(command) > 1:
+    #            command = command[1:]  # strip the prefix
+    #    return self._command(user_id=user_id, agent_id=agent_id, command=command)
 
 
 def list_users_paginated(self, cursor: str, limit: int) -> List[User]:
