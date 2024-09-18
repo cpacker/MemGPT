@@ -405,6 +405,7 @@ class PostgresStorageConnector(SQLStorageConnector):
             return
 
         added_ids = []  # avoid adding duplicates
+        # NOTE: this has not great performance due to the excessive commits
         with self.session_maker() as session:
             iterable = tqdm(records) if show_progress else records
             for record in iterable:
