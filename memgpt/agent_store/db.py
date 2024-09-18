@@ -16,6 +16,7 @@ from sqlalchemy import (
     desc,
     or_,
     select,
+    text,
 )
 from sqlalchemy.orm import declarative_base, mapped_column
 from sqlalchemy.orm.session import close_all_sessions
