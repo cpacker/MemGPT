@@ -408,6 +408,15 @@ class PostgresStorageConnector(SQLStorageConnector):
             for record in iterable:
                 # db_record = self.db_model(**vars(record))
 
+                existing_record = session.query(self.db_model).filter_by(id=record.id).first()
+                if existing_record:
+                    if exists_ok:
+                        fields = record.model_dump()
+                        fields.pop("id")
+                        session.query(self.db_model).filter(self.db_model.id == record.id).update(fields)
+                    else:
+                        raise ValueError(f"Record with id {record.id} already exists.")
+
                 db_record = self.db_model(**record.dict())
                 session.add(db_record)
             session.commit()
