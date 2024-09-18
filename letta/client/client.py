@@ -2367,3 +2367,9 @@ class LocalClient(AbstractClient):
             block (Block): Deleted block
         """
         return self.server.delete_block(id)
+    
+    def set_default_llm_config(self, llm_config: LLMConfig): 
+        self.server.server_llm_config = llm_config
+
+    def set_default_embedding_config(self, embedding_config: EmbeddingConfig):
+        self.server.server_embedding_config = embedding_config

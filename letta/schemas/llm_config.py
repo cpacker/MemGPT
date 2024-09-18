@@ -24,3 +24,12 @@ class LLMConfig(BaseModel):
 
     # FIXME hack to silence pydantic protected namespace warning
     model_config = ConfigDict(protected_namespaces=())
+
+    @classmethod
+    def default_config(cls, model_name: str): 
+        if model_name == "gpt-4":
+            return cls(model="gpt-4", model_endpoint_type="openai", model_endpoint="https://api.openai.com/v1", model_wrapper=None, context_window=8192)
+        elif model_name == "gpt-4o-mini":
+            return cls(model="gpt-4o-mini", model_endpoint_type="openai", model_endpoint="https://api.openai.com/v1", model_wrapper=None, context_window=128000)
+        else:
+            raise ValueError(f"Model {model_name} not supported.")
