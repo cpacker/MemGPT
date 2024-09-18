@@ -385,6 +385,8 @@ class PostgresStorageConnector(SQLStorageConnector):
 
         self.session_maker = db_context
         # self.session_maker = sessionmaker(bind=self.engine)
+
+        # TODO: move to DB init
         with self.session_maker() as session:
             session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
