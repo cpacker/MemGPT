@@ -419,13 +419,18 @@ class PostgresStorageConnector(SQLStorageConnector):
                         fields = record.model_dump()
                         fields.pop("id")
                         session.query(self.db_model).filter(self.db_model.id == record.id).update(fields)
+                        print(f"Updated record with id {record.id}")
+                        session.commit()
                     else:
                         raise ValueError(f"Record with id {record.id} already exists.")
 
-                db_record = self.db_model(**record.dict())
-                session.add(db_record)
+                else:
+                    db_record = self.db_model(**record.dict())
+                    session.add(db_record)
+                    print(f"Added record with id {record.id}")
+                    session.commit()
+
                 added_ids.append(record.id)
-            session.commit()
 
     def insert(self, record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)
