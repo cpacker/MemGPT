@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from memgpt.schemas.organization import Organization, OrganizationCreate
-from memgpt.server.rest_api.utils import get_letta_server
+from memgpt.server.rest_api.utils import get_memgpt_server
 
 if TYPE_CHECKING:
     from memgpt.server.server import SyncServer
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/orgs", tags=["organization", "admin"])
 def get_all_orgs(
     cursor: Optional[str] = Query(None),
     limit: Optional[int] = Query(50),
-    server: "SyncServer" = Depends(get_letta_server),
+    server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Get a list of all orgs in the database
@@ -33,7 +33,7 @@ def get_all_orgs(
 @router.post("/", tags=["admin"], response_model=Organization, operation_id="create_organization")
 def create_org(
     request: OrganizationCreate = Body(...),
-    server: "SyncServer" = Depends(get_letta_server),
+    server: "SyncServer" = Depends(get_memgpt_server),
 ):
     """
     Create a new org in the database
@@ -46,7 +46,7 @@ def create_org(
 @router.delete("/", tags=["admin"], response_model=Organization, operation_id="delete_organization")
 def delete_org(
     org_id: str = Query(..., description="The org_id key to be deleted."),
-    server: "SyncServer" = Depends(get_letta_server),
+    server: "SyncServer" = Depends(get_memgpt_server),
 ):
     # TODO make a soft deletion, instead of a hard deletion
     try:

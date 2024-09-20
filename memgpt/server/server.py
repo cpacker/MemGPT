@@ -147,6 +147,7 @@ from memgpt.metadata import (
     APIKeyModel,
     BlockModel,
     JobModel,
+    OrganizationModel,
     SourceModel,
     ToolModel,
     UserModel,
@@ -178,6 +179,7 @@ Base.metadata.create_all(
         JobModel.__table__,
         PassageModel.__table__,
         MessageModel.__table__,
+        OrganizationModel.__table__,
     ],
 )
 
@@ -690,7 +692,7 @@ class SyncServer(Server):
         if not request.name:
             # auto-generate a name
             request.name = create_random_username()
-        user = User(name=request.name)
+        user = User(name=request.name, org_id=request.org_id)
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
 

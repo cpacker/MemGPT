@@ -29,6 +29,9 @@ from memgpt.server.rest_api.routers.openai.chat_completions.chat_completions imp
 
 # from memgpt.orm.utilities import get_db_session  # TODO(ethan) reenable once we merge ORM
 from memgpt.server.rest_api.routers.v1 import ROUTERS as v1_routes
+from memgpt.server.rest_api.routers.v1.organizations import (
+    router as organizations_router,
+)
 from memgpt.server.rest_api.routers.v1.users import (
     router as users_router,  # TODO: decide on admin
 )
@@ -103,6 +106,7 @@ def create_application() -> "FastAPI":
 
     # admin/users
     app.include_router(users_router, prefix=ADMIN_PREFIX)
+    app.include_router(organizations_router, prefix=ADMIN_PREFIX)
 
     # openai
     app.include_router(openai_assistants_router, prefix=OPENAI_API_PREFIX)

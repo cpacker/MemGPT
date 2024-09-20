@@ -133,7 +133,7 @@ class UserModel(Base):
         return f"<User(id='{self.id}' name='{self.name}')>"
 
     def to_record(self) -> User:
-        return User(id=self.id, name=self.name, created_at=self.created_at)
+        return User(id=self.id, name=self.name, created_at=self.created_at, org_id=self.org_id)
 
 
 class OrganizationModel(Base):
@@ -664,10 +664,10 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def delete_organization(self, organization_id: str):
+    def delete_organization(self, org_id: str):
         with self.session_maker() as session:
             # delete from organizations table
-            session.query(OrganizationModel).filter(OrganizationModel.id == organization_id).delete()
+            session.query(OrganizationModel).filter(OrganizationModel.id == org_id).delete()
 
             # TODO: delete associated data
 
