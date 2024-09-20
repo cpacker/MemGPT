@@ -21,9 +21,13 @@ class User(UserBase):
     """
 
     id: str = UserBase.generate_id_field()
+    org_id: Optional[str] = Field(
+        ..., description="The organization id of the user"
+    )  # TODO: dont make optional, and pass in default org ID
     name: str = Field(..., description="The name of the user.")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the user.")
 
 
 class UserCreate(UserBase):
     name: Optional[str] = Field(None, description="The name of the user.")
+    org_id: Optional[str] = Field(None, description="The organization id of the user.")

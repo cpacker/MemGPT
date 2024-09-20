@@ -58,6 +58,7 @@ from memgpt.schemas.memgpt_message import MemGPTMessage
 from memgpt.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
 from memgpt.schemas.message import Message, UpdateMessage
 from memgpt.schemas.openai.chat_completion_response import UsageStatistics
+from memgpt.schemas.organization import Organization, OrganizationCreate
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
@@ -146,6 +147,7 @@ from memgpt.metadata import (
     APIKeyModel,
     BlockModel,
     JobModel,
+    OrganizationModel,
     SourceModel,
     ToolModel,
     UserModel,
@@ -177,6 +179,7 @@ Base.metadata.create_all(
         JobModel.__table__,
         PassageModel.__table__,
         MessageModel.__table__,
+        OrganizationModel.__table__,
     ],
 )
 
@@ -689,16 +692,31 @@ class SyncServer(Server):
         if not request.name:
             # auto-generate a name
             request.name = create_random_username()
-        user = User(name=request.name)
+        user = User(name=request.name, org_id=request.org_id)
         self.ms.create_user(user)
         logger.info(f"Created new user from config: {user}")
 
         # add default for the user
+        # TODO: move to org
         assert user.id is not None, f"User id is None: {user}"
         self.add_default_blocks(user.id)
         self.add_default_tools(module_name="base", user_id=user.id)
 
         return user
+
+    def create_organization(self, request: OrganizationCreate) -> Organization:
+        """Create a new org using a config"""
+        if not request.name:
+            # auto-generate a name
+            request.name = create_random_username()
+        org = Organization(name=request.name)
+        self.ms.create_organization(org)
+        logger.info(f"Created new org from config: {org}")
+
+        # add default for the org
+        # TODO: add default data
+
+        return org
 
     def create_agent(
         self,

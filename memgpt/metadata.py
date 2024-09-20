@@ -29,6 +29,7 @@ from memgpt.schemas.job import Job
 from memgpt.schemas.llm_config import LLMConfig
 from memgpt.schemas.memory import Memory
 from memgpt.schemas.openai.chat_completions import ToolCall, ToolCallFunction
+from memgpt.schemas.organization import Organization
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
 from memgpt.schemas.user import User
@@ -121,6 +122,7 @@ class UserModel(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
+    org_id = Column(String)
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True))
 
@@ -131,7 +133,22 @@ class UserModel(Base):
         return f"<User(id='{self.id}' name='{self.name}')>"
 
     def to_record(self) -> User:
-        return User(id=self.id, name=self.name, created_at=self.created_at)
+        return User(id=self.id, name=self.name, created_at=self.created_at, org_id=self.org_id)
+
+
+class OrganizationModel(Base):
+    __tablename__ = "organizations"
+    __table_args__ = {"extend_existing": True}
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True))
+
+    def __repr__(self) -> str:
+        return f"<Organization(id='{self.id}' name='{self.name}')>"
+
+    def to_record(self) -> Organization:
+        return Organization(id=self.id, name=self.name, created_at=self.created_at)
 
 
 class APIKeyModel(Base):
@@ -516,6 +533,14 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def create_organization(self, organization: Organization):
+        with self.session_maker() as session:
+            if session.query(OrganizationModel).filter(OrganizationModel.id == organization.id).count() > 0:
+                raise ValueError(f"Organization with id {organization.id} already exists")
+            session.add(OrganizationModel(**vars(organization)))
+            session.commit()
+
+    @enforce_types
     def create_block(self, block: Block):
         with self.session_maker() as session:
             # TODO: fix?
@@ -639,6 +664,16 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def delete_organization(self, org_id: str):
+        with self.session_maker() as session:
+            # delete from organizations table
+            session.query(OrganizationModel).filter(OrganizationModel.id == org_id).delete()
+
+            # TODO: delete associated data
+
+            session.commit()
+
+    @enforce_types
     # def list_tools(self, user_id: str) -> List[ToolModel]: # TODO: add when users can creat tools
     def list_tools(self, user_id: Optional[str] = None) -> List[ToolModel]:
         with self.session_maker() as session:
@@ -684,6 +719,30 @@ class MetadataStore:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
+
+    @enforce_types
+    def get_organization(self, org_id: str) -> Optional[Organization]:
+        with self.session_maker() as session:
+            results = session.query(OrganizationModel).filter(OrganizationModel.id == org_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    @enforce_types
+    def list_organizations(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
+        with self.session_maker() as session:
+            query = session.query(OrganizationModel).order_by(desc(OrganizationModel.id))
+            if cursor:
+                query = query.filter(OrganizationModel.id < cursor)
+            results = query.limit(limit).all()
+            if not results:
+                return None, []
+            organization_records = [r.to_record() for r in results]
+            next_cursor = organization_records[-1].id
+            assert isinstance(next_cursor, str)
+
+            return next_cursor, organization_records
 
     @enforce_types
     def get_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
