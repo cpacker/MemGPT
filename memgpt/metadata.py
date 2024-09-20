@@ -3,7 +3,6 @@
 import base64
 import os
 import secrets
-import traceback
 from typing import List, Optional, Type
 
 import numpy as np
@@ -17,13 +16,11 @@ from sqlalchemy import (
     Index,
     String,
     TypeDecorator,
-    create_engine,
     desc,
     func,
     select,
 )
-from sqlalchemy.exc import InterfaceError, OperationalError
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy_json import MutableJson
 
@@ -40,6 +37,7 @@ from memgpt.schemas.memory import Memory
 # from memgpt.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from memgpt.schemas.message import Message
 from memgpt.schemas.openai.chat_completions import ToolCall, ToolCallFunction
+from memgpt.schemas.organization import Organization
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source
 from memgpt.schemas.tool import Tool
@@ -93,6 +91,8 @@ class LLMConfigColumn(TypeDecorator):
             # return vars(value)
             # return value.model_dump()
             return value
+            if isinstance(value, LLMConfig):
+                return value.model_dump()
         return value
 
     def process_result_value(self, value, dialect):
@@ -115,6 +115,8 @@ class EmbeddingConfigColumn(TypeDecorator):
             # return vars(value)
             # return value.model_dump()
             return value
+            if isinstance(value, EmbeddingConfig):
+                return value.model_dump()
         return value
 
     def process_result_value(self, value, dialect):
@@ -219,6 +221,7 @@ class UserModel(SQLBase):
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
+    org_id = Column(String)
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True))
     org_id = Column(String, nullable=False)
@@ -231,6 +234,21 @@ class UserModel(SQLBase):
 
     def to_record(self) -> User:
         return User(id=self.id, name=self.name, created_at=self.created_at, org_id=self.org_id)
+
+
+class OrganizationModel(Base):
+    __tablename__ = "organizations"
+    __table_args__ = {"extend_existing": True}
+
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True))
+
+    def __repr__(self) -> str:
+        return f"<Organization(id='{self.id}' name='{self.name}')>"
+
+    def to_record(self) -> Organization:
+        return Organization(id=self.id, name=self.name, created_at=self.created_at)
 
 
 class OrganizationModel(SQLBase):
@@ -621,41 +639,45 @@ class MetadataStore:
         # Ensure valid URI
         assert self.uri, "Database URI is not provided or is invalid."
 
-        # Check if tables need to be created
-        self.engine = create_engine(self.uri)
-        try:
-            Base.metadata.create_all(
-                self.engine,
-                tables=[
-                    UserModel.__table__,
-                    AgentModel.__table__,
-                    SourceModel.__table__,
-                    AgentSourceMappingModel.__table__,
-                    APIKeyModel.__table__,
-                    BlockModel.__table__,
-                    ToolModel.__table__,
-                    JobModel.__table__,
-                ],
-            )
-        except (InterfaceError, OperationalError) as e:
-            traceback.print_exc()
-            if config.metadata_storage_type == "postgres":
-                raise ValueError(
-                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
-                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
-                    + "\npostgres detected: Make sure the postgres database is running (https://memgpt.readme.io/docs/storage#postgres)."
-                )
-            elif config.metadata_storage_type == "sqlite":
-                raise ValueError(
-                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
-                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
-                    + "\nsqlite detected: Make sure that the sqlite.db file exists at the URI."
-                )
-            else:
-                raise e
-        except:
-            raise
-        self.session_maker = sessionmaker(bind=self.engine)
+        from memgpt.server.server import db_context
+
+        self.session_maker = db_context
+
+    #        # Check if tables need to be created
+    #        self.engine = create_engine(self.uri)
+    #        try:
+    #            Base.metadata.create_all(
+    #                self.engine,
+    #                tables=[
+    #                    UserModel.__table__,
+    #                    AgentModel.__table__,
+    #                    SourceModel.__table__,
+    #                    AgentSourceMappingModel.__table__,
+    #                    APIKeyModel.__table__,
+    #                    BlockModel.__table__,
+    #                    ToolModel.__table__,
+    #                    JobModel.__table__,
+    #                ],
+    #            )
+    #        except (InterfaceError, OperationalError) as e:
+    #            traceback.print_exc()
+    #            if config.metadata_storage_type == "postgres":
+    #                raise ValueError(
+    #                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
+    #                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
+    #                    + "\npostgres detected: Make sure the postgres database is running (https://memgpt.readme.io/docs/storage#postgres)."
+    #                )
+    #            elif config.metadata_storage_type == "sqlite":
+    #                raise ValueError(
+    #                    f"{str(e)}\n\nMemGPT failed to connect to the database at URI '{self.uri}'. "
+    #                    + "Please make sure you configured your storage backend correctly (https://memgpt.readme.io/docs/storage). "
+    #                    + "\nsqlite detected: Make sure that the sqlite.db file exists at the URI."
+    #                )
+    #            else:
+    #                raise e
+    #        except:
+    #            raise
+    #        self.session_maker = sessionmaker(bind=self.engine)
 
     @enforce_types
     def create_api_key(self, user_id: str, name: str) -> APIKey:
@@ -730,6 +752,14 @@ class MetadataStore:
             if session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
                 raise ValueError(f"User with id {user.id} already exists")
             session.add(UserModel(**vars(user)))
+            session.commit()
+
+    @enforce_types
+    def create_organization(self, organization: Organization):
+        with self.session_maker() as session:
+            if session.query(OrganizationModel).filter(OrganizationModel.id == organization.id).count() > 0:
+                raise ValueError(f"Organization with id {organization.id} already exists")
+            session.add(OrganizationModel(**vars(organization)))
             session.commit()
 
     @enforce_types
@@ -856,6 +886,16 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def delete_organization(self, org_id: str):
+        with self.session_maker() as session:
+            # delete from organizations table
+            session.query(OrganizationModel).filter(OrganizationModel.id == org_id).delete()
+
+            # TODO: delete associated data
+
+            session.commit()
+
+    @enforce_types
     # def list_tools(self, user_id: str) -> List[ToolModel]: # TODO: add when users can creat tools
     def list_tools(self, user_id: Optional[str] = None) -> List[ToolModel]:
         with self.session_maker() as session:
@@ -901,6 +941,30 @@ class MetadataStore:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
+
+    @enforce_types
+    def get_organization(self, org_id: str) -> Optional[Organization]:
+        with self.session_maker() as session:
+            results = session.query(OrganizationModel).filter(OrganizationModel.id == org_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    @enforce_types
+    def list_organizations(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
+        with self.session_maker() as session:
+            query = session.query(OrganizationModel).order_by(desc(OrganizationModel.id))
+            if cursor:
+                query = query.filter(OrganizationModel.id < cursor)
+            results = query.limit(limit).all()
+            if not results:
+                return None, []
+            organization_records = [r.to_record() for r in results]
+            next_cursor = organization_records[-1].id
+            assert isinstance(next_cursor, str)
+
+            return next_cursor, organization_records
 
     @enforce_types
     def get_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50):

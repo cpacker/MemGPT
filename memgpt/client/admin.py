@@ -6,6 +6,7 @@ from requests import HTTPError
 from memgpt.functions.functions import parse_source_code
 from memgpt.functions.schema_generator import generate_schema
 from memgpt.schemas.api_key import APIKey, APIKeyCreate
+from memgpt.schemas.organization import Organization, OrganizationCreate
 from memgpt.schemas.user import User, UserCreate
 
 
@@ -59,8 +60,8 @@ class Admin:
             raise HTTPError(response.json())
         return APIKey(**response.json())
 
-    def create_user(self, name: Optional[str] = None) -> User:
-        request = UserCreate(name=name)
+    def create_user(self, name: Optional[str] = None, org_id: Optional[str] = None) -> User:
+        request = UserCreate(name=name, org_id=org_id)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/admin/users", headers=self.headers, json=request.model_dump())
         if response.status_code != 200:
             raise HTTPError(response.json())
@@ -73,6 +74,32 @@ class Admin:
         if response.status_code != 200:
             raise HTTPError(response.json())
         return User(**response.json())
+
+    def create_organization(self, name: Optional[str] = None) -> Organization:
+        request = OrganizationCreate(name=name)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/admin/orgs", headers=self.headers, json=request.model_dump())
+        if response.status_code != 200:
+            raise HTTPError(response.json())
+        response_json = response.json()
+        return Organization(**response_json)
+
+    def delete_organization(self, org_id: str) -> Organization:
+        params = {"org_id": str(org_id)}
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/admin/orgs", params=params, headers=self.headers)
+        if response.status_code != 200:
+            raise HTTPError(response.json())
+        return Organization(**response.json())
+
+    def get_organizations(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Organization]:
+        params = {}
+        if cursor:
+            params["cursor"] = str(cursor)
+        if limit:
+            params["limit"] = limit
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/admin/orgs", params=params, headers=self.headers)
+        if response.status_code != 200:
+            raise HTTPError(response.json())
+        return [Organization(**org) for org in response.json()]
 
     def _reset_server(self):
         # DANGER: this will delete all users and keys
