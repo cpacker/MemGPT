@@ -122,6 +122,7 @@ class UserModel(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
+    org_id = Column(String)
     name = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True))
 
