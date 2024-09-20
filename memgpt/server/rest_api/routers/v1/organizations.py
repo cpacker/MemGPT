@@ -22,7 +22,7 @@ def get_all_orgs(
     Get a list of all orgs in the database
     """
     try:
-        next_cursor, orgs = server.ms.list_organization(cursor=cursor, limit=limit)
+        next_cursor, orgs = server.ms.list_organizations(cursor=cursor, limit=limit)
     except HTTPException:
         raise
     except Exception as e:
