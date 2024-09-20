@@ -702,13 +702,13 @@ class SyncServer(Server):
 
         return user
 
-    def create_org(self, request: OrganizationCreate) -> Organization:
+    def create_organization(self, request: OrganizationCreate) -> Organization:
         """Create a new org using a config"""
         if not request.name:
             # auto-generate a name
             request.name = create_random_username()
         org = Organization(name=request.name)
-        self.ms.create_org(org)
+        self.ms.create_organization(org)
         logger.info(f"Created new org from config: {org}")
 
         # add default for the org
