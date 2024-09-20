@@ -38,11 +38,26 @@ def admin_client():
     yield admin
 
 
-def test_admin_client(admin_client):
+@pytest.fixture(scope="module")
+def organization(admin_client):
+    # create an organization
+    org_name = "test_org"
+    org = admin_client.create_organization(org_name)
+    assert org_name == org.name, f"Expected {org_name}, got {org.name}"
+
+    # test listing
+    orgs = admin_client.get_organizations()
+    assert len(orgs) > 0, f"Expected 1 org, got {orgs}"
+
+    yield org
+    admin_client.delete_organization(org.id)
+
+
+def test_admin_client(admin_client, organization):
 
     # create a user
     user_name = "test_user"
-    user1 = admin_client.create_user(user_name)
+    user1 = admin_client.create_user(user_name, organization.id)
     assert user_name == user1.name, f"Expected {user_name}, got {user1.name}"
 
     # create another user

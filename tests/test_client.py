@@ -410,3 +410,9 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
     new_text = "This exact string would never show up in the message???"
     new_message = client.update_message(message_id=message.id, text=new_text, agent_id=agent.id)
     assert new_message.text == new_text
+
+
+def test_organization(client: RESTClient):
+    if isinstance(client, LocalClient):
+        pytest.skip("Skipping test_organization because LocalClient does not support organizations")
+    client.base_url
