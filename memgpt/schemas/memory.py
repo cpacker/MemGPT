@@ -26,9 +26,9 @@ class Memory(BaseModel, validate_assignment=True):
     # Memory.template is a Jinja2 template for compiling memory module into a prompt string.
     prompt_template: str = Field(
         default="{% for block in memory.values() %}"
-        '<{{ block.name }} characters="{{ block.value|length }}/{{ block.limit }}">\n'
+        '<{{ block.label }} characters="{{ block.value|length }}/{{ block.limit }}">\n'
         "{{ block.value }}\n"
-        "</{{ block.name }}>"
+        "</{{ block.label }}>"
         "{% if not loop.last %}\n{% endif %}"
         "{% endfor %}",
         description="Jinja2 template for compiling memory blocks into a prompt string",
@@ -99,6 +99,10 @@ class Memory(BaseModel, validate_assignment=True):
         else:
             return self.memory[name]
 
+    def get_blocks(self) -> List[Block]:
+        """Return a list of the blocks held inside the memory object"""
+        return list(self.memory.values())
+
     def link_block(self, name: str, block: Block, override: Optional[bool] = False):
         """Link a new block to the memory object"""
         if not isinstance(block, Block):
@@ -143,8 +147,10 @@ class BasicBlockMemory(Memory):
         super().__init__()
         for block in blocks:
             # TODO: centralize these internal schema validations
-            assert block.name is not None and block.name != "", "each existing chat block must have a name"
-            self.link_block(name=block.name, block=block)
+            # assert block.name is not None and block.name != "", "each existing chat block must have a name"
+            # self.link_block(name=block.name, block=block)
+            assert block.label is not None and block.label != "", "each existing chat block must have a name"
+            self.link_block(name=block.label, block=block)
 
     def core_memory_append(self: "Agent", name: str, content: str) -> Optional[str]:  # type: ignore
         """
