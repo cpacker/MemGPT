@@ -7,9 +7,9 @@ services:
           - pgvector_db
           - memgpt-db
     environment:
-      - POSTGRES_USER=${MEMGPT_PG_USER}
-      - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD}
-      - POSTGRES_DB=${MEMGPT_PG_DB}
+      - POSTGRES_USER=${MEMGPT_PG_USER:-memgpt}
+      - POSTGRES_PASSWORD=${MEMGPT_PG_PASSWORD:-memgpt}
+      - POSTGRES_DB=${MEMGPT_PG_DB:-memgpt}
     volumes:
       - ./.persist/pgdata-test:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -29,10 +29,9 @@ services:
       - "8083:8083"
       - "8283:8283"
     environment:
-      - MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} # memgpt server password
-      - MEMGPT_PG_DB=${MEMGPT_PG_DB}
-      - MEMGPT_PG_USER=${MEMGPT_PG_USER}
-      - MEMGPT_PG_PASSWORD=${MEMGPT_PG_PASSWORD}
+      - MEMGPT_PG_DB=${MEMGPT_PG_DB:-memgpt}
+      - MEMGPT_PG_USER=${MEMGPT_PG_USER:-memgpt}
+      - MEMGPT_PG_PASSWORD=${MEMGPT_PG_PASSWORD:-memgpt}
       - MEMGPT_PG_HOST=pgvector_db
       - MEMGPT_PG_PORT=5432
       - OPENAI_API_KEY=${OPENAI_API_KEY}
