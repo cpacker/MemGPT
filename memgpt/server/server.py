@@ -30,12 +30,18 @@ from memgpt.data_sources.connectors import DataConnector, load_data
 #    Token,
 #    User,
 # )
-from memgpt.functions.functions import generate_schema, load_function_set
+from memgpt.functions.functions import (
+    generate_schema,
+    load_function_set,
+    parse_source_code,
+)
+from memgpt.functions.schema_generator import generate_schema
 
 # TODO use custom interface
 from memgpt.interface import AgentInterface  # abstract
 from memgpt.interface import CLIInterface  # for printing to terminal
 from memgpt.log import get_logger
+from memgpt.memory import get_memory_functions
 from memgpt.metadata import MetadataStore
 from memgpt.prompts import gpt_system
 from memgpt.schemas.agent import AgentState, CreateAgent, UpdateAgentState
@@ -753,16 +759,44 @@ class SyncServer(Server):
 
             # get tools + make sure they exist
             tool_objs = []
-            for tool_name in request.tools:
-                tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-                assert tool_obj, f"Tool {tool_name} does not exist"
-                tool_objs.append(tool_obj)
+            if request.tools:
+                for tool_name in request.tools:
+                    tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+                    assert tool_obj, f"Tool {tool_name} does not exist"
+                    tool_objs.append(tool_obj)
+
+            assert request.memory is not None
+            memory_functions = get_memory_functions(request.memory)
+            for func_name, func in memory_functions.items():
+
+                if request.tools and func_name in request.tools:
+                    # tool already added
+                    continue
+                source_code = parse_source_code(func)
+                json_schema = generate_schema(func, func_name)
+                source_type = "python"
+                tags = ["memory", "memgpt-base"]
+                tool = self.create_tool(
+                    request=ToolCreate(
+                        source_code=source_code,
+                        source_type=source_type,
+                        tags=tags,
+                        json_schema=json_schema,
+                        user_id=user_id,
+                    ),
+                    update=True,
+                    user_id=user_id,
+                )
+                tool_objs.append(tool)
+                if not request.tools:
+                    request.tools = []
+                request.tools.append(tool.name)
 
             # TODO: save the agent state
             agent_state = AgentState(
                 name=request.name,
                 user_id=user_id,
-                tools=request.tools,  # name=id for tools
+                tools=request.tools if request.tools else [],
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,

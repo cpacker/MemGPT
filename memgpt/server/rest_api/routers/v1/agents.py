@@ -17,6 +17,7 @@ from memgpt.schemas.memgpt_request import MemGPTRequest
 from memgpt.schemas.memgpt_response import MemGPTResponse
 from memgpt.schemas.memory import (
     ArchivalMemorySummary,
+    BasicBlockMemory,
     CreateArchivalMemory,
     Memory,
     RecallMemorySummary,
@@ -58,6 +59,11 @@ def create_agent(
     """
     actor = server.get_current_user()
     agent.user_id = actor.id
+    # TODO: sarah make general
+    # TODO: eventually remove this
+    assert agent.memory is not None  # TODO: dont force this, can be None (use default human/person)
+    blocks = agent.memory.get_blocks()
+    agent.memory = BasicBlockMemory(blocks=blocks)
 
     return server.create_agent(agent, user_id=actor.id)
 
