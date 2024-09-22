@@ -36,4 +36,4 @@ uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
 memgpt_version = 0.4.0
 
 [client]
-anon_clientid = user-0a54c9e0-07fa-4a36-a7a4-5d1feb556f11
+anon_clientid = 00000000-0000-0000-0000-000000000000
