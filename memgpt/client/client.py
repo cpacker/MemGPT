@@ -5,7 +5,6 @@ from typing import Callable, Dict, Generator, List, Optional, Union
 import requests
 
 import memgpt.utils
-from memgpt.config import MemGPTConfig
 from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from memgpt.data_sources.connectors import DataConnector
 from memgpt.functions.functions import parse_source_code
@@ -42,7 +41,6 @@ from memgpt.schemas.openai.chat_completions import ToolCall
 from memgpt.schemas.passage import Passage
 from memgpt.schemas.source import Source, SourceCreate, SourceUpdate
 from memgpt.schemas.tool import Tool, ToolCreate, ToolUpdate
-from memgpt.schemas.user import UserCreate
 from memgpt.server.rest_api.interface import QueuingInterface
 from memgpt.server.server import SyncServer
 from memgpt.utils import get_human_text, get_persona_text
@@ -1353,14 +1351,6 @@ class LocalClient(AbstractClient):
         """
         self.auto_save = auto_save
 
-        # determine user_id (pulled from local config)
-        config = MemGPTConfig.load()
-        if user_id:
-            self.user_id = user_id
-        else:
-            # TODO: find a neater way to do this
-            self.user_id = config.anon_clientid
-
         # set logging levels
         memgpt.utils.DEBUG = debug
         logging.getLogger().setLevel(logging.CRITICAL)
@@ -1368,19 +1358,14 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
-        # set logging levels
-        memgpt.utils.DEBUG = debug
-        logging.getLogger().setLevel(logging.CRITICAL)
+        # save user_id that `LocalClient` is associated with
+        if user_id:
+            self.user_id = user_id
+        else:
+            # get default user
+            self.user_id = self.server.get_default_user().id
 
-        # create user if does not exist
-        existing_user = self.server.get_user(self.user_id)
-        if not existing_user:
-            self.user = self.server.create_user(UserCreate())
-            self.user_id = self.user.id
-
-            # update config
-            config.anon_clientid = str(self.user_id)
-            config.save()
+        print("USER", self.user_id)
 
     # agents
 
