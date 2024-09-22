@@ -1905,6 +1905,34 @@ class SyncServer(Server):
 
         self._current_user = user_id
 
+    def get_default_user(self) -> User:
+
+        from memgpt.constants import (
+            DEFAULT_ORG_ID,
+            DEFAULT_ORG_NAME,
+            DEFAULT_USER_ID,
+            DEFAULT_USER_NAME,
+        )
+
+        # check if default org exists
+        default_org = self.ms.get_organization(DEFAULT_ORG_ID)
+        if not default_org:
+            org = Organization(name=DEFAULT_ORG_NAME, id=DEFAULT_ORG_ID)
+            self.ms.create_organization(org)
+
+        # check if default user exists
+        default_user = self.get_user(DEFAULT_USER_ID)
+        if not default_user:
+            user = User(name=DEFAULT_USER_NAME, org_id=DEFAULT_ORG_ID, id=DEFAULT_USER_ID)
+            self.ms.create_user(user)
+
+            # add default data (TODO: move to org)
+            self.add_default_blocks(user.id)
+            self.add_default_tools(module_name="base", user_id=user.id)
+
+        # check if default org exists
+        return self.get_user(DEFAULT_USER_ID)
+
     # TODO(ethan) wire back to real method in future ORM PR
     def get_current_user(self) -> User:
         """Returns the currently authed user.
@@ -1918,6 +1946,7 @@ class SyncServer(Server):
             current_user = self.get_user(self._current_user)
             if not current_user:
                 warnings.warn(f"Provided user '{self._current_user}' not found, using default user")
+                return self.get_default_user()
             else:
                 return current_user
 
