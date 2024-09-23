@@ -1,10 +1,10 @@
--- Title: Init MemGPT Database
+-- Title: Init Letta Database
 
 -- Fetch the docker secrets, if they are available.
--- Otherwise fall back to environment variables, or hardwired 'memgpt'
-\set db_user `([ -r /var/run/secrets/memgpt-user ] && cat /var/run/secrets/memgpt-user) || echo "${POSTGRES_USER:-memgpt}"`
-\set db_password `([ -r /var/run/secrets/memgpt-password ] && cat /var/run/secrets/memgpt-password) || echo "${POSTGRES_PASSWORD:-memgpt}"`
-\set db_name `([ -r /var/run/secrets/memgpt-db ] && cat /var/run/secrets/memgpt-db) || echo "${POSTGRES_DB:-memgpt}"`
+-- Otherwise fall back to environment variables, or hardwired 'letta'
+\set db_user `([ -r /var/run/secrets/letta-user ] && cat /var/run/secrets/letta-user) || echo "${POSTGRES_USER:-letta}"`
+\set db_password `([ -r /var/run/secrets/letta-password ] && cat /var/run/secrets/letta-password) || echo "${POSTGRES_PASSWORD:-letta}"`
+\set db_name `([ -r /var/run/secrets/letta-db ] && cat /var/run/secrets/letta-db) || echo "${POSTGRES_DB:-letta}"`
 
 -- CREATE USER :"db_user"
 --     WITH PASSWORD :'db_password'

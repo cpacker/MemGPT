@@ -1,6 +1,6 @@
 ---
 title: Ollama
-excerpt: Setting up MemGPT with Ollama
+excerpt: Setting up Letta with Ollama
 category: 6580da9a40bb410016b8b0c3
 ---
 
@@ -8,7 +8,7 @@ category: 6580da9a40bb410016b8b0c3
 >
 > Don't do **`ollama pull dolphin2.2-mistral`**, instead do **`ollama pull dolphin2.2-mistral:7b-q6_K`**.
 >
-> If you don't specify a tag, Ollama may default to using a highly compressed model variant (e.g. Q4). We highly recommend **NOT** using a compression level below Q5 when using GGUF (stick to Q6 or Q8 if possible). In our testing, certain models start to become extremely unstable (when used with MemGPT) below Q6.
+> If you don't specify a tag, Ollama may default to using a highly compressed model variant (e.g. Q4). We highly recommend **NOT** using a compression level below Q5 when using GGUF (stick to Q6 or Q8 if possible). In our testing, certain models start to become extremely unstable (when used with Letta) below Q6.
 
 1. Download + install [Ollama](https://github.com/jmorganca/ollama) and the model you want to test with
 2. Download a model to test with by running `ollama pull <MODEL_NAME>` in the terminal (check the [Ollama model library](https://ollama.ai/library) for available models)
@@ -33,7 +33,7 @@ removing any unused layers
 success
 ```
 
-In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at Ollama:
+In your terminal where you're running Letta, run `letta configure` to set the default backend for Letta to point at Ollama:
 
 ```sh
 # if you are running Ollama locally, the default IP address + port will be http://localhost:11434
@@ -41,14 +41,14 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ? Select LLM inference provider: local
 ? Select LLM backend (select 'openai' if you have an OpenAI compatible proxy): ollama
 ? Enter default endpoint: http://localhost:11434
-? Enter default model name (required for Ollama, see: https://memgpt.readme.io/docs/ollama): dolphin2.2-mistral:7b-q6_K
+? Enter default model name (required for Ollama, see: https://letta.readme.io/docs/ollama): dolphin2.2-mistral:7b-q6_K
 ...
 ```
 
-If you have an existing agent that you want to move to the Ollama backend, add extra flags to `memgpt run`:
+If you have an existing agent that you want to move to the Ollama backend, add extra flags to `letta run`:
 
 ```sh
 # use --model to switch Ollama models (always include the full Ollama model name with the tag)
 # use --model-wrapper to switch model wrappers
-memgpt run --agent your_agent --model dolphin2.2-mistral:7b-q6_K --model-endpoint-type ollama --model-endpoint http://localhost:11434
+letta run --agent your_agent --model dolphin2.2-mistral:7b-q6_K --model-endpoint-type ollama --model-endpoint http://localhost:11434
 ```

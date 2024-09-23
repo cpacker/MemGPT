@@ -2,21 +2,21 @@ import json
 import os
 import uuid
 
-from memgpt import create_client
-from memgpt.agent import Agent
-from memgpt.config import MemGPTConfig
-from memgpt.embeddings import embedding_model
-from memgpt.llm_api.llm_api_tools import create
-from memgpt.prompts import gpt_system
-from memgpt.schemas.embedding_config import EmbeddingConfig
-from memgpt.schemas.llm_config import LLMConfig
-from memgpt.schemas.message import Message
+from letta import create_client
+from letta.agent import Agent
+from letta.config import LettaConfig
+from letta.embeddings import embedding_model
+from letta.llm_api.llm_api_tools import create
+from letta.prompts import gpt_system
+from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.llm_config import LLMConfig
+from letta.schemas.message import Message
 
 messages = [Message(role="system", text=gpt_system.get_system_text("memgpt_chat")), Message(role="user", text="How are you?")]
 
-# defaults (memgpt hosted)
-embedding_config_path = "configs/embedding_model_configs/memgpt-hosted.json"
-llm_config_path = "configs/llm_model_configs/memgpt-hosted.json"
+# defaults (letta hosted)
+embedding_config_path = "configs/embedding_model_configs/letta-hosted.json"
+llm_config_path = "configs/llm_model_configs/letta-hosted.json"
 
 # directories
 embedding_config_dir = "configs/embedding_model_configs"
@@ -30,7 +30,7 @@ def run_llm_endpoint(filename):
     embedding_config = EmbeddingConfig(**json.load(open(embedding_config_path)))
 
     # setup config
-    config = MemGPTConfig()
+    config = LettaConfig()
     config.default_llm_config = llm_config
     config.default_embedding_config = embedding_config
     config.save()
@@ -80,13 +80,13 @@ def test_embedding_endpoint_openai():
     run_embedding_endpoint(filename)
 
 
-def test_llm_endpoint_memgpt_hosted():
-    filename = os.path.join(llm_config_dir, "memgpt-hosted.json")
+def test_llm_endpoint_letta_hosted():
+    filename = os.path.join(llm_config_dir, "letta-hosted.json")
     run_llm_endpoint(filename)
 
 
-def test_embedding_endpoint_memgpt_hosted():
-    filename = os.path.join(embedding_config_dir, "memgpt-hosted.json")
+def test_embedding_endpoint_letta_hosted():
+    filename = os.path.join(embedding_config_dir, "letta-hosted.json")
     run_embedding_endpoint(filename)
 
 

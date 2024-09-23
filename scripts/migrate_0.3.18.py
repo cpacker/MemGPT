@@ -3,15 +3,15 @@ import uuid
 
 from sqlalchemy import MetaData, Table, create_engine
 
-from memgpt import create_client
-from memgpt.config import MemGPTConfig
-from memgpt.data_types import AgentState, EmbeddingConfig, LLMConfig
-from memgpt.metadata import MetadataStore
-from memgpt.presets.presets import add_default_tools
-from memgpt.prompts import gpt_system
+from letta import create_client
+from letta.config import LettaConfig
+from letta.data_types import AgentState, EmbeddingConfig, LLMConfig
+from letta.metadata import MetadataStore
+from letta.presets.presets import add_default_tools
+from letta.prompts import gpt_system
 
 # Replace this with your actual database connection URL
-config = MemGPTConfig.load()
+config = LettaConfig.load()
 if config.recall_storage_type == "sqlite":
     DATABASE_URL = "sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db")
 else:

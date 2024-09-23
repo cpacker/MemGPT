@@ -1,32 +1,32 @@
 from openai import OpenAI
 
 """
-This script provides an example of how you can use OpenAI's python client with a MemGPT server.
+This script provides an example of how you can use OpenAI's python client with a Letta server.
 
-Before running this example, make sure you start the OpenAI-compatible REST server with `memgpt server`.
+Before running this example, make sure you start the OpenAI-compatible REST server with `letta server`.
 """
 
 
 def main():
     client = OpenAI(base_url="http://localhost:8283/v1")
 
-    # create assistant (creates a memgpt preset)
+    # create assistant (creates a letta preset)
     assistant = client.beta.assistants.create(
         name="Math Tutor",
         instructions="You are a personal math tutor. Write and run code to answer math questions.",
         model="gpt-4-turbo-preview",
     )
 
-    # create thread (creates a memgpt agent)
+    # create thread (creates a letta agent)
     thread = client.beta.threads.create()
 
-    # create a message (appends a message to the memgpt agent)
+    # create a message (appends a message to the letta agent)
     message = client.beta.threads.messages.create(
         thread_id=thread.id, role="user", content="I need to solve the equation `3x + 11 = 14`. Can you help me?"
     )
 
     # create a run (executes the agent on the messages)
-    # NOTE: MemGPT does not support polling yet, so run status is always "completed"
+    # NOTE: Letta does not support polling yet, so run status is always "completed"
     run = client.beta.threads.runs.create(
         thread_id=thread.id, assistant_id=assistant.id, instructions="Please address the user as Jane Doe. The user has a premium account."
     )

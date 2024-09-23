@@ -41,7 +41,7 @@ def test_openai_assistant():
     run_id = run.id
     print(run_id)
 
-    # NOTE: MemGPT does not support polling yet, so run status is always "completed"
+    # NOTE: Letta does not support polling yet, so run status is always "completed"
     # Retrieve all messages from the thread
     messages = client.beta.threads.messages.list(thread_id=thread.id)
 

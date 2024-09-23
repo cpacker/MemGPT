@@ -1,10 +1,10 @@
 ---
 title: Configuring embedding backends
-excerpt: Connecting MemGPT to various endpoint backends
+excerpt: Connecting Letta to various endpoint backends
 category: 6580d34ee5e4d00068bf2a1d
 ---
 
-MemGPT uses embedding models for retrieval search over archival memory. You can use embeddings provided by OpenAI, Azure, or any model on Hugging Face.
+Letta uses embedding models for retrieval search over archival memory. You can use embeddings provided by OpenAI, Azure, or any model on Hugging Face.
 
 ## OpenAI
 
@@ -14,10 +14,10 @@ To use OpenAI, make sure your `OPENAI_API_KEY` environment variable is set.
 export OPENAI_API_KEY=YOUR_API_KEY # on Linux/Mac
 ```
 
-Then, configure MemGPT and select `openai` as the embedding provider:
+Then, configure Letta and select `openai` as the embedding provider:
 
 ```text
-> memgpt configure
+> letta configure
 ...
 ? Select embedding provider: openai
 ...
@@ -37,10 +37,10 @@ export AZURE_OPENAI_VERSION = ...
 export AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT = ...
 ```
 
-Then, configure MemGPT and select `azure` as the embedding provider:
+Then, configure Letta and select `azure` as the embedding provider:
 
 ```text
-> memgpt configure
+> letta configure
 ...
 ? Select embedding provider: azure
 ...
@@ -48,10 +48,10 @@ Then, configure MemGPT and select `azure` as the embedding provider:
 
 ## Custom Endpoint
 
-MemGPT supports running embeddings with any Hugging Face model using the [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference)(TEI) library. To get started, first make sure you follow TEI's [instructions](https://github.com/huggingface/text-embeddings-inference#get-started) for getting started. Once you have a running endpoint, you can configure MemGPT to use your endpoint:
+Letta supports running embeddings with any Hugging Face model using the [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference)(TEI) library. To get started, first make sure you follow TEI's [instructions](https://github.com/huggingface/text-embeddings-inference#get-started) for getting started. Once you have a running endpoint, you can configure Letta to use your endpoint:
 
 ```text
-> memgpt configure
+> letta configure
 ...
 ? Select embedding provider: hugging-face
 ? Enter default endpoint: http://localhost:8080
@@ -62,7 +62,7 @@ MemGPT supports running embeddings with any Hugging Face model using the [Text E
 
 ## Local Embeddings
 
-MemGPT can compute embeddings locally using a lightweight embedding model [`BAAI/bge-small-en-v1.5`](https://huggingface.co/BAAI/bge-small-en-v1.5).
+Letta can compute embeddings locally using a lightweight embedding model [`BAAI/bge-small-en-v1.5`](https://huggingface.co/BAAI/bge-small-en-v1.5).
 
 > 🚧 Local LLM Performance
 >
@@ -71,13 +71,13 @@ MemGPT can compute embeddings locally using a lightweight embedding model [`BAAI
 To compute embeddings locally, install dependencies with:
 
 ```sh
-pip install `pymemgpt[local]`
+pip install `pyletta[local]`
 ```
 
 Then, select the `local` option during configuration:
 
 ```text
-memgpt configure
+letta configure
 
 ...
 ? Select embedding provider: local

@@ -1,7 +1,7 @@
 """
 We introduce a new task based on the synthetic Key-Value
 retrieval proposed in prior work (Liu et al., 2023a). The
-goal of this task is to demonstrate how MemGPT can col-
+goal of this task is to demonstrate how Letta can col-
 late information from multiple data sources. In the original
 KV task, the authors generated a synthetic dataset of key-
 value pairs, where each key and value is a 128-bit UUID
@@ -31,18 +31,18 @@ import openai
 from icml_experiments.utils import get_experiment_config, load_gzipped_file
 from tqdm import tqdm
 
-from memgpt import MemGPT, utils
-from memgpt.cli.cli_config import delete
-from memgpt.config import MemGPTConfig
+from letta import letta, utils
+from letta.cli.cli_config import delete
+from letta.config import LettaConfig
 
 # TODO: update personas
-NESTED_PERSONA = "You are MemGPT DOC-QA bot. Your job is to answer questions about documents that are stored in your archival memory. The answer to the users question will ALWAYS be in your archival memory, so remember to keep searching if you can't find the answer. DO NOT STOP SEARCHING UNTIL YOU VERIFY THAT THE VALUE IS NOT A KEY. Do not stop making nested lookups until this condition is met."  # TODO decide on a good persona/human
+NESTED_PERSONA = "You are Letta DOC-QA bot. Your job is to answer questions about documents that are stored in your archival memory. The answer to the users question will ALWAYS be in your archival memory, so remember to keep searching if you can't find the answer. DO NOT STOP SEARCHING UNTIL YOU VERIFY THAT THE VALUE IS NOT A KEY. Do not stop making nested lookups until this condition is met."  # TODO decide on a good persona/human
 NESTED_HUMAN = "The user will ask you questions about documents. Answer them to the best of your ability."
 DEFAULT_FILE = "icml_experiments/nested_kv_task/data/kv-retrieval-140_keys.jsonl.gz"
 AGENT_NAME = "kv_task_agent"
 
 
-# memgpt currently does not support text search over archival memory, however this experiment uses synthetic data which is out of distribution for the embedding model.
+# letta currently does not support text search over archival memory, however this experiment uses synthetic data which is out of distribution for the embedding model.
 # we temporarily override archival memory search with text search for this experiment
 def archival_memory_text_search(self, query: str, page: Optional[int] = 0) -> Optional[str]:
     """
@@ -82,7 +82,7 @@ def load_jsonl_to_list(filename):
     return data
 
 
-def run_nested_kv_task(config: MemGPTConfig, memgpt_client: MemGPT, kv_dict, user_message):
+def run_nested_kv_task(config: LettaConfig, letta_client: Letta, kv_dict, user_message):
     utils.DEBUG = True
 
     # delete agent if exists
@@ -94,7 +94,7 @@ def run_nested_kv_task(config: MemGPTConfig, memgpt_client: MemGPT, kv_dict, use
         print(e)
 
     # Create a new Agent that models the scenario setup
-    agent_state = memgpt_client.create_agent(
+    agent_state = letta_client.create_agent(
         {
             "name": agent_name,
             "persona": NESTED_PERSONA,
@@ -105,7 +105,7 @@ def run_nested_kv_task(config: MemGPTConfig, memgpt_client: MemGPT, kv_dict, use
     )
 
     # get agent
-    agent = memgpt_client.server._get_or_load_agent(user_id, agent_state.id)
+    agent = letta_client.server._get_or_load_agent(user_id, agent_state.id)
     agent.functions_python["archival_memory_search"] = archival_memory_text_search
 
     # insert into archival
@@ -115,12 +115,12 @@ def run_nested_kv_task(config: MemGPTConfig, memgpt_client: MemGPT, kv_dict, use
         agent.persistence_manager.archival_memory.insert(document_string, compute_embedding=False)
     print(f"Inserted {len(agent.persistence_manager.archival_memory)} into archival memory.")
 
-    response = memgpt_client.user_message(agent_id=agent_state.id, message=user_message)
+    response = letta_client.user_message(agent_id=agent_state.id, message=user_message)
 
     # for open models, make extra clear we need th response
     if config.default_llm_config.model_endpoint_type != "openai":
         followup_message = "What is your final answer? Respond with only the answer."
-        response = memgpt_client.user_message(agent_id=agent_state.id, message=followup_message)
+        response = letta_client.user_message(agent_id=agent_state.id, message=followup_message)
     return response
 
 
@@ -155,7 +155,7 @@ def run_baseline(model_id, query_key, kv_dict):
 
     if model_id == "ehartford/dolphin-2.5-mixtral-8x7b":
         # openai.base_url = "https://api.openai.com/v1/"
-        openai.base_url = "https://api.memgpt.ai/v1/"
+        openai.base_url = "https://api.letta.ai/v1/"
 
     print("base url", openai.base_url)
     # client = OpenAI()
@@ -189,12 +189,12 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=0, type=int, help="Random seed")
     parser.add_argument("--task", default="kv", required=False, type=str, help="Task")
     parser.add_argument("--kv_data", default=DEFAULT_FILE, required=False, type=str, help="KV data")
-    parser.add_argument("--baseline", default="memgpt", required=False, type=str, help="Baseline model (memgpt + model vs. model)")
+    parser.add_argument("--baseline", default="letta", required=False, type=str, help="Baseline model (letta + model vs. model)")
     parser.add_argument("--rerun", default=False, action="store_true", help="Rerun task")
 
     args = parser.parse_args()
     assert args.task in ["kv", "kv_nested"], "Task must be one of 'kv' or 'kv_nested'"
-    if args.baseline != "memgpt":
+    if args.baseline != "letta":
         # baseline should be the same as the model name
         assert args.baseline == args.model, "Baseline should be the same as the model name"
 
@@ -306,16 +306,16 @@ if __name__ == "__main__":
                 ]
             )
 
-    if args.baseline == "memgpt":
+    if args.baseline == "letta":
         # craete config
         config = get_experiment_config(os.environ.get("PGVECTOR_TEST_DB_URL"), endpoint_type=provider, model=args.model)
         config.save()  # save config to file
 
         # create clien#t
-        memgpt_client = MemGPT()
+        letta_client = Letta()
 
         # run task
-        results = run_nested_kv_task(config, memgpt_client, kv_dict, first_user_message)
+        results = run_nested_kv_task(config, letta_client, kv_dict, first_user_message)
     else:
         results = run_baseline(args.model, key_to_search, kv_dict)
 

@@ -17,6 +17,6 @@
         "test"
     ],
     "create_time": "2024-01-11 12:41:37 PM",
-    "memgpt_version": "0.2.11",
-    "agent_config_path": "/Users/sarahwooders/.memgpt/agents/agent_test_attach/config.json"
+    "letta_version": "0.2.11",
+    "agent_config_path": "/Users/sarahwooders/.letta/agents/agent_test_attach/config.json"
 }

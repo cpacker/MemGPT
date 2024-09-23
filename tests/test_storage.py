@@ -7,22 +7,22 @@
 # import pytest
 # from sqlalchemy.ext.declarative import declarative_base
 #
-# from memgpt.agent_store.storage import StorageConnector, TableType
-# from memgpt.config import MemGPTConfig
-# from memgpt.constants import BASE_TOOLS, MAX_EMBEDDING_DIM
-# from memgpt.credentials import MemGPTCredentials
-# from memgpt.embeddings import embedding_model, query_embedding
-# from memgpt.metadata import MetadataStore
-# from memgpt.settings import settings
+# from letta.agent_store.storage import StorageConnector, TableType
+# from letta.config import LettaConfig
+# from letta.constants import BASE_TOOLS, MAX_EMBEDDING_DIM
+# from letta.credentials import LettaCredentials
+# from letta.embeddings import embedding_model, query_embedding
+# from letta.metadata import MetadataStore
+# from letta.settings import settings
 # from tests import TEST_MEMGPT_CONFIG
 # from tests.utils import create_config, wipe_config
 #
 # from .utils import with_qdrant_storage
 #
-# from memgpt.schemas.agent import AgentState
-# from memgpt.schemas.message import Message
-# from memgpt.schemas.passage import Passage
-# from memgpt.schemas.user import User
+# from letta.schemas.agent import AgentState
+# from letta.schemas.message import Message
+# from letta.schemas.passage import Passage
+# from letta.schemas.user import User
 #
 #
 ## Note: the database will filter out rows that do not correspond to agent1 and test_user by default.
@@ -119,7 +119,7 @@
 #    clear_dynamically_created_models,
 #    recreate_declarative_base,
 # ):
-#    # setup memgpt config
+#    # setup letta config
 #    # TODO: set env for different config path
 #
 #    # hacky way to cleanup globals that scruw up tests
@@ -131,20 +131,20 @@
 #    wipe_config()
 #    if os.getenv("OPENAI_API_KEY"):
 #        create_config("openai")
-#        credentials = MemGPTCredentials(
+#        credentials = LettaCredentials(
 #            openai_key=os.getenv("OPENAI_API_KEY"),
 #        )
 #    else:  # hosted
-#        create_config("memgpt_hosted")
-#        MemGPTCredentials()
+#        create_config("letta_hosted")
+#        LettaCredentials()
 #
-#    config = MemGPTConfig.load()
+#    config = LettaConfig.load()
 #    TEST_MEMGPT_CONFIG.default_embedding_config = config.default_embedding_config
 #    TEST_MEMGPT_CONFIG.default_llm_config = config.default_llm_config
 #
 #    if storage_connector == "postgres":
-#        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.memgpt_pg_uri
-#        TEST_MEMGPT_CONFIG.recall_storage_uri = settings.memgpt_pg_uri
+#        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.letta_pg_uri
+#        TEST_MEMGPT_CONFIG.recall_storage_uri = settings.letta_pg_uri
 #        TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
 #        TEST_MEMGPT_CONFIG.recall_storage_type = "postgres"
 #    if storage_connector == "lancedb":

@@ -1,6 +1,6 @@
 ---
 title: Introduction
-excerpt: Welcome to the MemGPT documentation!
+excerpt: Welcome to the Letta documentation!
 category: 6580d34ee5e4d00068bf2a1d
 ---
 
@@ -42,27 +42,27 @@ category: 6580d34ee5e4d00068bf2a1d
 }
 </style>
 
-![memgpt llama](https://raw.githubusercontent.com/cpacker/MemGPT/main/docs/assets/memgpt_cozy.webp)
+![letta llama](https://raw.githubusercontent.com/cpacker/Letta/main/docs/assets/letta_cozy.webp)
 
-## What is MemGPT?
+## What is Letta?
 
-MemGPT enables LLMs to manage their own memory and overcome limited context windows!
+Letta enables LLMs to manage their own memory and overcome limited context windows!
 
-You can use MemGPT to:
+You can use Letta to:
 
 - create perpetual chatbots that learn about you and change their own personalities over time
 - create perpetual chatbots that can read (and write to!) large data stores
 
-MemGPT is an open source project under active development. If you'd like to help make MemGPT even better, come chat with the community on [Discord](https://discord.gg/9GEQrxmVyE) and on [GitHub](https://github.com/cpacker/MemGPT). You can read more about the research behind MemGPT at <https://memgpt.ai>.
+Letta is an open source project under active development. If you'd like to help make Letta even better, come chat with the community on [Discord](https://discord.gg/9GEQrxmVyE) and on [GitHub](https://github.com/cpacker/Letta). You can read more about the research behind Letta at <https://letta.ai>.
 
 ## Getting started
 
 <div class="container">
-  <a href="https://memgpt.readme.io/docs/discord_bot" class="button green">
-    <span class="emoji">💬</span> Chat with the MemGPT Discord bot!
+  <a href="https://letta.readme.io/docs/discord_bot" class="button green">
+    <span class="emoji">💬</span> Chat with the Letta Discord bot!
   </a>
-  <a href="https://memgpt.readme.io/docs/quickstart" class="button blue">
-    <span class="emoji">🖥️</span> Run MemGPT locally on your own computer
+  <a href="https://letta.readme.io/docs/quickstart" class="button blue">
+    <span class="emoji">🖥️</span> Run Letta locally on your own computer
   </a>
 </div>
 
@@ -70,10 +70,10 @@ MemGPT is an open source project under active development. If you'd like to help
 
 <div class="container">
   <a href="https://discord.gg/9GEQrxmVyE" class="button purple">
-    <span class="emoji">👋</span> Join the MemGPT community on Discord!
+    <span class="emoji">👋</span> Join the Letta community on Discord!
   </a>
 
-  <a href="https://memgpt.readme.io/docs/contributing" class="button orange">
-    <span class="emoji">❤️</span> Learn how to contribute to the MemGPT project!
+  <a href="https://letta.readme.io/docs/contributing" class="button orange">
+    <span class="emoji">❤️</span> Learn how to contribute to the Letta project!
   </a>
 </div>

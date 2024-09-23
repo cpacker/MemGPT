@@ -3,16 +3,16 @@ import string
 
 from locust import HttpUser, between, task
 
-from memgpt.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
-from memgpt.schemas.agent import AgentState, CreateAgent
-from memgpt.schemas.memgpt_request import MemGPTRequest
-from memgpt.schemas.memgpt_response import MemGPTResponse
-from memgpt.schemas.memory import ChatMemory
-from memgpt.schemas.message import MessageCreate, MessageRole
-from memgpt.utils import get_human_text, get_persona_text
+from letta.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
+from letta.schemas.agent import AgentState, CreateAgent
+from letta.schemas.letta_request import LettaRequest
+from letta.schemas.letta_response import LettaResponse
+from letta.schemas.memory import ChatMemory
+from letta.schemas.message import MessageCreate, MessageRole
+from letta.utils import get_human_text, get_persona_text
 
 
-class MemGPTUser(HttpUser):
+class LettaUser(HttpUser):
     wait_time = between(1, 5)
     token = None
     agent_id = None
@@ -56,7 +56,7 @@ class MemGPTUser(HttpUser):
     @task(1)
     def send_message(self):
         messages = [MessageCreate(role=MessageRole("user"), text="hello")]
-        request = MemGPTRequest(messages=messages, stream_steps=False, stream_tokens=False, return_message_object=False)
+        request = LettaRequest(messages=messages, stream_steps=False, stream_tokens=False, return_message_object=False)
 
         with self.client.post(
             f"/v1/agents/{self.agent_id}/messages", json=request.model_dump(), headers=self.client.headers, catch_response=True
@@ -64,16 +64,16 @@ class MemGPTUser(HttpUser):
             if response.status_code != 200:
                 response.failure(f"Failed to send message {response.status_code}: {response.text}")
 
-            response = MemGPTResponse(**response.json())
+            response = LettaResponse(**response.json())
             print("Response", response.usage)
 
     # @task(1)
     # def send_message_stream(self):
 
     #    messages = [MessageCreate(role=MessageRole("user"), text="hello")]
-    #    request = MemGPTRequest(messages=messages, stream_steps=True, stream_tokens=True, return_message_object=True)
+    #    request = LettaRequest(messages=messages, stream_steps=True, stream_tokens=True, return_message_object=True)
     #    if stream_tokens or stream_steps:
-    #        from memgpt.client.streaming import _sse_post
+    #        from letta.client.streaming import _sse_post
 
     #        request.return_message_object = False
     #        return _sse_post(f"{self.base_url}/api/agents/{agent_id}/messages", request.model_dump(), self.headers)
@@ -81,9 +81,9 @@ class MemGPTUser(HttpUser):
     #        response = requests.post(f"{self.base_url}/api/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers)
     #        if response.status_code != 200:
     #            raise ValueError(f"Failed to send message: {response.text}")
-    #        return MemGPTResponse(**response.json())
+    #        return LettaResponse(**response.json())
     #    try:
-    #        response = self.memgpt_client.send_message(message="Hello, world!", agent_id=self.agent_id, role="user")
+    #        response = self.letta_client.send_message(message="Hello, world!", agent_id=self.agent_id, role="user")
     #    except Exception as e:
     #        with self.client.get("/", catch_response=True) as response:
     #            response.failure(str(e))
@@ -91,7 +91,7 @@ class MemGPTUser(HttpUser):
     # @task(2)
     # def get_agent_state(self):
     #    try:
-    #        agent_state = self.memgpt_client.get_agent(agent_id=self.agent_id)
+    #        agent_state = self.letta_client.get_agent(agent_id=self.agent_id)
     #    except Exception as e:
     #        with self.client.get("/", catch_response=True) as response:
     #            response.failure(str(e))
@@ -99,7 +99,7 @@ class MemGPTUser(HttpUser):
     # @task(3)
     # def get_agent_memory(self):
     #    try:
-    #        memory = self.memgpt_client.get_in_context_memory(agent_id=self.agent_id)
+    #        memory = self.letta_client.get_in_context_memory(agent_id=self.agent_id)
     #    except Exception as e:
     #        with self.client.get("/", catch_response=True) as response:
     #            response.failure(str(e))

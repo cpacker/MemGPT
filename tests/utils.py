@@ -5,11 +5,11 @@ from typing import Dict, Iterator, List, Tuple
 
 import requests
 
-from memgpt.cli.cli import QuickstartChoice, quickstart
-from memgpt.config import MemGPTConfig
-from memgpt.data_sources.connectors import DataConnector
-from memgpt.schemas.document import Document
-from memgpt.settings import TestSettings
+from letta.cli.cli import QuickstartChoice, quickstart
+from letta.config import LettaConfig
+from letta.data_sources.connectors import DataConnector
+from letta.schemas.document import Document
+from letta.settings import TestSettings
 
 from .constants import TIMEOUT
 
@@ -33,44 +33,44 @@ def create_config(endpoint="openai"):
     """Create config file matching quickstart option"""
     if endpoint == "openai":
         quickstart(QuickstartChoice.openai)
-    elif endpoint == "memgpt_hosted":
-        quickstart(QuickstartChoice.memgpt_hosted)
+    elif endpoint == "letta_hosted":
+        quickstart(QuickstartChoice.letta_hosted)
     else:
         raise ValueError(f"Invalid endpoint {endpoint}")
 
 
 def wipe_config():
     test_settings = TestSettings()
-    config_path = os.path.join(test_settings.memgpt_dir, "config")
+    config_path = os.path.join(test_settings.letta_dir, "config")
     if os.path.exists(config_path):
         # delete
         os.remove(config_path)
 
 
-def wipe_memgpt_home():
-    """Wipes ~/.memgpt (moves to a backup), and initializes a new ~/.memgpt dir"""
+def wipe_letta_home():
+    """Wipes ~/.letta (moves to a backup), and initializes a new ~/.letta dir"""
 
     # Get the current timestamp in a readable format (e.g., YYYYMMDD_HHMMSS)
     timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
 
     # Construct the new backup directory name with the timestamp
-    backup_dir = f"~/.memgpt_test_backup_{timestamp}"
+    backup_dir = f"~/.letta_test_backup_{timestamp}"
 
     # Use os.system to execute the 'mv' command
-    os.system(f"mv ~/.memgpt {backup_dir}")
+    os.system(f"mv ~/.letta {backup_dir}")
 
     # Setup the initial directory
     test_settings = TestSettings()
-    config_path = os.path.join(test_settings.memgpt_dir, "config")
-    config = MemGPTConfig(config_path=config_path)
+    config_path = os.path.join(test_settings.letta_dir, "config")
+    config = LettaConfig(config_path=config_path)
     config.create_config_dir()
 
 
-def configure_memgpt_localllm():
+def configure_letta_localllm():
     import pexpect
 
     wipe_config()
-    child = pexpect.spawn("memgpt configure")
+    child = pexpect.spawn("letta configure")
 
     child.expect("Select LLM inference provider", timeout=TIMEOUT)
     child.send("\x1b[B")  # Send the down arrow key
@@ -115,13 +115,13 @@ def configure_memgpt_localllm():
     assert child.exitstatus == 0, "CLI did not exit cleanly."
 
 
-def configure_memgpt(enable_openai=False, enable_azure=False):
+def configure_letta(enable_openai=False, enable_azure=False):
     if enable_openai:
         raise NotImplementedError
     elif enable_azure:
         raise NotImplementedError
     else:
-        configure_memgpt_localllm()
+        configure_letta_localllm()
 
 
 def qdrant_server_running() -> bool:
