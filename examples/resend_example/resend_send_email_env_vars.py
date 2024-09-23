@@ -30,7 +30,7 @@ def send_email(self, description: str):
     data = {
         "from": "onboarding@resend.dev",
         "to": RESEND_TARGET_EMAIL_ADDRESS,
-        "subject": "MemGPT message:",
+        "subject": "Letta message:",
         "html": f"<strong>{description}</strong>",
     }
 

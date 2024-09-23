@@ -5,9 +5,9 @@ repos:
       - id: check-yaml
         exclude: 'docs/.*|tests/data/.*|configs/.*'
       - id: end-of-file-fixer
-        exclude: 'docs/.*|tests/data/.*|memgpt/server/static_files/.*'
+        exclude: 'docs/.*|tests/data/.*|letta/server/static_files/.*'
       - id: trailing-whitespace
-        exclude: 'docs/.*|tests/data/.*|memgpt/server/static_files/.*'
+        exclude: 'docs/.*|tests/data/.*|letta/server/static_files/.*'
 
   - repo: local
     hooks:

@@ -8,10 +8,10 @@
 # import pytest
 # from dotenv import load_dotenv
 #
-# from memgpt import Admin, create_client
-# from memgpt.config import MemGPTConfig
-# from memgpt.credentials import MemGPTCredentials
-# from memgpt.settings import settings
+# from letta import Admin, create_client
+# from letta.config import LettaConfig
+# from letta.credentials import LettaCredentials
+# from letta.settings import settings
 # from tests.utils import create_config
 #
 # test_agent_name = f"test_client_{str(uuid.uuid4())}"
@@ -30,18 +30,18 @@
 # def _reset_config():
 #
 #    # Use os.getenv with a fallback to os.environ.get
-#    db_url = settings.memgpt_pg_uri
+#    db_url = settings.letta_pg_uri
 #
 #    if os.getenv("OPENAI_API_KEY"):
 #        create_config("openai")
-#        credentials = MemGPTCredentials(
+#        credentials = LettaCredentials(
 #            openai_key=os.getenv("OPENAI_API_KEY"),
 #        )
 #    else:  # hosted
-#        create_config("memgpt_hosted")
-#        credentials = MemGPTCredentials()
+#        create_config("letta_hosted")
+#        credentials = LettaCredentials()
 #
-#    config = MemGPTConfig.load()
+#    config = LettaConfig.load()
 #
 #    # set to use postgres
 #    config.archival_storage_uri = db_url
@@ -62,7 +62,7 @@
 #
 #    _reset_config()
 #
-#    from memgpt.server.rest_api.server import start_server
+#    from letta.server.rest_api.server import start_server
 #
 #    print("Starting server...")
 #    start_server(debug=True)

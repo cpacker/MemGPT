@@ -2,10 +2,10 @@ from typing import Union
 
 import pytest
 
-from memgpt import create_client
-from memgpt.client.client import LocalClient, RESTClient
-from memgpt.schemas.block import Block
-from memgpt.schemas.memory import BasicBlockMemory, ChatMemory, Memory
+from letta import create_client
+from letta.client.client import LocalClient, RESTClient
+from letta.schemas.block import Block
+from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
 
 
 @pytest.fixture(scope="module")
@@ -265,7 +265,7 @@ def test_tools_from_crewai(client):
 
     from crewai_tools import ScrapeWebsiteTool
 
-    from memgpt.schemas.tool import Tool
+    from letta.schemas.tool import Tool
 
     crewai_tool = ScrapeWebsiteTool()
 

@@ -17,7 +17,7 @@ on:
 jobs:
   rdme-openapi:
     runs-on: ubuntu-latest
-    if: github.repository == 'cpacker/MemGPT'  # TODO: if the repo org ever changes, this must be updated
+    if: github.repository == 'cpacker/Letta'  # TODO: if the repo org ever changes, this must be updated
     steps:
       - name: Check out repo 📚
         uses: actions/checkout@v4
@@ -31,8 +31,8 @@ jobs:
 
       - name: Generate openapi.json file
         run: |
-          poetry run memgpt quickstart
-          poetry run memgpt server &
+          poetry run letta quickstart
+          poetry run letta server &
           CMD_PID=$!
           sleep 5  # Wait for 5 seconds
           kill -SIGINT $CMD_PID
@@ -40,7 +40,7 @@ jobs:
       - name: Run `openapi` command (file 1) 🚀
         uses: readmeio/rdme@v8
         with:
-          rdme: openapi openapi_memgpt.json --key=${{ secrets.README_API_KEY }} --id=6581305097523b004eedfd16
+          rdme: openapi openapi_letta.json --key=${{ secrets.README_API_KEY }} --id=6581305097523b004eedfd16
 
       # - name: Run `openapi` command (file 2) 🚀
       #   uses: readmeio/rdme@v8

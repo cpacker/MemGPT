@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-import memgpt.functions.function_sets.base as base_functions
-from memgpt import create_client
+import letta.functions.function_sets.base as base_functions
+from letta import create_client
 
 from .utils import create_config, wipe_config
 
@@ -19,7 +19,7 @@ def agent_obj():
     if os.getenv("OPENAI_API_KEY"):
         create_config("openai")
     else:
-        create_config("memgpt_hosted")
+        create_config("letta_hosted")
 
     client = create_client()
 

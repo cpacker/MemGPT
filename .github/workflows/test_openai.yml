@@ -28,7 +28,7 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run memgpt quickstart --backend openai
+        poetry run letta quickstart --backend openai
 
     - name: Test LLM endpoint
       env:

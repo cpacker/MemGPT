@@ -3,10 +3,10 @@
 # import os
 # import uuid
 #
-# from memgpt import create_client
-# from memgpt.agent_store.storage import StorageConnector, TableType
-# from memgpt.schemas.passage import Passage
-# from memgpt.embeddings import embedding_model
+# from letta import create_client
+# from letta.agent_store.storage import StorageConnector, TableType
+# from letta.schemas.passage import Passage
+# from letta.embeddings import embedding_model
 # from tests import TEST_MEMGPT_CONFIG
 #
 # from .utils import create_config, wipe_config
@@ -70,7 +70,7 @@
 #    openai_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 #
 #    # create client
-#    create_config("memgpt_hosted")
+#    create_config("letta_hosted")
 #    client = create_client()
 #
 #    # hosted: create agent

@@ -1,7 +1,7 @@
 import pytest
 
 # Import the classes here, assuming the above definitions are in a module named memory_module
-from memgpt.schemas.memory import ChatMemory, Memory
+from letta.schemas.memory import ChatMemory, Memory
 
 
 @pytest.fixture

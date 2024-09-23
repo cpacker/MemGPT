@@ -18,18 +18,18 @@ embedding_chunk_size = 300
 
 [archival_storage]
 type = chroma
-path = /Users/sarahwooders/.memgpt/chroma
+path = /Users/sarahwooders/.letta/chroma
 
 [recall_storage]
 type = sqlite
-path = /Users/sarahwooders/.memgpt
+path = /Users/sarahwooders/.letta
 
 [metadata_storage]
 type = sqlite
-path = /Users/sarahwooders/.memgpt
+path = /Users/sarahwooders/.letta
 
 [version]
-memgpt_version = 0.2.12
+letta_version = 0.2.12
 
 [client]
 anon_clientid = 00000000000000000000d67f40108c5c

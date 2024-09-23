@@ -24,24 +24,24 @@ Run the script `./0_load_embeddings.sh`.
 This step will take a while. You can check the status of the loading by connecting to `psql`:
 ```
 > psql -h localhost -p {password} -U {username} -d {db}
-> SELECT COUNT(*) FROM memgpt_passages;
+> SELECT COUNT(*) from letta_passages;
 ```
 Once completed, there will be ~19 million rows in the database.
 
 ### Creating an index
 To avoid extremeley slow queries, you need to create an index:
 ```
-CREATE INDEX ON memgpt_passages USING hnsw (embedding vector_l2_ops);
+CREATE INDEX ON letta_passages USING hnsw (embedding vector_l2_ops);
 ```
 You can check to see if the index was created successfully with:
 ```
-> SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'memgpt_passages';
+> SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'letta_passages';
 
-memgpt_passages_embedding_idx | CREATE INDEX memgpt_passages_embedding_idx ON public.memgpt_passages USING hnsw (embedding vector_cosine_ops) WITH (m='24', ef_construction='100')
+letta_passages_embedding_idx | CREATE INDEX letta_passages_embedding_idx ON public.letta_passages USING hnsw (embedding vector_cosine_ops) WITH (m='24', ef_construction='100')
 ```
 
 ## Running Document Q/A
-Run the script `./1_run_docqa.sh {model_name} {n_docs} {memgpt/model_name}`.
+Run the script `./1_run_docqa.sh {model_name} {n_docs} {letta/model_name}`.
 
 ## Evaluation
 Run the script `./2_run_eval.sh`.

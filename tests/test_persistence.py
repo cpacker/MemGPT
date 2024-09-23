@@ -16,9 +16,9 @@
 #    # Create a new client (not thread safe), and load the same agent
 #    # The agent state inside should correspond to the initial state pre-message
 #    if os.getenv("OPENAI_API_KEY"):
-#        client2 = MemGPT(quickstart="openai", user_id=test_user_id)
+#        client2 = Letta(quickstart="openai", user_id=test_user_id)
 #    else:
-#        client2 = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
+#        client2 = Letta(quickstart="letta_hosted", user_id=test_user_id)
 #    print(f"\n\n[3] CREATING CLIENT2, LOADING AGENT {test_agent_state.id}!")
 #    client2_agent_obj = client2.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
 #    client2_agent_state = client2_agent_obj.update_state()
@@ -42,9 +42,9 @@
 #    client.save()
 #
 #    if os.getenv("OPENAI_API_KEY"):
-#        client3 = MemGPT(quickstart="openai", user_id=test_user_id)
+#        client3 = Letta(quickstart="openai", user_id=test_user_id)
 #    else:
-#        client3 = MemGPT(quickstart="memgpt_hosted", user_id=test_user_id)
+#        client3 = Letta(quickstart="letta_hosted", user_id=test_user_id)
 #    client3_agent_obj = client3.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
 #    client3_agent_state = client3_agent_obj.update_state()
 #

@@ -6,16 +6,16 @@
 # import pytest
 # from sqlalchemy.ext.declarative import declarative_base
 #
-# from memgpt.agent_store.storage import StorageConnector, TableType
-# from memgpt.cli.cli_load import load_directory
-# from memgpt.config import MemGPTConfig
-# from memgpt.credentials import MemGPTCredentials
-# from memgpt.data_types import EmbeddingConfig, User
-# from memgpt.metadata import MetadataStore
+# from letta.agent_store.storage import StorageConnector, TableType
+# from letta.cli.cli_load import load_directory
+# from letta.config import LettaConfig
+# from letta.credentials import LettaCredentials
+# from letta.data_types import EmbeddingConfig, User
+# from letta.metadata import MetadataStore
 #
-## from memgpt.data_sources.connectors import DirectoryConnector, load_data
-## import memgpt
-# from memgpt.settings import settings
+## from letta.data_sources.connectors import DirectoryConnector, load_data
+## import letta
+# from letta.settings import settings
 # from tests import TEST_MEMGPT_CONFIG
 #
 # from .utils import create_config, wipe_config, with_qdrant_storage
@@ -52,20 +52,20 @@
 #    wipe_config()
 #    if os.getenv("OPENAI_API_KEY"):
 #        create_config("openai")
-#        credentials = MemGPTCredentials(
+#        credentials = LettaCredentials(
 #            openai_key=os.getenv("OPENAI_API_KEY"),
 #        )
 #    else:  # hosted
-#        create_config("memgpt_hosted")
-#        credentials = MemGPTCredentials()
+#        create_config("letta_hosted")
+#        credentials = LettaCredentials()
 #
-#    config = MemGPTConfig.load()
+#    config = LettaConfig.load()
 #    TEST_MEMGPT_CONFIG.default_embedding_config = config.default_embedding_config
 #    TEST_MEMGPT_CONFIG.default_llm_config = config.default_llm_config
 #
 #    # setup config
 #    if metadata_storage_connector == "postgres":
-#        TEST_MEMGPT_CONFIG.metadata_storage_uri = settings.memgpt_pg_uri
+#        TEST_MEMGPT_CONFIG.metadata_storage_uri = settings.letta_pg_uri
 #        TEST_MEMGPT_CONFIG.metadata_storage_type = "postgres"
 #    elif metadata_storage_connector == "sqlite":
 #        print("testing  sqlite metadata")
@@ -73,7 +73,7 @@
 #    else:
 #        raise NotImplementedError(f"Storage type {metadata_storage_connector} not implemented")
 #    if passage_storage_connector == "postgres":
-#        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.memgpt_pg_uri
+#        TEST_MEMGPT_CONFIG.archival_storage_uri = settings.letta_pg_uri
 #        TEST_MEMGPT_CONFIG.archival_storage_type = "postgres"
 #    elif passage_storage_connector == "chroma":
 #        print("testing chroma passage storage")
@@ -97,7 +97,7 @@
 #    # embedding config
 #    if os.getenv("OPENAI_API_KEY"):
 #        print("Using OpenAI embeddings for testing")
-#        credentials = MemGPTCredentials(
+#        credentials = LettaCredentials(
 #            openai_key=os.getenv("OPENAI_API_KEY"),
 #        )
 #        credentials.save()
@@ -120,7 +120,7 @@
 #        print("Using official hosted embedding model for testing")
 #        embedding_config = EmbeddingConfig(
 #            embedding_endpoint_type="hugging-face",
-#            embedding_endpoint="https://embeddings.memgpt.ai",
+#            embedding_endpoint="https://embeddings.letta.ai",
 #            embedding_model="BAAI/bge-large-en-v1.5",
 #            embedding_dim=1024,
 #        )
@@ -229,6 +229,6 @@
 #    ms.delete_source(sources[0].id)
 #
 #    # revert to openai config
-#    # client = MemGPT(quickstart="openai", user_id=user.id)
+#    # client = Letta(quickstart="openai", user_id=user.id)
 #    wipe_config()
 #

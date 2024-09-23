@@ -1,13 +1,13 @@
 ---
 title: Python client
-excerpt: Developing using the MemGPT Python client
+excerpt: Developing using the Letta Python client
 category: 6580dab16cade8003f996d17
 ---
 
-The fastest way to integrate MemGPT with your own Python projects is through the [client class](https://github.com/cpacker/MemGPT/blob/main/memgpt/client/client.py):
+The fastest way to integrate Letta with your own Python projects is through the [client class](https://github.com/cpacker/Letta/blob/main/letta/client/client.py):
 
 ```python
-from memgpt import create_client
+from letta import create_client
 
 # Connect to the server as a user
 client = create_client()
@@ -23,10 +23,10 @@ agent_info = client.create_agent(
 messages = client.user_message(agent_id=agent_info.id, message="Hello, agent!")
 ```
 
-## More in-depth example of using the MemGPT Python client
+## More in-depth example of using the Letta Python client
 
 ```python
-from memgpt import create_client
+from letta import create_client
 
 # Connect to the server as a user
 client = create_client()

@@ -2,7 +2,7 @@
 # def test_list_messages():
 #    client = TestClient(app)
 #
-#    test_user_id = uuid.UUID(MemGPTConfig.load().anon_clientid)
+#    test_user_id = uuid.UUID(LettaConfig.load().anon_clientid)
 #
 #    # create user
 #    server = SyncServer()

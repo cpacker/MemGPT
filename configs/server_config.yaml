@@ -4,7 +4,7 @@ persona = sam_pov
 human = basic
 
 [model]
-model = gpt-4
+model = gpt-4o-mini
 model_endpoint = https://api.openai.com/v1
 model_endpoint_type = openai
 model_wrapper = null
@@ -33,8 +33,8 @@ path = /root/.memgpt
 uri = postgresql+pg8000://memgpt:memgpt@pgvector_db:5432/memgpt
 
 [version]
-memgpt_version = 0.4.0
+letta_version = 0.1.13
 
 [client]
-anon_clientid = user-ba36d5ec-0eed-47da-87a3-5793fe9a064f
+anon_clientid = user-8dbf4a3e-92fa-4703-bd04-3f27c6679af8
 

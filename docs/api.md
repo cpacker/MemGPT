@@ -1,37 +1,37 @@
 ---
-title: Using the MemGPT API
-excerpt: How to set up a local MemGPT API server
+title: Using the Letta API
+excerpt: How to set up a local Letta API server
 category: 658135e7f596b800715c1cee
 ---
 
-![memgpt llama](https://raw.githubusercontent.com/cpacker/MemGPT/main/docs/assets/memgpt_server.webp)
+![letta llama](https://raw.githubusercontent.com/cpacker/Letta/main/docs/assets/letta_server.webp)
 
 > ⚠️ API under active development
 >
-> The MemGPT API is under **active development** and **changes are being made frequently**.
+> The Letta API is under **active development** and **changes are being made frequently**.
 >
-> For support and to track ongoing developments, please visit [the MemGPT Discord server](https://discord.gg/9GEQrxmVyE) where you can chat with the MemGPT team and other developers about the API.
+> For support and to track ongoing developments, please visit [the Letta Discord server](https://discord.gg/9GEQrxmVyE) where you can chat with the Letta team and other developers about the API.
 
-MemGPT can be run as a (multi-user) server process, allowing you to interact with agents using a REST API and use MemGPT to power your LLM apps.
+Letta can be run as a (multi-user) server process, allowing you to interact with agents using a REST API and use Letta to power your LLM apps.
 
 ## Before getting started
 
-To run the MemGPT server process, you'll need to have already installed and configured MemGPT (you must have already run `memgpt configure` or `memgpt quickstart`).
+To run the Letta server process, you'll need to have already installed and configured Letta (you must have already run `letta configure` or `letta quickstart`).
 
-Before attempting to launch a server process, make sure that you have already configured MemGPT (using `memgpt configure`) and are able to successfully create and message an agent using `memgpt run`. For more information, see [our quickstart guide](https://memgpt.readme.io/docs/quickstart).
+Before attempting to launch a server process, make sure that you have already configured Letta (using `letta configure`) and are able to successfully create and message an agent using `letta run`. For more information, see [our quickstart guide](https://letta.readme.io/docs/quickstart).
 
 ## Starting a server process
 
-You can spawn a MemGPT server process using the following command:
+You can spawn a Letta server process using the following command:
 ```sh
-memgpt server
+letta server
 ```
 
 If the server was set up correctly, you should see output indicating that the server has been started (by default, the server will listen on `http://localhost:8283`:
 ```
 INFO:     Started server process
 INFO:     Waiting for application startup.
-Writing out openapi_memgpt.json file
+Writing out openapi_letta.json file
 Writing out openapi_assistants.json file
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://localhost:8283 (Press CTRL+C to quit)
@@ -39,7 +39,7 @@ INFO:     Uvicorn running on http://localhost:8283 (Press CTRL+C to quit)
 
 ### Using the server admin account
 
-The MemGPT server will generate a random **admin password** per-session, which will be outputted to your terminal: 
+The Letta server will generate a random **admin password** per-session, which will be outputted to your terminal: 
 ```
 Generated admin server password for this session: RHSkTDPkuTMaTTsGq8zIiA
 ```
@@ -48,36 +48,36 @@ This admin password can be used on the **admin routes** (via passing it as a bea
 
 The admin password can also be also be manually set via the environment variable `MEMGPT_SERVER_PASS`:
 ```sh
-# if MEMGPT_SERVER_PASS is set, the MemGPT server will use the value as the password instead of randomly generating one
+# if MEMGPT_SERVER_PASS is set, the Letta server will use the value as the password instead of randomly generating one
 export MEMGPT_SERVER_PASS=ilovellms
 ```
 
 ### Server options
 
-You can modify various server settings via flags to the `memgpt server command`:
+You can modify various server settings via flags to the `letta server command`:
 
 - To run on HTTPS with a self-signed cert, use `--use-ssl`
 - To change the port or host, use `--port` and `--host`
 
-To see the full set of option, run `memgpt server --help`
+To see the full set of option, run `letta server --help`
 
 ## Example: Basic usage (using the admin account and default user)
 
-The easiest way to use the MemGPT API via the MemGPT server process is to authenticate all REST API calls using the admin password.
+The easiest way to use the Letta API via the Letta server process is to authenticate all REST API calls using the admin password.
 
-When you authenticate REST API calls with the admin password, the server will run all non-admin commands (e.g. creating an agent or sending an agent a message) using the default MemGPT user, which is the same user that is used when interacting with MemGPT via the CLI.
+When you authenticate REST API calls with the admin password, the server will run all non-admin commands (e.g. creating an agent or sending an agent a message) using the default Letta user, which is the same user that is used when interacting with Letta via the CLI.
 
 In this series of examples, we're assuming we started the server with the admin password `ilovellms`:
 ```sh
 # set the admin password
 export MEMGPT_SERVER_PASS=ilovellms
 # run the server
-memgpt server
+letta server
 ```
 
 ### Creating an agent
 
-To create an agent, we can use the [create agent route](https://memgpt.readme.io/reference/create_agent_api_agents_post):
+To create an agent, we can use the [create agent route](https://letta.readme.io/reference/create_agent_api_agents_post):
 ```sh
 curl --request POST \
      --url http://localhost:8283/api/agents \
@@ -103,7 +103,7 @@ This REST call will return the `AgentState` of the newly created agent, which co
 
 ### Sending a message to an agent and receiving the reply
 
-To send a message to this agent, we can copy the agent ID from the previous response (`e7a192e6-f9a3-4f60-9e7c-1720d3d207ef`) and use it in a REST call to the [send message route](https://memgpt.readme.io/reference/send_message_api_agents_message_post).
+To send a message to this agent, we can copy the agent ID from the previous response (`e7a192e6-f9a3-4f60-9e7c-1720d3d207ef`) and use it in a REST call to the [send message route](https://letta.readme.io/reference/send_message_api_agents_message_post).
 
 Let's send the message _"what's the meaning of life? someone told me it's 42..."_:
 ```sh
@@ -135,7 +135,7 @@ data: {"function_return": "None", "status": "success", "date": "2024-02-29T06:07
 
 ## Example: Multi-user setup
 
-In settings where you want to use the MemGPT server to power a multi-user application (e.g. a chatbot service), you'll likely want to have separate users, each with their own library of agents.
+In settings where you want to use the Letta server to power a multi-user application (e.g. a chatbot service), you'll likely want to have separate users, each with their own library of agents.
 
 To handle the setting with multiple users, you can use the admin routes to create users and generate per-user API keys.
 
@@ -143,7 +143,7 @@ Once you have a user's API key, simply pass the API key via the bearer token to 
 
 ### Creating a user
 
-Let's create a new user and get their API key. To do so, we can use the [create user route](https://memgpt.readme.io/reference/create_user_admin_users_post):
+Let's create a new user and get their API key. To do so, we can use the [create user route](https://letta.readme.io/reference/create_user_admin_users_post):
 ```sh
 curl --request POST \
      --url http://localhost:8283/admin/users \

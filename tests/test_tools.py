@@ -7,11 +7,11 @@ from typing import Union
 import pytest
 from dotenv import load_dotenv
 
-from memgpt import Admin, create_client
-from memgpt.agent import Agent
-from memgpt.client.client import LocalClient, RESTClient
-from memgpt.constants import DEFAULT_PRESET
-from memgpt.schemas.memory import ChatMemory
+from letta import Admin, create_client
+from letta.agent import Agent
+from letta.client.client import LocalClient, RESTClient
+from letta.constants import DEFAULT_PRESET
+from letta.schemas.memory import ChatMemory
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"
@@ -32,7 +32,7 @@ def run_server():
 
     # _reset_config()
 
-    from memgpt.server.rest_api.app import start_server
+    from letta.server.rest_api.app import start_server
 
     print("Starting server...")
     start_server(debug=True)

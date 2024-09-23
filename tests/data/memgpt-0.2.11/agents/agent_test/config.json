@@ -15,6 +15,6 @@
     "embedding_chunk_size": 300,
     "data_sources": [],
     "create_time": "2024-01-11 12:42:25 PM",
-    "memgpt_version": "0.2.11",
-    "agent_config_path": "/Users/sarahwooders/.memgpt/agents/agent_test/config.json"
+    "letta_version": "0.2.11",
+    "agent_config_path": "/Users/sarahwooders/.letta/agents/agent_test/config.json"
 }
