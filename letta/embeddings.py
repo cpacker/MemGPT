@@ -157,7 +157,6 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
     """Return LlamaIndex embedding model to use for embeddings"""
 
     endpoint_type = config.embedding_endpoint_type
-    print("CONFIG", endpoint_type, config)
 
     # TODO refactor to pass credentials through args
     credentials = LettaCredentials.load()

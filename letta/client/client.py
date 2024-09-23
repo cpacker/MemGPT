@@ -1370,8 +1370,6 @@ class LocalClient(AbstractClient):
             # get default user
             self.user_id = self.server.get_default_user().id
 
-        print("USER", self.user_id)
-
     # agents
 
     def list_agents(self) -> List[AgentState]:

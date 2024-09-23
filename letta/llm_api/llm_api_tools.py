@@ -310,6 +310,11 @@ def create(
             if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
                 data.response_format = {"type": "json_object"}
 
+        if "inference.memgpt.ai" in llm_config.model_endpoint:
+            # override user id for inference.memgpt.ai
+            import uuid
+            data.user = str(uuid.UUID(int=0))
+
         if stream:  # Client requested token streaming
             data.stream = True
             assert isinstance(stream_inferface, AgentChunkStreamingInterface) or isinstance(
@@ -326,11 +331,7 @@ def create(
             if isinstance(stream_inferface, AgentChunkStreamingInterface):
                 stream_inferface.stream_start()
             try:
-                if "inference.memgpt.ai" in llm_config.model_endpoint:
-                    # override user id for inference.memgpt.ai
-                    import uuid
 
-                    data.user = str(uuid.UUID(int=0))
                 response = openai_chat_completions_request(
                     url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                     api_key=credentials.openai_key,

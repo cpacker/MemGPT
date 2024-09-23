@@ -355,7 +355,8 @@ async def send_message_to_agent(
             raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
 
         # Disable token streaming if not OpenAI
-        if server.server_llm_config.model_endpoint_type != "openai":
+        # TODO: cleanup this logic
+        if server.server_llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in server.server_llm_config.model_endpoint:
             print("Warning: token streaming is only supported for OpenAI models. Setting to False.")
             stream_tokens = False
 

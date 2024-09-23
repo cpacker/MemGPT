@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
+from letta.utils import printd
 
 
 class Settings(BaseSettings):
@@ -41,7 +42,6 @@ class Settings(BaseSettings):
 
         # try to get LLM config from settings
         if self.llm_endpoint and self.llm_endpoint_type and self.llm_model and self.llm_context_window:
-            print("USE SETTINGS", self.llm_model)
             return LLMConfig(
                 model=self.llm_model,
                 model_endpoint_type=self.llm_endpoint_type,
@@ -51,18 +51,17 @@ class Settings(BaseSettings):
             )
         else:
             if not self.llm_endpoint:
-                print(f"No LETTA_LLM_ENDPOINT provided")
+                printd(f"No LETTA_LLM_ENDPOINT provided")
             if not self.llm_endpoint_type:
-                print(f"No LETTA_LLM_ENDPOINT_TYPE provided")
+                printd(f"No LETTA_LLM_ENDPOINT_TYPE provided")
             if not self.llm_model:
-                print(f"No LETTA_LLM_MODEL provided")
+                printd(f"No LETTA_LLM_MODEL provided")
             if not self.llm_context_window:
-                print(f"No LETTA_LLM_CONTEX_WINDOW provided")
+                printd(f"No LETTA_LLM_CONTEX_WINDOW provided")
 
         # quickstart options
         if self.llm_model:
             try:
-                print("RETURN DEFAULT, ", self.llm_model)
                 return LLMConfig.default_config(self.llm_model)
             except ValueError as e:
                 pass
@@ -78,7 +77,6 @@ class Settings(BaseSettings):
             model_wrapper=config.default_llm_config.model_wrapper,
             context_window=config.default_llm_config.context_window,
         )
-        print(llm_config)
         return llm_config
 
     @property
@@ -95,13 +93,13 @@ class Settings(BaseSettings):
             )
         else:
             if not self.embedding_endpoint:
-                print(f"No LETTA_EMBEDDING_ENDPOINT provided")
+                printd(f"No LETTA_EMBEDDING_ENDPOINT provided")
             if not self.embedding_endpoint_type:
-                print(f"No LETTA_EMBEDDING_ENDPOINT_TYPE provided")
+                printd(f"No LETTA_EMBEDDING_ENDPOINT_TYPE provided")
             if not self.embedding_model:
-                print(f"No LETTA_EMBEDDING_MODEL provided")
+                printd(f"No LETTA_EMBEDDING_MODEL provided")
             if not self.embedding_dim:
-                print(f"No LETTA_EMBEDDING_DIM provided")
+                printd(f"No LETTA_EMBEDDING_DIM provided")
 
         # TODO
         ## quickstart options
