@@ -1,12 +1,12 @@
 [tool.poetry]
 name = "letta"
-version = "0.1.3"
+version = "0.1.4"
 packages = [
     {include = "letta"}
 ]
 description = "Create LLM agents with long-term memory and custom tools"
 authors = [
-    "Letta Team <hi@letta.ai>",
+    "Letta Team <contact@letta.com>",
 ]
 license = "Apache License"
 readme = "README.md"

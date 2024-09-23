@@ -46,7 +46,7 @@ ENV PYTHONPATH=/
 WORKDIR /
 COPY ./tests /tests
 COPY ./letta /letta
-COPY ./configs/server_config.yaml /root/.letta/config
+#COPY ./configs/server_config.yaml /root/.letta/config
 EXPOSE 8083
 
 CMD ./letta/server/startup.sh
