@@ -8,7 +8,7 @@
 > **Looking for MemGPT?**
 > 
 > The MemGPT package and Docker image have been renamed to `letta` to clarify the distinction between **MemGPT agents** and the API server / runtime that runs LLM agents as *services*.
-
+> 
 > You use the **Letta framework** to create **MemGPT agents**. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
 
 See [documentation](https://docs.letta.com/introduction) for setup and usage. 
