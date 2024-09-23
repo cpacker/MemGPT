@@ -39,6 +39,7 @@ deploy: push
     helm upgrade --install {{HELM_CHART_NAME}} {{HELM_CHARTS_DIR}}/{{HELM_CHART_NAME}} \
         --set image.repository={{DOCKER_REGISTRY}}/memgpt-server \
         --set image.tag={{TAG}} \
+        --set-string "podAnnotations.kubectl\.kubernetes\.io/restartedAt"="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
         --set secrets.OPENAI_API_KEY=${OPENAI_API_KEY} \
         --set secrets.MEMGPT_SERVER_PASS=${MEMGPT_SERVER_PASS} \
         --set secrets.MEMGPT_PG_DB=${MEMGPT_PG_DB} \
@@ -93,3 +94,23 @@ netshoot:
 remove-netshoot:
     @echo "🗑️  Removing netshoot debug container..."
     kubectl delete pod netshoot-debug --ignore-not-found
+
+# View deployment annotations
+view-annotations:
+    @echo "🔍 Viewing all deployment annotations..."
+    kubectl get deployment {{HELM_CHART_NAME}} -o jsonpath='{.spec.template.metadata.annotations}' | jq '.'
+
+# Check deployment status
+check-deployment:
+    @echo "🔍 Checking deployment status..."
+    kubectl get deployment {{HELM_CHART_NAME}}
+
+# Describe deployment
+describe-deployment:
+    @echo "🔍 Describing deployment..."
+    kubectl describe deployment {{HELM_CHART_NAME}}
+
+# View pod template annotations
+view-pod-annotations:
+    @echo "🔍 Viewing pod template annotations..."
+    kubectl get deployment {{HELM_CHART_NAME}} -o jsonpath='{.spec.template.metadata.annotations}' | jq '.'
