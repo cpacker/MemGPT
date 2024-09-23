@@ -7,17 +7,17 @@ services:
           - pgvector_db
           - letta-db
     environment:
-      - POSTGRES_USER=${LETTA_PG_USER}
-      - POSTGRES_PASSWORD=${LETTA_PG_PASSWORD}
-      - POSTGRES_DB=${LETTA_PG_DB}
+      - POSTGRES_USER=${LETTA_PG_USER:-letta}
+      - POSTGRES_PASSWORD=${LETTA_PG_PASSWORD:-letta}
+      - POSTGRES_DB=${LETTA_PG_DB:-letta}
     volumes:
       - ./.persist/pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
   letta_server:
-    image: letta/letta-server:latest
-    hostname: letta-server
+    image: lettaai/letta:latest
+    hostname: letta
     depends_on:
       - letta_db
     ports:
@@ -26,17 +26,24 @@ services:
     env_file:
       - .env
     environment:
-      - POSTGRES_URI=postgresql://${LETTA_PG_USER}:${LETTA_PG_PASSWORD}@pgvector_db:5432/${LETTA_PG_DB} # TODO: deprecate
-      - LETTA_SERVER_PASS=${LETTA_SERVER_PASS} # letta server password
-      - LETTA_PG_DB=${LETTA_PG_DB}
-      - LETTA_PG_USER=${LETTA_PG_USER}
-      - LETTA_PG_PASSWORD=${LETTA_PG_PASSWORD}
+      - LETTA_PG_DB=${LETTA_PG_DB:-letta}
+      - LETTA_PG_USER=${LETTA_PG_USER:-letta}
+      - LETTA_PG_PASSWORD=${LETTA_PG_PASSWORD:-letta}
       - LETTA_PG_HOST=pgvector_db
       - LETTA_PG_PORT=5432
+      - LETTA_LLM_ENDPOINT=${LETTA_LLM_ENDPOINT}
+      - LETTA_LLM_ENDPOINT_TYPE=${LETTA_LLM_ENDPOINT_TYPE}
+      - LETTA_LLM_MODEL=${LETTA_LLM_MODEL:-gpt-4}
+      - LETTA_LLM_CONTEXT_WINDOW=${LETTA_LLM_CONTEXT_WINDOW}
+      - LETTA_EMBEDDING_ENDPOINT=${LETTA_EMBEDDING_ENDPOINT}
+      - LETTA_EMBEDDING_ENDPOINT_TYPE=${LETTA_EMBEDDING_ENDPOINT_TYPE}
+      - LETTA_EMBEDDING_DIM=${LETTA_EMBEDDING_DIM}
+      - LETTA_EMBEDDING_MODEL=${LETTA_EMBEDDING_MODEL}
+      - LETTA_DEBUG=True
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-    volumes:
-      - ./configs/server_config.yaml:/root/.letta/config # config file
-      - ~/.letta/credentials:/root/.letta/credentials # credentials file
+   #volumes:
+      #- ./configs/server_config.yaml:/root/.letta/config # config file
+      #- ~/.letta/credentials:/root/.letta/credentials # credentials file
   letta_nginx:
     hostname: letta-nginx
     image: nginx:stable-alpine3.17-slim

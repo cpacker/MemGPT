@@ -16,8 +16,8 @@ services:
     ports:
       - "5432:5432"
   letta_server:
-    image: letta-server
-    hostname: letta-server
+    image: lettaai/letta:lates
+    hostname: letta
     build:
       context: .
       dockerfile: Dockerfile
