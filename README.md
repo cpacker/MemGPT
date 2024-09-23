@@ -104,3 +104,28 @@ To evaluate the performance of a model on MemGPT, simply configure the appropria
 
 ## Legal notices
 By using MemGPT and related MemGPT services (such as the MemGPT endpoint or hosted service), you agree to our [privacy policy](https://github.com/cpacker/MemGPT/tree/main/PRIVACY.md) and [terms of service](https://github.com/cpacker/MemGPT/tree/main/TERMS.md).
+
+## Development with Justfile
+
+This project uses a `justfile` to simplify common development tasks. Make sure you have [just](https://github.com/casey/just) installed on your system to use these commands.
+
+Here are some of the available commands:
+
+- `just list`: List all available Justfile commands
+- `just authenticate`: Authenticate with Google Cloud and configure Docker
+- `just configure-kubectl`: Configure kubectl for the Letta cluster
+- `just build`: Build multi-architecture Docker images
+- `just push`: Push Docker images to the registry
+- `just deploy`: Deploy the Helm chart (includes pushing the image)
+- `just destroy`: Uninstall the Helm chart
+- `just show-env`: Show environment variables on the deployed pod
+- `just show-secret`: Display the contents of the Kubernetes secret
+- `just ssh`: SSH into the deployed pod
+- `just logs`: Get logs from the deployed pod
+- `just describe-server`: Describe the deployed pod
+- `just netshoot`: Deploy and connect to a netshoot container for debugging
+- `just remove-netshoot`: Remove the netshoot debug container
+
+To use these commands, run `just <command>` in your terminal from the project root.
+
+For more details on each command, you can check the `justfile` in the project root or run `just --list` to see all available commands with their descriptions.
