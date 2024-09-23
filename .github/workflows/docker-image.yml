@@ -24,5 +24,5 @@ jobs:
         # Extract the version number from pyproject.toml using awk
         CURRENT_VERSION=$(awk -F '"' '/version =/ { print $2 }' pyproject.toml | head -n 1)
         docker build . --file Dockerfile --tag lettaai/letta:$CURRENT_VERSION --tag lettaai/letta:latest
-        docker push lettaai/letta-server:$CURRENT_VERSION
-        docker push lettaai/letta-server:latest
+        docker push lettaai/letta:$CURRENT_VERSION
+        docker push lettaai/letta:latest
