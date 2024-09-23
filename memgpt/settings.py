@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     pg_user: Optional[str] = None
     pg_password: Optional[str] = None
     pg_host: Optional[str] = None
-    pg_port: Optional[int] = None
-    pg_uri: Optional[str] = None  # option to specifiy full uri
+    pg_port: Optional[int] = 5432
+    pg_uri: Optional[str] = None  # option to specify full uri
     cors_origins: Optional[list] = ["http://memgpt.localhost", "http://localhost:8283", "http://localhost:8083"]
 
     # agent configuration defaults
