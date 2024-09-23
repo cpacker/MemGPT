@@ -1958,23 +1958,23 @@ class SyncServer(Server):
             current_user = self.get_user(self._current_user)
             if not current_user:
                 warnings.warn(f"Provided user '{self._current_user}' not found, using default user")
-                return self.get_default_user()
             else:
                 return current_user
 
-        # NOTE: same code as local client to get the default user
-        config = LettaConfig.load()
-        user_id = config.anon_clientid
-        user = self.get_user(user_id)
+        return self.get_default_user()
+        ## NOTE: same code as local client to get the default user
+        #config = LettaConfig.load()
+        #user_id = config.anon_clientid
+        #user = self.get_user(user_id)
 
-        if not user:
-            user = self.create_user(UserCreate())
+        #if not user:
+        #    user = self.create_user(UserCreate())
 
-            # # update config
-            config.anon_clientid = str(user.id)
-            config.save()
+        #    # # update config
+        #    config.anon_clientid = str(user.id)
+        #    config.save()
 
-        return user
+        #return user
 
     def list_models(self) -> List[LLMConfig]:
         """List available models"""
