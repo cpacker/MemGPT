@@ -535,7 +535,9 @@ class MetadataStore:
     @enforce_types
     def create_organization(self, organization: Organization):
         with self.session_maker() as session:
-            if session.query(OrganizationModel).filter(OrganizationModel.id == organization.id).count() > 0:
+            if (organization.id is not None) and session.query(OrganizationModel).filter(
+                OrganizationModel.id == organization.id
+            ).count() > 0:
                 raise ValueError(f"Organization with id {organization.id} already exists")
             session.add(OrganizationModel(**vars(organization)))
             session.commit()
