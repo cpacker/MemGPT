@@ -41,7 +41,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
+  port: 8083
 
 ingress:
   enabled: false
@@ -114,4 +114,5 @@ secrets:
   MEMGPT_PG_PASSWORD: ""
   MEMGPT_PG_URL: ""
   MEMGPT_PG_HOST: ""
+  MEMGPT_PG_PORT: "5432"
   POSTGRES_URI: ""

@@ -45,7 +45,8 @@ deploy: push
         --set secrets.MEMGPT_PG_USER=${MEMGPT_PG_USER} \
         --set secrets.MEMGPT_PG_PASSWORD=${MEMGPT_PG_PASSWORD} \
         --set secrets.MEMGPT_PG_HOST=${MEMGPT_PG_HOST} \
-        --set secrets.POSTGRES_URI=${POSTGRES_URI}
+        --set secrets.POSTGRES_URI=${POSTGRES_URI} \
+        --set-string secrets.MEMGPT_PG_PORT=${MEMGPT_PG_PORT}
 
 # Destroy the Helm chart
 destroy:
@@ -73,3 +74,22 @@ logs:
 # Describe the pod
 describe-server:
     kubectl describe pod $(kubectl get pods -l app.kubernetes.io/name=memgpt-server -o jsonpath="{.items[0].metadata.name}")
+
+# Deploy a netshoot container for debugging and connect to it
+netshoot:
+    @echo "🚀 Deploying netshoot container..."
+    @if ! kubectl get pod netshoot-debug &>/dev/null; then \
+        echo "Creating new pod..."; \
+        kubectl run netshoot-debug --image=nicolaka/netshoot --restart=Never -- sleep infinity; \
+        echo "⏳ Waiting for the pod to be ready..."; \
+        kubectl wait --for=condition=Ready pod/netshoot-debug --timeout=60s; \
+    else \
+        echo "Netshoot pod already exists. Skipping creation."; \
+    fi
+    @echo "🖥️  Connecting to the netshoot container..."
+    kubectl exec -it netshoot-debug -- /bin/bash
+
+# Remove the netshoot debug container
+remove-netshoot:
+    @echo "🗑️  Removing netshoot debug container..."
+    kubectl delete pod netshoot-debug --ignore-not-found
