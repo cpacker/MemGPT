@@ -17,7 +17,7 @@ jobs:
 
     services:
       qdrant:
-        image: qdrant/qdrant
+        image: qdrant/qdrant:v1.11.0
         ports:
           - 6333:6333
 
