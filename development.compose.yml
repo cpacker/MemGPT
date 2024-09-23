@@ -1,7 +1,7 @@
 services:
-  memgpt_server:
-    image: memgpt_server
-    hostname: memgpt-server
+  letta_server:
+    image: letta_server
+    hostname: letta-server
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,7 +9,7 @@ services:
       args:
         - MEMGPT_ENVIRONMENT=DEVELOPMENT
     depends_on:
-      - memgpt_db
+      - letta_db
     env_file:
       - .env
     environment:
@@ -17,12 +17,12 @@ services:
       - WATCHFILES_FORCE_POLLING=true
 
     volumes:
-      - ./memgpt:/memgpt
-      - ~/.memgpt/credentials:/root/.memgpt/credentials
-      - ./configs/server_config.yaml:/root/.memgpt/config
+      - ./letta:/letta
+      - ~/.letta/credentials:/root/.letta/credentials
+      - ./configs/server_config.yaml:/root/.letta/config
       - ./CONTRIBUTING.md:/CONTRIBUTING.md
-      - ./tests/pytest_cache:/memgpt/.pytest_cache
-      - ./tests/pytest.ini:/memgpt/pytest.ini
+      - ./tests/pytest_cache:/letta/.pytest_cache
+      - ./tests/pytest.ini:/letta/pytest.ini
       - ./pyproject.toml:/pyproject.toml
       - ./tests:/tests
     ports:

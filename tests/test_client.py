@@ -7,15 +7,15 @@ from typing import Union
 import pytest
 from dotenv import load_dotenv
 
-from memgpt import Admin, create_client
-from memgpt.client.client import LocalClient, RESTClient
-from memgpt.constants import DEFAULT_PRESET
-from memgpt.schemas.agent import AgentState
-from memgpt.schemas.enums import JobStatus, MessageStreamStatus
-from memgpt.schemas.memgpt_message import FunctionCallMessage, InternalMonologue
-from memgpt.schemas.memgpt_response import MemGPTResponse, MemGPTStreamingResponse
-from memgpt.schemas.message import Message
-from memgpt.schemas.usage import MemGPTUsageStatistics
+from letta import Admin, create_client
+from letta.client.client import LocalClient, RESTClient
+from letta.constants import DEFAULT_PRESET
+from letta.schemas.agent import AgentState
+from letta.schemas.enums import JobStatus, MessageStreamStatus
+from letta.schemas.letta_message import FunctionCallMessage, InternalMonologue
+from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
+from letta.schemas.message import Message
+from letta.schemas.usage import LettaUsageStatistics
 
 # from tests.utils import create_config
 
@@ -37,7 +37,7 @@ def run_server():
 
     # _reset_config()
 
-    from memgpt.server.rest_api.app import start_server
+    from letta.server.rest_api.app import start_server
 
     print("Starting server...")
     start_server(debug=True)
@@ -129,7 +129,7 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
     print("Sending message", message)
     response = client.user_message(agent_id=agent.id, message=message, include_full_message=True)
     print("Response", response)
-    assert isinstance(response.usage, MemGPTUsageStatistics)
+    assert isinstance(response.usage, LettaUsageStatistics)
     assert response.usage.step_count == 1
     assert response.usage.total_tokens > 0
     assert response.usage.completion_tokens > 0
@@ -221,7 +221,7 @@ def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: A
     # print(response)
     assert response, "Sending message failed"
     for chunk in response:
-        assert isinstance(chunk, MemGPTStreamingResponse)
+        assert isinstance(chunk, LettaStreamingResponse)
         if isinstance(chunk, InternalMonologue) and chunk.internal_monologue and chunk.internal_monologue != "":
             inner_thoughts_exist = True
         if isinstance(chunk, FunctionCallMessage) and chunk.function_call and chunk.function_call.name == "send_message":
@@ -403,7 +403,7 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
     # create a message
     message_response = client.send_message(agent_id=agent.id, message="Test message", role="user", include_full_message=True)
     print("Messages=", message_response)
-    assert isinstance(message_response, MemGPTResponse)
+    assert isinstance(message_response, LettaResponse)
     assert isinstance(message_response.messages[-1], Message)
     message = message_response.messages[-1]
 

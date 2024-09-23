@@ -1,6 +1,6 @@
 import json
 
-from memgpt.agent import Agent
+from letta.agent import Agent
 
 
 def dump_json(self: Agent, input: str) -> str:

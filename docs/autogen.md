@@ -1,6 +1,6 @@
 ---
-title: MemGPT + AutoGen
-excerpt: Creating AutoGen agents powered by MemGPT
+title: Letta + AutoGen
+excerpt: Creating AutoGen agents powered by Letta
 category: 6580dab16cade8003f996d17
 ---
 
@@ -8,25 +8,25 @@ category: 6580dab16cade8003f996d17
 >
 > If you need help visit our [Discord server](https://discord.gg/9GEQrxmVyE) and post in the #support channel.
 >
-> You can also check the [GitHub discussion page](https://github.com/cpacker/MemGPT/discussions/65), but the Discord server is the official support channel and is monitored more actively.
+> You can also check the [GitHub discussion page](https://github.com/cpacker/Letta/discussions/65), but the Discord server is the official support channel and is monitored more actively.
 
 > ⚠️ Tested with `pyautogen` v0.2.0
 >
-> The MemGPT+AutoGen integration was last tested using AutoGen version v0.2.0.
+> The Letta+AutoGen integration was last tested using AutoGen version v0.2.0.
 >
 > If you are having issues, please first try installing the specific version of AutoGen using `pip install pyautogen==0.2.0` (or `poetry install -E autogen` if you are using Poetry).
 
 ## Overview
 
-MemGPT includes an AutoGen agent class ([MemGPTAgent](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/memgpt_agent.py)) that mimics the interface of AutoGen's [ConversableAgent](https://microsoft.github.io/autogen/docs/reference/agentchat/conversable_agent#conversableagent-objects), allowing you to plug MemGPT into the AutoGen framework.
+Letta includes an AutoGen agent class ([LettaAgent](https://github.com/cpacker/Letta/blob/main/letta/autogen/letta_agent.py)) that mimics the interface of AutoGen's [ConversableAgent](https://microsoft.github.io/autogen/docs/reference/agentchat/conversable_agent#conversableagent-objects), allowing you to plug Letta into the AutoGen framework.
 
-To create a MemGPT AutoGen agent for use in an AutoGen script, you can use the `create_memgpt_autogen_agent_from_config` constructor:
+To create a Letta AutoGen agent for use in an AutoGen script, you can use the `create_letta_autogen_agent_from_config` constructor:
 
 ```python
-from memgpt.autogen.memgpt_agent import create_memgpt_autogen_agent_from_config
+from letta.autogen.letta_agent import create_letta_autogen_agent_from_config
 
-# create a config for the MemGPT AutoGen agent
-config_list_memgpt = [
+# create a config for the Letta AutoGen agent
+config_list_letta = [
     {
         "model": "gpt-4",
         "context_window": 8192,
@@ -36,7 +36,7 @@ config_list_memgpt = [
         "openai_key": YOUR_OPENAI_KEY,
     },
 ]
-llm_config_memgpt = {"config_list": config_list_memgpt, "seed": 42}
+llm_config_letta = {"config_list": config_list_letta, "seed": 42}
 
 # there are some additional options to do with how you want the interface to look (more info below)
 interface_kwargs = {
@@ -46,51 +46,51 @@ interface_kwargs = {
 }
 
 # then pass the config to the constructor
-memgpt_autogen_agent = create_memgpt_autogen_agent_from_config(
-    "MemGPT_agent",
-    llm_config=llm_config_memgpt,
-    system_message=f"Your desired MemGPT persona",
+letta_autogen_agent = create_letta_autogen_agent_from_config(
+    "Letta_agent",
+    llm_config=llm_config_letta,
+    system_message=f"Your desired Letta persona",
     interface_kwargs=interface_kwargs,
     default_auto_reply="...",
-    skip_verify=False,  # NOTE: you should set this to True if you expect your MemGPT AutoGen agent to call a function other than send_message on the first turn
-    auto_save=False,  # NOTE: set this to True if you want the MemGPT AutoGen agent to save its internal state after each reply - you can also save manually with .save()
+    skip_verify=False,  # NOTE: you should set this to True if you expect your Letta AutoGen agent to call a function other than send_message on the first turn
+    auto_save=False,  # NOTE: set this to True if you want the Letta AutoGen agent to save its internal state after each reply - you can also save manually with .save()
 )
 ```
 
-Now this `memgpt_autogen_agent` can be used in standard AutoGen scripts:
+Now this `letta_autogen_agent` can be used in standard AutoGen scripts:
 
 ```python
 import autogen
 
 # ... assuming we have some other AutoGen agents other_agent_1 and 2
-groupchat = autogen.GroupChat(agents=[memgpt_autogen_agent, other_agent_1, other_agent_2], messages=[], max_round=12, speaker_selection_method="round_robin")
+groupchat = autogen.GroupChat(agents=[letta_autogen_agent, other_agent_1, other_agent_2], messages=[], max_round=12, speaker_selection_method="round_robin")
 ```
 
-[examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT. If you are using OpenAI, you can also run the example using the [notebook](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/memgpt_coder_autogen.ipynb).
+[examples/agent_groupchat.py](https://github.com/cpacker/Letta/blob/main/letta/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by Letta. If you are using OpenAI, you can also run the example using the [notebook](https://github.com/cpacker/Letta/blob/main/letta/autogen/examples/letta_coder_autogen.ipynb).
 
 ### Saving and loading
 
-If you're using MemGPT AutoGen agents inside a Python script, you can save the internal state of the agent (message history, memory, etc.) by calling `.save()`:
+If you're using Letta AutoGen agents inside a Python script, you can save the internal state of the agent (message history, memory, etc.) by calling `.save()`:
 ```python
 # You can also set auto_save = True in the creation function
-memgpt_autogen_agent.save()
+letta_autogen_agent.save()
 ```
 
-To load an existing agent, you can use the `load_autogen_memgpt_agent` function:
+To load an existing agent, you can use the `load_autogen_letta_agent` function:
 ```python
-from memgpt.autogen.memgpt_agent import load_autogen_memgpt_agent
+from letta.autogen.letta_agent import load_autogen_letta_agent
 
-# To load an AutoGen+MemGPT agent you previously created, you can use the load function:
-memgpt_autogen_agent = load_autogen_memgpt_agent(agent_config={"name": "MemGPT_agent"})
+# To load an AutoGen+Letta agent you previously created, you can use the load function:
+letta_autogen_agent = load_autogen_letta_agent(agent_config={"name": "Letta_agent"})
 ```
 
-Because AutoGen MemGPT agents are really just MemGPT agents under-the-hood, you can interact with them via standard MemGPT interfaces such as the [MemGPT Python Client](https://memgpt.readme.io/docs/python_client) or [MemGPT API](https://memgpt.readme.io/reference/api). However, be careful when using AutoGen MemGPT agents outside of AutoGen scripts, since the context (chain of messages) may become confusing for the MemGPT agent to understand as you are mixing AutoGen groupchat conversations with regular user-agent 1-1 conversations.
+Because AutoGen Letta agents are really just Letta agents under-the-hood, you can interact with them via standard Letta interfaces such as the [Letta Python Client](https://letta.readme.io/docs/python_client) or [Letta API](https://letta.readme.io/reference/api). However, be careful when using AutoGen Letta agents outside of AutoGen scripts, since the context (chain of messages) may become confusing for the Letta agent to understand as you are mixing AutoGen groupchat conversations with regular user-agent 1-1 conversations.
 
-In the next section, we'll go through the example in depth to demonstrate how to set up MemGPT and AutoGen to run with a local LLM backend.
+In the next section, we'll go through the example in depth to demonstrate how to set up Letta and AutoGen to run with a local LLM backend.
 
-## Example: connecting AutoGen + MemGPT to non-OpenAI LLMs
+## Example: connecting AutoGen + Letta to non-OpenAI LLMs
 
-To get MemGPT to work with a local LLM, you need to have an LLM running on a server that takes API requests.
+To get Letta to work with a local LLM, you need to have an LLM running on a server that takes API requests.
 
 For the purposes of this example, we're going to serve (host) the LLMs using [oobabooga web UI](https://github.com/oobabooga/text-generation-webui#starting-the-web-ui), but if you want to use something else you can! This also assumes your running web UI locally - if you're running on e.g. Runpod, you'll want to follow Runpod specific instructions (for example use [TheBloke's one-click UI and API](https://github.com/TheBlokeAI/dockerLLM/blob/main/README_Runpod_LocalLLMsUIandAPI.md)).
 
@@ -101,31 +101,31 @@ Install web UI and get a model set up on a local web server. You can use [our in
 > 📘 Choosing an LLM / model to use
 > You'll need to decide on an LLM / model to use with web UI.
 >
-> MemGPT requires an LLM that is good at function calling to work well - if the LLM is bad at function calling, **MemGPT will not work properly**.
+> Letta requires an LLM that is good at function calling to work well - if the LLM is bad at function calling, **Letta will not work properly**.
 >
-> Visit [our Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel for an up-to-date list of recommended LLMs / models to use with MemGPT.
+> Visit [our Discord server](https://discord.gg/9GEQrxmVyE) and check the #model-chat channel for an up-to-date list of recommended LLMs / models to use with Letta.
 
-### Part 2: Get MemGPT working
+### Part 2: Get Letta working
 
-Before trying to integrate MemGPT with AutoGen, make sure that you can run MemGPT by itself with the web UI backend.
+Before trying to integrate Letta with AutoGen, make sure that you can run Letta by itself with the web UI backend.
 
-Try setting up MemGPT with your local web UI backend [using the instructions here](local_llm/#using-memgpt-with-local-llms).
+Try setting up Letta with your local web UI backend [using the instructions here](local_llm/#using-letta-with-local-llms).
 
-Once you've confirmed that you're able to chat with a MemGPT agent using `memgpt configure` and `memgpt run`, you're ready to move on to the next step.
+Once you've confirmed that you're able to chat with a Letta agent using `letta configure` and `letta run`, you're ready to move on to the next step.
 
 > 📘 Using RunPod as an LLM backend
 >
 > If you're using RunPod to run web UI, make sure that you set your endpoint to the RunPod IP address, **not the default localhost address**.
 >
-> For example, during `memgpt configure`:
+> For example, during `letta configure`:
 >
 > ```text
 > ? Enter default endpoint: https://yourpodaddresshere-5000.proxy.runpod.net
 > ```
 
-### Part 3: Creating a MemGPT AutoGen agent (groupchat example)
+### Part 3: Creating a Letta AutoGen agent (groupchat example)
 
-Now we're going to integrate MemGPT and AutoGen by creating a special "MemGPT AutoGen agent" that wraps MemGPT in an AutoGen-style agent interface.
+Now we're going to integrate Letta and AutoGen by creating a special "Letta AutoGen agent" that wraps Letta in an AutoGen-style agent interface.
 
 First, make sure you have AutoGen installed:
 
@@ -133,18 +133,18 @@ First, make sure you have AutoGen installed:
 pip install pyautogen
 ```
 
-Going back to the example we first mentioned, [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by MemGPT.
+Going back to the example we first mentioned, [examples/agent_groupchat.py](https://github.com/cpacker/Letta/blob/main/letta/autogen/examples/agent_groupchat.py) contains an example of a groupchat where one of the agents is powered by Letta.
 
-In order to run this example on a local LLM, go to lines 46-66 in [examples/agent_groupchat.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_groupchat.py) and fill in the config files with your local LLM's deployment details.
+In order to run this example on a local LLM, go to lines 46-66 in [examples/agent_groupchat.py](https://github.com/cpacker/Letta/blob/main/letta/autogen/examples/agent_groupchat.py) and fill in the config files with your local LLM's deployment details.
 
-`config_list` is used by non-MemGPT AutoGen agents, which expect an OpenAI-compatible API. `config_list_memgpt` is used by MemGPT AutoGen agents, and requires additional settings specific to MemGPT (such as the `model_wrapper` and `context_window`. Depending on what LLM backend you want to use, you'll have to set up your `config_list` and `config_list_memgpt` differently:
+`config_list` is used by non-Letta AutoGen agents, which expect an OpenAI-compatible API. `config_list_letta` is used by Letta AutoGen agents, and requires additional settings specific to Letta (such as the `model_wrapper` and `context_window`. Depending on what LLM backend you want to use, you'll have to set up your `config_list` and `config_list_letta` differently:
 
 #### web UI example
 
 For example, if you are using web UI, it will look something like this:
 
 ```python
-# Non-MemGPT agents will still use local LLMs, but they will use the ChatCompletions endpoint
+# Non-Letta agents will still use local LLMs, but they will use the ChatCompletions endpoint
 config_list = [
     {
         "model": "NULL",  # not needed
@@ -153,11 +153,11 @@ config_list = [
     },
 ]
 
-# MemGPT-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
-config_list_memgpt = [
+# Letta-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
+config_list_letta = [
     {
         "preset": DEFAULT_PRESET,
-        "model": None,  # not required for web UI, only required for Ollama, see: https://memgpt.readme.io/docs/ollama
+        "model": None,  # not required for web UI, only required for Ollama, see: https://letta.readme.io/docs/ollama
         "model_wrapper": "airoboros-l2-70b-2.1",  # airoboros is the default wrapper and should work for most models
         "model_endpoint_type": "webui",
         "model_endpoint": "http://localhost:5000",  # notice port 5000 for web UI
@@ -168,10 +168,10 @@ config_list_memgpt = [
 
 #### LM Studio example
 
-If you are using LM Studio, then you'll need to change the `api_base` in `config_list`, and `model_endpoint_type` + `model_endpoint` in `config_list_memgpt`:
+If you are using LM Studio, then you'll need to change the `api_base` in `config_list`, and `model_endpoint_type` + `model_endpoint` in `config_list_letta`:
 
 ```python
-# Non-MemGPT agents will still use local LLMs, but they will use the ChatCompletions endpoint
+# Non-Letta agents will still use local LLMs, but they will use the ChatCompletions endpoint
 config_list = [
     {
         "model": "NULL",
@@ -180,8 +180,8 @@ config_list = [
     },
 ]
 
-# MemGPT-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
-config_list_memgpt = [
+# Letta-powered agents will also use local LLMs, but they need additional setup (also they use the Completions endpoint)
+config_list_letta = [
     {
         "preset": DEFAULT_PRESET,
         "model": None,
@@ -195,10 +195,10 @@ config_list_memgpt = [
 
 #### OpenAI example
 
-If you are using the OpenAI API (e.g. using `gpt-4-turbo` via your own OpenAI API account), then the `config_list` for the AutoGen agent and `config_list_memgpt` for the MemGPT AutoGen agent will look different (a lot simpler):
+If you are using the OpenAI API (e.g. using `gpt-4-turbo` via your own OpenAI API account), then the `config_list` for the AutoGen agent and `config_list_letta` for the Letta AutoGen agent will look different (a lot simpler):
 
 ```python
-# This config is for autogen agents that are not powered by MemGPT
+# This config is for autogen agents that are not powered by Letta
 config_list = [
     {
         "model": "gpt-4",
@@ -206,8 +206,8 @@ config_list = [
     }
 ]
 
-# This config is for autogen agents that powered by MemGPT
-config_list_memgpt = [
+# This config is for autogen agents that powered by Letta
+config_list_letta = [
     {
         "preset": DEFAULT_PRESET,
         "model": "gpt-4",
@@ -222,10 +222,10 @@ config_list_memgpt = [
 
 #### Azure OpenAI example
 
-Azure OpenAI API setup will be similar to OpenAI API, but requires additional config variables. First, make sure that you've set all the related Azure variables referenced in [our MemGPT Azure setup page](https://memgpt.readme.io/docs/endpoints#azure-openai) (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_VERSION`, `AZURE_OPENAI_ENDPOINT`, etc). If you have all the variables set correctly, you should be able to create configs by pulling from the env variables:
+Azure OpenAI API setup will be similar to OpenAI API, but requires additional config variables. First, make sure that you've set all the related Azure variables referenced in [our Letta Azure setup page](https://letta.readme.io/docs/endpoints#azure-openai) (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_VERSION`, `AZURE_OPENAI_ENDPOINT`, etc). If you have all the variables set correctly, you should be able to create configs by pulling from the env variables:
 
 ```python
-# This config is for autogen agents that are not powered by MemGPT
+# This config is for autogen agents that are not powered by Letta
 # See Auto
 config_list = [
     {
@@ -237,8 +237,8 @@ config_list = [
     }
 ]
 
-# This config is for autogen agents that powered by MemGPT
-config_list_memgpt = [
+# This config is for autogen agents that powered by Letta
+config_list_letta = [
     {
         "preset": DEFAULT_PRESET,
         "model": "gpt-4",  # make sure you choose a model that you have access to deploy on your Azure account
@@ -257,22 +257,22 @@ config_list_memgpt = [
 
 > 📘 Making internal monologue visible to AutoGen
 >
-> By default, MemGPT's inner monologue and function traces are hidden from other AutoGen agents.
+> By default, Letta's inner monologue and function traces are hidden from other AutoGen agents.
 >
 > You can modify `interface_kwargs` to change the visibility of inner monologue and function calling:
 >
 > ```python
 > interface_kwargs = {
->     "debug": False,  # this is the equivalent of the --debug flag in the MemGPT CLI
->     "show_inner_thoughts": True,  # this controls if internal monlogue will show up in AutoGen MemGPT agent's outputs
->     "show_function_outputs": True,  # this controls if function traces will show up in AutoGen MemGPT agent's outputs
+>     "debug": False,  # this is the equivalent of the --debug flag in the Letta CLI
+>     "show_inner_thoughts": True,  # this controls if internal monlogue will show up in AutoGen Letta agent's outputs
+>     "show_function_outputs": True,  # this controls if function traces will show up in AutoGen Letta agent's outputs
 > }
 > ```
 
-The only parts of the `agent_groupchat.py` file you need to modify should be the `config_list` and `config_list_memgpt` (make sure to change `USE_OPENAI` to `True` or `False` depending on if you're trying to use a local LLM server like web UI, or OpenAI's API). Assuming you edited things correctly, you should now be able to run `agent_groupchat.py`:
+The only parts of the `agent_groupchat.py` file you need to modify should be the `config_list` and `config_list_letta` (make sure to change `USE_OPENAI` to `True` or `False` depending on if you're trying to use a local LLM server like web UI, or OpenAI's API). Assuming you edited things correctly, you should now be able to run `agent_groupchat.py`:
 
 ```sh
-python memgpt/autogen/examples/agent_groupchat.py
+python letta/autogen/examples/agent_groupchat.py
 ```
 
 Your output should look something like this:
@@ -318,7 +318,7 @@ Here are a few app ideas that have the potential to be lucrative if well execute
 Remember, achieving one million dollars in revenue in such a short time frame would require not only a highly appealing and innovative product but also flawless execution, significant marketing efforts, and perhaps a bit of luck. Be realistic about your goals and focus on building a sustainable business that provides real value over the long term.
 
 --------------------------------------------------------------------------------
-MemGPT_coder (to chat_manager):
+Letta_coder (to chat_manager):
 
 Great goal! Generating a million dollars in one month with an app is ambitious, but definitely doable if you approach it the right way. Here are some tips and potential ideas that could help:
 
@@ -342,23 +342,23 @@ User_proxy (to chat_manager):
 ...
 ```
 
-### Part 4: Attaching documents to MemGPT AutoGen agents
+### Part 4: Attaching documents to Letta AutoGen agents
 
-[examples/agent_docs.py](https://github.com/cpacker/MemGPT/blob/main/memgpt/autogen/examples/agent_docs.py) contains an example of a groupchat where the MemGPT autogen agent has access to documents.
+[examples/agent_docs.py](https://github.com/cpacker/Letta/blob/main/letta/autogen/examples/agent_docs.py) contains an example of a groupchat where the Letta autogen agent has access to documents.
 
 First, follow the instructions in [Example - chat with your data - Creating an external data source](example_data/#creating-an-external-data-source):
 
-To download the MemGPT research paper we'll use `curl` (you can also just download the PDF from your browser):
+To download the Letta research paper we'll use `curl` (you can also just download the PDF from your browser):
 
 ```sh
-# we're saving the file as "memgpt_research_paper.pdf"
-curl -L -o memgpt_research_paper.pdf https://arxiv.org/pdf/2310.08560.pdf
+# we're saving the file as "letta_research_paper.pdf"
+curl -L -o letta_research_paper.pdf https://arxiv.org/pdf/2310.08560.pdf
 ```
 
-Now that we have the paper downloaded, we can create a MemGPT data source using `memgpt load`:
+Now that we have the paper downloaded, we can create a Letta data source using `letta load`:
 
 ```sh
-memgpt load directory --name memgpt_research_paper --input-files=memgpt_research_paper.pdf
+letta load directory --name letta_research_paper --input-files=letta_research_paper.pdf
 ```
 
 ```text
@@ -372,28 +372,28 @@ Generating embeddings: 100%|█████████████████�
 
 Note: you can ignore the "_LLM is explicitly disabled_" message.
 
-Now, you can run `agent_docs.py`, which asks `MemGPT_coder` what a virtual context is:
+Now, you can run `agent_docs.py`, which asks `Letta_coder` what a virtual context is:
 
 ```sh
-python memgpt/autogen/examples/agent_docs.py
+python letta/autogen/examples/agent_docs.py
 ```
 
 ```text
-Ingesting 65 passages into MemGPT_agent
+Ingesting 65 passages into Letta_agent
 100%|███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 1/1 [00:01<00:00,  1.47s/it]
-Attached data source memgpt_research_paper to agent MemGPT_agent, consisting of 65. Agent now has 2015 embeddings in archival memory.
+Attached data source letta_research_paper to agent Letta_agent, consisting of 65. Agent now has 2015 embeddings in archival memory.
 
 User_proxy (to chat_manager):
 
-Tell me what virtual context in MemGPT is. Search your archival memory.
+Tell me what virtual context in Letta is. Search your archival memory.
 
 --------------------------------------------------------------------------------
 GroupChat is underpopulated with 2 agents. Direct communication would be more efficient.
 
-MemGPT_agent (to chat_manager):
+Letta_agent (to chat_manager):
 
-[inner thoughts] The user asked about virtual context in MemGPT. Let's search the archival memory with this query.
-[inner thoughts] Virtual context management is a technique used in large language models like MemGPT. It's used to handle context beyond limited context windows, which is crucial for tasks such as extended conversations and document analysis. The technique was inspired by hierarchical memory systems in traditional operating systems that provide the appearance of large memory resources through data movement between fast and slow memory. This system intelligently manages different memory tiers to effectively provide extended context within the model's limited context window.
+[inner thoughts] The user asked about virtual context in Letta. Let's search the archival memory with this query.
+[inner thoughts] Virtual context management is a technique used in large language models like Letta. It's used to handle context beyond limited context windows, which is crucial for tasks such as extended conversations and document analysis. The technique was inspired by hierarchical memory systems in traditional operating systems that provide the appearance of large memory resources through data movement between fast and slow memory. This system intelligently manages different memory tiers to effectively provide extended context within the model's limited context window.
 
 --------------------------------------------------------------------------------
 ...

@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from memgpt import create_client
+from letta import create_client
 
 from .utils import create_config, wipe_config
 
@@ -20,7 +20,7 @@ def create_test_agent():
     if os.getenv("OPENAI_API_KEY"):
         create_config("openai")
     else:
-        create_config("memgpt_hosted")
+        create_config("letta_hosted")
 
     global client
     client = create_client()

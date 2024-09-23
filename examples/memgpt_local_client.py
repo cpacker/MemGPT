@@ -1,7 +1,7 @@
 import json
 
-from memgpt import create_client
-from memgpt.memory import ChatMemory
+from letta import create_client
+from letta.memory import ChatMemory
 
 
 def main():

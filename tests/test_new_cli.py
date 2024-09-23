@@ -7,9 +7,9 @@
 #
 # import pytest
 #
-# from memgpt.cli.cli_config import add, delete, list
-# from memgpt.config import MemGPTConfig
-# from memgpt.credentials import MemGPTCredentials
+# from letta.cli.cli_config import add, delete, list
+# from letta.config import LettaConfig
+# from letta.credentials import LettaCredentials
 # from tests.utils import create_config
 #
 #
@@ -17,14 +17,14 @@
 #
 #    if os.getenv("OPENAI_API_KEY"):
 #        create_config("openai")
-#        credentials = MemGPTCredentials(
+#        credentials = LettaCredentials(
 #            openai_key=os.getenv("OPENAI_API_KEY"),
 #        )
 #    else:  # hosted
-#        create_config("memgpt_hosted")
-#        credentials = MemGPTCredentials()
+#        create_config("letta_hosted")
+#        credentials = LettaCredentials()
 #
-#    config = MemGPTConfig.load()
+#    config = LettaConfig.load()
 #    config.save()
 #    credentials.save()
 #    print("_reset_config :: ", config.config_path)

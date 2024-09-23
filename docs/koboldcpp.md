@@ -1,6 +1,6 @@
 ---
 title: koboldcpp
-excerpt: Setting up MemGPT with koboldcpp
+excerpt: Setting up Letta with koboldcpp
 category: 6580da9a40bb410016b8b0c3
 ---
 
@@ -15,7 +15,7 @@ For example, if we downloaded the model `dolphin-2.2.1-mistral-7b.Q6_K.gguf` and
 ./koboldcpp.py ~/models/TheBloke/dolphin-2.2.1-mistral-7B-GGUF/dolphin-2.2.1-mistral-7b.Q6_K.gguf --contextsize 8192
 ```
 
-In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at koboldcpp:
+In your terminal where you're running Letta, run `letta configure` to set the default backend for Letta to point at koboldcpp:
 
 ```text
 # if you are running koboldcpp locally, the default IP address + port will be http://localhost:5001
@@ -25,8 +25,8 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ...
 ```
 
-If you have an existing agent that you want to move to the koboldcpp backend, add extra flags to `memgpt run`:
+If you have an existing agent that you want to move to the koboldcpp backend, add extra flags to `letta run`:
 
 ```sh
-memgpt run --agent your_agent --model-endpoint-type koboldcpp --model-endpoint http://localhost:5001
+letta run --agent your_agent --model-endpoint-type koboldcpp --model-endpoint http://localhost:5001
 ```

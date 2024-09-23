@@ -1,4 +1,4 @@
-from memgpt.functions.schema_generator import generate_schema
+from letta.functions.schema_generator import generate_schema
 
 
 def send_message(self, message: str):

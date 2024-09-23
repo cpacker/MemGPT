@@ -1,6 +1,6 @@
 ---
 title: llama.cpp
-excerpt: Setting up MemGPT with llama.cpp
+excerpt: Setting up Letta with llama.cpp
 category: 6580da9a40bb410016b8b0c3
 ---
 
@@ -15,7 +15,7 @@ For example, if we downloaded the model `dolphin-2.2.1-mistral-7b.Q6_K.gguf` and
 ./server -m ~/models/TheBloke/dolphin-2.2.1-mistral-7B-GGUF/dolphin-2.2.1-mistral-7b.Q6_K.gguf -c 8000
 ```
 
-In your terminal where you're running MemGPT, run `memgpt configure` to set the default backend for MemGPT to point at llama.cpp:
+In your terminal where you're running Letta, run `letta configure` to set the default backend for Letta to point at llama.cpp:
 
 ```text
 # if you are running llama.cpp locally, the default IP address + port will be http://localhost:8080
@@ -25,8 +25,8 @@ In your terminal where you're running MemGPT, run `memgpt configure` to set the 
 ...
 ```
 
-If you have an existing agent that you want to move to the llama.cpp backend, add extra flags to `memgpt run`:
+If you have an existing agent that you want to move to the llama.cpp backend, add extra flags to `letta run`:
 
 ```sh
-memgpt run --agent your_agent --model-endpoint-type llamacpp --model-endpoint http://localhost:8080
+letta run --agent your_agent --model-endpoint-type llamacpp --model-endpoint http://localhost:8080
 ```

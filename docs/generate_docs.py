@@ -30,7 +30,7 @@ folder = "/Users/sarahwooders/repos/mintlify-docs/python-reference"
 
 
 # Generate client documentation. This takes the documentation from the AbstractClient, but then appends the documentation from the LocalClient and RESTClient.
-config = generate_config("memgpt.client")
+config = generate_config("letta.client")
 modules = generate_modules(config)
 
 ## Get members from AbstractClient
@@ -44,7 +44,7 @@ modules = generate_modules(config)
 # print(client_members)
 
 # Add members and render for LocalClient and RESTClient
-# config = generate_config("memgpt.client")
+# config = generate_config("letta.client")
 
 for module_name in ["LocalClient", "RESTClient"]:
     for module in generate_modules(config):
@@ -60,11 +60,11 @@ for module_name in ["LocalClient", "RESTClient"]:
 
 
 # Documentation of schemas
-schema_config = generate_config("memgpt.schemas")
+schema_config = generate_config("letta.schemas")
 
 schema_models = [
-    "MemGPTBase",
-    "MemGPTConfig",
+    "LettaBase",
+    "LettaConfig",
     "Message",
     "Passage",
     "AgentState",
@@ -72,10 +72,10 @@ schema_models = [
     "Source",
     "LLMConfig",
     "EmbeddingConfig",
-    "MemGPTRequest",
-    "MemGPTResponse",
-    ["MemGPTMessage", "FunctionCallMessage", "FunctionReturn", "InternalMonologue"],
-    "MemGPTUsageStatistics",
+    "LettaRequest",
+    "LettaResponse",
+    ["LettaMessage", "FunctionCallMessage", "FunctionReturn", "InternalMonologue"],
+    "LettaUsageStatistics",
     ["Memory", "BasicBlockMemory", "ChatMemory"],
     "Block",
     # ["Job", "JobStatus"],
@@ -101,7 +101,7 @@ for module_name in schema_models:
 
 # Documentation for connectors
 connectors = ["DataConnector", "DirectoryConnector"]
-connector_config = generate_config("memgpt.data_sources")
+connector_config = generate_config("letta.data_sources")
 for module_name in connectors:
     for module in generate_modules(connector_config):
         members = [m for m in module.members if m.name == module_name]

@@ -2,9 +2,9 @@ import gzip
 import json
 from typing import List
 
-from memgpt.config import MemGPTConfig
-from memgpt.constants import LLM_MAX_TOKENS
-from memgpt.data_types import EmbeddingConfig, LLMConfig
+from letta.config import LettaConfig
+from letta.constants import LLM_MAX_TOKENS
+from letta.data_types import EmbeddingConfig, LLMConfig
 
 
 def load_gzipped_file(file_path):
@@ -22,7 +22,7 @@ def read_jsonl(filename) -> List[dict]:
 
 
 def get_experiment_config(postgres_uri, endpoint_type="openai", model="gpt-4"):
-    config = MemGPTConfig.load()
+    config = LettaConfig.load()
     config.archival_storage_type = "postgres"
     config.archival_storage_uri = postgres_uri
 
@@ -42,19 +42,19 @@ def get_experiment_config(postgres_uri, endpoint_type="openai", model="gpt-4"):
         llm_config = LLMConfig(
             model="ehartford/dolphin-2.5-mixtral-8x7b",
             model_endpoint_type="vllm",
-            model_endpoint="https://api.memgpt.ai",
+            model_endpoint="https://api.letta.ai",
             model_wrapper="chatml",
             context_window=16384,
         )
         embedding_config = EmbeddingConfig(
             embedding_endpoint_type="hugging-face",
-            embedding_endpoint="https://embeddings.memgpt.ai",
+            embedding_endpoint="https://embeddings.letta.ai",
             embedding_dim=1024,
             embedding_model="BAAI/bge-large-en-v1.5",
             embedding_chunk_size=300,
         )
 
-    config = MemGPTConfig(
+    config = LettaConfig(
         anon_clientid=config.anon_clientid,
         archival_storage_type="postgres",
         archival_storage_uri=postgres_uri,

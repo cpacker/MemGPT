@@ -13,8 +13,8 @@ from googleapiclient.errors import HttpError
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
-TOKEN_PATH = os.path.expanduser("~/.memgpt/gmail_token.json")
-CREDENTIALS_PATH = os.path.expanduser("~/.memgpt/google_api_credentials.json")
+TOKEN_PATH = os.path.expanduser("~/.letta/gmail_token.json")
+CREDENTIALS_PATH = os.path.expanduser("~/.letta/google_api_credentials.json")
 
 DELAY = 1
 
@@ -25,8 +25,8 @@ MEMGPT_AGENT_ID = sys.argv[1] if len(sys.argv) > 1 else None
 assert MEMGPT_AGENT_ID, f"Missing agent ID (pass as arg)"
 
 
-def route_reply_to_memgpt_api(message):
-    # send a POST request to a MemGPT server
+def route_reply_to_letta_api(message):
+    # send a POST request to a Letta server
 
     url = f"{MEMGPT_SERVER_URL}/api/agents/{MEMGPT_AGENT_ID}/messages"
     headers = {
@@ -131,7 +131,7 @@ def main():
                         #     print("ignoring")
                         # else:
                         print(msg_str)
-                        route_reply_to_memgpt_api(msg_str)
+                        route_reply_to_letta_api(msg_str)
 
             time.sleep(DELAY)  # Wait for N seconds before checking again
     except HttpError as error:

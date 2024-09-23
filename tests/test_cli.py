@@ -4,11 +4,11 @@ import sys
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pexpect"])
 from prettytable.colortable import ColorTable
 
-from memgpt.cli.cli_config import ListChoice, add, delete
-from memgpt.cli.cli_config import list as list_command
+from letta.cli.cli_config import ListChoice, add, delete
+from letta.cli.cli_config import list as list_command
 
-# def test_configure_memgpt():
-#    configure_memgpt()
+# def test_configure_letta():
+#    configure_letta()
 
 options = [ListChoice.agents, ListChoice.sources, ListChoice.humans, ListChoice.personas]
 
@@ -31,7 +31,7 @@ def test_cli_config():
         ## update
         # filename = "test.txt"
         # open(filename, "w").write("test data new")
-        # child = pexpect.spawn(f"poetry run memgpt add --{str(option)} {filename} --name test --strip-ui")
+        # child = pexpect.spawn(f"poetry run letta add --{str(option)} {filename} --name test --strip-ui")
         # child.expect("Human test already exists. Overwrite?", timeout=TIMEOUT)
         # child.sendline()
         # child.expect(pexpect.EOF, timeout=TIMEOUT)  # Wait for child to exit
