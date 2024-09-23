@@ -326,6 +326,10 @@ def create(
             if isinstance(stream_inferface, AgentChunkStreamingInterface):
                 stream_inferface.stream_start()
             try:
+                if "inference.memgpt.ai" in llm_config.model_endpoint: 
+                    # override user id for inference.memgpt.ai
+                    import uuid
+                    data.user = str(uuid.UUID(int=0))
                 response = openai_chat_completions_request(
                     url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                     api_key=credentials.openai_key,
