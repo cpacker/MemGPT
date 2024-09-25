@@ -32,6 +32,7 @@ class Job(JobBase):
     completed_at: Optional[datetime] = Field(None, description="The unix timestamp of when the job was completed.")
     user_id: str = Field(..., description="The unique identifier of the user associated with the job.")
 
+
 class JobUpdate(JobBase):
     id: str = Field(..., description="The unique identifier of the job.")
     status: Optional[JobStatus] = Field(..., description="The status of the job.")
