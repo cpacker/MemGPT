@@ -6,7 +6,7 @@ import traceback
 import warnings
 from abc import abstractmethod
 from datetime import datetime
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union, Dict
 
 from fastapi import HTTPException
 
@@ -1513,11 +1513,12 @@ class SyncServer(Server):
 
         # TODO: delete data from agent passage stores (?)
 
-    def create_job(self, user_id: str) -> Job:
+    def create_job(self, user_id: str, metadata: Optional[Dict] = None) -> Job:
         """Create a new job"""
         job = Job(
             user_id=user_id,
             status=JobStatus.created,
+            metadata_=metadata,
         )
         self.ms.create_job(job)
         return job
