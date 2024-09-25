@@ -492,7 +492,7 @@ def run(
         # agent_config = AgentConfig.load(agent)
         # agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
         printd("Loading agent state:", agent_state.id)
-        printd("Agent state:", agent_state.state)
+        printd("Agent state:", agent_state.name)
         # printd("State path:", agent_config.save_state_dir())
         # printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
         # printd("Index path:", agent_config.save_agent_index_dir())
@@ -549,6 +549,7 @@ def run(
         )
 
         # create agent
+        tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
         letta_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
 
     else:  # create new agent
