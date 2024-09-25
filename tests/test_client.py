@@ -348,6 +348,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     print(jobs)
     assert upload_job.id in [j.id for j in jobs]
     assert len(active_jobs) == 1
+    assert active_jobs[0].metadata_["source_id"] == source.id
 
     # wait for job to finish (with timeout)
     timeout = 120
