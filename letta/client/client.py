@@ -5,7 +5,6 @@ from typing import Callable, Dict, Generator, List, Optional, Union
 import requests
 
 import letta.utils
-from letta.config import LettaConfig
 from letta.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
@@ -42,7 +41,6 @@ from letta.schemas.openai.chat_completions import ToolCall
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
-from letta.schemas.user import UserCreate
 from letta.server.rest_api.interface import QueuingInterface
 from letta.server.server import SyncServer
 from letta.utils import get_human_text, get_persona_text

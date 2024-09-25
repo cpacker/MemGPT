@@ -1963,18 +1963,18 @@ class SyncServer(Server):
 
         return self.get_default_user()
         ## NOTE: same code as local client to get the default user
-        #config = LettaConfig.load()
-        #user_id = config.anon_clientid
-        #user = self.get_user(user_id)
+        # config = LettaConfig.load()
+        # user_id = config.anon_clientid
+        # user = self.get_user(user_id)
 
-        #if not user:
+        # if not user:
         #    user = self.create_user(UserCreate())
 
         #    # # update config
         #    config.anon_clientid = str(user.id)
         #    config.save()
 
-        #return user
+        # return user
 
     def list_models(self) -> List[LLMConfig]:
         """List available models"""
