@@ -313,6 +313,7 @@ def create(
         if "inference.memgpt.ai" in llm_config.model_endpoint:
             # override user id for inference.memgpt.ai
             import uuid
+
             data.user = str(uuid.UUID(int=0))
 
         if stream:  # Client requested token streaming

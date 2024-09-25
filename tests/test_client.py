@@ -52,7 +52,7 @@ def run_server():
 def client(request):
     if request.param["server"]:
         # get URL from enviornment
-        server_url = os.getenv("MEMGPT_SERVER_URL")
+        server_url = os.getenv("LETTA_SERVER_URL")
         if server_url is None:
             # run server in thread
             # NOTE: must set MEMGPT_SERVER_PASS enviornment variable
