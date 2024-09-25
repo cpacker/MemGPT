@@ -1,11 +1,13 @@
 # Add your utilities or helper functions to this file.
 
-import os
-from dotenv import load_dotenv, find_dotenv
-from IPython.display import display, HTML
-import json
 import html
+import json
+import os
 import re
+
+from dotenv import find_dotenv, load_dotenv
+from IPython.display import HTML, display
+
 
 # these expect to find a .env file at the directory above the lesson.                                                                                                                     # the format for that file is (without the comment)                                                                                                                                       #API_KEYNAME=AStringThatIsTheLongAPIKeyFromSomeService                                                                                                                                     
 def load_env():
