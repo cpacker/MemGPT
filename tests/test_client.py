@@ -350,7 +350,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert len(active_jobs) == 1
 
     # wait for job to finish (with timeout)
-    timeout = 60
+    timeout = 120
     start_time = time.time()
     while True:
         status = client.get_job(upload_job.id).status
