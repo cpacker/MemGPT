@@ -26,7 +26,7 @@ from icml_experiments.utils import get_experiment_config, load_gzipped_file
 from openai import OpenAI
 from tqdm import tqdm
 
-from letta import letta, utils
+from letta import utils
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.cli.cli_config import delete
 from letta.config import LettaConfig

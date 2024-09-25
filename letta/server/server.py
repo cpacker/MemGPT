@@ -1043,7 +1043,7 @@ class SyncServer(Server):
             existing_block = existing_blocks[0]
             assert len(existing_blocks) == 1
             if update:
-                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)), user_id)
+                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
             else:
                 raise ValueError(f"Block with name {request.name} already exists")
         block = Block(**vars(request))

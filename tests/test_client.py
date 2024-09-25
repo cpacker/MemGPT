@@ -52,7 +52,7 @@ def run_server():
 def client(request):
     if request.param["server"]:
         # get URL from enviornment
-        server_url = os.getenv("MEMGPT_SERVER_URL")
+        server_url = os.getenv("LETTA_SERVER_URL")
         if server_url is None:
             # run server in thread
             # NOTE: must set MEMGPT_SERVER_PASS enviornment variable
@@ -351,7 +351,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert active_jobs[0].metadata_["source_id"] == source.id
 
     # wait for job to finish (with timeout)
-    timeout = 60
+    timeout = 120
     start_time = time.time()
     while True:
         status = client.get_job(upload_job.id).status

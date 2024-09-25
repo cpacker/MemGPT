@@ -9,15 +9,15 @@ from dotenv import find_dotenv, load_dotenv
 from IPython.display import HTML, display
 
 
-# these expect to find a .env file at the directory above the lesson.                                                                                                                     # the format for that file is (without the comment)                                                                                                                                       #API_KEYNAME=AStringThatIsTheLongAPIKeyFromSomeService                                                                                                                                     
+# these expect to find a .env file at the directory above the lesson.                                                                                                                     # the format for that file is (without the comment)                                                                                                                                       #API_KEYNAME=AStringThatIsTheLongAPIKeyFromSomeService
 def load_env():
     _ = load_dotenv(find_dotenv())
+
 
 def get_openai_api_key():
     load_env()
     openai_api_key = os.getenv("OPENAI_API_KEY")
     return openai_api_key
-
 
 
 def nb_print(messages):
@@ -76,7 +76,7 @@ def nb_print(messages):
             if "message" in return_data and return_data["message"] == "None":
                 continue
 
-        title = msg.message_type.replace('_', ' ').upper()
+        title = msg.message_type.replace("_", " ").upper()
         html_output += f"""
         <div class="message">
             <div class="title">{title}</div>
@@ -87,6 +87,7 @@ def nb_print(messages):
     html_output += "</div>"
     display(HTML(html_output))
 
+
 def get_formatted_content(msg):
     if msg.message_type == "internal_monologue":
         return f'<div class="content"><span class="internal-monologue">{html.escape(msg.internal_monologue)}</span></div>'
@@ -96,7 +97,7 @@ def get_formatted_content(msg):
     elif msg.message_type == "function_return":
 
         return_value = format_json(msg.function_return)
-        #return f'<div class="status-line">Status: {html.escape(msg.status)}</div><div class="content">{return_value}</div>'
+        # return f'<div class="status-line">Status: {html.escape(msg.status)}</div><div class="content">{return_value}</div>'
         return f'<div class="content">{return_value}</div>'
     elif msg.message_type == "user_message":
         if is_json(msg.message):
@@ -108,6 +109,7 @@ def get_formatted_content(msg):
     else:
         return f'<div class="content">{html.escape(str(msg))}</div>'
 
+
 def is_json(string):
     try:
         json.loads(string)
@@ -115,16 +117,17 @@ def is_json(string):
     except ValueError:
         return False
 
+
 def format_json(json_str):
     try:
         parsed = json.loads(json_str)
         formatted = json.dumps(parsed, indent=2, ensure_ascii=False)
-        formatted = formatted.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        formatted = formatted.replace('\n', '<br>').replace('  ', '&nbsp;&nbsp;')
+        formatted = formatted.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        formatted = formatted.replace("\n", "<br>").replace("  ", "&nbsp;&nbsp;")
         formatted = re.sub(r'(".*?"):', r'<span class="json-key">\1</span>:', formatted)
         formatted = re.sub(r': (".*?")', r': <span class="json-string">\1</span>', formatted)
-        formatted = re.sub(r': (\d+)', r': <span class="json-number">\1</span>', formatted)
-        formatted = re.sub(r': (true|false)', r': <span class="json-boolean">\1</span>', formatted)
+        formatted = re.sub(r": (\d+)", r': <span class="json-number">\1</span>', formatted)
+        formatted = re.sub(r": (true|false)", r': <span class="json-boolean">\1</span>', formatted)
         return formatted
     except json.JSONDecodeError:
         return html.escape(json_str)

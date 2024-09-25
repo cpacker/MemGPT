@@ -64,7 +64,7 @@ class Settings(BaseSettings):
         if self.llm_model:
             try:
                 return LLMConfig.default_config(self.llm_model)
-            except ValueError as e:
+            except ValueError:
                 pass
 
         # try to read from config file (last resort)

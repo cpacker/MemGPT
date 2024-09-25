@@ -31,7 +31,7 @@ import openai
 from icml_experiments.utils import get_experiment_config, load_gzipped_file
 from tqdm import tqdm
 
-from letta import letta, utils
+from letta import utils
 from letta.cli.cli_config import delete
 from letta.config import LettaConfig
 

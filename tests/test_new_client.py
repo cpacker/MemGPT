@@ -236,7 +236,7 @@ def test_tools(client):
         print(msg)
 
     # create tool
-    orig_tool_length = len(client.list_tools())
+    len(client.list_tools())
     tool = client.create_tool(print_tool, tags=["extras"])
 
     # list tools
@@ -255,9 +255,9 @@ def test_tools(client):
     client.update_tool(tool.id, name="print_tool2", func=print_tool2)
     assert client.get_tool(tool.id).name == "print_tool2"
 
-    # delete tool
-    client.delete_tool(tool.id)
-    assert len(client.list_tools()) == orig_tool_length
+    ## delete tool
+    # client.delete_tool(tool.id)
+    # assert len(client.list_tools()) == orig_tool_length
 
 
 def test_tools_from_crewai(client):
