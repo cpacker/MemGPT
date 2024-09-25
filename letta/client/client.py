@@ -2082,7 +2082,7 @@ class LocalClient(AbstractClient):
         Returns:
             job (Job): Data loading job including job status and metadata
         """
-        metadata_ = ({"type": "embedding", "filename": filename, "source_id": source_id},)
+        metadata_ = {"type": "embedding", "filename": filename, "source_id": source_id}
         job = self.server.create_job(user_id=self.user_id, metadata=metadata_)
 
         # TODO: implement blocking vs. non-blocking

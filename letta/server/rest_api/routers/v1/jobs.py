@@ -21,6 +21,9 @@ def list_jobs(
 
     # TODO: add filtering by status
     jobs = server.list_jobs(user_id=actor.id)
+
+    # TODO: eventually use ORM
+    # results = session.query(JobModel).filter(JobModel.user_id == user_id, JobModel.metadata_["source_id"].astext == sourced_id).all()
     if source_id:
         # can't be in the ORM since we have source_id stored in the metadata_
         jobs = [job for job in jobs if job.metadata_.get("source_id") == source_id]

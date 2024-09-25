@@ -10,7 +10,7 @@ from letta.utils import get_utc_time
 
 class JobBase(LettaBase):
     __id_prefix__ = "job"
-    metadata_: Optional[dict] = Field({}, description="The metadata of the job.")
+    metadata_: Optional[dict] = Field(None, description="The metadata of the job.")
 
 
 class Job(JobBase):
