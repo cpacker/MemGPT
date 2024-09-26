@@ -26,7 +26,9 @@ def generate_modules(config):
     return modules
 
 
-folder = "/Users/sarahwooders/repos/mintlify-docs/python-reference"
+# get PYTHON_DOC_DIR from environment
+folder = os.getenv("PYTHON_DOC_DIR")
+assert folder is not None, "PYTHON_DOC_DIR environment variable must be set"
 
 
 # Generate client documentation. This takes the documentation from the AbstractClient, but then appends the documentation from the LocalClient and RESTClient.
