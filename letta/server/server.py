@@ -6,7 +6,7 @@ import traceback
 import warnings
 from abc import abstractmethod
 from datetime import datetime
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from fastapi import HTTPException
 
@@ -1043,7 +1043,7 @@ class SyncServer(Server):
             existing_block = existing_blocks[0]
             assert len(existing_blocks) == 1
             if update:
-                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)), user_id)
+                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
             else:
                 raise ValueError(f"Block with name {request.name} already exists")
         block = Block(**vars(request))
@@ -1513,11 +1513,12 @@ class SyncServer(Server):
 
         # TODO: delete data from agent passage stores (?)
 
-    def create_job(self, user_id: str) -> Job:
+    def create_job(self, user_id: str, metadata: Optional[Dict] = None) -> Job:
         """Create a new job"""
         job = Job(
             user_id=user_id,
             status=JobStatus.created,
+            metadata_=metadata,
         )
         self.ms.create_job(job)
         return job
@@ -1627,8 +1628,18 @@ class SyncServer(Server):
         source_id: Optional[str] = None,
         source_name: Optional[str] = None,
     ) -> Source:
-        # TODO: remove all passages coresponding to source from agent's archival memory
-        raise NotImplementedError
+        if not source_id:
+            assert source_name is not None, "source_name must be provided if source_id is not"
+            source = self.ms.get_source(source_name=source_name, user_id=user_id)
+            source_id = source.id
+        else:
+            source = self.ms.get_source(source_id=source_id)
+
+        # delete all Passage objects with source_id==source_id from agent's archival memory
+        agent = self._get_or_load_agent(agent_id=agent_id)
+        archival_memory = agent.persistence_manager.archival_memory
+        archival_memory.storage.delete({"source_id": source_id})
+        return source
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         # list all attached sources to an agent

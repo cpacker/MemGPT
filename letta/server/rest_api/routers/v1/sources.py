@@ -114,7 +114,7 @@ def attach_source_to_agent(
     return source
 
 
-@router.post("/{source_id}/detach", response_model=None, operation_id="detach_agent_from_source")
+@router.post("/{source_id}/detach", response_model=Source, operation_id="detach_agent_from_source")
 def detach_source_from_agent(
     source_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to detach the source from."),
@@ -125,7 +125,7 @@ def detach_source_from_agent(
     """
     actor = server.get_current_user()
 
-    server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor.id)
+    return server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor.id)
 
 
 @router.post("/{source_id}/upload", response_model=Job, operation_id="upload_file_to_source")

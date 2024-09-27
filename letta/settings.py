@@ -1,6 +1,6 @@
+import os
 from pathlib import Path
 from typing import Optional
-import os
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -64,11 +64,12 @@ class Settings(BaseSettings):
         if self.llm_model:
             try:
                 return LLMConfig.default_config(self.llm_model)
-            except ValueError as e:
+            except ValueError:
                 pass
 
         # try to read from config file (last resort)
         from letta.config import LettaConfig
+
         if LettaConfig.exists():
             config = LettaConfig.load()
             llm_config = LLMConfig(
@@ -79,12 +80,12 @@ class Settings(BaseSettings):
                 context_window=config.default_llm_config.context_window,
             )
             return llm_config
-    
+
         # check OpenAI API key
-        if os.getenv("OPENAI_API_KEY"): 
+        if os.getenv("OPENAI_API_KEY"):
             return LLMConfig.default_config(self.llm_model if self.llm_model else "gpt-4")
 
-        return LLMConfig.default_config("letta")        
+        return LLMConfig.default_config("letta")
 
     @property
     def embedding_config(self):
@@ -118,6 +119,7 @@ class Settings(BaseSettings):
 
         # try to read from config file (last resort)
         from letta.config import LettaConfig
+
         if LettaConfig.exists():
             config = LettaConfig.load()
             return EmbeddingConfig(
@@ -127,10 +129,10 @@ class Settings(BaseSettings):
                 embedding_dim=config.default_embedding_config.embedding_dim,
                 embedding_chunk_size=config.default_embedding_config.embedding_chunk_size,
             )
-        
+
         if os.getenv("OPENAI_API_KEY"):
             return EmbeddingConfig.default_config(self.embedding_model if self.embedding_model else "text-embedding-ada-002")
-        
+
         return EmbeddingConfig.default_config("letta")
 
     @property
@@ -161,5 +163,5 @@ class TestSettings(Settings):
 
 
 # singleton
-settings = Settings(_env_parse_none_str='None')
+settings = Settings(_env_parse_none_str="None")
 test_settings = TestSettings()
