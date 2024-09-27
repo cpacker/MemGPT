@@ -49,7 +49,6 @@ jobs:
         LETTA_PG_USER: letta
         LETTA_PG_PASSWORD: letta
         LETTA_PG_PORT: 8888
-        LETTA_SERVER_PASS: test_server_token
         LETTA_SERVER_URL: http://localhost:8083
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
