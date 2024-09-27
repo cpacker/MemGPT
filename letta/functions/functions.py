@@ -1,16 +1,11 @@
 import importlib
 import inspect
 import os
-import sys
 from textwrap import dedent  # remove indentation
 from types import ModuleType
 
-from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR
+from letta.constants import CLI_WARNING_PREFIX
 from letta.functions.schema_generator import generate_schema
-
-USER_FUNCTIONS_DIR = os.path.join(LETTA_DIR, "functions")
-
-sys.path.append(USER_FUNCTIONS_DIR)
 
 
 def parse_source_code(func) -> str:
@@ -66,24 +61,6 @@ def validate_function(module_name, module_full_path):
         return False, f"{CLI_WARNING_PREFIX}skipped loading python file '{file}': {e}"
 
     return True, None
-
-
-def write_function(module_name: str, function_name: str, function_code: str):
-    """Write a function to a file in the user functions directory"""
-    # Create the user functions directory if it doesn't exist
-    if not os.path.exists(USER_FUNCTIONS_DIR):
-        os.makedirs(USER_FUNCTIONS_DIR)
-
-    # Write the function to a file
-    file_path = os.path.join(USER_FUNCTIONS_DIR, f"{module_name}.py")
-    with open(file_path, "w", encoding="utf-8") as f:
-        f.write(function_code)
-    succ, error = validate_function(module_name, file_path)
-
-    # raise error if function cannot be loaded
-    if not succ:
-        raise ValueError(error)
-    return file_path
 
 
 def load_function_file(filepath: str) -> dict:
