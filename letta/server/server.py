@@ -1752,7 +1752,7 @@ class SyncServer(Server):
 
             # TODO: not sure if this always works
             func = env[functions[-1]]
-            json_schema = generate_schema(func, request.name)
+            json_schema = generate_schema(func)
         else:
             # provided by client
             json_schema = request.json_schema
