@@ -29,7 +29,7 @@ class TableType:
 
 # agent tables
 RECALL_TABLE_NAME = "letta_recall_memory_agent"  # agent memory
-ARCHIVAL_TABLE_NAME = "letta_archival_memory_agent"  # agent memory
+ARCHIVAL_TABLE_NAME = "passages"  # agent memory
 
 # external data source tables
 PASSAGE_TABLE_NAME = "letta_passages"  # chunked/embedded passages (from source)

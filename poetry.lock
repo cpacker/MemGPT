@@ -6493,6 +6493,19 @@ timezone = ["python-dateutil"]
 url = ["furl (>=0.4.1)"]
 
 [[package]]
+name = "sqlite-vec"
+version = "0.1.2"
+description = ""
+optional = false
+python-versions = "*"
+files = [
+    {file = "sqlite_vec-0.1.2-py3-none-macosx_10_6_x86_64.whl", hash = "sha256:8e55ed19f55078048df4f1a5fded343940384a69dd3e093a3633b8ab8c8a8d8b"},
+    {file = "sqlite_vec-0.1.2-py3-none-macosx_11_0_arm64.whl", hash = "sha256:ea79389e4c16e5c0b5ee52099796705db52032219d669ee72c8ca299dd2f1754"},
+    {file = "sqlite_vec-0.1.2-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.manylinux1_x86_64.whl", hash = "sha256:5db255c0dc060d3675b8d7906c3511d4f7143e846b8e50a047aae8869b30436f"},
+    {file = "sqlite_vec-0.1.2-py3-none-win_amd64.whl", hash = "sha256:d473e62ef22c67eb19bbf51ee50999753cd3cc3e0d458411039c7b5518e10fc8"},
+]
+
+[[package]]
 name = "sqlmodel"
 version = "0.0.16"
 description = "SQLModel, SQL databases in Python, designed for simplicity, compatibility, and robustness."
@@ -7819,4 +7832,4 @@ server = ["fastapi", "uvicorn", "websockets"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "e13bb1fe8b39e5cc233b9a5fc1d62e671e9475a4e5c7961548dfc2c958f19f2f"
+content-hash = "68a79cd0a1d1100bb351079d427c057f4f5bf7c448ea208621b2d50c60532a0e"

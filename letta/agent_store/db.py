@@ -51,11 +51,20 @@ class CommonVector(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is None:
             return value
-        # Ensure value is a numpy array
-        if isinstance(value, list):
-            value = np.array(value, dtype=np.float32)
-        # Serialize numpy array to bytes, then encode to base64 for universal compatibility
-        return base64.b64encode(value.tobytes())
+
+        if dialect.name == "sqlite":
+            if not isinstance(value, list):
+                value = np.array.tolist()
+            import struct
+
+            """serializes a list of floats into a compact "raw bytes" format"""
+            return struct.pack("%sf" % MAX_EMBEDDING_DIM, *value)
+        else:
+            # Ensure value is a numpy array
+            if isinstance(value, list):
+                value = np.array(value, dtype=np.float32)
+            # Serialize numpy array to bytes, then encode to base64 for universal compatibility
+            return base64.b64encode(value.tobytes())
 
     def process_result_value(self, value, dialect):
         if not value:
@@ -63,7 +72,11 @@ class CommonVector(TypeDecorator):
         # Check database type and deserialize accordingly
         if dialect.name == "sqlite":
             # Decode from base64 and convert back to numpy array
-            value = base64.b64decode(value)
+            # value = base64.b64decode(value)
+            import struct
+
+            return struct.unpack("%sf" % MAX_EMBEDDING_DIM, value)
+            # return value
         # For PostgreSQL, value is already in bytes
         return np.frombuffer(value, dtype=np.float32)
 
@@ -484,7 +497,8 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
         # get storage URI
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
-            raise ValueError(f"Table type {table_type} not implemented")
+            self.path = self.config.archival_storage_path
+            self.db_model = PassageModel
         elif table_type == TableType.RECALL_MEMORY:
             # TODO: eventually implement URI option
             self.path = self.config.recall_storage_path
@@ -504,11 +518,114 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
         # sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
         # sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
+        import sqlite3
+
+        import sqlite_vec
+
+        # db = sqlite3.connect(":memory:")
+        # self.db.execute("CREATE VIRTUAL TABLE vec_items USING vec0(embedding float[4])")
+        with self.session_maker() as session:
+            session = sqlite3.connect(self.path)
+            session.enable_load_extension(True)
+            sqlite_vec.load(session)
+            session.enable_load_extension(False)
+
+        print("TABLENAME", self.db_model.__tablename__)
+        # from langchain: https://github.com/langchain-ai/langchain/blob/master/libs/community/langchain_community/vectorstores/sqlitevss.py
+        if table_type == TableType.ARCHIVAL_MEMORY:
+
+            with self.session_maker() as session:
+                session.execute(
+                    text(
+                        f"""
+                        CREATE VIRTUAL TABLE IF NOT EXISTS vss_{self.db_model.__tablename__} USING vec0(embedding float[{MAX_EMBEDDING_DIM}]);
+                    """
+                    )
+                )
+                session.execute(
+                    text(
+                        f"""
+                        CREATE TRIGGER IF NOT EXISTS embed_text
+                        AFTER INSERT ON {self.db_model.__tablename__}
+                        BEGIN
+                            INSERT INTO vss_{self.db_model.__tablename__}(rowid, passage_id, embedding)
+                            VALUES (new.rowid, new.id, new.embedding)
+                            ;
+                        END;
+                    """
+                    )
+                )
+                session.commit()
+
+        # vec_version, = self.db.execute("select vec_version()").fetchone()
+        # print(f"vec_version={vec_version}")
+
+    def serialize_f32(self, vector: List[float]) -> bytes:
+        import struct
+
+        """serializes a list of floats into a compact "raw bytes" format"""
+        return struct.pack("%sf" % len(vector), *vector)
+
+    def get_filters_str(self, filters):
+        # Construct WHERE clauses based on the filters dictionary
+        # Example: return " AND ".join([f"{k}='{v}'" for k, v in filters.items()])
+        return " AND ".join([f"{k}='{v}'" for k, v in filters.items() if v is not None and v != ""])
+
+    def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
+        print("FILTERS", filters)
+        # filters = self.get_filters(filters)
+        serialized_vec = self.serialize_f32(query_vec)
+        where_clause = self.get_filters_str(filters)
+        if where_clause:
+            where_clause = " AND " + where_clause
+            sql = text(
+                f"""
+                SELECT *, vec_dist(embedding, ARRAY[{serialized_vec}]) as distance
+                FROM vss_{self.db_model.__tablename__}
+                WHERE 1=1{where_clause}
+                ORDER BY distance ASC
+                LIMIT :top_k
+            """
+            )
+        else:
+            sql = text(
+                f"""
+                SELECT *, vec_dist(embedding, :query_vec) as distance
+                FROM vss_{self.db_model.__tablename__}
+                ORDER BY distance ASC
+                LIMIT :top_k
+            """
+            )
+
+        sql = text(
+            f"""
+            SELECT
+              rowid,
+              distance
+            FROM vss_{self.db_model.__tablename__}
+            WHERE embedding MATCH :query_vec
+            ORDER BY distance
+            LIMIT :top_k
+        """
+        )
+
+        with self.session_maker() as session:
+            # results = session.scalars(
+            #    select(self.db_model).filter(*filters).order_by(self.db_model.embedding.l2_distance(query_vec)).limit(top_k)
+            # ).all()
+
+            result = session.execute(sql, {"top_k": top_k, "query_vec": serialized_vec})
+            results = result.fetchall()
+            [r[0] for r in results]
+            print(results[0])
+
+        # Convert the results into Passage objects
+        records = [result.to_record() for result in results]
+        return records
 
     def insert_many(self, records, exists_ok=True, show_progress=False):
-        pass
-
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
+        print("inserting", len(records))
         if len(records) == 0:
             return
         with self.session_maker() as session:
