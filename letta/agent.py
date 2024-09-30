@@ -349,13 +349,11 @@ class Agent(BaseAgent):
                     exec(tool.module, env)
                 else:
                     exec(tool.source_code, env)
-                from pprint import pprint
 
-                pprint(tool.json_schema)
                 self.functions_python[tool.json_schema["name"]] = env[tool.json_schema["name"]]
                 self.functions.append(tool.json_schema)
             except Exception as e:
-                print(f"WARNING: tool {tool.name} failed to link")
+                warnings.warn(f"WARNING: tool {tool.name} failed to link")
                 print(e)
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
