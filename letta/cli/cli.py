@@ -464,7 +464,6 @@ def run(
     # read user id from config
     ms = MetadataStore(config)
     client = create_client()
-    print("CLIENT USER", client.user_id)
 
     # determine agent to use, if not provided
     if not yes and not agent:
