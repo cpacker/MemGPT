@@ -1772,7 +1772,7 @@ class SyncServer(Server):
             name=request.name,
             source_code=request.source_code,
             source_type=request.source_type,
-            tags=request.tags,
+            tags=request.tags if request.tags else [],
             json_schema=json_schema,
             user_id=user_id,
         )
