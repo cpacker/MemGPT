@@ -45,6 +45,7 @@ def list_agents(
     This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
     """
     actor = server.get_current_user()
+    print("CURRENT USER", actor)
 
     return server.list_agents(user_id=actor.id)
 

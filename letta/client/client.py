@@ -1362,6 +1362,8 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
+        print("client user id", user_id)
+
         # save user_id that `LocalClient` is associated with
         if user_id:
             self.user_id = user_id

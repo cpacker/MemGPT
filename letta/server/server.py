@@ -1441,10 +1441,6 @@ class SyncServer(Server):
             logger.exception(f"Failed to delete agent {agent_id} via ID with:\n{str(e)}")
             raise ValueError(f"Failed to delete agent {agent_id} in database")
 
-    def authenticate_user(self) -> str:
-        # TODO: Implement actual authentication to enable multi user setup
-        return str(LettaConfig.load().anon_clientid)
-
     def api_key_to_user(self, api_key: str) -> str:
         """Decode an API key to a user"""
         user = self.ms.get_user_from_api_key(api_key=api_key)
@@ -1973,19 +1969,6 @@ class SyncServer(Server):
                 return current_user
 
         return self.get_default_user()
-        ## NOTE: same code as local client to get the default user
-        # config = LettaConfig.load()
-        # user_id = config.anon_clientid
-        # user = self.get_user(user_id)
-
-        # if not user:
-        #    user = self.create_user(UserCreate())
-
-        #    # # update config
-        #    config.anon_clientid = str(user.id)
-        #    config.save()
-
-        # return user
 
     def list_models(self) -> List[LLMConfig]:
         """List available models"""
