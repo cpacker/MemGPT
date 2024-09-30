@@ -237,10 +237,8 @@ class Agent(BaseAgent):
         self.agent_state = agent_state
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
-        try:
-            self.link_tools(tools)
-        except Exception as e:
-            raise ValueError(f"Encountered an error while trying to link agent tools during initialization:\n{str(e)}")
+        # link tools
+        self.link_tools(tools)
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
@@ -345,16 +343,20 @@ class Agent(BaseAgent):
         env = {}
         env.update(globals())
         for tool in tools:
-            # WARNING: name may not be consistent?
-            if tool.module:  # execute the whole module
-                exec(tool.module, env)
-            else:
-                exec(tool.source_code, env)
-            from pprint import pprint
+            try:
+                # WARNING: name may not be consistent?
+                if tool.module:  # execute the whole module
+                    exec(tool.module, env)
+                else:
+                    exec(tool.source_code, env)
+                from pprint import pprint
 
-            pprint(tool.json_schema)
-            self.functions_python[tool.json_schema["name"]] = env[tool.json_schema["name"]]
-            self.functions.append(tool.json_schema)
+                pprint(tool.json_schema)
+                self.functions_python[tool.json_schema["name"]] = env[tool.json_schema["name"]]
+                self.functions.append(tool.json_schema)
+            except Exception as e:
+                print(f"WARNING: tool {tool.name} failed to link")
+                print(e)
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
     def _load_messages_from_recall(self, message_ids: List[str]) -> List[Message]:
