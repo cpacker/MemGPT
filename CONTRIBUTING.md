@@ -16,7 +16,7 @@ First things first, let's get you a personal copy of Letta to play with. Think o
 Now, let's bring your new playground to your local machine.
 
 ```shell
-git clone https://github.com/your-username/Letta.git
+git clone https://github.com/your-username/MemGPT.git
 ```
 
 ### 🧩 Install Dependencies

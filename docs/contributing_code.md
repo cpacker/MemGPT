@@ -12,16 +12,16 @@ Once you have a working copy of the source code, you should be able to modify th
 >
 > If you plan on contributing your changes, you should create a fork of the Letta repo and install the source code from your fork.
 >
-> Please see [our contributing guide](https://github.com/cpacker/Letta/blob/main/CONTRIBUTING.md) for instructions on how to install from a fork and open a PR.
+> Please see [our contributing guide](https://github.com/cpacker/MemGPT/blob/main/CONTRIBUTING.md) for instructions on how to install from a fork and open a PR.
 
 ## Installing Letta from source
 
-**Reminder**: if you plan on opening a pull request to contribute your changes, follow our [contributing guide's install instructions](https://github.com/cpacker/Letta/blob/main/CONTRIBUTING.md) instead!
+**Reminder**: if you plan on opening a pull request to contribute your changes, follow our [contributing guide's install instructions](https://github.com/cpacker/MemGPT/blob/main/CONTRIBUTING.md) instead!
 
 To install Letta from source, start by cloning the repo:
 
 ```sh
-git clone git@github.com:cpacker/Letta.git
+git clone git@github.com:cpacker/MemGPT.git
 ```
 
 ### Installing dependencies with poetry (recommended)
