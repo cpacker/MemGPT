@@ -350,7 +350,10 @@ class Agent(BaseAgent):
                 exec(tool.module, env)
             else:
                 exec(tool.source_code, env)
-            self.functions_python[tool.name] = env[tool.name]
+            from pprint import pprint
+
+            pprint(tool.json_schema)
+            self.functions_python[tool.name] = env[tool.json_schema["name"]]
             self.functions.append(tool.json_schema)
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 

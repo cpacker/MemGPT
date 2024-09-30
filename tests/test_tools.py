@@ -106,7 +106,7 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
     tools = client.list_tools()
     print(f"Original tools {[t.name for t in tools]}")
 
-    tool = client.create_tool(print_tool, tags=["extras"])
+    tool = client.create_tool(print_tool, name="my_name", tags=["extras"])
 
     tools = client.list_tools()
     assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
@@ -116,6 +116,10 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
     tool = client.get_tool(tool.id)
     assert tool is not None, "Expected tool to be created"
     assert tool.id == tool.id, f"Expected {tool.id} to be {tool.id}"
+
+    # create agent with tool
+    agent_state = client.create_agent(tools=[tool.name])
+    response = client.user_message(agent_id=agent_state.id, message="hi")
 
 
 # TODO: add back once we fix admin client tool creation
