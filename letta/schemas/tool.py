@@ -2,11 +2,11 @@ from typing import Dict, List, Optional
 
 from pydantic import Field
 
-from letta.functions.schema_generator import (
+from letta.functions.helpers import (
     generate_crewai_tool_wrapper,
     generate_langchain_tool_wrapper,
-    generate_schema_from_args_schema,
 )
+from letta.functions.schema_generator import generate_schema_from_args_schema
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.openai.chat_completions import ToolCall
 
@@ -58,13 +58,13 @@ class Tool(BaseTool):
         )
 
     @classmethod
-    def from_langchain(cls, langchain_tool: "LangChainBaseTool", additional_module_attr_import_map: dict[str, str] = None) -> "Tool":
+    def from_langchain(cls, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> "Tool":
         """
         Class method to create an instance of Tool from a Langchain tool (must be from langchain_community.tools).
 
         Args:
             langchain_tool (LangChainBaseTool): An instance of a crewAI BaseTool (BaseTool from crewai)
-            additional_module_attr_import_map (dict[str, str]): A mapping of module names to attribute name. This is used internally to import all the required classes for the langchain tool. For example, you would pass in `{"langchain_community.utilities": "WikipediaAPIWrapper"}` for `from langchain_community.tools import WikipediaQueryRun`. NOTE: You do NOT need to specify the tool import here, that is done automatically for you.
+            additional_imports_module_attr_map (dict[str, str]): A mapping of module names to attribute name. This is used internally to import all the required classes for the langchain tool. For example, you would pass in `{"langchain_community.utilities": "WikipediaAPIWrapper"}` for `from langchain_community.tools import WikipediaQueryRun`. NOTE: You do NOT need to specify the tool import here, that is done automatically for you.
 
         Returns:
             Tool: A Letta Tool initialized with attributes derived from the provided crewAI BaseTool object.
@@ -73,7 +73,7 @@ class Tool(BaseTool):
         source_type = "python"
         tags = ["langchain"]
         # NOTE: langchain tools may come from different packages
-        wrapper_func_name, wrapper_function_str = generate_langchain_tool_wrapper(langchain_tool, additional_module_attr_import_map)
+        wrapper_func_name, wrapper_function_str = generate_langchain_tool_wrapper(langchain_tool, additional_imports_module_attr_map)
         json_schema = generate_schema_from_args_schema(langchain_tool.args_schema, name=wrapper_func_name, description=description)
 
         # append heartbeat (necessary for triggering another reasoning step after this tool call)

@@ -308,7 +308,7 @@ def test_tools_from_langchain(client):
     langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
 
     # Translate to memGPT Tool
-    tool = Tool.from_langchain(langchain_tool, additional_module_attr_import_map={"langchain_community.utilities": "WikipediaAPIWrapper"})
+    tool = Tool.from_langchain(langchain_tool, additional_imports_module_attr_map={"langchain_community.utilities": "WikipediaAPIWrapper"})
 
     # Add the tool
     client.add_tool(tool)

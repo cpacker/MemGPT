@@ -1,16 +1,13 @@
 import inspect
-import typing
 from typing import Any, Dict, Optional, Type, Union, get_args, get_origin
 
-from crewai_tools.tools.base_tool import BaseModel as CrewAiBaseModel
 from docstring_parser import parse
-from langchain_core.pydantic_v1 import BaseModel as LangChainBaseModel
 from pydantic import BaseModel
 
 
 def is_optional(annotation):
     # Check if the annotation is a Union
-    if getattr(annotation, "__origin__", None) is typing.Union:
+    if getattr(annotation, "__origin__", None) is Union:
         # Check if None is one of the options in the Union
         return type(None) in annotation.__args__
     return False
@@ -166,134 +163,3 @@ def generate_schema_from_args_schema(
     }
 
     return function_call_json
-
-
-def generate_langchain_tool_wrapper(tool: "LangChainBaseTool", additional_module_attr_import_map: dict = None) -> tuple[str, str]:
-    tool_name = tool.__class__.__name__
-    import_statement = f"from langchain_community.tools import {tool_name}"
-    extra_module_imports = generate_import_code(additional_module_attr_import_map)
-
-    # Safety check that user has passed in all required imports:
-    current_class_imports = {tool_name}
-    if additional_module_attr_import_map:
-        current_class_imports.update(set(additional_module_attr_import_map.values()))
-    required_class_imports = set(find_required_class_names_for_import(tool))
-
-    if not current_class_imports.issuperset(required_class_imports):
-        err_msg = f"[ERROR] You are missing module_attr pairs in `additional_module_attr_import_map`. Currently, you have imports for {current_class_imports}, but the required classes for import are {required_class_imports}"
-        print(err_msg)
-        raise RuntimeError(err_msg)
-
-    tool_instantiation = f"tool = {generate_imported_tool_instantiation_call_str(tool)}"
-    run_call = f"return tool._run(**kwargs)"
-    func_name = f"run_{tool_name.lower()}"
-
-    # Combine all parts into the wrapper function
-    wrapper_function_str = f"""
-def {func_name}(**kwargs):
-    if 'self' in kwargs:
-        del kwargs['self']
-    import importlib
-    {import_statement}
-    {extra_module_imports}
-    {tool_instantiation}
-    {run_call}
-"""
-    return func_name, wrapper_function_str
-
-
-def generate_crewai_tool_wrapper(tool: "CrewAIBaseTool") -> tuple[str, str]:
-    tool_name = tool.__class__.__name__
-    import_statement = f"from crewai_tools import {tool_name}"
-    tool_instantiation = f"tool = {generate_imported_tool_instantiation_call_str(tool)}"
-    run_call = f"return tool._run(**kwargs)"
-    func_name = f"run_{tool_name.lower()}"
-
-    # Combine all parts into the wrapper function
-    wrapper_function_str = f"""
-def {func_name}(**kwargs):
-    if 'self' in kwargs:
-        del kwargs['self']
-    {import_statement}
-    {tool_instantiation}
-    {run_call}
-"""
-    return func_name, wrapper_function_str
-
-
-def find_required_class_names_for_import(obj: Union["LangChainBaseTool", "CrewAIBaseTool", BaseModel]) -> list[str]:
-    class_names = {obj.__class__.__name__}
-    q = [obj]
-
-    while q:
-        curr_obj = q.pop()
-        candidates = []
-        if is_base_model(curr_obj):
-            fields = dict(curr_obj)
-            # Generate code for each field, skipping empty or None values
-            candidates = list(fields.values())
-        elif isinstance(curr_obj, dict):
-            candidates = list(curr_obj.values())
-        elif isinstance(curr_obj, list):
-            candidates = curr_obj
-
-        # Filter out all candidates that are not BaseModels
-        candidates = filter(lambda x: is_base_model(x), candidates)
-
-        for c in candidates:
-            c_name = c.__class__.__name__
-            if c_name not in class_names:
-                class_names.add(c_name)
-                q.append(c)
-    return list(class_names)
-
-
-def generate_imported_tool_instantiation_call_str(obj: Any) -> Optional[str]:
-    if isinstance(obj, (int, float, str, bool, type(None))):
-        # Handle basic types
-        return repr(obj)
-    elif is_base_model(obj):
-        model_name = obj.__class__.__name__
-        fields = dict(obj)
-        # Generate code for each field, skipping empty or None values
-        field_assignments = []
-        for arg, value in fields.items():
-            python_string = generate_imported_tool_instantiation_call_str(value)
-            if python_string:
-                field_assignments.append(f"{arg}={python_string}")
-
-        return f"{model_name}({", ".join(field_assignments)})"
-    elif isinstance(obj, dict):
-        dict_items = []
-        for k, v in obj.items():
-            python_string = generate_imported_tool_instantiation_call_str(v)
-            if python_string:
-                dict_items.append(f"{repr(k)}: {python_string}")
-
-        return f"{{{", ".join(dict_items)}}}"
-    elif isinstance(obj, list):
-        list_items = [generate_imported_tool_instantiation_call_str(v) for v in obj]
-        filtered_list_items = list(filter(None, list_items))
-        list_items = ", ".join(filtered_list_items)
-        return f"[{list_items}]"
-    else:
-        print(
-            f"[WARNING] Skipping parsing unknown class {obj.__class__.__name__} (does not inherit from the Pydantic BaseModel and is not a basic Python type)"
-        )
-        return None
-
-
-def is_base_model(obj: Any):
-    return isinstance(obj, BaseModel) or isinstance(obj, LangChainBaseModel) or isinstance(obj, CrewAiBaseModel)
-
-
-def generate_import_code(module_attr_map: Optional[dict]):
-    if not module_attr_map:
-        return ""
-
-    code_lines = []
-    for module, attr in module_attr_map.items():
-        code_lines.append(f"# Load the module\n    {module.split('.')[-1]} = importlib.import_module('{module}')")
-        code_lines.append(f"    # Access the {attr} from the module")
-        code_lines.append(f"    {attr} = getattr({module.split('.')[-1]}, '{attr}')")
-    return "\n".join(code_lines)
