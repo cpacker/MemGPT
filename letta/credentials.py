@@ -31,6 +31,10 @@ class LettaCredentials:
     # azure config
     azure_auth_type: str = "api_key"
     azure_key: Optional[str] = None
+
+    # groq config
+    groq_key: Optional[str] = os.getenv("GROQ_API_KEY")
+
     # base llm / model
     azure_version: Optional[str] = None
     azure_endpoint: Optional[str] = None

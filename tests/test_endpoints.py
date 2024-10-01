@@ -108,3 +108,8 @@ def test_embedding_endpoint_ollama():
 def test_llm_endpoint_anthropic():
     filename = os.path.join(llm_config_dir, "anthropic.json")
     run_llm_endpoint(filename)
+
+
+def test_llm_endpoint_groq():
+    filename = os.path.join(llm_config_dir, "groq.json")
+    run_llm_endpoint(filename)
