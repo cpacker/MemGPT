@@ -1,6 +1,5 @@
 import inspect
-import typing
-from typing import Any, Dict, Optional, Type, get_args, get_origin
+from typing import Any, Dict, Optional, Type, Union, get_args, get_origin
 
 from docstring_parser import parse
 from pydantic import BaseModel
@@ -8,7 +7,7 @@ from pydantic import BaseModel
 
 def is_optional(annotation):
     # Check if the annotation is a Union
-    if getattr(annotation, "__origin__", None) is typing.Union:
+    if getattr(annotation, "__origin__", None) is Union:
         # Check if None is one of the options in the Union
         return type(None) in annotation.__args__
     return False
@@ -164,42 +163,3 @@ def generate_schema_from_args_schema(
     }
 
     return function_call_json
-
-
-def generate_langchain_tool_wrapper(tool_name: str) -> str:
-    import_statement = f"from langchain_community.tools import {tool_name}"
-
-    # NOTE: this will fail for tools like 'wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())' since it needs to pass an argument to the tool instantiation
-    # https://python.langchain.com/v0.1/docs/integrations/tools/wikipedia/
-    tool_instantiation = f"tool = {tool_name}()"
-    run_call = f"return tool._run(**kwargs)"
-    func_name = f"run_{tool_name.lower()}"
-
-    # Combine all parts into the wrapper function
-    wrapper_function_str = f"""
-def {func_name}(**kwargs):
-    if 'self' in kwargs:
-        del kwargs['self']
-    {import_statement}
-    {tool_instantiation}
-    {run_call}
-"""
-    return func_name, wrapper_function_str
-
-
-def generate_crewai_tool_wrapper(tool_name: str) -> str:
-    import_statement = f"from crewai_tools import {tool_name}"
-    tool_instantiation = f"tool = {tool_name}()"
-    run_call = f"return tool._run(**kwargs)"
-    func_name = f"run_{tool_name.lower()}"
-
-    # Combine all parts into the wrapper function
-    wrapper_function_str = f"""
-def {func_name}(**kwargs):
-    if 'self' in kwargs:
-        del kwargs['self']
-    {import_statement}
-    {tool_instantiation}
-    {run_call}
-"""
-    return func_name, wrapper_function_str

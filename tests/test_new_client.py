@@ -284,8 +284,6 @@ def test_tools_from_crewai(client):
     retrieved_tool = client.get_tool(tool_id)
     source_code = retrieved_tool.source_code
 
-    print(source_code)
-
     # Parse the function and attempt to use it
     local_scope = {}
     exec(source_code, {}, local_scope)
@@ -297,6 +295,56 @@ def test_tools_from_crewai(client):
     simple_webpage_url = "https://www.york.ac.uk/teaching/cws/wws/webpage1.html"
     expected_content = "There are lots of ways to create web pages using already coded programmes."
     assert expected_content in func(website_url=simple_webpage_url)
+
+
+def test_tools_from_langchain(client):
+    # create langchain tool
+    from langchain_community.tools import WikipediaQueryRun
+    from langchain_community.utilities import WikipediaAPIWrapper
+
+    from letta.schemas.tool import Tool
+
+    api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
+    langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
+
+    # Translate to memGPT Tool
+    tool = Tool.from_langchain(langchain_tool, additional_imports_module_attr_map={"langchain_community.utilities": "WikipediaAPIWrapper"})
+
+    # Add the tool
+    client.add_tool(tool)
+
+    # list tools
+    tools = client.list_tools()
+    assert tool.name in [t.name for t in tools]
+
+    # get tool
+    tool_id = client.get_tool_id(name=tool.name)
+    retrieved_tool = client.get_tool(tool_id)
+    source_code = retrieved_tool.source_code
+
+    # Parse the function and attempt to use it
+    local_scope = {}
+    exec(source_code, {}, local_scope)
+    func = local_scope[tool.name]
+
+    expected_content = "Albert Einstein ( EYEN-styne; German:"
+    assert expected_content in func(query="Albert Einstein")
+
+
+def test_tool_creation_langchain_missing_imports(client):
+    # create langchain tool
+    from langchain_community.tools import WikipediaQueryRun
+    from langchain_community.utilities import WikipediaAPIWrapper
+
+    from letta.schemas.tool import Tool
+
+    api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
+    langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
+
+    # Translate to memGPT Tool
+    # Intentionally missing {"langchain_community.utilities": "WikipediaAPIWrapper"}
+    with pytest.raises(RuntimeError):
+        Tool.from_langchain(langchain_tool)
 
 
 def test_sources(client, agent):
