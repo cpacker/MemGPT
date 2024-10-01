@@ -64,8 +64,8 @@ class CreateAgent(BaseAgent):
     memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
-    llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
-    embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
+    llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
+    embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
 
     @field_validator("name")
     @classmethod
