@@ -55,7 +55,7 @@ def run_llm_endpoint(filename):
         interface=None,
         tools=tools,
         agent_state=agent_state,
-        # gpt-3.5-turbo tends to omit inner monologue, relax th is requirement for now
+        # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
         first_message_verify_mono=True,
     )
 
