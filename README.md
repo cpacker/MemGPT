@@ -4,13 +4,13 @@
 [![arxiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 
 > [!NOTE]
-> **Looking for MemGPT?**
+> **Looking for MemGPT?** You're in the right place!
 >
-> The MemGPT package and Docker image have been renamed to `letta` to clarify the distinction between **MemGPT agents** and the API server / runtime that runs LLM agents as *services*.
+> The MemGPT package and Docker image have been renamed to `letta` to clarify the distinction between MemGPT agents and the API server / runtime that runs LLM agents as *services*.
 >
-> You use the **Letta framework** to create **MemGPT agents**. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
+> You use the **Letta _framework_** to create **MemGPT _agents_**. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
 
-See [documentation](https://docs.letta.com/introduction) for setup and usage.
+Visit our [documentation page](https://docs.letta.com) for information on setup and usage.
 
 ## How to Get Involved
 * **Contribute to the Project**: Interested in contributing? Start by reading our [Contribution Guidelines](https://github.com/cpacker/MemGPT/tree/main/CONTRIBUTING.md).
