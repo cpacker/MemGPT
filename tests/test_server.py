@@ -1,16 +1,18 @@
 import json
 import uuid
+import warnings
 
 import pytest
 
 import letta.utils as utils
-from letta.constants import BASE_TOOLS
+from letta.constants import BASE_TOOLS, DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.enums import MessageRole
 
 utils.DEBUG = True
 from letta.config import LettaConfig
 from letta.schemas.agent import CreateAgent
 from letta.schemas.letta_message import (
+    AssistantMessage,
     FunctionCallMessage,
     FunctionReturn,
     InternalMonologue,
@@ -236,7 +238,14 @@ def test_get_archival_memory(server, user_id, agent_id):
     assert len(passage_none) == 0
 
 
-def _test_get_messages_letta_format(server, user_id, agent_id, reverse=False, assistant_message=False):
+def _test_get_messages_letta_format(
+    server,
+    user_id,
+    agent_id,
+    reverse=False,
+    # flag that determines whether or not to use AssistantMessage, or just FunctionCallMessage universally
+    assistant_message=False,
+):
     """Reverse is off by default, the GET goes in chronological order"""
 
     messages = server.get_agent_recall_cursor(
@@ -244,6 +253,8 @@ def _test_get_messages_letta_format(server, user_id, agent_id, reverse=False, as
         agent_id=agent_id,
         limit=1000,
         reverse=reverse,
+        return_message_object=True,
+        assistant_message=assistant_message,
     )
     # messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000)
     assert all(isinstance(m, Message) for m in messages)
@@ -254,6 +265,7 @@ def _test_get_messages_letta_format(server, user_id, agent_id, reverse=False, as
         limit=1000,
         reverse=reverse,
         return_message_object=False,
+        assistant_message=assistant_message,
     )
     # letta_messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000, return_message_object=False)
     assert all(isinstance(m, LettaMessage) for m in letta_messages)
@@ -316,9 +328,30 @@ def _test_get_messages_letta_format(server, user_id, agent_id, reverse=False, as
                     # If there are multiple tool calls, we should have multiple back to back FunctionCallMessages
                     if message.tool_calls is not None:
                         for tool_call in message.tool_calls:
-                            assert isinstance(letta_message, FunctionCallMessage)
-                            letta_message_index += 1
-                            letta_message = letta_messages[letta_message_index]
+
+                            # Try to parse the tool call args
+                            try:
+                                func_args = json.loads(tool_call.function.arguments)
+                            except:
+                                warnings.warn(f"Function call arguments are not valid JSON: {tool_call.function.arguments}")
+                                func_args = {}
+
+                            # If assistant_message is True, we expect FunctionCallMessage to be AssistantMessage if the tool call is the assistant message tool
+                            if (
+                                assistant_message
+                                and tool_call.function.name == DEFAULT_MESSAGE_TOOL
+                                and DEFAULT_MESSAGE_TOOL_KWARG in func_args
+                            ):
+                                assert isinstance(letta_message, AssistantMessage)
+                                assert func_args[DEFAULT_MESSAGE_TOOL_KWARG] == letta_message.assistant_message
+                                letta_message_index += 1
+                                letta_message = letta_messages[letta_message_index]
+
+                            # Otherwise, we expect even a "send_message" tool call to be a FunctionCallMessage
+                            else:
+                                assert isinstance(letta_message, FunctionCallMessage)
+                                letta_message_index += 1
+                                letta_message = letta_messages[letta_message_index]
 
                     if message.text is not None:
                         assert isinstance(letta_message, InternalMonologue)
@@ -341,11 +374,32 @@ def _test_get_messages_letta_format(server, user_id, agent_id, reverse=False, as
                     # If there are multiple tool calls, we should have multiple back to back FunctionCallMessages
                     if message.tool_calls is not None:
                         for tool_call in message.tool_calls:
-                            assert isinstance(letta_message, FunctionCallMessage)
-                            assert tool_call.function.name == letta_message.function_call.name
-                            assert tool_call.function.arguments == letta_message.function_call.arguments
-                            letta_message_index += 1
-                            letta_message = letta_messages[letta_message_index]
+
+                            # Try to parse the tool call args
+                            try:
+                                func_args = json.loads(tool_call.function.arguments)
+                            except:
+                                warnings.warn(f"Function call arguments are not valid JSON: {tool_call.function.arguments}")
+                                func_args = {}
+
+                            # If assistant_message is True, we expect FunctionCallMessage to be AssistantMessage if the tool call is the assistant message tool
+                            if (
+                                assistant_message
+                                and tool_call.function.name == DEFAULT_MESSAGE_TOOL
+                                and DEFAULT_MESSAGE_TOOL_KWARG in func_args
+                            ):
+                                assert isinstance(letta_message, AssistantMessage)
+                                assert func_args[DEFAULT_MESSAGE_TOOL_KWARG] == letta_message.assistant_message
+                                letta_message_index += 1
+                                letta_message = letta_messages[letta_message_index]
+
+                            # Otherwise, we expect even a "send_message" tool call to be a FunctionCallMessage
+                            else:
+                                assert isinstance(letta_message, FunctionCallMessage)
+                                assert tool_call.function.name == letta_message.function_call.name
+                                assert tool_call.function.arguments == letta_message.function_call.arguments
+                                letta_message_index += 1
+                                letta_message = letta_messages[letta_message_index]
 
             elif message.role == MessageRole.user:
                 print(f"i={i}, M=user, MM={type(letta_message)}")
@@ -374,8 +428,9 @@ def _test_get_messages_letta_format(server, user_id, agent_id, reverse=False, as
 
 
 def test_get_messages_letta_format(server, user_id, agent_id):
-    _test_get_messages_letta_format(server, user_id, agent_id, reverse=False)
-    _test_get_messages_letta_format(server, user_id, agent_id, reverse=True)
+    for reverse in [False, True]:
+        for assistant_message in [False, True]:
+            _test_get_messages_letta_format(server, user_id, agent_id, reverse=reverse, assistant_message=assistant_message)
 
 
 def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
