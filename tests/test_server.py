@@ -236,7 +236,7 @@ def test_get_archival_memory(server, user_id, agent_id):
     assert len(passage_none) == 0
 
 
-def _test_get_messages_letta_format(server, user_id, agent_id, reverse=False):
+def _test_get_messages_letta_format(server, user_id, agent_id, reverse=False, assistant_message=False):
     """Reverse is off by default, the GET goes in chronological order"""
 
     messages = server.get_agent_recall_cursor(
