@@ -1562,7 +1562,7 @@ class LocalClient(AbstractClient):
 
     def get_agent(self, agent_id: str) -> AgentState:
         """
-        Get an agent's state by it's ID.
+        Get an agent's state by its ID.
 
         Args:
             agent_id (str): ID of the agent
