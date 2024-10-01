@@ -128,7 +128,7 @@ class Tool(BaseTool):
 
 class ToolCreate(BaseTool):
     name: Optional[str] = Field(None, description="The name of the function (auto-generated from source_code if not provided).")
-    tags: List[str] = Field(..., description="Metadata tags.")
+    tags: List[str] = Field([], description="Metadata tags.")
     source_code: str = Field(..., description="The source code of the function.")
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
