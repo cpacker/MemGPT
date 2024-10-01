@@ -121,7 +121,8 @@ def generate_imported_tool_instantiation_call_str(obj: Any) -> Optional[str]:
             if python_string:
                 field_assignments.append(f"{arg}={python_string}")
 
-        return f"{model_name}({", ".join(field_assignments)})"
+        assignments = ", ".join(field_assignments)
+        return f"{model_name}({assignments})"
     elif isinstance(obj, dict):
         # Inspect each of the items in the dict and stringify them
         # This is important because the dictionary may contain other BaseModels
@@ -131,7 +132,8 @@ def generate_imported_tool_instantiation_call_str(obj: Any) -> Optional[str]:
             if python_string:
                 dict_items.append(f"{repr(k)}: {python_string}")
 
-        return f"{{{", ".join(dict_items)}}}"
+        joined_items = ", ".join(dict_items)
+        return f"{{{joined_items}}}"
     elif isinstance(obj, list):
         # Inspect each of the items in the list and stringify them
         # This is important because the list may contain other BaseModels
@@ -166,7 +168,8 @@ def generate_import_code(module_attr_map: Optional[dict]):
 
     code_lines = []
     for module, attr in module_attr_map.items():
-        code_lines.append(f"# Load the module\n    {module.split('.')[-1]} = importlib.import_module('{module}')")
+        module_name = module.split(".")[-1]
+        code_lines.append(f"# Load the module\n    {module_name} = importlib.import_module('{module}')")
         code_lines.append(f"    # Access the {attr} from the module")
-        code_lines.append(f"    {attr} = getattr({module.split('.')[-1]}, '{attr}')")
+        code_lines.append(f"    {attr} = getattr({module_name}, '{attr}')")
     return "\n".join(code_lines)
