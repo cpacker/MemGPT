@@ -18,56 +18,6 @@ from letta.data_sources.connectors import DirectoryConnector
 
 app = typer.Typer()
 
-# NOTE: not supported due to llama-index breaking things (please reach out if you still need it)
-# @app.command("index")
-# def load_index(
-#    name: Annotated[str, typer.Option(help="Name of dataset to load.")],
-#    dir: Annotated[Optional[str], typer.Option(help="Path to directory containing index.")] = None,
-#    user_id: Annotated[Optional[uuid.UUID], typer.Option(help="User ID to associate with dataset.")] = None,
-# ):
-#    """Load a LlamaIndex saved VectorIndex into Letta"""
-#    if user_id is None:
-#        config = LettaConfig.load()
-#        user_id = uuid.UUID(config.anon_clientid)
-#
-#    try:
-#        # load index data
-#        storage_context = StorageContext.from_defaults(persist_dir=dir)
-#        loaded_index = load_index_from_storage(storage_context)
-#
-#        # hacky code to extract out passages/embeddings (thanks a lot, llama index)
-#        embed_dict = loaded_index._vector_store._data.embedding_dict
-#        node_dict = loaded_index._docstore.docs
-#
-#        # create storage connector
-#        config = LettaConfig.load()
-#        if user_id is None:
-#            user_id = uuid.UUID(config.anon_clientid)
-#
-#        passages = []
-#        for node_id, node in node_dict.items():
-#            vector = embed_dict[node_id]
-#            node.embedding = vector
-#            # assume embedding are the same as config
-#            passages.append(
-#                Passage(
-#                    text=node.text,
-#                    embedding=np.array(vector),
-#                    embedding_dim=config.default_embedding_config.embedding_dim,
-#                    embedding_model=config.default_embedding_config.embedding_model,
-#                )
-#            )
-#            assert config.default_embedding_config.embedding_dim == len(
-#                vector
-#            ), f"Expected embedding dimension {config.default_embedding_config.embedding_dim}, got {len(vector)}"
-#
-#        if len(passages) == 0:
-#            raise ValueError(f"No passages found in index {dir}")
-#
-#        insert_passages_into_source(passages, name, user_id, config)
-#    except ValueError as e:
-#        typer.secho(f"Failed to load index from provided information.\n{e}", fg=typer.colors.RED)
-
 
 default_extensions = ".txt,.md,.pdf"
 

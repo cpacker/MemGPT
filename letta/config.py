@@ -2,7 +2,6 @@ import configparser
 import inspect
 import json
 import os
-import uuid
 from dataclasses import dataclass
 from typing import Optional
 
@@ -14,6 +13,7 @@ from letta.constants import (
     DEFAULT_HUMAN,
     DEFAULT_PERSONA,
     DEFAULT_PRESET,
+    DEFAULT_USER_ID,
     LETTA_DIR,
 )
 from letta.log import get_logger
@@ -45,7 +45,7 @@ def set_field(config, section, field, value):
 @dataclass
 class LettaConfig:
     config_path: str = os.getenv("MEMGPT_CONFIG_PATH") or os.path.join(LETTA_DIR, "config")
-    anon_clientid: str = str(uuid.UUID(int=0))
+    anon_clientid: str = DEFAULT_USER_ID
 
     # preset
     preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
@@ -99,10 +99,6 @@ class LettaConfig:
         # self.embedding_dim = int(self.embedding_dim)
         # self.context_window = int(self.context_window)
         pass
-
-    @staticmethod
-    def generate_uuid() -> str:
-        return uuid.UUID(int=uuid.getnode()).hex
 
     @classmethod
     def load(cls, llm_config: Optional[LLMConfig] = None, embedding_config: Optional[EmbeddingConfig] = None) -> "LettaConfig":
@@ -199,8 +195,7 @@ class LettaConfig:
         # assert llm_config is not None, "LLM config must be provided if config does not exist"
 
         # create new config
-        anon_clientid = LettaConfig.generate_uuid()
-        config = cls(anon_clientid=anon_clientid, config_path=config_path)
+        config = cls(config_path=config_path)
 
         config.create_config_dir()  # create dirs
 
@@ -284,8 +279,6 @@ class LettaConfig:
         set_field(config, "version", "letta_version", letta.__version__)
 
         # client
-        if not self.anon_clientid:
-            self.anon_clientid = self.generate_uuid()
         set_field(config, "client", "anon_clientid", self.anon_clientid)
 
         # always make sure all directories are present
