@@ -237,10 +237,8 @@ class Agent(BaseAgent):
         self.agent_state = agent_state
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
-        try:
-            self.link_tools(tools)
-        except Exception as e:
-            raise ValueError(f"Encountered an error while trying to link agent tools during initialization:\n{str(e)}")
+        # link tools
+        self.link_tools(tools)
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
@@ -345,16 +343,18 @@ class Agent(BaseAgent):
         env = {}
         env.update(globals())
         for tool in tools:
-            # WARNING: name may not be consistent?
-            if tool.module:  # execute the whole module
-                exec(tool.module, env)
-            else:
-                exec(tool.source_code, env)
-            from pprint import pprint
+            try:
+                # WARNING: name may not be consistent?
+                if tool.module:  # execute the whole module
+                    exec(tool.module, env)
+                else:
+                    exec(tool.source_code, env)
 
-            pprint(tool.json_schema)
-            self.functions_python[tool.name] = env[tool.json_schema["name"]]
-            self.functions.append(tool.json_schema)
+                self.functions_python[tool.json_schema["name"]] = env[tool.json_schema["name"]]
+                self.functions.append(tool.json_schema)
+            except Exception as e:
+                warnings.warn(f"WARNING: tool {tool.name} failed to link")
+                print(e)
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
     def _load_messages_from_recall(self, message_ids: List[str]) -> List[Message]:
@@ -1117,48 +1117,10 @@ class Agent(BaseAgent):
     def add_function(self, function_name: str) -> str:
         # TODO: refactor
         raise NotImplementedError
-        # if function_name in self.functions_python.keys():
-        #    msg = f"Function {function_name} already loaded"
-        #    printd(msg)
-        #    return msg
-
-        # available_functions = load_all_function_sets()
-        # if function_name not in available_functions.keys():
-        #    raise ValueError(f"Function {function_name} not found in function library")
-
-        # self.functions.append(available_functions[function_name]["json_schema"])
-        # self.functions_python[function_name] = available_functions[function_name]["python_function"]
-
-        # msg = f"Added function {function_name}"
-        ## self.save()
-        # self.update_state()
-        # printd(msg)
-        # return msg
 
     def remove_function(self, function_name: str) -> str:
         # TODO: refactor
         raise NotImplementedError
-        # if function_name not in self.functions_python.keys():
-        #    msg = f"Function {function_name} not loaded, ignoring"
-        #    printd(msg)
-        #    return msg
-
-        ## only allow removal of user defined functions
-        # user_func_path = Path(USER_FUNCTIONS_DIR)
-        # func_path = Path(inspect.getfile(self.functions_python[function_name]))
-        # is_subpath = func_path.resolve().parts[: len(user_func_path.resolve().parts)] == user_func_path.resolve().parts
-
-        # if not is_subpath:
-        #    raise ValueError(f"Function {function_name} is not user defined and cannot be removed")
-
-        # self.functions = [f_schema for f_schema in self.functions if f_schema["name"] != function_name]
-        # self.functions_python.pop(function_name)
-
-        # msg = f"Removed function {function_name}"
-        ## self.save()
-        # self.update_state()
-        # printd(msg)
-        # return msg
 
     def update_state(self) -> AgentState:
         message_ids = [msg.id for msg in self._messages]
