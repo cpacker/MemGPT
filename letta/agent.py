@@ -551,6 +551,10 @@ class Agent(BaseAgent):
             )  # extend conversation with assistant's reply
             printd(f"Function call message: {messages[-1]}")
 
+            if response_message.content:
+                # The content if then internal monologue, not chat
+                self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
+
             # Step 3: call the function
             # Note: the JSON response may not always be valid; be sure to handle errors
             function_call = (
@@ -603,13 +607,6 @@ class Agent(BaseAgent):
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
-
-            # Community noted that inner thoughts can sometimes appear in the function args
-            if "inner_thoughts" in function_args:
-                response_message.content = function_args.pop("inner_thoughts")
-            if response_message.content:
-                # The content if then internal monologue, not chat
-                self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
 
             # (Still parsing function args)
             # Handle requests for immediate heartbeat
