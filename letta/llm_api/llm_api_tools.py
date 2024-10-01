@@ -332,7 +332,6 @@ def create(
             if isinstance(stream_inferface, AgentChunkStreamingInterface):
                 stream_inferface.stream_start()
             try:
-
                 response = openai_chat_completions_request(
                     url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                     api_key=credentials.openai_key,
@@ -466,6 +465,30 @@ def create(
     elif llm_config.model_endpoint_type == "groq":
         if stream:
             raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
+
+        tools = [{"type": "function", "function": f} for f in functions] if functions is not None else None
+        data = ChatCompletionRequest(
+            model=llm_config.model,
+            messages=[m.to_openai_dict() for m in messages],
+            tools=tools,
+            tool_choice=function_call,
+            user=str(user_id),
+        )
+
+        data.stream = False
+        if isinstance(stream_inferface, AgentChunkStreamingInterface):
+            stream_inferface.stream_start()
+        try:
+            response = openai_chat_completions_request(
+                url=llm_config.model_endpoint,
+                api_key=credentials.groq_key,
+                chat_completion_request=data,
+            )
+        finally:
+            if isinstance(stream_inferface, AgentChunkStreamingInterface):
+                stream_inferface.stream_end()
+
+        return response
 
     # local model
     else:
