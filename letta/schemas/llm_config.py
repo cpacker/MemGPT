@@ -11,7 +11,7 @@ class LLMConfig(BaseModel):
         model (str): The name of the LLM model.
         model_endpoint_type (str): The endpoint type for the model.
         model_endpoint (str): The endpoint for the model.
-        model_wrapper (str): The wrapper for the model.
+        model_wrapper (str): The wrapper for the model. This is used to wrap additional text around the input/output of the model. This is useful for text-to-text completions, such as the Completions API in OpenAI.
         context_window (int): The context window size for the model.
     """
 

@@ -352,14 +352,19 @@ def create(
         if stream:
             raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
 
+        if credentials.azure_key is None:
+            # only is a problem if we are *not* using an openai proxy
+            raise ValueError(f"Azure key is missing from letta config file")
+
         azure_deployment = (
             credentials.azure_deployment if credentials.azure_deployment is not None else MODEL_TO_AZURE_ENGINE[llm_config.model]
         )
+
         if use_tool_naming:
             data = dict(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
-                messages=[m.to_openai_dict() for m in messages],
+                messages=[m for m in messages],
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
@@ -368,7 +373,7 @@ def create(
             data = dict(
                 # NOTE: don't pass model to Azure calls, that is the deployment_id
                 # model=agent_config.model,
-                messages=[m.to_openai_dict() for m in messages],
+                messages=[m for m in messages],
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),

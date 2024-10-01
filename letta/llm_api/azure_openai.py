@@ -13,6 +13,7 @@ MODEL_TO_AZURE_ENGINE = {
     "gpt-3.5": "gpt-35-turbo",
     "gpt-3.5-turbo": "gpt-35-turbo",
     "gpt-3.5-turbo-16k": "gpt-35-turbo-16k",
+    "gpt-4o-mini": "gpt-4o-mini",
 }
 
 

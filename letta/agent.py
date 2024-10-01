@@ -223,7 +223,7 @@ class BaseAgent(ABC):
 class Agent(BaseAgent):
     def __init__(
         self,
-        interface: AgentInterface,
+        interface: Optional[AgentInterface],
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[Tool],
@@ -551,18 +551,17 @@ class Agent(BaseAgent):
             )  # extend conversation with assistant's reply
             printd(f"Function call message: {messages[-1]}")
 
-            # The content if then internal monologue, not chat
-            self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
-
             # Step 3: call the function
             # Note: the JSON response may not always be valid; be sure to handle errors
-
-            # Failure case 1: function name is wrong
             function_call = (
                 response_message.function_call if response_message.function_call is not None else response_message.tool_calls[0].function
             )
+
+            # Get the name of the function
             function_name = function_call.name
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
+
+            # Failure case 1: function name is wrong
             try:
                 function_to_call = self.functions_python[function_name]
             except KeyError:
@@ -606,6 +605,13 @@ class Agent(BaseAgent):
                 )  # extend conversation with function response
                 self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
+
+            # Check if inner thoughts is in the function call arguments (possible apparently if you are using Azure)
+            if "inner_thoughts" in function_args:
+                response_message.content = function_args.pop("inner_thoughts")
+            # The content if then internal monologue, not chat
+            if response_message.content:
+                self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
 
             # (Still parsing function args)
             # Handle requests for immediate heartbeat

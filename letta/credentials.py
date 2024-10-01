@@ -30,10 +30,10 @@ class LettaCredentials:
 
     # azure config
     azure_auth_type: str = "api_key"
-    azure_key: Optional[str] = None
+    azure_key: Optional[str] = os.getenv("AZURE_OPENAI_API_KEY")
     # base llm / model
-    azure_version: Optional[str] = None
-    azure_endpoint: Optional[str] = None
+    azure_version: Optional[str] = "2023-03-15-preview"  # None
+    azure_endpoint: Optional[str] = "letta"  # None
     azure_deployment: Optional[str] = None
     # embeddings
     azure_embedding_version: Optional[str] = None
