@@ -7822,8 +7822,8 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 
 [extras]
 autogen = ["pyautogen"]
-crewai-tools = ["crewai", "crewai-tools", "docker"]
 dev = ["autoflake", "black", "datasets", "isort", "pexpect", "pre-commit", "pyright", "pytest-asyncio", "pytest-order"]
+external-tools = ["crewai", "crewai-tools", "docker", "langchain", "langchain-community", "wikipedia"]
 milvus = ["pymilvus"]
 ollama = ["llama-index-embeddings-ollama"]
 postgres = ["pg8000", "pgvector"]
@@ -7834,4 +7834,4 @@ tests = ["wikipedia"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "0c2547e076e664c564e571135b9a18c4a3e1bf4d164c7312fbb291cfa9e7b780"
+content-hash = "08460cac490d6387262d66288a6461fdd9407a1e61ba984554125abe080104a0"
