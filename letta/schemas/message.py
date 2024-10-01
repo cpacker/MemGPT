@@ -2,9 +2,9 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Union, Dict
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, BaseModel
 
 from letta.constants import TOOL_CALL_ID_MAX_LEN
 from letta.local_llm.constants import INNER_THOUGHTS_KWARG
@@ -44,7 +44,6 @@ def add_inner_thoughts_to_tool_call(
         warnings.warn(f"Failed to put inner thoughts in kwargs: {e}")
         raise e
 
-
 class BaseMessage(LettaBase):
     __id_prefix__ = "message"
 
@@ -73,6 +72,11 @@ class UpdateMessage(BaseMessage):
     # created_at: Optional[datetime] = Field(None, description="The time the message was created.")
     tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
+
+class ContentPart(BaseModel):
+    type: str
+    text: Optional[str] = None
+    image_url: Optional[dict[str, str]] = None
 
 
 class Message(BaseMessage):
@@ -725,3 +729,120 @@ class Message(BaseMessage):
             raise ValueError(self.role)
 
         return cohere_message
+class ImageMessage(Message):
+    """
+    "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "What's in this image?"
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}"
+                        }
+                    }
+                ]
+            }
+        ],
+        "max_tokens": 300
+    """
+
+    content: List[ContentPart] = Field(
+        ...,
+        description="The content of the message, including text and image parts."
+    )
+
+    def extract_text_from_content(
+        self,
+    ) -> List[Dict[str, str]]:
+        """
+        Extract text from ContentPart object(s) and return as a list of dictionaries.
+
+        Args:
+            content (Union[List[ContentPart], ContentPart]): A single ContentPart or a list of ContentPart objects.
+
+        Returns:
+            List[Dict[str, str]]: A list of dictionaries, each containing a "text" key with the extracted text.
+        """
+        if not isinstance(self.content, list):
+            self.content = [self.content]
+
+        result = []
+        for part in self.content:
+            if part.type == "text" and part.text:
+                result.append({"text": part.text})
+        
+        return result
+
+    def to_openai_dict(
+        self,
+        max_tool_id_length: int = TOOL_CALL_ID_MAX_LEN,
+        put_inner_thoughts_in_kwargs: bool = False,
+    ) -> dict:
+        """Go from Message class to ChatCompletion message object"""
+
+        # TODO change to pydantic casting, eg `return SystemMessageModel(self)`
+
+        if self.role == "system":
+            assert all([v is not None for v in [self.role]]), vars(self)
+            openai_message = {
+                "content": self.content,
+                "role": self.role,
+            }
+            # Optional field, do not include if null
+            if self.name is not None:
+                openai_message["name"] = self.name
+
+        elif self.role == "user":
+            assert all([v is not None for v in [self.content, self.role]]), vars(self)
+            openai_message = {
+                "content": self.content,
+                "role": self.role,
+            }
+            # Optional field, do not include if null
+            if self.name is not None:
+                openai_message["name"] = self.name
+
+        elif self.role == "assistant":
+            assert self.tool_calls is not None or self.content is not None
+            openai_message = {
+                "content": None if put_inner_thoughts_in_kwargs else self.content,
+                "role": self.role,
+            }
+            # Optional fields, do not include if null
+            if self.name is not None:
+                openai_message["name"] = self.name
+            if self.tool_calls is not None:
+                if put_inner_thoughts_in_kwargs:
+                    # put the inner thoughts inside the tool call before casting to a dict
+                    print("[LOG] inner thoughts: ", self.content)
+                    openai_message["tool_calls"] = [
+                        add_inner_thoughts_to_tool_call(
+                            tool_call,
+                            inner_thoughts=self.extract_text_from_content(),
+                            inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                        ).model_dump()
+                        for tool_call in self.tool_calls
+                    ]
+                else:
+                    openai_message["tool_calls"] = [tool_call.model_dump() for tool_call in self.tool_calls]
+                if max_tool_id_length:
+                    for tool_call_dict in openai_message["tool_calls"]:
+                        tool_call_dict["id"] = tool_call_dict["id"][:max_tool_id_length]
+
+        elif self.role == "tool":
+            assert all([v is not None for v in [self.role, self.tool_call_id]]), vars(self)
+            openai_message = {
+                "content": self.content,
+                "role": self.role,
+                "tool_call_id": self.tool_call_id[:max_tool_id_length] if max_tool_id_length else self.tool_call_id,
+            }
+
+        else:
+            raise ValueError(f"{self.role} not supported for image messages")
+
+        return openai_message

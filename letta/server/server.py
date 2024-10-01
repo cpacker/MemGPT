@@ -1287,7 +1287,7 @@ class SyncServer(Server):
 
         return records
 
-    def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> Optional[AgentState]:
+    def get_agent_state(self, user_id: str, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> Optional[AgentState]:
         """Return the config of an agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")

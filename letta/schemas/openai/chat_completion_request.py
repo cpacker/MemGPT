@@ -2,15 +2,16 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from letta.schemas.message import ContentPart
 
 class SystemMessage(BaseModel):
-    content: str
+    content: Union[str, List[ContentPart]]
     role: str = "system"
     name: Optional[str] = None
 
 
 class UserMessage(BaseModel):
-    content: Union[str, List[str]]
+    content: Union[str, List[str],  List[ContentPart]]
     role: str = "user"
     name: Optional[str] = None
 
@@ -27,17 +28,16 @@ class ToolCall(BaseModel):
 
 
 class AssistantMessage(BaseModel):
-    content: Optional[str] = None
+    content: Optional[Union[str, List[ContentPart]]] = None
     role: str = "assistant"
     name: Optional[str] = None
     tool_calls: Optional[List[ToolCall]] = None
 
 
 class ToolMessage(BaseModel):
-    content: str
+    content: Union[str, List[ContentPart]]
     role: str = "tool"
     tool_call_id: str
-
 
 ChatMessage = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]
 

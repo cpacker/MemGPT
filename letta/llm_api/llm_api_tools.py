@@ -31,7 +31,7 @@ from letta.local_llm.constants import (
 )
 from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.message import Message
+from letta.schemas.message import Message, ImageMessage
 from letta.schemas.openai.chat_completion_request import (
     ChatCompletionRequest,
     Tool,
@@ -230,7 +230,7 @@ def retry_with_exponential_backoff(
 def create(
     # agent_state: AgentState,
     llm_config: LLMConfig,
-    messages: List[Message],
+    messages: Union[List[Message], List[ImageMessage]],
     user_id: Optional[str] = None,  # option UUID to associate request with
     functions: Optional[list] = None,
     functions_python: Optional[list] = None,

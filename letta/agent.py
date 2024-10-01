@@ -27,7 +27,7 @@ from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole, OptionState
 from letta.schemas.memory import Memory
-from letta.schemas.message import Message, UpdateMessage
+from letta.schemas.message import Message, UpdateMessage, ImageMessage
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.schemas.openai.chat_completion_response import (
     Message as ChatCompletionMessage,
