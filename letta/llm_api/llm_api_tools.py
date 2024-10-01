@@ -464,7 +464,11 @@ def create(
 
     elif llm_config.model_endpoint_type == "groq":
         if stream:
-            raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
+            raise NotImplementedError(f"Streaming not yet implemented for Groq.")
+
+        if credentials.groq_key is None and llm_config.model_endpoint == "https://api.groq.com/openai/v1/chat/completions":
+            # only is a problem if we are *not* using an openai proxy
+            raise ValueError(f"Groq key is missing from letta config file")
 
         tools = [{"type": "function", "function": f} for f in functions] if functions is not None else None
         data = ChatCompletionRequest(
@@ -475,10 +479,19 @@ def create(
             user=str(user_id),
         )
 
+        # https://console.groq.com/docs/openai
+        # "The following fields are currently not supported and will result in a 400 error (yikes) if they are supplied:"
+        assert data.top_logprobs is None
+        assert data.logit_bias is None
+        assert data.logprobs == False
+        assert data.n == 1
+        # They mention that none of the messages can have names, but it seems to not error out (for now)
+
         data.stream = False
         if isinstance(stream_inferface, AgentChunkStreamingInterface):
             stream_inferface.stream_start()
         try:
+            # groq uses the openai chat completions API, so this component should be reusable
             response = openai_chat_completions_request(
                 url=llm_config.model_endpoint,
                 api_key=credentials.groq_key,

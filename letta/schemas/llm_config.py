@@ -16,8 +16,10 @@ class LLMConfig(BaseModel):
     """
 
     # TODO: 🤮 don't default to a vendor! bug city!
-    model: Literal["openai", "anthropic", "cohere", "google_ai", "azure", "groq"] = Field(..., description="LLM model name. ")
-    model_endpoint_type: str = Field(..., description="The endpoint type for the model.")
+    model: str = Field(..., description="LLM model name. ")
+    model_endpoint_type: Literal["openai", "anthropic", "cohere", "google_ai", "azure", "groq"] = Field(
+        ..., description="The endpoint type for the model."
+    )
     model_endpoint: str = Field(..., description="The endpoint for the model.")
     model_wrapper: Optional[str] = Field(None, description="The wrapper for the model.")
     context_window: int = Field(..., description="The context window size for the model.")
