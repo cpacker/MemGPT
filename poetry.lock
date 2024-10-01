@@ -7392,7 +7392,7 @@ watchdog = ["watchdog (>=2.3)"]
 name = "wikipedia"
 version = "1.4.0"
 description = "Wikipedia API for Python"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "wikipedia-1.4.0.tar.gz", hash = "sha256:db0fad1829fdd441b1852306e9856398204dc0786d2996dd2e0c8bb8e26133b2"},
@@ -7829,8 +7829,9 @@ ollama = ["llama-index-embeddings-ollama"]
 postgres = ["pg8000", "pgvector"]
 qdrant = ["qdrant-client"]
 server = ["fastapi", "uvicorn", "websockets"]
+tests = ["wikipedia"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "014a88526be79ffe756943ba6c0fe2ffd75782885269385f7ab59ea03a857656"
+content-hash = "0c2547e076e664c564e571135b9a18c4a3e1bf4d164c7312fbb291cfa9e7b780"
