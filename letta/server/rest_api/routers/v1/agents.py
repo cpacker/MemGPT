@@ -322,10 +322,10 @@ async def send_message_to_agent(
     message: str,
     stream_steps: bool,
     stream_tokens: bool,
-    return_message_object: bool,  # Should be True for Python Client, False for REST API
-    chat_completion_mode: Optional[bool] = False,
-    timestamp: Optional[datetime] = None,
     # related to whether or not we return `LettaMessage`s or `Message`s
+    return_message_object: bool,  # Should be True for Python Client, False for REST API
+    chat_completion_mode: bool = False,
+    timestamp: Optional[datetime] = None,
 ) -> Union[StreamingResponse, LettaResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
     # TODO: @charles is this the correct way to handle?
@@ -408,6 +408,7 @@ async def send_message_to_agent(
                 message_ids = [m.id for m in filtered_stream]
                 message_ids = deduplicate(message_ids)
                 message_objs = [server.get_agent_message(agent_id=agent_id, message_id=m_id) for m_id in message_ids]
+                message_objs = [m for m in message_objs if m is not None]
                 return LettaResponse(messages=message_objs, usage=usage)
             else:
                 return LettaResponse(messages=filtered_stream, usage=usage)
