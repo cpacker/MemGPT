@@ -244,7 +244,7 @@ def _test_get_messages_letta_format(
     agent_id,
     reverse=False,
     # flag that determines whether or not to use AssistantMessage, or just FunctionCallMessage universally
-    assistant_message=False,
+    use_assistant_message=False,
 ):
     """Reverse is off by default, the GET goes in chronological order"""
 
@@ -254,7 +254,7 @@ def _test_get_messages_letta_format(
         limit=1000,
         reverse=reverse,
         return_message_object=True,
-        assistant_message=assistant_message,
+        use_assistant_message=use_assistant_message,
     )
     # messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000)
     assert all(isinstance(m, Message) for m in messages)
@@ -265,7 +265,7 @@ def _test_get_messages_letta_format(
         limit=1000,
         reverse=reverse,
         return_message_object=False,
-        assistant_message=assistant_message,
+        use_assistant_message=use_assistant_message,
     )
     # letta_messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000, return_message_object=False)
     assert all(isinstance(m, LettaMessage) for m in letta_messages)
@@ -338,7 +338,7 @@ def _test_get_messages_letta_format(
 
                             # If assistant_message is True, we expect FunctionCallMessage to be AssistantMessage if the tool call is the assistant message tool
                             if (
-                                assistant_message
+                                use_assistant_message
                                 and tool_call.function.name == DEFAULT_MESSAGE_TOOL
                                 and DEFAULT_MESSAGE_TOOL_KWARG in func_args
                             ):
@@ -384,7 +384,7 @@ def _test_get_messages_letta_format(
 
                             # If assistant_message is True, we expect FunctionCallMessage to be AssistantMessage if the tool call is the assistant message tool
                             if (
-                                assistant_message
+                                use_assistant_message
                                 and tool_call.function.name == DEFAULT_MESSAGE_TOOL
                                 and DEFAULT_MESSAGE_TOOL_KWARG in func_args
                             ):
@@ -430,7 +430,7 @@ def _test_get_messages_letta_format(
 def test_get_messages_letta_format(server, user_id, agent_id):
     for reverse in [False, True]:
         for assistant_message in [False, True]:
-            _test_get_messages_letta_format(server, user_id, agent_id, reverse=reverse, assistant_message=assistant_message)
+            _test_get_messages_letta_format(server, user_id, agent_id, reverse=reverse, use_assistant_message=assistant_message)
 
 
 def test_agent_rethink_rewrite_retry(server, user_id, agent_id):

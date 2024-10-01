@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.responses import StreamingResponse
 
+from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.enums import MessageRole, MessageStreamStatus
 from letta.schemas.letta_message import (
@@ -254,6 +255,19 @@ def get_agent_messages(
     before: Optional[str] = Query(None, description="Message before which to retrieve the returned messages."),
     limit: int = Query(10, description="Maximum number of messages to retrieve."),
     msg_object: bool = Query(False, description="If true, returns Message objects. If false, return LettaMessage objects."),
+    # Flags to support the use of AssistantMessage message types
+    use_assistant_message: bool = Query(
+        False,
+        description="[Only applicable if msg_object is False] If true, returns AssistantMessage objects when the agent calls a designated message tool. If false, return FunctionCallMessage objects for all tool calls.",
+    ),
+    assistant_message_function_name: str = Query(
+        DEFAULT_MESSAGE_TOOL,
+        description="[Only applicable if use_assistant_message is True] The name of the designated message tool.",
+    ),
+    assistant_message_function_kwarg: str = Query(
+        DEFAULT_MESSAGE_TOOL_KWARG,
+        description="[Only applicable if use_assistant_message is True] The name of the message argument in the designated message tool.",
+    ),
 ):
     """
     Retrieve message history for an agent.
@@ -267,6 +281,9 @@ def get_agent_messages(
         limit=limit,
         reverse=True,
         return_message_object=msg_object,
+        use_assistant_message=use_assistant_message,
+        assistant_message_function_name=assistant_message_function_name,
+        assistant_message_function_kwarg=assistant_message_function_kwarg,
     )
 
 
