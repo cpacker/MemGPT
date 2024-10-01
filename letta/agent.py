@@ -1114,48 +1114,10 @@ class Agent(BaseAgent):
     def add_function(self, function_name: str) -> str:
         # TODO: refactor
         raise NotImplementedError
-        # if function_name in self.functions_python.keys():
-        #    msg = f"Function {function_name} already loaded"
-        #    printd(msg)
-        #    return msg
-
-        # available_functions = load_all_function_sets()
-        # if function_name not in available_functions.keys():
-        #    raise ValueError(f"Function {function_name} not found in function library")
-
-        # self.functions.append(available_functions[function_name]["json_schema"])
-        # self.functions_python[function_name] = available_functions[function_name]["python_function"]
-
-        # msg = f"Added function {function_name}"
-        ## self.save()
-        # self.update_state()
-        # printd(msg)
-        # return msg
 
     def remove_function(self, function_name: str) -> str:
         # TODO: refactor
         raise NotImplementedError
-        # if function_name not in self.functions_python.keys():
-        #    msg = f"Function {function_name} not loaded, ignoring"
-        #    printd(msg)
-        #    return msg
-
-        ## only allow removal of user defined functions
-        # user_func_path = Path(USER_FUNCTIONS_DIR)
-        # func_path = Path(inspect.getfile(self.functions_python[function_name]))
-        # is_subpath = func_path.resolve().parts[: len(user_func_path.resolve().parts)] == user_func_path.resolve().parts
-
-        # if not is_subpath:
-        #    raise ValueError(f"Function {function_name} is not user defined and cannot be removed")
-
-        # self.functions = [f_schema for f_schema in self.functions if f_schema["name"] != function_name]
-        # self.functions_python.pop(function_name)
-
-        # msg = f"Removed function {function_name}"
-        ## self.save()
-        # self.update_state()
-        # printd(msg)
-        # return msg
 
     def update_state(self) -> AgentState:
         message_ids = [msg.id for msg in self._messages]
