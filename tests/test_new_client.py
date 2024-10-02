@@ -292,9 +292,43 @@ def test_tools_from_crewai(client):
     # Pull a simple HTML website and check that scraping it works
     # TODO: This is very hacky and can break at any time if the website changes.
     # Host our own websites to test website tool calling on.
-    simple_webpage_url = "https://www.york.ac.uk/teaching/cws/wws/webpage1.html"
-    expected_content = "There are lots of ways to create web pages using already coded programmes."
+    simple_webpage_url = "https://www.example.com"
+    expected_content = "This domain is for use in illustrative examples in documents."
     assert expected_content in func(website_url=simple_webpage_url)
+
+
+def test_tools_from_crewai_with_params(client):
+    # create crewAI tool
+
+    from crewai_tools import ScrapeWebsiteTool
+
+    from letta.schemas.tool import Tool
+
+    crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
+
+    # Translate to memGPT Tool
+    tool = Tool.from_crewai(crewai_tool)
+
+    # Add the tool
+    client.add_tool(tool)
+
+    # list tools
+    tools = client.list_tools()
+    assert tool.name in [t.name for t in tools]
+
+    # get tool
+    tool_id = client.get_tool_id(name=tool.name)
+    retrieved_tool = client.get_tool(tool_id)
+    source_code = retrieved_tool.source_code
+
+    # Parse the function and attempt to use it
+    local_scope = {}
+    exec(source_code, {}, local_scope)
+    func = local_scope[tool.name]
+
+    # Pull a simple HTML website and check that scraping it works
+    expected_content = "This domain is for use in illustrative examples in documents."
+    assert expected_content in func()
 
 
 def test_tools_from_langchain(client):

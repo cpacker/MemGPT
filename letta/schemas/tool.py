@@ -93,7 +93,7 @@ class Tool(BaseTool):
         )
 
     @classmethod
-    def from_crewai(cls, crewai_tool: "CrewAIBaseTool") -> "Tool":
+    def from_crewai(cls, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> "Tool":
         """
         Class method to create an instance of Tool from a crewAI BaseTool object.
 
@@ -106,7 +106,7 @@ class Tool(BaseTool):
         description = crewai_tool.description
         source_type = "python"
         tags = ["crew-ai"]
-        wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool)
+        wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool, additional_imports_module_attr_map)
         json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
 
         # append heartbeat (necessary for triggering another reasoning step after this tool call)
