@@ -246,6 +246,7 @@ def create(
     # TODO move to llm_config?
     # if unspecified (None), default to something we've tested
     inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+    max_tokens: Optional[int] = None,
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from letta.utils import printd
@@ -296,6 +297,7 @@ def create(
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
+                max_tokens=max_tokens,
             )
         else:
             data = ChatCompletionRequest(
@@ -304,6 +306,7 @@ def create(
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),
+                max_tokens=max_tokens,
             )
             # https://platform.openai.com/docs/guides/text-generation/json-mode
             # only supported by gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
@@ -368,6 +371,7 @@ def create(
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 tool_choice=function_call,
                 user=str(user_id),
+                max_tokens=max_tokens,
             )
         else:
             data = dict(
@@ -377,6 +381,7 @@ def create(
                 functions=functions,
                 function_call=function_call,
                 user=str(user_id),
+                max_tokens=max_tokens,
             )
         return azure_openai_chat_completions_request(
             resource_name=credentials.azure_endpoint,

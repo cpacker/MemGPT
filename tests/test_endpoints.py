@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+from typing import Optional
 
 from letta import LocalClient, RESTClient, create_client
 from letta.agent import Agent
@@ -35,7 +36,7 @@ def clean_up_agent(client: LocalClient | RESTClient):
             print(f"Deleted agent: {agent_state.name} with ID {str(agent_state.id)}")
 
 
-def run_llm_endpoint(filename):
+def run_llm_endpoint(filename, max_tokens: Optional[int] = None):
     config_data = json.load(open(filename, "r"))
     print(config_data)
     llm_config = LLMConfig(**config_data)
@@ -66,6 +67,7 @@ def run_llm_endpoint(filename):
         messages=agent._messages,
         functions=agent.functions,
         functions_python=agent.functions_python,
+        max_tokens=max_tokens,
     )
     client.delete_agent(agent_state.id)
     assert response is not None
@@ -125,4 +127,5 @@ def test_llm_endpoint_anthropic():
 
 def test_llm_endpoint_azure():
     filename = os.path.join(llm_config_dir, "azure-gpt-4o-mini.json")
-    run_llm_endpoint(filename)
+    # We set max tokens to something ridiculously low here to avoid Azure rate limiting for now
+    run_llm_endpoint(filename, max_tokens=1)
