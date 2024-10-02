@@ -11,8 +11,7 @@ This example show how you can add LangChain tools .
 First, make sure you have LangChain and some of the extras downloaded.
 For this specific example, you will need `wikipedia` installed.
 ```
-poetry install --extras "tests"
-poetry install langchain
+poetry install --extras "external-tools"
 ```
 then setup letta with `letta configure`.
 """
