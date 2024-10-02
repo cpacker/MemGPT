@@ -39,6 +39,12 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 @router.get("/", response_model=List[AgentState], operation_id="list_agents")
 def list_agents(
     server: "SyncServer" = Depends(get_letta_server),
+    template: Optional[bool] = Query(False, description="Show only template agents, only available on Letta Cloud."),
+    limit: Optional[int] = Query(10, description="Maximum number of agents to retrieve, only available on Letta Cloud."),
+    offset: Optional[int] = Query(0, description="Number of agents to skip, only available on Letta Cloud."),
+    name: Optional[str] = Query(None, description="Filter agents by name, only available on Letta Cloud."),
+    by_version: Optional[str] = Query(None, description="Filter agents by template and version id, only available on Letta Cloud."),
+    project_id: Optional[str] = Query(None, description="Filter agents by project id, only available on Letta Cloud."),
 ):
     """
     List all agents associated with a given user.

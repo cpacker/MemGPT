@@ -66,6 +66,9 @@ class CreateAgent(BaseAgent):
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
+    template: Optional[bool] = Field(None, description="Whether the agent is a template, only used on Letta Cloud.")
+    project_id: Optional[str] = Field(None, description="The project to associate the agent with, only used on Letta Cloud.")
+    from_template: Optional[str] = Field(None, description="Create a agent from a template given it's name and version, only used on Letta Cloud.")
 
     @field_validator("name")
     @classmethod
