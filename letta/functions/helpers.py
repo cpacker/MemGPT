@@ -1,6 +1,36 @@
-from typing import Any, Optional, Union
+from typing import Any, List, Optional, Sequence, Union
 
 from pydantic import BaseModel
+
+
+def generate_composio_tool_wrapper(
+    tool_name: str,
+    actions: Optional[Sequence["ActionType"]] = None,
+    apps: Optional[Sequence["AppType"]] = None,
+    tags: Optional[List["TagType"]] = None,
+    entity_id: Optional[str] = None,
+) -> tuple[str, str]:
+    # Instantiate the object
+    action_names = [action.name for action in actions] if actions else []
+    app_names = [app.name for app in apps] if apps else []
+    tag_names = [tag.name for tag in tags] if tags else []
+    tool_instantiation_str = f"composio_toolset.get_tools(actions={action_names},apps={app_names}, tags={tag_names}, entity_id={entity_id})"
+
+    # Generate func name
+    func_name = f"run_{tool_name}"
+
+    wrapper_function_str = f"""
+def {func_name}(**kwargs):
+    if 'self' in kwargs:
+        del kwargs['self']
+    from composio import Action, App, Tag
+    from composio_langchain import ComposioToolSet
+
+    composio_toolset = ComposioToolSet()
+    tool = {tool_instantiation_str}[0]
+    tool.func(**kwargs)
+    """
+    return func_name, wrapper_function_str
 
 
 def generate_langchain_tool_wrapper(
@@ -48,6 +78,7 @@ def generate_crewai_tool_wrapper(tool: "CrewAIBaseTool", additional_imports_modu
 def {func_name}(**kwargs):
     if 'self' in kwargs:
         del kwargs['self']
+    import importlib
     {import_statement}
     {extra_module_imports}
     {tool_instantiation}
@@ -129,7 +160,7 @@ def generate_imported_tool_instantiation_call_str(obj: Any) -> Optional[str]:
         # e.g. {arg}={value}
         # The reason why this is recursive, is because the value can be another BaseModel that we need to stringify
         model_name = obj.__class__.__name__
-        fields = dict(obj)
+        fields = obj.dict()
         # Generate code for each field, skipping empty or None values
         field_assignments = []
         for arg, value in fields.items():
@@ -168,6 +199,11 @@ def generate_imported_tool_instantiation_call_str(obj: Any) -> Optional[str]:
         print(
             f"[WARNING] Skipping parsing unknown class {obj.__class__.__name__} (does not inherit from the Pydantic BaseModel and is not a basic Python type)"
         )
+        if obj.__class__.__name__ == "function":
+            import inspect
+
+            print(inspect.getsource(obj))
+
         return None
 
 
