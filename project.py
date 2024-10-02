@@ -221,7 +221,7 @@ def test_openai_with_images():
     # The API endpoint
     url = "https://api.openai.com/v1/chat/completions"
     image_path = "/Users/themindinator/interview/memgpt/MemGPT/panda.jpg"
-    api_key = "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"
+    api_key = "PROVIDE YOUR API KEY"
     
     # Getting the base64 string
     base64_image = encode_image(image_path)
