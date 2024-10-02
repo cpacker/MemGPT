@@ -6,6 +6,23 @@ from letta.schemas.memory import ChatMemory
 from letta.schemas.tool import Tool
 
 """
+Setup here.
+"""
+# Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
+client = create_client()
+
+# Generate uuid for agent name for this example
+namespace = uuid.NAMESPACE_DNS
+agent_uuid = str(uuid.uuid5(namespace, "letta-composio-tooling-example"))
+
+# Clear all agents
+for agent_state in client.list_agents():
+    if agent_state.name == agent_uuid:
+        client.delete_agent(agent_id=agent_state.id)
+        print(f"Deleted agent: {agent_state.name} with ID {str(agent_state.id)}")
+
+
+"""
 This example show how you can add Composio tools .
 
 First, make sure you have Composio and some of the extras downloaded.
@@ -27,23 +44,10 @@ Last updated Oct 2, 2024. Please check `composio` documentation for any composio
 def main():
     from composio_langchain import Action
 
-    # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
-    client = create_client()
-
     tool = Tool.get_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
 
     # create tool
     client.add_tool(tool)
-
-    # Generate uuid for agent name for this example
-    namespace = uuid.NAMESPACE_DNS
-    agent_uuid = str(uuid.uuid5(namespace, "letta-composio-tooling-example"))
-
-    # Clear all agents
-    for agent_state in client.list_agents():
-        if agent_state.name == agent_uuid:
-            client.delete_agent(agent_id=agent_state.id)
-            print(f"Deleted agent: {agent_state.name} with ID {str(agent_state.id)}")
 
     persona = f"""
     My name is Letta.

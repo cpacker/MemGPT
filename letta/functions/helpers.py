@@ -93,7 +93,6 @@ def {func_name}(**kwargs):
 def assert_code_gen_compilable(code_str):
     try:
         compile(code_str, "<string>", "exec")
-        print("The code is valid and compilable.")
     except SyntaxError as e:
         print(f"Syntax error in code: {e}")
 
