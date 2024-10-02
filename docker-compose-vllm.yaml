@@ -8,7 +8,7 @@ services:
     environment:
       - LETTA_LLM_ENDPOINT=http://vllm:8000
       - LETTA_LLM_ENDPOINT_TYPE=vllm
-      - LETTA_LLM_MODEL=teknium/OpenHermes-2-Mistral-7B # Replace with your model
+      - LETTA_LLM_MODEL=${LETTA_LLM_MODEL} # Replace with your model
       - LETTA_LLM_CONTEXT_WINDOW=8192
     depends_on:
       - vllm
@@ -30,6 +30,6 @@ services:
     ports:
       - "8000:8000"
     command: >
-      --model teknium/OpenHermes-2-Mistral-7B --max_model_len=8000 
+      --model ${LETTA_LLM_MODEL} --max_model_len=8000 
     # Replace with your model
     ipc: host
