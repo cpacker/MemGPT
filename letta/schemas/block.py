@@ -45,6 +45,9 @@ class BaseBlock(LettaBase, validate_assignment=True):
             self.label = self.name
         return self
 
+    def __len__(self):
+        return len(self.value)
+
     def __setattr__(self, name, value):
         """Run validation if self.value is updated"""
         super().__setattr__(name, value)
