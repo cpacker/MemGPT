@@ -1,23 +1,14 @@
-from typing import Any, List, Optional, Sequence, Union
+from typing import Any, Optional, Union
 
 from pydantic import BaseModel
 
 
-def generate_composio_tool_wrapper(
-    tool_name: str,
-    actions: Optional[Sequence["ActionType"]] = None,
-    apps: Optional[Sequence["AppType"]] = None,
-    tags: Optional[List["TagType"]] = None,
-    entity_id: Optional[str] = None,
-) -> tuple[str, str]:
+def generate_composio_tool_wrapper(action: "ActionType") -> tuple[str, str]:
     # Instantiate the object
-    action_names = [action.name for action in actions] if actions else []
-    app_names = [app.name for app in apps] if apps else []
-    tag_names = [tag.name for tag in tags] if tags else []
-    tool_instantiation_str = f"composio_toolset.get_tools(actions={action_names},apps={app_names}, tags={tag_names}, entity_id={entity_id})"
+    tool_instantiation_str = f"composio_toolset.get_tools(actions=[Action.{action.name}])[0]"
 
     # Generate func name
-    func_name = f"run_{tool_name}"
+    func_name = f"run_{action.name}"
 
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
@@ -27,9 +18,13 @@ def {func_name}(**kwargs):
     from composio_langchain import ComposioToolSet
 
     composio_toolset = ComposioToolSet()
-    tool = {tool_instantiation_str}[0]
+    tool = {tool_instantiation_str}
     tool.func(**kwargs)
     """
+
+    # Compile safety check
+    assert_code_gen_compilable(wrapper_function_str)
+
     return func_name, wrapper_function_str
 
 
@@ -58,6 +53,10 @@ def {func_name}(**kwargs):
     {tool_instantiation}
     {run_call}
 """
+
+    # Compile safety check
+    assert_code_gen_compilable(wrapper_function_str)
+
     return func_name, wrapper_function_str
 
 
@@ -84,7 +83,19 @@ def {func_name}(**kwargs):
     {tool_instantiation}
     {run_call}
 """
+
+    # Compile safety check
+    assert_code_gen_compilable(wrapper_function_str)
+
     return func_name, wrapper_function_str
+
+
+def assert_code_gen_compilable(code_str):
+    try:
+        compile(code_str, "<string>", "exec")
+        print("The code is valid and compilable.")
+    except SyntaxError as e:
+        print(f"Syntax error in code: {e}")
 
 
 def assert_all_classes_are_imported(

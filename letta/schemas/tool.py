@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional
 
 from pydantic import Field
 
@@ -61,38 +61,33 @@ class Tool(BaseTool):
     @classmethod
     def get_composio_tool(
         cls,
-        actions: Optional[Sequence["ActionType"]] = None,
-        apps: Optional[Sequence["AppType"]] = None,
-        tags: Optional[List["TagType"]] = None,
-        entity_id: Optional[str] = None,
+        action: "ActionType",
     ) -> "Tool":
         """
         Class method to create an instance of Letta-compatible Composio Tool.
         Check https://docs.composio.dev/introduction/intro/overview to look at options for get_composio_tool
 
+        This function will error if we find more than one tool, or 0 tools.
+
         Args:
-            actions (list, optional): List of action names to filter tools by. Defaults to None.
-            apps (list, optional): List of app names to filter tools by. Defaults to None.
-            tags (list, optional): List of tags to filter tools by. Defaults to None.
-            entity_id (str, optional): ID of the entity (user) to retrieve tools for. Defaults to None.
+            action ActionType: A action name to filter tools by.
         Returns:
-            Tool: A Letta Tool initialized with attributes derived from the provided crewAI BaseTool object.
+            Tool: A Letta Tool initialized with attributes derived from the Composio tool.
         """
         from composio_langchain import ComposioToolSet
 
         composio_toolset = ComposioToolSet()
-        composio_tools = composio_toolset.get_tools(actions=actions, apps=apps, tags=tags, entity_id=entity_id)
+        composio_tools = composio_toolset.get_tools(actions=[action])
 
         assert len(composio_tools) > 0, "User supplied parameters do not match any Composio tools"
         assert len(composio_tools) == 1, f"User supplied parameters match too many Composio tools; {len(composio_tools)} > 1"
 
         composio_tool = composio_tools[0]
-        tool_name = composio_tool.name
 
-        description = "This tool helps you star Github repos."  # composio_tool.description
+        description = composio_tool.description
         source_type = "python"
-        # NOTE: langchain tools may come from different packages
-        wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(tool_name, actions, apps, tags, entity_id)
+        tags = ["composio"]
+        wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(action)
         json_schema = generate_schema_from_args_schema(composio_tool.args_schema, name=wrapper_func_name, description=description)
 
         # append heartbeat (necessary for triggering another reasoning step after this tool call)
@@ -106,7 +101,7 @@ class Tool(BaseTool):
             name=wrapper_func_name,
             description=description,
             source_type=source_type,
-            tags=["composio"],
+            tags=tags,
             source_code=wrapper_function_str,
             json_schema=json_schema,
         )
