@@ -44,6 +44,7 @@ from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
+from letta.providers import AnthropicProvider, OpenAIProvider
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
@@ -295,6 +296,13 @@ class SyncServer(Server):
         # TODO: this should be removed
         # add global default tools (for admin)
         self.add_default_tools(module_name="base")
+
+        # collect providers
+        self._enabled_providers = []
+        if settings.openai_api_key:
+            self._enabled_providers.append(OpenAIProvider(api_key=settings.openai_api_key))
+        if settings.anthropic_api_key:
+            self._enabled_providers.append(AnthropicProvider(api_key=settings.anthropic_api_key))
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -1973,17 +1981,20 @@ class SyncServer(Server):
     def list_models(self) -> List[LLMConfig]:
         """List available models"""
 
-        # TODO: allow multiple options from endpoint
-        # model_options = get_model_options(
-        #    credentials=LettaCredentials().load(),
-        #    model_endpoint_type=settings.llm_endpoint,
-        #    model_endpoint=settings.llm_endpoint_type
-        # )
-
-        return [settings.llm_config]
+        llm_models = []
+        for provider in self._enabled_providers:
+            llm_models.extend(provider.list_llm_models())
+        return llm_models
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         """List available embedding models"""
+        embedding_models = []
+        for provider in self._enabled_providers:
+            embedding_models.extend(provider.list_embedding_models())
+        return embedding_models
 
-        # TODO support multiple models
-        return [settings.embedding_config]
+    def add_llm_model(self, request: LLMConfig) -> LLMConfig:
+        """Add a new LLM model"""
+
+    def add_embedding_model(self, request: EmbeddingConfig) -> EmbeddingConfig:
+        """Add a new embedding model"""

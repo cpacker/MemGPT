@@ -13,6 +13,9 @@ class Provider(BaseModel):
     def list_llm_models(self):
         pass
 
+    def list_embedding_models(self):
+        pass
+
     def get_model_context_window(self, model_name: str):
         pass
 
