@@ -327,6 +327,10 @@ async def send_message(
         stream_steps=request.stream_steps,
         stream_tokens=request.stream_tokens,
         return_message_object=request.return_message_object,
+        # Support for AssistantMessage
+        use_assistant_message=request.use_assistant_message,
+        assistant_message_function_name=request.assistant_message_function_name,
+        assistant_message_function_kwarg=request.assistant_message_function_kwarg,
     )
 
 
@@ -343,8 +347,13 @@ async def send_message_to_agent(
     return_message_object: bool,  # Should be True for Python Client, False for REST API
     chat_completion_mode: bool = False,
     timestamp: Optional[datetime] = None,
+    # Support for AssistantMessage
+    use_assistant_message: bool = False,
+    assistant_message_function_name: str = DEFAULT_MESSAGE_TOOL,
+    assistant_message_function_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
 ) -> Union[StreamingResponse, LettaResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
+
     # TODO: @charles is this the correct way to handle?
     include_final_message = True
 
@@ -384,6 +393,11 @@ async def send_message_to_agent(
 
         # streaming_interface.allow_assistant_message = stream
         # streaming_interface.function_call_legacy_mode = stream
+
+        # Allow AssistantMessage is desired by client
+        streaming_interface.use_assistant_message = use_assistant_message
+        streaming_interface.assistant_message_function_name = assistant_message_function_name
+        streaming_interface.assistant_message_function_kwarg = assistant_message_function_kwarg
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()

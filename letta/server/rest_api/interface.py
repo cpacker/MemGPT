@@ -1,10 +1,12 @@
 import asyncio
 import json
 import queue
+import warnings
 from collections import deque
 from datetime import datetime
 from typing import AsyncGenerator, Literal, Optional, Union
 
+from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.interface import AgentInterface
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
@@ -311,7 +313,13 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
     should maintain multiple generators and index them with the request ID
     """
 
-    def __init__(self, multi_step=True):
+    def __init__(
+        self,
+        multi_step=True,
+        use_assistant_message=False,
+        assistant_message_function_name=DEFAULT_MESSAGE_TOOL,
+        assistant_message_function_kwarg=DEFAULT_MESSAGE_TOOL_KWARG,
+    ):
         # If streaming mode, ignores base interface calls like .assistant_message, etc
         self.streaming_mode = False
         # NOTE: flag for supporting legacy 'stream' flag where send_message is treated specially
@@ -332,6 +340,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self.multi_step = multi_step
         self.multi_step_indicator = MessageStreamStatus.done_step
         self.multi_step_gen_indicator = MessageStreamStatus.done_generation
+
+        # Support for AssistantMessage
+        self.use_assistant_message = use_assistant_message
+        self.assistant_message_function_name = assistant_message_function_name
+        self.assistant_message_function_kwarg = assistant_message_function_kwarg
 
         # extra prints
         self.debug = False
@@ -663,14 +676,32 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
                 else:
 
-                    processed_chunk = FunctionCallMessage(
-                        id=msg_obj.id,
-                        date=msg_obj.created_at,
-                        function_call=FunctionCall(
-                            name=function_call.function.name,
-                            arguments=function_call.function.arguments,
-                        ),
-                    )
+                    try:
+                        func_args = json.loads(function_call.function.arguments)
+                    except:
+                        warnings.warn(f"Failed to parse function arguments: {function_call.function.arguments}")
+                        func_args = {}
+
+                    if (
+                        self.use_assistant_message
+                        and function_call.function.name == self.assistant_message_function_name
+                        and self.assistant_message_function_kwarg in func_args
+                    ):
+                        processed_chunk = AssistantMessage(
+                            id=msg_obj.id,
+                            date=msg_obj.created_at,
+                            assistant_message=func_args[self.assistant_message_function_kwarg],
+                        )
+                    else:
+                        processed_chunk = FunctionCallMessage(
+                            id=msg_obj.id,
+                            date=msg_obj.created_at,
+                            function_call=FunctionCall(
+                                name=function_call.function.name,
+                                arguments=function_call.function.arguments,
+                            ),
+                        )
+
                     # processed_chunk = {
                     #     "function_call": {
                     #         "name": function_call.function.name,
