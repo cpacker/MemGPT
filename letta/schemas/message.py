@@ -2,7 +2,7 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Optional, Union, Dict
+from typing import List, Optional, Union, Dict, Literal
 
 from pydantic import Field, field_validator, BaseModel
 
@@ -74,9 +74,9 @@ class UpdateMessage(BaseMessage):
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
 
 class ContentPart(BaseModel):
-    type: str
-    text: Optional[str] = None
-    image_url: Optional[dict[str, str]] = None
+    type: Literal["text", "image_url"]
+    text: Optional[str] = Field(None, description="The text content, if type is 'text'")
+    image_url: Optional[Dict[str, str]] = Field(None, description="The image URL data, if type is 'image_url'")
 
 
 class Message(BaseMessage):
@@ -729,7 +729,7 @@ class Message(BaseMessage):
             raise ValueError(self.role)
 
         return cohere_message
-class ImageMessage(Message):
+class MultimodalMessage(Message):
     """
     "messages": [
             {

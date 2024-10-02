@@ -27,7 +27,7 @@ from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole, OptionState
 from letta.schemas.memory import Memory
-from letta.schemas.message import Message, UpdateMessage, ImageMessage
+from letta.schemas.message import Message, UpdateMessage, MultimodalMessage, ContentPart
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.schemas.openai.chat_completion_response import (
     Message as ChatCompletionMessage,
@@ -479,7 +479,7 @@ class Agent(BaseAgent):
             )
 
             if len(response.choices) == 0:
-                raise Exception(f"API call didn't return a message: {response}")
+                raise Exception(f"API call didn't return a message: {response}. {response.text}")
 
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
@@ -735,7 +735,51 @@ class Agent(BaseAgent):
 
             # Step 1: add user message
             if user_message is not None:
-                if isinstance(user_message, Message):
+
+                if isinstance(user_message, MultimodalMessage):
+                    assert user_message.content is not None
+                    
+                    updated_content = []
+                    for content_part in user_message.content:
+                        if content_part.type == "text":
+                            assert content_part.text is not None
+                            user_message_text = validate_json(content_part.text)
+                            cleaned_user_message_text, name = strip_name_field_from_user_message(user_message_text)
+
+                            new_content_part = ContentPart( 
+                                type="text",
+                                text=cleaned_user_message_text,
+                            )
+
+                            if name is not None:
+                                user_message.name = name
+
+                            # Recreate timestamp
+                            if recreate_message_timestamp:
+                                user_message.created_at = get_utc_time()
+                            
+                            updated_content.append(new_content_part)
+
+                        elif content_part.type == "image_url":
+                            assert content_part.image_url is not None
+
+                            new_content_part = ContentPart( 
+                                type="image_url",
+                                image_url=content_part.image_url,
+                            )
+
+                            # Recreate timestamp
+                            if recreate_message_timestamp:
+                                user_message.created_at = get_utc_time()
+                            
+                            updated_content.append(new_content_part)
+
+                        else:
+                            raise ValueError(f"Invalid content part type: {content_part.type}")
+                    
+                    user_message.content = updated_content
+                    
+                elif isinstance(user_message, Message):
                     assert user_message.text is not None
 
                     # Validate JSON via save/load
@@ -771,7 +815,13 @@ class Agent(BaseAgent):
                 else:
                     raise ValueError(f"Bad type for user_message: {type(user_message)}")
 
-                self.interface.user_message(user_message.text, msg_obj=user_message)
+                if isinstance(user_message, MultimodalMessage):
+                    user_message_text = " ".join([content_part.text for content_part in user_message.content if content_part.type == "text"])
+                else:
+                    user_message_text = user_message.text
+
+                # TODO: Future code should render a MultimodalMessage's image_url object here
+                self.interface.user_message(user_message_text, msg_obj=user_message)
 
                 input_message_sequence = self._messages + [user_message]
 

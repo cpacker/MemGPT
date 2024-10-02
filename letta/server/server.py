@@ -62,7 +62,7 @@ from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
-from letta.schemas.message import Message, UpdateMessage
+from letta.schemas.message import Message, UpdateMessage, MultimodalMessage, ContentPart
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.organization import Organization, OrganizationCreate
 from letta.schemas.passage import Passage
@@ -574,12 +574,30 @@ class SyncServer(Server):
             usage = LettaUsageStatistics()
 
         return usage
+    
+    def _preprocess_message_text(
+            self,
+            message_text: Union[str, ContentPart], 
+            timestamp: Optional[datetime] = None
+        ) -> str:
+        if len(message_text) == 0:
+            raise ValueError(f"Invalid input: '{message_text}'")
+
+        elif message_text.startswith("/"):
+            raise ValueError(f"Invalid input: '{message_text}'")
+
+        packaged_user_message = system.package_user_message(
+            user_message=message_text,
+            time=timestamp.isoformat() if timestamp else None,
+        )
+
+        return packaged_user_message
 
     def user_message(
         self,
         user_id: str,
         agent_id: str,
-        message: Union[str, Message],
+        message: Union[str, Message, ContentPart],
         timestamp: Optional[datetime] = None,
     ) -> LettaUsageStatistics:
         """Process an incoming user message and feed it through the Letta agent"""
@@ -590,16 +608,11 @@ class SyncServer(Server):
 
         # Basic input sanitization
         if isinstance(message, str):
-            if len(message) == 0:
-                raise ValueError(f"Invalid input: '{message}'")
 
-            # If the input begins with a command prefix, reject
-            elif message.startswith("/"):
-                raise ValueError(f"Invalid input: '{message}'")
-
-            packaged_user_message = system.package_user_message(
-                user_message=message,
-                time=timestamp.isoformat() if timestamp else None,
+            # Preprocess the message text
+            packaged_user_message = self._preprocess_message_text(
+                message_text=message,
+                timestamp=timestamp,
             )
 
             # NOTE: eventually deprecate and only allow passing Message types
@@ -619,9 +632,50 @@ class SyncServer(Server):
                     role="user",
                     text=packaged_user_message,
                 )
+        elif isinstance(message, ContentPart):
+            if message.type == "text":
+                # Add metaadata
+                packaged_user_message = self._preprocess_message_text(
+                    message_text=message.text,
+                    timestamp=timestamp,
+                )
+
+                # Convert to a ContentPart object
+                new_message = ContentPart(
+                    type="text",
+                    text=packaged_user_message,
+                )
+
+                # print("[PACKAGED USER MESSAGE]", packaged_user_message)
+
+            elif message.type == "image_url":
+                # Add metadata
+                new_message = ContentPart(
+                    type="image_url",
+                    image_url=message.image_url,
+                )
+            
+            else:
+                raise ValueError(f"[SERVER] Invalid message type: {type(message)}")
+
+            if timestamp:
+                message = MultimodalMessage(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="user",
+                    content=[new_message],
+                    created_at=timestamp,
+                )
+            else:
+                message = MultimodalMessage(
+                    user_id=user_id,
+                    agent_id=agent_id,
+                    role="user",
+                    content=[new_message],
+                )
 
         # Run the agent state forward
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
+        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=message, timestamp=timestamp)
         return usage
 
     def system_message(

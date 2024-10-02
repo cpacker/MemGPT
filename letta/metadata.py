@@ -2,7 +2,7 @@
 
 import os
 import secrets
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from sqlalchemy import (
     BIGINT,
@@ -18,6 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
+from sqlalchemy.engine.interfaces import Dialect
 
 from letta.config import LettaConfig
 from letta.schemas.agent import AgentState
@@ -28,6 +29,7 @@ from letta.schemas.enums import JobStatus
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
+from letta.schemas.message import ContentPart
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from letta.schemas.organization import Organization
 from letta.schemas.source import Source
@@ -116,6 +118,26 @@ class ToolCallColumn(TypeDecorator):
             return tools
         return value
 
+class ContentPartColumn(TypeDecorator):
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect: Dialect) -> JSON:
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value: Optional[List[ContentPart]], dialect: Dialect) -> Optional[List[Dict]]:
+        if value is not None:
+            return [
+                part.model_dump() if isinstance(part, ContentPart) else part
+                for part in value
+            ]
+        return value
+
+    def process_result_value(self, value: Optional[List[Dict]], dialect: Dialect) -> Optional[List[ContentPart]]:
+        if value is not None:
+            return [ContentPart(**part) for part in value]
+        return value
 
 class UserModel(Base):
     __tablename__ = "users"
