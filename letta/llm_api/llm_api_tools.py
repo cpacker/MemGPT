@@ -31,7 +31,7 @@ from letta.local_llm.constants import (
 )
 from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.message import Message
+from letta.schemas.message import Message, MultimodalMessage
 from letta.schemas.openai.chat_completion_request import (
     ChatCompletionRequest,
     Tool,
@@ -90,6 +90,15 @@ def unpack_inner_thoughts_from_kwargs(
     """Strip the inner thoughts out of the tool call and put it in the message content"""
     if len(response.choices) == 0:
         raise ValueError(f"Unpacking inner thoughts from empty response not supported")
+
+    # NOTE: After adding multimodal support for 4o models, there's a case
+    #  where the tool call is None.
+    if response.choices[0].message.tool_calls is None:
+        # warnings.warn(f"Expected function call, but got None")
+        # response.choices[0].message.tool_calls = function_call
+        
+        # TODO: Need to continue with the logic that we bypassed
+        return response
 
     new_choices = []
     for choice in response.choices:
@@ -230,7 +239,7 @@ def retry_with_exponential_backoff(
 def create(
     # agent_state: AgentState,
     llm_config: LLMConfig,
-    messages: List[Message],
+    messages: Union[List[Message], List[MultimodalMessage]],
     user_id: Optional[str] = None,  # option UUID to associate request with
     functions: Optional[list] = None,
     functions_python: Optional[list] = None,

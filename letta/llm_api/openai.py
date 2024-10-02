@@ -417,8 +417,24 @@ def openai_chat_completions_request(
 
     printd(f"Sending request to {url}")
     try:
+        # print(f"[REQUEST] url = {url}, headers = {headers}, data = {data['messages'][-1]}")
+        # for message in data['messages']:
+        #     print(f"message = {message}")
+        #     # if "inner_thoughts" in message:
+        #     #     message['content'] = message.pop("inner_thoughts")
+        #     if 'content' not in message:
+        #         message['content'] = 'hi'
+
+        #     if isinstance(message['content'], str):
+        #         message["content"] = [
+        #             {
+        #                 "type": "text",
+        #                 "text": message["content"],
+        #             }
+        #         ]
         response = requests.post(url, headers=headers, json=data)
         printd(f"response = {response}, response.text = {response.text}")
+        print(f"response.json = {response.json()}")
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
 
         response = response.json()  # convert to dict from string

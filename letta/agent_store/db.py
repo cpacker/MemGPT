@@ -27,7 +27,7 @@ from tqdm import tqdm
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
-from letta.metadata import EmbeddingConfigColumn, ToolCallColumn
+from letta.metadata import EmbeddingConfigColumn, ToolCallColumn, ContentPartColumn
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.message import Message
@@ -84,6 +84,7 @@ class MessageModel(Base):
     text = Column(String)  # optional: can be null if function call
     model = Column(String)  # optional: can be null if LLM backend doesn't require specifying
     name = Column(String)  # optional: multi-agent only
+    content = Column(ContentPartColumn)
 
     # tool call request info
     # if role == "assistant", this MAY be specified
