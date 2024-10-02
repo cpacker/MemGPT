@@ -44,6 +44,7 @@ Last updated Oct 2, 2024. Please check `composio` documentation for any composio
 def main():
     from composio_langchain import Action
 
+    # Add the composio tool
     tool = Tool.get_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
 
     # create tool
