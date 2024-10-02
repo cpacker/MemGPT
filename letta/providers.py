@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -29,6 +29,8 @@ class OpenAIProvider(Provider):
         from letta.llm_api.openai import openai_get_model_list
 
         response = openai_get_model_list(self.base_url, api_key=self.api_key)
+        print(response)
+        print(response["data"])
         model_options = [obj["id"] for obj in response["data"]]
 
         configs = []
@@ -88,3 +90,41 @@ class AnthropicProvider(Provider):
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         return []
+
+
+class OllamaProvider(OpenAIProvider):
+    name: str = "ollama"
+    base_url: str = Field(..., description="Base URL for the Ollama API.")
+    api_key: Optional[str] = Field(None, description="API key for the Ollama API (default: `None`).")
+
+    def get_model_context_window(self, model_name: str):
+        # https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
+        pass
+
+
+class GroqProvider(OpenAIProvider):
+    name: str = "groq"
+    base_url: str = "https://api.groq.com/openai/v1"
+    api_key: str = Field(..., description="API key for the Groq API.")
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        from letta.llm_api.openai import openai_get_model_list
+
+        response = openai_get_model_list(self.base_url, api_key=self.api_key)
+        configs = []
+        for model in response["data"]:
+            if not "context_window" in model:
+                print(f"Missing context window information for {model['id']}, skipping")
+                continue
+            configs.append(
+                LLMConfig(
+                    model=model["id"], model_endpoint_type="openai", model_endpoint=self.base_url, context_window=model["context_window"]
+                )
+            )
+        return configs
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        return []
+
+    def get_model_context_window_size(self, model_name: str):
+        raise NotImplementedError
