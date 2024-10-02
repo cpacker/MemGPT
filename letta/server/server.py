@@ -1978,7 +1978,7 @@ class SyncServer(Server):
 
         return self.get_default_user()
 
-    def list_models(self) -> List[LLMConfig]:
+    def list_llm_models(self) -> List[LLMConfig]:
         """List available models"""
 
         llm_models = []
