@@ -3,21 +3,40 @@ from typing import Any, Optional, Union
 from pydantic import BaseModel
 
 
-def generate_langchain_tool_wrapper(tool: "LangChainBaseTool", additional_imports_module_attr_map: dict = None) -> tuple[str, str]:
+def generate_composio_tool_wrapper(action: "ActionType") -> tuple[str, str]:
+    # Instantiate the object
+    tool_instantiation_str = f"composio_toolset.get_tools(actions=[Action.{action.name}])[0]"
+
+    # Generate func name
+    func_name = f"run_{action.name}"
+
+    wrapper_function_str = f"""
+def {func_name}(**kwargs):
+    if 'self' in kwargs:
+        del kwargs['self']
+    from composio import Action, App, Tag
+    from composio_langchain import ComposioToolSet
+
+    composio_toolset = ComposioToolSet()
+    tool = {tool_instantiation_str}
+    tool.func(**kwargs)
+    """
+
+    # Compile safety check
+    assert_code_gen_compilable(wrapper_function_str)
+
+    return func_name, wrapper_function_str
+
+
+def generate_langchain_tool_wrapper(
+    tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None
+) -> tuple[str, str]:
     tool_name = tool.__class__.__name__
     import_statement = f"from langchain_community.tools import {tool_name}"
     extra_module_imports = generate_import_code(additional_imports_module_attr_map)
 
     # Safety check that user has passed in all required imports:
-    current_class_imports = {tool_name}
-    if additional_imports_module_attr_map:
-        current_class_imports.update(set(additional_imports_module_attr_map.values()))
-    required_class_imports = set(find_required_class_names_for_import(tool))
-
-    if not current_class_imports.issuperset(required_class_imports):
-        err_msg = f"[ERROR] You are missing module_attr pairs in `additional_imports_module_attr_map`. Currently, you have imports for {current_class_imports}, but the required classes for import are {required_class_imports}"
-        print(err_msg)
-        raise RuntimeError(err_msg)
+    assert_all_classes_are_imported(tool, additional_imports_module_attr_map)
 
     tool_instantiation = f"tool = {generate_imported_tool_instantiation_call_str(tool)}"
     run_call = f"return tool._run(**kwargs)"
@@ -34,12 +53,21 @@ def {func_name}(**kwargs):
     {tool_instantiation}
     {run_call}
 """
+
+    # Compile safety check
+    assert_code_gen_compilable(wrapper_function_str)
+
     return func_name, wrapper_function_str
 
 
-def generate_crewai_tool_wrapper(tool: "CrewAIBaseTool") -> tuple[str, str]:
+def generate_crewai_tool_wrapper(tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> tuple[str, str]:
     tool_name = tool.__class__.__name__
     import_statement = f"from crewai_tools import {tool_name}"
+    extra_module_imports = generate_import_code(additional_imports_module_attr_map)
+
+    # Safety check that user has passed in all required imports:
+    assert_all_classes_are_imported(tool, additional_imports_module_attr_map)
+
     tool_instantiation = f"tool = {generate_imported_tool_instantiation_call_str(tool)}"
     run_call = f"return tool._run(**kwargs)"
     func_name = f"run_{tool_name.lower()}"
@@ -49,11 +77,40 @@ def generate_crewai_tool_wrapper(tool: "CrewAIBaseTool") -> tuple[str, str]:
 def {func_name}(**kwargs):
     if 'self' in kwargs:
         del kwargs['self']
+    import importlib
     {import_statement}
+    {extra_module_imports}
     {tool_instantiation}
     {run_call}
 """
+
+    # Compile safety check
+    assert_code_gen_compilable(wrapper_function_str)
+
     return func_name, wrapper_function_str
+
+
+def assert_code_gen_compilable(code_str):
+    try:
+        compile(code_str, "<string>", "exec")
+    except SyntaxError as e:
+        print(f"Syntax error in code: {e}")
+
+
+def assert_all_classes_are_imported(
+    tool: Union["LangChainBaseTool", "CrewAIBaseTool"], additional_imports_module_attr_map: dict[str, str]
+) -> None:
+    # Safety check that user has passed in all required imports:
+    tool_name = tool.__class__.__name__
+    current_class_imports = {tool_name}
+    if additional_imports_module_attr_map:
+        current_class_imports.update(set(additional_imports_module_attr_map.values()))
+    required_class_imports = set(find_required_class_names_for_import(tool))
+
+    if not current_class_imports.issuperset(required_class_imports):
+        err_msg = f"[ERROR] You are missing module_attr pairs in `additional_imports_module_attr_map`. Currently, you have imports for {current_class_imports}, but the required classes for import are {required_class_imports}"
+        print(err_msg)
+        raise RuntimeError(err_msg)
 
 
 def find_required_class_names_for_import(obj: Union["LangChainBaseTool", "CrewAIBaseTool", BaseModel]) -> list[str]:
@@ -113,7 +170,7 @@ def generate_imported_tool_instantiation_call_str(obj: Any) -> Optional[str]:
         # e.g. {arg}={value}
         # The reason why this is recursive, is because the value can be another BaseModel that we need to stringify
         model_name = obj.__class__.__name__
-        fields = dict(obj)
+        fields = obj.dict()
         # Generate code for each field, skipping empty or None values
         field_assignments = []
         for arg, value in fields.items():
@@ -152,6 +209,11 @@ def generate_imported_tool_instantiation_call_str(obj: Any) -> Optional[str]:
         print(
             f"[WARNING] Skipping parsing unknown class {obj.__class__.__name__} (does not inherit from the Pydantic BaseModel and is not a basic Python type)"
         )
+        if obj.__class__.__name__ == "function":
+            import inspect
+
+            print(inspect.getsource(obj))
+
         return None
 
 
