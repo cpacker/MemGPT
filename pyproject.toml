@@ -74,6 +74,8 @@ llama-index-embeddings-ollama = "^0.3.1"
 wikipedia = {version = "^1.4.0", optional = true}
 langchain = {version = "^0.2.16", optional = true}
 langchain-community = {version = "^0.2.17", optional = true}
+composio-langchain = "^0.5.28"
+composio-core = "^0.5.28"
 
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]
@@ -84,7 +86,7 @@ server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
-external-tools = ["crewai", "docker", "crewai-tools", "langchain", "wikipedia", "langchain-community"]
+external-tools = ["crewai", "docker", "crewai-tools", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
 tests = ["wikipedia"]
 
 [tool.poetry.group.dev.dependencies]

@@ -260,6 +260,27 @@ def test_tools(client):
     # assert len(client.list_tools()) == orig_tool_length
 
 
+def test_tools_from_composio_basic(client):
+    from composio_langchain import Action
+
+    from letta.schemas.tool import Tool
+
+    # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
+    client = create_client()
+
+    tool = Tool.get_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+
+    # create tool
+    client.add_tool(tool)
+
+    # list tools
+    tools = client.list_tools()
+    assert tool.name in [t.name for t in tools]
+
+    # We end the test here as composio requires login to use the tools
+    # The tool creation includes a compile safety check, so if this test doesn't error out, at least the code is compilable
+
+
 def test_tools_from_crewai(client):
     # create crewAI tool
 
