@@ -22,6 +22,18 @@ llm_config_path = "configs/llm_model_configs/letta-hosted.json"
 embedding_config_dir = "configs/embedding_model_configs"
 llm_config_dir = "configs/llm_model_configs"
 
+# Generate uuid for agent name for this example
+namespace = uuid.NAMESPACE_DNS
+agent_uuid = str(uuid.uuid5(namespace, "test-endpoints-agent"))
+
+
+def cleanup(client):
+    # Clear all agents
+    for agent_state in client.list_agents():
+        if agent_state.name == agent_uuid:
+            client.delete_agent(agent_id=agent_state.id)
+            print(f"Deleted agent: {agent_state.name} with ID {str(agent_state.id)}")
+
 
 def run_llm_endpoint(filename):
     config_data = json.load(open(filename, "r"))
@@ -36,7 +48,8 @@ def run_llm_endpoint(filename):
     config.save()
 
     client = create_client()
-    agent_state = client.create_agent(name="test_agent", llm_config=llm_config, embedding_config=embedding_config)
+    cleanup(client)
+    agent_state = client.create_agent(name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config)
     tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tools]
     agent = Agent(
         interface=None,
@@ -55,6 +68,7 @@ def run_llm_endpoint(filename):
         functions_python=agent.functions_python,
     )
     client.delete_agent(agent_state.id)
+    print(response)
     assert response is not None
 
 
