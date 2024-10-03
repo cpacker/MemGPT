@@ -94,12 +94,27 @@ class AnthropicProvider(Provider):
 
 class OllamaProvider(OpenAIProvider):
     name: str = "ollama"
-    base_url: str = Field(..., description="Base URL for the Ollama API.")
+    base_url: str = Field("http://localhost:11434", description="Base URL for the Ollama API.")
     api_key: Optional[str] = Field(None, description="API key for the Ollama API (default: `None`).")
 
-    def get_model_context_window(self, model_name: str):
+    def list_llm_models(self) -> List[LLMConfig]:
         # https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
-        pass
+        import requests
+
+        response = requests.get(f"{self.base_url}/api/tags")
+        if response.status_code != 200:
+            raise Exception(f"Failed to list Ollama models: {response.text}")
+        response_json = response.json()
+        print(response_json)
+
+        configs = []
+        for model in response_json["models"]:
+            configs.append(
+                LLMConfig(
+                    model=model["name"], model_endpoint_type="ollama", model_endpoint=self.base_url, context_window=model["context_window"]
+                )
+            )
+        return configs
 
 
 class GroqProvider(OpenAIProvider):

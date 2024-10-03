@@ -1,6 +1,11 @@
 import os
 
-from letta.providers import AnthropicProvider, GroqProvider, OpenAIProvider
+from letta.providers import (
+    AnthropicProvider,
+    GroqProvider,
+    OllamaProvider,
+    OpenAIProvider,
+)
 
 
 def test_openai():
@@ -22,6 +27,13 @@ def test_groq():
     print(models)
 
 
+def test_ollama():
+    provider = OllamaProvider()
+    models = provider.list_llm_models()
+    print(models)
+
+
+test_ollama()
 # test_groq()
-test_openai()
+# test_openai()
 # test_anthropic()
