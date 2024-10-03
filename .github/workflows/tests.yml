@@ -2,6 +2,7 @@ name: Run All pytest Tests
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
 
 on:
   push:
@@ -32,7 +33,7 @@ jobs:
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "-E dev -E postgres -E milvus -E crewai-tools -E tests"
+        install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"
 
     - name: Initialize credentials
       run: poetry run letta quickstart --backend openai
