@@ -46,15 +46,7 @@ class BaseBlock(LettaBase, validate_assignment=True):
         return self
 
     def __len__(self):
-        return len(str(self))
-
-    def __str__(self) -> str:
-        if isinstance(self.value, list):
-            return ",".join(self.value)
-        elif isinstance(self.value, str):
-            return self.value
-        else:
-            return ""
+        return len(self.value)
 
     def __setattr__(self, name, value):
         """Run validation if self.value is updated"""
