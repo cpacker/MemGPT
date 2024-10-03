@@ -44,7 +44,7 @@ from letta.streaming_interface import (
 )
 from letta.utils import json_dumps
 
-LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local"]
+LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local", "groq"]
 
 
 # TODO update to use better types
