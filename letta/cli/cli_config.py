@@ -126,7 +126,41 @@ def configure_llm_endpoint(config: LettaConfig, credentials: LettaCredentials):
         model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
         if model_endpoint is None:
             raise KeyboardInterrupt
-        provider = "openai"
+
+    elif provider == "groq":
+        groq_user_msg = "Enter your Groq API key (starts with 'gsk-', see https://console.groq.com/keys):"
+        # check for key
+        if credentials.groq_key is None:
+            # allow key to get pulled from env vars
+            groq_api_key = os.getenv("GROQ_API_KEY", None)
+            # if we still can't find it, ask for it as input
+            if groq_api_key is None:
+                while groq_api_key is None or len(groq_api_key) == 0:
+                    # Ask for API key as input
+                    groq_api_key = questionary.password(groq_user_msg).ask()
+                    if groq_api_key is None:
+                        raise KeyboardInterrupt
+            credentials.groq_key = groq_api_key
+            credentials.save()
+        else:
+            # Give the user an opportunity to overwrite the key
+            default_input = shorten_key_middle(credentials.groq_key) if credentials.groq_key.startswith("gsk-") else credentials.groq_key
+            groq_api_key = questionary.password(
+                groq_user_msg,
+                default=default_input,
+            ).ask()
+            if groq_api_key is None:
+                raise KeyboardInterrupt
+            # If the user modified it, use the new one
+            if groq_api_key != default_input:
+                credentials.groq_key = groq_api_key
+                credentials.save()
+
+        model_endpoint_type = "groq"
+        model_endpoint = "https://api.groq.com/openai/v1"
+        model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
+        if model_endpoint is None:
+            raise KeyboardInterrupt
 
     elif provider == "azure":
         # check for necessary vars
