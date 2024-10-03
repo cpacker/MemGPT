@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  letta:
+    image: lettaai/letta:latest
+    ports:
+      - "8083:8083"
+    environment:
+      - LETTA_LLM_ENDPOINT=http://ollama:11434 
+      - LETTA_LLM_ENDPOINT_TYPE=ollama
+      - LETTA_LLM_MODEL=${LETTA_LLM_MODEL}  # Use env variable for model
+      - LETTA_LLM_CONTEXT_WINDOW=8192
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    container_name: ollama
+    volumes:
+      - ollama:/root/.ollama
+    ports:
+      - "11434:11434"
+    entrypoint: ["/bin/ollama"]
+    command: |
+        serve && pull llama3.2
+    ipc: host
+volumes:
+  ollama:
