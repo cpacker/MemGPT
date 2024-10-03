@@ -4,13 +4,17 @@ import uuid
 
 from letta import create_client
 from letta.agent import Agent
-from letta.config import LettaConfig
 from letta.embeddings import embedding_model
 from letta.llm_api.llm_api_tools import create
 from letta.prompts import gpt_system
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
+from tests.helpers.endpoints_helper import (
+    assert_contains_correct_inner_monologue,
+    assert_contains_valid_function_call,
+    setup_llm_endpoint,
+)
+from tests.helpers.utils import cleanup
 
 messages = [Message(role="system", text=gpt_system.get_system_text("memgpt_chat")), Message(role="user", text="How are you?")]
 
@@ -27,36 +31,17 @@ namespace = uuid.NAMESPACE_DNS
 agent_uuid = str(uuid.uuid5(namespace, "test-endpoints-agent"))
 
 
-def cleanup(client):
-    # Clear all agents
-    for agent_state in client.list_agents():
-        if agent_state.name == agent_uuid:
-            client.delete_agent(agent_id=agent_state.id)
-            print(f"Deleted agent: {agent_state.name} with ID {str(agent_state.id)}")
-
-
-def run_llm_endpoint(filename):
-    config_data = json.load(open(filename, "r"))
-    print(config_data)
-    llm_config = LLMConfig(**config_data)
-    embedding_config = EmbeddingConfig(**json.load(open(embedding_config_path)))
-
-    # setup config
-    config = LettaConfig()
-    config.default_llm_config = llm_config
-    config.default_embedding_config = embedding_config
-    config.save()
+def check_first_response_is_valid_for_llm_endpoint(filename: str, inner_thoughts_in_kwargs: bool = False):
+    llm_config, embedding_config = setup_llm_endpoint(filename, embedding_config_path)
 
     client = create_client()
-    cleanup(client)
+    cleanup(client=client, agent_uuid=agent_uuid)
     agent_state = client.create_agent(name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config)
     tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tools]
     agent = Agent(
         interface=None,
         tools=tools,
         agent_state=agent_state,
-        # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-        first_message_verify_mono=True,
     )
 
     response = create(
@@ -67,9 +52,19 @@ def run_llm_endpoint(filename):
         functions=agent.functions,
         functions_python=agent.functions_python,
     )
-    client.delete_agent(agent_state.id)
-    print(response)
+
+    # Basic check
     assert response is not None
+
+    # Select first choice
+    choice = response.choices[0]
+
+    # Ensure that the first message returns a "send_message"
+    validator_func = lambda function_call: function_call.name == "send_message" or function_call.name == "archival_memory_search"
+    assert_contains_valid_function_call(choice.message, validator_func)
+
+    # Assert that the choice has an inner monologue
+    assert_contains_correct_inner_monologue(choice, inner_thoughts_in_kwargs)
 
 
 def run_embedding_endpoint(filename):
@@ -86,7 +81,7 @@ def run_embedding_endpoint(filename):
 
 def test_llm_endpoint_openai():
     filename = os.path.join(llm_config_dir, "gpt-4.json")
-    run_llm_endpoint(filename)
+    check_first_response_is_valid_for_llm_endpoint(filename)
 
 
 def test_embedding_endpoint_openai():
@@ -96,7 +91,7 @@ def test_embedding_endpoint_openai():
 
 def test_llm_endpoint_letta_hosted():
     filename = os.path.join(llm_config_dir, "letta-hosted.json")
-    run_llm_endpoint(filename)
+    check_first_response_is_valid_for_llm_endpoint(filename)
 
 
 def test_embedding_endpoint_letta_hosted():
@@ -111,7 +106,7 @@ def test_embedding_endpoint_local():
 
 def test_llm_endpoint_ollama():
     filename = os.path.join(llm_config_dir, "ollama.json")
-    run_llm_endpoint(filename)
+    check_first_response_is_valid_for_llm_endpoint(filename)
 
 
 def test_embedding_endpoint_ollama():
@@ -121,4 +116,4 @@ def test_embedding_endpoint_ollama():
 
 def test_llm_endpoint_anthropic():
     filename = os.path.join(llm_config_dir, "anthropic.json")
-    run_llm_endpoint(filename)
+    check_first_response_is_valid_for_llm_endpoint(filename)

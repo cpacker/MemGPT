@@ -37,7 +37,7 @@ from letta.schemas.openai.chat_completion_request import (
     Tool,
     cast_message_to_subtype,
 )
-from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
+from letta.schemas.openai.chat_completion_response import ChatCompletionResponse, Choice
 from letta.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
@@ -83,7 +83,7 @@ def add_inner_thoughts_to_functions(
     return new_functions
 
 
-def unpack_inner_thoughts_from_kwargs(
+def unpack_all_inner_thoughts_from_kwargs(
     response: ChatCompletionResponse,
     inner_thoughts_key: str,
 ) -> ChatCompletionResponse:
@@ -93,41 +93,44 @@ def unpack_inner_thoughts_from_kwargs(
 
     new_choices = []
     for choice in response.choices:
-        msg = choice.message
-        if msg.role == "assistant" and msg.tool_calls and len(msg.tool_calls) >= 1:
-            if len(msg.tool_calls) > 1:
-                warnings.warn(f"Unpacking inner thoughts from more than one tool call ({len(msg.tool_calls)}) is not supported")
-            # TODO support multiple tool calls
-            tool_call = msg.tool_calls[0]
-
-            try:
-                # Sadly we need to parse the JSON since args are in string format
-                func_args = dict(json.loads(tool_call.function.arguments))
-                if inner_thoughts_key in func_args:
-                    # extract the inner thoughts
-                    inner_thoughts = func_args.pop(inner_thoughts_key)
-
-                    # replace the kwargs
-                    new_choice = choice.model_copy(deep=True)
-                    new_choice.message.tool_calls[0].function.arguments = json_dumps(func_args)
-                    # also replace the message content
-                    if new_choice.message.content is not None:
-                        warnings.warn(f"Overwriting existing inner monologue ({new_choice.message.content}) with kwarg ({inner_thoughts})")
-                    new_choice.message.content = inner_thoughts
-
-                    # save copy
-                    new_choices.append(new_choice)
-                else:
-                    warnings.warn(f"Did not find inner thoughts in tool call: {str(tool_call)}")
-
-            except json.JSONDecodeError as e:
-                warnings.warn(f"Failed to strip inner thoughts from kwargs: {e}")
-                raise e
+        new_choices.append(unpack_inner_thoughts_from_kwargs(choice, inner_thoughts_key))
 
     # return an updated copy
     new_response = response.model_copy(deep=True)
     new_response.choices = new_choices
     return new_response
+
+
+def unpack_inner_thoughts_from_kwargs(choice: Choice, inner_thoughts_key: str) -> Choice:
+    message = choice.message
+    if message.role == "assistant" and message.tool_calls and len(message.tool_calls) >= 1:
+        if len(message.tool_calls) > 1:
+            warnings.warn(f"Unpacking inner thoughts from more than one tool call ({len(message.tool_calls)}) is not supported")
+        # TODO support multiple tool calls
+        tool_call = message.tool_calls[0]
+
+        try:
+            # Sadly we need to parse the JSON since args are in string format
+            func_args = dict(json.loads(tool_call.function.arguments))
+            if inner_thoughts_key in func_args:
+                # extract the inner thoughts
+                inner_thoughts = func_args.pop(inner_thoughts_key)
+
+                # replace the kwargs
+                new_choice = choice.model_copy(deep=True)
+                new_choice.message.tool_calls[0].function.arguments = json_dumps(func_args)
+                # also replace the message content
+                if new_choice.message.content is not None:
+                    warnings.warn(f"Overwriting existing inner monologue ({new_choice.message.content}) with kwarg ({inner_thoughts})")
+                new_choice.message.content = inner_thoughts
+
+                return new_choice
+            else:
+                warnings.warn(f"Did not find inner thoughts in tool call: {str(tool_call)}")
+
+        except json.JSONDecodeError as e:
+            warnings.warn(f"Failed to strip inner thoughts from kwargs: {e}")
+            raise e
 
 
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
@@ -343,7 +346,7 @@ def create(
                     stream_inferface.stream_end()
 
         if inner_thoughts_in_kwargs:
-            response = unpack_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
+            response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
 
         return response
 
