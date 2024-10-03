@@ -22,6 +22,7 @@ from letta.schemas.block import (
     UpdatePersona,
 )
 from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.message import ContentPart
 
 # new schemas
 from letta.schemas.enums import JobStatus, MessageRole
@@ -1662,7 +1663,7 @@ class LocalClient(AbstractClient):
 
     def send_message(
         self,
-        message: str,
+        message: Union[str, ContentPart],
         role: str,
         agent_id: Optional[str] = None,
         agent_name: Optional[str] = None,
@@ -1689,6 +1690,9 @@ class LocalClient(AbstractClient):
             agent_id = self.get_agent_id(agent_name=agent_name)
 
         agent_state = self.get_agent(agent_id=agent_id)
+
+        if isinstance(message, str):
+            message = ContentPart(type="text", text=message)
 
         if stream_steps or stream_tokens:
             # TODO: implement streaming with stream=True/False

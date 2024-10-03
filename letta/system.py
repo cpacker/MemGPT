@@ -122,6 +122,11 @@ def package_user_message(
     location_name: Optional[str] = "San Francisco, CA, USA",
     name: Optional[str] = None,
 ):
+    '''
+    Intended to make it compatible with Letta Message type
+
+    Only runs on 'text'
+    '''
     # Package the message with time and location
     formatted_time = time if time else get_local_time()
     packaged_message = {
