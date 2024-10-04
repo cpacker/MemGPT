@@ -212,53 +212,53 @@ class LettaConfig:
         set_field(config, "defaults", "human", self.human)
 
         # model defaults
-        set_field(config, "model", "model", self.default_llm_config.model)
-        set_field(config, "model", "model_endpoint", self.default_llm_config.model_endpoint)
-        set_field(
-            config,
-            "model",
-            "model_endpoint_type",
-            self.default_llm_config.model_endpoint_type,
-        )
-        set_field(config, "model", "model_wrapper", self.default_llm_config.model_wrapper)
-        set_field(
-            config,
-            "model",
-            "context_window",
-            str(self.default_llm_config.context_window),
-        )
+        # set_field(config, "model", "model", self.default_llm_config.model)
+        ##set_field(config, "model", "model_endpoint", self.default_llm_config.model_endpoint)
+        # set_field(
+        #    config,
+        #    "model",
+        #    "model_endpoint_type",
+        #    self.default_llm_config.model_endpoint_type,
+        # )
+        # set_field(config, "model", "model_wrapper", self.default_llm_config.model_wrapper)
+        # set_field(
+        #    config,
+        #    "model",
+        #    "context_window",
+        #    str(self.default_llm_config.context_window),
+        # )
 
-        # embeddings
-        set_field(
-            config,
-            "embedding",
-            "embedding_endpoint_type",
-            self.default_embedding_config.embedding_endpoint_type,
-        )
-        set_field(
-            config,
-            "embedding",
-            "embedding_endpoint",
-            self.default_embedding_config.embedding_endpoint,
-        )
-        set_field(
-            config,
-            "embedding",
-            "embedding_model",
-            self.default_embedding_config.embedding_model,
-        )
-        set_field(
-            config,
-            "embedding",
-            "embedding_dim",
-            str(self.default_embedding_config.embedding_dim),
-        )
-        set_field(
-            config,
-            "embedding",
-            "embedding_chunk_size",
-            str(self.default_embedding_config.embedding_chunk_size),
-        )
+        ## embeddings
+        # set_field(
+        #    config,
+        #    "embedding",
+        #    "embedding_endpoint_type",
+        #    self.default_embedding_config.embedding_endpoint_type,
+        # )
+        # set_field(
+        #    config,
+        #    "embedding",
+        #    "embedding_endpoint",
+        #    self.default_embedding_config.embedding_endpoint,
+        # )
+        # set_field(
+        #    config,
+        #    "embedding",
+        #    "embedding_model",
+        #    self.default_embedding_config.embedding_model,
+        # )
+        # set_field(
+        #    config,
+        #    "embedding",
+        #    "embedding_dim",
+        #    str(self.default_embedding_config.embedding_dim),
+        # )
+        # set_field(
+        #    config,
+        #    "embedding",
+        #    "embedding_chunk_size",
+        #    str(self.default_embedding_config.embedding_chunk_size),
+        # )
 
         # archival storage
         set_field(config, "archival_storage", "type", self.archival_storage_type)
