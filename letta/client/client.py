@@ -314,6 +314,8 @@ class RESTClient(AbstractClient):
     def create_agent(
         self,
         name: Optional[str] = None,
+        # agent config
+        agent_config: Optional[AgentConfig] = None,
         # model configs
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
