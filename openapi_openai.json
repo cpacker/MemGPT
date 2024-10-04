@@ -1,0 +1,6392 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Letta API",
+    "summary": "Create LLM agents with long-term memory and custom tools \ud83d\udcda\ud83e\udd99",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/openai/v1/assistants/": {
+      "post": {
+        "tags": [
+          "assistants"
+        ],
+        "summary": "Create Assistant",
+        "operationId": "create_assistant_openai_v1_assistants__post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssistantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIAssistant"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "assistants"
+        ],
+        "summary": "List Assistants",
+        "operationId": "list_assistants_openai_v1_assistants__get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "How many assistants to retrieve.",
+              "default": 1000,
+              "title": "Limit"
+            },
+            "description": "How many assistants to retrieve."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Order of assistants to retrieve (either 'asc' or 'desc').",
+              "default": "asc",
+              "title": "Order"
+            },
+            "description": "Order of assistants to retrieve (either 'asc' or 'desc')."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "After"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "Before"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OpenAIAssistant"
+                  },
+                  "title": "Response List Assistants Openai V1 Assistants  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/assistants/{assistant_id}/files": {
+      "post": {
+        "tags": [
+          "assistants"
+        ],
+        "summary": "Create Assistant File",
+        "operationId": "create_assistant_file_openai_v1_assistants__assistant_id__files_post",
+        "parameters": [
+          {
+            "name": "assistant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the assistant.",
+              "title": "Assistant Id"
+            },
+            "description": "The unique identifier of the assistant."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssistantFileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantFile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "assistants"
+        ],
+        "summary": "List Assistant Files",
+        "operationId": "list_assistant_files_openai_v1_assistants__assistant_id__files_get",
+        "parameters": [
+          {
+            "name": "assistant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the assistant.",
+              "title": "Assistant Id"
+            },
+            "description": "The unique identifier of the assistant."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "How many files to retrieve.",
+              "default": 1000,
+              "title": "Limit"
+            },
+            "description": "How many files to retrieve."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Order of files to retrieve (either 'asc' or 'desc').",
+              "default": "asc",
+              "title": "Order"
+            },
+            "description": "Order of files to retrieve (either 'asc' or 'desc')."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "After"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "Before"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssistantFile"
+                  },
+                  "title": "Response List Assistant Files Openai V1 Assistants  Assistant Id  Files Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/assistants/{assistant_id}": {
+      "get": {
+        "tags": [
+          "assistants"
+        ],
+        "summary": "Retrieve Assistant",
+        "operationId": "retrieve_assistant_openai_v1_assistants__assistant_id__get",
+        "parameters": [
+          {
+            "name": "assistant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the assistant.",
+              "title": "Assistant Id"
+            },
+            "description": "The unique identifier of the assistant."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIAssistant"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "assistants"
+        ],
+        "summary": "Modify Assistant",
+        "operationId": "modify_assistant_openai_v1_assistants__assistant_id__post",
+        "parameters": [
+          {
+            "name": "assistant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the assistant.",
+              "title": "Assistant Id"
+            },
+            "description": "The unique identifier of the assistant."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssistantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIAssistant"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "assistants"
+        ],
+        "summary": "Delete Assistant",
+        "operationId": "delete_assistant_openai_v1_assistants__assistant_id__delete",
+        "parameters": [
+          {
+            "name": "assistant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the assistant.",
+              "title": "Assistant Id"
+            },
+            "description": "The unique identifier of the assistant."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAssistantResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/assistants/{assistant_id}/files/{file_id}": {
+      "get": {
+        "tags": [
+          "assistants"
+        ],
+        "summary": "Retrieve Assistant File",
+        "operationId": "retrieve_assistant_file_openai_v1_assistants__assistant_id__files__file_id__get",
+        "parameters": [
+          {
+            "name": "assistant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the assistant.",
+              "title": "Assistant Id"
+            },
+            "description": "The unique identifier of the assistant."
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the file.",
+              "title": "File Id"
+            },
+            "description": "The unique identifier of the file."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantFile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "assistants"
+        ],
+        "summary": "Delete Assistant File",
+        "operationId": "delete_assistant_file_openai_v1_assistants__assistant_id__files__file_id__delete",
+        "parameters": [
+          {
+            "name": "assistant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the assistant.",
+              "title": "Assistant Id"
+            },
+            "description": "The unique identifier of the assistant."
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the file.",
+              "title": "File Id"
+            },
+            "description": "The unique identifier of the file."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteAssistantFileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/": {
+      "post": {
+        "tags": [
+          "threads"
+        ],
+        "summary": "Create Thread",
+        "operationId": "create_thread_openai_v1_threads__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateThreadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIThread"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}": {
+      "get": {
+        "tags": [
+          "threads"
+        ],
+        "summary": "Modify Thread",
+        "operationId": "modify_thread_openai_v1_threads__thread_id__get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifyThreadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIThread"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "threads"
+        ],
+        "summary": "Delete Thread",
+        "operationId": "delete_thread_openai_v1_threads__thread_id__delete",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteThreadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}/messages": {
+      "post": {
+        "tags": [
+          "threads",
+          "messages"
+        ],
+        "summary": "Create Message",
+        "operationId": "create_message_openai_v1_threads__thread_id__messages_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIMessage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "threads",
+          "messages"
+        ],
+        "summary": "List Messages",
+        "operationId": "list_messages_openai_v1_threads__thread_id__messages_get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "How many messages to retrieve.",
+              "default": 1000,
+              "title": "Limit"
+            },
+            "description": "How many messages to retrieve."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Order of messages to retrieve (either 'asc' or 'desc').",
+              "default": "asc",
+              "title": "Order"
+            },
+            "description": "Order of messages to retrieve (either 'asc' or 'desc')."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "After"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "Before"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListMessagesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}/messages/{message_id}": {
+      "get": {
+        "tags": [
+          "threads",
+          "messages"
+        ],
+        "summary": "Retrieve Message",
+        "operationId": "retrieve_message_openai_v1_threads__thread_id__messages__message_id__get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the message.",
+              "title": "Message Id"
+            },
+            "description": "The unique identifier of the message."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIMessage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "threads",
+          "messages"
+        ],
+        "summary": "Modify Message",
+        "operationId": "modify_message_openai_v1_threads__thread_id__messages__message_id__post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the message.",
+              "title": "Message Id"
+            },
+            "description": "The unique identifier of the message."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifyMessageRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIMessage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}/messages/{message_id}/files/{file_id}": {
+      "get": {
+        "tags": [
+          "threads",
+          "messages"
+        ],
+        "summary": "Retrieve Message File",
+        "operationId": "retrieve_message_file_openai_v1_threads__thread_id__messages__message_id__files__file_id__get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the message.",
+              "title": "Message Id"
+            },
+            "description": "The unique identifier of the message."
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the file.",
+              "title": "File Id"
+            },
+            "description": "The unique identifier of the file."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageFile"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}/runs": {
+      "post": {
+        "tags": [
+          "threads",
+          "runs"
+        ],
+        "summary": "Create Run",
+        "operationId": "create_run_openai_v1_threads__thread_id__runs_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "threads",
+          "runs"
+        ],
+        "summary": "List Runs",
+        "operationId": "list_runs_openai_v1_threads__thread_id__runs_get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "How many runs to retrieve.",
+              "default": 1000,
+              "title": "Limit"
+            },
+            "description": "How many runs to retrieve."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Order of runs to retrieve (either 'asc' or 'desc').",
+              "default": "asc",
+              "title": "Order"
+            },
+            "description": "Order of runs to retrieve (either 'asc' or 'desc')."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "After"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "Before"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OpenAIRun"
+                  },
+                  "title": "Response List Runs Openai V1 Threads  Thread Id  Runs Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/runs": {
+      "post": {
+        "tags": [
+          "threads",
+          "runs"
+        ],
+        "summary": "Create Thread And Run",
+        "operationId": "create_thread_and_run_openai_v1_threads_runs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateThreadRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}/runs/{run_id}/steps": {
+      "get": {
+        "tags": [
+          "threads",
+          "runs"
+        ],
+        "summary": "List Run Steps",
+        "operationId": "list_run_steps_openai_v1_threads__thread_id__runs__run_id__steps_get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the run.",
+              "title": "Run Id"
+            },
+            "description": "The unique identifier of the run."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "description": "How many run steps to retrieve.",
+              "default": 1000,
+              "title": "Limit"
+            },
+            "description": "How many run steps to retrieve."
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Order of run steps to retrieve (either 'asc' or 'desc').",
+              "default": "asc",
+              "title": "Order"
+            },
+            "description": "Order of run steps to retrieve (either 'asc' or 'desc')."
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "After"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list.",
+              "title": "Before"
+            },
+            "description": "A cursor for use in pagination. `after` is an object ID that defines your place in the list."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/OpenAIRunStep"
+                  },
+                  "title": "Response List Run Steps Openai V1 Threads  Thread Id  Runs  Run Id  Steps Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}/runs/{run_id}": {
+      "get": {
+        "tags": [
+          "threads",
+          "runs"
+        ],
+        "summary": "Retrieve Run",
+        "operationId": "retrieve_run_openai_v1_threads__thread_id__runs__run_id__get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the run.",
+              "title": "Run Id"
+            },
+            "description": "The unique identifier of the run."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "threads",
+          "runs"
+        ],
+        "summary": "Modify Run",
+        "operationId": "modify_run_openai_v1_threads__thread_id__runs__run_id__post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the run.",
+              "title": "Run Id"
+            },
+            "description": "The unique identifier of the run."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifyRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}/runs/{run_id}/steps/{step_id}": {
+      "get": {
+        "tags": [
+          "threads",
+          "runs"
+        ],
+        "summary": "Retrieve Run Step",
+        "operationId": "retrieve_run_step_openai_v1_threads__thread_id__runs__run_id__steps__step_id__get",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the run.",
+              "title": "Run Id"
+            },
+            "description": "The unique identifier of the run."
+          },
+          {
+            "name": "step_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the run step.",
+              "title": "Step Id"
+            },
+            "description": "The unique identifier of the run step."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIRunStep"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}/runs/{run_id}/submit_tool_outputs": {
+      "post": {
+        "tags": [
+          "threads",
+          "runs"
+        ],
+        "summary": "Submit Tool Outputs To Run",
+        "operationId": "submit_tool_outputs_to_run_openai_v1_threads__thread_id__runs__run_id__submit_tool_outputs_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the run.",
+              "title": "Run Id"
+            },
+            "description": "The unique identifier of the run."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitToolOutputsToRunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/threads/{thread_id}/runs/{run_id}/cancel": {
+      "post": {
+        "tags": [
+          "threads",
+          "runs"
+        ],
+        "summary": "Cancel Run",
+        "operationId": "cancel_run_openai_v1_threads__thread_id__runs__run_id__cancel_post",
+        "parameters": [
+          {
+            "name": "thread_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the thread.",
+              "title": "Thread Id"
+            },
+            "description": "The unique identifier of the thread."
+          },
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "The unique identifier of the run.",
+              "title": "Run Id"
+            },
+            "description": "The unique identifier of the run."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenAIRun"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openai/v1/chat/completions/": {
+      "post": {
+        "tags": [
+          "chat_completions"
+        ],
+        "summary": "Create Chat Completion",
+        "description": "Send a message to a Letta agent via a /chat/completions completion_request\nThe bearer token will be used to identify the user.\nThe 'user' field in the completion_request should be set to the agent ID.",
+        "operationId": "create_chat_completion_openai_v1_chat_completions__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatCompletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "APIKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^sk-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Sk",
+            "examples": [
+              [
+                "sk-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the token."
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "The key value."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the token."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id",
+          "key",
+          "name"
+        ],
+        "title": "APIKey"
+      },
+      "APIKeyCreate": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the token."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Name of the token."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "APIKeyCreate"
+      },
+      "AgentState": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the agent."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "The metadata of the agent."
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The user id of the agent."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^agent-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Agent",
+            "examples": [
+              [
+                "agent-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the agent."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The datetime the agent was created."
+          },
+          "message_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Ids",
+            "description": "The ids of the messages in the agent's in-context memory."
+          },
+          "memory": {
+            "$ref": "#/components/schemas/Memory",
+            "description": "The in-context memory of the agent."
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "The tools used by the agent."
+          },
+          "system": {
+            "type": "string",
+            "title": "System",
+            "description": "The system prompt used by the agent."
+          },
+          "llm_config": {
+            "$ref": "#/components/schemas/LLMConfig",
+            "description": "The LLM configuration used by the agent."
+          },
+          "embedding_config": {
+            "$ref": "#/components/schemas/EmbeddingConfig",
+            "description": "The embedding configuration used by the agent."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "tools",
+          "system",
+          "llm_config",
+          "embedding_config"
+        ],
+        "title": "AgentState",
+        "description": "Representation of an agent's state. This is the state of the agent at a given time, and is persisted in the DB backend. The state has all the information needed to recreate a persisted agent.\n\nParameters:\n    id (str): The unique identifier of the agent.\n    name (str): The name of the agent (must be unique to the user).\n    created_at (datetime): The datetime the agent was created.\n    message_ids (List[str]): The ids of the messages in the agent's in-context memory.\n    memory (Memory): The in-context memory of the agent.\n    tools (List[str]): The tools used by the agent. This includes any memory editing functions specified in `memory`.\n    system (str): The system prompt used by the agent.\n    llm_config (LLMConfig): The LLM configuration used by the agent.\n    embedding_config (EmbeddingConfig): The embedding configuration used by the agent."
+      },
+      "ArchivalMemorySummary": {
+        "properties": {
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "Number of rows in archival memory"
+          }
+        },
+        "type": "object",
+        "required": [
+          "size"
+        ],
+        "title": "ArchivalMemorySummary"
+      },
+      "AssistantFile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the file."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "assistant.file"
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At",
+            "description": "The unix timestamp of when the file was created."
+          },
+          "assistant_id": {
+            "type": "string",
+            "title": "Assistant Id",
+            "description": "The unique identifier of the assistant."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "assistant_id"
+        ],
+        "title": "AssistantFile"
+      },
+      "AssistantMessage-Input": {
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "default": "assistant"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/letta__schemas__openai__chat_completion_request__ToolCall"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls"
+          }
+        },
+        "type": "object",
+        "title": "AssistantMessage"
+      },
+      "AssistantMessage-Output": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          },
+          "message_type": {
+            "type": "string",
+            "enum": [
+              "assistant_message"
+            ],
+            "const": "assistant_message",
+            "title": "Message Type",
+            "default": "assistant_message"
+          },
+          "assistant_message": {
+            "type": "string",
+            "title": "Assistant Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "date",
+          "assistant_message"
+        ],
+        "title": "AssistantMessage"
+      },
+      "AuthRequest": {
+        "properties": {
+          "password": {
+            "type": "string",
+            "title": "Password",
+            "description": "Admin password provided when starting the Letta server"
+          }
+        },
+        "type": "object",
+        "title": "AuthRequest"
+      },
+      "AuthResponse": {
+        "properties": {
+          "uuid": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Uuid",
+            "description": "UUID of the user"
+          },
+          "is_admin": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Admin",
+            "description": "Whether the user is an admin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "uuid"
+        ],
+        "title": "AuthResponse"
+      },
+      "Block": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value",
+            "description": "Value of the block."
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Character limit of the block.",
+            "default": 2000
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Name of the block."
+          },
+          "template": {
+            "type": "boolean",
+            "title": "Template",
+            "description": "Whether the block is a template (e.g. saved human/persona options).",
+            "default": false
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "Label of the block (e.g. 'human', 'persona')."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the block."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "Metadata of the block.",
+            "default": {}
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the block."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^block-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Block",
+            "examples": [
+              [
+                "block-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "Block",
+        "description": "A Block represents a reserved section of the LLM's context window which is editable. `Block` objects contained in the `Memory` object, which is able to edit the Block values.\n\nParameters:\n    name (str): The name of the block.\n    value (str): The value of the block. This is the string that is represented in the context window.\n    limit (int): The character limit of the block.\n    template (bool): Whether the block is a template (e.g. saved human/persona options). Non-template blocks are not stored in the database and are ephemeral, while templated blocks are stored in the database.\n    label (str): The label of the block (e.g. 'human', 'persona'). This defines a category for the block.\n    description (str): Description of the block.\n    metadata_ (Dict): Metadata of the block.\n    user_id (str): The unique identifier of the user associated with the block."
+      },
+      "Body_upload_file_to_source": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_to_source"
+      },
+      "ChatCompletionRequest": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "messages": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/SystemMessage-Input"
+                },
+                {
+                  "$ref": "#/components/schemas/UserMessage-Input"
+                },
+                {
+                  "$ref": "#/components/schemas/AssistantMessage-Input"
+                },
+                {
+                  "$ref": "#/components/schemas/ToolMessage"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Messages"
+          },
+          "frequency_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency Penalty",
+            "default": 0
+          },
+          "logit_bias": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logit Bias"
+          },
+          "logprobs": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logprobs",
+            "default": false
+          },
+          "top_logprobs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Logprobs"
+          },
+          "max_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Tokens"
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N",
+            "default": 1
+          },
+          "presence_penalty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presence Penalty",
+            "default": 0
+          },
+          "response_format": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResponseFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "stop": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stop"
+          },
+          "stream": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream",
+            "default": false
+          },
+          "temperature": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature",
+            "default": 1
+          },
+          "top_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top P",
+            "default": 1
+          },
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User"
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Tool-Input"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools"
+          },
+          "tool_choice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "auto"
+                ]
+              },
+              {
+                "$ref": "#/components/schemas/ToolFunctionChoice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Choice",
+            "default": "none"
+          },
+          "functions": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/FunctionSchema"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Functions"
+          },
+          "function_call": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "auto"
+                ]
+              },
+              {
+                "$ref": "#/components/schemas/FunctionCall-Input"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Function Call"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "messages"
+        ],
+        "title": "ChatCompletionRequest",
+        "description": "https://platform.openai.com/docs/api-reference/chat/create"
+      },
+      "ChatCompletionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/Choice"
+            },
+            "type": "array",
+            "title": "Choices"
+          },
+          "created": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "system_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System Fingerprint"
+          },
+          "object": {
+            "type": "string",
+            "enum": [
+              "chat.completion"
+            ],
+            "const": "chat.completion",
+            "title": "Object",
+            "default": "chat.completion"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/UsageStatistics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "choices",
+          "created",
+          "usage"
+        ],
+        "title": "ChatCompletionResponse",
+        "description": "https://platform.openai.com/docs/api-reference/chat/object"
+      },
+      "Choice": {
+        "properties": {
+          "finish_reason": {
+            "type": "string",
+            "title": "Finish Reason"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "message": {
+            "$ref": "#/components/schemas/letta__schemas__openai__chat_completion_response__Message"
+          },
+          "logprobs": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "$ref": "#/components/schemas/MessageContentLogProb"
+                      },
+                      "type": "array"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logprobs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finish_reason",
+          "index",
+          "message"
+        ],
+        "title": "Choice"
+      },
+      "CreateAgent": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the agent."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "The metadata of the agent."
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The user id of the agent."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the agent."
+          },
+          "message_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Ids",
+            "description": "The ids of the messages in the agent's in-context memory."
+          },
+          "memory": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Memory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The in-context memory of the agent."
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "The tools used by the agent."
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System",
+            "description": "The system prompt used by the agent."
+          },
+          "llm_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LLMConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The LLM configuration used by the agent."
+          },
+          "embedding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The embedding configuration used by the agent."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CreateAgent"
+      },
+      "CreateArchivalMemory": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "Text to write to archival memory."
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "CreateArchivalMemory"
+      },
+      "CreateAssistantFileRequest": {
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "title": "File Id",
+            "description": "The unique identifier of the file."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id"
+        ],
+        "title": "CreateAssistantFileRequest"
+      },
+      "CreateAssistantRequest": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "The model to use for the assistant."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the assistant."
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "The description of the assistant."
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "The instructions for the assistant."
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "The tools used by the assistant."
+          },
+          "file_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "File Ids",
+            "description": "List of file IDs associated with the assistant."
+          },
+          "metadata": {
+            "type": "object",
+            "title": "Metadata",
+            "description": "Metadata associated with the assistant."
+          },
+          "embedding_model": {
+            "type": "string",
+            "title": "Embedding Model",
+            "description": "The model to use for the assistant."
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "name",
+          "instructions"
+        ],
+        "title": "CreateAssistantRequest"
+      },
+      "CreateBlock": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "Value of the block."
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Character limit of the block.",
+            "default": 2000
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Name of the block."
+          },
+          "template": {
+            "type": "boolean",
+            "title": "Template",
+            "default": true
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "Label of the block."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the block."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "Metadata of the block.",
+            "default": {}
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the block."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "CreateBlock",
+        "description": "Create a block"
+      },
+      "CreateMessageRequest": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "Role of the message sender (either 'user' or 'system')"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "The message content to be processed by the agent."
+          },
+          "file_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Ids",
+            "description": "List of file IDs associated with the message."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata associated with the message."
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "CreateMessageRequest"
+      },
+      "CreateRunRequest": {
+        "properties": {
+          "assistant_id": {
+            "type": "string",
+            "title": "Assistant Id",
+            "description": "The unique identifier of the assistant."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "The model used by the run."
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "The instructions for the run."
+          },
+          "additional_instructions": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Instructions",
+            "description": "Additional instructions for the run."
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/letta__schemas__openai__openai__ToolCall"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "The tools used by the run (overrides assistant)."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata associated with the run."
+          }
+        },
+        "type": "object",
+        "required": [
+          "assistant_id",
+          "instructions"
+        ],
+        "title": "CreateRunRequest"
+      },
+      "CreateThreadRequest": {
+        "properties": {
+          "messages": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Messages",
+            "description": "List of message IDs associated with the thread."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata associated with the thread."
+          },
+          "assistant_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assistant Name",
+            "description": "The name of the assistant (i.e. Letta preset)"
+          }
+        },
+        "type": "object",
+        "title": "CreateThreadRequest"
+      },
+      "CreateThreadRunRequest": {
+        "properties": {
+          "assistant_id": {
+            "type": "string",
+            "title": "Assistant Id",
+            "description": "The unique identifier of the assistant."
+          },
+          "thread": {
+            "$ref": "#/components/schemas/OpenAIThread",
+            "description": "The thread to run."
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "The model used by the run."
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "The instructions for the run."
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/letta__schemas__openai__openai__ToolCall"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "The tools used by the run (overrides assistant)."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata associated with the run."
+          }
+        },
+        "type": "object",
+        "required": [
+          "assistant_id",
+          "thread",
+          "model",
+          "instructions"
+        ],
+        "title": "CreateThreadRunRequest"
+      },
+      "DeleteAssistantFileResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the file."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "assistant.file.deleted"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted",
+            "description": "Whether the file was deleted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "deleted"
+        ],
+        "title": "DeleteAssistantFileResponse"
+      },
+      "DeleteAssistantResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the agent."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "assistant.deleted"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted",
+            "description": "Whether the agent was deleted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "deleted"
+        ],
+        "title": "DeleteAssistantResponse"
+      },
+      "DeleteThreadResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the agent."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "thread.deleted"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted",
+            "description": "Whether the agent was deleted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "deleted"
+        ],
+        "title": "DeleteThreadResponse"
+      },
+      "Document": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^doc-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Doc",
+            "examples": [
+              [
+                "doc-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The text of the document."
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id",
+            "description": "The unique identifier of the source associated with the document."
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the document."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "The metadata of the document.",
+            "default": {}
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "source_id",
+          "user_id"
+        ],
+        "title": "Document",
+        "description": "Representation of a single document (broken up into `Passage` objects)"
+      },
+      "EmbeddingConfig": {
+        "properties": {
+          "embedding_endpoint_type": {
+            "type": "string",
+            "title": "Embedding Endpoint Type",
+            "description": "The endpoint type for the model."
+          },
+          "embedding_endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Endpoint",
+            "description": "The endpoint for the model (`None` if local)."
+          },
+          "embedding_model": {
+            "type": "string",
+            "title": "Embedding Model",
+            "description": "The model for the embedding."
+          },
+          "embedding_dim": {
+            "type": "integer",
+            "title": "Embedding Dim",
+            "description": "The dimension of the embedding."
+          },
+          "embedding_chunk_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Chunk Size",
+            "description": "The chunk size of the embedding.",
+            "default": 300
+          },
+          "azure_endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Azure Endpoint",
+            "description": "The Azure endpoint for the model."
+          },
+          "azure_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Azure Version",
+            "description": "The Azure version for the model."
+          },
+          "azure_deployment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Azure Deployment",
+            "description": "The Azure deployment for the model."
+          }
+        },
+        "type": "object",
+        "required": [
+          "embedding_endpoint_type",
+          "embedding_model",
+          "embedding_dim"
+        ],
+        "title": "EmbeddingConfig",
+        "description": "Embedding model configuration. This object specifies all the information necessary to access an embedding model to usage with Letta, except for secret keys.\n\nAttributes:\n    embedding_endpoint_type (str): The endpoint type for the model.\n    embedding_endpoint (str): The endpoint for the model.\n    embedding_model (str): The model for the embedding.\n    embedding_dim (int): The dimension of the embedding.\n    embedding_chunk_size (int): The chunk size of the embedding.\n    azure_endpoint (:obj:`str`, optional): The Azure endpoint for the model (Azure only).\n    azure_version (str): The Azure version for the model (Azure only).\n    azure_deployment (str): The Azure deployment for the model (Azure only)."
+      },
+      "Function": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function."
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments",
+            "description": "The arguments of the function."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arguments"
+        ],
+        "title": "Function"
+      },
+      "FunctionCall-Input": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "FunctionCall"
+      },
+      "FunctionCallDelta": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "arguments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Arguments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arguments"
+        ],
+        "title": "FunctionCallDelta"
+      },
+      "FunctionCallMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          },
+          "message_type": {
+            "type": "string",
+            "enum": [
+              "function_call"
+            ],
+            "const": "function_call",
+            "title": "Message Type",
+            "default": "function_call"
+          },
+          "function_call": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/letta__schemas__letta_message__FunctionCall"
+              },
+              {
+                "$ref": "#/components/schemas/FunctionCallDelta"
+              }
+            ],
+            "title": "Function Call"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "date",
+          "function_call"
+        ],
+        "title": "FunctionCallMessage",
+        "description": "A message representing a request to call a function (generated by the LLM to trigger function execution).\n\nAttributes:\n    function_call (Union[FunctionCall, FunctionCallDelta]): The function call\n    id (str): The ID of the message\n    date (datetime): The date the message was created in ISO format"
+      },
+      "FunctionReturn": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          },
+          "message_type": {
+            "type": "string",
+            "enum": [
+              "function_return"
+            ],
+            "const": "function_return",
+            "title": "Message Type",
+            "default": "function_return"
+          },
+          "function_return": {
+            "type": "string",
+            "title": "Function Return"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "error"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "date",
+          "function_return",
+          "status"
+        ],
+        "title": "FunctionReturn",
+        "description": "A message representing the return value of a function call (generated by Letta executing the requested function).\n\nAttributes:\n    function_return (str): The return value of the function\n    status (Literal[\"success\", \"error\"]): The status of the function call\n    id (str): The ID of the message\n    date (datetime): The date the message was created in ISO format"
+      },
+      "FunctionSchema": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "FunctionSchema"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "status"
+        ],
+        "title": "Health",
+        "description": "Health check response body"
+      },
+      "ImageFile": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "image_file"
+          },
+          "file_id": {
+            "type": "string",
+            "title": "File Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_id"
+        ],
+        "title": "ImageFile"
+      },
+      "InternalMonologue": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          },
+          "message_type": {
+            "type": "string",
+            "enum": [
+              "internal_monologue"
+            ],
+            "const": "internal_monologue",
+            "title": "Message Type",
+            "default": "internal_monologue"
+          },
+          "internal_monologue": {
+            "type": "string",
+            "title": "Internal Monologue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "date",
+          "internal_monologue"
+        ],
+        "title": "InternalMonologue",
+        "description": "Representation of an agent's internal monologue.\n\nAttributes:\n    internal_monologue (str): The internal monologue of the agent\n    id (str): The ID of the message\n    date (datetime): The date the message was created in ISO format"
+      },
+      "Job": {
+        "properties": {
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "The metadata of the job."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^job-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Job",
+            "examples": [
+              [
+                "job-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus",
+            "description": "The status of the job.",
+            "default": "created"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The unix timestamp of when the job was created."
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At",
+            "description": "The unix timestamp of when the job was completed."
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the job."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "Job",
+        "description": "Representation of offline jobs, used for tracking status of data loading tasks (involving parsing and embedding documents).\n\nParameters:\n    id (str): The unique identifier of the job.\n    status (JobStatus): The status of the job.\n    created_at (datetime): The unix timestamp of when the job was created.\n    completed_at (datetime): The unix timestamp of when the job was completed.\n    user_id (str): The unique identifier of the user associated with the."
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "created",
+          "running",
+          "completed",
+          "failed",
+          "pending"
+        ],
+        "title": "JobStatus",
+        "description": "Status of the job."
+      },
+      "LLMConfig": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "LLM model name. "
+          },
+          "model_endpoint_type": {
+            "type": "string",
+            "title": "Model Endpoint Type",
+            "description": "The endpoint type for the model."
+          },
+          "model_endpoint": {
+            "type": "string",
+            "title": "Model Endpoint",
+            "description": "The endpoint for the model."
+          },
+          "model_wrapper": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Wrapper",
+            "description": "The wrapper for the model."
+          },
+          "context_window": {
+            "type": "integer",
+            "title": "Context Window",
+            "description": "The context window size for the model."
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "model_endpoint_type",
+          "model_endpoint",
+          "context_window"
+        ],
+        "title": "LLMConfig",
+        "description": "Configuration for a Language Model (LLM) model. This object specifies all the information necessary to access an LLM model to usage with Letta, except for secret keys.\n\nAttributes:\n    model (str): The name of the LLM model.\n    model_endpoint_type (str): The endpoint type for the model.\n    model_endpoint (str): The endpoint for the model.\n    model_wrapper (str): The wrapper for the model.\n    context_window (int): The context window size for the model."
+      },
+      "LettaMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "date"
+        ],
+        "title": "LettaMessage",
+        "description": "Base class for simplified Letta message response type. This is intended to be used for developers who want the internal monologue, function calls, and function returns in a simplified format that does not include additional information other than the content and timestamp.\n\nAttributes:\n    id (str): The ID of the message\n    date (datetime): The date the message was created in ISO format"
+      },
+      "LettaRequest": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/MessageCreate"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "The messages to be sent to the agent."
+          },
+          "run_async": {
+            "type": "boolean",
+            "title": "Run Async",
+            "description": "Whether to asynchronously send the messages to the agent.",
+            "default": false
+          },
+          "stream_steps": {
+            "type": "boolean",
+            "title": "Stream Steps",
+            "description": "Flag to determine if the response should be streamed. Set to True for streaming agent steps.",
+            "default": false
+          },
+          "stream_tokens": {
+            "type": "boolean",
+            "title": "Stream Tokens",
+            "description": "Flag to determine if individual tokens should be streamed. Set to True for token streaming (requires stream_steps = True).",
+            "default": false
+          },
+          "return_message_object": {
+            "type": "boolean",
+            "title": "Return Message Object",
+            "description": "Set True to return the raw Message object. Set False to return the Message in the format of the Letta API.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "LettaRequest"
+      },
+      "LettaResponse": {
+        "properties": {
+          "messages": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/letta__schemas__message__Message"
+                },
+                "type": "array"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LettaMessage"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Messages",
+            "description": "The messages returned by the agent."
+          },
+          "usage": {
+            "$ref": "#/components/schemas/LettaUsageStatistics",
+            "description": "The usage statistics of the agent."
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages",
+          "usage"
+        ],
+        "title": "LettaResponse",
+        "description": "Response object from an agent interaction, consisting of the new messages generated by the agent and usage statistics.\nThe type of the returned messages can be either `Message` or `LettaMessage`, depending on what was specified in the request.\n\nAttributes:\n    messages (List[Union[Message, LettaMessage]]): The messages returned by the agent.\n    usage (LettaUsageStatistics): The usage statistics"
+      },
+      "LettaUsageStatistics": {
+        "properties": {
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens",
+            "description": "The number of tokens generated by the agent.",
+            "default": 0
+          },
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens",
+            "description": "The number of tokens in the prompt.",
+            "default": 0
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens",
+            "description": "The total number of tokens processed by the agent.",
+            "default": 0
+          },
+          "step_count": {
+            "type": "integer",
+            "title": "Step Count",
+            "description": "The number of steps taken by the agent.",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "LettaUsageStatistics",
+        "description": "Usage statistics for the agent interaction.\n\nAttributes:\n    completion_tokens (int): The number of tokens generated by the agent.\n    prompt_tokens (int): The number of tokens in the prompt.\n    total_tokens (int): The total number of tokens processed by the agent.\n    step_count (int): The number of steps taken by the agent."
+      },
+      "ListMessagesResponse": {
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/OpenAIMessage"
+            },
+            "type": "array",
+            "title": "Messages",
+            "description": "List of message objects."
+          }
+        },
+        "type": "object",
+        "required": [
+          "messages"
+        ],
+        "title": "ListMessagesResponse"
+      },
+      "LogProbToken": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "logprob": {
+            "type": "number",
+            "title": "Logprob"
+          },
+          "bytes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "logprob",
+          "bytes"
+        ],
+        "title": "LogProbToken"
+      },
+      "Memory": {
+        "properties": {
+          "memory": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Block"
+            },
+            "type": "object",
+            "title": "Memory",
+            "description": "Mapping from memory block section to memory block."
+          },
+          "prompt_template": {
+            "type": "string",
+            "title": "Prompt Template",
+            "description": "Jinja2 template for compiling memory blocks into a prompt string",
+            "default": "{% for block in memory.values() %}<{{ block.label }} characters=\"{{ block.value|length }}/{{ block.limit }}\">\n{{ block.value }}\n</{{ block.label }}>{% if not loop.last %}\n{% endif %}{% endfor %}"
+          }
+        },
+        "type": "object",
+        "title": "Memory",
+        "description": "Represents the in-context memory of the agent. This includes both the `Block` objects (labelled by sections), as well as tools to edit the blocks.\n\nAttributes:\n    memory (Dict[str, Block]): Mapping from memory block section to memory block."
+      },
+      "MessageContentLogProb": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "logprob": {
+            "type": "number",
+            "title": "Logprob"
+          },
+          "bytes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bytes"
+          },
+          "top_logprobs": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LogProbToken"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top Logprobs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "logprob",
+          "bytes",
+          "top_logprobs"
+        ],
+        "title": "MessageContentLogProb"
+      },
+      "MessageCreate": {
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/MessageRole",
+            "description": "The role of the participant."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The text of the message."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the participant."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "title": "MessageCreate",
+        "description": "Request to create a message"
+      },
+      "MessageFile": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the file."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "thread.message.file"
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At",
+            "description": "The unix timestamp of when the file was created."
+          },
+          "message_id": {
+            "type": "string",
+            "title": "Message Id",
+            "description": "The unique identifier of the message."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "message_id"
+        ],
+        "title": "MessageFile"
+      },
+      "MessageRole": {
+        "type": "string",
+        "enum": [
+          "assistant",
+          "user",
+          "tool",
+          "function",
+          "system"
+        ],
+        "title": "MessageRole"
+      },
+      "ModifyMessageRequest": {
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "title": "Metadata",
+            "description": "Metadata associated with the message."
+          }
+        },
+        "type": "object",
+        "title": "ModifyMessageRequest"
+      },
+      "ModifyRunRequest": {
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "title": "Metadata",
+            "description": "Metadata associated with the run."
+          }
+        },
+        "type": "object",
+        "title": "ModifyRunRequest"
+      },
+      "ModifyThreadRequest": {
+        "properties": {
+          "metadata": {
+            "type": "object",
+            "title": "Metadata",
+            "description": "Metadata associated with the thread."
+          }
+        },
+        "type": "object",
+        "title": "ModifyThreadRequest"
+      },
+      "OpenAIAssistant": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the assistant."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the assistant."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "assistant"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the assistant."
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At",
+            "description": "The unix timestamp of when the assistant was created."
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "The model used by the assistant."
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "The instructions for the assistant."
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "The tools used by the assistant."
+          },
+          "file_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Ids",
+            "description": "List of file IDs associated with the assistant."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata associated with the assistant."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "model",
+          "instructions"
+        ],
+        "title": "OpenAIAssistant",
+        "description": "Represents an OpenAI assistant (equivalent to Letta preset)"
+      },
+      "OpenAIError": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code",
+            "description": "The error code."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "The error message."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "OpenAIError"
+      },
+      "OpenAIMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the message."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "thread.message"
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At",
+            "description": "The unix timestamp of when the message was created."
+          },
+          "thread_id": {
+            "type": "string",
+            "title": "Thread Id",
+            "description": "The unique identifier of the thread."
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "Role of the message sender (either 'user' or 'system')"
+          },
+          "content": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Text"
+                },
+                {
+                  "$ref": "#/components/schemas/ImageFile"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Content",
+            "description": "The message content to be processed by the agent."
+          },
+          "assistant_id": {
+            "type": "string",
+            "title": "Assistant Id",
+            "description": "The unique identifier of the assistant."
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id",
+            "description": "The unique identifier of the run."
+          },
+          "file_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Ids",
+            "description": "List of file IDs associated with the message."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata associated with the message."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "thread_id",
+          "role",
+          "assistant_id"
+        ],
+        "title": "OpenAIMessage"
+      },
+      "OpenAIMessageCreationStep": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "message_creation"
+          },
+          "message_id": {
+            "type": "string",
+            "title": "Message Id",
+            "description": "The unique identifier of the message."
+          }
+        },
+        "type": "object",
+        "required": [
+          "message_id"
+        ],
+        "title": "OpenAIMessageCreationStep"
+      },
+      "OpenAIRun": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the run."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "thread.run"
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At",
+            "description": "The unix timestamp of when the run was created."
+          },
+          "thread_id": {
+            "type": "string",
+            "title": "Thread Id",
+            "description": "The unique identifier of the thread."
+          },
+          "assistant_id": {
+            "type": "string",
+            "title": "Assistant Id",
+            "description": "The unique identifier of the assistant."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "The status of the run."
+          },
+          "required_action": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RequiredAction"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The required action of the run."
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpenAIError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The last error of the run."
+          },
+          "expires_at": {
+            "type": "integer",
+            "title": "Expires At",
+            "description": "The unix timestamp of when the run expires."
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At",
+            "description": "The unix timestamp of when the run started."
+          },
+          "cancelled_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancelled At",
+            "description": "The unix timestamp of when the run was cancelled."
+          },
+          "failed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed At",
+            "description": "The unix timestamp of when the run failed."
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At",
+            "description": "The unix timestamp of when the run completed."
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "The model used by the run."
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "The instructions for the run."
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/letta__schemas__openai__openai__ToolCall"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "The tools used by the run."
+          },
+          "file_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Ids",
+            "description": "List of file IDs associated with the run."
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Metadata associated with the run."
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpenAIUsage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The usage of the run."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "thread_id",
+          "assistant_id",
+          "status",
+          "expires_at",
+          "model",
+          "instructions"
+        ],
+        "title": "OpenAIRun"
+      },
+      "OpenAIRunStep": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the run step."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "thread.run.step"
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At",
+            "description": "The unix timestamp of when the run step was created."
+          },
+          "assistant_id": {
+            "type": "string",
+            "title": "Assistant Id",
+            "description": "The unique identifier of the assistant."
+          },
+          "thread_id": {
+            "type": "string",
+            "title": "Thread Id",
+            "description": "The unique identifier of the thread."
+          },
+          "run_id": {
+            "type": "string",
+            "title": "Run Id",
+            "description": "The unique identifier of the run."
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "The type of the run step."
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "The status of the run step."
+          },
+          "step_defaults": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpenAIToolCallsStep"
+              },
+              {
+                "$ref": "#/components/schemas/OpenAIMessageCreationStep"
+              }
+            ],
+            "title": "Step Defaults",
+            "description": "The step defaults."
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpenAIError"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The last error of the run step."
+          },
+          "expired_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expired At",
+            "description": "The unix timestamp of when the run step expired."
+          },
+          "failed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failed At",
+            "description": "The unix timestamp of when the run failed."
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At",
+            "description": "The unix timestamp of when the run completed."
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpenAIUsage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The usage of the run."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "assistant_id",
+          "thread_id",
+          "run_id",
+          "type",
+          "status",
+          "step_defaults"
+        ],
+        "title": "OpenAIRunStep"
+      },
+      "OpenAIThread": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the thread."
+          },
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "thread"
+          },
+          "created_at": {
+            "type": "integer",
+            "title": "Created At",
+            "description": "The unix timestamp of when the thread was created."
+          },
+          "metadata": {
+            "type": "object",
+            "title": "Metadata",
+            "description": "Metadata associated with the thread."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at"
+        ],
+        "title": "OpenAIThread",
+        "description": "Represents an OpenAI thread (equivalent to Letta agent)"
+      },
+      "OpenAIToolCallsStep": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "tool_calls"
+          },
+          "tool_calls": {
+            "items": {
+              "$ref": "#/components/schemas/letta__schemas__openai__openai__ToolCall"
+            },
+            "type": "array",
+            "title": "Tool Calls",
+            "description": "The tool calls."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_calls"
+        ],
+        "title": "OpenAIToolCallsStep"
+      },
+      "OpenAIUsage": {
+        "properties": {
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens",
+            "description": "The number of tokens used for the run."
+          },
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens",
+            "description": "The number of tokens used for the prompt."
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens",
+            "description": "The total number of tokens used for the run."
+          }
+        },
+        "type": "object",
+        "required": [
+          "completion_tokens",
+          "prompt_tokens",
+          "total_tokens"
+        ],
+        "title": "OpenAIUsage"
+      },
+      "Organization": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^org-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Org",
+            "examples": [
+              [
+                "org-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the organization."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The creation date of the user."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Organization"
+      },
+      "OrganizationCreate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the organization."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OrganizationCreate"
+      },
+      "Passage": {
+        "properties": {
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the passage."
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id",
+            "description": "The unique identifier of the agent associated with the passage."
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id",
+            "description": "The data source of the passage."
+          },
+          "doc_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc Id",
+            "description": "The unique identifier of the document associated with the passage."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "The metadata of the passage.",
+            "default": {}
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^passage-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Passage",
+            "examples": [
+              [
+                "passage-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The text of the passage."
+          },
+          "embedding": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding",
+            "description": "The embedding of the passage."
+          },
+          "embedding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The embedding configuration used by the passage."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The creation date of the passage."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text",
+          "embedding",
+          "embedding_config"
+        ],
+        "title": "Passage",
+        "description": "Representation of a passage, which is stored in archival memory.\n\nParameters:\n    text (str): The text of the passage.\n    embedding (List[float]): The embedding of the passage.\n    embedding_config (EmbeddingConfig): The embedding configuration used by the passage.\n    created_at (datetime): The creation date of the passage.\n    user_id (str): The unique identifier of the user associated with the passage.\n    agent_id (str): The unique identifier of the agent associated with the passage.\n    source_id (str): The data source of the passage.\n    doc_id (str): The unique identifier of the document associated with the passage."
+      },
+      "RecallMemorySummary": {
+        "properties": {
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "Number of rows in recall memory"
+          }
+        },
+        "type": "object",
+        "required": [
+          "size"
+        ],
+        "title": "RecallMemorySummary"
+      },
+      "RequiredAction": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "submit_tool_outputs"
+          },
+          "submit_tool_outputs": {
+            "items": {
+              "$ref": "#/components/schemas/letta__schemas__openai__openai__ToolCall"
+            },
+            "type": "array",
+            "title": "Submit Tool Outputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "submit_tool_outputs"
+        ],
+        "title": "RequiredAction"
+      },
+      "ResponseFormat": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "pattern": "^(text|json_object)$",
+            "title": "Type",
+            "default": "text"
+          }
+        },
+        "type": "object",
+        "title": "ResponseFormat"
+      },
+      "Source": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the source."
+          },
+          "embedding_config": {
+            "$ref": "#/components/schemas/EmbeddingConfig",
+            "description": "The embedding configuration used by the source."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "Metadata associated with the source."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^source-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Source",
+            "examples": [
+              [
+                "source-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the source."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The creation date of the source."
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id",
+            "description": "The ID of the user that created the source."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "embedding_config",
+          "name",
+          "user_id"
+        ],
+        "title": "Source",
+        "description": "Representation of a source, which is a collection of documents and passages.\n\nParameters:\n    id (str): The ID of the source\n    name (str): The name of the source.\n    embedding_config (EmbeddingConfig): The embedding configuration used by the source.\n    created_at (datetime): The creation date of the source.\n    user_id (str): The ID of the user that created the source.\n    metadata_ (dict): Metadata associated with the source.\n    description (str): The description of the source."
+      },
+      "SourceCreate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the source."
+          },
+          "embedding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The embedding configuration used by the passage."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "Metadata associated with the source."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the source."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "SourceCreate"
+      },
+      "SourceUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the source."
+          },
+          "embedding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The embedding configuration used by the passage."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "Metadata associated with the source."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the source."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the source."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "SourceUpdate"
+      },
+      "SubmitToolOutputsToRunRequest": {
+        "properties": {
+          "tools_outputs": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCallOutput"
+            },
+            "type": "array",
+            "title": "Tools Outputs",
+            "description": "The tool outputs to submit."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tools_outputs"
+        ],
+        "title": "SubmitToolOutputsToRunRequest"
+      },
+      "SystemMessage-Input": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "default": "system"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "SystemMessage"
+      },
+      "SystemMessage-Output": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          },
+          "message_type": {
+            "type": "string",
+            "enum": [
+              "system_message"
+            ],
+            "const": "system_message",
+            "title": "Message Type",
+            "default": "system_message"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "date",
+          "message"
+        ],
+        "title": "SystemMessage",
+        "description": "A message generated by the system. Never streamed back on a response, only used for cursor pagination.\n\nAttributes:\n    message (str): The message sent by the system\n    id (str): The ID of the message\n    date (datetime): The date the message was created in ISO format"
+      },
+      "Text": {
+        "properties": {
+          "object": {
+            "type": "string",
+            "title": "Object",
+            "default": "text"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The text content to be processed by the agent."
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Text"
+      },
+      "Tool-Input": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "function"
+            ],
+            "const": "function",
+            "title": "Type",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/FunctionSchema"
+          }
+        },
+        "type": "object",
+        "required": [
+          "function"
+        ],
+        "title": "Tool"
+      },
+      "Tool-Output": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the tool."
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type",
+            "description": "The type of the source code."
+          },
+          "module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module",
+            "description": "The module of the function."
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the function."
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^tool-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Tool",
+            "examples": [
+              [
+                "tool-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Metadata tags."
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code",
+            "description": "The source code of the function."
+          },
+          "json_schema": {
+            "type": "object",
+            "title": "Json Schema",
+            "description": "The JSON schema of the function."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "tags",
+          "source_code"
+        ],
+        "title": "Tool",
+        "description": "Representation of a tool, which is a function that can be called by the agent.\n\nParameters:\n    id (str): The unique identifier of the tool.\n    name (str): The name of the function.\n    tags (List[str]): Metadata tags.\n    source_code (str): The source code of the function.\n    json_schema (Dict): The JSON schema of the function."
+      },
+      "ToolCallFunction-Output": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function to call"
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments",
+            "description": "The arguments to pass to the function (JSON dump)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arguments"
+        ],
+        "title": "ToolCallFunction"
+      },
+      "ToolCallOutput": {
+        "properties": {
+          "tool_call_id": {
+            "type": "string",
+            "title": "Tool Call Id",
+            "description": "The unique identifier of the tool call."
+          },
+          "output": {
+            "type": "string",
+            "title": "Output",
+            "description": "The output of the tool call."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tool_call_id",
+          "output"
+        ],
+        "title": "ToolCallOutput"
+      },
+      "ToolCreate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the tool."
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type",
+            "description": "The type of the source code."
+          },
+          "module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module",
+            "description": "The module of the function."
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the function."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the function (auto-generated from source_code if not provided)."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Metadata tags.",
+            "default": []
+          },
+          "source_code": {
+            "type": "string",
+            "title": "Source Code",
+            "description": "The source code of the function."
+          },
+          "json_schema": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json Schema",
+            "description": "The JSON schema of the function (auto-generated from source_code if not provided)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_code"
+        ],
+        "title": "ToolCreate"
+      },
+      "ToolFunctionChoice": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "function"
+            ],
+            "const": "function",
+            "title": "Type",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/FunctionCall-Input"
+          }
+        },
+        "type": "object",
+        "required": [
+          "function"
+        ],
+        "title": "ToolFunctionChoice"
+      },
+      "ToolMessage": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "default": "tool"
+          },
+          "tool_call_id": {
+            "type": "string",
+            "title": "Tool Call Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content",
+          "tool_call_id"
+        ],
+        "title": "ToolMessage"
+      },
+      "ToolUpdate": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the tool."
+          },
+          "source_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Type",
+            "description": "The type of the source code."
+          },
+          "module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Module",
+            "description": "The module of the function."
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the function."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the function."
+          },
+          "tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tags",
+            "description": "Metadata tags."
+          },
+          "source_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Code",
+            "description": "The source code of the function."
+          },
+          "json_schema": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Json Schema",
+            "description": "The JSON schema of the function."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the tool."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ToolUpdate"
+      },
+      "UpdateAgentState": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The description of the agent."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "The metadata of the agent."
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The user id of the agent."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The id of the agent."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the agent."
+          },
+          "tools": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tools",
+            "description": "The tools used by the agent."
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "System",
+            "description": "The system prompt used by the agent."
+          },
+          "llm_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LLMConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The LLM configuration used by the agent."
+          },
+          "embedding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EmbeddingConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The embedding configuration used by the agent."
+          },
+          "message_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message Ids",
+            "description": "The ids of the messages in the agent's in-context memory."
+          },
+          "memory": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Memory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The in-context memory of the agent."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UpdateAgentState"
+      },
+      "UpdateBlock": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "Value of the block."
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit",
+            "description": "Character limit of the block.",
+            "default": 2000
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Name of the block."
+          },
+          "template": {
+            "type": "boolean",
+            "title": "Template",
+            "description": "Whether the block is a template (e.g. saved human/persona options).",
+            "default": false
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "Label of the block (e.g. 'human', 'persona')."
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Description of the block."
+          },
+          "metadata_": {
+            "anyOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata ",
+            "description": "Metadata of the block.",
+            "default": {}
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user associated with the block."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the block."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UpdateBlock",
+        "description": "Update a block"
+      },
+      "UpdateMessage": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The id of the message."
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MessageRole"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The role of the participant."
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "The text of the message."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the participant."
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/letta__schemas__openai__chat_completions__ToolCall-Input"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls",
+            "description": "The list of tool calls requested."
+          },
+          "tool_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Call Id",
+            "description": "The id of the tool call."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "UpdateMessage",
+        "description": "Request to update a message"
+      },
+      "UsageStatistics": {
+        "properties": {
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens",
+            "default": 0
+          },
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens",
+            "default": 0
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "UsageStatistics"
+      },
+      "User": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^user-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the User",
+            "examples": [
+              [
+                "user-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "org_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Id",
+            "description": "The organization id of the user"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the user."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The creation date of the user."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "org_id",
+          "name"
+        ],
+        "title": "User",
+        "description": "Representation of a user.\n\nParameters:\n    id (str): The unique identifier of the user.\n    name (str): The name of the user.\n    created_at (datetime): The creation date of the user."
+      },
+      "UserCreate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the user."
+          },
+          "org_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Id",
+            "description": "The organization id of the user."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "UserCreate"
+      },
+      "UserMessage-Input": {
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Content"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "default": "user"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "UserMessage"
+      },
+      "UserMessage-Output": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          },
+          "message_type": {
+            "type": "string",
+            "enum": [
+              "user_message"
+            ],
+            "const": "user_message",
+            "title": "Message Type",
+            "default": "user_message"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "date",
+          "message"
+        ],
+        "title": "UserMessage",
+        "description": "A message sent by the user. Never streamed back on a response, only used for cursor pagination.\n\nAttributes:\n    message (str): The message sent by the user\n    id (str): The ID of the message\n    date (datetime): The date the message was created in ISO format"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "letta__schemas__letta_message__FunctionCall": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arguments"
+        ],
+        "title": "FunctionCall"
+      },
+      "letta__schemas__message__Message": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^message-[a-fA-F0-9]{8}",
+            "title": "Id",
+            "description": "The human-friendly ID of the Message",
+            "examples": [
+              [
+                "message-123e4567-e89b-12d3-a456-426614174000"
+              ]
+            ]
+          },
+          "role": {
+            "$ref": "#/components/schemas/MessageRole",
+            "description": "The role of the participant."
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "The text of the message."
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "The unique identifier of the user."
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id",
+            "description": "The unique identifier of the agent."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "The model used to make the function call."
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The name of the participant."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "The time the message was created."
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/letta__schemas__openai__chat_completions__ToolCall-Output"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls",
+            "description": "The list of tool calls requested."
+          },
+          "tool_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Call Id",
+            "description": "The id of the tool call."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "Message",
+        "description": "Letta's internal representation of a message. Includes methods to convert to/from LLM provider formats.\n\nAttributes:\n    id (str): The unique identifier of the message.\n    role (MessageRole): The role of the participant.\n    text (str): The text of the message.\n    user_id (str): The unique identifier of the user.\n    agent_id (str): The unique identifier of the agent.\n    model (str): The model used to make the function call.\n    name (str): The name of the participant.\n    created_at (datetime): The time the message was created.\n    tool_calls (List[ToolCall]): The list of tool calls requested.\n    tool_call_id (str): The id of the tool call."
+      },
+      "letta__schemas__openai__chat_completion_request__ToolCall": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "function"
+            ],
+            "const": "function",
+            "title": "Type",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/letta__schemas__openai__chat_completion_request__ToolCallFunction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "function"
+        ],
+        "title": "ToolCall"
+      },
+      "letta__schemas__openai__chat_completion_request__ToolCallFunction": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arguments"
+        ],
+        "title": "ToolCallFunction"
+      },
+      "letta__schemas__openai__chat_completion_response__FunctionCall": {
+        "properties": {
+          "arguments": {
+            "type": "string",
+            "title": "Arguments"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "arguments",
+          "name"
+        ],
+        "title": "FunctionCall"
+      },
+      "letta__schemas__openai__chat_completion_response__Message": {
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "tool_calls": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/letta__schemas__openai__chat_completion_response__ToolCall"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Calls"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "function_call": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/letta__schemas__openai__chat_completion_response__FunctionCall"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "Message"
+      },
+      "letta__schemas__openai__chat_completion_response__ToolCall": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "function"
+            ],
+            "const": "function",
+            "title": "Type",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/letta__schemas__openai__chat_completion_response__FunctionCall"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "function"
+        ],
+        "title": "ToolCall"
+      },
+      "letta__schemas__openai__chat_completions__ToolCall-Input": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the tool call"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/letta__schemas__openai__chat_completions__ToolCallFunction",
+            "description": "The arguments and name for the function"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "function"
+        ],
+        "title": "ToolCall"
+      },
+      "letta__schemas__openai__chat_completions__ToolCall-Output": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The ID of the tool call"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/ToolCallFunction-Output",
+            "description": "The arguments and name for the function"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "function"
+        ],
+        "title": "ToolCall"
+      },
+      "letta__schemas__openai__chat_completions__ToolCallFunction": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "The name of the function to call"
+          },
+          "arguments": {
+            "type": "string",
+            "title": "Arguments",
+            "description": "The arguments to pass to the function (JSON dump)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "arguments"
+        ],
+        "title": "ToolCallFunction"
+      },
+      "letta__schemas__openai__openai__ToolCall": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "The unique identifier of the tool call."
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "function"
+          },
+          "function": {
+            "$ref": "#/components/schemas/Function",
+            "description": "The function call."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "function"
+        ],
+        "title": "ToolCall"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "http://letta.localhost"
+    },
+    {
+      "url": "http://localhost:8283"
+    },
+    {
+      "url": "http://localhost:8083"
+    }
+  ]
+}
