@@ -35,8 +35,8 @@ namespace = uuid.NAMESPACE_DNS
 agent_uuid = str(uuid.uuid5(namespace, "test-endpoints-agent"))
 
 # defaults (letta hosted)
-embedding_config_path = "configs/embedding_model_configs/letta-hosted.json"
-llm_config_path = "configs/llm_model_configs/letta-hosted.json"
+EMBEDDING_CONFIG_PATH = "configs/embedding_model_configs/letta-hosted.json"
+LLM_CONFIG_PATH = "configs/llm_model_configs/letta-hosted.json"
 
 
 # ======================================================================================================================
@@ -54,7 +54,7 @@ def setup_agent(
 ) -> AgentState:
     config_data = json.load(open(filename, "r"))
     llm_config = LLMConfig(**config_data)
-    embedding_config = EmbeddingConfig(**json.load(open(embedding_config_path)))
+    embedding_config = EmbeddingConfig(**json.load(open(EMBEDDING_CONFIG_PATH)))
 
     # setup config
     config = LettaConfig()
@@ -80,7 +80,7 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str, inner_thoughts
     """
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
-    agent_state = setup_agent(client, filename, embedding_config_path)
+    agent_state = setup_agent(client, filename)
 
     tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tools]
     agent = Agent(
@@ -119,7 +119,7 @@ def check_response_contains_keyword(filename: str):
     """
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
-    agent_state = setup_agent(client, filename, embedding_config_path)
+    agent_state = setup_agent(client, filename)
 
     keyword = "banana"
     keyword_message = f'This is a test to see if you can see my message. If you can see my message, please respond by calling send_message using a message that includes the word "{keyword}"'
@@ -164,7 +164,7 @@ def check_agent_uses_external_tool(filename: str):
     Don’t forget - inner monologue / inner thoughts should always be different than the contents of send_message! send_message is how you communicate with the user, whereas inner thoughts are your own personal inner thoughts.
     """
 
-    agent_state = setup_agent(client, filename, embedding_config_path, memory_persona_str=persona, tools=[tool_name])
+    agent_state = setup_agent(client, filename, memory_persona_str=persona, tools=[tool_name])
 
     response = client.user_message(agent_id=agent_state.id, message="What's on the example.com website?")
 
@@ -189,7 +189,7 @@ def check_agent_recall_chat_memory(filename: str):
     cleanup(client=client, agent_uuid=agent_uuid)
 
     human_name = "BananaBoy"
-    agent_state = setup_agent(client, filename, embedding_config_path, memory_human_str=f"My name is {human_name}")
+    agent_state = setup_agent(client, filename, memory_human_str=f"My name is {human_name}")
 
     response = client.user_message(agent_id=agent_state.id, message="Repeat my name back to me.")
 
@@ -212,7 +212,7 @@ def check_agent_archival_memory_retrieval(filename: str):
     # Set up client
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
-    agent_state = setup_agent(client, filename, embedding_config_path)
+    agent_state = setup_agent(client, filename)
     secret_word = "banana"
     client.insert_archival_memory(agent_state.id, f"The secret word is {secret_word}!")
 
