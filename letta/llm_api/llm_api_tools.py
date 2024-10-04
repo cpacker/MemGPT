@@ -492,6 +492,7 @@ def create(
             stream_inferface.stream_start()
         try:
             # groq uses the openai chat completions API, so this component should be reusable
+            assert credentials.groq_key is not None, "Groq key is missing"
             response = openai_chat_completions_request(
                 url=llm_config.model_endpoint,
                 api_key=credentials.groq_key,

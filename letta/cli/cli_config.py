@@ -426,6 +426,12 @@ def get_model_options(
             fetched_model_options = cohere_get_model_list(url=model_endpoint, api_key=credentials.cohere_key)
             model_options = [obj for obj in fetched_model_options]
 
+        elif model_endpoint_type == "groq":
+            if credentials.groq_key is None:
+                raise ValueError("Missing Groq API key")
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.groq_key, fix_url=True)
+            model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
+
         else:
             # Attempt to do OpenAI endpoint style model fetching
             # TODO support local auth with api-key header
@@ -589,10 +595,32 @@ def configure_model(config: LettaConfig, credentials: LettaCredentials, model_en
                 if model is None:
                     raise KeyboardInterrupt
 
+    # Groq support via /chat/completions + function calling endpoints
+    elif model_endpoint_type == "groq":
+        try:
+            fetched_model_options = get_model_options(
+                credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+            )
+
+        except Exception as e:
+            # NOTE: if this fails, it means the user's key is probably bad
+            typer.secho(
+                f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
+            )
+            raise e
+
+        model = questionary.select(
+            "Select default model:",
+            choices=fetched_model_options,
+            default=fetched_model_options[0],
+        ).ask()
+        if model is None:
+            raise KeyboardInterrupt
+
     else:  # local models
 
         # ask about local auth
-        if model_endpoint_type in ["groq"]:  # TODO all llm engines under 'local' that will require api keys
+        if model_endpoint_type in ["groq-chat-compltions"]:  # TODO all llm engines under 'local' that will require api keys
             use_local_auth = True
             local_auth_type = "bearer_token"
             local_auth_key = questionary.password(
