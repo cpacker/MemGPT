@@ -73,7 +73,7 @@ def create_application() -> "FastAPI":
         version="1.0.0",  # TODO wire this up to the version in the package
     )
 
-    if "--devportal" in sys.argv:
+    if "--ade" in sys.argv:
         settings.cors_origins.append("https://app.letta.com")
 
     app.add_middleware(
