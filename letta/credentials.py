@@ -31,6 +31,10 @@ class LettaCredentials:
     # azure config
     azure_auth_type: str = "api_key"
     azure_key: Optional[str] = None
+
+    # groq config
+    groq_key: Optional[str] = os.getenv("GROQ_API_KEY")
+
     # base llm / model
     azure_version: Optional[str] = None
     azure_endpoint: Optional[str] = None
@@ -77,6 +81,8 @@ class LettaCredentials:
                 "anthropic_key": get_field(config, "anthropic", "key"),
                 # cohere
                 "cohere_key": get_field(config, "cohere", "key"),
+                # groq
+                "groq_key": get_field(config, "groq", "key"),
                 # open llm
                 "openllm_auth_type": get_field(config, "openllm", "auth_type"),
                 "openllm_key": get_field(config, "openllm", "key"),
@@ -118,6 +124,9 @@ class LettaCredentials:
 
         # cohere
         set_field(config, "cohere", "key", self.cohere_key)
+
+        # groq
+        set_field(config, "groq", "key", self.groq_key)
 
         # openllm config
         set_field(config, "openllm", "auth_type", self.openllm_auth_type)

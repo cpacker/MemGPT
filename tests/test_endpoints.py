@@ -2,7 +2,7 @@ import json
 import os
 import uuid
 
-from letta import create_client
+from letta import LocalClient, RESTClient, create_client
 from letta.agent import Agent
 from letta.config import LettaConfig
 from letta.embeddings import embedding_model
@@ -22,6 +22,18 @@ llm_config_path = "configs/llm_model_configs/letta-hosted.json"
 embedding_config_dir = "configs/embedding_model_configs"
 llm_config_dir = "configs/llm_model_configs"
 
+# Generate uuid for agent name for this example
+namespace = uuid.NAMESPACE_DNS
+agent_uuid = str(uuid.uuid5(namespace, "letta-endpoint-tests"))
+
+
+def clean_up_agent(client: LocalClient | RESTClient):
+    # Clear all agents
+    for agent_state in client.list_agents():
+        if agent_state.name == agent_uuid:
+            client.delete_agent(agent_id=agent_state.id)
+            print(f"Deleted agent: {agent_state.name} with ID {str(agent_state.id)}")
+
 
 def run_llm_endpoint(filename):
     config_data = json.load(open(filename, "r"))
@@ -36,7 +48,8 @@ def run_llm_endpoint(filename):
     config.save()
 
     client = create_client()
-    agent_state = client.create_agent(name="test_agent", llm_config=llm_config, embedding_config=embedding_config)
+    clean_up_agent(client)
+    agent_state = client.create_agent(name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config)
     tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tools]
     agent = Agent(
         interface=None,
@@ -56,6 +69,7 @@ def run_llm_endpoint(filename):
     )
     client.delete_agent(agent_state.id)
     assert response is not None
+    print(response)
 
 
 def run_embedding_endpoint(filename):
@@ -107,4 +121,9 @@ def test_embedding_endpoint_ollama():
 
 def test_llm_endpoint_anthropic():
     filename = os.path.join(llm_config_dir, "anthropic.json")
+    run_llm_endpoint(filename)
+
+
+def test_llm_endpoint_groq():
+    filename = os.path.join(llm_config_dir, "groq.json")
     run_llm_endpoint(filename)
