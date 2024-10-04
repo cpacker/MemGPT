@@ -44,7 +44,7 @@ from letta.streaming_interface import (
 )
 from letta.utils import json_dumps
 
-LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local"]
+LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local", "groq"]
 
 
 # TODO update to use better types
@@ -332,7 +332,6 @@ def create(
             if isinstance(stream_inferface, AgentChunkStreamingInterface):
                 stream_inferface.stream_start()
             try:
-
                 response = openai_chat_completions_request(
                     url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                     api_key=credentials.openai_key,
@@ -455,13 +454,67 @@ def create(
             chat_completion_request=ChatCompletionRequest(
                 model="command-r-plus",  # TODO
                 messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
-                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+                tools=tools,
                 tool_choice=function_call,
                 # user=str(user_id),
                 # NOTE: max_tokens is required for Anthropic API
                 # max_tokens=1024,  # TODO make dynamic
             ),
         )
+
+    elif llm_config.model_endpoint_type == "groq":
+        if stream:
+            raise NotImplementedError(f"Streaming not yet implemented for Groq.")
+
+        if credentials.groq_key is None and llm_config.model_endpoint == "https://api.groq.com/openai/v1/chat/completions":
+            # only is a problem if we are *not* using an openai proxy
+            raise ValueError(f"Groq key is missing from letta config file")
+
+        # force to true for groq, since they don't support 'content' is non-null
+        inner_thoughts_in_kwargs = True
+        if inner_thoughts_in_kwargs:
+            functions = add_inner_thoughts_to_functions(
+                functions=functions,
+                inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                inner_thoughts_description=INNER_THOUGHTS_KWARG_DESCRIPTION,
+            )
+
+        tools = [{"type": "function", "function": f} for f in functions] if functions is not None else None
+        data = ChatCompletionRequest(
+            model=llm_config.model,
+            messages=[m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs) for m in messages],
+            tools=tools,
+            tool_choice=function_call,
+            user=str(user_id),
+        )
+
+        # https://console.groq.com/docs/openai
+        # "The following fields are currently not supported and will result in a 400 error (yikes) if they are supplied:"
+        assert data.top_logprobs is None
+        assert data.logit_bias is None
+        assert data.logprobs == False
+        assert data.n == 1
+        # They mention that none of the messages can have names, but it seems to not error out (for now)
+
+        data.stream = False
+        if isinstance(stream_inferface, AgentChunkStreamingInterface):
+            stream_inferface.stream_start()
+        try:
+            # groq uses the openai chat completions API, so this component should be reusable
+            assert credentials.groq_key is not None, "Groq key is missing"
+            response = openai_chat_completions_request(
+                url=llm_config.model_endpoint,
+                api_key=credentials.groq_key,
+                chat_completion_request=data,
+            )
+        finally:
+            if isinstance(stream_inferface, AgentChunkStreamingInterface):
+                stream_inferface.stream_end()
+
+        if inner_thoughts_in_kwargs:
+            response = unpack_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
+
+        return response
 
     # local model
     else:
