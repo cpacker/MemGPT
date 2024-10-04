@@ -11,6 +11,8 @@ def test_openai():
 
 
 def test_anthropic():
+    if os.getenv("ANTHROPIC_API_KEY") is None:
+        return
     provider = AnthropicProvider(api_key=os.getenv("ANTHROPIC_API_KEY"))
     models = provider.list_llm_models()
     print(models)
