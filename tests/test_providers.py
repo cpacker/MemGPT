@@ -2,6 +2,7 @@ import os
 
 from letta.providers import (
     AnthropicProvider,
+    GoogleAIProvider,
     GroqProvider,
     OllamaProvider,
     OpenAIProvider,
@@ -29,6 +30,12 @@ def test_groq():
 
 def test_ollama():
     provider = OllamaProvider()
+    models = provider.list_llm_models()
+    print(models)
+
+
+def test_googleai():
+    provider = GoogleAIProvider(api_key=os.getenv("GEMINI_API_KEY"))
     models = provider.list_llm_models()
     print(models)
 

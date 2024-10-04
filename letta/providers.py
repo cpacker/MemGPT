@@ -94,7 +94,7 @@ class AnthropicProvider(Provider):
 
 class OllamaProvider(OpenAIProvider):
     name: str = "ollama"
-    base_url: str = Field("http://localhost:11434", description="Base URL for the Ollama API.")
+    base_url: str = Field(..., description="Base URL for the Ollama API.")
     api_key: Optional[str] = Field(None, description="API key for the Ollama API (default: `None`).")
 
     def list_llm_models(self) -> List[LLMConfig]:
@@ -109,12 +109,55 @@ class OllamaProvider(OpenAIProvider):
 
         configs = []
         for model in response_json["models"]:
+            context_window = self.get_model_context_window(model["name"])
             configs.append(
                 LLMConfig(
-                    model=model["name"], model_endpoint_type="ollama", model_endpoint=self.base_url, context_window=model["context_window"]
+                    model=model["name"],
+                    model_endpoint_type="ollama",
+                    model_endpoint=self.base_url,
+                    context_window=context_window,
                 )
             )
         return configs
+
+    def get_model_context_window(self, model_name: str):
+
+        import requests
+
+        response = requests.post(f"{self.base_url}/api/show", json={"name": model_name, "verbose": True})
+        response_json = response.json()
+        from pprint import pprint
+
+        pprint(response_json)
+
+        # thank you vLLM: https://github.com/vllm-project/vllm/blob/main/vllm/config.py#L1675
+        possible_keys = [
+            # OPT
+            "max_position_embeddings",
+            # GPT-2
+            "n_positions",
+            # MPT
+            "max_seq_len",
+            # ChatGLM2
+            "seq_length",
+            # Command-R
+            "model_max_length",
+            # Others
+            "max_sequence_length",
+            "max_seq_length",
+            "seq_len",
+        ]
+
+        # max_position_embeddings
+        # parse model cards: nous, dolphon, llama
+        for key, value in response_json["model_info"].items():
+            if "context_window" in key:
+                return value
+        return None
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        # TODO: filter embedding models
+        return []
 
 
 class GroqProvider(OpenAIProvider):
@@ -143,3 +186,54 @@ class GroqProvider(OpenAIProvider):
 
     def get_model_context_window_size(self, model_name: str):
         raise NotImplementedError
+
+
+class GoogleAIProvider(Provider):
+    # gemini
+    api_key: str = Field(..., description="API key for the Google AI API.")
+    base_url: str = None
+
+    def list_llm_models(self):
+        from letta.llm_api.google_ai import google_ai_get_model_list
+
+        model_options = google_ai_get_model_list(service_endpoint=self.base_url, api_key=self.api_key)
+        print(model_options)
+        model_options = [str(m["name"]) for m in model_options]
+        model_options = [mo[len("models/") :] if mo.startswith("models/") else mo for mo in model_options]
+        # TODO remove manual filtering for gemini-pro
+        model_options = [mo for mo in model_options if str(mo).startswith("gemini") and "-pro" in str(mo)]
+        # TODO: add context windows
+        # model_options = ["gemini-pro"]
+
+        configs = []
+        for model in model_options:
+            configs.append(
+                LLMConfig(
+                    model=model,
+                    model_endpoint_type="google_ai",
+                    model_endpoint=self.base_url,
+                    context_window=self.get_model_context_window(model),
+                )
+            )
+        return configs
+
+    def list_embedding_models(self):
+        []
+
+    def get_model_context_window(self, model_name: str):
+        from letta.llm_api.google_ai import google_ai_get_model_context_window
+
+        return google_ai_get_model_context_window(self.base_url, self.api_key, model_name)
+
+
+class AzureProvider(Provider):
+    pass
+
+
+class VLLMProvider(OpenAIProvider):
+    # NOTE: vLLM only serves one model at a time (so could configure that through env variables)
+    pass
+
+
+class CohereProvider(OpenAIProvider):
+    pass

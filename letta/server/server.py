@@ -44,7 +44,12 @@ from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
-from letta.providers import AnthropicProvider, OpenAIProvider
+from letta.providers import (
+    AnthropicProvider,
+    OllamaProvider,
+    OpenAIProvider,
+    VLLMProvider,
+)
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
@@ -159,7 +164,7 @@ from letta.metadata import (
     ToolModel,
     UserModel,
 )
-from letta.settings import settings
+from letta.settings import model_settings, settings
 
 config = LettaConfig.load()
 
@@ -260,8 +265,8 @@ class SyncServer(Server):
 
         # Generate default LLM/Embedding configs for the server
         # TODO: we may also want to do the same thing with default persona/human/etc.
-        self.server_llm_config = settings.llm_config
-        self.server_embedding_config = settings.embedding_config
+        # self.server_llm_config = settings.llm_config
+        # self.server_embedding_config = settings.embedding_config
         # self.server_llm_config = LLMConfig(
         #    model=self.config.default_llm_config.model,
         #    model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
@@ -276,7 +281,7 @@ class SyncServer(Server):
         #    embedding_model=self.config.default_embedding_config.embedding_model,
         #    embedding_chunk_size=self.config.default_embedding_config.embedding_chunk_size,
         # )
-        assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
+        # assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
 
         # Override config values with settings
 
@@ -287,8 +292,6 @@ class SyncServer(Server):
             config.recall_storage_uri = settings.letta_pg_uri_no_default
             config.archival_storage_type = "postgres"
             config.archival_storage_uri = settings.letta_pg_uri_no_default
-        config.default_llm_config = self.server_llm_config
-        config.default_embedding_config = self.server_embedding_config
         config.save()
         self.config = config
         self.ms = MetadataStore(self.config)
@@ -299,10 +302,16 @@ class SyncServer(Server):
 
         # collect providers
         self._enabled_providers = []
-        if settings.openai_api_key:
-            self._enabled_providers.append(OpenAIProvider(api_key=settings.openai_api_key))
-        if settings.anthropic_api_key:
-            self._enabled_providers.append(AnthropicProvider(api_key=settings.anthropic_api_key))
+        print(f"model_settings: {model_settings.anthropic_api_key}")
+        print(os.getenv("ANTHROPIC_API_KEY"))
+        if model_settings.openai_api_key:
+            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key))
+        if model_settings.anthropic_api_key:
+            self._enabled_providers.append(AnthropicProvider(api_key=model_settings.anthropic_api_key))
+        if model_settings.ollama_base_url:
+            self._enabled_providers.append(OllamaProvider(base_url=model_settings.ollama_base_url))
+        if model_settings.vllm_base_url:
+            self._enabled_providers.append(VLLMProvider(base_url=model_settings.vllm_base_url))
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -774,8 +783,8 @@ class SyncServer(Server):
 
         try:
             # model configuration
-            llm_config = request.llm_config if request.llm_config else self.server_llm_config
-            embedding_config = request.embedding_config if request.embedding_config else self.server_embedding_config
+            llm_config = request.llm_config
+            embedding_config = request.embedding_config
 
             # get tools + make sure they exist
             tool_objs = []
