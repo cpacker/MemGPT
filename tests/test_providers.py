@@ -40,7 +40,8 @@ def test_googleai():
     print(models)
 
 
-test_ollama()
+test_googleai()
+# test_ollama()
 # test_groq()
 # test_openai()
 # test_anthropic()

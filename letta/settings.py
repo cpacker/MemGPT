@@ -27,7 +27,6 @@ class ModelSettings(BaseSettings):
 
     # google ai
     gemini_api_key: Optional[str] = None
-    gemini_base_url: Optional[str] = None
 
     # vLLM
     vllm_base_url: Optional[str] = None

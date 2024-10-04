@@ -46,6 +46,7 @@ from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
+    GoogleAIProvider,
     OllamaProvider,
     OpenAIProvider,
     VLLMProvider,
@@ -312,6 +313,8 @@ class SyncServer(Server):
             self._enabled_providers.append(OllamaProvider(base_url=model_settings.ollama_base_url))
         if model_settings.vllm_base_url:
             self._enabled_providers.append(VLLMProvider(base_url=model_settings.vllm_base_url))
+        if model_settings.gemini_api_key:
+            self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
