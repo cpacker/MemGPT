@@ -82,16 +82,22 @@ jobs:
     - name: Summarize test results
       run: |
         echo "Test Results Summary:"
-        echo "Test first message: $([[ ${{ steps.test_first_message.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
-        echo "Test model sends message with keyword: $([[ ${{ steps.test_keyword_message.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
-        echo "Test model uses external tool: $([[ ${{ steps.test_external_tool.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
-        echo "Test model recalls chat memory: $([[ ${{ steps.test_chat_memory.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
-        echo "Test model uses 'archival_memory_search' to find secret: $([[ ${{ steps.test_archival_memory.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
-        echo "Test model can edit core memories: $([[ ${{ steps.test_core_memory.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
-        echo "Test embedding endpoint: $([[ ${{ steps.test_embedding_endpoint.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test first message: $([[ '${{ steps.test_first_message.outcome }}' == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model sends message with keyword: $([[ '${{ steps.test_keyword_message.outcome }}' == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model uses external tool: $([[ '${{ steps.test_external_tool.outcome }}' == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model recalls chat memory: $([[ '${{ steps.test_chat_memory.outcome }}' == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model uses 'archival_memory_search' to find secret: $([[ '${{ steps.test_archival_memory.outcome }}' == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model can edit core memories: $([[ '${{ steps.test_core_memory.outcome }}' == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test embedding endpoint: $([[ '${{ steps.test_embedding_endpoint.outcome }}' == 'success' ]] && echo ✅ || echo ❌)"
 
         # Check if any test failed
-        if [[ ${{ steps.test_first_message.outcome }} != 'success' || ${{ steps.test_keyword_message.outcome }} != 'success' || ${{ steps.test_external_tool.outcome }} != 'success' || ${{ steps.test_chat_memory.outcome }} != 'success' || ${{ steps.test_archival_memory.outcome }} != 'success' || ${{ steps.test_core_memory.outcome }} != 'success' || ${{ steps.test_embedding_endpoint.outcome }} != 'success' ]]; then
+        if [[ '${{ steps.test_first_message.outcome }}' != 'success' || \
+              '${{ steps.test_keyword_message.outcome }}' != 'success' || \
+              '${{ steps.test_external_tool.outcome }}' != 'success' || \
+              '${{ steps.test_chat_memory.outcome }}' != 'success' || \
+              '${{ steps.test_archival_memory.outcome }}' != 'success' || \
+              '${{ steps.test_core_memory.outcome }}' != 'success' || \
+              '${{ steps.test_embedding_endpoint.outcome }}' != 'success' ]]; then
           echo "Some tests failed, setting neutral status."
           exit 78
         fi
