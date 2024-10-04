@@ -10,6 +10,7 @@ from letta.schemas.enums import MessageRole
 utils.DEBUG = True
 from letta.config import LettaConfig
 from letta.schemas.agent import CreateAgent
+from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_message import (
     FunctionCallMessage,
     FunctionReturn,
@@ -18,6 +19,7 @@ from letta.schemas.letta_message import (
     SystemMessage,
     UserMessage,
 )
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.message import Message
 from letta.schemas.source import SourceCreate
@@ -71,7 +73,16 @@ def user_id(server):
 def agent_id(server, user_id):
     # create agent
     agent_state = server.create_agent(
-        request=CreateAgent(name="test_agent", tools=BASE_TOOLS, memory=ChatMemory(human="Sarah", persona="I am a helpful assistant")),
+        request=CreateAgent(
+            name="test_agent",
+            tools=BASE_TOOLS,
+            memory=ChatMemory(
+                human="Sarah",
+                persona="I am a helpful assistant",
+                llm_config=LLMConfig.default_config("gpt-4"),
+                embedding_config=EmbeddingConfig.default_config(provider="openai"),
+            ),
+        ),
         user_id=user_id,
     )
     print(f"Created agent\n{agent_state}")

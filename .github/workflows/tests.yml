@@ -3,6 +3,7 @@ name: Run All pytest Tests
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
 on:
   push:
