@@ -371,15 +371,10 @@ def assert_inner_monologue_is_valid(message: Message) -> None:
     """
     Helper function to check that the inner monologue is valid.
     """
-    invalid_chars = "(){}[]"
     # Sometimes the syntax won't be correct and internal syntax will leak into message
-    invalid_phrases = ["functions", "send_message"]
+    invalid_phrases = ["functions", "send_message", "arguments"]
 
     monologue = message.content
-    for char in invalid_chars:
-        if char in monologue:
-            raise InvalidInnerMonologueError(messages=[message], explanation=f"{char} is in monologue")
-
     for phrase in invalid_phrases:
         if phrase in monologue:
             raise InvalidInnerMonologueError(messages=[message], explanation=f"{phrase} is in monologue")
