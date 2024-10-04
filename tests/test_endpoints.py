@@ -19,27 +19,43 @@ llm_config_dir = "configs/llm_model_configs"
 # ======================================================================================================================
 def test_openai_gpt_4_returns_valid_first_message():
     filename = os.path.join(llm_config_dir, "gpt-4.json")
-    check_first_response_is_valid_for_llm_endpoint(filename)
+    response = check_first_response_is_valid_for_llm_endpoint(filename)
+
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
 
 
 def test_openai_gpt_4_returns_keyword():
+    keyword = "banana"
     filename = os.path.join(llm_config_dir, "gpt-4.json")
-    check_response_contains_keyword(filename)
+    response = check_response_contains_keyword(filename, keyword=keyword)
+
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
 
 
 def test_openai_gpt_4_uses_external_tool():
     filename = os.path.join(llm_config_dir, "gpt-4.json")
-    check_agent_uses_external_tool(filename)
+    response = check_agent_uses_external_tool(filename)
+
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
 
 
 def test_openai_gpt_4_recall_chat_memory():
     filename = os.path.join(llm_config_dir, "gpt-4.json")
-    check_agent_recall_chat_memory(filename)
+    response = check_agent_recall_chat_memory(filename)
+
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
 
 
 def test_openai_gpt_4_archival_memory_retrieval():
     filename = os.path.join(llm_config_dir, "gpt-4.json")
-    check_agent_archival_memory_retrieval(filename)
+    response = check_agent_archival_memory_retrieval(filename)
+
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
 
 
 def test_embedding_endpoint_openai():

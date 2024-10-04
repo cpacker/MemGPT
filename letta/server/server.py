@@ -456,7 +456,7 @@ class SyncServer(Server):
             logger.debug("Calling step_yield()")
             letta_agent.interface.step_yield()
 
-        return LettaUsageStatistics(**total_usage.dict(), step_count=step_count)
+        return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)
 
     def _command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
         """Process a CLI command"""
