@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING
+import json
+from typing import TYPE_CHECKING, List, Optional, Union
 
 # Avoid circular imports
 if TYPE_CHECKING:
@@ -37,73 +38,47 @@ class LocalLLMConnectionError(LettaError):
         super().__init__(self.message)
 
 
-class MissingFunctionCallError(LettaError):
-    message: "Message"
-    """ The message that caused this error.
+class LettaMessageError(LettaError):
+    """Base error class for handling message-related errors."""
 
-    This error should be raised when a message that we expect to have a function call does not.
-    """
+    messages: List[Union["Message", "LettaMessage"]]
+    default_error_message: str = "An error occurred with the message."
 
-    def __init__(self, *, message: "Message") -> None:
-        error_msg = "The message is missing a function call: \n\n"
-
-        # Pretty print out message
-        message_json = message.model_dump_json(indent=4)
-        error_msg += f"{message_json}"
-
+    def __init__(self, *, messages: List[Union["Message", "LettaMessage"]], explanation: Optional[str] = None) -> None:
+        error_msg = self.construct_error_message(messages, self.default_error_message, explanation)
         super().__init__(error_msg)
-        self.message = message
+        self.messages = messages
+
+    @staticmethod
+    def construct_error_message(messages: List[Union["Message", "LettaMessage"]], error_msg: str, explanation: Optional[str] = None) -> str:
+        """Helper method to construct a clean and formatted error message."""
+        if explanation:
+            error_msg += f" (Explanation: {explanation})"
+
+        # Pretty print out message JSON
+        message_json = json.dumps([message.model_dump_json(indent=4) for message in messages], indent=4)
+        return f"{error_msg}\n\n{message_json}"
 
 
-class InvalidFunctionCallError(LettaError):
-    message: "Message"
-    """ The message that caused this error.
+class MissingFunctionCallError(LettaMessageError):
+    """Error raised when a message is missing a function call."""
 
-    This error should be raised when a message uses a function that is unexpected or invalid, or if the usage is incorrect.
-    """
-
-    def __init__(self, *, message: "Message") -> None:
-        error_msg = "The message uses an invalid function call or has improper usage of a function call: \n\n"
-
-        # Pretty print out message
-        message_json = message.model_dump_json(indent=4)
-        error_msg += f"{message_json}"
-
-        super().__init__(error_msg)
-        self.message = message
+    default_error_message = "The message is missing a function call."
 
 
-class MissingInnerMonologueError(LettaError):
-    message: "Message"
-    """ The message that caused this error.
+class InvalidFunctionCallError(LettaMessageError):
+    """Error raised when a message uses an invalid function call."""
 
-    This error should be raised when a message that we expect to have an inner monologue does not.
-    """
-
-    def __init__(self, *, message: "Message") -> None:
-        error_msg = "The message is missing an inner monologue: \n\n"
-
-        # Pretty print out message
-        message_json = message.model_dump_json(indent=4)
-        error_msg += f"{message_json}"
-
-        super().__init__(error_msg)
-        self.message = message
+    default_error_message = "The message uses an invalid function call or has improper usage of a function call."
 
 
-class InvalidInnerMonologueError(LettaError):
-    message: "Message"
-    """ The message that caused this error.
+class MissingInnerMonologueError(LettaMessageError):
+    """Error raised when a message is missing an inner monologue."""
 
-    This error should be raised when a message has an improperly formatted inner monologue.
-    """
+    default_error_message = "The message is missing an inner monologue."
 
-    def __init__(self, *, message: "Message") -> None:
-        error_msg = "The message has a malformed inner monologue: \n\n"
 
-        # Pretty print out message
-        message_json = message.model_dump_json(indent=4)
-        error_msg += f"{message_json}"
+class InvalidInnerMonologueError(LettaMessageError):
+    """Error raised when a message has a malformed inner monologue."""
 
-        super().__init__(error_msg)
-        self.message = message
+    default_error_message = "The message has a malformed inner monologue."

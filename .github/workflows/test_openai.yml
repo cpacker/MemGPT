@@ -30,11 +30,35 @@ jobs:
       run: |
         poetry run letta quickstart --backend openai
 
-    - name: Test LLM endpoint
+    - name: Test first message contains expected function call and inner monologue
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_llm_endpoint_openai
+        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_valid_first_message
+
+    - name: Test model sends message with keyword
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_keyword
+
+    - name: Test model uses external tool correctly
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_uses_external_tool
+
+    - name: Test model recalls chat memory
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_recall_chat_memory
+
+    - name: Test model uses `archival_memory_search` to find secret
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_archival_memory_retrieval
 
     - name: Test embedding endpoint
       env:
