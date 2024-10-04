@@ -21,6 +21,7 @@ from sqlalchemy.sql import func
 
 from letta.config import LettaConfig
 from letta.schemas.agent import AgentState
+from letta.schemas.agent_config import AgentConfig
 from letta.schemas.api_key import APIKey
 from letta.schemas.block import Block, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -37,6 +38,28 @@ from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
 
 Base = declarative_base()
+
+
+class AgentConfigColumn(TypeDecorator):
+    """Custom type for storing AgentConfig as JSON"""
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value, dialect):
+        if value:
+            # return vars(value)
+            if isinstance(value, AgentConfig):
+                return value.model_dump()
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value:
+            return AgentConfig(**value)
+        return value
 
 
 class LLMConfigColumn(TypeDecorator):
@@ -206,6 +229,7 @@ class AgentModel(Base):
     tools = Column(JSON)
 
     # configs
+    agent_config = Column(AgentConfigColumn)
     llm_config = Column(LLMConfigColumn)
     embedding_config = Column(EmbeddingConfigColumn)
 
@@ -231,6 +255,7 @@ class AgentModel(Base):
             memory=Memory.load(self.memory),  # load dictionary
             system=self.system,
             tools=self.tools,
+            agent_config=self.agent_config,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             metadata_=self.metadata_,

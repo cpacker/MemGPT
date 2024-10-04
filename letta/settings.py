@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from letta.schemas.agent_config import AgentConfig
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.utils import printd
@@ -25,6 +26,9 @@ class Settings(BaseSettings):
     pg_port: Optional[int] = None
     pg_uri: Optional[str] = None  # option to specifiy full uri
 
+    # agent configuration
+    agent_type: Optional[str] = None
+
     # llm configuration
     llm_endpoint: Optional[str] = None
     llm_endpoint_type: Optional[str] = None
@@ -37,6 +41,13 @@ class Settings(BaseSettings):
     embedding_dim: Optional[int] = None
     embedding_model: Optional[str] = None
     embedding_chunk_size: int = 300
+
+    @property
+    def agent_config(self):
+        if self.agent_type:
+            return AgentConfig(agent_type=self.agent_type)
+        else:
+            return AgentConfig.default_config()
 
     @property
     def llm_config(self):

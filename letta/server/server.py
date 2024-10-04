@@ -11,6 +11,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 from fastapi import HTTPException
 
 import letta.constants as constants
+from letta.schemas.agent_config import AgentType
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
@@ -259,6 +260,7 @@ class SyncServer(Server):
 
         # Generate default LLM/Embedding configs for the server
         # TODO: we may also want to do the same thing with default persona/human/etc.
+        self.server_agent_config = settings.agent_config
         self.server_llm_config = settings.llm_config
         self.server_embedding_config = settings.embedding_config
         # self.server_llm_config = LLMConfig(
@@ -357,7 +359,10 @@ class SyncServer(Server):
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
-            letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            if agent_state.agent_config.agent_type == AgentType.base_agent:
+                letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            else:
+                raise NotImplementedError("Only base agents are supported as of right now!")
 
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -768,6 +773,7 @@ class SyncServer(Server):
             # model configuration
             llm_config = request.llm_config if request.llm_config else self.server_llm_config
             embedding_config = request.embedding_config if request.embedding_config else self.server_embedding_config
+            agent_config = request.agent_config if request.agent_config else self.server_agent_config
 
             # get tools + make sure they exist
             tool_objs = []
@@ -809,6 +815,7 @@ class SyncServer(Server):
                 name=request.name,
                 user_id=user_id,
                 tools=request.tools if request.tools else [],
+                agent_config=agent_config,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,

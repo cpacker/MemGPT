@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
+from letta.schemas.agent_config import AgentConfig
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.llm_config import LLMConfig
@@ -51,6 +52,9 @@ class AgentState(BaseAgent):
 
     # system prompt
     system: str = Field(..., description="The system prompt used by the agent.")
+    
+    # agent config
+    agent_config: AgentConfig = Field(..., description="The agent configuration used by the agent.")
 
     # llm information
     llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
@@ -64,6 +68,7 @@ class CreateAgent(BaseAgent):
     memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
+    agent_config: Optional[AgentConfig] = Field(None, description="The agent configuration used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
 

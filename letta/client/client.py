@@ -10,6 +10,7 @@ from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agent_config import AgentConfig
 from letta.schemas.block import (
     Block,
     CreateBlock,
@@ -68,6 +69,7 @@ class AbstractClient(object):
     def create_agent(
         self,
         name: Optional[str] = None,
+        agent_config: Optional[AgentConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
@@ -374,6 +376,7 @@ class RESTClient(AbstractClient):
             memory=memory,
             tools=tool_names,
             system=system,
+            agent_config=agent_config,
             llm_config=llm_config,
             embedding_config=embedding_config,
         )
@@ -1406,6 +1409,8 @@ class LocalClient(AbstractClient):
     def create_agent(
         self,
         name: Optional[str] = None,
+        # agent config
+        agent_config: Optional[AgentConfig] = None,
         # model configs
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
@@ -1464,6 +1469,7 @@ class LocalClient(AbstractClient):
                 memory=memory,
                 tools=tool_names,
                 system=system,
+                agent_config=agent_config,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
             ),
