@@ -302,6 +302,7 @@ def server(
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
+    devportal: Annotated[bool, typer.Option(help="Allows access to the devportal on https://app.letta.com")] = False,
 ):
     """Launch a Letta server process"""
 
