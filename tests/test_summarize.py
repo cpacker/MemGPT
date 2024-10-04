@@ -27,7 +27,7 @@ def create_test_agent():
     global client
     client = create_client()
 
-    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
     agent_state = client.create_agent(

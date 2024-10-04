@@ -4,6 +4,8 @@ import pytest
 
 import letta.functions.function_sets.base as base_functions
 from letta import create_client
+from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.llm_config import LLMConfig
 
 from .utils import create_config, wipe_config
 
@@ -22,6 +24,8 @@ def agent_obj():
         create_config("letta_hosted")
 
     client = create_client()
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
     agent_state = client.create_agent()
 

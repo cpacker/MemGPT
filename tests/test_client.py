@@ -74,7 +74,7 @@ def client(request):
         server_url = None
         client = create_client()
 
-    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
     try:
         yield client

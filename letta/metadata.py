@@ -151,15 +151,16 @@ class OrganizationModel(Base):
         return Organization(id=self.id, name=self.name, created_at=self.created_at)
 
 
-class Provider(Base):
-    __tablename__ = "providers"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True))
-    api_key = Column(String, nullable=False)
-    base_url = Column(String, nullable=False)
+# TODO: eventually store providers?
+# class Provider(Base):
+#    __tablename__ = "providers"
+#    __table_args__ = {"extend_existing": True}
+#
+#    id = Column(String, primary_key=True)
+#    name = Column(String, nullable=False)
+#    created_at = Column(DateTime(timezone=True))
+#    api_key = Column(String, nullable=False)
+#    base_url = Column(String, nullable=False)
 
 
 class APIKeyModel(Base):

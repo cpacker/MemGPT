@@ -1,6 +1,6 @@
 import os
 
-from letta.providers import OpenAIProvider
+from letta.providers import AnthropicProvider, OpenAIProvider
 
 
 def test_openai():
@@ -10,10 +10,10 @@ def test_openai():
     print(models)
 
 
-# def test_anthropic():
-#    provider = AnthropicProvider(api_key=os.getenv("ANTHROPIC_API_KEY"))
-#    models = provider.list_llm_models()
-#    print(models)
+def test_anthropic():
+    provider = AnthropicProvider(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    models = provider.list_llm_models()
+    print(models)
 
 
 # def test_groq():
