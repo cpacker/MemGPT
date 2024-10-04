@@ -79,9 +79,9 @@ def agent_id(server, user_id):
             memory=ChatMemory(
                 human="Sarah",
                 persona="I am a helpful assistant",
-                llm_config=LLMConfig.default_config("gpt-4"),
-                embedding_config=EmbeddingConfig.default_config(provider="openai"),
             ),
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
         user_id=user_id,
     )

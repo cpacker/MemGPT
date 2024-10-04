@@ -39,6 +39,17 @@ jobs:
     - name: Initialize credentials
       run: poetry run letta quickstart --backend openai
 
+    - name: Run server tests
+      env:
+        LETTA_PG_PORT: 8888
+        LETTA_PG_USER: letta
+        LETTA_PG_PASSWORD: letta
+        LETTA_PG_DB: letta
+        LETTA_PG_HOST: localhost
+        LETTA_SERVER_PASS: test_server_token
+      run: |
+        poetry run pytest -s -vv tests/test_server.py
+
     - name: Run tools tests
       env:
         LETTA_PG_PORT: 8888
@@ -49,7 +60,6 @@ jobs:
         LETTA_SERVER_PASS: test_server_token
       run: |
         poetry run pytest -s -vv tests/test_tools.py
-
 
     - name: Run tests with pytest
       env:
@@ -62,14 +72,3 @@ jobs:
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
         poetry run pytest -s -vv -k "not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client" tests
-
-    - name: Run server tests
-      env:
-        LETTA_PG_PORT: 8888
-        LETTA_PG_USER: letta
-        LETTA_PG_PASSWORD: letta
-        LETTA_PG_DB: letta
-        LETTA_PG_HOST: localhost
-        LETTA_SERVER_PASS: test_server_token
-      run: |
-        poetry run pytest -s -vv tests/test_server.py
