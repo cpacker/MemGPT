@@ -470,10 +470,19 @@ def create(
             # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"Groq key is missing from letta config file")
 
+        # force to true for groq, since they don't support 'content' is non-null
+        inner_thoughts_in_kwargs = True
+        if inner_thoughts_in_kwargs:
+            functions = add_inner_thoughts_to_functions(
+                functions=functions,
+                inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                inner_thoughts_description=INNER_THOUGHTS_KWARG_DESCRIPTION,
+            )
+
         tools = [{"type": "function", "function": f} for f in functions] if functions is not None else None
         data = ChatCompletionRequest(
             model=llm_config.model,
-            messages=[m.to_openai_dict() for m in messages],
+            messages=[m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs) for m in messages],
             tools=tools,
             tool_choice=function_call,
             user=str(user_id),
@@ -501,6 +510,9 @@ def create(
         finally:
             if isinstance(stream_inferface, AgentChunkStreamingInterface):
                 stream_inferface.stream_end()
+
+        if inner_thoughts_in_kwargs:
+            response = unpack_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
 
         return response
 
