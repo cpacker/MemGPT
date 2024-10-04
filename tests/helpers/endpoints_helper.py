@@ -255,6 +255,34 @@ def check_agent_archival_memory_retrieval(filename: str) -> LettaResponse:
     return response
 
 
+def check_agent_edit_core_memory(filename: str) -> LettaResponse:
+    """
+    Checks that the LLM is able to edit its core memories
+
+    Note: This is acting on the Letta response, note the usage of `user_message`
+    """
+    # Set up client
+    client = create_client()
+    cleanup(client=client, agent_uuid=agent_uuid)
+
+    human_name_a = "AngryAardvark"
+    human_name_b = "BananaBoy"
+    agent_state = setup_agent(client, filename, memory_human_str=f"My name is {human_name_a}")
+    client.user_message(agent_id=agent_state.id, message=f"Actually, my name changed. It is now {human_name_b}")
+    response = client.user_message(agent_id=agent_state.id, message="Repeat my name back to me.")
+
+    # Basic checks
+    assert_sanity_checks(response)
+
+    # Make sure my name was repeated back to me
+    assert_invoked_send_message_with_keyword(response.messages, human_name_b)
+
+    # Make sure some inner monologue is present
+    assert_inner_monologue_is_present_and_valid(response.messages)
+
+    return response
+
+
 def run_embedding_endpoint(filename):
     # load JSON file
     config_data = json.load(open(filename, "r"))

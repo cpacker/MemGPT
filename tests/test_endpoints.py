@@ -2,6 +2,7 @@ import os
 
 from tests.helpers.endpoints_helper import (
     check_agent_archival_memory_retrieval,
+    check_agent_edit_core_memory,
     check_agent_recall_chat_memory,
     check_agent_uses_external_tool,
     check_first_response_is_valid_for_llm_endpoint,
@@ -53,6 +54,13 @@ def test_openai_gpt_4_archival_memory_retrieval():
     print(f"Got successful response from client: \n\n{response}")
 
 
+def test_openai_gpt_4_edit_core_memory():
+    filename = os.path.join(llm_config_dir, "gpt-4.json")
+    response = check_agent_edit_core_memory(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
 def test_embedding_endpoint_openai():
     filename = os.path.join(embedding_config_dir, "text-embedding-ada-002.json")
     run_embedding_endpoint(filename)
@@ -94,4 +102,13 @@ def test_embedding_endpoint_ollama():
 # ======================================================================================================================
 def test_llm_endpoint_anthropic():
     filename = os.path.join(llm_config_dir, "anthropic.json")
+    check_first_response_is_valid_for_llm_endpoint(filename)
+    check_first_response_is_valid_for_llm_endpoint(filename)
+
+
+# ======================================================================================================================
+# GROQ TESTS
+# ======================================================================================================================
+def test_llm_endpoint_groq():
+    filename = os.path.join(llm_config_dir, "groq.json")
     check_first_response_is_valid_for_llm_endpoint(filename)

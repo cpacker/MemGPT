@@ -1,4 +1,4 @@
-__version__ = "0.1.7"
+__version__ = "0.4.1"
 
 # import clients
 from letta.client.admin import Admin
