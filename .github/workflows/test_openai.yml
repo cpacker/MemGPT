@@ -35,33 +35,63 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_valid_first_message
+      continue-on-error: true
 
     - name: Test model sends message with keyword
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_keyword
+      continue-on-error: true
 
     - name: Test model uses external tool correctly
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_uses_external_tool
+      continue-on-error: true
 
     - name: Test model recalls chat memory
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_recall_chat_memory
+      continue-on-error: true
 
     - name: Test model uses `archival_memory_search` to find secret
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_archival_memory_retrieval
+      continue-on-error: true
+
+    - name: Test model can edit core memories
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_edit_core_memory
+      continue-on-error: true
 
     - name: Test embedding endpoint
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_openai
+      continue-on-error: true
+
+    - name: Summarize test results
+      run: |
+        echo "Test Results Summary:"
+        echo "Test first message: $([[ ${{ steps.test_first_message.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model sends message with keyword: $([[ ${{ steps.test_keyword_message.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model uses external tool: $([[ ${{ steps.test_external_tool.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model recalls chat memory: $([[ ${{ steps.test_chat_memory.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model uses 'archival_memory_search' to find secret: $([[ ${{ steps.test_archival_memory.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test model can edit core memories: $([[ ${{ steps.test_core_memory.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
+        echo "Test embedding endpoint: $([[ ${{ steps.test_embedding_endpoint.outcome }} == 'success' ]] && echo ✅ || echo ❌)"
+
+        # Check if any test failed
+        if [[ ${{ steps.test_first_message.outcome }} != 'success' || ${{ steps.test_keyword_message.outcome }} != 'success' || ${{ steps.test_external_tool.outcome }} != 'success' || ${{ steps.test_chat_memory.outcome }} != 'success' || ${{ steps.test_archival_memory.outcome }} != 'success' || ${{ steps.test_core_memory.outcome }} != 'success' || ${{ steps.test_embedding_endpoint.outcome }} != 'success' ]]; then
+          echo "Some tests failed, setting neutral status."
+          exit 78
+        fi

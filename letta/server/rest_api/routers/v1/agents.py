@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.responses import StreamingResponse
 
+from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.enums import MessageRole, MessageStreamStatus
 from letta.schemas.letta_message import (
@@ -254,6 +255,19 @@ def get_agent_messages(
     before: Optional[str] = Query(None, description="Message before which to retrieve the returned messages."),
     limit: int = Query(10, description="Maximum number of messages to retrieve."),
     msg_object: bool = Query(False, description="If true, returns Message objects. If false, return LettaMessage objects."),
+    # Flags to support the use of AssistantMessage message types
+    use_assistant_message: bool = Query(
+        False,
+        description="[Only applicable if msg_object is False] If true, returns AssistantMessage objects when the agent calls a designated message tool. If false, return FunctionCallMessage objects for all tool calls.",
+    ),
+    assistant_message_function_name: str = Query(
+        DEFAULT_MESSAGE_TOOL,
+        description="[Only applicable if use_assistant_message is True] The name of the designated message tool.",
+    ),
+    assistant_message_function_kwarg: str = Query(
+        DEFAULT_MESSAGE_TOOL_KWARG,
+        description="[Only applicable if use_assistant_message is True] The name of the message argument in the designated message tool.",
+    ),
 ):
     """
     Retrieve message history for an agent.
@@ -267,6 +281,9 @@ def get_agent_messages(
         limit=limit,
         reverse=True,
         return_message_object=msg_object,
+        use_assistant_message=use_assistant_message,
+        assistant_message_function_name=assistant_message_function_name,
+        assistant_message_function_kwarg=assistant_message_function_kwarg,
     )
 
 
@@ -310,6 +327,10 @@ async def send_message(
         stream_steps=request.stream_steps,
         stream_tokens=request.stream_tokens,
         return_message_object=request.return_message_object,
+        # Support for AssistantMessage
+        use_assistant_message=request.use_assistant_message,
+        assistant_message_function_name=request.assistant_message_function_name,
+        assistant_message_function_kwarg=request.assistant_message_function_kwarg,
     )
 
 
@@ -322,12 +343,17 @@ async def send_message_to_agent(
     message: str,
     stream_steps: bool,
     stream_tokens: bool,
-    return_message_object: bool,  # Should be True for Python Client, False for REST API
-    chat_completion_mode: Optional[bool] = False,
-    timestamp: Optional[datetime] = None,
     # related to whether or not we return `LettaMessage`s or `Message`s
+    return_message_object: bool,  # Should be True for Python Client, False for REST API
+    chat_completion_mode: bool = False,
+    timestamp: Optional[datetime] = None,
+    # Support for AssistantMessage
+    use_assistant_message: bool = False,
+    assistant_message_function_name: str = DEFAULT_MESSAGE_TOOL,
+    assistant_message_function_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
 ) -> Union[StreamingResponse, LettaResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
+
     # TODO: @charles is this the correct way to handle?
     include_final_message = True
 
@@ -367,6 +393,11 @@ async def send_message_to_agent(
 
         # streaming_interface.allow_assistant_message = stream
         # streaming_interface.function_call_legacy_mode = stream
+
+        # Allow AssistantMessage is desired by client
+        streaming_interface.use_assistant_message = use_assistant_message
+        streaming_interface.assistant_message_function_name = assistant_message_function_name
+        streaming_interface.assistant_message_function_kwarg = assistant_message_function_kwarg
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
@@ -408,6 +439,7 @@ async def send_message_to_agent(
                 message_ids = [m.id for m in filtered_stream]
                 message_ids = deduplicate(message_ids)
                 message_objs = [server.get_agent_message(agent_id=agent_id, message_id=m_id) for m_id in message_ids]
+                message_objs = [m for m in message_objs if m is not None]
                 return LettaResponse(messages=message_objs, usage=usage)
             else:
                 return LettaResponse(messages=filtered_stream, usage=usage)

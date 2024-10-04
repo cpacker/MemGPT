@@ -46,6 +46,12 @@ BASE_TOOLS = [
     "archival_memory_search",
 ]
 
+# The name of the tool used to send message to the user
+# May not be relevant in cases where the agent has multiple ways to message to user (send_imessage, send_discord_mesasge, ...)
+# or in cases where the agent has no concept of messaging a user (e.g. a workflow agent)
+DEFAULT_MESSAGE_TOOL = "send_message"
+DEFAULT_MESSAGE_TOOL_KWARG = "message"
+
 # LOGGER_LOG_LEVEL is use to convert Text to Logging level value for logging mostly for Cli input to setting level
 LOGGER_LOG_LEVELS = {"CRITICAL": CRITICAL, "ERROR": ERROR, "WARN": WARN, "WARNING": WARNING, "INFO": INFO, "DEBUG": DEBUG, "NOTSET": NOTSET}
 
