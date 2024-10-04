@@ -1,4 +1,4 @@
-name: Endpoint (OpenAI)
+name: OpenAI GPT-4 Capabilities Test (please look at "Summarize test results")
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
