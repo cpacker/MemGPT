@@ -6,6 +6,7 @@ from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
+from letta.utils import json_dumps
 
 # TODO: consider moving into own file
 
@@ -22,6 +23,16 @@ class LettaResponse(BaseModel):
 
     messages: Union[List[Message], List[LettaMessage]] = Field(..., description="The messages returned by the agent.")
     usage: LettaUsageStatistics = Field(..., description="The usage statistics of the agent.")
+
+    def __str__(self):
+        return json_dumps(
+            {
+                "messages": [message.model_dump() for message in self.messages],
+                # Assume `Message` and `LettaMessage` have a `dict()` method
+                "usage": self.usage.model_dump(),  # Assume `LettaUsageStatistics` has a `dict()` method
+            },
+            indent=4,
+        )
 
 
 # The streaming response is either [DONE], [DONE_STEP], [DONE], an error, or a LettaMessage
