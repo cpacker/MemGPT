@@ -11,9 +11,11 @@ from letta import Admin, create_client
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import AgentState
+from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus, MessageStreamStatus
 from letta.schemas.letta_message import FunctionCallMessage, InternalMonologue
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 
@@ -72,6 +74,8 @@ def client(request):
         server_url = None
         client = create_client()
 
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
     try:
         yield client
     finally:
