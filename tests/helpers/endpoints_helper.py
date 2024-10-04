@@ -371,7 +371,7 @@ def assert_inner_monologue_is_valid(message: Message) -> None:
     """
     Helper function to check that the inner monologue is valid.
     """
-    invalid_chars = '(){}[]"'
+    invalid_chars = "(){}[]"
     # Sometimes the syntax won't be correct and internal syntax will leak into message
     invalid_phrases = ["functions", "send_message"]
 
