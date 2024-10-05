@@ -484,5 +484,5 @@ def create(
             first_message=first_message,
             # auth-related
             auth_type=model_settings.openllm_auth_type,
-            auth_key=model_settings.openllm_key,
+            auth_key=model_settings.openllm_api_key,
         )

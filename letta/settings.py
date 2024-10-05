@@ -33,7 +33,7 @@ class ModelSettings(BaseSettings):
 
     # openllm
     openllm_auth_type: Optional[str] = None
-    openllm_auth_token: Optional[str] = None
+    openllm_api_key: Optional[str] = None
 
 
 class Settings(BaseSettings):
