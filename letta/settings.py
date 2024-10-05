@@ -31,6 +31,10 @@ class ModelSettings(BaseSettings):
     # vLLM
     vllm_base_url: Optional[str] = None
 
+    # openllm
+    openllm_auth_type: Optional[str] = None
+    openllm_auth_token: Optional[str] = None
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="letta_")
