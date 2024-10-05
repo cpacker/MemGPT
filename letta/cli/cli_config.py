@@ -126,7 +126,41 @@ def configure_llm_endpoint(config: LettaConfig, credentials: LettaCredentials):
         model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
         if model_endpoint is None:
             raise KeyboardInterrupt
-        provider = "openai"
+
+    elif provider == "groq":
+        groq_user_msg = "Enter your Groq API key (starts with 'gsk-', see https://console.groq.com/keys):"
+        # check for key
+        if credentials.groq_key is None:
+            # allow key to get pulled from env vars
+            groq_api_key = os.getenv("GROQ_API_KEY", None)
+            # if we still can't find it, ask for it as input
+            if groq_api_key is None:
+                while groq_api_key is None or len(groq_api_key) == 0:
+                    # Ask for API key as input
+                    groq_api_key = questionary.password(groq_user_msg).ask()
+                    if groq_api_key is None:
+                        raise KeyboardInterrupt
+            credentials.groq_key = groq_api_key
+            credentials.save()
+        else:
+            # Give the user an opportunity to overwrite the key
+            default_input = shorten_key_middle(credentials.groq_key) if credentials.groq_key.startswith("gsk-") else credentials.groq_key
+            groq_api_key = questionary.password(
+                groq_user_msg,
+                default=default_input,
+            ).ask()
+            if groq_api_key is None:
+                raise KeyboardInterrupt
+            # If the user modified it, use the new one
+            if groq_api_key != default_input:
+                credentials.groq_key = groq_api_key
+                credentials.save()
+
+        model_endpoint_type = "groq"
+        model_endpoint = "https://api.groq.com/openai/v1"
+        model_endpoint = questionary.text("Override default endpoint:", default=model_endpoint).ask()
+        if model_endpoint is None:
+            raise KeyboardInterrupt
 
     elif provider == "azure":
         # check for necessary vars
@@ -392,6 +426,12 @@ def get_model_options(
             fetched_model_options = cohere_get_model_list(url=model_endpoint, api_key=credentials.cohere_key)
             model_options = [obj for obj in fetched_model_options]
 
+        elif model_endpoint_type == "groq":
+            if credentials.groq_key is None:
+                raise ValueError("Missing Groq API key")
+            fetched_model_options_response = openai_get_model_list(url=model_endpoint, api_key=credentials.groq_key, fix_url=True)
+            model_options = [obj["id"] for obj in fetched_model_options_response["data"]]
+
         else:
             # Attempt to do OpenAI endpoint style model fetching
             # TODO support local auth with api-key header
@@ -555,10 +595,32 @@ def configure_model(config: LettaConfig, credentials: LettaCredentials, model_en
                 if model is None:
                     raise KeyboardInterrupt
 
+    # Groq support via /chat/completions + function calling endpoints
+    elif model_endpoint_type == "groq":
+        try:
+            fetched_model_options = get_model_options(
+                credentials=credentials, model_endpoint_type=model_endpoint_type, model_endpoint=model_endpoint
+            )
+
+        except Exception as e:
+            # NOTE: if this fails, it means the user's key is probably bad
+            typer.secho(
+                f"Failed to get model list from {model_endpoint} - make sure your API key and endpoints are correct!", fg=typer.colors.RED
+            )
+            raise e
+
+        model = questionary.select(
+            "Select default model:",
+            choices=fetched_model_options,
+            default=fetched_model_options[0],
+        ).ask()
+        if model is None:
+            raise KeyboardInterrupt
+
     else:  # local models
 
         # ask about local auth
-        if model_endpoint_type in ["groq"]:  # TODO all llm engines under 'local' that will require api keys
+        if model_endpoint_type in ["groq-chat-compltions"]:  # TODO all llm engines under 'local' that will require api keys
             use_local_auth = True
             local_auth_type = "bearer_token"
             local_auth_key = questionary.password(

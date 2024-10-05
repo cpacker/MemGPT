@@ -36,12 +36,15 @@ class ModelSettings(BaseSettings):
     openllm_api_key: Optional[str] = None
 
 
+cors_origins = ["http://letta.localhost", "http://localhost:8283", "http://localhost:8083", "http://localhost:3000"]
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="letta_")
 
     letta_dir: Optional[Path] = Field(Path.home() / ".letta", env="LETTA_DIR")
     debug: Optional[bool] = False
-    cors_origins: Optional[list] = ["http://letta.localhost", "http://localhost:8283", "http://localhost:8083"]
+    cors_origins: Optional[list] = cors_origins
 
     # database configuration
     pg_db: Optional[str] = None

@@ -1654,7 +1654,7 @@ class LocalClient(AbstractClient):
     # memory
     def get_in_context_memory(self, agent_id: str) -> Memory:
         """
-        Get the in-contxt (i.e. core) memory of an agent
+        Get the in-context (i.e. core) memory of an agent
 
         Args:
             agent_id (str): ID of the agent
