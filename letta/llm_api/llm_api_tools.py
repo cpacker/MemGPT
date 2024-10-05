@@ -471,7 +471,7 @@ def create(
         if stream:
             raise NotImplementedError(f"Streaming not yet implemented for Groq.")
 
-        if credentials.groq_key is None and llm_config.model_endpoint == "https://api.groq.com/openai/v1/chat/completions":
+        if model_settings.groq_api_key is None and llm_config.model_endpoint == "https://api.groq.com/openai/v1/chat/completions":
             # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"Groq key is missing from letta config file")
 
@@ -506,10 +506,10 @@ def create(
             stream_inferface.stream_start()
         try:
             # groq uses the openai chat completions API, so this component should be reusable
-            assert credentials.groq_key is not None, "Groq key is missing"
+            assert model_settings.groq_api_key is not None, "Groq key is missing"
             response = openai_chat_completions_request(
                 url=llm_config.model_endpoint,
-                api_key=credentials.groq_key,
+                api_key=model_settings.groq_api_key,
                 chat_completion_request=data,
             )
         finally:
