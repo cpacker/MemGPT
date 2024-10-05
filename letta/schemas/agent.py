@@ -52,7 +52,7 @@ class AgentState(BaseAgent):
 
     # system prompt
     system: str = Field(..., description="The system prompt used by the agent.")
-    
+
     # agent config
     agent_config: AgentConfig = Field(..., description="The agent configuration used by the agent.")
 
