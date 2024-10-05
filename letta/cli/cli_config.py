@@ -35,8 +35,6 @@ from letta.local_llm.constants import (
     DEFAULT_WRAPPER_NAME,
 )
 from letta.local_llm.utils import get_available_wrappers
-from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.llm_config import LLMConfig
 from letta.server.utils import shorten_key_middle
 
 app = typer.Typer()
@@ -71,7 +69,7 @@ def configure_llm_endpoint(config: LettaConfig, credentials: LettaCredentials):
     model_endpoint_type, model_endpoint = None, None
 
     # get default
-    default_model_endpoint_type = config.default_llm_config.model_endpoint_type if config.default_embedding_config else None
+    default_model_endpoint_type = None
     if (
         config.default_llm_config
         and config.default_llm_config.model_endpoint_type is not None
@@ -841,7 +839,7 @@ def configure_model(config: LettaConfig, credentials: LettaCredentials, model_en
 def configure_embedding_endpoint(config: LettaConfig, credentials: LettaCredentials):
     # configure embedding endpoint
 
-    default_embedding_endpoint_type = config.default_embedding_config.embedding_endpoint_type if config.default_embedding_config else None
+    default_embedding_endpoint_type = None
 
     embedding_endpoint_type, embedding_endpoint, embedding_dim, embedding_model = None, None, None, None
     embedding_provider = questionary.select(
@@ -906,9 +904,7 @@ def configure_embedding_endpoint(config: LettaConfig, credentials: LettaCredenti
                 raise KeyboardInterrupt
 
         # get model type
-        default_embedding_model = (
-            config.default_embedding_config.embedding_model if config.default_embedding_config else "BAAI/bge-large-en-v1.5"
-        )
+        default_embedding_model = "BAAI/bge-large-en-v1.5"
         embedding_model = questionary.text(
             "Enter HuggingFace model tag (e.g. BAAI/bge-large-en-v1.5):",
             default=default_embedding_model,
@@ -917,7 +913,7 @@ def configure_embedding_endpoint(config: LettaConfig, credentials: LettaCredenti
             raise KeyboardInterrupt
 
         # get model dimentions
-        default_embedding_dim = config.default_embedding_config.embedding_dim if config.default_embedding_config else "1024"
+        default_embedding_dim = "1024"
         embedding_dim = questionary.text("Enter embedding model dimentions (e.g. 1024):", default=str(default_embedding_dim)).ask()
         if embedding_dim is None:
             raise KeyboardInterrupt
@@ -942,9 +938,7 @@ def configure_embedding_endpoint(config: LettaConfig, credentials: LettaCredenti
                 raise KeyboardInterrupt
 
         # get model type
-        default_embedding_model = (
-            config.default_embedding_config.embedding_model if config.default_embedding_config else "mxbai-embed-large"
-        )
+        default_embedding_model = "mxbai-embed-large"
         embedding_model = questionary.text(
             "Enter Ollama model tag (e.g. mxbai-embed-large):",
             default=default_embedding_model,
@@ -953,7 +947,7 @@ def configure_embedding_endpoint(config: LettaConfig, credentials: LettaCredenti
             raise KeyboardInterrupt
 
         # get model dimensions
-        default_embedding_dim = config.default_embedding_config.embedding_dim if config.default_embedding_config else "512"
+        default_embedding_dim = "512"
         embedding_dim = questionary.text("Enter embedding model dimensions (e.g. 512):", default=str(default_embedding_dim)).ask()
         if embedding_dim is None:
             raise KeyboardInterrupt
@@ -1102,19 +1096,6 @@ def configure():
 
     # TODO: remove most of this (deplicated with User table)
     config = LettaConfig(
-        default_llm_config=LLMConfig(
-            model=model,
-            model_endpoint=model_endpoint,
-            model_endpoint_type=model_endpoint_type,
-            model_wrapper=model_wrapper,
-            context_window=context_window,
-        ),
-        default_embedding_config=EmbeddingConfig(
-            embedding_endpoint_type=embedding_endpoint_type,
-            embedding_endpoint=embedding_endpoint,
-            embedding_dim=embedding_dim,
-            embedding_model=embedding_model,
-        ),
         # storage
         archival_storage_type=archival_storage_type,
         archival_storage_uri=archival_storage_uri,

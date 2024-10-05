@@ -1,26 +1,19 @@
-import json
 import logging
-import os
 import sys
 from enum import Enum
 from typing import Annotated, Optional
 
 import questionary
-import requests
 import typer
 
 import letta.utils as utils
 from letta import create_client
 from letta.agent import Agent, save_agent
-from letta.cli.cli_config import configure
 from letta.config import LettaConfig
 from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR
-from letta.credentials import LettaCredentials
 from letta.log import get_logger
 from letta.metadata import MetadataStore
-from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import OptionState
-from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory, Memory
 from letta.server.server import logger as server_logger
 
@@ -31,256 +24,6 @@ from letta.streaming_interface import (
 from letta.utils import open_folder_in_explorer, printd
 
 logger = get_logger(__name__)
-
-
-class QuickstartChoice(Enum):
-    openai = "openai"
-    # azure = "azure"
-    letta_hosted = "letta"
-    anthropic = "anthropic"
-
-
-def str_to_quickstart_choice(choice_str: str) -> QuickstartChoice:
-    try:
-        return QuickstartChoice[choice_str]
-    except KeyError:
-        valid_options = [choice.name for choice in QuickstartChoice]
-        raise ValueError(f"{choice_str} is not a valid QuickstartChoice. Valid options are: {valid_options}")
-
-
-def set_config_with_dict(new_config: dict) -> (LettaConfig, bool):
-    """_summary_
-
-    Args:
-        new_config (dict): Dict of new config values
-
-    Returns:
-        new_config LettaConfig, modified (bool): Returns the new config and a boolean indicating if the config was modified
-    """
-    from letta.utils import printd
-
-    old_config = LettaConfig.load()
-    modified = False
-    for k, v in vars(old_config).items():
-        if k in new_config:
-            if v != new_config[k]:
-                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                modified = True
-                # old_config[k] = new_config[k]
-                setattr(old_config, k, new_config[k])  # Set the new value using dot notation
-            else:
-                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
-
-    # update embedding config
-    if old_config.default_embedding_config:
-        for k, v in vars(old_config.default_embedding_config).items():
-            if k in new_config:
-                if v != new_config[k]:
-                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                    modified = True
-                    # old_config[k] = new_config[k]
-                    setattr(old_config.default_embedding_config, k, new_config[k])
-                else:
-                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
-    else:
-        modified = True
-        fields = ["embedding_model", "embedding_dim", "embedding_chunk_size", "embedding_endpoint", "embedding_endpoint_type"]
-        args = {}
-        for field in fields:
-            if field in new_config:
-                args[field] = new_config[field]
-                printd(f"Setting new config {field}: {new_config[field]}")
-        old_config.default_embedding_config = EmbeddingConfig(**args)
-
-    # update llm config
-    if old_config.default_llm_config:
-        for k, v in vars(old_config.default_llm_config).items():
-            if k in new_config:
-                if v != new_config[k]:
-                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                    modified = True
-                    # old_config[k] = new_config[k]
-                    setattr(old_config.default_llm_config, k, new_config[k])
-                else:
-                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
-    else:
-        modified = True
-        fields = ["model", "model_endpoint", "model_endpoint_type", "model_wrapper", "context_window"]
-        args = {}
-        for field in fields:
-            if field in new_config:
-                args[field] = new_config[field]
-                printd(f"Setting new config {field}: {new_config[field]}")
-        old_config.default_llm_config = LLMConfig(**args)
-    return (old_config, modified)
-
-
-def quickstart(
-    backend: Annotated[QuickstartChoice, typer.Option(help="Quickstart setup backend")] = "letta",
-    latest: Annotated[bool, typer.Option(help="Use --latest to pull the latest config from online")] = False,
-    debug: Annotated[bool, typer.Option(help="Use --debug to enable debugging output")] = False,
-    terminal: bool = True,
-):
-    """Set the base config file with a single command
-
-    This function and `configure` should be the ONLY places where LettaConfig.save() is called.
-    """
-
-    # setup logger
-    utils.DEBUG = debug
-    logging.getLogger().setLevel(logging.CRITICAL)
-    if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
-
-    # make sure everything is set up properly
-    LettaConfig.create_config_dir()
-    credentials = LettaCredentials.load()
-
-    config_was_modified = False
-    if backend == QuickstartChoice.letta_hosted:
-        # if latest, try to pull the config from the repo
-        # fallback to using local
-        if latest:
-            # Download the latest letta hosted config
-            url = "https://raw.githubusercontent.com/cpacker/Letta/main/configs/letta_hosted.json"
-            response = requests.get(url)
-
-            # Check if the request was successful
-            if response.status_code == 200:
-                # Parse the response content as JSON
-                config = response.json()
-                # Output a success message and the first few items in the dictionary as a sample
-                printd("JSON config file downloaded successfully.")
-                new_config, config_was_modified = set_config_with_dict(config)
-            else:
-                typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
-
-                # Load the file from the relative path
-                script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "configs", "letta_hosted.json")
-                try:
-                    with open(backup_config_path, "r", encoding="utf-8") as file:
-                        backup_config = json.load(file)
-                    printd("Loaded backup config file successfully.")
-                    new_config, config_was_modified = set_config_with_dict(backup_config)
-                except FileNotFoundError:
-                    typer.secho(f"Backup config file not found at {backup_config_path}", fg=typer.colors.RED)
-                    return
-        else:
-            # Load the file from the relative path
-            script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-            backup_config_path = os.path.join(script_dir, "..", "configs", "letta_hosted.json")
-            try:
-                with open(backup_config_path, "r", encoding="utf-8") as file:
-                    backup_config = json.load(file)
-                printd("Loaded config file successfully.")
-                new_config, config_was_modified = set_config_with_dict(backup_config)
-            except FileNotFoundError:
-                typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
-                return
-
-    elif backend == QuickstartChoice.openai:
-        # Make sure we have an API key
-        api_key = os.getenv("OPENAI_API_KEY")
-        while api_key is None or len(api_key) == 0:
-            # Ask for API key as input
-            api_key = questionary.password("Enter your OpenAI API key (starts with 'sk-', see https://platform.openai.com/api-keys):").ask()
-        credentials.openai_key = api_key
-        credentials.save()
-
-        # if latest, try to pull the config from the repo
-        # fallback to using local
-        if latest:
-            url = "https://raw.githubusercontent.com/cpacker/Letta/main/configs/openai.json"
-            response = requests.get(url)
-
-            # Check if the request was successful
-            if response.status_code == 200:
-                # Parse the response content as JSON
-                config = response.json()
-                # Output a success message and the first few items in the dictionary as a sample
-                new_config, config_was_modified = set_config_with_dict(config)
-            else:
-                typer.secho(f"Failed to download config from {url}. Status code: {response.status_code}", fg=typer.colors.RED)
-
-                # Load the file from the relative path
-                script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-                backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
-                try:
-                    with open(backup_config_path, "r", encoding="utf-8") as file:
-                        backup_config = json.load(file)
-                    printd("Loaded backup config file successfully.")
-                    new_config, config_was_modified = set_config_with_dict(backup_config)
-                except FileNotFoundError:
-                    typer.secho(f"Backup config file not found at {backup_config_path}", fg=typer.colors.RED)
-                    return
-        else:
-            # Load the file from the relative path
-            script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-            backup_config_path = os.path.join(script_dir, "..", "configs", "openai.json")
-            try:
-                with open(backup_config_path, "r", encoding="utf-8") as file:
-                    backup_config = json.load(file)
-                printd("Loaded config file successfully.")
-                new_config, config_was_modified = set_config_with_dict(backup_config)
-            except FileNotFoundError:
-                typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
-                return
-
-    elif backend == QuickstartChoice.anthropic:
-        # Make sure we have an API key
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        while api_key is None or len(api_key) == 0:
-            # Ask for API key as input
-            api_key = questionary.password("Enter your Anthropic API key:").ask()
-        credentials.anthropic_key = api_key
-        credentials.save()
-
-        script_dir = os.path.dirname(__file__)  # Get the directory where the script is located
-        backup_config_path = os.path.join(script_dir, "..", "configs", "anthropic.json")
-        try:
-            with open(backup_config_path, "r", encoding="utf-8") as file:
-                backup_config = json.load(file)
-            printd("Loaded config file successfully.")
-            new_config, config_was_modified = set_config_with_dict(backup_config)
-        except FileNotFoundError:
-            typer.secho(f"Config file not found at {backup_config_path}", fg=typer.colors.RED)
-            return
-
-    else:
-        raise NotImplementedError(backend)
-
-    if config_was_modified:
-        printd(f"Saving new config file.")
-        new_config.save()
-        typer.secho(f"📖 Letta configuration file updated!", fg=typer.colors.GREEN)
-        typer.secho(
-            "\n".join(
-                [
-                    f"🧠 model\t-> {new_config.default_llm_config.model}",
-                    f"🖥️  endpoint\t-> {new_config.default_llm_config.model_endpoint}",
-                ]
-            ),
-            fg=typer.colors.GREEN,
-        )
-    else:
-        typer.secho(f"📖 Letta configuration file unchanged.", fg=typer.colors.WHITE)
-        typer.secho(
-            "\n".join(
-                [
-                    f"🧠 model\t-> {new_config.default_llm_config.model}",
-                    f"🖥️  endpoint\t-> {new_config.default_llm_config.model_endpoint}",
-                ]
-            ),
-            fg=typer.colors.WHITE,
-        )
-
-    # 'terminal' = quickstart was run alone, in which case we should guide the user on the next command
-    if terminal:
-        if config_was_modified:
-            typer.secho('⚡ Run "letta run" to create an agent with the new config.', fg=typer.colors.YELLOW)
-        else:
-            typer.secho('⚡ Run "letta run" to create an agent.', fg=typer.colors.YELLOW)
 
 
 def open_folder():
@@ -384,83 +127,8 @@ def run(
         logger.setLevel(logging.CRITICAL)
         server_logger.setLevel(logging.CRITICAL)
 
-    # from letta.migrate import (
-    #    VERSION_CUTOFF,
-    #    config_is_compatible,
-    #    wipe_config_and_reconfigure,
-    # )
-
-    # if not config_is_compatible(allow_empty=True):
-    #    typer.secho(f"\nYour current config file is incompatible with Letta versions later than {VERSION_CUTOFF}\n", fg=typer.colors.RED)
-    #    choices = [
-    #        "Run the full config setup (recommended)",
-    #        "Create a new config using defaults",
-    #        "Cancel",
-    #    ]
-    #    selection = questionary.select(
-    #        f"To use Letta, you must either downgrade your Letta version (<= {VERSION_CUTOFF}), or regenerate your config. Would you like to proceed?",
-    #        choices=choices,
-    #        default=choices[0],
-    #    ).ask()
-    #    if selection == choices[0]:
-    #        try:
-    #            wipe_config_and_reconfigure()
-    #        except Exception as e:
-    #            typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
-    #            raise
-    #    elif selection == choices[1]:
-    #        try:
-    #            # Don't create a config, so that the next block of code asking about quickstart is run
-    #            wipe_config_and_reconfigure(run_configure=False, create_config=False)
-    #        except Exception as e:
-    #            typer.secho(f"Fresh config generation failed - error:\n{e}", fg=typer.colors.RED)
-    #            raise
-    #    else:
-    #        typer.secho("Letta config regeneration cancelled", fg=typer.colors.RED)
-    #        raise KeyboardInterrupt()
-
-    #    typer.secho("Note: if you would like to migrate old agents to the new release, please run `letta migrate`!", fg=typer.colors.GREEN)
-
-    if not LettaConfig.exists():
-        # if no config, ask about quickstart
-        # do you want to do:
-        # - openai (run quickstart)
-        # - letta hosted (run quickstart)
-        # - other (run configure)
-        if yes:
-            # if user is passing '-y' to bypass all inputs, use letta hosted
-            # since it can't fail out if you don't have an API key
-            quickstart(backend=QuickstartChoice.letta_hosted)
-            config = LettaConfig()
-
-        else:
-            config_choices = {
-                "letta": "Use the free Letta endpoints",
-                "openai": "Use OpenAI (requires an OpenAI API key)",
-                "other": "Other (OpenAI Azure, custom LLM endpoint, etc)",
-            }
-            print()
-            config_selection = questionary.select(
-                "How would you like to set up Letta?",
-                choices=list(config_choices.values()),
-                default=config_choices["letta"],
-            ).ask()
-
-            if config_selection == config_choices["letta"]:
-                print()
-                quickstart(backend=QuickstartChoice.letta_hosted, debug=debug, terminal=False, latest=False)
-            elif config_selection == config_choices["openai"]:
-                print()
-                quickstart(backend=QuickstartChoice.openai, debug=debug, terminal=False, latest=False)
-            elif config_selection == config_choices["other"]:
-                configure()
-            else:
-                raise ValueError(config_selection)
-
-            config = LettaConfig.load()
-
-    else:  # load config
-        config = LettaConfig.load()
+    # load config file
+    config = LettaConfig.load()
 
     # read user id from config
     ms = MetadataStore(config)
@@ -557,40 +225,36 @@ def run(
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
 
         agent_name = agent if agent else utils.create_random_username()
-        llm_config = config.default_llm_config
-        embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
-
-        # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
-        if model and model != llm_config.model:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding default model {llm_config.model} with {model}", fg=typer.colors.YELLOW)
-            llm_config.model = model
-        if context_window is not None and int(context_window) != llm_config.context_window:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding default context window {llm_config.context_window} with {context_window}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.context_window = context_window
-        if model_wrapper and model_wrapper != llm_config.model_wrapper:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model wrapper {llm_config.model_wrapper} with {model_wrapper}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.model_wrapper = model_wrapper
-        if model_endpoint and model_endpoint != llm_config.model_endpoint:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint {llm_config.model_endpoint} with {model_endpoint}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.model_endpoint = model_endpoint
-        if model_endpoint_type and model_endpoint_type != llm_config.model_endpoint_type:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint type {llm_config.model_endpoint_type} with {model_endpoint_type}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.model_endpoint_type = model_endpoint_type
 
         # create agent
         client = create_client()
+
+        # choose from list of llm_configs
+        llm_configs = client.list_llm_configs()
+        llm_options = [llm_config.model for llm_config in llm_configs]
+        # select model
+        if len(llm_options) == 0:
+            raise ValueError("No LLM models found. Please enable a provider.")
+        elif len(llm_options) == 1:
+            llm_model_name = llm_options[0]
+        else:
+            llm_model_name = questionary.select("Select LLM model:", choices=llm_options).ask()
+        llm_config = [llm_config for llm_config in llm_configs if llm_config.model == llm_model_name][0]
+
+        # choose form list of embedding configs
+        embedding_configs = client.list_embedding_configs()
+        embedding_options = [embedding_config.embedding_model for embedding_config in embedding_configs]
+        # select model
+        if len(embedding_options) == 0:
+            raise ValueError("No embedding models found. Please enable a provider.")
+        elif len(embedding_options) == 1:
+            embedding_model_name = embedding_options[0]
+        else:
+            embedding_model_name = questionary.select("Select embedding model:", choices=embedding_options).ask()
+        embedding_config = [
+            embedding_config for embedding_config in embedding_configs if embedding_config.embedding_model == embedding_model_name
+        ][0]
+
         human_obj = client.get_human(client.get_human_id(name=human))
         persona_obj = client.get_persona(client.get_persona_id(name=persona))
         if human_obj is None:

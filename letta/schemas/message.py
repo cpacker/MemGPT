@@ -587,8 +587,8 @@ class Message(BaseMessage):
             if self.tool_calls is not None:
                 # NOTE: implied support for multiple calls
                 for tool_call in self.tool_calls:
-                    function_name = tool_call.function["name"]
-                    function_args = tool_call.function["arguments"]
+                    function_name = tool_call.function.name
+                    function_args = tool_call.function.arguments
                     try:
                         # NOTE: Google AI wants actual JSON objects, not strings
                         function_args = json.loads(function_args)

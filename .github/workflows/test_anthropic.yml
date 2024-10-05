@@ -1,7 +1,7 @@
 name: Endpoint (Anthropic)
 
 env:
-  OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
 on:
   push:
@@ -23,12 +23,6 @@ jobs:
         python-version: "3.12"
         poetry-version: "1.8.2"
         install-args: "-E dev"
-
-    - name: Initialize credentials
-      env:
-        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      run: |
-        poetry run letta quickstart --backend anthropic
 
     - name: Test LLM endpoint
       env:
