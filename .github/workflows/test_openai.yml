@@ -24,12 +24,6 @@ jobs:
         poetry-version: "1.8.2"
         install-args: "-E dev -E external-tools"
 
-    - name: Initialize credentials
-      env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        poetry run letta quickstart --backend openai
-
     - name: Test first message contains expected function call and inner monologue
       id: test_first_message
       env:
