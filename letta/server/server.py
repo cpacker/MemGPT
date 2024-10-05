@@ -241,27 +241,7 @@ class SyncServer(Server):
 
         # The default interface that will get assigned to agents ON LOAD
         self.default_interface_factory = default_interface_factory
-        # self.default_interface = default_interface
-        # self.default_interface = default_interface_cls()
 
-        # Initialize the connection to the DB
-        # try:
-        #    self.config = LettaConfig.load()
-        #    assert self.config.default_llm_config is not None, "default_llm_config must be set in the config"
-        #    assert self.config.default_embedding_config is not None, "default_embedding_config must be set in the config"
-        # except Exception as e:
-        #    # TODO: very hacky - need to improve model config for docker container
-        #    if os.getenv("OPENAI_API_KEY") is None:
-        #        logger.error("No OPENAI_API_KEY environment variable set and no ~/.letta/config")
-        #        raise e
-
-        #    from letta.cli.cli import QuickstartChoice, quickstart
-
-        #    quickstart(backend=QuickstartChoice.openai, debug=False, terminal=False, latest=False)
-        #    self.config = LettaConfig.load()
-        #    self.config.save()
-
-        # TODO figure out how to handle credentials for the server
         self.credentials = LettaCredentials.load()
 
         # Generate default LLM/Embedding configs for the server
