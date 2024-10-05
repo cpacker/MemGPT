@@ -29,17 +29,13 @@ class OpenAIProvider(Provider):
         from letta.llm_api.openai import openai_get_model_list
 
         response = openai_get_model_list(self.base_url, api_key=self.api_key)
-        print(response)
-        print(response["data"])
         model_options = [obj["id"] for obj in response["data"]]
 
         configs = []
         for model_name in model_options:
-            print(model_name)
             context_window_size = self.get_model_context_window_size(model_name)
 
             if not context_window_size:
-                print(f"Missing context window information for {model_name}, skipping")
                 continue
             configs.append(
                 LLMConfig(model=model_name, model_endpoint_type="openai", model_endpoint=self.base_url, context_window=context_window_size)
@@ -105,7 +101,6 @@ class OllamaProvider(OpenAIProvider):
         if response.status_code != 200:
             raise Exception(f"Failed to list Ollama models: {response.text}")
         response_json = response.json()
-        print(response_json)
 
         configs = []
         for model in response_json["models"]:
@@ -126,9 +121,6 @@ class OllamaProvider(OpenAIProvider):
 
         response = requests.post(f"{self.base_url}/api/show", json={"name": model_name, "verbose": True})
         response_json = response.json()
-        from pprint import pprint
-
-        pprint(response_json)
 
         # thank you vLLM: https://github.com/vllm-project/vllm/blob/main/vllm/config.py#L1675
         possible_keys = [
@@ -172,7 +164,6 @@ class GroqProvider(OpenAIProvider):
         configs = []
         for model in response["data"]:
             if not "context_window" in model:
-                print(f"Missing context window information for {model['id']}, skipping")
                 continue
             configs.append(
                 LLMConfig(

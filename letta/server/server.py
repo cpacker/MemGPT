@@ -260,8 +260,6 @@ class SyncServer(Server):
 
         # collect providers
         self._enabled_providers = []
-        print(f"model_settings: {model_settings.anthropic_api_key}")
-        print(os.getenv("ANTHROPIC_API_KEY"))
         if model_settings.openai_api_key:
             self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key))
         if model_settings.anthropic_api_key:

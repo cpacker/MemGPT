@@ -13,9 +13,7 @@ from letta.config import LettaConfig
 from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR
 from letta.log import get_logger
 from letta.metadata import MetadataStore
-from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import OptionState
-from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory, Memory
 from letta.server.server import logger as server_logger
 
@@ -26,73 +24,6 @@ from letta.streaming_interface import (
 from letta.utils import open_folder_in_explorer, printd
 
 logger = get_logger(__name__)
-
-
-def set_config_with_dict(new_config: dict) -> (LettaConfig, bool):
-    """_summary_
-
-    Args:
-        new_config (dict): Dict of new config values
-
-    Returns:
-        new_config LettaConfig, modified (bool): Returns the new config and a boolean indicating if the config was modified
-    """
-    from letta.utils import printd
-
-    old_config = LettaConfig.load()
-    modified = False
-    for k, v in vars(old_config).items():
-        if k in new_config:
-            if v != new_config[k]:
-                printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                modified = True
-                # old_config[k] = new_config[k]
-                setattr(old_config, k, new_config[k])  # Set the new value using dot notation
-            else:
-                printd(f"Skipping new config {k}: {v} == {new_config[k]}")
-
-    # update embedding config
-    if old_config.default_embedding_config:
-        for k, v in vars(old_config.default_embedding_config).items():
-            if k in new_config:
-                if v != new_config[k]:
-                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                    modified = True
-                    # old_config[k] = new_config[k]
-                    setattr(old_config.default_embedding_config, k, new_config[k])
-                else:
-                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
-    else:
-        modified = True
-        fields = ["embedding_model", "embedding_dim", "embedding_chunk_size", "embedding_endpoint", "embedding_endpoint_type"]
-        args = {}
-        for field in fields:
-            if field in new_config:
-                args[field] = new_config[field]
-                printd(f"Setting new config {field}: {new_config[field]}")
-        old_config.default_embedding_config = EmbeddingConfig(**args)
-
-    # update llm config
-    if old_config.default_llm_config:
-        for k, v in vars(old_config.default_llm_config).items():
-            if k in new_config:
-                if v != new_config[k]:
-                    printd(f"Replacing config {k}: {v} -> {new_config[k]}")
-                    modified = True
-                    # old_config[k] = new_config[k]
-                    setattr(old_config.default_llm_config, k, new_config[k])
-                else:
-                    printd(f"Skipping new config {k}: {v} == {new_config[k]}")
-    else:
-        modified = True
-        fields = ["model", "model_endpoint", "model_endpoint_type", "model_wrapper", "context_window"]
-        args = {}
-        for field in fields:
-            if field in new_config:
-                args[field] = new_config[field]
-                printd(f"Setting new config {field}: {new_config[field]}")
-        old_config.default_llm_config = LLMConfig(**args)
-    return (old_config, modified)
 
 
 def open_folder():
@@ -294,40 +225,36 @@ def run(
         typer.secho("\n🧬 Creating new agent...", fg=typer.colors.WHITE)
 
         agent_name = agent if agent else utils.create_random_username()
-        llm_config = config.default_llm_config
-        embedding_config = config.default_embedding_config  # TODO allow overriding embedding params via CLI run
-
-        # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
-        if model and model != llm_config.model:
-            typer.secho(f"{CLI_WARNING_PREFIX}Overriding default model {llm_config.model} with {model}", fg=typer.colors.YELLOW)
-            llm_config.model = model
-        if context_window is not None and int(context_window) != llm_config.context_window:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding default context window {llm_config.context_window} with {context_window}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.context_window = context_window
-        if model_wrapper and model_wrapper != llm_config.model_wrapper:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model wrapper {llm_config.model_wrapper} with {model_wrapper}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.model_wrapper = model_wrapper
-        if model_endpoint and model_endpoint != llm_config.model_endpoint:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint {llm_config.model_endpoint} with {model_endpoint}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.model_endpoint = model_endpoint
-        if model_endpoint_type and model_endpoint_type != llm_config.model_endpoint_type:
-            typer.secho(
-                f"{CLI_WARNING_PREFIX}Overriding existing model endpoint type {llm_config.model_endpoint_type} with {model_endpoint_type}",
-                fg=typer.colors.YELLOW,
-            )
-            llm_config.model_endpoint_type = model_endpoint_type
 
         # create agent
         client = create_client()
+
+        # choose from list of llm_configs
+        llm_configs = client.list_llm_configs()
+        llm_options = [llm_config.model for llm_config in llm_configs]
+        # select model
+        if len(llm_options) == 0:
+            raise ValueError("No LLM models found. Please enable a provider.")
+        elif len(llm_options) == 1:
+            llm_model_name = llm_options[0]
+        else:
+            llm_model_name = questionary.select("Select LLM model:", choices=llm_options).ask()
+        llm_config = [llm_config for llm_config in llm_configs if llm_config.model == llm_model_name][0]
+
+        # choose form list of embedding configs
+        embedding_configs = client.list_embedding_configs()
+        embedding_options = [embedding_config.embedding_model for embedding_config in embedding_configs]
+        # select model
+        if len(embedding_options) == 0:
+            raise ValueError("No embedding models found. Please enable a provider.")
+        elif len(embedding_options) == 1:
+            embedding_model_name = embedding_options[0]
+        else:
+            embedding_model_name = questionary.select("Select embedding model:", choices=embedding_options).ask()
+        embedding_config = [
+            embedding_config for embedding_config in embedding_configs if embedding_config.embedding_model == embedding_model_name
+        ][0]
+
         human_obj = client.get_human(client.get_human_id(name=human))
         persona_obj = client.get_persona(client.get_persona_id(name=persona))
         if human_obj is None:
