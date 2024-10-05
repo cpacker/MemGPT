@@ -36,9 +36,6 @@ jobs:
         poetry-version: "1.8.2"
         install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"
 
-    - name: Initialize credentials
-      run: poetry run letta quickstart --backend openai
-
     - name: Run server tests
       env:
         LETTA_PG_PORT: 8888
