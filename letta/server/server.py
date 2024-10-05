@@ -15,7 +15,6 @@ import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
 from letta.agent_store.storage import StorageConnector, TableType
-from letta.cli.cli_config import get_model_options
 from letta.config import LettaConfig
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
@@ -243,28 +242,6 @@ class SyncServer(Server):
         self.default_interface_factory = default_interface_factory
 
         self.credentials = LettaCredentials.load()
-
-        # Generate default LLM/Embedding configs for the server
-        # TODO: we may also want to do the same thing with default persona/human/etc.
-        # self.server_llm_config = settings.llm_config
-        # self.server_embedding_config = settings.embedding_config
-        # self.server_llm_config = LLMConfig(
-        #    model=self.config.default_llm_config.model,
-        #    model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
-        #    model_endpoint=self.config.default_llm_config.model_endpoint,
-        #    model_wrapper=self.config.default_llm_config.model_wrapper,
-        #    context_window=self.config.default_llm_config.context_window,
-        # )
-        # self.server_embedding_config = EmbeddingConfig(
-        #    embedding_endpoint_type=self.config.default_embedding_config.embedding_endpoint_type,
-        #    embedding_endpoint=self.config.default_embedding_config.embedding_endpoint,
-        #    embedding_dim=self.config.default_embedding_config.embedding_dim,
-        #    embedding_model=self.config.default_embedding_config.embedding_model,
-        #    embedding_chunk_size=self.config.default_embedding_config.embedding_chunk_size,
-        # )
-        # assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
-
-        # Override config values with settings
 
         # Initialize the metadata store
         config = LettaConfig.load()
@@ -1339,38 +1316,14 @@ class SyncServer(Server):
         base_config = vars(self.config)
         clean_base_config = clean_keys(base_config)
 
-        clean_base_config_default_llm_config_dict = vars(clean_base_config["default_llm_config"])
-        clean_base_config_default_embedding_config_dict = vars(clean_base_config["default_embedding_config"])
-
-        clean_base_config["default_llm_config"] = clean_base_config_default_llm_config_dict
-        clean_base_config["default_embedding_config"] = clean_base_config_default_embedding_config_dict
         response = {"config": clean_base_config}
 
         if include_defaults:
             default_config = vars(LettaConfig())
             clean_default_config = clean_keys(default_config)
-            clean_default_config["default_llm_config"] = clean_base_config_default_llm_config_dict
-            clean_default_config["default_embedding_config"] = clean_base_config_default_embedding_config_dict
             response["defaults"] = clean_default_config
 
         return response
-
-    def get_available_models(self) -> List[LLMConfig]:
-        """Poll the LLM endpoint for a list of available models"""
-
-        credentials = LettaCredentials().load()
-
-        try:
-            model_options = get_model_options(
-                credentials=credentials,
-                model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
-                model_endpoint=self.config.default_llm_config.model_endpoint,
-            )
-            return model_options
-
-        except Exception as e:
-            logger.exception(f"Failed to get list of available models from LLM endpoint:\n{str(e)}")
-            raise
 
     def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> Memory:
         """Update the agents core memory block, return the new state"""
@@ -1491,7 +1444,7 @@ class SyncServer(Server):
         source = Source(
             name=request.name,
             user_id=user_id,
-            embedding_config=self.config.default_embedding_config,
+            embedding_config=self.list_embedding_models()[0],  # TODO: require providing this
         )
         self.ms.create_source(source)
         assert self.ms.get_source(source_name=request.name, user_id=user_id) is not None, f"Failed to create source {request.name}"
