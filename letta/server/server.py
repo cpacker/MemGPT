@@ -1933,20 +1933,6 @@ class SyncServer(Server):
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.retry_message()
 
-    def set_current_user(self, user_id: Optional[str]):
-        """Very hacky way to set the current user for the server, to be replaced once server becomes stateless
-
-        NOTE: clearly not thread-safe, only exists to provide basic user_id support for REST API for now
-        """
-
-        # Make sure the user_id actually exists
-        if user_id is not None:
-            user_obj = self.get_user(user_id)
-            if not user_obj:
-                raise ValueError(f"User with id {user_id} not found")
-
-        self._current_user = user_id
-
     def get_default_user(self) -> User:
 
         from letta.constants import (
