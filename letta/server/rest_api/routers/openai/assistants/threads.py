@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING, List
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path, Query
 
 from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import CreateAgent
@@ -43,11 +43,12 @@ router = APIRouter(prefix="/v1/threads", tags=["threads"])
 def create_thread(
     request: CreateThreadRequest = Body(...),
     server: SyncServer = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     # TODO: use requests.description and requests.metadata fields
     # TODO: handle requests.file_ids and requests.tools
     # TODO: eventually allow request to override embedding/llm model
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     print("Create thread/agent", request)
     # create a letta agent
@@ -67,8 +68,9 @@ def create_thread(
 def retrieve_thread(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     server: SyncServer = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
     agent = server.get_agent(user_id=actor.id, agent_id=thread_id)
     assert agent is not None
     return OpenAIThread(
@@ -100,8 +102,9 @@ def create_message(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     request: CreateMessageRequest = Body(...),
     server: SyncServer = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
     agent_id = thread_id
     # create message object
     message = Message(
@@ -143,8 +146,9 @@ def list_messages(
     after: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
     before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
     server: SyncServer = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id)
     after_uuid = after if before else None
     before_uuid = before if before else None
     agent_id = thread_id
@@ -239,7 +243,6 @@ def create_run(
     request: CreateRunRequest = Body(...),
     server: SyncServer = Depends(get_letta_server),
 ):
-    server.get_current_user()
 
     # TODO: add request.instructions as a message?
     agent_id = thread_id

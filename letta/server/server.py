@@ -1089,7 +1089,11 @@ class SyncServer(Server):
 
     def get_user(self, user_id: str) -> User:
         """Get the user"""
-        return self.ms.get_user(user_id=user_id)
+        user = self.ms.get_user(user_id=user_id)
+        if user is None:
+            raise ValueError(f"User with user_id {user_id} does not exist")
+        else:
+            return user
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1971,23 +1975,12 @@ class SyncServer(Server):
         # check if default org exists
         return self.get_user(DEFAULT_USER_ID)
 
-    # TODO(ethan) wire back to real method in future ORM PR
-    def get_current_user(self) -> User:
-        """Returns the currently authed user.
-
-        Since server is the core gateway this needs to pass through server as the
-        first touchpoint.
-        """
-
-        # Check if _current_user is set and if it's non-null:
-        if hasattr(self, "_current_user") and self._current_user is not None:
-            current_user = self.get_user(self._current_user)
-            if not current_user:
-                warnings.warn(f"Provided user '{self._current_user}' not found, using default user")
-            else:
-                return current_user
-
-        return self.get_default_user()
+    def get_user_or_default(self, user_id: Optional[str]) -> User:
+        """Get the user object for user_id if it exists, otherwise return the default user object"""
+        if user_id is None:
+            return self.get_default_user()
+        else:
+            return self.get_user(user_id=user_id)
 
     def list_models(self) -> List[LLMConfig]:
         """List available models"""
