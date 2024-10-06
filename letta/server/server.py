@@ -1949,8 +1949,9 @@ class SyncServer(Server):
             self.ms.create_organization(org)
 
         # check if default user exists
-        default_user = self.get_user(DEFAULT_USER_ID)
-        if not default_user:
+        try:
+            self.get_user(DEFAULT_USER_ID)
+        except ValueError:
             user = User(name=DEFAULT_USER_NAME, org_id=DEFAULT_ORG_ID, id=DEFAULT_USER_ID)
             self.ms.create_user(user)
 
