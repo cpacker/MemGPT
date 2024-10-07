@@ -1064,7 +1064,11 @@ class SyncServer(Server):
 
     def get_user(self, user_id: str) -> User:
         """Get the user"""
-        return self.ms.get_user(user_id=user_id)
+        user = self.ms.get_user(user_id=user_id)
+        if user is None:
+            raise ValueError(f"User with user_id {user_id} does not exist")
+        else:
+            return user
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1880,20 +1884,6 @@ class SyncServer(Server):
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.retry_message()
 
-    def set_current_user(self, user_id: Optional[str]):
-        """Very hacky way to set the current user for the server, to be replaced once server becomes stateless
-
-        NOTE: clearly not thread-safe, only exists to provide basic user_id support for REST API for now
-        """
-
-        # Make sure the user_id actually exists
-        if user_id is not None:
-            user_obj = self.get_user(user_id)
-            if not user_obj:
-                raise ValueError(f"User with id {user_id} not found")
-
-        self._current_user = user_id
-
     def get_default_user(self) -> User:
 
         from letta.constants import (
@@ -1910,8 +1900,9 @@ class SyncServer(Server):
             self.ms.create_organization(org)
 
         # check if default user exists
-        default_user = self.get_user(DEFAULT_USER_ID)
-        if not default_user:
+        try:
+            self.get_user(DEFAULT_USER_ID)
+        except ValueError:
             user = User(name=DEFAULT_USER_NAME, org_id=DEFAULT_ORG_ID, id=DEFAULT_USER_ID)
             self.ms.create_user(user)
 
@@ -1922,23 +1913,12 @@ class SyncServer(Server):
         # check if default org exists
         return self.get_user(DEFAULT_USER_ID)
 
-    # TODO(ethan) wire back to real method in future ORM PR
-    def get_current_user(self) -> User:
-        """Returns the currently authed user.
-
-        Since server is the core gateway this needs to pass through server as the
-        first touchpoint.
-        """
-
-        # Check if _current_user is set and if it's non-null:
-        if hasattr(self, "_current_user") and self._current_user is not None:
-            current_user = self.get_user(self._current_user)
-            if not current_user:
-                warnings.warn(f"Provided user '{self._current_user}' not found, using default user")
-            else:
-                return current_user
-
-        return self.get_default_user()
+    def get_user_or_default(self, user_id: Optional[str]) -> User:
+        """Get the user object for user_id if it exists, otherwise return the default user object"""
+        if user_id is None:
+            return self.get_default_user()
+        else:
+            return self.get_user(user_id=user_id)
 
     def list_llm_models(self) -> List[LLMConfig]:
         """List available models"""

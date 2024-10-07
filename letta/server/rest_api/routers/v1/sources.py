@@ -2,7 +2,7 @@ import os
 import tempfile
 from typing import List
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, UploadFile
 
 from letta.schemas.document import Document
 from letta.schemas.job import Job
@@ -21,11 +21,12 @@ router = APIRouter(prefix="/sources", tags=["sources"])
 def get_source(
     source_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Get all sources
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     return server.get_source(source_id=source_id, user_id=actor.id)
 
@@ -34,11 +35,12 @@ def get_source(
 def get_source_id_by_name(
     source_name: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Get a source by name
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     source_id = server.get_source_id(source_name=source_name, user_id=actor.id)
     return source_id
@@ -47,11 +49,12 @@ def get_source_id_by_name(
 @router.get("/", response_model=List[Source], operation_id="list_sources")
 def list_sources(
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     List all data sources created by a user.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     return server.list_all_sources(user_id=actor.id)
 
@@ -60,11 +63,12 @@ def list_sources(
 def create_source(
     source: SourceCreate,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Create a new data source.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     return server.create_source(request=source, user_id=actor.id)
 
@@ -74,11 +78,13 @@ def update_source(
     source_id: str,
     source: SourceUpdate,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Update the name or documentation of an existing data source.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
+
     assert source.id == source_id, "Source ID in path must match ID in request body"
 
     return server.update_source(request=source, user_id=actor.id)
@@ -88,11 +94,12 @@ def update_source(
 def delete_source(
     source_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Delete a data source.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     server.delete_source(source_id=source_id, user_id=actor.id)
 
@@ -102,11 +109,12 @@ def attach_source_to_agent(
     source_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to attach the source to."),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Attach a data source to an existing agent.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     source = server.ms.get_source(source_id=source_id, user_id=actor.id)
     assert source is not None, f"Source with id={source_id} not found."
@@ -119,11 +127,12 @@ def detach_source_from_agent(
     source_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to detach the source from."),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ) -> None:
     """
     Detach a data source from an existing agent.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     return server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor.id)
 
@@ -134,11 +143,12 @@ def upload_file_to_source(
     source_id: str,
     background_tasks: BackgroundTasks,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Upload a file to a data source.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     source = server.ms.get_source(source_id=source_id, user_id=actor.id)
     assert source is not None, f"Source with id={source_id} not found."
@@ -166,11 +176,12 @@ def upload_file_to_source(
 def list_passages(
     source_id: str,
     server: SyncServer = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     List all passages associated with a data source.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
     passages = server.list_data_source_passages(user_id=actor.id, source_id=source_id)
     return passages
 
@@ -179,11 +190,12 @@ def list_passages(
 def list_documents(
     source_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     List all documents associated with a data source.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     documents = server.list_data_source_documents(user_id=actor.id, source_id=source_id)
     return documents
