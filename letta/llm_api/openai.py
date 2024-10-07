@@ -1,5 +1,6 @@
 import json
-from typing import Generator, Optional, Union
+import warnings
+from typing import Generator, List, Optional, Union
 
 import httpx
 import requests
@@ -8,10 +9,19 @@ from httpx_sse._exceptions import SSEError
 
 from letta.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from letta.errors import LLMError
+from letta.llm_api.helpers import add_inner_thoughts_to_functions
+from letta.local_llm.constants import (
+    INNER_THOUGHTS_KWARG,
+    INNER_THOUGHTS_KWARG_DESCRIPTION,
+)
 from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message as _Message
 from letta.schemas.message import MessageRole as _MessageRole
-from letta.schemas.openai.chat_completion_request import ChatCompletionRequest
+from letta.schemas.openai.chat_completion_request import (
+    ChatCompletionRequest,
+    cast_message_to_subtype,
+)
 from letta.schemas.openai.chat_completion_response import (
     ChatCompletionChunkResponse,
     ChatCompletionResponse,
@@ -79,6 +89,64 @@ def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional
             pass
         printd(f"Got unknown Exception, exception={e}, response={response}")
         raise e
+
+
+def build_openai_chat_completions_request(
+    llm_config: LLMConfig,
+    messages: List[Message],
+    user_id: Optional[str],
+    functions: Optional[list],
+    function_call: str,
+    use_tool_naming: bool,
+    inner_thoughts_in_kwargs: bool,
+    max_tokens: Optional[int],
+) -> ChatCompletionRequest:
+    if inner_thoughts_in_kwargs:
+        functions = add_inner_thoughts_to_functions(
+            functions=functions,
+            inner_thoughts_key=INNER_THOUGHTS_KWARG,
+            inner_thoughts_description=INNER_THOUGHTS_KWARG_DESCRIPTION,
+        )
+
+    openai_message_list = [
+        cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs)) for m in messages
+    ]
+    if llm_config.model:
+        model = llm_config.model
+    else:
+        warnings.warn(f"Model type not set in llm_config: {llm_config.model_dump_json(indent=4)}")
+        model = None
+
+    if use_tool_naming:
+        data = ChatCompletionRequest(
+            model=model,
+            messages=openai_message_list,
+            tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+            tool_choice=function_call,
+            user=str(user_id),
+            max_tokens=max_tokens,
+        )
+    else:
+        data = ChatCompletionRequest(
+            model=model,
+            messages=openai_message_list,
+            functions=functions,
+            function_call=function_call,
+            user=str(user_id),
+            max_tokens=max_tokens,
+        )
+        # https://platform.openai.com/docs/guides/text-generation/json-mode
+        # only supported by gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
+        if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
+            data.response_format = {"type": "json_object"}
+
+    if "inference.memgpt.ai" in llm_config.model_endpoint:
+        # override user id for inference.memgpt.ai
+        import uuid
+
+        data.user = str(uuid.UUID(int=0))
+
+    return data
 
 
 def openai_chat_completions_process_stream(

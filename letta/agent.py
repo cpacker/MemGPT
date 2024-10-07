@@ -18,7 +18,7 @@ from letta.constants import (
     MESSAGE_SUMMARY_WARNING_FRAC,
 )
 from letta.interface import AgentInterface
-from letta.llm_api.llm_api_tools import create, is_context_overflow_error
+from letta.llm_api.llm_api_tools import create
 from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.persistence_manager import LocalStateManager
@@ -56,6 +56,7 @@ from letta.utils import (
 )
 
 from .errors import LLMError
+from .llm_api.helpers import is_context_overflow_error
 
 
 def compile_memory_metadata_block(
@@ -207,7 +208,7 @@ class BaseAgent(ABC):
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
         timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
         """
@@ -460,7 +461,7 @@ class Agent(BaseAgent):
         function_call: str = "auto",
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
-        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
     ) -> ChatCompletionResponse:
         """Get response from LLM API"""
         try:
@@ -478,7 +479,7 @@ class Agent(BaseAgent):
                 stream=stream,
                 stream_inferface=self.interface,
                 # putting inner thoughts in func args or not
-                inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             )
 
             if len(response.choices) == 0:
@@ -725,7 +726,7 @@ class Agent(BaseAgent):
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
         timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
         """Top-level event message handler for the Letta agent"""
@@ -804,7 +805,7 @@ class Agent(BaseAgent):
                         message_sequence=input_message_sequence,
                         first_message=True,  # passed through to the prompt formatter
                         stream=stream,
-                        inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                        inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     )
                     if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -817,7 +818,7 @@ class Agent(BaseAgent):
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                     stream=stream,
-                    inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                 )
 
             # Step 3: check if LLM wanted to call a function
@@ -901,7 +902,7 @@ class Agent(BaseAgent):
                     recreate_message_timestamp=recreate_message_timestamp,
                     stream=stream,
                     timestamp=timestamp,
-                    inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     ms=ms,
                 )
 

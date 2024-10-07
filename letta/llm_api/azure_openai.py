@@ -2,8 +2,11 @@ from typing import Union
 
 import requests
 
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
+from letta.schemas.openai.chat_completions import ChatCompletionRequest
 from letta.schemas.openai.embedding_response import EmbeddingResponse
+from letta.settings import ModelSettings
 from letta.utils import smart_urljoin
 
 MODEL_TO_AZURE_ENGINE = {
@@ -17,14 +20,12 @@ MODEL_TO_AZURE_ENGINE = {
 }
 
 
-def clean_azure_endpoint(raw_endpoint_name: str) -> str:
-    """Make sure the endpoint is of format 'https://YOUR_RESOURCE_NAME.openai.azure.com'"""
-    if raw_endpoint_name is None:
-        raise ValueError(raw_endpoint_name)
-    endpoint_address = raw_endpoint_name.strip("/").replace(".openai.azure.com", "")
-    endpoint_address = endpoint_address.replace("http://", "")
-    endpoint_address = endpoint_address.replace("https://", "")
-    return endpoint_address
+def get_azure_endpoint(llm_config: LLMConfig, model_settings: ModelSettings):
+    assert llm_config.model_version, "Missing model version! This field must be provided in the LLM config for Azure."
+    assert llm_config.model in MODEL_TO_AZURE_ENGINE, f"{llm_config.model} not in supported models: {list(MODEL_TO_AZURE_ENGINE.keys())}"
+
+    model = MODEL_TO_AZURE_ENGINE[llm_config.model]
+    return f"{model_settings.azure_base_url}/openai/deployments/{model}/chat/completions?api-version={llm_config.model_version}"
 
 
 def azure_openai_get_model_list(url: str, api_key: Union[str, None], api_version: str) -> dict:
@@ -73,19 +74,15 @@ def azure_openai_get_model_list(url: str, api_key: Union[str, None], api_version
 
 
 def azure_openai_chat_completions_request(
-    resource_name: str, deployment_id: str, api_version: str, api_key: str, data: dict
+    model_settings: ModelSettings, llm_config: LLMConfig, api_key: str, chat_completion_request: ChatCompletionRequest
 ) -> ChatCompletionResponse:
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#chat-completions"""
     from letta.utils import printd
 
-    assert resource_name is not None, "Missing required field when calling Azure OpenAI"
-    assert deployment_id is not None, "Missing required field when calling Azure OpenAI"
-    assert api_version is not None, "Missing required field when calling Azure OpenAI"
     assert api_key is not None, "Missing required field when calling Azure OpenAI"
 
-    resource_name = clean_azure_endpoint(resource_name)
-    url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/chat/completions?api-version={api_version}"
     headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
+    data = chat_completion_request.model_dump(exclude_none=True)
 
     # If functions == None, strip from the payload
     if "functions" in data and data["functions"] is None:
@@ -96,11 +93,10 @@ def azure_openai_chat_completions_request(
         data.pop("tools")
         data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
 
-    printd(f"Sending request to {url}")
+    model_endpoint = get_azure_endpoint(llm_config, model_settings)
+    printd(f"Sending request to {model_endpoint}")
     try:
-        data["messages"] = [i.to_openai_dict() for i in data["messages"]]
-        response = requests.post(url, headers=headers, json=data)
-        printd(f"response = {response}")
+        response = requests.post(model_endpoint, headers=headers, json=data)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
         printd(f"response.json = {response}")
@@ -129,7 +125,6 @@ def azure_openai_embeddings_request(
     """https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings"""
     from letta.utils import printd
 
-    resource_name = clean_azure_endpoint(resource_name)
     url = f"https://{resource_name}.openai.azure.com/openai/deployments/{deployment_id}/embeddings?api-version={api_version}"
     headers = {"Content-Type": "application/json", "api-key": f"{api_key}"}
 

@@ -12,7 +12,7 @@ from tests.helpers.endpoints_helper import (
 
 # directories
 embedding_config_dir = "configs/embedding_model_configs"
-llm_config_dir = "configs/llm_model_configs"
+llm_config_dir = "tests/configs/llm_model_configs"
 
 
 # ======================================================================================================================
@@ -67,12 +67,49 @@ def test_embedding_endpoint_openai():
 
 
 # ======================================================================================================================
-# OPENAI TESTS
+# AZURE TESTS
 # ======================================================================================================================
-def test_llm_endpoint_azure():
+def test_azure_gpt_4o_mini_returns_valid_first_message():
     filename = os.path.join(llm_config_dir, "azure-gpt-4o-mini.json")
-    # We set max tokens to something ridiculously low here to avoid Azure rate limiting for now
-    check_first_response_is_valid_for_llm_endpoint(filename)
+    response = check_first_response_is_valid_for_llm_endpoint(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_azure_gpt_4o_mini_returns_keyword():
+    keyword = "banana"
+    filename = os.path.join(llm_config_dir, "azure-gpt-4o-mini.json")
+    response = check_response_contains_keyword(filename, keyword=keyword)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_azure_gpt_4o_mini_uses_external_tool():
+    filename = os.path.join(llm_config_dir, "azure-gpt-4o-mini.json")
+    response = check_agent_uses_external_tool(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_azure_gpt_4o_mini_recall_chat_memory():
+    filename = os.path.join(llm_config_dir, "azure-gpt-4o-mini.json")
+    response = check_agent_recall_chat_memory(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_azure_gpt_4o_mini_archival_memory_retrieval():
+    filename = os.path.join(llm_config_dir, "azure-gpt-4o-mini.json")
+    response = check_agent_archival_memory_retrieval(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_azure_gpt_4o_mini_edit_core_memory():
+    filename = os.path.join(llm_config_dir, "azure-gpt-4o-mini.json")
+    response = check_agent_edit_core_memory(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
 
 
 # ======================================================================================================================
