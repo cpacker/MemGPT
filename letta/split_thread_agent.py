@@ -19,6 +19,8 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.tool import Tool
 
+from IPython import embed
+
 MEMORY_TOOLS = [
     "core_memory_append",
     "core_memory_replace",
@@ -47,7 +49,7 @@ class SplitThreadAgent(BaseAgent):
         self.agent = Agent(
             interface=interface,
             agent_state=agent_state,
-            tools=conversation_tools + memory_tools,
+            tools=[],
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
@@ -173,7 +175,7 @@ def create_split_thread_agent(
     agent_state = AgentState(
         name=request.name,
         user_id=user_id,
-        tools=[i.name for i in conversation_tool_objs + memory_tool_objs],
+        tools=[],
         agent_config=agent_config,
         llm_config=llm_config,
         embedding_config=embedding_config,
