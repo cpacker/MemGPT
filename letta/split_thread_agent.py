@@ -16,7 +16,6 @@ from letta.schemas.agent_config import AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.memory import Memory
 from letta.schemas.message import Message
 from letta.schemas.tool import Tool
 
@@ -36,11 +35,23 @@ class SplitThreadAgent(BaseAgent):
         conversation_tools: List[Tool],
         memory_agent_state: AgentState,
         memory_tools: List[Tool],
-        # memory: Memory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
+        self.agent_state = agent_state
+        self.memory = agent_state.memory
+        self.system = agent_state.system
+        self.interface = interface
+
+        self.agent = Agent(
+            interface=interface,
+            agent_state=agent_state,
+            tools=conversation_tools + memory_tools,
+            messages_total=messages_total,
+            first_message_verify_mono=first_message_verify_mono,
+        )
+
         self.conversation_agent = Agent(
             interface=interface,
             agent_state=conversation_agent_state,
@@ -55,14 +66,8 @@ class SplitThreadAgent(BaseAgent):
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
-        self.agent = Agent(
-            interface=interface,
-            agent_state=agent_state,
-            tools=conversation_tools + memory_tools,
-            messages_total=messages_total,
-            first_message_verify_mono=first_message_verify_mono,
-        )
-        self.interface = interface
+
+        self.update_state()
 
     def step(
         self,
@@ -116,23 +121,12 @@ class SplitThreadAgent(BaseAgent):
         self.conversation_agent.update_state()
         self.memory_agent.update_state()
         self.agent.update_state()
+
+        self.agent_state = self.agent.agent_state
+        self.agent_state.memory = self.memory
+        self.agent_state.system = self.system
+
         return self.agent_state
-
-    @property
-    def agent_state(self) -> AgentState:
-        return self.agent.agent_state
-
-    @agent_state.setter
-    def agent_state(self, value: AgentState):
-        self.agent.agent_state = value
-
-    @property
-    def memory(self) -> Memory:
-        return self.agent.memory
-
-    @memory.setter
-    def memory(self, value: Memory):
-        self.agent.memory = value
 
 
 def create_split_thread_agent(
@@ -212,3 +206,4 @@ def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
     save_agent(agent=agent.agent, ms=ms)
     save_agent(agent=agent.conversation_agent, ms=ms)
     save_agent(agent=agent.memory_agent, ms=ms)
+    agent.update_state()

@@ -768,7 +768,7 @@ class SyncServer(Server):
 
         return org
 
-    def _get_tool_objs(self, request: CreateAgent, user_id: str) -> List[Tool]:
+    def _get_tools_from_request(self, request: CreateAgent, user_id: str) -> List[Tool]:
         tool_objs = []
         if request.tools:
             for tool_name in request.tools:
@@ -843,7 +843,7 @@ class SyncServer(Server):
 
             assert request.memory is not None
 
-            tool_objs = self._get_tool_objs(request, user_id)
+            tool_objs = self._get_tools_from_request(request, user_id)
 
             if not request.agent_config or request.agent_config.agent_type == AgentType.base_agent:
                 # TODO: save the agent state
