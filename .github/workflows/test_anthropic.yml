@@ -1,4 +1,4 @@
-name: Endpoint (Anthropic)
+name: Anthropic Claude Opus 3 Capabilities Test
 
 env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
