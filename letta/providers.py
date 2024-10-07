@@ -20,6 +20,32 @@ class Provider(BaseModel):
         pass
 
 
+class LettaProvider(Provider):
+
+    name: str = "letta"
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        return [
+            LLMConfig(
+                model="memgpt-openai",
+                model_endpoint_type="openai",
+                model_endpoint="https://inference.memgpt.ai",
+                context_window=16384,
+            )
+        ]
+
+    def list_embedding_models(self):
+        return [
+            EmbeddingConfig(
+                embedding_model="BAAI/bge-large-en-v1.5",
+                embedding_endpoint_type="hugging-face",
+                embedding_endpoint="https://embeddings.memgpt.ai",
+                embedding_dim=1024,
+                embedding_chunk_size=300,
+            )
+        ]
+
+
 class OpenAIProvider(Provider):
     name: str = "openai"
     api_key: str = Field(..., description="API key for the OpenAI API.")
