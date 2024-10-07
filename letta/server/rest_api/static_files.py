@@ -31,6 +31,10 @@ def mount_static_files(app: FastAPI):
         async def serve_spa():
             return FileResponse(os.path.join(static_files_path, "index.html"))
 
+        @app.get("/agents/{agent}/chat", include_in_schema=False)
+        async def serve_spa():
+            return FileResponse(os.path.join(static_files_path, "index.html"))
+
         @app.get("/agents", include_in_schema=False)
         async def serve_spa():
             return FileResponse(os.path.join(static_files_path, "index.html"))
@@ -52,10 +56,6 @@ def mount_static_files(app: FastAPI):
             return FileResponse(os.path.join(static_files_path, "index.html"))
 
         @app.get("/settings/profile", include_in_schema=False)
-        async def serve_spa():
-            return FileResponse(os.path.join(static_files_path, "index.html"))
-
-        @app.get("/agents/{agent-id}/chat", include_in_schema=False)
         async def serve_spa():
             return FileResponse(os.path.join(static_files_path, "index.html"))
 
