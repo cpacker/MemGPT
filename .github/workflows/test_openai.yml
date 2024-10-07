@@ -107,6 +107,6 @@ jobs:
               $TEST_ARCHIVAL_MEMORY_EXIT_CODE -ne 0 || \
               $TEST_CORE_MEMORY_EXIT_CODE -ne 0 || \
               $TEST_EMBEDDING_ENDPOINT_EXIT_CODE -ne 0 ]]; then
-          echo "Some tests failed, setting neutral status."
+          echo "Some tests failed."
           exit 78
         fi
