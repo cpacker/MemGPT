@@ -9,7 +9,6 @@ from typing import List, Optional, Union
 import requests
 
 from letta.constants import CLI_WARNING_PREFIX, OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
-from letta.credentials import LettaCredentials
 from letta.llm_api.anthropic import anthropic_chat_completions_request
 from letta.llm_api.azure_openai import (
     MODEL_TO_AZURE_ENGINE,
@@ -29,6 +28,7 @@ from letta.local_llm.constants import (
     INNER_THOUGHTS_KWARG,
     INNER_THOUGHTS_KWARG_DESCRIPTION,
 )
+from letta.providers import GoogleAIProvider
 from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
@@ -37,14 +37,14 @@ from letta.schemas.openai.chat_completion_request import (
     Tool,
     cast_message_to_subtype,
 )
-from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
+from letta.schemas.openai.chat_completion_response import ChatCompletionResponse, Choice
 from letta.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
 )
 from letta.utils import json_dumps
 
-LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local"]
+LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local", "groq"]
 
 
 # TODO update to use better types
@@ -83,7 +83,7 @@ def add_inner_thoughts_to_functions(
     return new_functions
 
 
-def unpack_inner_thoughts_from_kwargs(
+def unpack_all_inner_thoughts_from_kwargs(
     response: ChatCompletionResponse,
     inner_thoughts_key: str,
 ) -> ChatCompletionResponse:
@@ -93,41 +93,44 @@ def unpack_inner_thoughts_from_kwargs(
 
     new_choices = []
     for choice in response.choices:
-        msg = choice.message
-        if msg.role == "assistant" and msg.tool_calls and len(msg.tool_calls) >= 1:
-            if len(msg.tool_calls) > 1:
-                warnings.warn(f"Unpacking inner thoughts from more than one tool call ({len(msg.tool_calls)}) is not supported")
-            # TODO support multiple tool calls
-            tool_call = msg.tool_calls[0]
-
-            try:
-                # Sadly we need to parse the JSON since args are in string format
-                func_args = dict(json.loads(tool_call.function.arguments))
-                if inner_thoughts_key in func_args:
-                    # extract the inner thoughts
-                    inner_thoughts = func_args.pop(inner_thoughts_key)
-
-                    # replace the kwargs
-                    new_choice = choice.model_copy(deep=True)
-                    new_choice.message.tool_calls[0].function.arguments = json_dumps(func_args)
-                    # also replace the message content
-                    if new_choice.message.content is not None:
-                        warnings.warn(f"Overwriting existing inner monologue ({new_choice.message.content}) with kwarg ({inner_thoughts})")
-                    new_choice.message.content = inner_thoughts
-
-                    # save copy
-                    new_choices.append(new_choice)
-                else:
-                    warnings.warn(f"Did not find inner thoughts in tool call: {str(tool_call)}")
-
-            except json.JSONDecodeError as e:
-                warnings.warn(f"Failed to strip inner thoughts from kwargs: {e}")
-                raise e
+        new_choices.append(unpack_inner_thoughts_from_kwargs(choice, inner_thoughts_key))
 
     # return an updated copy
     new_response = response.model_copy(deep=True)
     new_response.choices = new_choices
     return new_response
+
+
+def unpack_inner_thoughts_from_kwargs(choice: Choice, inner_thoughts_key: str) -> Choice:
+    message = choice.message
+    if message.role == "assistant" and message.tool_calls and len(message.tool_calls) >= 1:
+        if len(message.tool_calls) > 1:
+            warnings.warn(f"Unpacking inner thoughts from more than one tool call ({len(message.tool_calls)}) is not supported")
+        # TODO support multiple tool calls
+        tool_call = message.tool_calls[0]
+
+        try:
+            # Sadly we need to parse the JSON since args are in string format
+            func_args = dict(json.loads(tool_call.function.arguments))
+            if inner_thoughts_key in func_args:
+                # extract the inner thoughts
+                inner_thoughts = func_args.pop(inner_thoughts_key)
+
+                # replace the kwargs
+                new_choice = choice.model_copy(deep=True)
+                new_choice.message.tool_calls[0].function.arguments = json_dumps(func_args)
+                # also replace the message content
+                if new_choice.message.content is not None:
+                    warnings.warn(f"Overwriting existing inner monologue ({new_choice.message.content}) with kwarg ({inner_thoughts})")
+                new_choice.message.content = inner_thoughts
+
+                return new_choice
+            else:
+                warnings.warn(f"Did not find inner thoughts in tool call: {str(tool_call)}")
+
+        except json.JSONDecodeError as e:
+            warnings.warn(f"Failed to strip inner thoughts from kwargs: {e}")
+            raise e
 
 
 def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
@@ -247,15 +250,17 @@ def create(
     # if unspecified (None), default to something we've tested
     inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
     max_tokens: Optional[int] = None,
+    model_settings: Optional[dict] = None,  # TODO: eventually pass from server
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from letta.utils import printd
 
+    if not model_settings:
+        from letta.settings import model_settings
+
+        model_settings = model_settings
+
     printd(f"Using model {llm_config.model_endpoint_type}, endpoint: {llm_config.model_endpoint}")
-
-    # TODO eventually refactor so that credentials are passed through
-
-    credentials = LettaCredentials.load()
 
     if function_call and not functions:
         printd("unsetting function_call because functions is None")
@@ -287,7 +292,7 @@ def create(
         ]
 
         # TODO do the same for Azure?
-        if credentials.openai_key is None and llm_config.model_endpoint == "https://api.openai.com/v1":
+        if model_settings.openai_api_key is None and llm_config.model_endpoint == "https://api.openai.com/v1":
             # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"OpenAI key is missing from letta config file")
         if use_tool_naming:
@@ -326,7 +331,7 @@ def create(
             ), type(stream_inferface)
             response = openai_chat_completions_process_stream(
                 url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
-                api_key=credentials.openai_key,
+                api_key=model_settings.openai_api_key,
                 chat_completion_request=data,
                 stream_inferface=stream_inferface,
             )
@@ -335,10 +340,9 @@ def create(
             if isinstance(stream_inferface, AgentChunkStreamingInterface):
                 stream_inferface.stream_start()
             try:
-
                 response = openai_chat_completions_request(
                     url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
-                    api_key=credentials.openai_key,
+                    api_key=model_settings.openai_api_key,
                     chat_completion_request=data,
                 )
             finally:
@@ -346,7 +350,7 @@ def create(
                     stream_inferface.stream_end()
 
         if inner_thoughts_in_kwargs:
-            response = unpack_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
+            response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
 
         return response
 
@@ -360,7 +364,7 @@ def create(
             raise ValueError(f"Azure key is missing from letta config file")
 
         azure_deployment = (
-            credentials.azure_deployment if credentials.azure_deployment is not None else MODEL_TO_AZURE_ENGINE[llm_config.model]
+            model_settings.azure_deployment if model_settings.azure_deployment is not None else MODEL_TO_AZURE_ENGINE[llm_config.model]
         )
 
         if use_tool_naming:
@@ -384,10 +388,10 @@ def create(
                 max_tokens=max_tokens,
             )
         return azure_openai_chat_completions_request(
-            resource_name=credentials.azure_endpoint,
+            resource_name=model_settings.azure_endpoint,
             deployment_id=azure_deployment,
-            api_version=credentials.azure_version,
-            api_key=credentials.azure_key,
+            api_version=model_settings.azure_version,
+            api_key=model_settings.azure_key,
             data=data,
         )
 
@@ -410,9 +414,9 @@ def create(
 
         return google_ai_chat_completions_request(
             inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg,
-            service_endpoint=credentials.google_ai_service_endpoint,
+            service_endpoint=GoogleAIProvider(model_settings.gemini_api_key).service_endpoint,
             model=llm_config.model,
-            api_key=credentials.google_ai_key,
+            api_key=model_settings.gemini_api_key,
             # see structure of payload here: https://ai.google.dev/docs/function_calling
             data=dict(
                 contents=[m.to_google_ai_dict() for m in messages],
@@ -434,7 +438,7 @@ def create(
 
         return anthropic_chat_completions_request(
             url=llm_config.model_endpoint,
-            api_key=credentials.anthropic_key,
+            api_key=model_settings.anthropic_api_key,
             data=ChatCompletionRequest(
                 model=llm_config.model,
                 messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
@@ -465,13 +469,67 @@ def create(
             chat_completion_request=ChatCompletionRequest(
                 model="command-r-plus",  # TODO
                 messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
-                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
+                tools=tools,
                 tool_choice=function_call,
                 # user=str(user_id),
                 # NOTE: max_tokens is required for Anthropic API
                 # max_tokens=1024,  # TODO make dynamic
             ),
         )
+
+    elif llm_config.model_endpoint_type == "groq":
+        if stream:
+            raise NotImplementedError(f"Streaming not yet implemented for Groq.")
+
+        if model_settings.groq_api_key is None and llm_config.model_endpoint == "https://api.groq.com/openai/v1/chat/completions":
+            # only is a problem if we are *not* using an openai proxy
+            raise ValueError(f"Groq key is missing from letta config file")
+
+        # force to true for groq, since they don't support 'content' is non-null
+        inner_thoughts_in_kwargs = True
+        if inner_thoughts_in_kwargs:
+            functions = add_inner_thoughts_to_functions(
+                functions=functions,
+                inner_thoughts_key=INNER_THOUGHTS_KWARG,
+                inner_thoughts_description=INNER_THOUGHTS_KWARG_DESCRIPTION,
+            )
+
+        tools = [{"type": "function", "function": f} for f in functions] if functions is not None else None
+        data = ChatCompletionRequest(
+            model=llm_config.model,
+            messages=[m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs) for m in messages],
+            tools=tools,
+            tool_choice=function_call,
+            user=str(user_id),
+        )
+
+        # https://console.groq.com/docs/openai
+        # "The following fields are currently not supported and will result in a 400 error (yikes) if they are supplied:"
+        assert data.top_logprobs is None
+        assert data.logit_bias is None
+        assert data.logprobs == False
+        assert data.n == 1
+        # They mention that none of the messages can have names, but it seems to not error out (for now)
+
+        data.stream = False
+        if isinstance(stream_inferface, AgentChunkStreamingInterface):
+            stream_inferface.stream_start()
+        try:
+            # groq uses the openai chat completions API, so this component should be reusable
+            assert model_settings.groq_api_key is not None, "Groq key is missing"
+            response = openai_chat_completions_request(
+                url=llm_config.model_endpoint,
+                api_key=model_settings.groq_api_key,
+                chat_completion_request=data,
+            )
+        finally:
+            if isinstance(stream_inferface, AgentChunkStreamingInterface):
+                stream_inferface.stream_end()
+
+        if inner_thoughts_in_kwargs:
+            response = unpack_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
+
+        return response
 
     # local model
     else:
@@ -491,6 +549,6 @@ def create(
             # hint
             first_message=first_message,
             # auth-related
-            auth_type=credentials.openllm_auth_type,
-            auth_key=credentials.openllm_key,
+            auth_type=model_settings.openllm_auth_type,
+            auth_key=model_settings.openllm_api_key,
         )

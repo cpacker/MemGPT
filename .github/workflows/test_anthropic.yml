@@ -1,7 +1,7 @@
-name: Endpoint (Anthropic)
+name: Anthropic Claude Opus 3 Capabilities Test
 
 env:
-  OPENAI_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
 on:
   push:
@@ -22,16 +22,80 @@ jobs:
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "-E dev"
+        install-args: "-E dev -E external-tools"
 
-    - name: Initialize credentials
+    - name: Test first message contains expected function call and inner monologue
+      id: test_first_message
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
-        poetry run letta quickstart --backend anthropic
+        poetry run pytest -s -vv tests/test_endpoints.py::test_claude_opus_3_returns_valid_first_message
+        echo "TEST_FIRST_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
 
-    - name: Test LLM endpoint
+    - name: Test model sends message with keyword
+      id: test_keyword_message
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_llm_endpoint_anthropic
+        poetry run pytest -s -vv tests/test_endpoints.py::test_claude_opus_3_returns_keyword
+        echo "TEST_KEYWORD_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Test model uses external tool correctly
+      id: test_external_tool
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_claude_opus_3_uses_external_tool
+        echo "TEST_EXTERNAL_TOOL_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Test model recalls chat memory
+      id: test_chat_memory
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_claude_opus_3_recall_chat_memory
+        echo "TEST_CHAT_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Test model uses 'archival_memory_search' to find secret
+      id: test_archival_memory
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_claude_opus_3_archival_memory_retrieval
+        echo "TEST_ARCHIVAL_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Test model can edit core memories
+      id: test_core_memory
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_endpoints.py::test_claude_opus_3_edit_core_memory
+        echo "TEST_CORE_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Summarize test results
+      if: always()
+      run: |
+        echo "Test Results Summary:"
+        echo "Test first message: $([[ $TEST_FIRST_MESSAGE_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
+        echo "Test model sends message with keyword: $([[ $TEST_KEYWORD_MESSAGE_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
+        echo "Test model uses external tool: $([[ $TEST_EXTERNAL_TOOL_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
+        echo "Test model recalls chat memory: $([[ $TEST_CHAT_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
+        echo "Test model uses 'archival_memory_search' to find secret: $([[ $TEST_ARCHIVAL_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
+        echo "Test model can edit core memories: $([[ $TEST_CORE_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
+
+        # Check if any test failed
+        if [[ $TEST_FIRST_MESSAGE_EXIT_CODE -ne 0 || \
+              $TEST_KEYWORD_MESSAGE_EXIT_CODE -ne 0 || \
+              $TEST_EXTERNAL_TOOL_EXIT_CODE -ne 0 || \
+              $TEST_CHAT_MEMORY_EXIT_CODE -ne 0 || \
+              $TEST_ARCHIVAL_MEMORY_EXIT_CODE -ne 0 || \
+              $TEST_CORE_MEMORY_EXIT_CODE -ne 0 ]]; then
+          echo "Some tests failed."
+          exit 78
+        fi

@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -71,6 +72,10 @@ def create_application() -> "FastAPI":
         summary="Create LLM agents with long-term memory and custom tools 📚🦙",
         version="1.0.0",  # TODO wire this up to the version in the package
     )
+
+    if "--ade" in sys.argv:
+        settings.cors_origins.append("https://app.letta.com")
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

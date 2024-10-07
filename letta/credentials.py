@@ -23,7 +23,7 @@ class LettaCredentials:
     google_ai_service_endpoint: Optional[str] = None
 
     # anthropic config
-    anthropic_key: Optional[str] = None
+    anthropic_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
 
     # cohere config
     cohere_key: Optional[str] = None
@@ -31,6 +31,10 @@ class LettaCredentials:
     # azure config
     azure_auth_type: str = "api_key"
     azure_key: Optional[str] = os.getenv("AZURE_OPENAI_API_KEY")
+
+    # groq config
+    groq_key: Optional[str] = os.getenv("GROQ_API_KEY")
+
     # base llm / model
     azure_version: Optional[str] = "2023-03-15-preview"  # None
     azure_endpoint: Optional[str] = "letta"  # None
@@ -77,6 +81,8 @@ class LettaCredentials:
                 "anthropic_key": get_field(config, "anthropic", "key"),
                 # cohere
                 "cohere_key": get_field(config, "cohere", "key"),
+                # groq
+                "groq_key": get_field(config, "groq", "key"),
                 # open llm
                 "openllm_auth_type": get_field(config, "openllm", "auth_type"),
                 "openllm_key": get_field(config, "openllm", "key"),
@@ -118,6 +124,9 @@ class LettaCredentials:
 
         # cohere
         set_field(config, "cohere", "key", self.cohere_key)
+
+        # groq
+        set_field(config, "groq", "key", self.groq_key)
 
         # openllm config
         set_field(config, "openllm", "auth_type", self.openllm_auth_type)

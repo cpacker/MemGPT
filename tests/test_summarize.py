@@ -1,9 +1,10 @@
-import os
 import uuid
 
 from letta import create_client
+from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.llm_config import LLMConfig
 
-from .utils import create_config, wipe_config
+from .utils import wipe_config
 
 # test_agent_id = "test_agent"
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
@@ -17,13 +18,13 @@ agent_obj = None
 def create_test_agent():
     """Create a test agent that we can call functions on"""
     wipe_config()
-    if os.getenv("OPENAI_API_KEY"):
-        create_config("openai")
-    else:
-        create_config("letta_hosted")
 
     global client
     client = create_client()
+
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+
     agent_state = client.create_agent(
         name=test_agent_name,
     )
