@@ -1,17 +1,17 @@
 import json
 
+from letta.schemas.agent_config import AgentConfig, AgentType
 from letta.client.client import create_client
+
+from IPython import embed
 
 
 def parse_messages(messages):
     return_messages = []
     for msg in messages:
-        if hasattr(msg, "tool_calls") and msg.tool_calls is not None:
-            for tool_call in msg.tool_calls:
-                if tool_call.type == "function" and tool_call.function.name == "send_message":
-                    arguments = json.loads(tool_call.function.arguments)
-                    return_messages.append(arguments["message"])
-
+        if msg.message_type == "function_call" and msg.function_call.name == "send_message":
+            arguments = json.loads(msg.function_call.arguments)
+            return_messages.append(arguments["message"])
     return return_messages
 
 
@@ -24,7 +24,7 @@ def test_split_thread_creation():
     client = create_client()
     assert client is not None
 
-    agent_state = client.create_agent(split_thread_agent=True)
+    agent_state = client.create_agent(agent_config=AgentConfig(agent_type=AgentType.split_thread_agent))
     agent = client.get_agent(agent_id=agent_state.id)
     assert agent is not None
 
