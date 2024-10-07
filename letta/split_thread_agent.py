@@ -97,6 +97,10 @@ class SplitThreadAgent(BaseAgent):
             ms=ms,
         )
 
+        # Update conversation agent memory
+        self.conversation_agent.memory = self.memory_agent.memory
+        self.conversation_agent.update_state()
+
         conversation_step = self.conversation_agent.step(
             user_message=messages,
             first_message=first_message,
