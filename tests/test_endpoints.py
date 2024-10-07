@@ -1,78 +1,64 @@
-import json
 import os
-import uuid
 
-from letta import create_client
-from letta.agent import Agent
-from letta.config import LettaConfig
-from letta.embeddings import embedding_model
-from letta.llm_api.llm_api_tools import create
-from letta.prompts import gpt_system
-from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.llm_config import LLMConfig
-from letta.schemas.message import Message
-
-messages = [Message(role="system", text=gpt_system.get_system_text("memgpt_chat")), Message(role="user", text="How are you?")]
-
-# defaults (letta hosted)
-embedding_config_path = "configs/embedding_model_configs/letta-hosted.json"
-llm_config_path = "configs/llm_model_configs/letta-hosted.json"
+from tests.helpers.endpoints_helper import (
+    check_agent_archival_memory_retrieval,
+    check_agent_edit_core_memory,
+    check_agent_recall_chat_memory,
+    check_agent_uses_external_tool,
+    check_first_response_is_valid_for_llm_endpoint,
+    check_response_contains_keyword,
+    run_embedding_endpoint,
+)
 
 # directories
 embedding_config_dir = "configs/embedding_model_configs"
 llm_config_dir = "configs/llm_model_configs"
 
 
-def run_llm_endpoint(filename):
-    config_data = json.load(open(filename, "r"))
-    print(config_data)
-    llm_config = LLMConfig(**config_data)
-    embedding_config = EmbeddingConfig(**json.load(open(embedding_config_path)))
-
-    # setup config
-    config = LettaConfig()
-    config.default_llm_config = llm_config
-    config.default_embedding_config = embedding_config
-    config.save()
-
-    client = create_client()
-    agent_state = client.create_agent(name="test_agent", llm_config=llm_config, embedding_config=embedding_config)
-    tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tools]
-    agent = Agent(
-        interface=None,
-        tools=tools,
-        agent_state=agent_state,
-        # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-        first_message_verify_mono=True,
-    )
-
-    response = create(
-        llm_config=llm_config,
-        user_id=uuid.UUID(int=1),  # dummy user_id
-        # messages=agent_state.messages,
-        messages=agent._messages,
-        functions=agent.functions,
-        functions_python=agent.functions_python,
-    )
-    client.delete_agent(agent_state.id)
-    assert response is not None
-
-
-def run_embedding_endpoint(filename):
-    # load JSON file
-    config_data = json.load(open(filename, "r"))
-    print(config_data)
-    embedding_config = EmbeddingConfig(**config_data)
-    model = embedding_model(embedding_config)
-    query_text = "hello"
-    query_vec = model.get_text_embedding(query_text)
-    print("vector dim", len(query_vec))
-    assert query_vec is not None
-
-
-def test_llm_endpoint_openai():
+# ======================================================================================================================
+# OPENAI TESTS
+# ======================================================================================================================
+def test_openai_gpt_4_returns_valid_first_message():
     filename = os.path.join(llm_config_dir, "gpt-4.json")
-    run_llm_endpoint(filename)
+    response = check_first_response_is_valid_for_llm_endpoint(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_openai_gpt_4_returns_keyword():
+    keyword = "banana"
+    filename = os.path.join(llm_config_dir, "gpt-4.json")
+    response = check_response_contains_keyword(filename, keyword=keyword)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_openai_gpt_4_uses_external_tool():
+    filename = os.path.join(llm_config_dir, "gpt-4.json")
+    response = check_agent_uses_external_tool(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_openai_gpt_4_recall_chat_memory():
+    filename = os.path.join(llm_config_dir, "gpt-4.json")
+    response = check_agent_recall_chat_memory(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_openai_gpt_4_archival_memory_retrieval():
+    filename = os.path.join(llm_config_dir, "gpt-4.json")
+    response = check_agent_archival_memory_retrieval(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_openai_gpt_4_edit_core_memory():
+    filename = os.path.join(llm_config_dir, "gpt-4.json")
+    response = check_agent_edit_core_memory(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
 
 
 def test_embedding_endpoint_openai():
@@ -80,9 +66,12 @@ def test_embedding_endpoint_openai():
     run_embedding_endpoint(filename)
 
 
+# ======================================================================================================================
+# LETTA HOSTED
+# ======================================================================================================================
 def test_llm_endpoint_letta_hosted():
     filename = os.path.join(llm_config_dir, "letta-hosted.json")
-    run_llm_endpoint(filename)
+    check_first_response_is_valid_for_llm_endpoint(filename)
 
 
 def test_embedding_endpoint_letta_hosted():
@@ -90,6 +79,9 @@ def test_embedding_endpoint_letta_hosted():
     run_embedding_endpoint(filename)
 
 
+# ======================================================================================================================
+# LOCAL MODELS
+# ======================================================================================================================
 def test_embedding_endpoint_local():
     filename = os.path.join(embedding_config_dir, "local.json")
     run_embedding_endpoint(filename)
@@ -97,7 +89,7 @@ def test_embedding_endpoint_local():
 
 def test_llm_endpoint_ollama():
     filename = os.path.join(llm_config_dir, "ollama.json")
-    run_llm_endpoint(filename)
+    check_first_response_is_valid_for_llm_endpoint(filename)
 
 
 def test_embedding_endpoint_ollama():
@@ -105,6 +97,55 @@ def test_embedding_endpoint_ollama():
     run_embedding_endpoint(filename)
 
 
-def test_llm_endpoint_anthropic():
-    filename = os.path.join(llm_config_dir, "anthropic.json")
-    run_llm_endpoint(filename)
+# ======================================================================================================================
+# ANTHROPIC TESTS
+# ======================================================================================================================
+def test_claude_opus_3_returns_valid_first_message():
+    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+    response = check_first_response_is_valid_for_llm_endpoint(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_claude_opus_3_returns_keyword():
+    keyword = "banana"
+    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+    response = check_response_contains_keyword(filename, keyword=keyword)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_claude_opus_3_uses_external_tool():
+    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+    response = check_agent_uses_external_tool(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_claude_opus_3_recall_chat_memory():
+    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+    response = check_agent_recall_chat_memory(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_claude_opus_3_archival_memory_retrieval():
+    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+    response = check_agent_archival_memory_retrieval(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_claude_opus_3_edit_core_memory():
+    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+    response = check_agent_edit_core_memory(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+# ======================================================================================================================
+# GROQ TESTS
+# ======================================================================================================================
+def test_llm_endpoint_groq():
+    filename = os.path.join(llm_config_dir, "groq.json")
+    check_first_response_is_valid_for_llm_endpoint(filename)

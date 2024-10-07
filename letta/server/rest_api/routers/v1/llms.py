@@ -17,7 +17,9 @@ def list_llm_backends(
     server: "SyncServer" = Depends(get_letta_server),
 ):
 
-    return server.list_models()
+    models = server.list_llm_models()
+    print(models)
+    return models
 
 
 @router.get("/embedding", response_model=List[EmbeddingConfig], operation_id="list_embedding_models")
@@ -25,4 +27,6 @@ def list_embedding_backends(
     server: "SyncServer" = Depends(get_letta_server),
 ):
 
-    return server.list_embedding_models()
+    models = server.list_embedding_models()
+    print(models)
+    return models

@@ -6,11 +6,16 @@ from typing import List, Optional
 
 from pydantic import Field, field_validator
 
-from letta.constants import TOOL_CALL_ID_MAX_LEN
+from letta.constants import (
+    DEFAULT_MESSAGE_TOOL,
+    DEFAULT_MESSAGE_TOOL_KWARG,
+    TOOL_CALL_ID_MAX_LEN,
+)
 from letta.local_llm.constants import INNER_THOUGHTS_KWARG
 from letta.schemas.enums import MessageRole
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.letta_message import (
+    AssistantMessage,
     FunctionCall,
     FunctionCallMessage,
     FunctionReturn,
@@ -122,7 +127,12 @@ class Message(BaseMessage):
         json_message["created_at"] = self.created_at.isoformat()
         return json_message
 
-    def to_letta_message(self) -> List[LettaMessage]:
+    def to_letta_message(
+        self,
+        assistant_message: bool = False,
+        assistant_message_function_name: str = DEFAULT_MESSAGE_TOOL,
+        assistant_message_function_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
+    ) -> List[LettaMessage]:
         """Convert message object (in DB format) to the style used by the original Letta API"""
 
         messages = []
@@ -140,16 +150,33 @@ class Message(BaseMessage):
             if self.tool_calls is not None:
                 # This is type FunctionCall
                 for tool_call in self.tool_calls:
-                    messages.append(
-                        FunctionCallMessage(
-                            id=self.id,
-                            date=self.created_at,
-                            function_call=FunctionCall(
-                                name=tool_call.function.name,
-                                arguments=tool_call.function.arguments,
-                            ),
+                    # If we're supporting using assistant message,
+                    # then we want to treat certain function calls as a special case
+                    if assistant_message and tool_call.function.name == assistant_message_function_name:
+                        # We need to unpack the actual message contents from the function call
+                        try:
+                            func_args = json.loads(tool_call.function.arguments)
+                            message_string = func_args[DEFAULT_MESSAGE_TOOL_KWARG]
+                        except KeyError:
+                            raise ValueError(f"Function call {tool_call.function.name} missing {DEFAULT_MESSAGE_TOOL_KWARG} argument")
+                        messages.append(
+                            AssistantMessage(
+                                id=self.id,
+                                date=self.created_at,
+                                assistant_message=message_string,
+                            )
                         )
-                    )
+                    else:
+                        messages.append(
+                            FunctionCallMessage(
+                                id=self.id,
+                                date=self.created_at,
+                                function_call=FunctionCall(
+                                    name=tool_call.function.name,
+                                    arguments=tool_call.function.arguments,
+                                ),
+                            )
+                        )
         elif self.role == MessageRole.tool:
             # This is type FunctionReturn
             # Try to interpret the function return, recall that this is how we packaged:
@@ -560,8 +587,8 @@ class Message(BaseMessage):
             if self.tool_calls is not None:
                 # NOTE: implied support for multiple calls
                 for tool_call in self.tool_calls:
-                    function_name = tool_call.function["name"]
-                    function_args = tool_call.function["arguments"]
+                    function_name = tool_call.function.name
+                    function_args = tool_call.function.arguments
                     try:
                         # NOTE: Google AI wants actual JSON objects, not strings
                         function_args = json.loads(function_args)

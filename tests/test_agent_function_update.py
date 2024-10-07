@@ -1,11 +1,9 @@
-import os
-
 import pytest
 
 from letta import create_client
 from letta.schemas.message import Message
 from letta.utils import assistant_function_to_tool, json_dumps
-from tests.utils import create_config, wipe_config
+from tests.utils import wipe_config
 
 
 def hello_world(self) -> str:
@@ -22,11 +20,6 @@ def agent():
     """Create a test agent that we can call functions on"""
     wipe_config()
     global client
-    if os.getenv("OPENAI_API_KEY"):
-        create_config("openai")
-    else:
-        create_config("letta_hosted")
-
     # create letta client
     client = create_client()
 
