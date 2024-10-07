@@ -2,18 +2,29 @@ import datetime
 
 from typing import List, Optional, Tuple, Union
 
+from letta.schemas.agent_config import AgentConfig, AgentType
+from letta.schemas.agent import AgentState, CreateAgent
 from letta.agent import BaseAgent, Agent, save_agent
 from letta.constants import (
     FIRST_MESSAGE_ATTEMPTS,
 )
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
+from letta.prompts import gpt_system
 from letta.schemas.agent import AgentState, AgentStepResponse
 from letta.schemas.agent_config import AgentType
+from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import OptionState
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
 from letta.schemas.message import Message
 from letta.schemas.tool import Tool
+
+MEMORY_TOOLS = [
+    "core_memory_append",
+    "core_memory_replace",
+    "archival_memory_insert",
+]
 
 
 class SplitThreadAgent(BaseAgent):
@@ -122,6 +133,74 @@ class SplitThreadAgent(BaseAgent):
     @memory.setter
     def memory(self, value: Memory):
         self.agent.memory = value
+
+
+def create_split_thread_agent(
+    request: CreateAgent,
+    user_id: str,
+    tool_objs: List[Tool],
+    agent_config: AgentConfig,
+    llm_config: LLMConfig,
+    embedding_config: EmbeddingConfig,
+    interface: AgentInterface,
+) -> Tuple[SplitThreadAgent, AgentState]:
+    conversation_prompt = gpt_system.get_system_text("split_conversation")
+    memory_prompt = gpt_system.get_system_text("split_memory")
+
+    memory_tool_objs = [i for i in tool_objs if i.name in MEMORY_TOOLS]
+    conversation_tool_objs = [i for i in tool_objs if i.name not in MEMORY_TOOLS]
+
+    conversation_agent_state = AgentState(
+        name=f"{request.name}_conversation",
+        user_id=user_id,
+        tools=[i.name for i in conversation_tool_objs],
+        agent_config=AgentConfig(agent_type=AgentType.base_agent),
+        llm_config=llm_config,
+        embedding_config=embedding_config,
+        system=conversation_prompt,
+        memory=request.memory,
+        description=request.description,
+        metadata_=request.metadata_,
+    )
+
+    memory_agent_state = AgentState(
+        name=f"{request.name}_memory",
+        user_id=user_id,
+        tools=[i.name for i in memory_tool_objs],
+        agent_config=AgentConfig(agent_type=AgentType.base_agent),
+        llm_config=llm_config,
+        embedding_config=embedding_config,
+        system=memory_prompt,
+        memory=request.memory,
+        description=request.description,
+        metadata_=request.metadata_,
+    )
+
+    agent_state = AgentState(
+        name=request.name,
+        user_id=user_id,
+        tools=[i.name for i in conversation_tool_objs + memory_tool_objs],
+        agent_config=agent_config,
+        llm_config=llm_config,
+        embedding_config=embedding_config,
+        system=request.system,
+        memory=request.memory,
+        description=request.description,
+        metadata_=request.metadata_,
+    )
+
+    agent = SplitThreadAgent(
+        interface=interface,
+        agent_state=agent_state,
+        conversation_agent_state=conversation_agent_state,
+        conversation_tools=conversation_tool_objs,
+        memory_agent_state=memory_agent_state,
+        memory_tools=memory_tool_objs,
+        # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+        first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+    )
+
+    return agent, agent_state
 
 
 def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):

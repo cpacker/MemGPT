@@ -20,7 +20,7 @@ from letta.cli.cli_config import get_model_options
 from letta.config import LettaConfig
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
-from letta.split_thread_agent import SplitThreadAgent, save_split_thread_agent
+from letta.split_thread_agent import SplitThreadAgent, save_split_thread_agent, create_split_thread_agent
 
 # from letta.data_types import (
 #    AgentState,
@@ -361,14 +361,14 @@ class SyncServer(Server):
                     agent_name=f"{agent_state.name}_conversation",
                 )
                 assert conversation_agent_state is not None, f"conversation agent state not found for {agent_state.name}"
-                conversation_tools = self._get_tools_from_agent_state(agent_state=agent_state, user_id=user_id)
+                conversation_tools = self._get_tools_from_agent_state(agent_state=conversation_agent_state, user_id=user_id)
 
                 memory_agent_state = self.ms.get_agent(
                     user_id=user_id,
                     agent_name=f"{agent_state.name}_memory",
                 )
                 assert memory_agent_state is not None, f"memory agent state not found for {agent_state.name}"
-                memory_tools = self._get_tools_from_agent_state(agent_state=agent_state, user_id=user_id)
+                memory_tools = self._get_tools_from_agent_state(agent_state=memory_agent_state, user_id=user_id)
 
                 letta_agent = SplitThreadAgent(
                     conversation_agent_state=conversation_agent_state,
@@ -768,6 +768,45 @@ class SyncServer(Server):
 
         return org
 
+    def _get_tool_objs(self, request: CreateAgent, user_id: str) -> List[Tool]:
+        tool_objs = []
+        if request.tools:
+            for tool_name in request.tools:
+                tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+                assert tool_obj, f"Tool {tool_name} does not exist"
+                tool_objs.append(tool_obj)
+
+        assert request.memory is not None
+        memory_functions = get_memory_functions(request.memory)
+
+        for func_name, func in memory_functions.items():
+            if request.tools and func_name in request.tools:
+                # tool already added
+                continue
+
+            source_code = parse_source_code(func)
+            json_schema = generate_schema(func, func_name)
+            source_type = "python"
+            tags = ["memory", "memgpt-base"]
+            tool = self.create_tool(
+                request=ToolCreate(
+                    source_code=source_code,
+                    source_type=source_type,
+                    tags=tags,
+                    json_schema=json_schema,
+                    user_id=user_id,
+                ),
+                update=True,
+                user_id=user_id,
+            )
+            tool_objs.append(tool)
+
+            if not request.tools:
+                request.tools = []
+            request.tools.append(tool.name)
+
+        return tool_objs
+
     def create_agent(
         self,
         request: CreateAgent,
@@ -802,40 +841,9 @@ class SyncServer(Server):
             embedding_config = request.embedding_config if request.embedding_config else self.server_embedding_config
             agent_config = request.agent_config if request.agent_config else self.server_agent_config
 
-            # get tools + make sure they exist
-            tool_objs = []
-            if request.tools:
-                for tool_name in request.tools:
-                    tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-                    assert tool_obj, f"Tool {tool_name} does not exist"
-                    tool_objs.append(tool_obj)
-
             assert request.memory is not None
-            memory_functions = get_memory_functions(request.memory)
-            for func_name, func in memory_functions.items():
 
-                if request.tools and func_name in request.tools:
-                    # tool already added
-                    continue
-                source_code = parse_source_code(func)
-                json_schema = generate_schema(func, func_name)
-                source_type = "python"
-                tags = ["memory", "memgpt-base"]
-                tool = self.create_tool(
-                    request=ToolCreate(
-                        source_code=source_code,
-                        source_type=source_type,
-                        tags=tags,
-                        json_schema=json_schema,
-                        user_id=user_id,
-                    ),
-                    update=True,
-                    user_id=user_id,
-                )
-                tool_objs.append(tool)
-                if not request.tools:
-                    request.tools = []
-                request.tools.append(tool.name)
+            tool_objs = self._get_tool_objs(request, user_id)
 
             if not request.agent_config or request.agent_config.agent_type == AgentType.base_agent:
                 # TODO: save the agent state
@@ -870,60 +878,15 @@ class SyncServer(Server):
                 save_agent(agent, self.ms)
 
             elif request.agent_config and request.agent_config.agent_type == AgentType.split_thread_agent:
-                conversation_prompt = gpt_system.get_system_text("split_conversation")
-                memory_prompt = gpt_system.get_system_text("split_memory")
-
-                conversation_agent_state = AgentState(
-                    name=f"{request.name}_conversation",
+                agent, agent_state = create_split_thread_agent(
+                    request=request,
                     user_id=user_id,
-                    tools=request.tools,  # name=id for tools
-                    agent_config=AgentConfig(agent_type=AgentType.base_agent),
-                    llm_config=llm_config,
-                    embedding_config=embedding_config,
-                    system=conversation_prompt,
-                    memory=request.memory,
-                    description=request.description,
-                    metadata_=request.metadata_,
-                )
-
-                memory_agent_state = AgentState(
-                    name=f"{request.name}_memory",
-                    user_id=user_id,
-                    tools=request.tools,  # name=id for tools,
-                    agent_config=AgentConfig(agent_type=AgentType.base_agent),
-                    llm_config=llm_config,
-                    embedding_config=embedding_config,
-                    system=memory_prompt,
-                    memory=request.memory,
-                    description=request.description,
-                    metadata_=request.metadata_,
-                )
-
-                agent_state = AgentState(
-                    name=request.name,
-                    user_id=user_id,
-                    tools=request.tools,  # name=id for tools,
+                    tool_objs=tool_objs,
                     agent_config=agent_config,
                     llm_config=llm_config,
                     embedding_config=embedding_config,
-                    system=request.system,
-                    memory=request.memory,
-                    description=request.description,
-                    metadata_=request.metadata_,
-                )
-
-                agent = SplitThreadAgent(
                     interface=interface,
-                    agent_state=agent_state,
-                    conversation_agent_state=conversation_agent_state,
-                    conversation_tools=tool_objs,
-                    memory_agent_state=memory_agent_state,
-                    memory_tools=tool_objs,
-                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
                 )
-
-                # save agent
                 save_split_thread_agent(agent, self.ms)
             else:
                 raise ValueError("Invalid Agent Type!")

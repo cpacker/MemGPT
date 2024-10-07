@@ -3,8 +3,6 @@ import json
 from letta.schemas.agent_config import AgentConfig, AgentType
 from letta.client.client import create_client
 
-from IPython import embed
-
 
 def parse_messages(messages):
     return_messages = []
