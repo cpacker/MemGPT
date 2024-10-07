@@ -3,7 +3,10 @@ import logging
 import uuid
 from typing import Callable, List, Optional, Union
 
-from letta.llm_api.helpers import derive_inner_thoughts_in_kwargs
+from letta.llm_api.helpers import (
+    derive_inner_thoughts_in_kwargs,
+    unpack_inner_thoughts_from_kwargs,
+)
 from letta.schemas.enums import OptionState
 
 logging.basicConfig(level=logging.DEBUG)
@@ -21,7 +24,7 @@ from letta.errors import (
     MissingFunctionCallError,
     MissingInnerMonologueError,
 )
-from letta.llm_api.llm_api_tools import create, unpack_inner_thoughts_from_kwargs
+from letta.llm_api.llm_api_tools import create
 from letta.local_llm.constants import INNER_THOUGHTS_KWARG
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
