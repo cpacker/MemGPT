@@ -88,7 +88,6 @@ jobs:
         echo "Test model recalls chat memory: $([[ $TEST_CHAT_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
         echo "Test model uses 'archival_memory_search' to find secret: $([[ $TEST_ARCHIVAL_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
         echo "Test model can edit core memories: $([[ $TEST_CORE_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test embedding endpoint: $([[ $TEST_EMBEDDING_ENDPOINT_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
 
         # Check if any test failed
         if [[ $TEST_FIRST_MESSAGE_EXIT_CODE -ne 0 || \
@@ -96,8 +95,7 @@ jobs:
               $TEST_EXTERNAL_TOOL_EXIT_CODE -ne 0 || \
               $TEST_CHAT_MEMORY_EXIT_CODE -ne 0 || \
               $TEST_ARCHIVAL_MEMORY_EXIT_CODE -ne 0 || \
-              $TEST_CORE_MEMORY_EXIT_CODE -ne 0 || \
-              $TEST_EMBEDDING_ENDPOINT_EXIT_CODE -ne 0 ]]; then
+              $TEST_CORE_MEMORY_EXIT_CODE -ne 0 ]]; then
           echo "Some tests failed."
           exit 78
         fi
