@@ -385,6 +385,7 @@ class RESTClient(AbstractClient):
             memory=memory,
             tools=tool_names,
             system=system,
+            agent_config=agent_config,
             llm_config=llm_config if llm_config else self._default_llm_config,
             embedding_config=embedding_config if embedding_config else self._default_embedding_config,
         )
@@ -1530,6 +1531,7 @@ class LocalClient(AbstractClient):
                 memory=memory,
                 tools=tool_names,
                 system=system,
+                agent_config=agent_config,
                 llm_config=llm_config if llm_config else self._default_llm_config,
                 embedding_config=embedding_config if embedding_config else self._default_embedding_config,
             ),

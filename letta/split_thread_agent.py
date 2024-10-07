@@ -101,6 +101,8 @@ class SplitThreadAgent(BaseAgent):
         self.conversation_agent.memory = self.memory_agent.memory
         self.conversation_agent.update_state()
 
+        embed()
+
         conversation_step = self.conversation_agent.step(
             user_message=messages,
             first_message=first_message,
@@ -113,6 +115,8 @@ class SplitThreadAgent(BaseAgent):
             inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             ms=ms,
         )
+
+        embed()
 
         combined_step = AgentStepResponse(
             messages=memory_step.messages + conversation_step.messages,

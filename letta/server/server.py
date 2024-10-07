@@ -814,16 +814,7 @@ class SyncServer(Server):
             llm_config = request.llm_config
             embedding_config = request.embedding_config
 
-            # get tools + make sure they exist
-            tool_objs = []
-            if request.tools:
-                for tool_name in request.tools:
-                    tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-                    assert tool_obj, f"Tool {tool_name} does not exist"
-                    tool_objs.append(tool_obj)
-
             assert request.memory is not None
-
             tool_objs = self._get_tools_from_request(request, user_id)
 
             if not request.agent_config or request.agent_config.agent_type == AgentType.base_agent:
@@ -832,7 +823,7 @@ class SyncServer(Server):
                     name=request.name,
                     user_id=user_id,
                     tools=request.tools if request.tools else [],
-                    agent_config=agent_config,
+                    agent_config=request.agent_config or AgentConfig.default_config(),
                     llm_config=llm_config,
                     embedding_config=embedding_config,
                     system=request.system,
@@ -863,7 +854,7 @@ class SyncServer(Server):
                     request=request,
                     user_id=user_id,
                     tool_objs=tool_objs,
-                    agent_config=agent_config,
+                    agent_config=request.agent_config,
                     llm_config=llm_config,
                     embedding_config=embedding_config,
                     interface=interface,
