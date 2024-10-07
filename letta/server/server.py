@@ -14,6 +14,7 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
+from letta.o1_agent import O1Agent, save_o1_agent
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.cli.cli_config import get_model_options
 from letta.config import LettaConfig
@@ -357,7 +358,8 @@ class SyncServer(Server):
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
-            letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            # letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
 
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -394,7 +396,8 @@ class SyncServer(Server):
                 raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
             # Determine whether or not to token stream based on the capability of the interface
-            token_streaming = letta_agent.interface.streaming_mode if hasattr(letta_agent.interface, "streaming_mode") else False
+            # token_streaming = letta_agent.interface.streaming_mode if hasattr(letta_agent.interface, "streaming_mode") else False
+            token_streaming = letta_agent.agent.interface.streaming_mode if hasattr(letta_agent.agent.interface, "streaming_mode") else False
 
             logger.debug(f"Starting agent step")
             no_verify = True
@@ -421,11 +424,13 @@ class SyncServer(Server):
                 step_count += 1
                 total_usage += usage
                 counter += 1
-                letta_agent.interface.step_complete()
+                # letta_agent.interface.step_complete()
+                letta_agent.agent.interface.step_complete()
 
                 logger.debug("Saving agent state")
                 # save updated state
-                save_agent(letta_agent, self.ms)
+                # save_agent(letta_agent, self.ms)
+                save_o1_agent(letta_agent, self.ms)
 
                 # Chain stops
                 if not self.chaining:
@@ -454,7 +459,8 @@ class SyncServer(Server):
             raise
         finally:
             logger.debug("Calling step_yield()")
-            letta_agent.interface.step_yield()
+            # letta_agent.interface.step_yield()
+            letta_agent.agent.interface.step_yield()
 
         return LettaUsageStatistics(**total_usage.dict(), step_count=step_count)
 
@@ -757,7 +763,8 @@ class SyncServer(Server):
         # system debug
         if request.system is None:
             # TODO: don't hardcode
-            request.system = gpt_system.get_system_text("memgpt_chat")
+            # request.system = gpt_system.get_system_text("memgpt_chat")
+            request.system = gpt_system.get_system_text("memgpt_modified_o1")
 
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.ms.get_user(user_id=user_id)
@@ -816,7 +823,7 @@ class SyncServer(Server):
                 description=request.description,
                 metadata_=request.metadata_,
             )
-            agent = Agent(
+            agent = O1Agent(
                 interface=interface,
                 agent_state=agent_state,
                 tools=tool_objs,
@@ -840,12 +847,15 @@ class SyncServer(Server):
             raise e
 
         # save agent
-        save_agent(agent, self.ms)
+        # save_agent(agent, self.ms)
+        save_o1_agent(agent, self.ms)
         logger.debug(f"Created new agent from config: {agent}")
 
-        assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
+        # assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
+        assert isinstance(agent.agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
         # return AgentState
-        return agent.agent_state
+        # return agent.agent_state
+        return agent.agent.update_state()
 
     def update_agent(
         self,
@@ -1321,9 +1331,13 @@ class SyncServer(Server):
 
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
-        assert isinstance(letta_agent.memory, Memory)
-        assert isinstance(letta_agent.agent_state.memory, Memory)
-        return letta_agent.agent_state.model_copy(deep=True)
+        # assert isinstance(letta_agent.memory, Memory)
+        assert isinstance(letta_agent.agent.memory, Memory)
+        # assert isinstance(letta_agent.agent_state.memory, Memory)
+        assert isinstance(letta_agent.agent.agent_state.memory, Memory)
+
+        # return letta_agent.agent_state.model_copy(deep=True)
+        return letta_agent.agent.agent_state.model_copy(deep=True)
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
