@@ -19,7 +19,6 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.tool import Tool
 
-from IPython import embed
 
 MEMORY_TOOLS = [
     "core_memory_append",
@@ -100,8 +99,7 @@ class SplitThreadAgent(BaseAgent):
         # Update conversation agent memory
         self.conversation_agent.memory = self.memory_agent.memory
         self.conversation_agent.update_state()
-
-        embed()
+        save_agent(agent=self.conversation_agent, ms=ms)
 
         conversation_step = self.conversation_agent.step(
             user_message=messages,
@@ -115,8 +113,6 @@ class SplitThreadAgent(BaseAgent):
             inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
             ms=ms,
         )
-
-        embed()
 
         combined_step = AgentStepResponse(
             messages=memory_step.messages + conversation_step.messages,
