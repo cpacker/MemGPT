@@ -1,24 +1,19 @@
 import datetime
-
+import threading
 from typing import List, Optional, Tuple, Union
 
-from letta.schemas.agent_config import AgentConfig, AgentType
-from letta.schemas.agent import AgentState, CreateAgent
-from letta.agent import BaseAgent, Agent, save_agent
-from letta.constants import (
-    FIRST_MESSAGE_ATTEMPTS,
-)
+from letta.agent import Agent, BaseAgent, save_agent
+from letta.constants import FIRST_MESSAGE_ATTEMPTS
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
-from letta.schemas.agent import AgentState, AgentStepResponse
-from letta.schemas.agent_config import AgentType
+from letta.schemas.agent import AgentState, AgentStepResponse, CreateAgent
+from letta.schemas.agent_config import AgentConfig, AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.tool import Tool
-
 
 MEMORY_TOOLS = [
     "core_memory_append",
@@ -83,18 +78,27 @@ class SplitThreadAgent(BaseAgent):
         inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
-        memory_step = self.memory_agent.step(
-            user_message=messages,
-            first_message=first_message,
-            first_message_retry_limit=first_message_retry_limit,
-            skip_verify=skip_verify,
-            return_dicts=return_dicts,
-            recreate_message_timestamp=recreate_message_timestamp,
-            stream=stream,
-            timestamp=timestamp,
-            inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
-            ms=ms,
-        )
+        memory_step_result = [None]
+
+        def run_memory_step():
+            memory_step_result[0] = self.memory_agent.step(
+                user_message=messages,
+                first_message=first_message,
+                first_message_retry_limit=first_message_retry_limit,
+                skip_verify=skip_verify,
+                return_dicts=return_dicts,
+                recreate_message_timestamp=recreate_message_timestamp,
+                stream=stream,
+                timestamp=timestamp,
+                inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                ms=ms,
+            )
+
+        memory_thread = threading.Thread(target=run_memory_step)
+        memory_thread.start()
+        memory_thread.join()
+
+        memory_step = memory_step_result[0]
 
         # Update conversation agent memory
         self.conversation_agent.memory = self.memory_agent.memory
