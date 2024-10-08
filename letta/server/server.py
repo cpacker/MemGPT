@@ -14,7 +14,6 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
-from letta.o1_agent import O1Agent, save_o1_agent
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.cli.cli_config import get_model_options
 from letta.config import LettaConfig
@@ -44,6 +43,7 @@ from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import MetadataStore
+from letta.o1_agent import O1Agent, save_o1_agent
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
@@ -397,7 +397,9 @@ class SyncServer(Server):
 
             # Determine whether or not to token stream based on the capability of the interface
             # token_streaming = letta_agent.interface.streaming_mode if hasattr(letta_agent.interface, "streaming_mode") else False
-            token_streaming = letta_agent.agent.interface.streaming_mode if hasattr(letta_agent.agent.interface, "streaming_mode") else False
+            token_streaming = (
+                letta_agent.agent.interface.streaming_mode if hasattr(letta_agent.agent.interface, "streaming_mode") else False
+            )
 
             logger.debug(f"Starting agent step")
             no_verify = True
