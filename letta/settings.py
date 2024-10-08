@@ -13,8 +13,8 @@ class ModelSettings(BaseSettings):
     openai_api_key: Optional[str] = None
     # TODO: provide overriding BASE_URL?
 
-    # grok
-    grok_api_key: Optional[str] = None
+    # groq
+    groq_api_key: Optional[str] = None
 
     # anthropic
     anthropic_api_key: Optional[str] = None

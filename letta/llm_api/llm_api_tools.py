@@ -472,7 +472,6 @@ def create(
             raise NotImplementedError(f"Streaming not yet implemented for Groq.")
 
         if model_settings.groq_api_key is None and llm_config.model_endpoint == "https://api.groq.com/openai/v1/chat/completions":
-            # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"Groq key is missing from letta config file")
 
         # force to true for groq, since they don't support 'content' is non-null
@@ -517,7 +516,7 @@ def create(
                 stream_inferface.stream_end()
 
         if inner_thoughts_in_kwargs:
-            response = unpack_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
+            response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
 
         return response
 
