@@ -30,6 +30,14 @@ def test_anthropic():
 #    print(models)
 #
 #
+
+
+# TODO: Add this test
+# https://linear.app/letta/issue/LET-159/add-tests-for-azure-openai-in-test-providerspy-and-test-endpointspy
+def test_azure():
+    pass
+
+
 def test_googleai():
     provider = GoogleAIProvider(api_key=os.getenv("GEMINI_API_KEY"))
     models = provider.list_llm_models()
