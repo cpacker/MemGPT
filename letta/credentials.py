@@ -36,8 +36,8 @@ class LettaCredentials:
     groq_key: Optional[str] = os.getenv("GROQ_API_KEY")
 
     # base llm / model
-    azure_version: Optional[str] = "2023-03-15-preview"  # None
-    azure_endpoint: Optional[str] = "letta"  # None
+    azure_version: Optional[str] = None
+    azure_endpoint: Optional[str] = None
     azure_deployment: Optional[str] = None
     # embeddings
     azure_embedding_version: Optional[str] = None
