@@ -13,7 +13,7 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 def list_jobs(
     server: "SyncServer" = Depends(get_letta_server),
     source_id: Optional[str] = Query(None, description="Only list jobs associated with the source."),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     List all jobs.
@@ -34,7 +34,7 @@ def list_jobs(
 @router.get("/active", response_model=List[Job], operation_id="list_active_jobs")
 def list_active_jobs(
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     List all active jobs.

@@ -21,7 +21,7 @@ router = APIRouter(prefix="/sources", tags=["sources"])
 def get_source(
     source_id: str,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Get all sources
@@ -35,7 +35,7 @@ def get_source(
 def get_source_id_by_name(
     source_name: str,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Get a source by name
@@ -49,7 +49,7 @@ def get_source_id_by_name(
 @router.get("/", response_model=List[Source], operation_id="list_sources")
 def list_sources(
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     List all data sources created by a user.
@@ -63,7 +63,7 @@ def list_sources(
 def create_source(
     source: SourceCreate,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Create a new data source.
@@ -78,7 +78,7 @@ def update_source(
     source_id: str,
     source: SourceUpdate,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Update the name or documentation of an existing data source.
@@ -94,7 +94,7 @@ def update_source(
 def delete_source(
     source_id: str,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Delete a data source.
@@ -109,7 +109,7 @@ def attach_source_to_agent(
     source_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to attach the source to."),
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Attach a data source to an existing agent.
@@ -127,7 +127,7 @@ def detach_source_from_agent(
     source_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to detach the source from."),
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ) -> None:
     """
     Detach a data source from an existing agent.
@@ -143,7 +143,7 @@ def upload_file_to_source(
     source_id: str,
     background_tasks: BackgroundTasks,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Upload a file to a data source.
@@ -176,7 +176,7 @@ def upload_file_to_source(
 def list_passages(
     source_id: str,
     server: SyncServer = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     List all passages associated with a data source.
@@ -190,7 +190,7 @@ def list_passages(
 def list_documents(
     source_id: str,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     List all documents associated with a data source.

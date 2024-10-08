@@ -40,7 +40,7 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 @router.get("/", response_model=List[AgentState], operation_id="list_agents")
 def list_agents(
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     List all agents associated with a given user.
@@ -55,7 +55,7 @@ def list_agents(
 def create_agent(
     agent: CreateAgent = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Create a new agent with the specified configuration.
@@ -76,7 +76,7 @@ def update_agent(
     agent_id: str,
     update_agent: UpdateAgentState = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """Update an exsiting agent"""
     actor = server.get_user_or_default(user_id=user_id)
@@ -89,7 +89,7 @@ def update_agent(
 def get_agent_state(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Get the state of the agent.
@@ -107,7 +107,7 @@ def get_agent_state(
 def delete_agent(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Delete an agent.
@@ -159,7 +159,7 @@ def update_agent_memory(
     agent_id: str,
     request: Dict = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Update the core memory of a specific agent.
@@ -202,7 +202,7 @@ def get_agent_archival_memory(
     after: Optional[int] = Query(None, description="Unique ID of the memory to start the query range at."),
     before: Optional[int] = Query(None, description="Unique ID of the memory to end the query range at."),
     limit: Optional[int] = Query(None, description="How many results to include in the response."),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Retrieve the memories in an agent's archival memory store (paginated query).
@@ -227,7 +227,7 @@ def insert_agent_archival_memory(
     agent_id: str,
     request: CreateArchivalMemory = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Insert a memory into an agent's archival memory store.
@@ -245,7 +245,7 @@ def delete_agent_archival_memory(
     memory_id: str,
     # memory_id: str = Query(..., description="Unique ID of the memory to be deleted."),
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Delete a memory from an agent's archival memory store.
@@ -276,7 +276,7 @@ def get_agent_messages(
         DEFAULT_MESSAGE_TOOL_KWARG,
         description="[Only applicable if use_assistant_message is True] The name of the message argument in the designated message tool.",
     ),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Retrieve message history for an agent.
@@ -315,7 +315,7 @@ async def send_message(
     agent_id: str,
     server: SyncServer = Depends(get_letta_server),
     request: LettaRequest = Body(...),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: str = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Process a user message and return the agent's response.
