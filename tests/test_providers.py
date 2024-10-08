@@ -1,11 +1,6 @@
 import os
 
-from letta.providers import (
-    AnthropicProvider,
-    AzureProvider,
-    GoogleAIProvider,
-    OpenAIProvider,
-)
+from letta.providers import AnthropicProvider, GoogleAIProvider, OpenAIProvider
 
 
 def test_openai():
@@ -41,14 +36,6 @@ def test_googleai():
     print(models)
 
     provider.list_embedding_models()
-
-
-def test_azure_openai():
-
-    provider = AzureProvider(api_key=os.getenv("AZURE_API_KEY"), base_url=os.getenv("AZURE_BASE_URL"))
-    provider.list_llm_models()
-    embeds = provider.list_embedding_models()
-    print(embeds)
 
 
 #
