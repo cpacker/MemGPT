@@ -44,12 +44,3 @@ def test_googleai():
     print(models)
 
     provider.list_embedding_models()
-
-
-#
-#
-# test_googleai()
-test_ollama()
-# test_groq()
-# test_openai()
-# test_anthropic()

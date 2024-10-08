@@ -3,6 +3,12 @@ import logging
 import uuid
 from typing import Callable, List, Optional, Union
 
+from letta.llm_api.helpers import (
+    derive_inner_thoughts_in_kwargs,
+    unpack_inner_thoughts_from_kwargs,
+)
+from letta.schemas.enums import OptionState
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -18,7 +24,7 @@ from letta.errors import (
     MissingFunctionCallError,
     MissingInnerMonologueError,
 )
-from letta.llm_api.llm_api_tools import create, unpack_inner_thoughts_from_kwargs
+from letta.llm_api.llm_api_tools import create
 from letta.local_llm.constants import INNER_THOUGHTS_KWARG
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -83,7 +89,7 @@ def setup_agent(
 # ======================================================================================================================
 
 
-def check_first_response_is_valid_for_llm_endpoint(filename: str, inner_thoughts_in_kwargs: bool = False) -> ChatCompletionResponse:
+def check_first_response_is_valid_for_llm_endpoint(filename: str) -> ChatCompletionResponse:
     """
     Checks that the first response is valid:
 
@@ -113,7 +119,9 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str, inner_thoughts
     )
 
     # Basic check
-    assert response is not None
+    assert response is not None, response
+    assert response.choices is not None, response
+    assert len(response.choices) > 0, response
 
     # Select first choice
     choice = response.choices[0]
@@ -121,6 +129,9 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str, inner_thoughts
     # Ensure that the first message returns a "send_message"
     validator_func = lambda function_call: function_call.name == "send_message" or function_call.name == "archival_memory_search"
     assert_contains_valid_function_call(choice.message, validator_func)
+
+    # Get inner_thoughts_in_kwargs
+    inner_thoughts_in_kwargs = derive_inner_thoughts_in_kwargs(OptionState.DEFAULT, agent_state.llm_config.model)
 
     # Assert that the message has an inner monologue
     assert_contains_correct_inner_monologue(choice, inner_thoughts_in_kwargs)
@@ -302,9 +313,9 @@ def run_embedding_endpoint(filename):
 
 
 def assert_sanity_checks(response: LettaResponse):
-    assert response is not None
-    assert response.messages is not None
-    assert len(response.messages) > 0
+    assert response is not None, response
+    assert response.messages is not None, response
+    assert len(response.messages) > 0, response
 
 
 def assert_invoked_send_message_with_keyword(messages: List[LettaMessage], keyword: str, case_sensitive: bool = False) -> None:

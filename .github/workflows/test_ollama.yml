@@ -36,3 +36,7 @@ jobs:
     - name: Test embedding endpoint
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_ollama
+
+    - name: Test provider
+      run: |
+        poetry run pytest -s -vv tests/test_providers.py::test_ollama

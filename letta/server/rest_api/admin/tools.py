@@ -26,7 +26,6 @@ class CreateToolResponse(BaseModel):
 
 
 def setup_tools_index_router(server: SyncServer, interface: QueuingInterface):
-    # get_current_user_with_server = partial(partial(get_current_user, server), password)
 
     @router.delete("/tools/{tool_name}", tags=["tools"])
     async def delete_tool(

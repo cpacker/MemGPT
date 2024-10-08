@@ -45,12 +45,13 @@ from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
+    AzureProvider,
     GoogleAIProvider,
     OllamaProvider,
     OpenAIProvider,
     VLLMProvider,
 )
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
     Block,
@@ -270,6 +271,8 @@ class SyncServer(Server):
             self._enabled_providers.append(VLLMProvider(base_url=model_settings.vllm_base_url))
         if model_settings.gemini_api_key:
             self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
+        if model_settings.azure_api_key and model_settings.azure_base_url:
+            self._enabled_providers.append(AzureProvider(api_key=model_settings.azure_api_key, base_url=model_settings.azure_base_url))
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -332,7 +335,10 @@ class SyncServer(Server):
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
-            letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            if agent_state.agent_type == AgentType.memgpt_agent:
+                letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            else:
+                raise NotImplementedError("Only base agents are supported as of right now!")
 
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -784,6 +790,7 @@ class SyncServer(Server):
                 name=request.name,
                 user_id=user_id,
                 tools=request.tools if request.tools else [],
+                agent_type=request.agent_type or AgentType.memgpt_agent,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,
@@ -1064,7 +1071,11 @@ class SyncServer(Server):
 
     def get_user(self, user_id: str) -> User:
         """Get the user"""
-        return self.ms.get_user(user_id=user_id)
+        user = self.ms.get_user(user_id=user_id)
+        if user is None:
+            raise ValueError(f"User with user_id {user_id} does not exist")
+        else:
+            return user
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1880,20 +1891,6 @@ class SyncServer(Server):
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.retry_message()
 
-    def set_current_user(self, user_id: Optional[str]):
-        """Very hacky way to set the current user for the server, to be replaced once server becomes stateless
-
-        NOTE: clearly not thread-safe, only exists to provide basic user_id support for REST API for now
-        """
-
-        # Make sure the user_id actually exists
-        if user_id is not None:
-            user_obj = self.get_user(user_id)
-            if not user_obj:
-                raise ValueError(f"User with id {user_id} not found")
-
-        self._current_user = user_id
-
     def get_default_user(self) -> User:
 
         from letta.constants import (
@@ -1910,8 +1907,9 @@ class SyncServer(Server):
             self.ms.create_organization(org)
 
         # check if default user exists
-        default_user = self.get_user(DEFAULT_USER_ID)
-        if not default_user:
+        try:
+            self.get_user(DEFAULT_USER_ID)
+        except ValueError:
             user = User(name=DEFAULT_USER_NAME, org_id=DEFAULT_ORG_ID, id=DEFAULT_USER_ID)
             self.ms.create_user(user)
 
@@ -1922,23 +1920,15 @@ class SyncServer(Server):
         # check if default org exists
         return self.get_user(DEFAULT_USER_ID)
 
-    # TODO(ethan) wire back to real method in future ORM PR
-    def get_current_user(self) -> User:
-        """Returns the currently authed user.
-
-        Since server is the core gateway this needs to pass through server as the
-        first touchpoint.
-        """
-
-        # Check if _current_user is set and if it's non-null:
-        if hasattr(self, "_current_user") and self._current_user is not None:
-            current_user = self.get_user(self._current_user)
-            if not current_user:
-                warnings.warn(f"Provided user '{self._current_user}' not found, using default user")
-            else:
-                return current_user
-
-        return self.get_default_user()
+    def get_user_or_default(self, user_id: Optional[str]) -> User:
+        """Get the user object for user_id if it exists, otherwise return the default user object"""
+        if user_id is None:
+            return self.get_default_user()
+        else:
+            try:
+                return self.get_user(user_id=user_id)
+            except ValueError:
+                raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
 
     def list_llm_models(self) -> List[LLMConfig]:
         """List available models"""
