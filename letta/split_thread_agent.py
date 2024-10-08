@@ -7,8 +7,7 @@ from letta.constants import FIRST_MESSAGE_ATTEMPTS
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
-from letta.schemas.agent import AgentState, AgentStepResponse, CreateAgent
-from letta.schemas.agent_config import AgentConfig, AgentType
+from letta.schemas.agent import AgentState, AgentStepResponse, AgentType, CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
@@ -75,7 +74,7 @@ class SplitThreadAgent(BaseAgent):
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
         timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
         memory_step_result = [None]
@@ -90,7 +89,7 @@ class SplitThreadAgent(BaseAgent):
                 recreate_message_timestamp=recreate_message_timestamp,
                 stream=stream,
                 timestamp=timestamp,
-                inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                 ms=ms,
             )
 
@@ -114,7 +113,7 @@ class SplitThreadAgent(BaseAgent):
             recreate_message_timestamp=recreate_message_timestamp,
             stream=stream,
             timestamp=timestamp,
-            inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+            inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             ms=ms,
         )
 
@@ -143,7 +142,6 @@ def create_split_thread_agent(
     request: CreateAgent,
     user_id: str,
     tool_objs: List[Tool],
-    agent_config: AgentConfig,
     llm_config: LLMConfig,
     embedding_config: EmbeddingConfig,
     interface: AgentInterface,
@@ -158,7 +156,7 @@ def create_split_thread_agent(
         name=f"{request.name}_conversation",
         user_id=user_id,
         tools=[i.name for i in conversation_tool_objs],
-        agent_config=AgentConfig(agent_type=AgentType.base_agent),
+        agent_type=AgentType.memgpt_agent,
         llm_config=llm_config,
         embedding_config=embedding_config,
         system=conversation_prompt,
@@ -171,7 +169,7 @@ def create_split_thread_agent(
         name=f"{request.name}_memory",
         user_id=user_id,
         tools=[i.name for i in memory_tool_objs],
-        agent_config=AgentConfig(agent_type=AgentType.base_agent),
+        agent_type=AgentType.memgpt_agent,
         llm_config=llm_config,
         embedding_config=embedding_config,
         system=memory_prompt,
@@ -184,7 +182,7 @@ def create_split_thread_agent(
         name=request.name,
         user_id=user_id,
         tools=[],
-        agent_config=agent_config,
+        agent_type=AgentType.split_thread_agent,
         llm_config=llm_config,
         embedding_config=embedding_config,
         system=request.system,
@@ -210,7 +208,7 @@ def create_split_thread_agent(
 def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
     """Save agent to metadata store"""
 
-    assert agent.agent_state.agent_config.agent_type == AgentType.split_thread_agent, "Agent state must be a split thread agent."
+    assert agent.agent_state.agent_type == AgentType.split_thread_agent, "Agent state must be a split thread agent."
 
     # save conversational agent
     save_agent(agent=agent.agent, ms=ms)

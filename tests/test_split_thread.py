@@ -1,7 +1,7 @@
 import json
 
-from letta.schemas.agent_config import AgentConfig, AgentType
 from letta.client.client import create_client
+from letta.schemas.agent import AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 
@@ -25,7 +25,7 @@ def test_split_thread_creation():
     assert client is not None
 
     agent_state = client.create_agent(
-        agent_config=AgentConfig(agent_type=AgentType.split_thread_agent),
+        agent_type=AgentType.split_thread_agent,
         llm_config=LLMConfig.default_config("gpt-4"),
         embedding_config=EmbeddingConfig.default_config(provider="openai"),
     )

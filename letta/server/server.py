@@ -77,6 +77,11 @@ from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User, UserCreate
+from letta.split_thread_agent import (
+    SplitThreadAgent,
+    create_split_thread_agent,
+    save_split_thread_agent,
+)
 from letta.utils import create_random_username, json_dumps, json_loads
 
 # from letta.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
@@ -306,6 +311,16 @@ class SyncServer(Server):
             }
         )
 
+    def _get_tools_from_agent_state(self, agent_state: AgentState, user_id: str) -> List[Tool]:
+        tool_objs = []
+        for name in agent_state.tools:
+            tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
+            if not tool_obj:
+                logger.exception(f"Tool {name} does not exist for user {user_id}")
+                raise ValueError(f"Tool {name} does not exist for user {user_id}")
+            tool_objs.append(tool_obj)
+        return tool_objs
+
     def _load_agent(self, user_id: str, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Loads a saved agent into memory (if it doesn't exist, throw an error)"""
         assert isinstance(user_id, str), user_id
@@ -324,25 +339,43 @@ class SyncServer(Server):
 
             # Instantiate an agent object using the state retrieved
             logger.debug(f"Creating an agent object")
-            tool_objs = []
-            for name in agent_state.tools:
-                tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
-                if not tool_obj:
-                    logger.exception(f"Tool {name} does not exist for user {user_id}")
-                    raise ValueError(f"Tool {name} does not exist for user {user_id}")
-                tool_objs.append(tool_obj)
 
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
             if agent_state.agent_type == AgentType.memgpt_agent:
+                tool_objs = self._get_tools_from_agent_state(agent_state=agent_state, user_id=user_id)
                 letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            elif agent_state.agent_type == AgentType.split_thread_agent:
+                conversation_agent_state = self.ms.get_agent(
+                    user_id=user_id,
+                    agent_name=f"{agent_state.name}_conversation",
+                )
+                assert conversation_agent_state is not None, f"conversation agent state not found for {agent_state.name}"
+                conversation_tools = self._get_tools_from_agent_state(agent_state=conversation_agent_state, user_id=user_id)
+
+                memory_agent_state = self.ms.get_agent(
+                    user_id=user_id,
+                    agent_name=f"{agent_state.name}_memory",
+                )
+                assert memory_agent_state is not None, f"memory agent state not found for {agent_state.name}"
+                memory_tools = self._get_tools_from_agent_state(agent_state=memory_agent_state, user_id=user_id)
+
+                letta_agent = SplitThreadAgent(
+                    conversation_agent_state=conversation_agent_state,
+                    conversation_tools=conversation_tools,
+                    memory_agent_state=memory_agent_state,
+                    memory_tools=memory_tools,
+                    agent_state=agent_state,
+                    interface=interface,
+                )
             else:
                 raise NotImplementedError("Only base agents are supported as of right now!")
 
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
             self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=letta_agent)
+
             return letta_agent
 
         except Exception as e:
@@ -786,30 +819,44 @@ class SyncServer(Server):
                 request.tools.append(tool.name)
 
             # TODO: save the agent state
-            agent_state = AgentState(
-                name=request.name,
-                user_id=user_id,
-                tools=request.tools if request.tools else [],
-                agent_type=request.agent_type or AgentType.memgpt_agent,
-                llm_config=llm_config,
-                embedding_config=embedding_config,
-                system=request.system,
-                memory=request.memory,
-                description=request.description,
-                metadata_=request.metadata_,
-            )
-            agent = Agent(
-                interface=interface,
-                agent_state=agent_state,
-                tools=tool_objs,
-                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
-            )
-            # rebuilding agent memory on agent create in case shared memory blocks
-            # were specified in the new agent's memory config. we're doing this for two reasons:
-            # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
-            # 2. if the shared block state changed since this agent initialization started, we can be sure to have the latest value
-            agent.rebuild_memory(force=True, ms=self.ms)
+            if not request.agent_type or request.agent_type == AgentType.memgpt_agent:
+                agent_state = AgentState(
+                    name=request.name,
+                    user_id=user_id,
+                    tools=request.tools if request.tools else [],
+                    agent_type=request.agent_type or AgentType.memgpt_agent,
+                    llm_config=llm_config,
+                    embedding_config=embedding_config,
+                    system=request.system,
+                    memory=request.memory,
+                    description=request.description,
+                    metadata_=request.metadata_,
+                )
+                agent = Agent(
+                    interface=interface,
+                    agent_state=agent_state,
+                    tools=tool_objs,
+                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                )
+                # rebuilding agent memory on agent create in case shared memory blocks
+                # were specified in the new agent's memory config. we're doing this for two reasons:
+                # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
+                # 2. if the shared block state changed since this agent initialization started, we can be sure to have the latest value
+                agent.rebuild_memory(force=True, ms=self.ms)
+            elif request.agent_type == AgentType.split_thread_agent:
+                agent, agent_state = create_split_thread_agent(
+                    request=request,
+                    user_id=user_id,
+                    tool_objs=tool_objs,
+                    llm_config=llm_config,
+                    embedding_config=embedding_config,
+                    interface=interface,
+                )
+                save_split_thread_agent(agent, self.ms)
+            else:
+                raise NotImplementedError(f"Agent type {request.agent_type} is not supported")
+
             # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
             # self.ms.update_agent(agent.agent_state)
         except Exception as e:
