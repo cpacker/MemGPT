@@ -42,7 +42,7 @@ from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import MetadataStore
-from letta.o1_agent import O1Agent, save_o1_agent
+from letta.o1_agent import O1Agent
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
@@ -417,8 +417,7 @@ class SyncServer(Server):
 
                 logger.debug("Saving agent state")
                 # save updated state
-                # save_agent(letta_agent, self.ms)
-                save_o1_agent(letta_agent, self.ms)
+                save_agent(letta_agent, self.ms)
 
                 # Chain stops
                 if not self.chaining:
@@ -811,13 +810,22 @@ class SyncServer(Server):
                 description=request.description,
                 metadata_=request.metadata_,
             )
-            agent = O1Agent(
-                interface=interface,
-                agent_state=agent_state,
-                tools=tool_objs,
-                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
-            )
+            if request.agent_type == AgentType.memgpt_agent:
+                agent = Agent(
+                    interface=interface,
+                    agent_state=agent_state,
+                    tools=tool_objs,
+                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                )
+            elif request.agent_type == AgentType.o1_agent:
+                agent = O1Agent(
+                    interface=interface,
+                    agent_state=agent_state,
+                    tools=tool_objs,
+                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
             # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
@@ -835,15 +843,12 @@ class SyncServer(Server):
             raise e
 
         # save agent
-        # save_agent(agent, self.ms)
-        save_o1_agent(agent, self.ms)
+        save_agent(agent, self.ms)
         logger.debug(f"Created new agent from config: {agent}")
 
-        # assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
-        assert isinstance(agent.agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
+        assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
         # return AgentState
-        # return agent.agent_state
-        return agent.agent.update_state()
+        return agent.agent_state
 
     def update_agent(
         self,

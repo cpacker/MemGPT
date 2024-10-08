@@ -1,7 +1,7 @@
 import datetime
 from typing import List, Optional, Union
 
-from letta.agent import Agent, save_agent
+from letta.agent import Agent
 from letta.constants import FIRST_MESSAGE_ATTEMPTS
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
@@ -52,6 +52,7 @@ class O1Agent(Agent):
         self.max_thinking_steps = max_thinking_steps
         self.interface = self.agent.interface
         self.agent_state = self.agent.agent_state
+        self.memory = self.agent.memory
 
     def step(
         self,
@@ -88,10 +89,3 @@ class O1Agent(Agent):
 
     def update_state(self) -> AgentState:
         return self.agent.update_state()
-
-    def save_agent(self, ms: MetadataStore):
-        save_agent(self.agent, ms)
-
-
-def save_o1_agent(agent: O1Agent, ms: MetadataStore):
-    agent.save_agent(ms)
