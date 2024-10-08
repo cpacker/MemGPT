@@ -790,7 +790,7 @@ class SyncServer(Server):
                 name=request.name,
                 user_id=user_id,
                 tools=request.tools if request.tools else [],
-                agent_type=request.agent_type or AgentType.base_agent,
+                agent_type=request.agent_type or AgentType.memgpt_agent,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,
