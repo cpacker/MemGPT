@@ -1355,7 +1355,7 @@ def save_agent(agent: Agent, ms: MetadataStore):
         ms.create_agent(agent_state)
 
     for tool in agent.tools:
-        if ms.get_tool(tool_id=tool.id) is None:
+        if ms.get_tool(tool_name=tool.name, user_id=tool.user_id) is None:
             ms.create_tool(tool)
 
     agent.agent_state = ms.get_agent(agent_id=agent_id)
