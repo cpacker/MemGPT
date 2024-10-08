@@ -1,6 +1,6 @@
 import os
 
-from letta.providers import AnthropicProvider, OpenAIProvider
+from letta.providers import AnthropicProvider, GoogleAIProvider, OpenAIProvider
 
 
 def test_openai():
@@ -30,13 +30,17 @@ def test_anthropic():
 #    print(models)
 #
 #
-# def test_googleai():
-#    provider = GoogleAIProvider(api_key=os.getenv("GEMINI_API_KEY"))
-#    models = provider.list_llm_models()
-#    print(models)
+def test_googleai():
+    provider = GoogleAIProvider(api_key=os.getenv("GEMINI_API_KEY"))
+    models = provider.list_llm_models()
+    print(models)
+
+    provider.list_embedding_models()
+
+
 #
 #
-# test_googleai()
+test_googleai()
 # test_ollama()
 # test_groq()
 # test_openai()
