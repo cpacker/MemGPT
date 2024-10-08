@@ -1,5 +1,3 @@
-from typing import Union
-
 import requests
 
 from letta.schemas.llm_config import LLMConfig
@@ -7,70 +5,58 @@ from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.schemas.openai.chat_completions import ChatCompletionRequest
 from letta.schemas.openai.embedding_response import EmbeddingResponse
 from letta.settings import ModelSettings
-from letta.utils import smart_urljoin
-
-MODEL_TO_AZURE_ENGINE = {
-    "gpt-4-1106-preview": "gpt-4",
-    "gpt-4": "gpt-4",
-    "gpt-4-32k": "gpt-4-32k",
-    "gpt-3.5": "gpt-35-turbo",
-    "gpt-3.5-turbo": "gpt-35-turbo",
-    "gpt-3.5-turbo-16k": "gpt-35-turbo-16k",
-    "gpt-4o-mini": "gpt-4o-mini",
-}
 
 
-def get_azure_endpoint(llm_config: LLMConfig, model_settings: ModelSettings):
-    assert llm_config.api_version, "Missing model version! This field must be provided in the LLM config for Azure."
-    assert llm_config.model in MODEL_TO_AZURE_ENGINE, f"{llm_config.model} not in supported models: {list(MODEL_TO_AZURE_ENGINE.keys())}"
-
-    model = MODEL_TO_AZURE_ENGINE[llm_config.model]
-    return f"{model_settings.azure_base_url}/openai/deployments/{model}/chat/completions?api-version={llm_config.api_version}"
+def get_azure_chat_completions_endpoint(base_url: str, model: str, api_version: str):
+    return f"{base_url}/openai/deployments/{model}/chat/completions?api-version={api_version}"
 
 
-def azure_openai_get_model_list(url: str, api_key: Union[str, None], api_version: str) -> dict:
+def get_azure_embeddings_endpoint(base_url: str, model: str, api_version: str):
+    return f"{base_url}/openai/deployments/{model}/embeddings?api-version={api_version}"
+
+
+def get_azure_model_list_endpoint(base_url: str, api_version: str):
+    return f"{base_url}/openai/models?api-version={api_version}"
+
+
+def azure_openai_get_model_list(base_url: str, api_key: str, api_version: str) -> list:
     """https://learn.microsoft.com/en-us/rest/api/azureopenai/models/list?view=rest-azureopenai-2023-05-15&tabs=HTTP"""
-    from letta.utils import printd
 
     # https://xxx.openai.azure.com/openai/models?api-version=xxx
-    url = smart_urljoin(url, "openai")
-    url = smart_urljoin(url, f"models?api-version={api_version}")
-
     headers = {"Content-Type": "application/json"}
     if api_key is not None:
         headers["api-key"] = f"{api_key}"
 
-    printd(f"Sending request to {url}")
+    url = get_azure_model_list_endpoint(base_url, api_version)
     try:
         response = requests.get(url, headers=headers)
-        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
-        response = response.json()  # convert to dict from string
-        printd(f"response = {response}")
-        return response
-    except requests.exceptions.HTTPError as http_err:
-        # Handle HTTP errors (e.g., response 4XX, 5XX)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got HTTPError, exception={http_err}, response={response}")
-        raise http_err
-    except requests.exceptions.RequestException as req_err:
-        # Handle other requests-related errors (e.g., connection error)
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got RequestException, exception={req_err}, response={response}")
-        raise req_err
-    except Exception as e:
-        # Handle other potential errors
-        try:
-            response = response.json()
-        except:
-            pass
-        printd(f"Got unknown Exception, exception={e}, response={response}")
-        raise e
+        response.raise_for_status()
+    except requests.RequestException as e:
+        raise RuntimeError(f"Failed to retrieve model list: {e}")
+
+    return response.json().get("data", [])
+
+
+def azure_openai_get_chat_completion_model_list(base_url: str, api_key: str, api_version: str) -> list:
+    model_list = azure_openai_get_model_list(base_url, api_key, api_version)
+    # Extract models that support text generation
+    model_options = [m for m in model_list if m.get("capabilities").get("chat_completion") == True]
+    return model_options
+
+
+def azure_openai_get_embeddings_model_list(base_url: str, api_key: str, api_version: str, require_embedding_in_name: bool = True) -> list:
+    def valid_embedding_model(m: dict):
+        valid_name = True
+        if require_embedding_in_name:
+            valid_name = "embedding" in m["id"]
+
+        return m.get("capabilities").get("embeddings") == True and valid_name
+
+    model_list = azure_openai_get_model_list(base_url, api_key, api_version)
+    # Extract models that support embeddings
+
+    model_options = [m for m in model_list if valid_embedding_model(m)]
+    return model_options
 
 
 def azure_openai_chat_completions_request(
@@ -93,7 +79,7 @@ def azure_openai_chat_completions_request(
         data.pop("tools")
         data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
 
-    model_endpoint = get_azure_endpoint(llm_config, model_settings)
+    model_endpoint = get_azure_chat_completions_endpoint(model_settings.azure_base_url, llm_config.model, model_settings.api_version)
     printd(f"Sending request to {model_endpoint}")
     try:
         response = requests.post(model_endpoint, headers=headers, json=data)
