@@ -339,6 +339,9 @@ class Agent(BaseAgent):
         for tool_name in self.agent_state.tools:
             assert tool_name in [tool.name for tool in tools], f"Tool name {tool_name} not included in agent tool list"
 
+        # Update tools list
+        self.tools = tools
+
         # Store the functions schemas (this is passed as an argument to ChatCompletion)
         self.functions = []
         self.functions_python = {}
