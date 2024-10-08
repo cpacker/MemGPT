@@ -52,7 +52,6 @@ from letta.providers import (
     VLLMProvider,
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
-from letta.schemas.agent_config import AgentType
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
     Block,
@@ -325,6 +324,14 @@ class SyncServer(Server):
 
             # Instantiate an agent object using the state retrieved
             logger.debug(f"Creating an agent object")
+            tool_objs = []
+            for name in agent_state.tools:
+                tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
+                if not tool_obj:
+                    logger.exception(f"Tool {name} does not exist for user {user_id}")
+                    raise ValueError(f"Tool {name} does not exist for user {user_id}")
+                tool_objs.append(tool_obj)
+
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
@@ -341,16 +348,6 @@ class SyncServer(Server):
         except Exception as e:
             logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
             raise
-
-    def _get_tools_from_agent_state(self, agent_state: AgentState, user_id: str) -> List[Tool]:
-        tool_objs = []
-        for name in agent_state.tools:
-            tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
-            if not tool_obj:
-                logger.exception(f"Tool {name} does not exist for user {user_id}")
-                raise ValueError(f"Tool {name} does not exist for user {user_id}")
-            tool_objs.append(tool_obj)
-        return tool_objs
 
     def _get_or_load_agent(self, agent_id: str) -> Agent:
         """Check if the agent is in-memory, then load"""
@@ -720,45 +717,6 @@ class SyncServer(Server):
 
         return org
 
-    def _get_tools_from_request(self, request: CreateAgent, user_id: str) -> List[Tool]:
-        tool_objs = []
-        if request.tools:
-            for tool_name in request.tools:
-                tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-                assert tool_obj, f"Tool {tool_name} does not exist"
-                tool_objs.append(tool_obj)
-
-        assert request.memory is not None
-        memory_functions = get_memory_functions(request.memory)
-
-        for func_name, func in memory_functions.items():
-            if request.tools and func_name in request.tools:
-                # tool already added
-                continue
-
-            source_code = parse_source_code(func)
-            json_schema = generate_schema(func, func_name)
-            source_type = "python"
-            tags = ["memory", "memgpt-base"]
-            tool = self.create_tool(
-                request=ToolCreate(
-                    source_code=source_code,
-                    source_type=source_type,
-                    tags=tags,
-                    json_schema=json_schema,
-                    user_id=user_id,
-                ),
-                update=True,
-                user_id=user_id,
-            )
-            tool_objs.append(tool)
-
-            if not request.tools:
-                request.tools = []
-            request.tools.append(tool.name)
-
-        return tool_objs
-
     def create_agent(
         self,
         request: CreateAgent,
@@ -791,6 +749,14 @@ class SyncServer(Server):
             # model configuration
             llm_config = request.llm_config
             embedding_config = request.embedding_config
+
+            # get tools + make sure they exist
+            tool_objs = []
+            if request.tools:
+                for tool_name in request.tools:
+                    tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+                    assert tool_obj, f"Tool {tool_name} does not exist"
+                    tool_objs.append(tool_obj)
 
             assert request.memory is not None
             memory_functions = get_memory_functions(request.memory)
@@ -855,6 +821,8 @@ class SyncServer(Server):
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
 
+        # save agent
+        save_agent(agent, self.ms)
         logger.debug(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
