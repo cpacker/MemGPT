@@ -7,6 +7,7 @@ from letta.llm_api.azure_openai import (
     get_azure_chat_completions_endpoint,
     get_azure_embeddings_endpoint,
 )
+from letta.llm_api.azure_openai_constants import AZURE_MODEL_TO_CONTEXT_LENGTH
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 
@@ -304,12 +305,8 @@ class AzureProvider(Provider):
     def get_model_context_window(self, model_name: str):
         """
         This is hardcoded for now, since there is no API endpoints to retrieve metadata for a model.
-
-        According to the Azure OpenAI Service REST API documentation:
-        "The token count of your prompt plus max_tokens can't exceed the model's context length. Most models have a context length of 2048 tokens (except for the newest models, which support 4096). Has minimum of 0."
-        https://learn.microsoft.com/en-us/azure/ai-services/openai/reference
         """
-        return 2048
+        return AZURE_MODEL_TO_CONTEXT_LENGTH.get(model_name, 4096)
 
 
 class VLLMProvider(OpenAIProvider):
