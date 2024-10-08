@@ -37,6 +37,6 @@ if __name__ == "__main__":
     test_agent_creation(None)
 
     # Test agent creation with agent type
-    test_agent_creation(AgentType.base_agent)
+    test_agent_creation(AgentType.memgpt_agent)
     with pytest.raises(NotImplementedError):
         test_agent_creation(AgentType.split_thread_agent)

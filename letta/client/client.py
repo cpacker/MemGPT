@@ -68,7 +68,7 @@ class AbstractClient(object):
     def create_agent(
         self,
         name: Optional[str] = None,
-        agent_type: Optional[AgentType] = None,
+        agent_type: Optional[AgentType] = AgentType.memgpt_agent,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
@@ -321,7 +321,7 @@ class RESTClient(AbstractClient):
         self,
         name: Optional[str] = None,
         # agent config
-        agent_type: Optional[AgentType] = None,
+        agent_type: Optional[AgentType] = AgentType.memgpt_agent,
         # model configs
         embedding_config: EmbeddingConfig = None,
         llm_config: LLMConfig = None,
@@ -384,7 +384,7 @@ class RESTClient(AbstractClient):
             memory=memory,
             tools=tool_names,
             system=system,
-            agent_type=agent_type if agent_type else AgentType.base_agent,
+            agent_type=agent_type,
             llm_config=llm_config if llm_config else self._default_llm_config,
             embedding_config=embedding_config if embedding_config else self._default_embedding_config,
         )
@@ -1467,7 +1467,7 @@ class LocalClient(AbstractClient):
         self,
         name: Optional[str] = None,
         # agent config
-        agent_type: Optional[AgentType] = None,
+        agent_type: Optional[AgentType] = AgentType.memgpt_agent,
         # model configs
         embedding_config: EmbeddingConfig = None,
         llm_config: LLMConfig = None,
@@ -1530,7 +1530,7 @@ class LocalClient(AbstractClient):
                 memory=memory,
                 tools=tool_names,
                 system=system,
-                agent_type=agent_type if agent_type else AgentType.base_agent,
+                agent_type=agent_type,
                 llm_config=llm_config if llm_config else self._default_llm_config,
                 embedding_config=embedding_config if embedding_config else self._default_embedding_config,
             ),

@@ -27,7 +27,7 @@ class AgentType(str, Enum):
     Enum to represent the type of agent.
     """
 
-    base_agent = "base_agent"
+    memgpt_agent = "memgpt_agent"
     split_thread_agent = "split_thread_agent"
 
 

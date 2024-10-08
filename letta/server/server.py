@@ -336,7 +336,7 @@ class SyncServer(Server):
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
-            if agent_state.agent_type == AgentType.base_agent:
+            if agent_state.agent_type == AgentType.memgpt_agent:
                 letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
             else:
                 raise NotImplementedError("Only base agents are supported as of right now!")
