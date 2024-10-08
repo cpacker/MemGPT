@@ -123,8 +123,7 @@ class SplitThreadAgent(BaseAgent):
         inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
-        with self.memory_condition:
-            self.memory_finished = False
+        self.memory_finished = False
 
         memory_thread = threading.Thread(
             target=self._memory_step,
@@ -216,8 +215,7 @@ class SplitThreadAgent(BaseAgent):
             else:
                 self.memory_result = memory_step
 
-        with self.memory_condition:
-            self.memory_finished = True
+        self.memory_finished = True
 
         # Update the conversation agent's memory after modification
         with self.conversation_agent_lock:
