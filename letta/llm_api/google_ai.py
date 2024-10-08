@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple
 import requests
 
 from letta.constants import NON_USER_MSG_PREFIX
+from letta.llm_api.helpers import make_post_request
 from letta.local_llm.json_parser import clean_json_string_extra_backslash
 from letta.local_llm.utils import count_tokens
 from letta.schemas.openai.chat_completion_request import Tool
@@ -21,6 +22,9 @@ from letta.utils import get_tool_call_id, get_utc_time, json_dumps
 def get_gemini_endpoint_and_headers(
     base_url: str, model: Optional[str], api_key: str, key_in_header: bool = True, generate_content: bool = False
 ) -> Tuple[str, dict]:
+    """
+    Dynamically generate the model endpoint and headers.
+    """
     url = f"{base_url}/v1beta/models"
 
     # Add the model
@@ -32,6 +36,7 @@ def get_gemini_endpoint_and_headers(
         url += ":generateContent"
 
     # Decide if api key should be in header or not
+    # Two ways to pass the key: https://ai.google.dev/tutorials/setup
     if key_in_header:
         headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
     else:
@@ -44,7 +49,6 @@ def get_gemini_endpoint_and_headers(
 def google_ai_get_model_details(base_url: str, api_key: str, model: str, key_in_header: bool = True) -> List[dict]:
     from letta.utils import printd
 
-    # Two ways to pass the key: https://ai.google.dev/tutorials/setup
     url, headers = get_gemini_endpoint_and_headers(base_url, model, api_key, key_in_header)
 
     try:
@@ -87,7 +91,6 @@ def google_ai_get_model_context_window(base_url: str, api_key: str, model: str, 
 def google_ai_get_model_list(base_url: str, api_key: str, key_in_header: bool = True) -> List[dict]:
     from letta.utils import printd
 
-    # Two ways to pass the key: https://ai.google.dev/tutorials/setup
     url, headers = get_gemini_endpoint_and_headers(base_url, None, api_key, key_in_header)
 
     try:
@@ -418,48 +421,23 @@ def google_ai_chat_completions_request(
     This service has the following service endpoint and all URIs below are relative to this service endpoint:
     https://xxx.googleapis.com
     """
-    from letta.utils import printd
 
     assert api_key is not None, "Missing api_key when calling Google AI"
 
-    # Two ways to pass the key: https://ai.google.dev/tutorials/setup
     url, headers = get_gemini_endpoint_and_headers(base_url, model, api_key, key_in_header, generate_content=True)
 
     # data["contents"][-1]["role"] = "model"
     if add_postfunc_model_messages:
         data["contents"] = add_dummy_model_messages(data["contents"])
 
-    printd(f"Sending request to {url}")
+    response_json = make_post_request(url, headers, data)
     try:
-        response = requests.post(url, headers=headers, json=data)
-        printd(f"response = {response}")
-        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
-        response = response.json()  # convert to dict from string
-        printd(f"response.json = {response}")
-
-        # Convert Google AI response to ChatCompletion style
         return convert_google_ai_response_to_chatcompletion(
-            response_json=response,
-            model=model,
+            response_json=response_json,
+            model=data.get("model"),
             input_messages=data["contents"],
-            pull_inner_thoughts_from_args=inner_thoughts_in_kwargs,
+            pull_inner_thoughts_from_args=data.get("inner_thoughts_in_kwargs", False),
         )
-
-    except requests.exceptions.HTTPError as http_err:
-        # Handle HTTP errors (e.g., response 4XX, 5XX)
-        printd(f"Got HTTPError, exception={http_err}, payload={data}")
-        # Print the HTTP status code
-        print(f"HTTP Error: {http_err.response.status_code}")
-        # Print the response content (error message from server)
-        print(f"Message: {http_err.response.text}")
-        raise http_err
-
-    except requests.exceptions.RequestException as req_err:
-        # Handle other requests-related errors (e.g., connection error)
-        printd(f"Got RequestException, exception={req_err}")
-        raise req_err
-
-    except Exception as e:
-        # Handle other potential errors
-        printd(f"Got unknown Exception, exception={e}")
-        raise e
+    except Exception as conversion_error:
+        print(f"Error during response conversion: {conversion_error}")
+        raise conversion_error
