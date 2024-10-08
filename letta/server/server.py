@@ -336,7 +336,6 @@ class SyncServer(Server):
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
-
             if agent_state.agent_type == AgentType.memgpt_agent:
                 letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
             elif agent_state.agent_type == AgentType.o1_agent:
@@ -379,10 +378,7 @@ class SyncServer(Server):
                 raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
             # Determine whether or not to token stream based on the capability of the interface
-            # token_streaming = letta_agent.interface.streaming_mode if hasattr(letta_agent.interface, "streaming_mode") else False
-            token_streaming = (
-                letta_agent.agent.interface.streaming_mode if hasattr(letta_agent.agent.interface, "streaming_mode") else False
-            )
+            token_streaming = letta_agent.interface.streaming_mode if hasattr(letta_agent.interface, "streaming_mode") else False
 
             logger.debug(f"Starting agent step")
             no_verify = True
@@ -409,8 +405,7 @@ class SyncServer(Server):
                 step_count += 1
                 total_usage += usage
                 counter += 1
-                # letta_agent.interface.step_complete()
-                letta_agent.agent.interface.step_complete()
+                letta_agent.interface.step_complete()
 
                 logger.debug("Saving agent state")
                 # save updated state
@@ -444,8 +439,7 @@ class SyncServer(Server):
             raise
         finally:
             logger.debug("Calling step_yield()")
-            # letta_agent.interface.step_yield()
-            letta_agent.agent.interface.step_yield()
+            letta_agent.interface.step_yield()
 
         return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)
 
@@ -1321,13 +1315,9 @@ class SyncServer(Server):
 
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
-        # assert isinstance(letta_agent.memory, Memory)
-        assert isinstance(letta_agent.agent.memory, Memory)
-        # assert isinstance(letta_agent.agent_state.memory, Memory)
-        assert isinstance(letta_agent.agent.agent_state.memory, Memory)
+        assert isinstance(letta_agent.agent_state.memory, Memory)
 
-        # return letta_agent.agent_state.model_copy(deep=True)
-        return letta_agent.agent.agent_state.model_copy(deep=True)
+        return letta_agent.agent_state.model_copy(deep=True)
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""

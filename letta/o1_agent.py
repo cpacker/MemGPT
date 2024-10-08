@@ -50,6 +50,8 @@ class O1Agent(Agent):
     ):
         self.agent = Agent(interface=interface, agent_state=agent_state, tools=tools, first_message_verify_mono=first_message_verify_mono)
         self.max_thinking_steps = max_thinking_steps
+        self.interface = self.agent.interface
+        self.agent_state = self.agent.agent_state
 
     def step(
         self,
