@@ -25,6 +25,7 @@ class ModelSettings(BaseSettings):
     # azure
     azure_api_key: Optional[str] = None
     azure_base_url: Optional[str] = None
+    azure_api_version: Optional[str] = None
 
     # google ai
     gemini_api_key: Optional[str] = None

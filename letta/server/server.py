@@ -272,7 +272,13 @@ class SyncServer(Server):
         if model_settings.gemini_api_key:
             self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
         if model_settings.azure_api_key and model_settings.azure_base_url:
-            self._enabled_providers.append(AzureProvider(api_key=model_settings.azure_api_key, base_url=model_settings.azure_base_url))
+            self._enabled_providers.append(
+                AzureProvider(
+                    api_key=model_settings.azure_api_key,
+                    base_url=model_settings.azure_base_url,
+                    api_version=model_settings.azure_api_version,
+                )
+            )
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
