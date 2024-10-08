@@ -9,8 +9,7 @@ from letta.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from letta.schemas.agent_config import AgentConfig
+from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState, AgentType
 from letta.schemas.block import (
     Block,
     CreateBlock,
@@ -69,7 +68,7 @@ class AbstractClient(object):
     def create_agent(
         self,
         name: Optional[str] = None,
-        agent_config: Optional[AgentConfig] = None,
+        agent_type: Optional[AgentType] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
@@ -322,7 +321,7 @@ class RESTClient(AbstractClient):
         self,
         name: Optional[str] = None,
         # agent config
-        agent_config: Optional[AgentConfig] = None,
+        agent_type: Optional[AgentType] = None,
         # model configs
         embedding_config: EmbeddingConfig = None,
         llm_config: LLMConfig = None,
@@ -385,6 +384,7 @@ class RESTClient(AbstractClient):
             memory=memory,
             tools=tool_names,
             system=system,
+            agent_type=agent_type if agent_type else AgentType.base_agent,
             llm_config=llm_config if llm_config else self._default_llm_config,
             embedding_config=embedding_config if embedding_config else self._default_embedding_config,
         )
@@ -1467,7 +1467,7 @@ class LocalClient(AbstractClient):
         self,
         name: Optional[str] = None,
         # agent config
-        agent_config: Optional[AgentConfig] = None,
+        agent_type: Optional[AgentType] = None,
         # model configs
         embedding_config: EmbeddingConfig = None,
         llm_config: LLMConfig = None,
@@ -1530,6 +1530,7 @@ class LocalClient(AbstractClient):
                 memory=memory,
                 tools=tool_names,
                 system=system,
+                agent_type=agent_type if agent_type else AgentType.base_agent,
                 llm_config=llm_config if llm_config else self._default_llm_config,
                 embedding_config=embedding_config if embedding_config else self._default_embedding_config,
             ),

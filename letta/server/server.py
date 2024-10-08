@@ -11,7 +11,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 from fastapi import HTTPException
 
 import letta.constants as constants
-from letta.schemas.agent_config import AgentConfig, AgentType
+from letta.schemas.agent import AgentType
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
@@ -336,7 +336,7 @@ class SyncServer(Server):
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
-            if agent_state.agent_config.agent_type == AgentType.base_agent:
+            if agent_state.agent_type == AgentType.base_agent:
                 letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
             else:
                 raise NotImplementedError("Only base agents are supported as of right now!")
@@ -791,7 +791,7 @@ class SyncServer(Server):
                 name=request.name,
                 user_id=user_id,
                 tools=request.tools if request.tools else [],
-                agent_config=request.agent_config or AgentConfig.default_config(),
+                agent_type=request.agent_type or AgentType.base_agent,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,

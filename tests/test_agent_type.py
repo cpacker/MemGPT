@@ -1,7 +1,7 @@
 import json
 import pytest
 
-from letta.schemas.agent_config import AgentConfig, AgentType
+from letta.schemas.agent import AgentType
 from letta.client.client import create_client
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
@@ -13,7 +13,7 @@ def test_agent_creation(agent_type):
 
     if agent_type is not None:
         agent_state = client.create_agent(
-            agent_config=AgentConfig(agent_type=agent_type),
+            agent_type=agent_type,
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         )
