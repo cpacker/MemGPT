@@ -93,7 +93,7 @@ class Tool(BaseTool):
         # append heartbeat (necessary for triggering another reasoning step after this tool call)
         json_schema["parameters"]["properties"]["request_heartbeat"] = {
             "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function.",
+            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
         }
         json_schema["parameters"]["required"].append("request_heartbeat")
 
@@ -128,7 +128,7 @@ class Tool(BaseTool):
         # append heartbeat (necessary for triggering another reasoning step after this tool call)
         json_schema["parameters"]["properties"]["request_heartbeat"] = {
             "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function.",
+            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
         }
         json_schema["parameters"]["required"].append("request_heartbeat")
 
@@ -161,7 +161,7 @@ class Tool(BaseTool):
         # append heartbeat (necessary for triggering another reasoning step after this tool call)
         json_schema["parameters"]["properties"]["request_heartbeat"] = {
             "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function.",
+            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
         }
         json_schema["parameters"]["required"].append("request_heartbeat")
 
