@@ -741,8 +741,12 @@ class SyncServer(Server):
         # system debug
         if request.system is None:
             # TODO: don't hardcode
-            # request.system = gpt_system.get_system_text("memgpt_chat")
-            request.system = gpt_system.get_system_text("memgpt_modified_o1")
+            if request.agent_type == AgentType.memgpt_agent:
+                request.system = gpt_system.get_system_text("memgpt_chat")
+            elif request.agent_type == AgentType.o1_agent:
+                request.system = gpt_system.get_system_text("memgpt_modified_o1")
+            else:
+                raise ValueError(f"Invalid agent type: {request.agent_type}")
 
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.ms.get_user(user_id=user_id)
@@ -1320,8 +1324,8 @@ class SyncServer(Server):
 
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        assert isinstance(letta_agent.memory, Memory)
         assert isinstance(letta_agent.agent_state.memory, Memory)
-
         return letta_agent.agent_state.model_copy(deep=True)
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
