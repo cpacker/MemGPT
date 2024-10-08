@@ -1,25 +1,25 @@
-import copy
-import json
 import os
 import random
 import time
-import warnings
 from typing import List, Optional, Union
 
 import requests
 
-from letta.constants import CLI_WARNING_PREFIX, OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
+from letta.constants import CLI_WARNING_PREFIX
 from letta.llm_api.anthropic import anthropic_chat_completions_request
-from letta.llm_api.azure_openai import (
-    MODEL_TO_AZURE_ENGINE,
-    azure_openai_chat_completions_request,
-)
+from letta.llm_api.azure_openai import azure_openai_chat_completions_request
 from letta.llm_api.cohere import cohere_chat_completions_request
 from letta.llm_api.google_ai import (
     convert_tools_to_google_ai_format,
     google_ai_chat_completions_request,
 )
+from letta.llm_api.helpers import (
+    add_inner_thoughts_to_functions,
+    derive_inner_thoughts_in_kwargs,
+    unpack_all_inner_thoughts_from_kwargs,
+)
 from letta.llm_api.openai import (
+    build_openai_chat_completions_request,
     openai_chat_completions_process_stream,
     openai_chat_completions_request,
 )
@@ -37,142 +37,13 @@ from letta.schemas.openai.chat_completion_request import (
     Tool,
     cast_message_to_subtype,
 )
-from letta.schemas.openai.chat_completion_response import ChatCompletionResponse, Choice
+from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
 )
-from letta.utils import json_dumps
 
 LLM_API_PROVIDER_OPTIONS = ["openai", "azure", "anthropic", "google_ai", "cohere", "local", "groq"]
-
-
-# TODO update to use better types
-def add_inner_thoughts_to_functions(
-    functions: List[dict],
-    inner_thoughts_key: str,
-    inner_thoughts_description: str,
-    inner_thoughts_required: bool = True,
-    # inner_thoughts_to_front: bool = True,  TODO support sorting somewhere, probably in the to_dict?
-) -> List[dict]:
-    """Add an inner_thoughts kwarg to every function in the provided list"""
-    # return copies
-    new_functions = []
-
-    # functions is a list of dicts in the OpenAI schema (https://platform.openai.com/docs/api-reference/chat/create)
-    for function_object in functions:
-        function_params = function_object["parameters"]["properties"]
-        required_params = list(function_object["parameters"]["required"])
-
-        # if the inner thoughts arg doesn't exist, add it
-        if inner_thoughts_key not in function_params:
-            function_params[inner_thoughts_key] = {
-                "type": "string",
-                "description": inner_thoughts_description,
-            }
-
-        # make sure it's tagged as required
-        new_function_object = copy.deepcopy(function_object)
-        if inner_thoughts_required and inner_thoughts_key not in required_params:
-            required_params.append(inner_thoughts_key)
-            new_function_object["parameters"]["required"] = required_params
-
-        new_functions.append(new_function_object)
-
-    # return a list of copies
-    return new_functions
-
-
-def unpack_all_inner_thoughts_from_kwargs(
-    response: ChatCompletionResponse,
-    inner_thoughts_key: str,
-) -> ChatCompletionResponse:
-    """Strip the inner thoughts out of the tool call and put it in the message content"""
-    if len(response.choices) == 0:
-        raise ValueError(f"Unpacking inner thoughts from empty response not supported")
-
-    new_choices = []
-    for choice in response.choices:
-        new_choices.append(unpack_inner_thoughts_from_kwargs(choice, inner_thoughts_key))
-
-    # return an updated copy
-    new_response = response.model_copy(deep=True)
-    new_response.choices = new_choices
-    return new_response
-
-
-def unpack_inner_thoughts_from_kwargs(choice: Choice, inner_thoughts_key: str) -> Choice:
-    message = choice.message
-    if message.role == "assistant" and message.tool_calls and len(message.tool_calls) >= 1:
-        if len(message.tool_calls) > 1:
-            warnings.warn(f"Unpacking inner thoughts from more than one tool call ({len(message.tool_calls)}) is not supported")
-        # TODO support multiple tool calls
-        tool_call = message.tool_calls[0]
-
-        try:
-            # Sadly we need to parse the JSON since args are in string format
-            func_args = dict(json.loads(tool_call.function.arguments))
-            if inner_thoughts_key in func_args:
-                # extract the inner thoughts
-                inner_thoughts = func_args.pop(inner_thoughts_key)
-
-                # replace the kwargs
-                new_choice = choice.model_copy(deep=True)
-                new_choice.message.tool_calls[0].function.arguments = json_dumps(func_args)
-                # also replace the message content
-                if new_choice.message.content is not None:
-                    warnings.warn(f"Overwriting existing inner monologue ({new_choice.message.content}) with kwarg ({inner_thoughts})")
-                new_choice.message.content = inner_thoughts
-
-                return new_choice
-            else:
-                warnings.warn(f"Did not find inner thoughts in tool call: {str(tool_call)}")
-
-        except json.JSONDecodeError as e:
-            warnings.warn(f"Failed to strip inner thoughts from kwargs: {e}")
-            raise e
-
-
-def is_context_overflow_error(exception: requests.exceptions.RequestException) -> bool:
-    """Checks if an exception is due to context overflow (based on common OpenAI response messages)"""
-    from letta.utils import printd
-
-    match_string = OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
-
-    # Backwards compatibility with openai python package/client v0.28 (pre-v1 client migration)
-    if match_string in str(exception):
-        printd(f"Found '{match_string}' in str(exception)={(str(exception))}")
-        return True
-
-    # Based on python requests + OpenAI REST API (/v1)
-    elif isinstance(exception, requests.exceptions.HTTPError):
-        if exception.response is not None and "application/json" in exception.response.headers.get("Content-Type", ""):
-            try:
-                error_details = exception.response.json()
-                if "error" not in error_details:
-                    printd(f"HTTPError occurred, but couldn't find error field: {error_details}")
-                    return False
-                else:
-                    error_details = error_details["error"]
-
-                # Check for the specific error code
-                if error_details.get("code") == "context_length_exceeded":
-                    printd(f"HTTPError occurred, caught error code {error_details.get('code')}")
-                    return True
-                # Soft-check for "maximum context length" inside of the message
-                elif error_details.get("message") and "maximum context length" in error_details.get("message"):
-                    printd(f"HTTPError occurred, found '{match_string}' in error message contents ({error_details})")
-                    return True
-                else:
-                    printd(f"HTTPError occurred, but unknown error message: {error_details}")
-                    return False
-            except ValueError:
-                # JSON decoding failed
-                printd(f"HTTPError occurred ({exception}), but no JSON error message.")
-
-    # Generic fail
-    else:
-        return False
 
 
 def retry_with_exponential_backoff(
@@ -248,7 +119,8 @@ def create(
     stream_inferface: Optional[Union[AgentRefreshStreamingInterface, AgentChunkStreamingInterface]] = None,
     # TODO move to llm_config?
     # if unspecified (None), default to something we've tested
-    inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+    inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
+    max_tokens: Optional[int] = None,
     model_settings: Optional[dict] = None,  # TODO: eventually pass from server
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
@@ -267,59 +139,14 @@ def create(
 
     # openai
     if llm_config.model_endpoint_type == "openai":
-
-        if inner_thoughts_in_kwargs == OptionState.DEFAULT:
-            # model that are known to not use `content` fields on tool calls
-            inner_thoughts_in_kwargs = (
-                "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model
-            )
-        else:
-            inner_thoughts_in_kwargs = True if inner_thoughts_in_kwargs == OptionState.YES else False
-
-        if not isinstance(inner_thoughts_in_kwargs, bool):
-            warnings.warn(f"Bad type detected: {type(inner_thoughts_in_kwargs)}")
-            inner_thoughts_in_kwargs = bool(inner_thoughts_in_kwargs)
-        if inner_thoughts_in_kwargs:
-            functions = add_inner_thoughts_to_functions(
-                functions=functions,
-                inner_thoughts_key=INNER_THOUGHTS_KWARG,
-                inner_thoughts_description=INNER_THOUGHTS_KWARG_DESCRIPTION,
-            )
-
-        openai_message_list = [
-            cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs)) for m in messages
-        ]
-
-        # TODO do the same for Azure?
         if model_settings.openai_api_key is None and llm_config.model_endpoint == "https://api.openai.com/v1":
             # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"OpenAI key is missing from letta config file")
-        if use_tool_naming:
-            data = ChatCompletionRequest(
-                model=llm_config.model,
-                messages=openai_message_list,
-                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
-                tool_choice=function_call,
-                user=str(user_id),
-            )
-        else:
-            data = ChatCompletionRequest(
-                model=llm_config.model,
-                messages=openai_message_list,
-                functions=functions,
-                function_call=function_call,
-                user=str(user_id),
-            )
-            # https://platform.openai.com/docs/guides/text-generation/json-mode
-            # only supported by gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
-            if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
-                data.response_format = {"type": "json_object"}
 
-        if "inference.memgpt.ai" in llm_config.model_endpoint:
-            # override user id for inference.memgpt.ai
-            import uuid
-
-            data.user = str(uuid.UUID(int=0))
+        inner_thoughts_in_kwargs = derive_inner_thoughts_in_kwargs(inner_thoughts_in_kwargs_option, model=llm_config.model)
+        data = build_openai_chat_completions_request(
+            llm_config, messages, user_id, functions, function_call, use_tool_naming, inner_thoughts_in_kwargs, max_tokens
+        )
 
         if stream:  # Client requested token streaming
             data.stream = True
@@ -356,34 +183,31 @@ def create(
         if stream:
             raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
 
-        azure_deployment = (
-            model_settings.azure_deployment if model_settings.azure_deployment is not None else MODEL_TO_AZURE_ENGINE[llm_config.model]
+        if model_settings.azure_api_key is None:
+            raise ValueError(f"Azure API key is missing. Did you set AZURE_API_KEY in your env?")
+
+        if model_settings.azure_base_url is None:
+            raise ValueError(f"Azure base url is missing. Did you set AZURE_BASE_URL in your env?")
+
+        # Set the llm config model_endpoint from model_settings
+        # For Azure, this model_endpoint is required to be configured via env variable, so users don't need to provide it in the LLM config
+        llm_config.model_endpoint = model_settings.azure_base_url
+        inner_thoughts_in_kwargs = derive_inner_thoughts_in_kwargs(inner_thoughts_in_kwargs_option, llm_config.model)
+        chat_completion_request = build_openai_chat_completions_request(
+            llm_config, messages, user_id, functions, function_call, use_tool_naming, inner_thoughts_in_kwargs, max_tokens
         )
-        if use_tool_naming:
-            data = dict(
-                # NOTE: don't pass model to Azure calls, that is the deployment_id
-                # model=agent_config.model,
-                messages=[m.to_openai_dict() for m in messages],
-                tools=[{"type": "function", "function": f} for f in functions] if functions else None,
-                tool_choice=function_call,
-                user=str(user_id),
-            )
-        else:
-            data = dict(
-                # NOTE: don't pass model to Azure calls, that is the deployment_id
-                # model=agent_config.model,
-                messages=[m.to_openai_dict() for m in messages],
-                functions=functions,
-                function_call=function_call,
-                user=str(user_id),
-            )
-        return azure_openai_chat_completions_request(
-            resource_name=model_settings.azure_endpoint,
-            deployment_id=azure_deployment,
-            api_version=model_settings.azure_version,
-            api_key=model_settings.azure_key,
-            data=data,
+
+        response = azure_openai_chat_completions_request(
+            model_settings=model_settings,
+            llm_config=llm_config,
+            api_key=model_settings.azure_api_key,
+            chat_completion_request=chat_completion_request,
         )
+
+        if inner_thoughts_in_kwargs:
+            response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
+
+        return response
 
     elif llm_config.model_endpoint_type == "google_ai":
         if stream:
