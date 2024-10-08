@@ -405,8 +405,6 @@ class SyncServer(Server):
                 token_warning = step_response.in_context_memory_warning
                 usage = step_response.usage
 
-                print(step_response.model_dump_json(indent=4))
-
                 step_count += 1
                 total_usage += usage
                 counter += 1
