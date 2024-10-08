@@ -11,7 +11,6 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 from fastapi import HTTPException
 
 import letta.constants as constants
-from letta.schemas.agent_config import AgentConfig, AgentType
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
@@ -19,7 +18,6 @@ from letta.agent_store.storage import StorageConnector, TableType
 from letta.config import LettaConfig
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
-from letta.split_thread_agent import SplitThreadAgent, save_split_thread_agent, create_split_thread_agent
 
 # from letta.data_types import (
 #    AgentState,
@@ -47,12 +45,14 @@ from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
+    AzureProvider,
     GoogleAIProvider,
     OllamaProvider,
     OpenAIProvider,
     VLLMProvider,
 )
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
+from letta.schemas.agent_config import AgentType
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
     Block,
@@ -272,6 +272,8 @@ class SyncServer(Server):
             self._enabled_providers.append(VLLMProvider(base_url=model_settings.vllm_base_url))
         if model_settings.gemini_api_key:
             self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
+        if model_settings.azure_api_key and model_settings.azure_base_url:
+            self._enabled_providers.append(AzureProvider(api_key=model_settings.azure_api_key, base_url=model_settings.azure_base_url))
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -326,32 +328,8 @@ class SyncServer(Server):
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
-            if agent_state.agent_config.agent_type == AgentType.base_agent:
-                tool_objs = self._get_tools_from_agent_state(agent_state=agent_state, user_id=user_id)
+            if agent_state.agent_type == AgentType.memgpt_agent:
                 letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
-            elif agent_state.agent_config.agent_type == AgentType.split_thread_agent:
-                conversation_agent_state = self.ms.get_agent(
-                    user_id=user_id,
-                    agent_name=f"{agent_state.name}_conversation",
-                )
-                assert conversation_agent_state is not None, f"conversation agent state not found for {agent_state.name}"
-                conversation_tools = self._get_tools_from_agent_state(agent_state=conversation_agent_state, user_id=user_id)
-
-                memory_agent_state = self.ms.get_agent(
-                    user_id=user_id,
-                    agent_name=f"{agent_state.name}_memory",
-                )
-                assert memory_agent_state is not None, f"memory agent state not found for {agent_state.name}"
-                memory_tools = self._get_tools_from_agent_state(agent_state=memory_agent_state, user_id=user_id)
-
-                letta_agent = SplitThreadAgent(
-                    conversation_agent_state=conversation_agent_state,
-                    conversation_tools=conversation_tools,
-                    memory_agent_state=memory_agent_state,
-                    memory_tools=memory_tools,
-                    agent_state=agent_state,
-                    interface=interface,
-                )
             else:
                 raise NotImplementedError("Only base agents are supported as of right now!")
 
@@ -815,54 +793,59 @@ class SyncServer(Server):
             embedding_config = request.embedding_config
 
             assert request.memory is not None
-            tool_objs = self._get_tools_from_request(request, user_id)
+            memory_functions = get_memory_functions(request.memory)
+            for func_name, func in memory_functions.items():
 
-            if not request.agent_config or request.agent_config.agent_type == AgentType.base_agent:
-                # TODO: save the agent state
-                agent_state = AgentState(
-                    name=request.name,
+                if request.tools and func_name in request.tools:
+                    # tool already added
+                    continue
+                source_code = parse_source_code(func)
+                json_schema = generate_schema(func, func_name)
+                source_type = "python"
+                tags = ["memory", "memgpt-base"]
+                tool = self.create_tool(
+                    request=ToolCreate(
+                        source_code=source_code,
+                        source_type=source_type,
+                        tags=tags,
+                        json_schema=json_schema,
+                        user_id=user_id,
+                    ),
+                    update=True,
                     user_id=user_id,
-                    tools=request.tools if request.tools else [],
-                    agent_config=request.agent_config or AgentConfig.default_config(),
-                    llm_config=llm_config,
-                    embedding_config=embedding_config,
-                    system=request.system,
-                    memory=request.memory,
-                    description=request.description,
-                    metadata_=request.metadata_,
                 )
-                agent = Agent(
-                    interface=interface,
-                    agent_state=agent_state,
-                    tools=tool_objs,
-                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
-                )
-                # rebuilding agent memory on agent create in case shared memory blocks
-                # were specified in the new agent's memory config. we're doing this for two reasons:
-                # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
-                # 2. if the shared block state changed since this agent initialization started, we can be sure to have the latest value
-                agent.rebuild_memory(force=True, ms=self.ms)
-                # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
-                # self.ms.update_agent(agent.agent_state)
+                tool_objs.append(tool)
+                if not request.tools:
+                    request.tools = []
+                request.tools.append(tool.name)
 
-                # save agent
-                save_agent(agent, self.ms)
-
-            elif request.agent_config and request.agent_config.agent_type == AgentType.split_thread_agent:
-                agent, agent_state = create_split_thread_agent(
-                    request=request,
-                    user_id=user_id,
-                    tool_objs=tool_objs,
-                    agent_config=request.agent_config,
-                    llm_config=llm_config,
-                    embedding_config=embedding_config,
-                    interface=interface,
-                )
-                save_split_thread_agent(agent, self.ms)
-            else:
-                raise ValueError("Invalid Agent Type!")
-
+            # TODO: save the agent state
+            agent_state = AgentState(
+                name=request.name,
+                user_id=user_id,
+                tools=request.tools if request.tools else [],
+                agent_type=request.agent_type or AgentType.memgpt_agent,
+                llm_config=llm_config,
+                embedding_config=embedding_config,
+                system=request.system,
+                memory=request.memory,
+                description=request.description,
+                metadata_=request.metadata_,
+            )
+            agent = Agent(
+                interface=interface,
+                agent_state=agent_state,
+                tools=tool_objs,
+                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+            )
+            # rebuilding agent memory on agent create in case shared memory blocks
+            # were specified in the new agent's memory config. we're doing this for two reasons:
+            # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
+            # 2. if the shared block state changed since this agent initialization started, we can be sure to have the latest value
+            agent.rebuild_memory(force=True, ms=self.ms)
+            # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
+            # self.ms.update_agent(agent.agent_state)
         except Exception as e:
             logger.exception(e)
             try:
@@ -1120,7 +1103,11 @@ class SyncServer(Server):
 
     def get_user(self, user_id: str) -> User:
         """Get the user"""
-        return self.ms.get_user(user_id=user_id)
+        user = self.ms.get_user(user_id=user_id)
+        if user is None:
+            raise ValueError(f"User with user_id {user_id} does not exist")
+        else:
+            return user
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1936,20 +1923,6 @@ class SyncServer(Server):
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.retry_message()
 
-    def set_current_user(self, user_id: Optional[str]):
-        """Very hacky way to set the current user for the server, to be replaced once server becomes stateless
-
-        NOTE: clearly not thread-safe, only exists to provide basic user_id support for REST API for now
-        """
-
-        # Make sure the user_id actually exists
-        if user_id is not None:
-            user_obj = self.get_user(user_id)
-            if not user_obj:
-                raise ValueError(f"User with id {user_id} not found")
-
-        self._current_user = user_id
-
     def get_default_user(self) -> User:
 
         from letta.constants import (
@@ -1966,8 +1939,9 @@ class SyncServer(Server):
             self.ms.create_organization(org)
 
         # check if default user exists
-        default_user = self.get_user(DEFAULT_USER_ID)
-        if not default_user:
+        try:
+            self.get_user(DEFAULT_USER_ID)
+        except ValueError:
             user = User(name=DEFAULT_USER_NAME, org_id=DEFAULT_ORG_ID, id=DEFAULT_USER_ID)
             self.ms.create_user(user)
 
@@ -1978,23 +1952,15 @@ class SyncServer(Server):
         # check if default org exists
         return self.get_user(DEFAULT_USER_ID)
 
-    # TODO(ethan) wire back to real method in future ORM PR
-    def get_current_user(self) -> User:
-        """Returns the currently authed user.
-
-        Since server is the core gateway this needs to pass through server as the
-        first touchpoint.
-        """
-
-        # Check if _current_user is set and if it's non-null:
-        if hasattr(self, "_current_user") and self._current_user is not None:
-            current_user = self.get_user(self._current_user)
-            if not current_user:
-                warnings.warn(f"Provided user '{self._current_user}' not found, using default user")
-            else:
-                return current_user
-
-        return self.get_default_user()
+    def get_user_or_default(self, user_id: Optional[str]) -> User:
+        """Get the user object for user_id if it exists, otherwise return the default user object"""
+        if user_id is None:
+            return self.get_default_user()
+        else:
+            try:
+                return self.get_user(user_id=user_id)
+            except ValueError:
+                raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
 
     def list_llm_models(self) -> List[LLMConfig]:
         """List available models"""
