@@ -83,9 +83,6 @@ def setup_agent(
     return agent_state
 
 
-# def
-
-
 # ======================================================================================================================
 # Section: Complex E2E Tests
 # These functions describe individual testing scenarios.
