@@ -25,6 +25,12 @@ MEMORY_TOOLS = [
 
 
 class SplitThreadAgent(BaseAgent):
+    """
+    SplitThreadAgent is an agent that splits the conversation and memory into two separate agents.
+    The memory agent is run in a separate thread asynchronously to the conversation agent. The
+    conversation agent has the ability to wait for the memory agent to finish before continuing.
+    """
+
     def __init__(
         self,
         interface: AgentInterface,
@@ -42,6 +48,7 @@ class SplitThreadAgent(BaseAgent):
         self.system = agent_state.system
         self.interface = interface
 
+        # Placeholder agent that represents the split thread agent
         self.agent = Agent(
             interface=interface,
             agent_state=agent_state,
@@ -50,6 +57,7 @@ class SplitThreadAgent(BaseAgent):
             first_message_verify_mono=first_message_verify_mono,
         )
 
+        # Conversation agent
         self.conversation_agent = Agent(
             interface=interface,
             agent_state=conversation_agent_state,
@@ -57,23 +65,29 @@ class SplitThreadAgent(BaseAgent):
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
+
+        # Flag to indicate if the conversation agent decided to wait for memory update
         self.conversation_waited = False
+
+        # Lock to prevent the conversation agent from stepping while memory is updating
         self.conversation_agent_lock = threading.Lock()
 
-        self.memory_wait_tool = Tool(
+        # Tool to wait for memory update
+        memory_wait_tool = Tool(
             name="wait_for_memory_update",
             source_type="python",
-            source_code=parse_source_code(self._wait_for_memory_tool),
-            json_schema=generate_schema(self._wait_for_memory_tool),
+            source_code=parse_source_code(self.wait_for_memory_update),
+            json_schema=generate_schema(self.wait_for_memory_update),
             description="",
             module="",
             user_id=conversation_agent_state.user_id,
             tags=[],
         )
-        conversation_agent_state.tools.append(self.memory_wait_tool.name)
-        self.conversation_agent.link_tools(conversation_tools + [self.memory_wait_tool])
+        conversation_agent_state.tools.append(memory_wait_tool.name)
+        self.conversation_agent.link_tools(conversation_tools + [memory_wait_tool])
         self.conversation_agent.update_state()
 
+        # Memory agent
         self.memory_agent = Agent(
             interface=interface,
             agent_state=memory_agent_state,
@@ -81,9 +95,17 @@ class SplitThreadAgent(BaseAgent):
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
+
+        # Variable to store the returns from the memory agent
         self.memory_result = None
+
+        # Lock to prevent flushing the memory result while returning from a memory step
         self.memory_result_lock = threading.Lock()
+
+        # Flag to indicate if the memory agent has finished stepping
         self.memory_finished = False
+
+        # Condition variable to let the conversation agent wait for the memory agent to finish if needed
         self.memory_condition = threading.Condition()
 
         self.update_state()
@@ -133,6 +155,7 @@ class SplitThreadAgent(BaseAgent):
                 ms=ms,
             )
 
+            # If the conversation agent decided to wait for memory update, we need a response after the memory update
             if self.conversation_waited:
                 next_conversation_step = self.conversation_agent.step(
                     first_message=first_message,
@@ -152,6 +175,7 @@ class SplitThreadAgent(BaseAgent):
         step = conversation_step
         with self.memory_result_lock:
             if self.memory_result:
+                # Flush the memory output into this step
                 step = self._combine_steps(self.memory_result, conversation_step)
                 self.memory_result = None
 
@@ -182,22 +206,26 @@ class SplitThreadAgent(BaseAgent):
             inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             ms=ms,
         )
+
         with self.memory_result_lock:
             if self.memory_result:
+                # If we had a memory result from a previous step, combine it with the current memory step
                 self.memory_result = self._combine_steps(self.memory_result, memory_step)
             else:
                 self.memory_result = memory_step
         self.memory_finished = True
 
+        # Update the conversation agent's memory after modification
         with self.conversation_agent_lock:
             self.conversation_agent.memory = self.memory_agent.memory
             self.conversation_agent.update_state()
             save_agent(agent=self.conversation_agent, ms=ms)
 
+        # Wake up the conversation agent if it was waiting for memory update
         with self.memory_condition:
             self.memory_condition.notify()
 
-    def _wait_for_memory_tool(self):
+    def wait_for_memory_update(self):
         with self.memory_condition:
             while not self.memory_finished:
                 self.memory_condition.wait()
@@ -310,6 +338,4 @@ def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
     save_agent(agent=agent.agent, ms=ms)
     save_agent(agent=agent.conversation_agent, ms=ms)
     save_agent(agent=agent.memory_agent, ms=ms)
-    # if ms.get_tool(tool_name=agent.memory_wait_tool.name, user_id=agent.memory_agent.agent_state.user_id) is None:
-    #     ms.create_tool(agent.memory_wait_tool)
     agent.update_state()
