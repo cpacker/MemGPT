@@ -218,6 +218,7 @@ class AgentModel(Base):
     tools = Column(JSON)
 
     # configs
+    agent_type = Column(String)
     llm_config = Column(LLMConfigColumn)
     embedding_config = Column(EmbeddingConfigColumn)
 
@@ -243,6 +244,7 @@ class AgentModel(Base):
             memory=Memory.load(self.memory),  # load dictionary
             system=self.system,
             tools=self.tools,
+            agent_type=self.agent_type,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             metadata_=self.metadata_,

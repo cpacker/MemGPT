@@ -1,5 +1,8 @@
 name: Endpoint (Ollama)
 
+env:
+  OLLAMA_BASE_URL: "http://localhost:11434"
+
 on:
   push:
     branches: [ main ]
@@ -36,3 +39,7 @@ jobs:
     - name: Test embedding endpoint
       run: |
         poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_ollama
+
+    - name: Test provider
+      run: |
+        poetry run pytest -s -vv tests/test_providers.py::test_ollama

@@ -18,7 +18,7 @@ from letta.constants import (
     MESSAGE_SUMMARY_WARNING_FRAC,
 )
 from letta.interface import AgentInterface
-from letta.llm_api.llm_api_tools import create, is_context_overflow_error
+from letta.llm_api.llm_api_tools import create
 from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.persistence_manager import LocalStateManager
@@ -56,6 +56,7 @@ from letta.utils import (
 )
 
 from .errors import LLMError
+from .llm_api.helpers import is_context_overflow_error
 
 
 def compile_memory_metadata_block(
@@ -207,7 +208,7 @@ class BaseAgent(ABC):
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
         timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
         """
@@ -223,7 +224,7 @@ class BaseAgent(ABC):
 class Agent(BaseAgent):
     def __init__(
         self,
-        interface: AgentInterface,
+        interface: Optional[AgentInterface],
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[Tool],
@@ -238,6 +239,7 @@ class Agent(BaseAgent):
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
         # link tools
+        self.tools = tools
         self.link_tools(tools)
 
         # gpt-4, gpt-3.5-turbo, ...
@@ -460,7 +462,7 @@ class Agent(BaseAgent):
         function_call: str = "auto",
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
-        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
     ) -> ChatCompletionResponse:
         """Get response from LLM API"""
         try:
@@ -478,10 +480,10 @@ class Agent(BaseAgent):
                 stream=stream,
                 stream_inferface=self.interface,
                 # putting inner thoughts in func args or not
-                inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             )
 
-            if len(response.choices) == 0:
+            if len(response.choices) == 0 or response.choices[0] is None:
                 raise Exception(f"API call didn't return a message: {response}")
 
             # special case for 'length'
@@ -560,6 +562,8 @@ class Agent(BaseAgent):
             function_call = (
                 response_message.function_call if response_message.function_call is not None else response_message.tool_calls[0].function
             )
+
+            # Get the name of the function
             function_name = function_call.name
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
 
@@ -608,9 +612,21 @@ class Agent(BaseAgent):
                 self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
 
+            # Check if inner thoughts is in the function call arguments (possible apparently if you are using Azure)
+            if "inner_thoughts" in function_args:
+                response_message.content = function_args.pop("inner_thoughts")
+            # The content if then internal monologue, not chat
+            if response_message.content:
+                self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
+
             # (Still parsing function args)
             # Handle requests for immediate heartbeat
             heartbeat_request = function_args.pop("request_heartbeat", None)
+
+            # Edge case: heartbeat_request is returned as a stringified boolean, we will attempt to parse:
+            if isinstance(heartbeat_request, str) and heartbeat_request.lower().strip() == "true":
+                heartbeat_request = True
+
             if not isinstance(heartbeat_request, bool) or heartbeat_request is None:
                 printd(
                     f"{CLI_WARNING_PREFIX}'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}"
@@ -716,7 +732,7 @@ class Agent(BaseAgent):
         recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
         timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
         """Top-level event message handler for the Letta agent"""
@@ -795,7 +811,7 @@ class Agent(BaseAgent):
                         message_sequence=input_message_sequence,
                         first_message=True,  # passed through to the prompt formatter
                         stream=stream,
-                        inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                        inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     )
                     if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -808,7 +824,7 @@ class Agent(BaseAgent):
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                     stream=stream,
-                    inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                 )
 
             # Step 3: check if LLM wanted to call a function
@@ -892,7 +908,7 @@ class Agent(BaseAgent):
                     recreate_message_timestamp=recreate_message_timestamp,
                     stream=stream,
                     timestamp=timestamp,
-                    inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     ms=ms,
                 )
 
@@ -1342,6 +1358,10 @@ def save_agent(agent: Agent, ms: MetadataStore):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)
+
+    for tool in agent.tools:
+        if ms.get_tool(tool_name=tool.name, user_id=tool.user_id) is None:
+            ms.create_tool(tool)
 
     agent.agent_state = ms.get_agent(agent_id=agent_id)
     assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
