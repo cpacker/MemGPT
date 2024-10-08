@@ -1,8 +1,7 @@
-import json
 import pytest
 
-from letta.schemas.agent import AgentType
 from letta.client.client import create_client
+from letta.schemas.agent import AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 

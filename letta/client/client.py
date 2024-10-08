@@ -9,7 +9,7 @@ from letta.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState, AgentType
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.block import (
     Block,
     CreateBlock,

@@ -11,7 +11,6 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 from fastapi import HTTPException
 
 import letta.constants as constants
-from letta.schemas.agent import AgentType
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
@@ -52,7 +51,7 @@ from letta.providers import (
     OpenAIProvider,
     VLLMProvider,
 )
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
     Block,
