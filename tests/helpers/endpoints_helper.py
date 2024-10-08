@@ -113,9 +113,10 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str, inner_thoughts
     )
 
     # Basic check
-    assert response is not None
-
-    print(response)
+    assert response is not None, response
+    assert response.choices is not None, response
+    assert len(response.choices) > 0, response
+    assert response.choices[0] is not None, response
 
     # Select first choice
     choice = response.choices[0]
