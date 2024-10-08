@@ -1,5 +1,5 @@
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import requests
 
@@ -15,26 +15,37 @@ from letta.schemas.openai.chat_completion_response import (
     ToolCall,
     UsageStatistics,
 )
-from letta.utils import get_tool_call_id, get_utc_time
-
-# from letta.data_types import ToolCall
+from letta.utils import get_tool_call_id, get_utc_time, json_dumps
 
 
-SUPPORTED_MODELS = [
-    "gemini-pro",
-]
+def get_gemini_endpoint_and_headers(
+    base_url: str, model: Optional[str], api_key: str, key_in_header: bool = True, generate_content: bool = False
+) -> Tuple[str, dict]:
+    url = f"{base_url}/v1beta/models"
+
+    # Add the model
+    if model is not None:
+        url += f"/{model}"
+
+    # Add extension for generating content if we're hitting the LM
+    if generate_content:
+        url += ":generateContent"
+
+    # Decide if api key should be in header or not
+    if key_in_header:
+        headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
+    else:
+        url += f"?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+
+    return url, headers
 
 
-def google_ai_get_model_details(service_endpoint: str, api_key: str, model: str, key_in_header: bool = True) -> List[dict]:
+def google_ai_get_model_details(base_url: str, api_key: str, model: str, key_in_header: bool = True) -> List[dict]:
     from letta.utils import printd
 
     # Two ways to pass the key: https://ai.google.dev/tutorials/setup
-    if key_in_header:
-        url = f"https://{service_endpoint}.googleapis.com/v1beta/models/{model}"
-        headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
-    else:
-        url = f"https://{service_endpoint}.googleapis.com/v1beta/models/{model}?key={api_key}"
-        headers = {"Content-Type": "application/json"}
+    url, headers = get_gemini_endpoint_and_headers(base_url, model, api_key, key_in_header)
 
     try:
         response = requests.get(url, headers=headers)
@@ -66,25 +77,18 @@ def google_ai_get_model_details(service_endpoint: str, api_key: str, model: str,
         raise e
 
 
-def google_ai_get_model_context_window(service_endpoint: str, api_key: str, model: str, key_in_header: bool = True) -> int:
-    model_details = google_ai_get_model_details(
-        service_endpoint=service_endpoint, api_key=api_key, model=model, key_in_header=key_in_header
-    )
+def google_ai_get_model_context_window(base_url: str, api_key: str, model: str, key_in_header: bool = True) -> int:
+    model_details = google_ai_get_model_details(base_url=base_url, api_key=api_key, model=model, key_in_header=key_in_header)
     # TODO should this be:
     # return model_details["inputTokenLimit"] + model_details["outputTokenLimit"]
     return int(model_details["inputTokenLimit"])
 
 
-def google_ai_get_model_list(service_endpoint: str, api_key: str, key_in_header: bool = True) -> List[dict]:
+def google_ai_get_model_list(base_url: str, api_key: str, key_in_header: bool = True) -> List[dict]:
     from letta.utils import printd
 
     # Two ways to pass the key: https://ai.google.dev/tutorials/setup
-    if key_in_header:
-        url = f"https://{service_endpoint}.googleapis.com/v1beta/models"
-        headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
-    else:
-        url = f"https://{service_endpoint}.googleapis.com/v1beta/models?key={api_key}"
-        headers = {"Content-Type": "application/json"}
+    url, headers = get_gemini_endpoint_and_headers(base_url, None, api_key, key_in_header)
 
     try:
         response = requests.get(url, headers=headers)
@@ -396,7 +400,7 @@ def convert_google_ai_response_to_chatcompletion(
 
 # TODO convert 'data' type to pydantic
 def google_ai_chat_completions_request(
-    service_endpoint: str,
+    base_url: str,
     model: str,
     api_key: str,
     data: dict,
@@ -416,17 +420,10 @@ def google_ai_chat_completions_request(
     """
     from letta.utils import printd
 
-    assert service_endpoint is not None, "Missing service_endpoint when calling Google AI"
     assert api_key is not None, "Missing api_key when calling Google AI"
-    assert model in SUPPORTED_MODELS, f"Model '{model}' not in supported models: {', '.join(SUPPORTED_MODELS)}"
 
     # Two ways to pass the key: https://ai.google.dev/tutorials/setup
-    if key_in_header:
-        url = f"https://{service_endpoint}.googleapis.com/v1beta/models/{model}:generateContent"
-        headers = {"Content-Type": "application/json", "x-goog-api-key": api_key}
-    else:
-        url = f"https://{service_endpoint}.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        headers = {"Content-Type": "application/json"}
+    url, headers = get_gemini_endpoint_and_headers(base_url, model, api_key, key_in_header, generate_content=True)
 
     # data["contents"][-1]["role"] = "model"
     if add_postfunc_model_messages:
