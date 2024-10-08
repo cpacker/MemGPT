@@ -1,6 +1,6 @@
 {
     "context_window": 8192,
-    "model": "llama3-groq-70b-8192-tool-use-preview",
+    "model": "llama-3.1-70b-versatile",
     "model_endpoint_type": "groq",
     "model_endpoint": "https://api.groq.com/openai/v1",
     "model_wrapper": null

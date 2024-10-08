@@ -92,6 +92,7 @@ tests = ["wikipedia"]
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
 ipykernel = "^6.29.5"
+ipdb = "^0.13.13"
 
 [tool.black]
 line-length = 140
