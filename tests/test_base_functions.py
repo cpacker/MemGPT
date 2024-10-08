@@ -1,11 +1,11 @@
-import os
-
 import pytest
 
 import letta.functions.function_sets.base as base_functions
 from letta import create_client
+from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.llm_config import LLMConfig
 
-from .utils import create_config, wipe_config
+from .utils import wipe_config
 
 # test_agent_id = "test_agent"
 client = None
@@ -16,12 +16,9 @@ def agent_obj():
     """Create a test agent that we can call functions on"""
     wipe_config()
     global client
-    if os.getenv("OPENAI_API_KEY"):
-        create_config("openai")
-    else:
-        create_config("letta_hosted")
-
     client = create_client()
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
     agent_state = client.create_agent()
 

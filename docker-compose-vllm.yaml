@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  letta:
+    image: lettaai/letta:latest
+    ports:
+      - "8083:8083"
+    environment:
+      - LETTA_LLM_ENDPOINT=http://vllm:8000
+      - LETTA_LLM_ENDPOINT_TYPE=vllm
+      - LETTA_LLM_MODEL=${LETTA_LLM_MODEL} # Replace with your model
+      - LETTA_LLM_CONTEXT_WINDOW=8192
+    depends_on:
+      - vllm
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN}
+    volumes:
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    ports:
+      - "8000:8000"
+    command: >
+      --model ${LETTA_LLM_MODEL} --max_model_len=8000 
+    # Replace with your model
+    ipc: host

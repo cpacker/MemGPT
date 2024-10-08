@@ -16,7 +16,6 @@ import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
 from letta.agent_store.storage import StorageConnector, TableType
-from letta.cli.cli_config import get_model_options
 from letta.config import LettaConfig
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
@@ -45,6 +44,14 @@ from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
+from letta.providers import (
+    AnthropicProvider,
+    AzureProvider,
+    GoogleAIProvider,
+    OllamaProvider,
+    OpenAIProvider,
+    VLLMProvider,
+)
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
@@ -159,7 +166,7 @@ from letta.metadata import (
     ToolModel,
     UserModel,
 )
-from letta.settings import settings
+from letta.settings import model_settings, settings
 
 config = LettaConfig.load()
 
@@ -235,51 +242,8 @@ class SyncServer(Server):
 
         # The default interface that will get assigned to agents ON LOAD
         self.default_interface_factory = default_interface_factory
-        # self.default_interface = default_interface
-        # self.default_interface = default_interface_cls()
 
-        # Initialize the connection to the DB
-        # try:
-        #    self.config = LettaConfig.load()
-        #    assert self.config.default_llm_config is not None, "default_llm_config must be set in the config"
-        #    assert self.config.default_embedding_config is not None, "default_embedding_config must be set in the config"
-        # except Exception as e:
-        #    # TODO: very hacky - need to improve model config for docker container
-        #    if os.getenv("OPENAI_API_KEY") is None:
-        #        logger.error("No OPENAI_API_KEY environment variable set and no ~/.letta/config")
-        #        raise e
-
-        #    from letta.cli.cli import QuickstartChoice, quickstart
-
-        #    quickstart(backend=QuickstartChoice.openai, debug=False, terminal=False, latest=False)
-        #    self.config = LettaConfig.load()
-        #    self.config.save()
-
-        # TODO figure out how to handle credentials for the server
         self.credentials = LettaCredentials.load()
-
-        # Generate default LLM/Embedding configs for the server
-        # TODO: we may also want to do the same thing with default persona/human/etc.
-        self.server_agent_config = settings.agent_config
-        self.server_llm_config = settings.llm_config
-        self.server_embedding_config = settings.embedding_config
-        # self.server_llm_config = LLMConfig(
-        #    model=self.config.default_llm_config.model,
-        #    model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
-        #    model_endpoint=self.config.default_llm_config.model_endpoint,
-        #    model_wrapper=self.config.default_llm_config.model_wrapper,
-        #    context_window=self.config.default_llm_config.context_window,
-        # )
-        # self.server_embedding_config = EmbeddingConfig(
-        #    embedding_endpoint_type=self.config.default_embedding_config.embedding_endpoint_type,
-        #    embedding_endpoint=self.config.default_embedding_config.embedding_endpoint,
-        #    embedding_dim=self.config.default_embedding_config.embedding_dim,
-        #    embedding_model=self.config.default_embedding_config.embedding_model,
-        #    embedding_chunk_size=self.config.default_embedding_config.embedding_chunk_size,
-        # )
-        assert self.server_embedding_config.embedding_model is not None, vars(self.server_embedding_config)
-
-        # Override config values with settings
 
         # Initialize the metadata store
         config = LettaConfig.load()
@@ -288,8 +252,6 @@ class SyncServer(Server):
             config.recall_storage_uri = settings.letta_pg_uri_no_default
             config.archival_storage_type = "postgres"
             config.archival_storage_uri = settings.letta_pg_uri_no_default
-        config.default_llm_config = self.server_llm_config
-        config.default_embedding_config = self.server_embedding_config
         config.save()
         self.config = config
         self.ms = MetadataStore(self.config)
@@ -297,6 +259,21 @@ class SyncServer(Server):
         # TODO: this should be removed
         # add global default tools (for admin)
         self.add_default_tools(module_name="base")
+
+        # collect providers
+        self._enabled_providers = []
+        if model_settings.openai_api_key:
+            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key))
+        if model_settings.anthropic_api_key:
+            self._enabled_providers.append(AnthropicProvider(api_key=model_settings.anthropic_api_key))
+        if model_settings.ollama_base_url:
+            self._enabled_providers.append(OllamaProvider(base_url=model_settings.ollama_base_url))
+        if model_settings.vllm_base_url:
+            self._enabled_providers.append(VLLMProvider(base_url=model_settings.vllm_base_url))
+        if model_settings.gemini_api_key:
+            self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
+        if model_settings.azure_api_key and model_settings.azure_base_url:
+            self._enabled_providers.append(AzureProvider(api_key=model_settings.azure_api_key, base_url=model_settings.azure_base_url))
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -461,7 +438,7 @@ class SyncServer(Server):
             logger.debug("Calling step_yield()")
             letta_agent.interface.step_yield()
 
-        return LettaUsageStatistics(**total_usage.dict(), step_count=step_count)
+        return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)
 
     def _command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
         """Process a CLI command"""
@@ -771,9 +748,8 @@ class SyncServer(Server):
 
         try:
             # model configuration
-            llm_config = request.llm_config if request.llm_config else self.server_llm_config
-            embedding_config = request.embedding_config if request.embedding_config else self.server_embedding_config
-            agent_config = request.agent_config if request.agent_config else self.server_agent_config
+            llm_config = request.llm_config
+            embedding_config = request.embedding_config
 
             # get tools + make sure they exist
             tool_objs = []
@@ -1096,7 +1072,11 @@ class SyncServer(Server):
 
     def get_user(self, user_id: str) -> User:
         """Get the user"""
-        return self.ms.get_user(user_id=user_id)
+        user = self.ms.get_user(user_id=user_id)
+        if user is None:
+            raise ValueError(f"User with user_id {user_id} does not exist")
+        else:
+            return user
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1269,6 +1249,9 @@ class SyncServer(Server):
         order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
         return_message_object: bool = True,
+        use_assistant_message: bool = False,
+        assistant_message_function_name: str = constants.DEFAULT_MESSAGE_TOOL,
+        assistant_message_function_kwarg: str = constants.DEFAULT_MESSAGE_TOOL_KWARG,
     ) -> Union[List[Message], List[LettaMessage]]:
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -1288,9 +1271,25 @@ class SyncServer(Server):
         if not return_message_object:
             # If we're GETing messages in reverse, we need to reverse the inner list (generated by to_letta_message)
             if reverse:
-                records = [msg for m in records for msg in m.to_letta_message()[::-1]]
+                records = [
+                    msg
+                    for m in records
+                    for msg in m.to_letta_message(
+                        assistant_message=use_assistant_message,
+                        assistant_message_function_name=assistant_message_function_name,
+                        assistant_message_function_kwarg=assistant_message_function_kwarg,
+                    )[::-1]
+                ]
             else:
-                records = [msg for m in records for msg in m.to_letta_message()]
+                records = [
+                    msg
+                    for m in records
+                    for msg in m.to_letta_message(
+                        assistant_message=use_assistant_message,
+                        assistant_message_function_name=assistant_message_function_name,
+                        assistant_message_function_kwarg=assistant_message_function_kwarg,
+                    )
+                ]
 
         return records
 
@@ -1327,38 +1326,14 @@ class SyncServer(Server):
         base_config = vars(self.config)
         clean_base_config = clean_keys(base_config)
 
-        clean_base_config_default_llm_config_dict = vars(clean_base_config["default_llm_config"])
-        clean_base_config_default_embedding_config_dict = vars(clean_base_config["default_embedding_config"])
-
-        clean_base_config["default_llm_config"] = clean_base_config_default_llm_config_dict
-        clean_base_config["default_embedding_config"] = clean_base_config_default_embedding_config_dict
         response = {"config": clean_base_config}
 
         if include_defaults:
             default_config = vars(LettaConfig())
             clean_default_config = clean_keys(default_config)
-            clean_default_config["default_llm_config"] = clean_base_config_default_llm_config_dict
-            clean_default_config["default_embedding_config"] = clean_base_config_default_embedding_config_dict
             response["defaults"] = clean_default_config
 
         return response
-
-    def get_available_models(self) -> List[LLMConfig]:
-        """Poll the LLM endpoint for a list of available models"""
-
-        credentials = LettaCredentials().load()
-
-        try:
-            model_options = get_model_options(
-                credentials=credentials,
-                model_endpoint_type=self.config.default_llm_config.model_endpoint_type,
-                model_endpoint=self.config.default_llm_config.model_endpoint,
-            )
-            return model_options
-
-        except Exception as e:
-            logger.exception(f"Failed to get list of available models from LLM endpoint:\n{str(e)}")
-            raise
 
     def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> Memory:
         """Update the agents core memory block, return the new state"""
@@ -1479,7 +1454,7 @@ class SyncServer(Server):
         source = Source(
             name=request.name,
             user_id=user_id,
-            embedding_config=self.config.default_embedding_config,
+            embedding_config=self.list_embedding_models()[0],  # TODO: require providing this
         )
         self.ms.create_source(source)
         assert self.ms.get_source(source_name=request.name, user_id=user_id) is not None, f"Failed to create source {request.name}"
@@ -1917,20 +1892,6 @@ class SyncServer(Server):
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.retry_message()
 
-    def set_current_user(self, user_id: Optional[str]):
-        """Very hacky way to set the current user for the server, to be replaced once server becomes stateless
-
-        NOTE: clearly not thread-safe, only exists to provide basic user_id support for REST API for now
-        """
-
-        # Make sure the user_id actually exists
-        if user_id is not None:
-            user_obj = self.get_user(user_id)
-            if not user_obj:
-                raise ValueError(f"User with id {user_id} not found")
-
-        self._current_user = user_id
-
     def get_default_user(self) -> User:
 
         from letta.constants import (
@@ -1947,8 +1908,9 @@ class SyncServer(Server):
             self.ms.create_organization(org)
 
         # check if default user exists
-        default_user = self.get_user(DEFAULT_USER_ID)
-        if not default_user:
+        try:
+            self.get_user(DEFAULT_USER_ID)
+        except ValueError:
             user = User(name=DEFAULT_USER_NAME, org_id=DEFAULT_ORG_ID, id=DEFAULT_USER_ID)
             self.ms.create_user(user)
 
@@ -1959,38 +1921,30 @@ class SyncServer(Server):
         # check if default org exists
         return self.get_user(DEFAULT_USER_ID)
 
-    # TODO(ethan) wire back to real method in future ORM PR
-    def get_current_user(self) -> User:
-        """Returns the currently authed user.
+    def get_user_or_default(self, user_id: Optional[str]) -> User:
+        """Get the user object for user_id if it exists, otherwise return the default user object"""
+        if user_id is None:
+            return self.get_default_user()
+        else:
+            return self.get_user(user_id=user_id)
 
-        Since server is the core gateway this needs to pass through server as the
-        first touchpoint.
-        """
-
-        # Check if _current_user is set and if it's non-null:
-        if hasattr(self, "_current_user") and self._current_user is not None:
-            current_user = self.get_user(self._current_user)
-            if not current_user:
-                warnings.warn(f"Provided user '{self._current_user}' not found, using default user")
-            else:
-                return current_user
-
-        return self.get_default_user()
-
-    def list_models(self) -> List[LLMConfig]:
+    def list_llm_models(self) -> List[LLMConfig]:
         """List available models"""
 
-        # TODO: allow multiple options from endpoint
-        # model_options = get_model_options(
-        #    credentials=LettaCredentials().load(),
-        #    model_endpoint_type=settings.llm_endpoint,
-        #    model_endpoint=settings.llm_endpoint_type
-        # )
-
-        return [settings.llm_config]
+        llm_models = []
+        for provider in self._enabled_providers:
+            llm_models.extend(provider.list_llm_models())
+        return llm_models
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         """List available embedding models"""
+        embedding_models = []
+        for provider in self._enabled_providers:
+            embedding_models.extend(provider.list_embedding_models())
+        return embedding_models
 
-        # TODO support multiple models
-        return [settings.embedding_config]
+    def add_llm_model(self, request: LLMConfig) -> LLMConfig:
+        """Add a new LLM model"""
+
+    def add_embedding_model(self, request: EmbeddingConfig) -> EmbeddingConfig:
+        """Add a new embedding model"""

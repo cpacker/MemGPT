@@ -11,6 +11,8 @@ from letta import Admin, create_client
 from letta.agent import Agent
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
+from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
@@ -45,6 +47,7 @@ def run_server():
     scope="module",
 )
 def client(request):
+
     if request.param["server"]:
         # get URL from enviornment
         server_url = os.getenv("MEMGPT_SERVER_URL")
@@ -69,6 +72,8 @@ def client(request):
     assert server_url is not None
     assert api_key.key is not None
     client = create_client(base_url=server_url, token=api_key.key)  # This yields control back to the test function
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
     try:
         yield client
     finally:

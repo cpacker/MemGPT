@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 
 from letta.schemas.job import Job
 from letta.server.rest_api.utils import get_letta_server
@@ -13,11 +13,12 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 def list_jobs(
     server: "SyncServer" = Depends(get_letta_server),
     source_id: Optional[str] = Query(None, description="Only list jobs associated with the source."),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     List all jobs.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     # TODO: add filtering by status
     jobs = server.list_jobs(user_id=actor.id)
@@ -33,11 +34,12 @@ def list_jobs(
 @router.get("/active", response_model=List[Job], operation_id="list_active_jobs")
 def list_active_jobs(
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     List all active jobs.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     return server.list_active_jobs(user_id=actor.id)
 

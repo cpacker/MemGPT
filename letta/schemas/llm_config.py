@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -11,14 +11,33 @@ class LLMConfig(BaseModel):
         model (str): The name of the LLM model.
         model_endpoint_type (str): The endpoint type for the model.
         model_endpoint (str): The endpoint for the model.
-        model_wrapper (str): The wrapper for the model.
+        model_wrapper (str): The wrapper for the model. This is used to wrap additional text around the input/output of the model. This is useful for text-to-text completions, such as the Completions API in OpenAI.
         context_window (int): The context window size for the model.
     """
 
     # TODO: 🤮 don't default to a vendor! bug city!
     model: str = Field(..., description="LLM model name. ")
-    model_endpoint_type: str = Field(..., description="The endpoint type for the model.")
-    model_endpoint: str = Field(..., description="The endpoint for the model.")
+    model_endpoint_type: Literal[
+        "openai",
+        "anthropic",
+        "cohere",
+        "google_ai",
+        "azure",
+        "groq",
+        "ollama",
+        "webui",
+        "webui-legacy",
+        "lmstudio",
+        "lmstudio-legacy",
+        "llamacpp",
+        "koboldcpp",
+        "vllm",
+        "hugging-face",
+    ] = Field(..., description="The endpoint type for the model.")
+    model_endpoint: Optional[str] = Field(None, description="The endpoint for the model.")
+    api_version: Optional[str] = Field(
+        None, description="The version for the model API. Used by the Azure provider backend, e.g. 2023-03-15-preview."
+    )
     model_wrapper: Optional[str] = Field(None, description="The wrapper for the model.")
     context_window: int = Field(..., description="The context window size for the model.")
 

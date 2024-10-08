@@ -5,7 +5,6 @@ from typing import Dict, Iterator, List, Tuple
 
 import requests
 
-from letta.cli.cli import QuickstartChoice, quickstart
 from letta.config import LettaConfig
 from letta.data_sources.connectors import DataConnector
 from letta.schemas.document import Document
@@ -27,16 +26,6 @@ class DummyDataConnector(DataConnector):
     def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
         for doc in documents:
             yield doc.text, doc.metadata_
-
-
-def create_config(endpoint="openai"):
-    """Create config file matching quickstart option"""
-    if endpoint == "openai":
-        quickstart(QuickstartChoice.openai)
-    elif endpoint == "letta_hosted":
-        quickstart(QuickstartChoice.letta_hosted)
-    else:
-        raise ValueError(f"Invalid endpoint {endpoint}")
 
 
 def wipe_config():

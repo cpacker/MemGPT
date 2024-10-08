@@ -2,10 +2,11 @@ import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.responses import StreamingResponse
 
+from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.enums import MessageRole, MessageStreamStatus
 from letta.schemas.letta_message import (
@@ -39,12 +40,13 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 @router.get("/", response_model=List[AgentState], operation_id="list_agents")
 def list_agents(
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     List all agents associated with a given user.
     This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     return server.list_agents(user_id=actor.id)
 
@@ -53,11 +55,12 @@ def list_agents(
 def create_agent(
     agent: CreateAgent = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Create a new agent with the specified configuration.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
     agent.user_id = actor.id
     # TODO: sarah make general
     # TODO: eventually remove this
@@ -73,9 +76,10 @@ def update_agent(
     agent_id: str,
     update_agent: UpdateAgentState = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """Update an exsiting agent"""
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     update_agent.id = agent_id
     return server.update_agent(update_agent, user_id=actor.id)
@@ -85,11 +89,12 @@ def update_agent(
 def get_agent_state(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Get the state of the agent.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     if not server.ms.get_agent(user_id=actor.id, agent_id=agent_id):
         # agent does not exist
@@ -102,11 +107,12 @@ def get_agent_state(
 def delete_agent(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Delete an agent.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     return server.delete_agent(user_id=actor.id, agent_id=agent_id)
 
@@ -119,7 +125,6 @@ def get_agent_sources(
     """
     Get the sources associated with an agent.
     """
-    server.get_current_user()
 
     return server.list_attached_sources(agent_id)
 
@@ -154,12 +159,13 @@ def update_agent_memory(
     agent_id: str,
     request: Dict = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Update the core memory of a specific agent.
     This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     memory = server.update_agent_core_memory(user_id=actor.id, agent_id=agent_id, new_memory_contents=request)
     return memory
@@ -196,11 +202,12 @@ def get_agent_archival_memory(
     after: Optional[int] = Query(None, description="Unique ID of the memory to start the query range at."),
     before: Optional[int] = Query(None, description="Unique ID of the memory to end the query range at."),
     limit: Optional[int] = Query(None, description="How many results to include in the response."),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Retrieve the memories in an agent's archival memory store (paginated query).
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     # TODO need to add support for non-postgres here
     # chroma will throw:
@@ -220,11 +227,12 @@ def insert_agent_archival_memory(
     agent_id: str,
     request: CreateArchivalMemory = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Insert a memory into an agent's archival memory store.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     return server.insert_archival_memory(user_id=actor.id, agent_id=agent_id, memory_contents=request.text)
 
@@ -237,11 +245,12 @@ def delete_agent_archival_memory(
     memory_id: str,
     # memory_id: str = Query(..., description="Unique ID of the memory to be deleted."),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Delete a memory from an agent's archival memory store.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     server.delete_archival_memory(user_id=actor.id, agent_id=agent_id, memory_id=memory_id)
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Memory id={memory_id} successfully deleted"})
@@ -254,11 +263,25 @@ def get_agent_messages(
     before: Optional[str] = Query(None, description="Message before which to retrieve the returned messages."),
     limit: int = Query(10, description="Maximum number of messages to retrieve."),
     msg_object: bool = Query(False, description="If true, returns Message objects. If false, return LettaMessage objects."),
+    # Flags to support the use of AssistantMessage message types
+    use_assistant_message: bool = Query(
+        False,
+        description="[Only applicable if msg_object is False] If true, returns AssistantMessage objects when the agent calls a designated message tool. If false, return FunctionCallMessage objects for all tool calls.",
+    ),
+    assistant_message_function_name: str = Query(
+        DEFAULT_MESSAGE_TOOL,
+        description="[Only applicable if use_assistant_message is True] The name of the designated message tool.",
+    ),
+    assistant_message_function_kwarg: str = Query(
+        DEFAULT_MESSAGE_TOOL_KWARG,
+        description="[Only applicable if use_assistant_message is True] The name of the message argument in the designated message tool.",
+    ),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Retrieve message history for an agent.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     return server.get_agent_recall_cursor(
         user_id=actor.id,
@@ -267,6 +290,9 @@ def get_agent_messages(
         limit=limit,
         reverse=True,
         return_message_object=msg_object,
+        use_assistant_message=use_assistant_message,
+        assistant_message_function_name=assistant_message_function_name,
+        assistant_message_function_kwarg=assistant_message_function_kwarg,
     )
 
 
@@ -289,13 +315,14 @@ async def send_message(
     agent_id: str,
     server: SyncServer = Depends(get_letta_server),
     request: LettaRequest = Body(...),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
     """
     Process a user message and return the agent's response.
     This endpoint accepts a message from a user and processes it through the agent.
     It can optionally stream the response if 'stream_steps' or 'stream_tokens' is set to True.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     # TODO(charles): support sending multiple messages
     assert len(request.messages) == 1, f"Multiple messages not supported: {request.messages}"
@@ -310,6 +337,10 @@ async def send_message(
         stream_steps=request.stream_steps,
         stream_tokens=request.stream_tokens,
         return_message_object=request.return_message_object,
+        # Support for AssistantMessage
+        use_assistant_message=request.use_assistant_message,
+        assistant_message_function_name=request.assistant_message_function_name,
+        assistant_message_function_kwarg=request.assistant_message_function_kwarg,
     )
 
 
@@ -322,12 +353,17 @@ async def send_message_to_agent(
     message: str,
     stream_steps: bool,
     stream_tokens: bool,
-    return_message_object: bool,  # Should be True for Python Client, False for REST API
-    chat_completion_mode: Optional[bool] = False,
-    timestamp: Optional[datetime] = None,
     # related to whether or not we return `LettaMessage`s or `Message`s
+    return_message_object: bool,  # Should be True for Python Client, False for REST API
+    chat_completion_mode: bool = False,
+    timestamp: Optional[datetime] = None,
+    # Support for AssistantMessage
+    use_assistant_message: bool = False,
+    assistant_message_function_name: str = DEFAULT_MESSAGE_TOOL,
+    assistant_message_function_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
 ) -> Union[StreamingResponse, LettaResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
+
     # TODO: @charles is this the correct way to handle?
     include_final_message = True
 
@@ -356,7 +392,8 @@ async def send_message_to_agent(
 
         # Disable token streaming if not OpenAI
         # TODO: cleanup this logic
-        if server.server_llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in server.server_llm_config.model_endpoint:
+        llm_config = letta_agent.agent_state.llm_config
+        if llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in llm_config.model_endpoint:
             print("Warning: token streaming is only supported for OpenAI models. Setting to False.")
             stream_tokens = False
 
@@ -367,6 +404,11 @@ async def send_message_to_agent(
 
         # streaming_interface.allow_assistant_message = stream
         # streaming_interface.function_call_legacy_mode = stream
+
+        # Allow AssistantMessage is desired by client
+        streaming_interface.use_assistant_message = use_assistant_message
+        streaming_interface.assistant_message_function_name = assistant_message_function_name
+        streaming_interface.assistant_message_function_kwarg = assistant_message_function_kwarg
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
@@ -408,6 +450,7 @@ async def send_message_to_agent(
                 message_ids = [m.id for m in filtered_stream]
                 message_ids = deduplicate(message_ids)
                 message_objs = [server.get_agent_message(agent_id=agent_id, message_id=m_id) for m_id in message_ids]
+                message_objs = [m for m in message_objs if m is not None]
                 return LettaResponse(messages=message_objs, usage=usage)
             else:
                 return LettaResponse(messages=filtered_stream, usage=usage)

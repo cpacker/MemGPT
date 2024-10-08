@@ -11,9 +11,11 @@ from letta import Admin, create_client
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import AgentState
+from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus, MessageStreamStatus
 from letta.schemas.letta_message import FunctionCallMessage, InternalMonologue
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 
@@ -72,6 +74,8 @@ def client(request):
         server_url = None
         client = create_client()
 
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
     try:
         yield client
     finally:
@@ -419,3 +423,13 @@ def test_organization(client: RESTClient):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_organization because LocalClient does not support organizations")
     client.base_url
+
+
+def test_model_configs(client: Union[LocalClient, RESTClient]):
+    # _reset_config()
+
+    model_configs = client.list_models()
+    print("MODEL CONFIGS", model_configs)
+
+    embedding_configs = client.list_embedding_models()
+    print("EMBEDDING CONFIGS", embedding_configs)

@@ -1,0 +1,7 @@
+{
+    "embedding_endpoint": "https://embeddings.memgpt.ai",
+    "embedding_model": "BAAI/bge-large-en-v1.5",
+    "embedding_dim": 1024,
+    "embedding_chunk_size": 300,
+    "embedding_endpoint_type": "hugging-face"
+}

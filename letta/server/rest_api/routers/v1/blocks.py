@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
 
 from letta.schemas.block import Block, CreateBlock, UpdateBlock
 from letta.server.rest_api.utils import get_letta_server
@@ -19,8 +19,9 @@ def list_blocks(
     templates_only: bool = Query(True, description="Whether to include only templates"),
     name: Optional[str] = Query(None, description="Name of the block"),
     server: SyncServer = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     blocks = server.get_blocks(user_id=actor.id, label=label, template=templates_only, name=name)
     if blocks is None:
@@ -32,8 +33,9 @@ def list_blocks(
 def create_block(
     create_block: CreateBlock = Body(...),
     server: SyncServer = Depends(get_letta_server),
+    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
 ):
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
 
     create_block.user_id = actor.id
     return server.create_block(user_id=actor.id, request=create_block)
