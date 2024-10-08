@@ -123,6 +123,9 @@ class SplitThreadAgent(BaseAgent):
         inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
+        with self.memory_condition:
+            self.memory_finished = False
+
         memory_thread = threading.Thread(
             target=self._memory_step,
             args=(
@@ -193,9 +196,6 @@ class SplitThreadAgent(BaseAgent):
         inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
-        with self.memory_condition:
-            self.memory_finished = False
-
         memory_step = self.memory_agent.step(
             user_message=messages,
             first_message=first_message,
