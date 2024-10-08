@@ -12,6 +12,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
+from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.tool import Tool
 
 MEMORY_TOOLS = [
@@ -54,6 +55,9 @@ class SplitThreadAgent(BaseAgent):
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
+        self.conversation_waited = False
+        self.conversation_agent_lock = threading.Lock()
+
         self.memory_agent = Agent(
             interface=interface,
             agent_state=memory_agent_state,
@@ -61,6 +65,10 @@ class SplitThreadAgent(BaseAgent):
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
+        self.memory_result = None
+        self.memory_result_lock = threading.Lock()
+        self.memory_finished = False
+        self.memory_condition = threading.Condition()
 
         self.update_state()
 
@@ -77,12 +85,28 @@ class SplitThreadAgent(BaseAgent):
         inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
-        memory_step_result = [None]
+        self.memory_finished = False
+        memory_thread = threading.Thread(
+            target=self._memory_step,
+            args=(
+                messages,
+                first_message,
+                first_message_retry_limit,
+                skip_verify,
+                return_dicts,
+                recreate_message_timestamp,
+                stream,
+                timestamp,
+                inner_thoughts_in_kwargs_option,
+                ms,
+            ),
+        )
+        memory_thread.start()
 
-        def run_memory_step():
-            memory_step_result[0] = self.memory_agent.step(
-                user_message=messages,
+        with self.conversation_agent_lock:
+            conversation_step = self.conversation_agent.step(
                 first_message=first_message,
+                user_message=messages,
                 first_message_retry_limit=first_message_retry_limit,
                 skip_verify=skip_verify,
                 return_dicts=return_dicts,
@@ -93,18 +117,44 @@ class SplitThreadAgent(BaseAgent):
                 ms=ms,
             )
 
-        memory_thread = threading.Thread(target=run_memory_step)
-        memory_thread.start()
-        memory_thread.join()
+            if self.conversation_waited:
+                next_conversation_step = self.conversation_agent.step(
+                    first_message=first_message,
+                    user_message=messages,
+                    first_message_retry_limit=first_message_retry_limit,
+                    skip_verify=skip_verify,
+                    return_dicts=return_dicts,
+                    recreate_message_timestamp=recreate_message_timestamp,
+                    stream=stream,
+                    timestamp=timestamp,
+                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
+                    ms=ms,
+                )
+                conversation_step = self._combine_steps(conversation_step, next_conversation_step)
+                self.conversation_waited = False
 
-        memory_step = memory_step_result[0]
+        step = conversation_step
+        with self.memory_result_lock:
+            if self.memory_result:
+                step = self._combine_steps(self.memory_result, conversation_step)
+                self.memory_result = None
 
-        # Update conversation agent memory
-        self.conversation_agent.memory = self.memory_agent.memory
-        self.conversation_agent.update_state()
-        save_agent(agent=self.conversation_agent, ms=ms)
+        return step
 
-        conversation_step = self.conversation_agent.step(
+    def _memory_step(
+        self,
+        messages: Union[Message, List[Message], str],  # TODO deprecate str inputs
+        first_message: bool = False,
+        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
+        skip_verify: bool = False,
+        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
+        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
+        stream: bool = False,  # TODO move to config?
+        timestamp: Optional[datetime.datetime] = None,
+        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
+        ms: Optional[MetadataStore] = None,
+    ) -> AgentStepResponse:
+        memory_step = self.memory_agent.step(
             user_message=messages,
             first_message=first_message,
             first_message_retry_limit=first_message_retry_limit,
@@ -116,14 +166,40 @@ class SplitThreadAgent(BaseAgent):
             inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             ms=ms,
         )
+        with self.memory_result_lock:
+            self.memory_step = self._combine_steps(self.memory_step, memory_step)
+        self.memory_finished = True
 
+        with self.conversation_agent_lock:
+            self.conversation_agent.memory = self.memory_agent.memory
+            self.conversation_agent.update_state()
+            save_agent(agent=self.conversation_agent, ms=ms)
+
+        self.memory_condition.notify()
+
+    def _wait_for_memory_tool(self):
+        with self.memory_condition:
+            while not self.memory_finished:
+                self.memory_condition.wait()
+
+        self.conversation_waited = True
+
+    def _combine_steps(self, *steps: AgentStepResponse) -> AgentStepResponse:
         combined_step = AgentStepResponse(
-            messages=memory_step.messages + conversation_step.messages,
-            heartbeat_request=memory_step.heartbeat_request or conversation_step.heartbeat_request,
-            function_failed=memory_step.function_failed or conversation_step.function_failed,
-            in_context_memory_warning=memory_step.in_context_memory_warning or conversation_step.in_context_memory_warning,
-            usage=memory_step.usage + conversation_step.usage,
+            messages=[],
+            heartbeat_request=False,
+            function_failed=False,
+            in_context_memory_warning=False,
+            usage=UsageStatistics(),
         )
+
+        for step in steps:
+            combined_step.messages += step.messages
+            combined_step.heartbeat_request = combined_step.heartbeat_request or step.heartbeat_request
+            combined_step.function_failed = combined_step.function_failed or step.function_failed
+            combined_step.in_context_memory_warning = combined_step.in_context_memory_warning or step.in_context_memory_warning
+            combined_step.usage += step.usage
+
         return combined_step
 
     def update_state(self) -> AgentState:
