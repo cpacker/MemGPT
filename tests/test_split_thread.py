@@ -32,7 +32,9 @@ def test_split_thread_creation():
     agent = client.get_agent(agent_id=agent_state.id)
     assert agent is not None
 
-    response = client.user_message(agent_id=agent_state.id, message="My name is Vivek.")
+    response = client.user_message(
+        agent_id=agent_state.id, message="My name is Vivek. Before you respond, make sure you wait for the memory to be updated"
+    )
     assert response is not None
 
     print_messages(response.messages)

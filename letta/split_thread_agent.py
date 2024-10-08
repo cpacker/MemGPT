@@ -4,6 +4,8 @@ from typing import List, Optional, Tuple, Union
 
 from letta.agent import Agent, BaseAgent, save_agent
 from letta.constants import FIRST_MESSAGE_ATTEMPTS
+from letta.functions.functions import parse_source_code
+from letta.functions.schema_generator import generate_schema
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
@@ -57,6 +59,20 @@ class SplitThreadAgent(BaseAgent):
         )
         self.conversation_waited = False
         self.conversation_agent_lock = threading.Lock()
+
+        self.memory_wait_tool = Tool(
+            name="wait_for_memory_update",
+            source_type="python",
+            source_code=parse_source_code(self._wait_for_memory_tool),
+            json_schema=generate_schema(self._wait_for_memory_tool),
+            description="",
+            module="",
+            user_id=conversation_agent_state.user_id,
+            tags=[],
+        )
+        conversation_agent_state.tools.append(self.memory_wait_tool.name)
+        self.conversation_agent.link_tools(conversation_tools + [self.memory_wait_tool])
+        self.conversation_agent.update_state()
 
         self.memory_agent = Agent(
             interface=interface,
@@ -167,7 +183,10 @@ class SplitThreadAgent(BaseAgent):
             ms=ms,
         )
         with self.memory_result_lock:
-            self.memory_step = self._combine_steps(self.memory_step, memory_step)
+            if self.memory_result:
+                self.memory_result = self._combine_steps(self.memory_result, memory_step)
+            else:
+                self.memory_result = memory_step
         self.memory_finished = True
 
         with self.conversation_agent_lock:
@@ -175,7 +194,8 @@ class SplitThreadAgent(BaseAgent):
             self.conversation_agent.update_state()
             save_agent(agent=self.conversation_agent, ms=ms)
 
-        self.memory_condition.notify()
+        with self.memory_condition:
+            self.memory_condition.notify()
 
     def _wait_for_memory_tool(self):
         with self.memory_condition:
@@ -290,4 +310,6 @@ def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
     save_agent(agent=agent.agent, ms=ms)
     save_agent(agent=agent.conversation_agent, ms=ms)
     save_agent(agent=agent.memory_agent, ms=ms)
+    if ms.get_tool(tool_name=agent.memory_wait_tool.name, user_id=agent.memory_agent.agent_state.user_id) is None:
+        ms.create_tool(agent.memory_wait_tool)
     agent.update_state()
