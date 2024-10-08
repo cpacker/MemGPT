@@ -28,7 +28,6 @@ from letta.local_llm.constants import (
     INNER_THOUGHTS_KWARG,
     INNER_THOUGHTS_KWARG_DESCRIPTION,
 )
-from letta.providers import GoogleAIProvider
 from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
@@ -231,7 +230,7 @@ def create(
 
         return google_ai_chat_completions_request(
             inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg,
-            service_endpoint=GoogleAIProvider(model_settings.gemini_api_key).service_endpoint,
+            base_url=llm_config.model_endpoint,
             model=llm_config.model,
             api_key=model_settings.gemini_api_key,
             # see structure of payload here: https://ai.google.dev/docs/function_calling
