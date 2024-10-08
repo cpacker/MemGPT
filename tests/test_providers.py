@@ -30,12 +30,13 @@ def test_anthropic():
 #
 #
 
+
 # TODO: Add this test
 # https://linear.app/letta/issue/LET-159/add-tests-for-azure-openai-in-test-providerspy-and-test-endpointspy
 def test_azure():
     pass
 
-  
+
 def test_ollama():
     provider = OllamaProvider(base_url=os.getenv("OLLAMA_BASE_URL"))
     models = provider.list_llm_models()
