@@ -49,8 +49,8 @@ namespace = uuid.NAMESPACE_DNS
 agent_uuid = str(uuid.uuid5(namespace, "test-endpoints-agent"))
 
 # defaults (letta hosted)
-EMBEDDING_CONFIG_PATH = "configs/embedding_model_configs/letta-hosted.json"
-LLM_CONFIG_PATH = "configs/llm_model_configs/letta-hosted.json"
+EMBEDDING_CONFIG_PATH = "tests/configs/embedding_model_configs/letta-hosted.json"
+LLM_CONFIG_PATH = "tests/configs/llm_model_configs/letta-hosted.json"
 
 
 # ======================================================================================================================
