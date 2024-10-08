@@ -1,5 +1,6 @@
 from letta.client.client import create_client
 from letta.o1_agent import send_final_message, send_thinking_message
+from letta.schemas.agent import AgentType
 
 
 def test_o1_agent():
@@ -9,7 +10,7 @@ def test_o1_agent():
     thinking_tool = client.create_tool(send_thinking_message)
     final_tool = client.create_tool(send_final_message)
 
-    agent_state = client.create_agent(tools=[thinking_tool.name, final_tool.name])
+    agent_state = client.create_agent(agent_type=AgentType.o1_agent, tools=[thinking_tool.name, final_tool.name])
     agent = client.get_agent(agent_id=agent_state.id)
     assert agent is not None
 
