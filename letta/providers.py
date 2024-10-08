@@ -8,7 +8,6 @@ from letta.schemas.llm_config import LLMConfig
 
 
 class Provider(BaseModel):
-    base_url: str
 
     def list_llm_models(self):
         return []
