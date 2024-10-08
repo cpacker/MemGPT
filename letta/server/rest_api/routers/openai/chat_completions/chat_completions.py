@@ -1,7 +1,7 @@
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
 from letta.schemas.enums import MessageRole
 from letta.schemas.letta_message import FunctionCall, LettaMessage
@@ -30,12 +30,14 @@ router = APIRouter(prefix="/v1/chat/completions", tags=["chat_completions"])
 async def create_chat_completion(
     completion_request: ChatCompletionRequest = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """Send a message to a Letta agent via a /chat/completions completion_request
     The bearer token will be used to identify the user.
     The 'user' field in the completion_request should be set to the agent ID.
     """
-    actor = server.get_current_user()
+    actor = server.get_user_or_default(user_id=user_id)
+
     agent_id = completion_request.user
     if agent_id is None:
         raise HTTPException(status_code=400, detail="Must pass agent_id in the 'user' field")

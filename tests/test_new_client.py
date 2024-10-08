@@ -5,12 +5,17 @@ import pytest
 from letta import create_client
 from letta.client.client import LocalClient, RESTClient
 from letta.schemas.block import Block
+from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
 
 
 @pytest.fixture(scope="module")
 def client():
-    yield create_client()
+    client = create_client()
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+    yield client
 
 
 @pytest.fixture(scope="module")

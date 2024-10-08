@@ -3,8 +3,6 @@ import json
 from typing import List
 
 from letta.config import LettaConfig
-from letta.constants import LLM_MAX_TOKENS
-from letta.data_types import EmbeddingConfig, LLMConfig
 
 
 def load_gzipped_file(file_path):
@@ -26,34 +24,6 @@ def get_experiment_config(postgres_uri, endpoint_type="openai", model="gpt-4"):
     config.archival_storage_type = "postgres"
     config.archival_storage_uri = postgres_uri
 
-    if endpoint_type == "openai":
-        llm_config = LLMConfig(
-            model=model, model_endpoint_type="openai", model_endpoint="https://api.openai.com/v1", context_window=LLM_MAX_TOKENS[model]
-        )
-        embedding_config = EmbeddingConfig(
-            embedding_endpoint_type="openai",
-            embedding_endpoint="https://api.openai.com/v1",
-            embedding_dim=1536,
-            embedding_model="text-embedding-ada-002",
-            embedding_chunk_size=300,  # TODO: fix this
-        )
-    else:
-        assert model == "ehartford/dolphin-2.5-mixtral-8x7b", "Only model supported is ehartford/dolphin-2.5-mixtral-8x7b"
-        llm_config = LLMConfig(
-            model="ehartford/dolphin-2.5-mixtral-8x7b",
-            model_endpoint_type="vllm",
-            model_endpoint="https://api.letta.ai",
-            model_wrapper="chatml",
-            context_window=16384,
-        )
-        embedding_config = EmbeddingConfig(
-            embedding_endpoint_type="hugging-face",
-            embedding_endpoint="https://embeddings.letta.ai",
-            embedding_dim=1024,
-            embedding_model="BAAI/bge-large-en-v1.5",
-            embedding_chunk_size=300,
-        )
-
     config = LettaConfig(
         anon_clientid=config.anon_clientid,
         archival_storage_type="postgres",
@@ -62,8 +32,5 @@ def get_experiment_config(postgres_uri, endpoint_type="openai", model="gpt-4"):
         recall_storage_uri=postgres_uri,
         metadata_storage_type="postgres",
         metadata_storage_uri=postgres_uri,
-        default_llm_config=llm_config,
-        default_embedding_config=embedding_config,
     )
-    print("Config model", config.default_llm_config.model)
     return config

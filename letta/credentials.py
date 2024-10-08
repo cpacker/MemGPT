@@ -23,14 +23,14 @@ class LettaCredentials:
     google_ai_service_endpoint: Optional[str] = None
 
     # anthropic config
-    anthropic_key: Optional[str] = None
+    anthropic_key: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
 
     # cohere config
     cohere_key: Optional[str] = None
 
     # azure config
     azure_auth_type: str = "api_key"
-    azure_key: Optional[str] = None
+    azure_key: Optional[str] = os.getenv("AZURE_OPENAI_API_KEY")
 
     # groq config
     groq_key: Optional[str] = os.getenv("GROQ_API_KEY")

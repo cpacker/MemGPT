@@ -9,7 +9,7 @@ from letta.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.block import (
     Block,
     CreateBlock,
@@ -68,6 +68,7 @@ class AbstractClient(object):
     def create_agent(
         self,
         name: Optional[str] = None,
+        agent_type: Optional[AgentType] = AgentType.memgpt_agent,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
@@ -272,6 +273,8 @@ class RESTClient(AbstractClient):
         token: str,
         api_prefix: str = "v1",
         debug: bool = False,
+        default_llm_config: Optional[LLMConfig] = None,
+        default_embedding_config: Optional[EmbeddingConfig] = None,
     ):
         """
         Initializes a new instance of Client class.
@@ -280,11 +283,14 @@ class RESTClient(AbstractClient):
             auto_save (bool): Whether to automatically save changes.
             user_id (str): The user ID.
             debug (bool): Whether to print debug information.
+            default
         """
         super().__init__(debug=debug)
         self.base_url = base_url
         self.api_prefix = api_prefix
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
+        self._default_llm_config = default_llm_config
+        self._default_embedding_config = default_embedding_config
 
     def list_agents(self) -> List[AgentState]:
         response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers)
@@ -314,9 +320,11 @@ class RESTClient(AbstractClient):
     def create_agent(
         self,
         name: Optional[str] = None,
+        # agent config
+        agent_type: Optional[AgentType] = AgentType.memgpt_agent,
         # model configs
-        embedding_config: Optional[EmbeddingConfig] = None,
-        llm_config: Optional[LLMConfig] = None,
+        embedding_config: EmbeddingConfig = None,
+        llm_config: LLMConfig = None,
         # memory
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         # system
@@ -364,6 +372,10 @@ class RESTClient(AbstractClient):
             tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"], update=True)
             tool_names.append(tool.name)
 
+        # check if default configs are provided
+        assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
+        assert llm_config or self._default_llm_config, f"LLM config must be provided"
+
         # create agent
         request = CreateAgent(
             name=name,
@@ -372,8 +384,9 @@ class RESTClient(AbstractClient):
             memory=memory,
             tools=tool_names,
             system=system,
-            llm_config=llm_config,
-            embedding_config=embedding_config,
+            agent_type=agent_type,
+            llm_config=llm_config if llm_config else self._default_llm_config,
+            embedding_config=embedding_config if embedding_config else self._default_embedding_config,
         )
 
         response = requests.post(f"{self.base_url}/{self.api_prefix}/agents", json=request.model_dump(), headers=self.headers)
@@ -1326,6 +1339,48 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get tool: {response.text}")
         return response.json()
 
+    def set_default_llm_config(self, llm_config: LLMConfig):
+        """
+        Set the default LLM configuration
+
+        Args:
+            llm_config (LLMConfig): LLM configuration
+        """
+        self._default_llm_config = llm_config
+
+    def set_default_embedding_config(self, embedding_config: EmbeddingConfig):
+        """
+        Set the default embedding configuration
+
+        Args:
+            embedding_config (EmbeddingConfig): Embedding configuration
+        """
+        self._default_embedding_config = embedding_config
+
+    def list_llm_configs(self) -> List[LLMConfig]:
+        """
+        List available LLM configurations
+
+        Returns:
+            configs (List[LLMConfig]): List of LLM configurations
+        """
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/models", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list LLM configs: {response.text}")
+        return [LLMConfig(**config) for config in response.json()]
+
+    def list_embedding_configs(self) -> List[EmbeddingConfig]:
+        """
+        List available embedding configurations
+
+        Returns:
+            configs (List[EmbeddingConfig]): List of embedding configurations
+        """
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/models/embedding", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list embedding configs: {response.text}")
+        return [EmbeddingConfig(**config) for config in response.json()]
+
 
 class LocalClient(AbstractClient):
     """
@@ -1344,6 +1399,8 @@ class LocalClient(AbstractClient):
         auto_save: bool = False,
         user_id: Optional[str] = None,
         debug: bool = False,
+        default_llm_config: Optional[LLMConfig] = None,
+        default_embedding_config: Optional[EmbeddingConfig] = None,
     ):
         """
         Initializes a new instance of Client class.
@@ -1359,6 +1416,11 @@ class LocalClient(AbstractClient):
         letta.utils.DEBUG = debug
         logging.getLogger().setLevel(logging.CRITICAL)
 
+        # save default model config
+        self._default_llm_config = default_llm_config
+        self._default_embedding_config = default_embedding_config
+
+        # create server
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
@@ -1404,9 +1466,11 @@ class LocalClient(AbstractClient):
     def create_agent(
         self,
         name: Optional[str] = None,
+        # agent config
+        agent_type: Optional[AgentType] = AgentType.memgpt_agent,
         # model configs
-        embedding_config: Optional[EmbeddingConfig] = None,
-        llm_config: Optional[LLMConfig] = None,
+        embedding_config: EmbeddingConfig = None,
+        llm_config: LLMConfig = None,
         # memory
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         # system
@@ -1453,6 +1517,10 @@ class LocalClient(AbstractClient):
 
         self.interface.clear()
 
+        # check if default configs are provided
+        assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
+        assert llm_config or self._default_llm_config, f"LLM config must be provided"
+
         # create agent
         agent_state = self.server.create_agent(
             CreateAgent(
@@ -1462,8 +1530,9 @@ class LocalClient(AbstractClient):
                 memory=memory,
                 tools=tool_names,
                 system=system,
-                llm_config=llm_config,
-                embedding_config=embedding_config,
+                agent_type=agent_type,
+                llm_config=llm_config if llm_config else self._default_llm_config,
+                embedding_config=embedding_config if embedding_config else self._default_embedding_config,
             ),
             user_id=self.user_id,
         )
@@ -1592,7 +1661,7 @@ class LocalClient(AbstractClient):
     # memory
     def get_in_context_memory(self, agent_id: str) -> Memory:
         """
-        Get the in-contxt (i.e. core) memory of an agent
+        Get the in-context (i.e. core) memory of an agent
 
         Args:
             agent_id (str): ID of the agent
@@ -2363,7 +2432,37 @@ class LocalClient(AbstractClient):
         return self.server.delete_block(id)
 
     def set_default_llm_config(self, llm_config: LLMConfig):
-        self.server.server_llm_config = llm_config
+        """
+        Set the default LLM configuration for agents.
+
+        Args:
+            llm_config (LLMConfig): LLM configuration
+        """
+        self._default_llm_config = llm_config
 
     def set_default_embedding_config(self, embedding_config: EmbeddingConfig):
-        self.server.server_embedding_config = embedding_config
+        """
+        Set the default embedding configuration for agents.
+
+        Args:
+            embedding_config (EmbeddingConfig): Embedding configuration
+        """
+        self._default_embedding_config = embedding_config
+
+    def list_llm_configs(self) -> List[LLMConfig]:
+        """
+        List available LLM configurations
+
+        Returns:
+            configs (List[LLMConfig]): List of LLM configurations
+        """
+        return self.server.list_llm_models()
+
+    def list_embedding_configs(self) -> List[EmbeddingConfig]:
+        """
+        List available embedding configurations
+
+        Returns:
+            configs (List[EmbeddingConfig]): List of embedding configurations
+        """
+        return self.server.list_embedding_models()

@@ -1,11 +1,11 @@
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from letta.server.constants import REST_DEFAULT_PORT
@@ -71,6 +71,10 @@ def create_application() -> "FastAPI":
         summary="Create LLM agents with long-term memory and custom tools 📚🦙",
         version="1.0.0",  # TODO wire this up to the version in the package
     )
+
+    if "--ade" in sys.argv:
+        settings.cors_origins.append("https://app.letta.com")
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -78,21 +82,6 @@ def create_application() -> "FastAPI":
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    @app.middleware("http")
-    async def set_current_user_middleware(request: Request, call_next):
-        user_id = request.headers.get("user_id")
-        if user_id:
-            try:
-                server.set_current_user(user_id)
-            except ValueError as e:
-                # Return an HTTP 401 Unauthorized response
-                # raise HTTPException(status_code=401, detail=str(e))
-                return JSONResponse(status_code=401, content={"detail": str(e)})
-        else:
-            server.set_current_user(None)
-        response = await call_next(request)
-        return response
 
     for route in v1_routes:
         app.include_router(route, prefix=API_PREFIX)

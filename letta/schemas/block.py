@@ -53,7 +53,7 @@ class BaseBlock(LettaBase, validate_assignment=True):
         super().__setattr__(name, value)
         if name == "value":
             # run validation
-            self.__class__.validate(self.dict(exclude_unset=True))
+            self.__class__.model_validate(self.model_dump(exclude_unset=True))
 
 
 class Block(BaseBlock):
