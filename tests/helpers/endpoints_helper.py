@@ -20,7 +20,6 @@ from letta.embeddings import embedding_model
 from letta.errors import (
     InvalidFunctionCallError,
     InvalidInnerMonologueError,
-    LettaError,
     MissingFunctionCallError,
     MissingInnerMonologueError,
 )
@@ -122,6 +121,7 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str) -> ChatComplet
     assert response is not None, response
     assert response.choices is not None, response
     assert len(response.choices) > 0, response
+    assert response.choices[0] is not None, response
 
     # Select first choice
     choice = response.choices[0]
@@ -249,7 +249,10 @@ def check_agent_archival_memory_retrieval(filename: str) -> LettaResponse:
     secret_word = "banana"
     client.insert_archival_memory(agent_state.id, f"The secret word is {secret_word}!")
 
-    response = client.user_message(agent_id=agent_state.id, message="Search archival memory for the secret word and repeat it back to me.")
+    response = client.user_message(
+        agent_id=agent_state.id,
+        message="Search archival memory for the secret word. If you find it successfully, you MUST respond by using the `send_message` function with a message that includes the secret word so I know you found it.",
+    )
 
     # Basic checks
     assert_sanity_checks(response)
@@ -328,7 +331,7 @@ def assert_invoked_send_message_with_keyword(messages: List[LettaMessage], keywo
 
     # No messages found with `send_messages`
     if target_message is None:
-        raise LettaError("Missing send_message function call")
+        raise MissingFunctionCallError(messages=messages, explanation="Missing `send_message` function call")
 
     send_message_function_call = target_message.function_call
     try:

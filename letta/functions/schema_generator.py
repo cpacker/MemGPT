@@ -130,7 +130,7 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
     if function.__name__ not in ["send_message", "pause_heartbeats"]:
         schema["parameters"]["properties"]["request_heartbeat"] = {
             "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to 'true' if you want to send a follow-up message or run a follow-up function.",
+            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
         }
         schema["parameters"]["required"].append("request_heartbeat")
 

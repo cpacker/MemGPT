@@ -299,7 +299,6 @@ def create(
             raise NotImplementedError(f"Streaming not yet implemented for Groq.")
 
         if model_settings.groq_api_key is None and llm_config.model_endpoint == "https://api.groq.com/openai/v1/chat/completions":
-            # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"Groq key is missing from letta config file")
 
         # force to true for groq, since they don't support 'content' is non-null

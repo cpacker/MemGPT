@@ -127,34 +127,64 @@ class OllamaProvider(OpenAIProvider):
         response = requests.post(f"{self.base_url}/api/show", json={"name": model_name, "verbose": True})
         response_json = response.json()
 
-        # thank you vLLM: https://github.com/vllm-project/vllm/blob/main/vllm/config.py#L1675
-        possible_keys = [
-            # OPT
-            "max_position_embeddings",
-            # GPT-2
-            "n_positions",
-            # MPT
-            "max_seq_len",
-            # ChatGLM2
-            "seq_length",
-            # Command-R
-            "model_max_length",
-            # Others
-            "max_sequence_length",
-            "max_seq_length",
-            "seq_len",
-        ]
-
+        ## thank you vLLM: https://github.com/vllm-project/vllm/blob/main/vllm/config.py#L1675
+        # possible_keys = [
+        #    # OPT
+        #    "max_position_embeddings",
+        #    # GPT-2
+        #    "n_positions",
+        #    # MPT
+        #    "max_seq_len",
+        #    # ChatGLM2
+        #    "seq_length",
+        #    # Command-R
+        #    "model_max_length",
+        #    # Others
+        #    "max_sequence_length",
+        #    "max_seq_length",
+        #    "seq_len",
+        # ]
         # max_position_embeddings
         # parse model cards: nous, dolphon, llama
         for key, value in response_json["model_info"].items():
-            if "context_window" in key:
+            if "context_length" in key:
+                return value
+        return None
+
+    def get_model_embedding_dim(self, model_name: str):
+        import requests
+
+        response = requests.post(f"{self.base_url}/api/show", json={"name": model_name, "verbose": True})
+        response_json = response.json()
+        for key, value in response_json["model_info"].items():
+            if "embedding_length" in key:
                 return value
         return None
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
-        # TODO: filter embedding models
-        return []
+        # https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
+        import requests
+
+        response = requests.get(f"{self.base_url}/api/tags")
+        if response.status_code != 200:
+            raise Exception(f"Failed to list Ollama models: {response.text}")
+        response_json = response.json()
+
+        configs = []
+        for model in response_json["models"]:
+            embedding_dim = self.get_model_embedding_dim(model["name"])
+            if not embedding_dim:
+                continue
+            configs.append(
+                EmbeddingConfig(
+                    embedding_model=model["name"],
+                    embedding_endpoint_type="ollama",
+                    embedding_endpoint=self.base_url,
+                    embedding_dim=embedding_dim,
+                    embedding_chunk_size=300,
+                )
+            )
+        return configs
 
 
 class GroqProvider(OpenAIProvider):
