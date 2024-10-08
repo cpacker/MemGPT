@@ -310,6 +310,6 @@ def save_split_thread_agent(agent: SplitThreadAgent, ms: MetadataStore):
     save_agent(agent=agent.agent, ms=ms)
     save_agent(agent=agent.conversation_agent, ms=ms)
     save_agent(agent=agent.memory_agent, ms=ms)
-    if ms.get_tool(tool_name=agent.memory_wait_tool.name, user_id=agent.memory_agent.agent_state.user_id) is None:
-        ms.create_tool(agent.memory_wait_tool)
+    # if ms.get_tool(tool_name=agent.memory_wait_tool.name, user_id=agent.memory_agent.agent_state.user_id) is None:
+    #     ms.create_tool(agent.memory_wait_tool)
     agent.update_state()

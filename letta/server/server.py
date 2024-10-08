@@ -439,7 +439,13 @@ class SyncServer(Server):
 
                 logger.debug("Saving agent state")
                 # save updated state
-                save_agent(letta_agent, self.ms)
+
+                if letta_agent.agent_state.agent_type == AgentType.memgpt_agent:
+                    save_agent(letta_agent, self.ms)
+                elif letta_agent.agent_state.agent_type == AgentType.split_thread_agent:
+                    save_split_thread_agent(letta_agent, self.ms)
+                else:
+                    raise NotImplementedError("Invalid Agent Type!")
 
                 # Chain stops
                 if not self.chaining:
@@ -844,6 +850,9 @@ class SyncServer(Server):
                 # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
                 # 2. if the shared block state changed since this agent initialization started, we can be sure to have the latest value
                 agent.rebuild_memory(force=True, ms=self.ms)
+
+                # save agent
+                save_agent(agent, self.ms)
             elif request.agent_type == AgentType.split_thread_agent:
                 agent, agent_state = create_split_thread_agent(
                     request=request,
@@ -868,8 +877,6 @@ class SyncServer(Server):
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
 
-        # save agent
-        save_agent(agent, self.ms)
         logger.debug(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
