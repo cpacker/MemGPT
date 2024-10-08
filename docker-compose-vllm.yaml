@@ -30,6 +30,6 @@ services:
     ports:
       - "8000:8000"
     command: >
-      --model ${LETTA_LLM_MODEL} --max_model_len=8000 
+      --model ${LETTA_LLM_MODEL} --max_model_len=8000
     # Replace with your model
     ipc: host

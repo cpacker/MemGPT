@@ -51,7 +51,7 @@ from letta.providers import (
     OpenAIProvider,
     VLLMProvider,
 )
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
     Block,
@@ -335,7 +335,10 @@ class SyncServer(Server):
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
-            letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            if agent_state.agent_type == AgentType.memgpt_agent:
+                letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            else:
+                raise NotImplementedError("Only base agents are supported as of right now!")
 
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -787,6 +790,7 @@ class SyncServer(Server):
                 name=request.name,
                 user_id=user_id,
                 tools=request.tools if request.tools else [],
+                agent_type=request.agent_type or AgentType.memgpt_agent,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,
