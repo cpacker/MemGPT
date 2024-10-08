@@ -1921,7 +1921,10 @@ class SyncServer(Server):
         if user_id is None:
             return self.get_default_user()
         else:
-            return self.get_user(user_id=user_id)
+            try:
+                return self.get_user(user_id=user_id)
+            except ValueError:
+                raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
 
     def list_llm_models(self) -> List[LLMConfig]:
         """List available models"""

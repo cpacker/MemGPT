@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Path, Query
 
@@ -43,7 +43,7 @@ router = APIRouter(prefix="/v1/threads", tags=["threads"])
 def create_thread(
     request: CreateThreadRequest = Body(...),
     server: SyncServer = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     # TODO: use requests.description and requests.metadata fields
     # TODO: handle requests.file_ids and requests.tools
@@ -68,7 +68,7 @@ def create_thread(
 def retrieve_thread(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     server: SyncServer = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     actor = server.get_user_or_default(user_id=user_id)
     agent = server.get_agent(user_id=actor.id, agent_id=thread_id)
@@ -102,7 +102,7 @@ def create_message(
     thread_id: str = Path(..., description="The unique identifier of the thread."),
     request: CreateMessageRequest = Body(...),
     server: SyncServer = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     actor = server.get_user_or_default(user_id=user_id)
     agent_id = thread_id
@@ -146,7 +146,7 @@ def list_messages(
     after: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
     before: str = Query(None, description="A cursor for use in pagination. `after` is an object ID that defines your place in the list."),
     server: SyncServer = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     actor = server.get_user_or_default(user_id)
     after_uuid = after if before else None
