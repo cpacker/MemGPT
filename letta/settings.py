@@ -23,7 +23,8 @@ class ModelSettings(BaseSettings):
     ollama_base_url: Optional[str] = None
 
     # azure
-    azure_deployment: Optional[str] = None
+    azure_api_key: Optional[str] = None
+    azure_base_url: Optional[str] = None
 
     # google ai
     gemini_api_key: Optional[str] = None
