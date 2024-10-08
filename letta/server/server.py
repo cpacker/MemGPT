@@ -11,7 +11,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 from fastapi import HTTPException
 
 import letta.constants as constants
-from letta.schemas.agent_config import AgentType
+from letta.schemas.agent_config import AgentConfig, AgentType
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
@@ -791,7 +791,7 @@ class SyncServer(Server):
                 name=request.name,
                 user_id=user_id,
                 tools=request.tools if request.tools else [],
-                agent_config=agent_config,
+                agent_config=request.agent_config or AgentConfig.default_config(),
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,
