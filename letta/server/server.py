@@ -399,6 +399,8 @@ class SyncServer(Server):
                 token_warning = step_response.in_context_memory_warning
                 usage = step_response.usage
 
+                print(step_response.model_dump_json(indent=4))
+
                 step_count += 1
                 total_usage += usage
                 counter += 1
@@ -602,7 +604,7 @@ class SyncServer(Server):
                 )
 
         # Run the agent state forward
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_user_message, timestamp=timestamp)
+        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=message, timestamp=timestamp)
         return usage
 
     def system_message(

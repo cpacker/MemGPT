@@ -482,7 +482,7 @@ class Agent(BaseAgent):
                 inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             )
 
-            if len(response.choices) == 0:
+            if len(response.choices) == 0 or response.choices[0] is None:
                 raise Exception(f"API call didn't return a message: {response}")
 
             # special case for 'length'
@@ -621,6 +621,11 @@ class Agent(BaseAgent):
             # (Still parsing function args)
             # Handle requests for immediate heartbeat
             heartbeat_request = function_args.pop("request_heartbeat", None)
+
+            # Edge case: heartbeat_request is returned as a stringified boolean, we will attempt to parse:
+            if isinstance(heartbeat_request, str) and heartbeat_request.lower().strip() == "true":
+                heartbeat_request = True
+
             if not isinstance(heartbeat_request, bool) or heartbeat_request is None:
                 printd(
                     f"{CLI_WARNING_PREFIX}'request_heartbeat' arg parsed was not a bool or None, type={type(heartbeat_request)}, value={heartbeat_request}"
