@@ -243,7 +243,11 @@ class GoogleAIProvider(Provider):
 
 
 class AzureProvider(Provider):
-    pass
+    name: str = "azure"
+    base_url: str = Field(
+        ..., description="Base URL for the Azure API endpoint. This should be specific to your org, e.g. `https://letta.openai.azure.com`."
+    )
+    api_key: str = Field(..., description="API key for the Azure API.")
 
 
 class VLLMProvider(OpenAIProvider):

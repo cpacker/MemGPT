@@ -56,7 +56,7 @@ class LettaMessageError(LettaError):
             error_msg += f" (Explanation: {explanation})"
 
         # Pretty print out message JSON
-        message_json = json.dumps([message.model_dump_json(indent=4) for message in messages], indent=4)
+        message_json = json.dumps([message.model_dump() for message in messages], indent=4)
         return f"{error_msg}\n\n{message_json}"
 
 
