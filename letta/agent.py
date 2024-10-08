@@ -238,6 +238,7 @@ class Agent(BaseAgent):
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
         # link tools
+        self.tools = tools
         self.link_tools(tools)
 
         # gpt-4, gpt-3.5-turbo, ...
@@ -1342,6 +1343,10 @@ def save_agent(agent: Agent, ms: MetadataStore):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)
+
+    for tool in agent.tools:
+        if ms.get_tool(tool_id=tool.id) is None:
+            ms.create_tool(tool)
 
     agent.agent_state = ms.get_agent(agent_id=agent_id)
     assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
