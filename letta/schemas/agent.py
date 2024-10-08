@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
@@ -19,6 +20,15 @@ class BaseAgent(LettaBase, validate_assignment=True):
     # metadata
     metadata_: Optional[Dict] = Field(None, description="The metadata of the agent.", alias="metadata_")
     user_id: Optional[str] = Field(None, description="The user id of the agent.")
+
+
+class AgentType(str, Enum):
+    """
+    Enum to represent the type of agent.
+    """
+
+    memgpt_agent = "memgpt_agent"
+    split_thread_agent = "split_thread_agent"
 
 
 class AgentState(BaseAgent):
@@ -52,6 +62,9 @@ class AgentState(BaseAgent):
     # system prompt
     system: str = Field(..., description="The system prompt used by the agent.")
 
+    # agent configuration
+    agent_type: AgentType = Field(..., description="The type of agent.")
+
     # llm information
     llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
@@ -64,6 +77,7 @@ class CreateAgent(BaseAgent):
     memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
+    agent_type: Optional[AgentType] = Field(None, description="The type of agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
 
