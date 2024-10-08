@@ -21,11 +21,11 @@ MODEL_TO_AZURE_ENGINE = {
 
 
 def get_azure_endpoint(llm_config: LLMConfig, model_settings: ModelSettings):
-    assert llm_config.model_version, "Missing model version! This field must be provided in the LLM config for Azure."
+    assert llm_config.api_version, "Missing model version! This field must be provided in the LLM config for Azure."
     assert llm_config.model in MODEL_TO_AZURE_ENGINE, f"{llm_config.model} not in supported models: {list(MODEL_TO_AZURE_ENGINE.keys())}"
 
     model = MODEL_TO_AZURE_ENGINE[llm_config.model]
-    return f"{model_settings.azure_base_url}/openai/deployments/{model}/chat/completions?api-version={llm_config.model_version}"
+    return f"{model_settings.azure_base_url}/openai/deployments/{model}/chat/completions?api-version={llm_config.api_version}"
 
 
 def azure_openai_get_model_list(url: str, api_key: Union[str, None], api_version: str) -> dict:

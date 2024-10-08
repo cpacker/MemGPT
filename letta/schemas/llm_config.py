@@ -35,8 +35,8 @@ class LLMConfig(BaseModel):
         "hugging-face",
     ] = Field(..., description="The endpoint type for the model.")
     model_endpoint: Optional[str] = Field(None, description="The endpoint for the model.")
-    model_version: Optional[str] = Field(
-        None, description="The version for the model. Used by the Azure provider backend, e.g. 2023-03-15-preview."
+    api_version: Optional[str] = Field(
+        None, description="The version for the model API. Used by the Azure provider backend, e.g. 2023-03-15-preview."
     )
     model_wrapper: Optional[str] = Field(None, description="The wrapper for the model.")
     context_window: int = Field(..., description="The context window size for the model.")

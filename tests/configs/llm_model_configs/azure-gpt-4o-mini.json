@@ -2,6 +2,6 @@
     "context_window": 128000,
     "model": "gpt-4o-mini",
     "model_endpoint_type": "azure",
-    "model_version": "2023-03-15-preview",
+    "api_version": "2023-03-15-preview",
     "model_wrapper": null
 }
