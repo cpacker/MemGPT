@@ -193,10 +193,7 @@ class SplitThreadAgent(BaseAgent):
         inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
-        # If a memory step is already running, wait for it to finish
         with self.memory_condition:
-            while not self.memory_finished:
-                self.memory_condition.wait()
             self.memory_finished = False
 
         memory_step = self.memory_agent.step(
