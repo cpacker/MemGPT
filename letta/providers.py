@@ -217,14 +217,12 @@ class GroqProvider(OpenAIProvider):
 class GoogleAIProvider(Provider):
     # gemini
     api_key: str = Field(..., description="API key for the Google AI API.")
-    service_endpoint: str = "generativelanguage"  # TODO: remove once old functions are refactored to just use base_url
     base_url: str = "https://generativelanguage.googleapis.com"
 
     def list_llm_models(self):
         from letta.llm_api.google_ai import google_ai_get_model_list
 
-        # TODO: use base_url instead
-        model_options = google_ai_get_model_list(service_endpoint=self.service_endpoint, api_key=self.api_key)
+        model_options = google_ai_get_model_list(base_url=self.base_url, api_key=self.api_key)
         # filter by 'generateContent' models
         model_options = [mo for mo in model_options if "generateContent" in mo["supportedGenerationMethods"]]
         model_options = [str(m["name"]) for m in model_options]
@@ -251,7 +249,7 @@ class GoogleAIProvider(Provider):
         from letta.llm_api.google_ai import google_ai_get_model_list
 
         # TODO: use base_url instead
-        model_options = google_ai_get_model_list(service_endpoint=self.service_endpoint, api_key=self.api_key)
+        model_options = google_ai_get_model_list(base_url=self.base_url, api_key=self.api_key)
         # filter by 'generateContent' models
         model_options = [mo for mo in model_options if "embedContent" in mo["supportedGenerationMethods"]]
         model_options = [str(m["name"]) for m in model_options]
@@ -273,8 +271,7 @@ class GoogleAIProvider(Provider):
     def get_model_context_window(self, model_name: str):
         from letta.llm_api.google_ai import google_ai_get_model_context_window
 
-        # TODO: use base_url instead
-        return google_ai_get_model_context_window(self.service_endpoint, self.api_key, model_name)
+        return google_ai_get_model_context_window(self.base_url, self.api_key, model_name)
 
 
 class AzureProvider(Provider):

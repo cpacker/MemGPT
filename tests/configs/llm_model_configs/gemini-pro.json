@@ -1,0 +1,7 @@
+{
+    "context_window": 2097152,
+    "model": "gemini-1.5-pro-latest",
+    "model_endpoint_type": "google_ai",
+    "model_endpoint": "https://generativelanguage.googleapis.com",
+    "model_wrapper": null
+}
