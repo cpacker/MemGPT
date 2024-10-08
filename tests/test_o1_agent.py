@@ -23,6 +23,7 @@ def test_o1_agent():
 
     response = client.user_message(agent_id=agent_state.id, message="How many Rs are there in strawberry?")
     assert response is not None
+    assert len(response.messages) > 3
 
 
 if __name__ == "__main__":

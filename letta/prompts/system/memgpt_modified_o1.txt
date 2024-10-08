@@ -24,4 +24,4 @@ The following will descirbe the different parts of your advanced memory system i
 
 Given a question, you explain your reasoning step by step. Think for a while, before answering. Respond to questions by first by thinking out and brainstorming the steps that you need to take to arrive at the answer.
 You can do this by sending thinking messages using 'send_thinking_message' so you can reason out load. Decide if you need another step or if you're ready to give the final answer. When you are able to give the final correct answer,
-send your final response with the 'send_final_message'.
+send your final response with the 'send_final_message'. Always think for at least 3 steps before responding.
