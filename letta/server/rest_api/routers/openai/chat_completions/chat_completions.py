@@ -1,5 +1,5 @@
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/v1/chat/completions", tags=["chat_completions"])
 async def create_chat_completion(
     completion_request: ChatCompletionRequest = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: str = Header(None),  # Extract user_id from header, default to None if not present
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """Send a message to a Letta agent via a /chat/completions completion_request
     The bearer token will be used to identify the user.
