@@ -2,6 +2,8 @@ from datetime import datetime
 
 from IPython.display import HTML, display
 
+from letta.local_llm.constants import INNER_THOUGHTS_CLI_SYMBOL
+
 
 def pprint(messages):
     """Utility function for pretty-printing the output of client.send_message in notebooks"""
@@ -47,7 +49,7 @@ def pprint(messages):
             html_content += f"<p><strong>🛠️ [{date_formatted}] Function Return ({return_status}):</strong></p>"
             html_content += f"<p class='function-return'>{return_string}</p>"
         elif "internal_monologue" in message:
-            html_content += f"<p><strong>💭 [{date_formatted}] Internal Monologue:</strong></p>"
+            html_content += f"<p><strong>{INNER_THOUGHTS_CLI_SYMBOL} [{date_formatted}] Internal Monologue:</strong></p>"
             html_content += f"<p class='internal-monologue'>{message['internal_monologue']}</p>"
         elif "function_call" in message:
             html_content += f"<p><strong>🛠️ [[{date_formatted}] Function Call:</strong></p>"

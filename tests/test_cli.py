@@ -5,6 +5,11 @@ import sys
 import pexpect
 import pytest
 
+from letta.local_llm.constants import (
+    ASSISTANT_MESSAGE_CLI_SYMBOL,
+    INNER_THOUGHTS_CLI_SYMBOL,
+)
+
 original_letta_path = os.path.expanduser("~/.letta")
 cached_letta_path = os.path.join("tests", "data", "cached_letta")
 backup_letta_path = os.path.expanduser("~/.letta_backup")
@@ -51,13 +56,13 @@ def test_letta_run_basic(swap_letta_config):
     # Capture the output up to this point
     full_output = child.before
 
-    # NOTE: These are brittle and may fail if we change the styling of the CLI
-    # Count occurrences of the cloud emoji (💭)
-    cloud_emoji_count = full_output.count("💭")
-    # Assert that the cloud emoji appears only once
+    # Count occurrences of inner thoughts
+    cloud_emoji_count = full_output.count(INNER_THOUGHTS_CLI_SYMBOL)
     assert cloud_emoji_count == 1, f"It appears that there are multiple instances of inner thought outputted."
 
-    # Count occurrences of the robot emoji (🤖)
-    robot = full_output.count("🤖")
-    # Assert that the robot emoji appears only once
-    assert robot == 1, f"It appears that there are multiple instances of send_message outputted."
+    # Count occurrences assistant messages
+    robot = full_output.count(ASSISTANT_MESSAGE_CLI_SYMBOL)
+    assert robot == 1, f"It appears that there are multiple instances of assistant messages outputted."
+
+    # Make sure the user name was repeated back at least once
+    assert full_output.count("Chad") > 0, f"Chad was not mentioned...please manually inspect the outputs."
