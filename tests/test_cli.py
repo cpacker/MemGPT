@@ -65,7 +65,7 @@ def swap_letta_config():
 
 def test_letta_run_existing_agent(swap_letta_config):
     # Start the letta run command
-    child = pexpect.spawn("letta run", encoding="utf-8")
+    child = pexpect.spawn("poetry run letta run", encoding="utf-8")
     child.logfile = sys.stdout
 
     # Select agent
