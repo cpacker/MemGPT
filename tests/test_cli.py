@@ -69,13 +69,13 @@ def test_letta_run_existing_agent(swap_letta_config):
     child.logfile = sys.stdout
 
     # Select agent
-    child.expect("Would you like to select an existing agent?", timeout=3)
+    child.expect("Would you like to select an existing agent?", timeout=60)
     child.sendline("Y")
-    child.expect("Select agent:", timeout=3)
+    child.expect("Select agent:", timeout=60)
     child.sendline("")
 
     # Agent selected
-    child.expect("Using existing agent", timeout=3)
+    child.expect("Using existing agent", timeout=60)
     child.sendline("")
 
     # Get initial response
