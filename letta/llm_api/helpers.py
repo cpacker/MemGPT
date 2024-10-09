@@ -204,7 +204,7 @@ def is_context_overflow_error(exception: Union[requests.exceptions.RequestExcept
 def derive_inner_thoughts_in_kwargs(inner_thoughts_in_kwargs_option: OptionState, model: str):
     if inner_thoughts_in_kwargs_option == OptionState.DEFAULT:
         # model that are known to not use `content` fields on tool calls
-        inner_thoughts_in_kwargs = "gpt-4o" in model or "gpt-4-turbo" in model or "gpt-3.5-turbo" in model or "gemini" in model
+        inner_thoughts_in_kwargs = "gpt-4o" in model or "gpt-4-turbo" in model or "gpt-3.5-turbo" in model
     else:
         inner_thoughts_in_kwargs = True if inner_thoughts_in_kwargs_option == OptionState.YES else False
 
