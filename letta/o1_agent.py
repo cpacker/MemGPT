@@ -45,7 +45,7 @@ class O1Agent(Agent):
         interface: AgentInterface,
         agent_state: AgentState,
         tools: List[Tool] = [],
-        max_thinking_steps: int = 10,
+        max_thinking_steps: int = 5,
         first_message_verify_mono: bool = False,
     ):
         self.agent = Agent(interface=interface, agent_state=agent_state, tools=tools, first_message_verify_mono=first_message_verify_mono)
