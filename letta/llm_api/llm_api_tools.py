@@ -217,19 +217,14 @@ def create(
         if not use_tool_naming:
             raise NotImplementedError("Only tool calling supported on Google AI API requests")
 
-        # NOTE: until Google AI supports CoT / text alongside function calls,
-        # we need to put it in a kwarg (unless we want to split the message into two)
-        google_ai_inner_thoughts_in_kwarg = True
-
         if functions is not None:
             tools = [{"type": "function", "function": f} for f in functions]
             tools = [Tool(**t) for t in tools]
-            tools = convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg)
+            tools = convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=True)
         else:
             tools = None
 
         return google_ai_chat_completions_request(
-            inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg,
             base_url=llm_config.model_endpoint,
             model=llm_config.model,
             api_key=model_settings.gemini_api_key,
@@ -238,6 +233,7 @@ def create(
                 contents=[m.to_google_ai_dict() for m in messages],
                 tools=tools,
             ),
+            inner_thoughts_in_kwargs=True,
         )
 
     elif llm_config.model_endpoint_type == "anthropic":
@@ -245,12 +241,6 @@ def create(
             raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
         if not use_tool_naming:
             raise NotImplementedError("Only tool calling supported on Anthropic API requests")
-
-        if functions is not None:
-            tools = [{"type": "function", "function": f} for f in functions]
-            tools = [Tool(**t) for t in tools]
-        else:
-            tools = None
 
         return anthropic_chat_completions_request(
             url=llm_config.model_endpoint,
