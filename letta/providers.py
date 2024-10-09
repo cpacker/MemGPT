@@ -13,7 +13,6 @@ from letta.schemas.llm_config import LLMConfig
 
 
 class Provider(BaseModel):
-    base_url: str
 
     def list_llm_models(self):
         return []
@@ -23,6 +22,32 @@ class Provider(BaseModel):
 
     def get_model_context_window(self, model_name: str):
         pass
+
+
+class LettaProvider(Provider):
+
+    name: str = "letta"
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        return [
+            LLMConfig(
+                model="memgpt-openai",
+                model_endpoint_type="openai",
+                model_endpoint="https://inference.memgpt.ai",
+                context_window=16384,
+            )
+        ]
+
+    def list_embedding_models(self):
+        return [
+            EmbeddingConfig(
+                embedding_model="BAAI/bge-large-en-v1.5",
+                embedding_endpoint_type="hugging-face",
+                embedding_endpoint="https://embeddings.memgpt.ai",
+                embedding_dim=1024,
+                embedding_chunk_size=300,
+            )
+        ]
 
 
 class OpenAIProvider(Provider):

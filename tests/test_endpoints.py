@@ -13,7 +13,7 @@ from tests.helpers.endpoints_helper import (
 )
 
 # directories
-embedding_config_dir = "configs/embedding_model_configs"
+embedding_config_dir = "tests/configs/embedding_model_configs"
 llm_config_dir = "tests/configs/llm_model_configs"
 
 
