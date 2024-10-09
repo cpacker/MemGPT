@@ -511,13 +511,33 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
         if len(records) == 0:
             return
+
+        added_ids = []  # avoid adding duplicates
+        # NOTE: this has not great performance due to the excessive commits
         with self.session_maker() as session:
             iterable = tqdm(records) if show_progress else records
             for record in iterable:
                 # db_record = self.db_model(**vars(record))
-                db_record = self.db_model(**record.dict())
-                session.add(db_record)
-            session.commit()
+
+                if record.id in added_ids:
+                    continue
+
+                existing_record = session.query(self.db_model).filter_by(id=record.id).first()
+                if existing_record:
+                    if exists_ok:
+                        fields = record.model_dump()
+                        fields.pop("id")
+                        session.query(self.db_model).filter(self.db_model.id == record.id).update(fields)
+                        session.commit()
+                    else:
+                        raise ValueError(f"Record with id {record.id} already exists.")
+
+                else:
+                    db_record = self.db_model(**record.dict())
+                    session.add(db_record)
+                    session.commit()
+
+                added_ids.append(record.id)
 
     def insert(self, record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)

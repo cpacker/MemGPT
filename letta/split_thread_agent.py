@@ -24,6 +24,14 @@ MEMORY_TOOLS = [
 ]
 
 
+class MemoryAgent(Agent):
+    parent_split_thread_agent: "SplitThreadAgent"
+
+
+class ConversationAgent(Agent):
+    parent_split_thread_agent: "SplitThreadAgent"
+
+
 class SplitThreadAgent(BaseAgent):
     """
     SplitThreadAgent is an agent that splits the conversation and memory into two separate agents.
@@ -58,13 +66,14 @@ class SplitThreadAgent(BaseAgent):
         )
 
         # Conversation agent
-        self.conversation_agent = Agent(
+        self.conversation_agent = ConversationAgent(
             interface=interface,
             agent_state=conversation_agent_state,
             tools=conversation_tools,
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
+        self.conversation_agent.parent_split_thread_agent = self
 
         # Flag to indicate if the conversation agent decided to wait for memory update
         self.conversation_waited = False
@@ -88,7 +97,7 @@ class SplitThreadAgent(BaseAgent):
         self.conversation_agent.update_state()
 
         # Memory agent
-        self.memory_agent = Agent(
+        self.memory_agent = MemoryAgent(
             interface=interface,
             agent_state=memory_agent_state,
             tools=memory_tools,
@@ -96,17 +105,18 @@ class SplitThreadAgent(BaseAgent):
             first_message_verify_mono=first_message_verify_mono,
         )
 
-        # Variable to store the returns from the memory agent
-        self.memory_result = None
+        # Queue to store all requested memory steps
+        self.memory_queue = []
 
-        # Lock to prevent flushing the memory result while returning from a memory step
-        self.memory_result_lock = threading.Lock()
-
-        # Flag to indicate if the memory agent has finished stepping
-        self.memory_finished = False
-
-        # Condition variable to let the conversation agent wait for the memory agent to finish if needed
+        # Condition variable to wake up memory thread when new memory step is added
         self.memory_condition = threading.Condition()
+
+        # Condition variable to wake up conversation agent when memory step is finished
+        self.conversation_condition = threading.Condition()
+
+        # Thread that runs memory agent
+        self.memory_thread = threading.Thread(target=self._memory_step, args=())
+        self.memory_thread.start()
 
         self.update_state()
 
@@ -123,118 +133,79 @@ class SplitThreadAgent(BaseAgent):
         inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
-        self.memory_finished = False
+        kwargs = {
+            "user_message": messages,
+            "first_message": first_message,
+            "first_message_retry_limit": first_message_retry_limit,
+            "skip_verify": skip_verify,
+            "return_dicts": return_dicts,
+            "recreate_message_timestamp": recreate_message_timestamp,
+            "stream": stream,
+            "timestamp": timestamp,
+            "inner_thoughts_in_kwargs_option": inner_thoughts_in_kwargs_option,
+            "ms": ms,
+        }
 
-        memory_thread = threading.Thread(
-            target=self._memory_step,
-            args=(
-                messages,
-                first_message,
-                first_message_retry_limit,
-                skip_verify,
-                return_dicts,
-                recreate_message_timestamp,
-                stream,
-                timestamp,
-                inner_thoughts_in_kwargs_option,
-                ms,
-            ),
-        )
-        memory_thread.start()
-
-        with self.conversation_agent_lock:
-            conversation_step = self.conversation_agent.step(
-                first_message=first_message,
-                user_message=messages,
-                first_message_retry_limit=first_message_retry_limit,
-                skip_verify=skip_verify,
-                return_dicts=return_dicts,
-                recreate_message_timestamp=recreate_message_timestamp,
-                stream=stream,
-                timestamp=timestamp,
-                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
-                ms=ms,
-            )
-
-            # If the conversation agent decided to wait for memory update, we need a response after the memory update
-            if self.conversation_waited:
-                next_conversation_step = self.conversation_agent.step(
-                    first_message=first_message,
-                    user_message=messages,
-                    first_message_retry_limit=first_message_retry_limit,
-                    skip_verify=skip_verify,
-                    return_dicts=return_dicts,
-                    recreate_message_timestamp=recreate_message_timestamp,
-                    stream=stream,
-                    timestamp=timestamp,
-                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
-                    ms=ms,
-                )
-                conversation_step = self._combine_steps(conversation_step, next_conversation_step)
-                self.conversation_waited = False
-
-        step = conversation_step
-        with self.memory_result_lock:
-            if self.memory_result:
-                # Flush the memory output into this step
-                step = self._combine_steps(self.memory_result, conversation_step)
-                self.memory_result = None
-
-        return step
-
-    def _memory_step(
-        self,
-        messages: Union[Message, List[Message], str],  # TODO deprecate str inputs
-        first_message: bool = False,
-        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
-        skip_verify: bool = False,
-        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
-        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
-        stream: bool = False,  # TODO move to config?
-        timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
-        ms: Optional[MetadataStore] = None,
-    ) -> AgentStepResponse:
-        memory_step = self.memory_agent.step(
-            user_message=messages,
-            first_message=first_message,
-            first_message_retry_limit=first_message_retry_limit,
-            skip_verify=skip_verify,
-            return_dicts=return_dicts,
-            recreate_message_timestamp=recreate_message_timestamp,
-            stream=stream,
-            timestamp=timestamp,
-            inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
-            ms=ms,
-        )
-
-        with self.memory_result_lock:
-            if self.memory_result:
-                # If we had a memory result from a previous step, combine it with the current memory step
-                self.memory_result = self._combine_steps(self.memory_result, memory_step)
-            else:
-                self.memory_result = memory_step
-
-        self.memory_finished = True
-
-        # Update the conversation agent's memory after modification
-        with self.conversation_agent_lock:
-            self.conversation_agent.memory = self.memory_agent.memory
-            self.conversation_agent.update_state()
-            save_agent(agent=self.conversation_agent, ms=ms)
-
-        # Wake up the conversation agent if it was waiting for memory update
+        # First, add the memory step to the queue and wake up the memory thread
         with self.memory_condition:
+            self.memory_queue.append(kwargs)
             self.memory_condition.notify()
 
-    def wait_for_memory_update(self):
-        # Wait for the memory agent to finish
-        with self.memory_condition:
-            while not self.memory_finished:
-                self.memory_condition.wait()
+        with self.conversation_agent_lock:
+            conversation_step = self.conversation_agent.step(**kwargs)
 
-        # Update the flag to indicate that the conversation agent waited for memory update
-        self.conversation_waited = True
+            last_message = conversation_step.messages[-1]
+            waited = isinstance(last_message, Message) and last_message.name == "wait_for_memory_update"
+
+            if waited:
+                # If the conversation agent decided to wait for memory update, we need a response after the memory update
+                with self.conversation_condition:
+                    while not self.memory_result:
+                        self.conversation_condition.wait()
+                    assert self.memory_result is not None, "Memory result should not be None after waiting for memory update"
+
+                    # Flush the memory output into this step
+                    conversation_step = self._combine_steps(conversation_step, self.memory_result)
+                    self.memory_result = None
+
+                next_conversation_step = self.conversation_agent.step(**kwargs)
+                conversation_step = self._combine_steps(conversation_step, next_conversation_step)
+            else:
+                # If the conversation agent did not wait for memory update, we can flush the memory result
+                with self.conversation_condition:
+                    if self.memory_result:
+                        # Flush the memory output into this step
+                        conversation_step = self._combine_steps(self.memory_result, conversation_step)
+                        self.memory_result = None
+
+        return conversation_step
+
+    def _memory_step(self) -> AgentStepResponse:
+        """
+        Function that runs the memory agent in a separate thread.
+        """
+        while True:
+            # Wait for a new memory step to be added
+            with self.memory_condition:
+                while not self.memory_queue:
+                    self.memory_condition.wait()
+
+                kwargs = self.memory_queue.pop(0)
+                memory_step = self.memory_agent.step(**kwargs)
+
+            with self.conversation_condition:
+                if self.memory_result:
+                    # If we had a memory result from a previous step, combine it with the current memory step
+                    self.memory_result = self._combine_steps(self.memory_result, memory_step)
+                else:
+                    self.memory_result = memory_step
+
+                # Notify the conversation agent that the memory step is finished
+                if not self.memory_queue:
+                    self.conversation_condition.notify()
+
+    def wait_for_memory_update(self):
+        pass
 
     def _combine_steps(self, *steps: AgentStepResponse) -> AgentStepResponse:
         combined_step = AgentStepResponse(
