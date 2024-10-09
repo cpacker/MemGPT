@@ -5,7 +5,10 @@ from typing import List, Optional
 from colorama import Fore, Style, init
 
 from letta.constants import CLI_WARNING_PREFIX
-from letta.local_llm.constants import INNER_THOUGHTS_CLI_SYMBOL, ASSISTANT_MESSAGE_CLI_SYMBOL
+from letta.local_llm.constants import (
+    ASSISTANT_MESSAGE_CLI_SYMBOL,
+    INNER_THOUGHTS_CLI_SYMBOL,
+)
 from letta.schemas.message import Message
 from letta.utils import json_loads, printd
 

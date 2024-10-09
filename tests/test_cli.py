@@ -43,11 +43,11 @@ def test_letta_run_create_new_agent(swap_letta_config):
     child.logfile = sys.stdout
     child.expect("Creating new agent", timeout=60)
     child.expect("Select LLM model:", timeout=60)
-    child.sendline('\033[B\033[B\033[B\033[B\033[B')
+    child.sendline("\033[B\033[B\033[B\033[B\033[B")
     child.expect("Select embedding model:", timeout=60)
-    child.sendline('text-embedding-ada-002')
+    child.sendline("text-embedding-ada-002")
     child.expect("Created new agent", timeout=60)
-    child.sendline('')
+    child.sendline("")
 
     # Get initial response
     child.expect("Enter your message:", timeout=60)
@@ -61,4 +61,3 @@ def test_letta_run_create_new_agent(swap_letta_config):
     assert robot == 1, f"It appears that there are multiple instances of assistant messages outputted."
     # Make sure the user name was repeated back at least once
     assert full_output.count("Chad") > 0, f"Chad was not mentioned...please manually inspect the outputs."
-
