@@ -27,7 +27,6 @@ class Provider(BaseModel):
 class LettaProvider(Provider):
 
     name: str = "letta"
-    mapping: dict = {"letta-free": "memgpt-openai", "letta-free": "BAAI/bge-large-en-v1.5"}
 
     def list_llm_models(self) -> List[LLMConfig]:
         return [
