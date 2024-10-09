@@ -2,8 +2,7 @@ import json
 import re
 from typing import List, Optional, Union
 
-import requests
-
+from letta.llm_api.helpers import make_post_request
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_request import ChatCompletionRequest, Tool
 from letta.schemas.openai.chat_completion_response import (
@@ -295,7 +294,6 @@ def anthropic_chat_completions_request(
     inner_thoughts_xml_tag: Optional[str] = "thinking",
 ) -> ChatCompletionResponse:
     """https://docs.anthropic.com/claude/docs/tool-use"""
-    from letta.utils import printd
 
     url = smart_urljoin(url, "messages")
     headers = {
@@ -360,24 +358,5 @@ def anthropic_chat_completions_request(
     data.pop("user", None)
     data.pop("tool_choice", None)
 
-    printd(f"Sending request to {url}")
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        printd(f"response = {response}")
-        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
-        response = response.json()  # convert to dict from string
-        printd(f"response.json = {response}")
-        response = convert_anthropic_response_to_chatcompletion(response_json=response, inner_thoughts_xml_tag=inner_thoughts_xml_tag)
-        return response
-    except requests.exceptions.HTTPError as http_err:
-        # Handle HTTP errors (e.g., response 4XX, 5XX)
-        printd(f"Got HTTPError, exception={http_err}, payload={data}")
-        raise http_err
-    except requests.exceptions.RequestException as req_err:
-        # Handle other requests-related errors (e.g., connection error)
-        printd(f"Got RequestException, exception={req_err}")
-        raise req_err
-    except Exception as e:
-        # Handle other potential errors
-        printd(f"Got unknown Exception, exception={e}")
-        raise e
+    response_json = make_post_request(url, headers, data)
+    return convert_anthropic_response_to_chatcompletion(response_json=response_json, inner_thoughts_xml_tag=inner_thoughts_xml_tag)

@@ -47,6 +47,7 @@ from letta.providers import (
     AnthropicProvider,
     AzureProvider,
     GoogleAIProvider,
+    LettaProvider,
     OllamaProvider,
     OpenAIProvider,
     VLLMProvider,
@@ -259,8 +260,8 @@ class SyncServer(Server):
         # add global default tools (for admin)
         self.add_default_tools(module_name="base")
 
-        # collect providers
-        self._enabled_providers = []
+        # collect providers (always has Letta as a default)
+        self._enabled_providers = [LettaProvider()]
         if model_settings.openai_api_key:
             self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key))
         if model_settings.anthropic_api_key:

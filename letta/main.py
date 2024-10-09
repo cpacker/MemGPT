@@ -366,7 +366,7 @@ def run_agent_loop(
                 first_message=False,
                 skip_verify=no_verify,
                 stream=stream,
-                inner_thoughts_in_kwargs=inner_thoughts_in_kwargs,
+                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
                 ms=ms,
             )
             new_messages = step_response.messages

@@ -1,14 +1,76 @@
 import copy
 import json
 import warnings
-from typing import List, Union
+from typing import Any, List, Union
 
 import requests
 
 from letta.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from letta.schemas.enums import OptionState
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse, Choice
-from letta.utils import json_dumps
+from letta.utils import json_dumps, printd
+
+
+def make_post_request(url: str, headers: dict[str, str], data: dict[str, Any]) -> dict[str, Any]:
+    printd(f"Sending request to {url}")
+    try:
+        # Make the POST request
+        response = requests.post(url, headers=headers, json=data)
+        printd(f"Response status code: {response.status_code}")
+
+        # Raise for 4XX/5XX HTTP errors
+        response.raise_for_status()
+
+        # Check if the response content type indicates JSON and attempt to parse it
+        content_type = response.headers.get("Content-Type", "")
+        if "application/json" in content_type.lower():
+            try:
+                response_data = response.json()  # Attempt to parse the response as JSON
+                printd(f"Response JSON: {response_data}")
+            except ValueError as json_err:
+                # Handle the case where the content type says JSON but the body is invalid
+                error_message = f"Failed to parse JSON despite Content-Type being {content_type}: {json_err}"
+                printd(error_message)
+                raise ValueError(error_message) from json_err
+        else:
+            error_message = f"Unexpected content type returned: {response.headers.get('Content-Type')}"
+            printd(error_message)
+            raise ValueError(error_message)
+
+        # Process the response using the callback function
+        return response_data
+
+    except requests.exceptions.HTTPError as http_err:
+        # HTTP errors (4XX, 5XX)
+        error_message = f"HTTP error occurred: {http_err}"
+        if http_err.response is not None:
+            error_message += f" | Status code: {http_err.response.status_code}, Message: {http_err.response.text}"
+        printd(error_message)
+        raise requests.exceptions.HTTPError(error_message) from http_err
+
+    except requests.exceptions.Timeout as timeout_err:
+        # Handle timeout errors
+        error_message = f"Request timed out: {timeout_err}"
+        printd(error_message)
+        raise requests.exceptions.Timeout(error_message) from timeout_err
+
+    except requests.exceptions.RequestException as req_err:
+        # Non-HTTP errors (e.g., connection, SSL errors)
+        error_message = f"Request failed: {req_err}"
+        printd(error_message)
+        raise requests.exceptions.RequestException(error_message) from req_err
+
+    except ValueError as val_err:
+        # Handle content-type or non-JSON response issues
+        error_message = f"ValueError: {val_err}"
+        printd(error_message)
+        raise ValueError(error_message) from val_err
+
+    except Exception as e:
+        # Catch any other unknown exceptions
+        error_message = f"An unexpected error occurred: {e}"
+        printd(error_message)
+        raise Exception(error_message) from e
 
 
 # TODO update to use better types
