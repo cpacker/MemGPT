@@ -145,6 +145,7 @@ def build_openai_chat_completions_request(
         import uuid
 
         data.user = str(uuid.UUID(int=0))
+        data.model = "memgpt-openai"
 
     return data
 

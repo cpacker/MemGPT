@@ -91,6 +91,9 @@ class EmbeddingEndpoint:
             raise ValueError(
                 f"Embeddings endpoint was provided an invalid URL (set to: '{base_url}'). Make sure embedding_endpoint is set correctly in your Letta config."
             )
+        # TODO: find a neater solution - re-mapping for letta endpoint
+        if model == "letta-free":
+            model = "BAAI/bge-large-en-v1.5"
         self.model_name = model
         self._user = user
         self._base_url = base_url
