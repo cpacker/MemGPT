@@ -246,12 +246,6 @@ def create(
         if not use_tool_naming:
             raise NotImplementedError("Only tool calling supported on Anthropic API requests")
 
-        if functions is not None:
-            tools = [{"type": "function", "function": f} for f in functions]
-            tools = [Tool(**t) for t in tools]
-        else:
-            tools = None
-
         return anthropic_chat_completions_request(
             url=llm_config.model_endpoint,
             api_key=model_settings.anthropic_api_key,

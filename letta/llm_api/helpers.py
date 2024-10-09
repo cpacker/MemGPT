@@ -21,10 +21,17 @@ def make_post_request(url: str, headers: dict[str, str], data: dict[str, Any]) -
         # Raise for 4XX/5XX HTTP errors
         response.raise_for_status()
 
-        # Ensure the content is JSON before parsing
-        if response.headers.get("Content-Type") == "application/json":
-            response_data = response.json()  # Convert to dict from JSON
-            printd(f"Response JSON: {response_data}")
+        # Check if the response content type indicates JSON and attempt to parse it
+        content_type = response.headers.get("Content-Type", "")
+        if "application/json" in content_type.lower():
+            try:
+                response_data = response.json()  # Attempt to parse the response as JSON
+                printd(f"Response JSON: {response_data}")
+            except ValueError as json_err:
+                # Handle the case where the content type says JSON but the body is invalid
+                error_message = f"Failed to parse JSON despite Content-Type being {content_type}: {json_err}"
+                printd(error_message)
+                raise ValueError(error_message) from json_err
         else:
             error_message = f"Unexpected content type returned: {response.headers.get('Content-Type')}"
             printd(error_message)
@@ -197,7 +204,7 @@ def is_context_overflow_error(exception: Union[requests.exceptions.RequestExcept
 def derive_inner_thoughts_in_kwargs(inner_thoughts_in_kwargs_option: OptionState, model: str):
     if inner_thoughts_in_kwargs_option == OptionState.DEFAULT:
         # model that are known to not use `content` fields on tool calls
-        inner_thoughts_in_kwargs = "gpt-4o" in model or "gpt-4-turbo" in model or "gpt-3.5-turbo" in model
+        inner_thoughts_in_kwargs = "gpt-4o" in model or "gpt-4-turbo" in model or "gpt-3.5-turbo" in model or "gemini" in model
     else:
         inner_thoughts_in_kwargs = True if inner_thoughts_in_kwargs_option == OptionState.YES else False
 

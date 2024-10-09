@@ -283,3 +283,39 @@ def test_gemini_pro_15_returns_valid_first_message():
     response = check_first_response_is_valid_for_llm_endpoint(filename)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
+
+
+def test_gemini_pro_15_returns_keyword():
+    keyword = "banana"
+    filename = os.path.join(llm_config_dir, "gemini-pro.json")
+    response = check_response_contains_keyword(filename, keyword=keyword)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_gemini_pro_15_uses_external_tool():
+    filename = os.path.join(llm_config_dir, "gemini-pro.json")
+    response = check_agent_uses_external_tool(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_gemini_pro_15_recall_chat_memory():
+    filename = os.path.join(llm_config_dir, "gemini-pro.json")
+    response = check_agent_recall_chat_memory(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_gemini_pro_15_archival_memory_retrieval():
+    filename = os.path.join(llm_config_dir, "gemini-pro.json")
+    response = check_agent_archival_memory_retrieval(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_gemini_pro_15_edit_core_memory():
+    filename = os.path.join(llm_config_dir, "gemini-pro.json")
+    response = check_agent_edit_core_memory(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
