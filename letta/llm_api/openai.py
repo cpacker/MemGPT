@@ -41,7 +41,9 @@ from letta.utils import smart_urljoin
 OPENAI_SSE_DONE = "[DONE]"
 
 
-def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional[bool] = False) -> dict:
+def openai_get_model_list(
+    url: str, api_key: Union[str, None], fix_url: Optional[bool] = False, extra_params: Optional[dict] = None
+) -> dict:
     """https://platform.openai.com/docs/api-reference/models/list"""
     from letta.utils import printd
 
@@ -60,7 +62,8 @@ def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional
 
     printd(f"Sending request to {url}")
     try:
-        response = requests.get(url, headers=headers)
+        # TODO add query param "tool" to be true
+        response = requests.get(url, headers=headers, params=extra_params)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
         printd(f"response = {response}")

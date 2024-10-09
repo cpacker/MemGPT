@@ -11,7 +11,7 @@ class ModelSettings(BaseSettings):
 
     # openai
     openai_api_key: Optional[str] = None
-    # TODO: provide overriding BASE_URL?
+    openai_base_url: Optional[str] = "https://api.openai.com/v1"
 
     # groq
     groq_api_key: Optional[str] = None
