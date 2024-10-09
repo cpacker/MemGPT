@@ -436,7 +436,7 @@ def google_ai_chat_completions_request(
             response_json=response_json,
             model=data.get("model"),
             input_messages=data["contents"],
-            pull_inner_thoughts_from_args=data.get("inner_thoughts_in_kwargs", False),
+            pull_inner_thoughts_from_args=inner_thoughts_in_kwargs,
         )
     except Exception as conversion_error:
         print(f"Error during response conversion: {conversion_error}")
