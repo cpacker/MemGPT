@@ -48,11 +48,12 @@ class O1Agent(Agent):
         max_thinking_steps: int = 5,
         first_message_verify_mono: bool = False,
     ):
-        self.agent = Agent(interface=interface, agent_state=agent_state, tools=tools, first_message_verify_mono=first_message_verify_mono)
+        super().__init__(interface, agent_state, tools)
         self.max_thinking_steps = max_thinking_steps
-        self.interface = self.agent.interface
-        self.agent_state = self.agent.agent_state
-        self.memory = self.agent.memory
+        # self.interface = interface
+        # self.agent_state = agent_state
+        self.tools = tools
+        self.first_message_verify_mono = first_message_verify_mono
 
     def step(
         self,
@@ -67,8 +68,19 @@ class O1Agent(Agent):
         inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
+
+        thinking_agent = Agent(
+            interface=self.interface,
+            agent_state=self.agent_state,
+            tools=self.tools,
+            first_message_verify_mono=self.first_message_verify_mono,
+        )
         for _ in range(self.max_thinking_steps):
-            response = self.agent.step(
+            # assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent.agent_state.memory)}"
+
+            # assert isinstance(thinking_agent.agent_state.memory, Memory), f"Memory object is not of type Memory"
+            # print("THINKING AGENT", thinking_agent.agent_state.system)
+            response = thinking_agent.step(
                 user_message,
                 first_message,
                 first_message_retry_limit,
@@ -84,8 +96,9 @@ class O1Agent(Agent):
                 break
         return response
 
-    def rebuild_memory(self, force=False, update_timestamp=True, ms: Optional[MetadataStore] = None):
-        self.agent.rebuild_memory(force, update_timestamp, ms)
+    # def rebuild_memory(self, force=False, update_timestamp=True, ms: Optional[MetadataStore] = None):
+    #    self.agent.rebuild_memory(force, update_timestamp, ms)
 
-    def update_state(self) -> AgentState:
-        return self.agent.update_state()
+    # def update_state(self) -> AgentState:
+    #    updated_state = self.agent.update_state()
+    #    return updated_state
