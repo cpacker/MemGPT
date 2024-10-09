@@ -1,4 +1,4 @@
-name: Run All pytest Tests
+name: Run CLI tests
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -43,4 +43,4 @@ jobs:
         LETTA_PG_HOST: localhost
         LETTA_SERVER_PASS: test_server_token
       run: |
-        poetry run pytest -s -vv tests/test_cli.py::test_letta_run_basic
+        poetry run pytest -s -vv tests/test_cli.py::test_letta_run_existing_agent

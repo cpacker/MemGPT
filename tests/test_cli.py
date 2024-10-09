@@ -15,6 +15,28 @@ cached_letta_path = os.path.join("tests", "data", "cached_letta")
 backup_letta_path = os.path.expanduser("~/.letta_backup")
 
 
+def create_credentials_file(parent_dir):
+    # Get the API key from the environment
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+
+    # Check if the environment variable is missing
+    if not openai_api_key:
+        raise EnvironmentError("Missing environment variable: OPENAI_API_KEY")
+
+    # Construct the content of the file
+    content = f"""
+[openai]
+auth_type = bearer_token
+key = {openai_api_key}
+"""
+
+    # Write the content to a file named 'credentials'
+    with open(os.path.join(parent_dir, "credentials"), "w") as file:
+        file.write(content.strip())
+
+    print("Credentials file created successfully.")
+
+
 @pytest.fixture
 def swap_letta_config():
     print("\nBackup the original ~/.letta directory\n")
@@ -24,18 +46,24 @@ def swap_letta_config():
     print("\nCopy the cached .letta directory to ~/.letta\n")
     shutil.copytree(cached_letta_path, original_letta_path)
 
-    # Run the test
-    yield
+    print("\nConstruct the credentials file from env.")
+    expanded_parent_dir = os.path.expanduser("~/.letta")
+    create_credentials_file(expanded_parent_dir)
 
-    print("\nClean up ~/.letta and restore the original directory\n")
-    if os.path.exists(original_letta_path):
-        shutil.rmtree(original_letta_path)
+    try:
+        # Run the test
+        yield
+    finally:
+        # Ensure this runs no matter what
+        print("\nClean up ~/.letta and restore the original directory\n")
+        if os.path.exists(original_letta_path):
+            shutil.rmtree(original_letta_path)
 
-    if os.path.exists(backup_letta_path):
-        shutil.move(backup_letta_path, original_letta_path)
+        if os.path.exists(backup_letta_path):
+            shutil.move(backup_letta_path, original_letta_path)
 
 
-def test_letta_run_basic(swap_letta_config):
+def test_letta_run_existing_agent(swap_letta_config):
     # Start the letta run command
     child = pexpect.spawn("letta run", encoding="utf-8")
     child.logfile = sys.stdout
