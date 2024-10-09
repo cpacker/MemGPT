@@ -87,12 +87,13 @@ autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
 external-tools = ["crewai", "docker", "crewai-tools", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
-tests = ["wikipedia"]
+tests = ["wikipedia", "pexpect"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
 ipykernel = "^6.29.5"
 ipdb = "^0.13.13"
+pexpect = "^4.9.0"
 
 [tool.black]
 line-length = 140

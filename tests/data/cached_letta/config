@@ -1,0 +1,23 @@
+[defaults]
+preset = memgpt_chat
+persona = sam_pov
+human = basic
+
+[archival_storage]
+type = chroma
+path = /Users/mattzhou/.letta/chroma
+
+[recall_storage]
+type = sqlite
+path = /Users/mattzhou/.letta
+
+[metadata_storage]
+type = sqlite
+path = /Users/mattzhou/.letta
+
+[version]
+letta_version = 0.4.1
+
+[client]
+anon_clientid = user-00000000
+

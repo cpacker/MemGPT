@@ -8349,9 +8349,9 @@ ollama = ["llama-index-embeddings-ollama"]
 postgres = ["pg8000", "pgvector"]
 qdrant = ["qdrant-client"]
 server = ["fastapi", "uvicorn", "websockets"]
-tests = ["wikipedia"]
+tests = ["pexpect", "wikipedia"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "aa0bbf5825741bdc9c06388e7e27c1d9a2d85d517abb7f51cca71cc8349d1170"
+content-hash = "1986806678f7fc87a9981863ec1a6f32c95d14ac8c3ca51be5b444c6498a631e"
