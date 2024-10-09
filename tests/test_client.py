@@ -400,7 +400,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert deleted_source.id == source.id
     archival_memories = client.get_archival_memory(agent_id=agent.id)
     assert len(archival_memories) == 0, f"Failed to detach source: {len(archival_memories)}"
-    assert source.id not in [s.id for s in attached_sources], f"Attached sources: {attached_sources}"
+    assert source.id not in [s.id for s in client.list_attached_sources(agent.id)]
 
     # delete the source
     client.delete_source(source.id)
