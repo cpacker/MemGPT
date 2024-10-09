@@ -24,14 +24,6 @@ MEMORY_TOOLS = [
 ]
 
 
-class MemoryAgent(Agent):
-    parent_split_thread_agent: "SplitThreadAgent"
-
-
-class ConversationAgent(Agent):
-    parent_split_thread_agent: "SplitThreadAgent"
-
-
 class SplitThreadAgent(BaseAgent):
     """
     SplitThreadAgent is an agent that splits the conversation and memory into two separate agents.
@@ -66,14 +58,13 @@ class SplitThreadAgent(BaseAgent):
         )
 
         # Conversation agent
-        self.conversation_agent = ConversationAgent(
+        self.conversation_agent = Agent(
             interface=interface,
             agent_state=conversation_agent_state,
             tools=conversation_tools,
             messages_total=messages_total,
             first_message_verify_mono=first_message_verify_mono,
         )
-        self.conversation_agent.parent_split_thread_agent = self
 
         # Flag to indicate if the conversation agent decided to wait for memory update
         self.conversation_waited = False
@@ -97,7 +88,7 @@ class SplitThreadAgent(BaseAgent):
         self.conversation_agent.update_state()
 
         # Memory agent
-        self.memory_agent = MemoryAgent(
+        self.memory_agent = Agent(
             interface=interface,
             agent_state=memory_agent_state,
             tools=memory_tools,
