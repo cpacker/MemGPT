@@ -9,6 +9,7 @@ from rich.live import Live
 from rich.markup import escape
 
 from letta.interface import CLIInterface
+from letta.local_llm.constants import INNER_THOUGHTS_CLI_SYMBOL, ASSISTANT_MESSAGE_CLI_SYMBOL
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import (
     ChatCompletionChunkResponse,
@@ -296,7 +297,7 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
     def process_refresh(self, response: ChatCompletionResponse):
         """Process the response to rewrite the current output buffer."""
         if not response.choices:
-            self.update_output("💭 [italic]...[/italic]")
+            self.update_output(f"{INNER_THOUGHTS_CLI_SYMBOL} [italic]...[/italic]")
             return  # Early exit if there are no choices
 
         choice = response.choices[0]
@@ -304,7 +305,7 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
         tool_calls = choice.message.tool_calls if choice.message.tool_calls else []
 
         if self.fancy:
-            message_string = f"💭 [italic]{inner_thoughts}[/italic]" if inner_thoughts else ""
+            message_string = f"{INNER_THOUGHTS_CLI_SYMBOL} [italic]{inner_thoughts}[/italic]" if inner_thoughts else ""
         else:
             message_string = "[inner thoughts] " + inner_thoughts if inner_thoughts else ""
 
@@ -326,7 +327,7 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
                         message = function_args[len(prefix) :]
                     else:
                         message = function_args
-                message_string += f"🤖 [bold yellow]{message}[/bold yellow]"
+                message_string += f"{ASSISTANT_MESSAGE_CLI_SYMBOL} [bold yellow]{message}[/bold yellow]"
             else:
                 message_string += f"{function_name}({function_args})"
 
@@ -336,7 +337,7 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
         if self.streaming:
             print()
             self.live.start()  # Start the Live display context and keep it running
-            self.update_output("💭 [italic]...[/italic]")
+            self.update_output(f"{INNER_THOUGHTS_CLI_SYMBOL} [italic]...[/italic]")
 
     def stream_end(self):
         if self.streaming:

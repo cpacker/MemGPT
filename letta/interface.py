@@ -5,6 +5,7 @@ from typing import List, Optional
 from colorama import Fore, Style, init
 
 from letta.constants import CLI_WARNING_PREFIX
+from letta.local_llm.constants import INNER_THOUGHTS_CLI_SYMBOL, ASSISTANT_MESSAGE_CLI_SYMBOL
 from letta.schemas.message import Message
 from letta.utils import json_loads, printd
 
@@ -79,14 +80,14 @@ class CLIInterface(AgentInterface):
     @staticmethod
     def internal_monologue(msg: str, msg_obj: Optional[Message] = None):
         # ANSI escape code for italic is '\x1B[3m'
-        fstr = f"\x1B[3m{Fore.LIGHTBLACK_EX}💭 {{msg}}{Style.RESET_ALL}"
+        fstr = f"\x1B[3m{Fore.LIGHTBLACK_EX}{INNER_THOUGHTS_CLI_SYMBOL} {{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
 
     @staticmethod
     def assistant_message(msg: str, msg_obj: Optional[Message] = None):
-        fstr = f"{Fore.YELLOW}{Style.BRIGHT}🤖 {Fore.YELLOW}{{msg}}{Style.RESET_ALL}"
+        fstr = f"{Fore.YELLOW}{Style.BRIGHT}{ASSISTANT_MESSAGE_CLI_SYMBOL} {Fore.YELLOW}{{msg}}{Style.RESET_ALL}"
         if STRIP_UI:
             fstr = "{msg}"
         print(fstr.format(msg=msg))
