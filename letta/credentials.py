@@ -76,7 +76,7 @@ class LettaCredentials:
                 "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
                 # gemini
                 "google_ai_key": get_field(config, "google_ai", "key"),
-                "google_ai_service_endpoint": get_field(config, "google_ai", "service_endpoint"),
+                # "google_ai_service_endpoint": get_field(config, "google_ai", "service_endpoint"),
                 # anthropic
                 "anthropic_key": get_field(config, "anthropic", "key"),
                 # cohere
@@ -117,7 +117,7 @@ class LettaCredentials:
 
         # gemini
         set_field(config, "google_ai", "key", self.google_ai_key)
-        set_field(config, "google_ai", "service_endpoint", self.google_ai_service_endpoint)
+        # set_field(config, "google_ai", "service_endpoint", self.google_ai_service_endpoint)
 
         # anthropic
         set_field(config, "anthropic", "key", self.anthropic_key)

@@ -28,7 +28,6 @@ from letta.local_llm.constants import (
     INNER_THOUGHTS_KWARG,
     INNER_THOUGHTS_KWARG_DESCRIPTION,
 )
-from letta.providers import GoogleAIProvider
 from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
@@ -189,6 +188,9 @@ def create(
         if model_settings.azure_base_url is None:
             raise ValueError(f"Azure base url is missing. Did you set AZURE_BASE_URL in your env?")
 
+        if model_settings.azure_api_version is None:
+            raise ValueError(f"Azure API version is missing. Did you set AZURE_API_VERSION in your env?")
+
         # Set the llm config model_endpoint from model_settings
         # For Azure, this model_endpoint is required to be configured via env variable, so users don't need to provide it in the LLM config
         llm_config.model_endpoint = model_settings.azure_base_url
@@ -228,7 +230,7 @@ def create(
 
         return google_ai_chat_completions_request(
             inner_thoughts_in_kwargs=google_ai_inner_thoughts_in_kwarg,
-            service_endpoint=GoogleAIProvider(model_settings.gemini_api_key).service_endpoint,
+            base_url=llm_config.model_endpoint,
             model=llm_config.model,
             api_key=model_settings.gemini_api_key,
             # see structure of payload here: https://ai.google.dev/docs/function_calling

@@ -74,6 +74,9 @@ class ChatCompletionResponse(BaseModel):
     object: Literal["chat.completion"] = "chat.completion"
     usage: UsageStatistics
 
+    def __str__(self):
+        return self.model_dump_json(indent=4)
+
 
 class FunctionCallDelta(BaseModel):
     # arguments: Optional[str] = None

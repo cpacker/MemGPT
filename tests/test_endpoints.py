@@ -273,3 +273,13 @@ def test_groq_llama31_70b_edit_core_memory():
     response = check_agent_edit_core_memory(filename)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
+
+
+# ======================================================================================================================
+# GEMINI TESTS
+# ======================================================================================================================
+def test_gemini_pro_15_returns_valid_first_message():
+    filename = os.path.join(llm_config_dir, "gemini-pro.json")
+    response = check_first_response_is_valid_for_llm_endpoint(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
