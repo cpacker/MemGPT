@@ -11,6 +11,7 @@ from letta import create_client
 from letta.agent import Agent, save_agent
 from letta.config import LettaConfig
 from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR
+from letta.local_llm.constants import ASSISTANT_MESSAGE_CLI_SYMBOL
 from letta.log import get_logger
 from letta.metadata import MetadataStore
 from letta.schemas.enums import OptionState
@@ -276,7 +277,7 @@ def run(
         memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
         metadata = {"human": human_obj.name, "persona": persona_obj.name}
 
-        typer.secho(f"->  🤖 Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  {ASSISTANT_MESSAGE_CLI_SYMBOL} Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
         typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
 
         # add tools
