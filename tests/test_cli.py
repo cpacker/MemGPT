@@ -38,26 +38,33 @@ def swap_letta_config():
 
 
 def test_letta_run_create_new_agent(swap_letta_config):
-    # Start the letta run command
     child = pexpect.spawn("poetry run letta run", encoding="utf-8")
-    child.logfile = sys.stdout
-    child.expect("Creating new agent", timeout=60)
-    child.expect("Select LLM model:", timeout=60)
-    child.sendline("\033[B\033[B\033[B\033[B\033[B")
-    child.expect("Select embedding model:", timeout=60)
-    child.sendline("text-embedding-ada-002")
-    child.expect("Created new agent", timeout=60)
-    child.sendline("")
+    try:
+        # Start the letta run command
+        child.logfile = sys.stdout
+        child.expect("Creating new agent", timeout=60)
+        child.expect("Select LLM model:", timeout=60)
+        child.sendline("\033[B\033[B\033[B\033[B\033[B")
+        child.expect("Select embedding model:", timeout=60)
+        child.sendline("text-embedding-ada-002")
+        child.expect("Created new agent", timeout=60)
+        child.sendline("")
 
-    # Get initial response
-    child.expect("Enter your message:", timeout=60)
-    # Capture the output up to this point
-    full_output = child.before
-    # Count occurrences of inner thoughts
-    cloud_emoji_count = full_output.count(INNER_THOUGHTS_CLI_SYMBOL)
-    assert cloud_emoji_count == 1, f"It appears that there are multiple instances of inner thought outputted."
-    # Count occurrences assistant messages
-    robot = full_output.count(ASSISTANT_MESSAGE_CLI_SYMBOL)
-    assert robot == 1, f"It appears that there are multiple instances of assistant messages outputted."
-    # Make sure the user name was repeated back at least once
-    assert full_output.count("Chad") > 0, f"Chad was not mentioned...please manually inspect the outputs."
+        # Get initial response
+        child.expect("Enter your message:", timeout=60)
+        # Capture the output up to this point
+        full_output = child.before
+        # Count occurrences of inner thoughts
+        cloud_emoji_count = full_output.count(INNER_THOUGHTS_CLI_SYMBOL)
+        assert cloud_emoji_count == 1, f"It appears that there are multiple instances of inner thought outputted."
+        # Count occurrences of assistant messages
+        robot = full_output.count(ASSISTANT_MESSAGE_CLI_SYMBOL)
+        assert robot == 1, f"It appears that there are multiple instances of assistant messages outputted."
+        # Make sure the user name was repeated back at least once
+        assert full_output.count("Chad") > 0, f"Chad was not mentioned...please manually inspect the outputs."
+
+    except Exception as e:
+        # Print the captured output before raising the exception
+        print(f"Test failed. Full output up to the point of failure:\n{child.before}")
+        print(f"Error: {e}")
+        raise
