@@ -556,9 +556,12 @@ class Agent(BaseAgent):
             )  # extend conversation with assistant's reply
             printd(f"Function call message: {messages[-1]}")
 
+            nonnull_content = False
             if response_message.content:
                 # The content if then internal monologue, not chat
                 self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
+                # Flag to avoid printing a duplicate if inner thoughts get popped from the function call
+                nonnull_content = True
 
             # Step 3: call the function
             # Note: the JSON response may not always be valid; be sure to handle errors
@@ -619,7 +622,7 @@ class Agent(BaseAgent):
             if "inner_thoughts" in function_args:
                 response_message.content = function_args.pop("inner_thoughts")
             # The content if then internal monologue, not chat
-            if response_message.content:
+            if response_message.content and not nonnull_content:
                 self.interface.internal_monologue(response_message.content, msg_obj=messages[-1])
 
             # (Still parsing function args)
