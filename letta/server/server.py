@@ -1623,6 +1623,11 @@ class SyncServer(Server):
         agent = self._get_or_load_agent(agent_id=agent_id)
         archival_memory = agent.persistence_manager.archival_memory
         archival_memory.storage.delete({"source_id": source_id})
+
+        # delete agent-source mapping
+        self.ms.detach_source(agent_id=agent_id, source_id=source_id)
+
+        # return back source data
         return source
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
