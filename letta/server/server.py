@@ -387,6 +387,11 @@ class SyncServer(Server):
             total_usage = UsageStatistics()
             step_count = 0
             while True:
+                print("step", step_count)
+                assert isinstance(
+                    letta_agent.agent_state.memory, Memory
+                ), f"Memory object is not of type Memory: {type(letta_agent.agent_state.memory)}"
+
                 step_response = letta_agent.step(
                     next_input_message,
                     first_message=False,
@@ -410,6 +415,9 @@ class SyncServer(Server):
                 logger.debug("Saving agent state")
                 # save updated state
                 save_agent(letta_agent, self.ms)
+                assert isinstance(
+                    letta_agent.agent_state.memory, Memory
+                ), f"Memory object is not of type Memory: {type(letta_agent.agent_state.memory)}"
 
                 # Chain stops
                 if not self.chaining:
@@ -485,7 +493,7 @@ class SyncServer(Server):
         elif command.lower() == "memory":
             ret_str = (
                 f"\nDumping memory contents:\n"
-                + f"\n{str(letta_agent.memory)}"
+                + f"\n{str(letta_agent.agent_state.memory)}"
                 + f"\n{str(letta_agent.persistence_manager.archival_memory)}"
                 + f"\n{str(letta_agent.persistence_manager.recall_memory)}"
             )
@@ -907,7 +915,7 @@ class SyncServer(Server):
             letta_agent.agent_state.metadata_ = request.metadata_
 
         # save the agent
-        assert isinstance(letta_agent.memory, Memory)
+        assert isinstance(letta_agent.agent_state.memory, Memory)
         save_agent(letta_agent, self.ms)
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
@@ -984,7 +992,7 @@ class SyncServer(Server):
             return_dict["tools"] = tools
 
             # Add information about memory (raw core, size of recall, size of archival)
-            core_memory = letta_agent.memory
+            core_memory = letta_agent.agent_state.memory
             recall_memory = letta_agent.persistence_manager.recall_memory
             archival_memory = letta_agent.persistence_manager.archival_memory
             memory_obj = {
@@ -1324,7 +1332,6 @@ class SyncServer(Server):
 
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
-        assert isinstance(letta_agent.memory, Memory)
         assert isinstance(letta_agent.agent_state.memory, Memory)
         return letta_agent.agent_state.model_copy(deep=True)
 
@@ -1365,13 +1372,13 @@ class SyncServer(Server):
 
         modified = False
         for key, value in new_memory_contents.items():
-            if letta_agent.memory.get_block(key) is None:
-                # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.memory.list_block_names())}")
-                raise ValueError(f"Key {key} not found in agent memory {str(letta_agent.memory.memory)}")
+            if letta_agent.agent_state.memory.get_block(key) is None:
+                # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.agent_state.memory.list_block_names())}")
+                raise ValueError(f"Key {key} not found in agent memory {str(letta_agent.agent_state.memory.memory)}")
             if value is None:
                 continue
-            if letta_agent.memory.get_block(key) != value:
-                letta_agent.memory.update_block_value(name=key, value=value)  # update agent memory
+            if letta_agent.agent_state.memory.get_block(key) != value:
+                letta_agent.agent_state.memory.update_block_value(name=key, value=value)  # update agent memory
                 modified = True
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message
