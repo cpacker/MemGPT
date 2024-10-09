@@ -44,3 +44,5 @@ jobs:
         LETTA_SERVER_PASS: test_server_token
       run: |
         poetry run pytest -s -vv tests/test_cli.py::test_letta_run_create_new_agent
+
+
