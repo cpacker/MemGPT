@@ -1350,10 +1350,6 @@ class Agent(BaseAgent):
 
 def save_agent(agent: Agent, ms: MetadataStore):
     """Save agent to metadata store"""
-    # from letta.o1_agent import O1Agent
-    # if isinstance(agent, O1Agent):
-    #    assert isinstance(agent.agent.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(letta_agent.agent_state.memory)}"
-
     agent.update_state()
     agent_state = agent.agent_state
     agent_id = agent_state.id
