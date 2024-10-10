@@ -31,7 +31,7 @@ class ModelSettings(BaseSettings):
     gemini_api_key: Optional[str] = None
 
     # vLLM
-    vllm_base_url: Optional[str] = None
+    vllm_api_base: Optional[str] = None
 
     # openllm
     openllm_auth_type: Optional[str] = None

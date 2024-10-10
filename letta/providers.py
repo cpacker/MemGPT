@@ -378,9 +378,32 @@ class AzureProvider(Provider):
         return AZURE_MODEL_TO_CONTEXT_LENGTH.get(model_name, 4096)
 
 
-class VLLMProvider(OpenAIProvider):
+class VLLMProvider(Provider):
     # NOTE: vLLM only serves one model at a time (so could configure that through env variables)
-    pass
+    name: str = "vllm"
+    base_url: str = Field(..., description="Base URL for the vLLM API.")
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        # not supported with vLLM
+        from letta.llm_api.openai import openai_get_model_list
+
+        response = openai_get_model_list(self.base_url, api_key=None)
+
+        configs = []
+        for model in response["data"]:
+            configs.append(
+                LLMConfig(
+                    model=model["id"],
+                    model_endpoint_type="vllm",
+                    model_endpoint=self.base_url,
+                    context_window=model["max_model_len"],
+                )
+            )
+        return configs
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        # not supported with vLLM
+        return []
 
 
 class CohereProvider(OpenAIProvider):

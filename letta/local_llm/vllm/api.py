@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 from letta.local_llm.settings.settings import get_completions_settings
 from letta.local_llm.utils import count_tokens, post_json_auth_request
 
-WEBUI_API_SUFFIX = "/v1/completions"
+WEBUI_API_SUFFIX = "/completions"
 
 
 def get_vllm_completion(endpoint, auth_type, auth_key, model, prompt, context_window, user, grammar=None):
