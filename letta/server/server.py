@@ -754,6 +754,9 @@ class SyncServer(Server):
         if request.name is None:
             request.name = create_random_username()
 
+        if request.agent_type is None:
+            request.agent_type = AgentType.memgpt_agent
+
         # system debug
         if request.system is None:
             # TODO: don't hardcode
