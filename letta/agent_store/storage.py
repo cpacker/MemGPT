@@ -33,7 +33,7 @@ ARCHIVAL_TABLE_NAME = "letta_archival_memory_agent"  # agent memory
 
 # external data source tables
 PASSAGE_TABLE_NAME = "letta_passages"  # chunked/embedded passages (from source)
-DOCUMENT_TABLE_NAME = "letta_documents"  # original files (from source)
+FILE_TABLE_NAME = "letta_files"  # original files (from source)
 
 
 class StorageConnector:
@@ -61,7 +61,7 @@ class StorageConnector:
             self.table_name = RECALL_TABLE_NAME
         elif table_type == TableType.FILES:
             self.type = File
-            self.table_name = DOCUMENT_TABLE_NAME
+            self.table_name = FILE_TABLE_NAME
         elif table_type == TableType.PASSAGES:
             self.type = Passage
             self.table_name = PASSAGE_TABLE_NAME
