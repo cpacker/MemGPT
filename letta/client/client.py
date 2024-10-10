@@ -1016,6 +1016,12 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get job: {response.text}")
         return Job(**response.json())
 
+    def delete_job(self, job_id: str) -> Job:
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/jobs/{job_id}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to delete job: {response.text}")
+        return Job(**response.json())
+
     def list_jobs(self):
         response = requests.get(f"{self.base_url}/{self.api_prefix}/jobs", headers=self.headers)
         return [Job(**job) for job in response.json()]
@@ -2161,6 +2167,9 @@ class LocalClient(AbstractClient):
 
     def get_job(self, job_id: str):
         return self.server.get_job(job_id=job_id)
+
+    def delete_job(self, job_id: str):
+        return self.server.delete_job(job_id)
 
     def list_jobs(self):
         return self.server.list_jobs(user_id=self.user_id)
