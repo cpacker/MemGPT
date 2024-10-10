@@ -42,6 +42,7 @@ from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import MetadataStore
+from letta.o1_agent import O1Agent
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
@@ -345,8 +346,10 @@ class SyncServer(Server):
 
             if agent_state.agent_type == AgentType.memgpt_agent:
                 letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            elif agent_state.agent_type == AgentType.o1_agent:
+                letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
             else:
-                raise NotImplementedError("Only base agents are supported as of right now!")
+                raise NotImplementedError("Not a supported agent type")
 
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -392,6 +395,11 @@ class SyncServer(Server):
             total_usage = UsageStatistics()
             step_count = 0
             while True:
+                print("step", step_count)
+                assert isinstance(
+                    letta_agent.agent_state.memory, Memory
+                ), f"Memory object is not of type Memory: {type(letta_agent.agent_state.memory)}"
+
                 step_response = letta_agent.step(
                     next_input_message,
                     first_message=False,
@@ -415,6 +423,9 @@ class SyncServer(Server):
                 logger.debug("Saving agent state")
                 # save updated state
                 save_agent(letta_agent, self.ms)
+                assert isinstance(
+                    letta_agent.agent_state.memory, Memory
+                ), f"Memory object is not of type Memory: {type(letta_agent.agent_state.memory)}"
 
                 # Chain stops
                 if not self.chaining:
@@ -490,7 +501,7 @@ class SyncServer(Server):
         elif command.lower() == "memory":
             ret_str = (
                 f"\nDumping memory contents:\n"
-                + f"\n{str(letta_agent.memory)}"
+                + f"\n{str(letta_agent.agent_state.memory)}"
                 + f"\n{str(letta_agent.persistence_manager.archival_memory)}"
                 + f"\n{str(letta_agent.persistence_manager.recall_memory)}"
             )
@@ -743,10 +754,18 @@ class SyncServer(Server):
         if request.name is None:
             request.name = create_random_username()
 
+        if request.agent_type is None:
+            request.agent_type = AgentType.memgpt_agent
+
         # system debug
         if request.system is None:
             # TODO: don't hardcode
-            request.system = gpt_system.get_system_text("memgpt_chat")
+            if request.agent_type == AgentType.memgpt_agent:
+                request.system = gpt_system.get_system_text("memgpt_chat")
+            elif request.agent_type == AgentType.o1_agent:
+                request.system = gpt_system.get_system_text("memgpt_modified_o1")
+            else:
+                raise ValueError(f"Invalid agent type: {request.agent_type}")
 
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.ms.get_user(user_id=user_id)
@@ -806,13 +825,22 @@ class SyncServer(Server):
                 description=request.description,
                 metadata_=request.metadata_,
             )
-            agent = Agent(
-                interface=interface,
-                agent_state=agent_state,
-                tools=tool_objs,
-                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
-            )
+            if request.agent_type == AgentType.memgpt_agent:
+                agent = Agent(
+                    interface=interface,
+                    agent_state=agent_state,
+                    tools=tool_objs,
+                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                )
+            elif request.agent_type == AgentType.o1_agent:
+                agent = O1Agent(
+                    interface=interface,
+                    agent_state=agent_state,
+                    tools=tool_objs,
+                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
             # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
@@ -898,7 +926,7 @@ class SyncServer(Server):
             letta_agent.agent_state.metadata_ = request.metadata_
 
         # save the agent
-        assert isinstance(letta_agent.memory, Memory)
+        assert isinstance(letta_agent.agent_state.memory, Memory)
         save_agent(letta_agent, self.ms)
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
@@ -975,7 +1003,7 @@ class SyncServer(Server):
             return_dict["tools"] = tools
 
             # Add information about memory (raw core, size of recall, size of archival)
-            core_memory = letta_agent.memory
+            core_memory = letta_agent.agent_state.memory
             recall_memory = letta_agent.persistence_manager.recall_memory
             archival_memory = letta_agent.persistence_manager.archival_memory
             memory_obj = {
@@ -1315,7 +1343,6 @@ class SyncServer(Server):
 
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
-        assert isinstance(letta_agent.memory, Memory)
         assert isinstance(letta_agent.agent_state.memory, Memory)
         return letta_agent.agent_state.model_copy(deep=True)
 
@@ -1356,13 +1383,13 @@ class SyncServer(Server):
 
         modified = False
         for key, value in new_memory_contents.items():
-            if letta_agent.memory.get_block(key) is None:
-                # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.memory.list_block_names())}")
-                raise ValueError(f"Key {key} not found in agent memory {str(letta_agent.memory.memory)}")
+            if letta_agent.agent_state.memory.get_block(key) is None:
+                # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.agent_state.memory.list_block_names())}")
+                raise ValueError(f"Key {key} not found in agent memory {str(letta_agent.agent_state.memory.memory)}")
             if value is None:
                 continue
-            if letta_agent.memory.get_block(key) != value:
-                letta_agent.memory.update_block_value(name=key, value=value)  # update agent memory
+            if letta_agent.agent_state.memory.get_block(key) != value:
+                letta_agent.agent_state.memory.update_block_value(name=key, value=value)  # update agent memory
                 modified = True
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message

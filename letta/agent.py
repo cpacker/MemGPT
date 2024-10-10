@@ -249,9 +249,7 @@ class Agent(BaseAgent):
         self.system = self.agent_state.system
 
         # Initialize the memory object
-        self.memory = self.agent_state.memory
-        assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
-        printd("Initialized memory object", self.memory.compile())
+        printd("Initialized memory object", self.agent_state.memory.compile())
 
         # Interface must implement:
         # - internal_monologue
@@ -289,7 +287,7 @@ class Agent(BaseAgent):
             init_messages = initialize_message_sequence(
                 model=self.model,
                 system=self.system,
-                memory=self.memory,
+                memory=self.agent_state.memory,
                 archival_memory=None,
                 recall_memory=None,
                 memory_edit_timestamp=get_utc_time(),
@@ -744,6 +742,8 @@ class Agent(BaseAgent):
         """Top-level event message handler for the Letta agent"""
 
         try:
+            assert isinstance(self.agent_state, AgentState), f"AgentState object is not of type AgentState: {type(self.agent_state)}"
+            assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
             # Step 0: update core memory
             # only pulling latest block data if shared memory is being used
@@ -888,6 +888,7 @@ class Agent(BaseAgent):
             # update state after each step
             self.update_state()
 
+            assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
             return AgentStepResponse(
                 messages=messages_to_return,
                 heartbeat_request=heartbeat_request,
@@ -905,6 +906,8 @@ class Agent(BaseAgent):
                 self.summarize_messages_inplace()
 
                 # Try step again
+                print("Retrying step after summarizing")
+                assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
                 return self.step(
                     user_message,
                     first_message=first_message,
@@ -1060,13 +1063,13 @@ class Agent(BaseAgent):
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
 
         # NOTE: This is a hacky way to check if the memory has changed
-        memory_repr = self.memory.compile()
+        memory_repr = self.agent_state.memory.compile()
         if not force and memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
             printd(f"Memory has not changed, not rebuilding system")
             return
 
         if ms:
-            for block in self.memory.to_dict()["memory"].values():
+            for block in self.agent_state.memory.to_dict()["memory"].values():
                 if block.get("templates", False):
                     # we don't expect to update shared memory blocks that
                     # are templates. this is something we could update in the
@@ -1085,7 +1088,7 @@ class Agent(BaseAgent):
                     printd(f"skipping block update, unexpected value: {block_id=}")
                     continue
                 # TODO: we may want to update which columns we're updating from shared memory e.g. the limit
-                self.memory.update_block_value(name=block.get("label", ""), value=db_block.value)
+                self.agent_state.memory.update_block_value(name=block.get("label", ""), value=db_block.value)
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False
@@ -1098,7 +1101,7 @@ class Agent(BaseAgent):
         # update memory (TODO: potentially update recall/archival stats seperately)
         new_system_message_str = compile_system_message(
             system_prompt=self.system,
-            in_context_memory=self.memory,
+            in_context_memory=self.agent_state.memory,
             in_context_memory_last_edit=memory_edit_timestamp,
             archival_memory=self.persistence_manager.archival_memory,
             recall_memory=self.persistence_manager.recall_memory,
@@ -1147,11 +1150,8 @@ class Agent(BaseAgent):
 
     def update_state(self) -> AgentState:
         message_ids = [msg.id for msg in self._messages]
-        assert isinstance(self.memory, Memory), f"Memory is not a Memory object: {type(self.memory)}"
-
         # override any fields that may have been updated
         self.agent_state.message_ids = message_ids
-        self.agent_state.memory = self.memory
         self.agent_state.system = self.system
 
         return self.agent_state
@@ -1350,6 +1350,9 @@ class Agent(BaseAgent):
 
 def save_agent(agent: Agent, ms: MetadataStore):
     """Save agent to metadata store"""
+    # from letta.o1_agent import O1Agent
+    # if isinstance(agent, O1Agent):
+    #    assert isinstance(agent.agent.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(letta_agent.agent_state.memory)}"
 
     agent.update_state()
     agent_state = agent.agent_state
@@ -1380,7 +1383,7 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
     NOTE: we are assuming agent.update_state has already been called.
     """
 
-    for block_dict in agent.memory.to_dict()["memory"].values():
+    for block_dict in agent.agent_state.memory.to_dict()["memory"].values():
         # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
         if block_dict.get("user_id", None) is None:
             block_dict["user_id"] = agent.agent_state.user_id
