@@ -21,7 +21,7 @@ def send_thinking_message(self: Agent, message: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.interface.assistant_message(message)  # , msg_obj=self._messages[-1])
+    self.interface.assistant_message(message, msg_obj=self._messages[-1])
     return None
 
 
@@ -35,7 +35,7 @@ def send_final_message(self: Agent, message: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.interface.assistant_message(message)  # , msg_obj=self._messages[-1])
+    self.interface.assistant_message(message, msg_obj=self._messages[-1])
     return None
 
 
@@ -92,6 +92,7 @@ class O1Agent(Agent):
                 inner_thoughts_in_kwargs,
                 ms,
             )
+            assert all(isinstance(m, Message) for m in response.messages)
             if response.messages[-1].name == "send_final_message":
                 break
         return response
