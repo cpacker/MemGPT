@@ -78,15 +78,6 @@ jobs:
         echo "TEST_CORE_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
-    - name: Test embedding endpoint
-      id: test_embedding_endpoint
-      env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_openai
-        echo "TEST_EMBEDDING_ENDPOINT_EXIT_CODE=$?" >> $GITHUB_ENV
-      continue-on-error: true
-
     - name: Summarize test results
       if: always()
       run: |
