@@ -372,10 +372,10 @@ class PostgresStorageConnector(SQLStorageConnector):
                 if self.config.recall_storage_uri is None:
                     raise ValueError(f"Must specify recall_storage_uri in config {self.config.config_path}")
             elif table_type == TableType.FILES:
-                self.uri = self.config.documents_storage_uri
+                self.uri = self.config.metadata_storage_uri
                 self.db_model = FileModel
-                if self.config.documents_storage_uri is None:
-                    raise ValueError(f"Must specify documents_storage_uri in config {self.config.config_path}")
+                if self.config.metadata_storage_uri is None:
+                    raise ValueError(f"Must specify metadata_storage_uri in config {self.config.config_path}")
             else:
                 raise ValueError(f"Table type {table_type} not implemented")
 
@@ -495,9 +495,9 @@ class SQLLiteStorageConnector(SQLStorageConnector):
                 raise ValueError(f"Must specify recall_storage_path in config.")
             self.db_model = MessageModel
         elif table_type == TableType.FILES:
-            self.path = self.config.documents_storage_path
+            self.path = self.config.metadata_storage_path
             if self.path is None:
-                raise ValueError(f"Must specify documents_storage_path in config.")
+                raise ValueError(f"Must specify metadata_storage_path in config.")
             self.db_model = FileModel
 
         else:

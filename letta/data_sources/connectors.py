@@ -59,7 +59,6 @@ def load_data(
     for file_text, document_metadata in connector.generate_files():
         # insert document into storage
         file = File(
-            id=create_uuid_from_string(f"{str(source.id)}_{file_text}"),
             user_id=source.user_id,
             source_id=source.id,
             metadata_=document_metadata,

@@ -93,7 +93,7 @@ class StorageConnector:
         elif table_type == TableType.RECALL_MEMORY:
             storage_type = config.recall_storage_type
         elif table_type == TableType.FILES:
-            storage_type = config.documents_storage_type
+            storage_type = config.metadata_storage_type
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
