@@ -21,10 +21,17 @@ def make_post_request(url: str, headers: dict[str, str], data: dict[str, Any]) -
         # Raise for 4XX/5XX HTTP errors
         response.raise_for_status()
 
-        # Ensure the content is JSON before parsing
-        if response.headers.get("Content-Type") == "application/json":
-            response_data = response.json()  # Convert to dict from JSON
-            printd(f"Response JSON: {response_data}")
+        # Check if the response content type indicates JSON and attempt to parse it
+        content_type = response.headers.get("Content-Type", "")
+        if "application/json" in content_type.lower():
+            try:
+                response_data = response.json()  # Attempt to parse the response as JSON
+                printd(f"Response JSON: {response_data}")
+            except ValueError as json_err:
+                # Handle the case where the content type says JSON but the body is invalid
+                error_message = f"Failed to parse JSON despite Content-Type being {content_type}: {json_err}"
+                printd(error_message)
+                raise ValueError(error_message) from json_err
         else:
             error_message = f"Unexpected content type returned: {response.headers.get('Content-Type')}"
             printd(error_message)

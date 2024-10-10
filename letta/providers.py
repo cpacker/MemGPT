@@ -31,7 +31,7 @@ class LettaProvider(Provider):
     def list_llm_models(self) -> List[LLMConfig]:
         return [
             LLMConfig(
-                model="memgpt-openai",
+                model="letta-free",  # NOTE: renamed
                 model_endpoint_type="openai",
                 model_endpoint="https://inference.memgpt.ai",
                 context_window=16384,
@@ -41,7 +41,7 @@ class LettaProvider(Provider):
     def list_embedding_models(self):
         return [
             EmbeddingConfig(
-                embedding_model="BAAI/bge-large-en-v1.5",
+                embedding_model="letta-free",  # NOTE: renamed
                 embedding_endpoint_type="hugging-face",
                 embedding_endpoint="https://embeddings.memgpt.ai",
                 embedding_dim=1024,
@@ -53,17 +53,28 @@ class LettaProvider(Provider):
 class OpenAIProvider(Provider):
     name: str = "openai"
     api_key: str = Field(..., description="API key for the OpenAI API.")
-    base_url: str = "https://api.openai.com/v1"
+    base_url: str = Field(..., description="Base URL for the OpenAI API.")
 
     def list_llm_models(self) -> List[LLMConfig]:
         from letta.llm_api.openai import openai_get_model_list
 
-        response = openai_get_model_list(self.base_url, api_key=self.api_key)
-        model_options = [obj["id"] for obj in response["data"]]
+        # Some hardcoded support for OpenRouter (so that we only get models with tool calling support)...
+        # See: https://openrouter.ai/docs/requests
+        extra_params = {"supported_parameters": "tools"} if "openrouter.ai" in self.base_url else None
+        response = openai_get_model_list(self.base_url, api_key=self.api_key, extra_params=extra_params)
+
+        assert "data" in response, f"OpenAI model query response missing 'data' field: {response}"
 
         configs = []
-        for model_name in model_options:
-            context_window_size = self.get_model_context_window_size(model_name)
+        for model in response["data"]:
+            assert "id" in model, f"OpenAI model missing 'id' field: {model}"
+            model_name = model["id"]
+
+            if "context_length" in model:
+                # Context length is returned in OpenRouter as "context_length"
+                context_window_size = model["context_length"]
+            else:
+                context_window_size = self.get_model_context_window_size(model_name)
 
             if not context_window_size:
                 continue

@@ -29,3 +29,6 @@ DEFAULT_WRAPPER_NAME = "chatml"
 
 INNER_THOUGHTS_KWARG = "inner_thoughts"
 INNER_THOUGHTS_KWARG_DESCRIPTION = "Deep inner monologue private to you only."
+INNER_THOUGHTS_CLI_SYMBOL = "💭"
+
+ASSISTANT_MESSAGE_CLI_SYMBOL = "🤖"

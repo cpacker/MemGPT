@@ -50,6 +50,7 @@ from letta.providers import (
     LettaProvider,
     OllamaProvider,
     OpenAIProvider,
+    Provider,
     VLLMProvider,
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
@@ -261,9 +262,9 @@ class SyncServer(Server):
         self.add_default_tools(module_name="base")
 
         # collect providers (always has Letta as a default)
-        self._enabled_providers = [LettaProvider()]
+        self._enabled_providers: List[Provider] = [LettaProvider()]
         if model_settings.openai_api_key:
-            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key))
+            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key, base_url=model_settings.openai_api_base))
         if model_settings.anthropic_api_key:
             self._enabled_providers.append(AnthropicProvider(api_key=model_settings.anthropic_api_key))
         if model_settings.ollama_base_url:
@@ -1623,6 +1624,11 @@ class SyncServer(Server):
         agent = self._get_or_load_agent(agent_id=agent_id)
         archival_memory = agent.persistence_manager.archival_memory
         archival_memory.storage.delete({"source_id": source_id})
+
+        # delete agent-source mapping
+        self.ms.detach_source(agent_id=agent_id, source_id=source_id)
+
+        # return back source data
         return source
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:

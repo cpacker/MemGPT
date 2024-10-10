@@ -132,7 +132,6 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str) -> ChatComplet
 
     # Get inner_thoughts_in_kwargs
     inner_thoughts_in_kwargs = derive_inner_thoughts_in_kwargs(OptionState.DEFAULT, agent_state.llm_config.model)
-
     # Assert that the message has an inner monologue
     assert_contains_correct_inner_monologue(choice, inner_thoughts_in_kwargs)
 
