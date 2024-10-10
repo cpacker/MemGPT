@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from letta.schemas.letta_base import LettaBase
 from letta.utils import get_utc_time
@@ -24,3 +24,8 @@ class File(FileBase):
 
     class Config:
         extra = "allow"
+
+
+class PaginatedListFilesResponse(BaseModel):
+    files: List[File]
+    next_cursor: Optional[str] = None  # The cursor for fetching the next page, if any

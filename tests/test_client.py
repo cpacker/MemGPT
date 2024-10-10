@@ -336,12 +336,13 @@ def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
         if time.time() - start_time > timeout:
             raise ValueError("Job did not finish in time")
 
-    # Get the documents
-    documents = client.list_files_from_source(source.id)
-    assert len(documents) == 1  # Should be condensed to one document
+    # Get the files
+    list_files_response = client.list_files_from_source(source.id)
+    files = list_files_response.files
+    assert len(files) == 1  # Should be condensed to one document
 
     # Get the memgpt paper
-    document = documents[0]
+    document = files[0]
     assert document.metadata_.get("file_name", None) == "memgpt_paper.pdf"
     assert document.source_id == source.id
 

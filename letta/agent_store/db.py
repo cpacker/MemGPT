@@ -141,7 +141,7 @@ class PassageModel(Base):
     id = Column(String, primary_key=True)
     user_id = Column(String, nullable=False)
     text = Column(String)
-    doc_id = Column(String)
+    file_id = Column(String)
     agent_id = Column(String)
     source_id = Column(String)
 
@@ -160,7 +160,7 @@ class PassageModel(Base):
     # Add a datetime column, with default value as the current time
     created_at = Column(DateTime(timezone=True))
 
-    Index("passage_idx_user", user_id, agent_id, doc_id),
+    Index("passage_idx_user", user_id, agent_id, file_id),
 
     def __repr__(self):
         return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
@@ -170,7 +170,7 @@ class PassageModel(Base):
             text=self.text,
             embedding=self.embedding,
             embedding_config=self.embedding_config,
-            doc_id=self.doc_id,
+            file_id=self.file_id,
             user_id=self.user_id,
             id=self.id,
             source_id=self.source_id,

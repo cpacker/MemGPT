@@ -91,7 +91,7 @@ def load_data(
             passage = Passage(
                 id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),
                 text=passage_text,
-                doc_id=file.id,
+                file_id=file.id,
                 source_id=source.id,
                 metadata_=passage_metadata,
                 user_id=source.user_id,

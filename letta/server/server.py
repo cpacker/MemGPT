@@ -65,7 +65,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import File
+from letta.schemas.file import PaginatedListFilesResponse
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
@@ -1634,9 +1634,9 @@ class SyncServer(Server):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
-    def list_files_from_source(self, source_id: str) -> List[File]:
+    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> PaginatedListFilesResponse:
         # list all attached sources to an agent
-        return self.ms.list_files_from_source(source_id=source_id)
+        return self.ms.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
 
     def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)

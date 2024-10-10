@@ -25,7 +25,7 @@ from letta.schemas.api_key import APIKey
 from letta.schemas.block import Block, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import File
+from letta.schemas.file import File, PaginatedListFilesResponse
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
@@ -893,10 +893,28 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def list_files_from_source(self, source_id: str):
+    def list_files_from_source(self, source_id: str, limit: int, cursor: Optional[str]):
         with self.session_maker() as session:
-            results = session.query(FileModel).filter(FileModel.source_id == source_id).all()
-            return [r.to_record() for r in results]
+            # Start with the basic query filtered by source_id
+            query = session.query(FileModel).filter(FileModel.source_id == source_id)
+
+            if cursor:
+                # Assuming cursor is the ID of the last file in the previous page
+                query = query.filter(FileModel.id > cursor)
+
+            # Order by ID or other ordering criteria to ensure correct pagination
+            query = query.order_by(FileModel.id)
+
+            # Limit the number of results returned
+            results = query.limit(limit).all()
+
+            # Convert the results to the required File objects
+            files = [r.to_record() for r in results]
+
+            # Generate the next cursor from the last item in the current result set
+            next_cursor = files[-1].id if len(files) == limit else None
+
+            return PaginatedListFilesResponse(files=files, next_cursor=next_cursor)
 
     def delete_job(self, job_id: str):
         with self.session_maker() as session:

@@ -25,7 +25,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
 from letta.schemas.enums import JobStatus, MessageRole
-from letta.schemas.file import File
+from letta.schemas.file import File, PaginatedListFilesResponse
 from letta.schemas.job import Job
 from letta.schemas.letta_request import LettaRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
@@ -233,7 +233,7 @@ class AbstractClient(object):
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         raise NotImplementedError
 
-    def list_files_from_source(self, source_id: str) -> List[File]:
+    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> List[File]:
         raise NotImplementedError
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
@@ -1098,20 +1098,29 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to list attached sources: {response.text}")
         return [Source(**source) for source in response.json()]
 
-    def list_files_from_source(self, source_id: str) -> List[File]:
+    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> PaginatedListFilesResponse:
         """
-        List files from source.
+        List files from source with pagination support.
 
         Args:
             source_id (str): ID of the source
+            limit (int): Number of files to return
+            cursor (Optional[str]): Pagination cursor for fetching the next page
 
         Returns:
-            files (List[File]): List of files
+            List[File]: List of files
         """
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/files", headers=self.headers)
+        # Prepare query parameters for pagination
+        params = {"limit": limit, "cursor": cursor}
+
+        # Make the request to the FastAPI endpoint
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/files", headers=self.headers, params=params)
+
         if response.status_code != 200:
             raise ValueError(f"Failed to list files with source id {source_id}: [{response.status_code}] {response.text}")
-        return [File(**file) for file in response.json()]
+
+        # Parse the JSON response
+        return PaginatedListFilesResponse(**response.json())
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """
@@ -2289,17 +2298,19 @@ class LocalClient(AbstractClient):
         """
         return self.server.list_attached_sources(agent_id=agent_id)
 
-    def list_files_from_source(self, source_id: str) -> List[File]:
+    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> PaginatedListFilesResponse:
         """
         List files from source.
 
         Args:
             source_id (str): ID of the source
+            limit (int): The # of items to return
+            cursor (str): The cursor for fetching the next page
 
         Returns:
             files (List[File]): List of files
         """
-        return self.server.list_files_from_source(source_id=source_id)
+        return self.server.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """
