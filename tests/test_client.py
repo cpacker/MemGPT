@@ -305,6 +305,10 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     for source in client.list_sources():
         client.delete_source(source.id)
 
+    # clear jobs
+    for job in client.list_jobs():
+        client.delete_job(job.id)
+
     # list sources
     sources = client.list_sources()
     print("listed sources", sources)
