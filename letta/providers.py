@@ -31,7 +31,7 @@ class LettaProvider(Provider):
     def list_llm_models(self) -> List[LLMConfig]:
         return [
             LLMConfig(
-                model="memgpt-openai",
+                model="letta-free",  # NOTE: renamed
                 model_endpoint_type="openai",
                 model_endpoint="https://inference.memgpt.ai",
                 context_window=16384,
@@ -41,7 +41,7 @@ class LettaProvider(Provider):
     def list_embedding_models(self):
         return [
             EmbeddingConfig(
-                embedding_model="BAAI/bge-large-en-v1.5",
+                embedding_model="letta-free",  # NOTE: renamed
                 embedding_endpoint_type="hugging-face",
                 embedding_endpoint="https://embeddings.memgpt.ai",
                 embedding_dim=1024,
