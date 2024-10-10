@@ -61,11 +61,11 @@ from letta.schemas.block import (
     CreatePersona,
     UpdateBlock,
 )
-from letta.schemas.document import Document
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from letta.schemas.enums import JobStatus
+from letta.schemas.file import File
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
@@ -151,7 +151,7 @@ class Server(object):
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from letta.agent_store.db import DocumentModel, MessageModel, PassageModel
+from letta.agent_store.db import FileModel, MessageModel, PassageModel
 from letta.config import LettaConfig
 
 # NOTE: hack to see if single session management works
@@ -197,7 +197,7 @@ Base.metadata.create_all(
         JobModel.__table__,
         PassageModel.__table__,
         MessageModel.__table__,
-        DocumentModel.__table__,
+        FileModel.__table__,
         OrganizationModel.__table__,
     ],
 )
@@ -1545,7 +1545,7 @@ class SyncServer(Server):
         #    job.status = JobStatus.failed
         #    job.metadata_["error"] = error
         #    self.ms.update_job(job)
-        #    # TODO: delete any associated passages/documents?
+        #    # TODO: delete any associated passages/files?
 
         #    # return failed job
         #    return job
@@ -1574,7 +1574,7 @@ class SyncServer(Server):
 
         # get the data connectors
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        document_store = StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
+        document_store = StorageConnector.get_storage_connector(TableType.FILES, self.config, user_id=user_id)
 
         # load data into the document store
         passage_count, document_count = load_data(connector, source, passage_store, document_store)
@@ -1634,9 +1634,9 @@ class SyncServer(Server):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
-    def list_documents_from_source(self, source_id: str) -> List[Document]:
+    def list_files_from_source(self, source_id: str) -> List[File]:
         # list all attached sources to an agent
-        return self.ms.list_documents_from_source(source_id=source_id)
+        return self.ms.list_files_from_source(source_id=source_id)
 
     def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
@@ -1655,9 +1655,9 @@ class SyncServer(Server):
             passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
             num_passages = passage_conn.size({"source_id": source.id})
 
-            # TODO: add when documents table implemented
-            ## count number of documents
-            # document_conn = StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
+            # TODO: add when files table implemented
+            ## count number of files
+            # document_conn = StorageConnector.get_storage_connector(TableType.FILES, self.config, user_id=user_id)
             # num_documents = document_conn.size({"data_source": source.name})
             num_documents = 0
 

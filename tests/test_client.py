@@ -337,8 +337,8 @@ def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
             raise ValueError("Job did not finish in time")
 
     # Get the documents
-    documents = client.list_documents_from_source(source.id)
-    assert len(documents) == 13  # 13 pages
+    documents = client.list_files_from_source(source.id)
+    assert len(documents) == 1  # Should be condensed to one document
 
     # Get the memgpt paper
     document = documents[0]

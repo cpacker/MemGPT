@@ -7,7 +7,7 @@ import requests
 
 from letta.config import LettaConfig
 from letta.data_sources.connectors import DataConnector
-from letta.schemas.document import Document
+from letta.schemas.file import File
 from letta.settings import TestSettings
 
 from .constants import TIMEOUT
@@ -19,13 +19,12 @@ class DummyDataConnector(DataConnector):
     def __init__(self, texts: List[str]):
         self.texts = texts
 
-    def generate_documents(self) -> Iterator[Tuple[str, Dict]]:
+    def generate_files(self) -> Iterator[Tuple[str, Dict]]:
         for text in self.texts:
             yield text, {"metadata": "dummy"}
 
-    def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
-        for doc in documents:
-            yield doc.text, doc.metadata_
+    def generate_passages(self, file_text: str, file: File, chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
+        yield file_text, file.metadata_
 
 
 def wipe_config():

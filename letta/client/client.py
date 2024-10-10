@@ -21,11 +21,11 @@ from letta.schemas.block import (
     UpdateHuman,
     UpdatePersona,
 )
-from letta.schemas.document import Document
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
 from letta.schemas.enums import JobStatus, MessageRole
+from letta.schemas.file import File
 from letta.schemas.job import Job
 from letta.schemas.letta_request import LettaRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
@@ -233,7 +233,7 @@ class AbstractClient(object):
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         raise NotImplementedError
 
-    def list_documents_from_source(self, source_id: str) -> List[Document]:
+    def list_files_from_source(self, source_id: str) -> List[File]:
         raise NotImplementedError
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
@@ -1098,20 +1098,20 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to list attached sources: {response.text}")
         return [Source(**source) for source in response.json()]
 
-    def list_documents_from_source(self, source_id: str) -> List[Document]:
+    def list_files_from_source(self, source_id: str) -> List[File]:
         """
-        List documents from source.
+        List files from source.
 
         Args:
             source_id (str): ID of the source
 
         Returns:
-            documents (List[Document]): List of documents
+            files (List[File]): List of files
         """
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/documents", headers=self.headers)
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/files", headers=self.headers)
         if response.status_code != 200:
-            raise ValueError(f"Failed to list documents with source id {source_id}: [{response.status_code}] {response.text}")
-        return [Document(**document) for document in response.json()]
+            raise ValueError(f"Failed to list files with source id {source_id}: [{response.status_code}] {response.text}")
+        return [File(**file) for file in response.json()]
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """
@@ -2289,17 +2289,17 @@ class LocalClient(AbstractClient):
         """
         return self.server.list_attached_sources(agent_id=agent_id)
 
-    def list_documents_from_source(self, source_id: str) -> List[Document]:
+    def list_files_from_source(self, source_id: str) -> List[File]:
         """
-        List documents from source.
+        List files from source.
 
         Args:
             source_id (str): ID of the source
 
         Returns:
-            documents (List[Document]): List of documents
+            files (List[File]): List of files
         """
-        return self.server.list_documents_from_source(source_id=source_id)
+        return self.server.list_files_from_source(source_id=source_id)
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """

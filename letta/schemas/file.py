@@ -7,19 +7,18 @@ from letta.schemas.letta_base import LettaBase
 from letta.utils import get_utc_time
 
 
-class DocumentBase(LettaBase):
+class FileBase(LettaBase):
     """Base class for document schemas"""
 
     __id_prefix__ = "doc"
 
 
-class Document(DocumentBase):
+class File(FileBase):
     """Representation of a single document (broken up into `Passage` objects)"""
 
-    id: str = DocumentBase.generate_id_field()
+    id: str = FileBase.generate_id_field()
     user_id: str = Field(description="The unique identifier of the user associated with the document.")
     source_id: str = Field(..., description="The unique identifier of the source associated with the document.")
-    text: str = Field(..., description="The text of the document.")
     metadata_: Optional[Dict] = Field({}, description="The metadata of the document.")
     created_at: datetime = Field(default_factory=get_utc_time, description="The creation date of the passage.")
 

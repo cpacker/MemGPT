@@ -102,7 +102,7 @@ class DummyDataConnector(DataConnector):
         for text in self.texts:
             yield text, {"metadata": "dummy"}
 
-    def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
+    def generate_passages(self, document_text: str, documents: File, chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
         for doc in documents:
-            yield doc.text, doc.metadata
+            yield document_text, doc.metadata
 ```

@@ -15,7 +15,7 @@ class JobBase(LettaBase):
 
 class Job(JobBase):
     """
-    Representation of offline jobs, used for tracking status of data loading tasks (involving parsing and embedding documents).
+    Representation of offline jobs, used for tracking status of data loading tasks (involving parsing and embedding files).
 
     Parameters:
         id (str): The unique identifier of the job.
