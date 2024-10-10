@@ -403,8 +403,6 @@ class PostgresStorageConnector(SQLStorageConnector):
         return records
 
     def insert_many(self, records, exists_ok=True, show_progress=False):
-        pass
-
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
         if len(records) == 0:
             return
