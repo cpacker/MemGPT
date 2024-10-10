@@ -21,7 +21,7 @@ def send_thinking_message(self: Agent, message: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.interface.assistant_message(message, msg_obj=self._messages[-1])
+    self.interface.internal_monologue(message, msg_obj=self._messages[-1])
     return None
 
 
@@ -35,7 +35,7 @@ def send_final_message(self: Agent, message: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.interface.assistant_message(message, msg_obj=self._messages[-1])
+    self.interface.internal_monologue(message, msg_obj=self._messages[-1])
     return None
 
 
@@ -45,7 +45,7 @@ class O1Agent(Agent):
         interface: AgentInterface,
         agent_state: AgentState,
         tools: List[Tool] = [],
-        max_thinking_steps: int = 5,
+        max_thinking_steps: int = 10,
         first_message_verify_mono: bool = False,
     ):
         super().__init__(interface, agent_state, tools)
@@ -75,13 +75,29 @@ class O1Agent(Agent):
             tools=self.tools,
             first_message_verify_mono=self.first_message_verify_mono,
         )
+        print("O1 AGENT", self.agent_state.system)
+        print("O1 AGENT", self.agent_state)
+
+        response = thinking_agent.step(
+            user_message,
+            first_message,
+            first_message_retry_limit,
+            skip_verify,
+            return_dicts,
+            recreate_message_timestamp,
+            stream,
+            timestamp,
+            inner_thoughts_in_kwargs,
+            ms,
+        )
+
+        print("THINKING AGENT", thinking_agent.agent_state.system)
         for _ in range(self.max_thinking_steps):
             # assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent.agent_state.memory)}"
 
             # assert isinstance(thinking_agent.agent_state.memory, Memory), f"Memory object is not of type Memory"
-            # print("THINKING AGENT", thinking_agent.agent_state.system)
             response = thinking_agent.step(
-                user_message,
+                None,
                 first_message,
                 first_message_retry_limit,
                 skip_verify,

@@ -36,14 +36,15 @@ def test_o1_agent():
     agent_state = client.create_agent(
         agent_type=AgentType.o1_agent,
         tools=[thinking_tool.name, final_tool.name],
-        llm_config=LLMConfig.default_config("gpt-4"),
+        llm_config=LLMConfig.default_config("gpt-4o-mini"),
         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
         memory=ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text("o1_persona")),
     )
     agent = client.get_agent(agent_id=agent_state.id)
     assert agent is not None
 
-    response = client.user_message(agent_id=agent_state.id, message="How many Rs are there in strawberry?")
+    # response = client.user_message(agent_id=agent_state.id, message="How many Rs are there in strawberry?")
+    response = client.user_message(agent_id=agent_state.id, message="9.9 or 9.11, which is a larger number?")
     assert response is not None
     assert len(response.messages) > 3
     print("\n\n".join([str(i) for i in response.messages]))
