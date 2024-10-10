@@ -3,10 +3,11 @@ from typing import Union
 
 from letta import LocalClient, RESTClient
 from letta.schemas.enums import JobStatus
+from letta.schemas.job import Job
 from letta.schemas.source import Source
 
 
-def upload_file_using_client(client: Union[LocalClient, RESTClient], source: Source, filename: str):
+def upload_file_using_client(client: Union[LocalClient, RESTClient], source: Source, filename: str) -> Job:
     # load a file into a source (non-blocking job)
     upload_job = client.load_file_into_source(filename=filename, source_id=source.id, blocking=False)
     print("Upload job", upload_job, upload_job.status, upload_job.metadata_)
@@ -29,3 +30,5 @@ def upload_file_using_client(client: Union[LocalClient, RESTClient], source: Sou
         time.sleep(1)
         if time.time() - start_time > timeout:
             raise ValueError("Job did not finish in time")
+
+    return upload_job

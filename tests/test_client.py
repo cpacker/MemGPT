@@ -320,19 +320,19 @@ def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: Ag
     # Get the first file
     response_a = client.list_files_from_source(source.id, limit=1)
     files = response_a.files
-    assert len(files) == 1  # Should be condensed to one document
+    assert len(files) == 1
     assert files[0].source_id == source.id
 
     # Use the cursor from response_a to get the remaining file
     response_b = client.list_files_from_source(source.id, limit=1, cursor=response_a.next_cursor)
     files = response_b.files
-    assert len(files) == 1  # Should be condensed to one document
+    assert len(files) == 1
     assert files[0].source_id == source.id
 
     # Use the cursor from response_b to list files, should be empty
     response_c = client.list_files_from_source(source.id, limit=1, cursor=response_b.next_cursor)
     files = response_c.files
-    assert len(files) == 0  # Should be condensed to one document
+    assert len(files) == 0  # Should be empty
 
 
 def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
@@ -413,7 +413,9 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # load a file into a source (non-blocking job)
     filename = "tests/data/memgpt_paper.pdf"
-    upload_file_using_client(client, source, filename)
+    upload_job = upload_file_using_client(client, source, filename)
+    job = client.get_job(upload_job.id)
+    created_passages = job.metadata_["num_passages"]
 
     # TODO: add test for blocking job
 
