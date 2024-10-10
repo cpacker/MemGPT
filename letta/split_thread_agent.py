@@ -99,6 +99,9 @@ class SplitThreadAgent(BaseAgent):
         # Queue to store all requested memory steps
         self.memory_queue = []
 
+        # Result of the memory step
+        self.memory_result = None
+
         # Condition variable to wake up memory thread when new memory step is added
         self.memory_condition = threading.Condition()
 
