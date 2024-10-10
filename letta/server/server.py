@@ -264,7 +264,7 @@ class SyncServer(Server):
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
         if model_settings.openai_api_key:
-            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key, base_url=model_settings.openai_base_url))
+            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key, base_url=model_settings.openai_api_base))
         if model_settings.anthropic_api_key:
             self._enabled_providers.append(AnthropicProvider(api_key=model_settings.anthropic_api_key))
         if model_settings.ollama_base_url:
