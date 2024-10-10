@@ -81,6 +81,14 @@ jobs:
     - name: Summarize test results
       if: always()
       run: |
+        # Print the values of the exit codes for debugging
+        echo "TEST_FIRST_MESSAGE_EXIT_CODE=$TEST_FIRST_MESSAGE_EXIT_CODE"
+        echo "TEST_KEYWORD_MESSAGE_EXIT_CODE=$TEST_KEYWORD_MESSAGE_EXIT_CODE"
+        echo "TEST_EXTERNAL_TOOL_EXIT_CODE=$TEST_EXTERNAL_TOOL_EXIT_CODE"
+        echo "TEST_CHAT_MEMORY_EXIT_CODE=$TEST_CHAT_MEMORY_EXIT_CODE"
+        echo "TEST_ARCHIVAL_MEMORY_EXIT_CODE=$TEST_ARCHIVAL_MEMORY_EXIT_CODE"
+        echo "TEST_CORE_MEMORY_EXIT_CODE=$TEST_CORE_MEMORY_EXIT_CODE"
+
         echo "Test Results Summary:"
         echo "Test first message: $([[ $TEST_FIRST_MESSAGE_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
         echo "Test model sends message with keyword: $([[ $TEST_KEYWORD_MESSAGE_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
