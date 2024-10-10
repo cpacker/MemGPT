@@ -186,18 +186,16 @@ def list_passages(
     return passages
 
 
-@router.get("/{source_id}/documents", response_model=List[Document], operation_id="list_source_documents")
-def list_documents(
+@router.get("/{source_id}/documents", response_model=List[Document], operation_id="list_documents_from_source")
+def list_documents_from_source(
     source_id: str,
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     List all documents associated with a data source.
     """
-    actor = server.get_user_or_default(user_id=user_id)
-
-    documents = server.list_data_source_documents(user_id=actor.id, source_id=source_id)
+    # return []
+    documents = server.list_documents_from_source(source_id=source_id)
     return documents
 
 

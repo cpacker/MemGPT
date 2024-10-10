@@ -151,7 +151,7 @@ class Server(object):
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from letta.agent_store.db import MessageModel, PassageModel
+from letta.agent_store.db import DocumentModel, MessageModel, PassageModel
 from letta.config import LettaConfig
 
 # NOTE: hack to see if single session management works
@@ -197,6 +197,7 @@ Base.metadata.create_all(
         JobModel.__table__,
         PassageModel.__table__,
         MessageModel.__table__,
+        DocumentModel.__table__,
         OrganizationModel.__table__,
     ],
 )
@@ -1573,8 +1574,7 @@ class SyncServer(Server):
 
         # get the data connectors
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        # TODO: add document store support
-        document_store = None  # StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
+        document_store = StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
 
         # load data into the document store
         passage_count, document_count = load_data(connector, source, passage_store, document_store)
@@ -1629,12 +1629,12 @@ class SyncServer(Server):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
+    def list_documents_from_source(self, source_id: str) -> List[Document]:
+        # list all attached sources to an agent
+        return self.ms.list_documents_from_source(source_id=source_id)
+
     def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
-        return []
-
-    def list_data_source_documents(self, user_id: str, source_id: str) -> List[Document]:
-        warnings.warn("list_data_source_documents is not yet implemented, returning empty list.", category=UserWarning)
         return []
 
     def list_all_sources(self, user_id: str) -> List[Source]:

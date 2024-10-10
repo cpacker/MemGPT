@@ -27,7 +27,7 @@ from tqdm import tqdm
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
-from letta.metadata import EmbeddingConfigColumn, ToolCallColumn
+from letta.metadata import DocumentModel, EmbeddingConfigColumn, ToolCallColumn
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.message import Message
@@ -365,12 +365,17 @@ class PostgresStorageConnector(SQLStorageConnector):
                 self.uri = self.config.archival_storage_uri
                 self.db_model = PassageModel
                 if self.config.archival_storage_uri is None:
-                    raise ValueError(f"Must specifiy archival_storage_uri in config {self.config.config_path}")
+                    raise ValueError(f"Must specify archival_storage_uri in config {self.config.config_path}")
             elif table_type == TableType.RECALL_MEMORY:
                 self.uri = self.config.recall_storage_uri
                 self.db_model = MessageModel
                 if self.config.recall_storage_uri is None:
-                    raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
+                    raise ValueError(f"Must specify recall_storage_uri in config {self.config.config_path}")
+            elif table_type == TableType.DOCUMENTS:
+                self.uri = self.config.documents_storage_uri
+                self.db_model = DocumentModel
+                if self.config.documents_storage_uri is None:
+                    raise ValueError(f"Must specify documents_storage_uri in config {self.config.config_path}")
             else:
                 raise ValueError(f"Table type {table_type} not implemented")
 
@@ -398,6 +403,8 @@ class PostgresStorageConnector(SQLStorageConnector):
         return records
 
     def insert_many(self, records, exists_ok=True, show_progress=False):
+        pass
+
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
         if len(records) == 0:
             return
@@ -487,8 +494,14 @@ class SQLLiteStorageConnector(SQLStorageConnector):
             # TODO: eventually implement URI option
             self.path = self.config.recall_storage_path
             if self.path is None:
-                raise ValueError(f"Must specifiy recall_storage_path in config {self.config.recall_storage_path}")
+                raise ValueError(f"Must specify recall_storage_path in config.")
             self.db_model = MessageModel
+        elif table_type == TableType.DOCUMENTS:
+            self.path = self.config.documents_storage_path
+            if self.path is None:
+                raise ValueError(f"Must specify documents_storage_path in config.")
+            self.db_model = DocumentModel
+
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
@@ -504,36 +517,18 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         # sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
 
     def insert_many(self, records, exists_ok=True, show_progress=False):
+        pass
+
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
         if len(records) == 0:
             return
-
-        added_ids = []  # avoid adding duplicates
-        # NOTE: this has not great performance due to the excessive commits
         with self.session_maker() as session:
             iterable = tqdm(records) if show_progress else records
             for record in iterable:
                 # db_record = self.db_model(**vars(record))
-
-                if record.id in added_ids:
-                    continue
-
-                existing_record = session.query(self.db_model).filter_by(id=record.id).first()
-                if existing_record:
-                    if exists_ok:
-                        fields = record.model_dump()
-                        fields.pop("id")
-                        session.query(self.db_model).filter(self.db_model.id == record.id).update(fields)
-                        session.commit()
-                    else:
-                        raise ValueError(f"Record with id {record.id} already exists.")
-
-                else:
-                    db_record = self.db_model(**record.dict())
-                    session.add(db_record)
-                    session.commit()
-
-                added_ids.append(record.id)
+                db_record = self.db_model(**record.dict())
+                session.add(db_record)
+            session.commit()
 
     def insert(self, record, exists_ok=True):
         self.insert_many([record], exists_ok=exists_ok)

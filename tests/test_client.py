@@ -298,6 +298,54 @@ def test_config(client: Union[LocalClient, RESTClient], agent: AgentState):
     # print("CONFIG", config_response)
 
 
+def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
+    # _reset_config()
+
+    # clear sources
+    for source in client.list_sources():
+        client.delete_source(source.id)
+
+    # clear jobs
+    for job in client.list_jobs():
+        client.delete_job(job.id)
+
+    # create a source
+    source = client.create_source(name="test_source")
+
+    # load a file into a source (non-blocking job)
+    filename = "tests/data/memgpt_paper.pdf"
+    upload_job = client.load_file_into_source(filename=filename, source_id=source.id, blocking=False)
+    print("Upload job", upload_job, upload_job.status, upload_job.metadata_)
+
+    # view active jobs
+    active_jobs = client.list_active_jobs()
+    jobs = client.list_jobs()
+    assert upload_job.id in [j.id for j in jobs]
+    assert len(active_jobs) == 1
+    assert active_jobs[0].metadata_["source_id"] == source.id
+
+    # wait for job to finish (with timeout)
+    timeout = 120
+    start_time = time.time()
+    while True:
+        status = client.get_job(upload_job.id).status
+        print(f"\r{status}", end="", flush=True)
+        if status == JobStatus.completed:
+            break
+        time.sleep(1)
+        if time.time() - start_time > timeout:
+            raise ValueError("Job did not finish in time")
+
+    # Get the documents
+    documents = client.list_documents_from_source(source.id)
+    assert len(documents) == 13  # 13 pages
+
+    # Get the memgpt paper
+    document = documents[0]
+    assert document.metadata_.get("file_name", None) == "memgpt_paper.pdf"
+    assert document.source_id == source.id
+
+
 def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 

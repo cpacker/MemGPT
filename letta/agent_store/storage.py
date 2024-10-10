@@ -22,7 +22,7 @@ class TableType:
     ARCHIVAL_MEMORY = "archival_memory"  # recall memory table: letta_agent_{agent_id}
     RECALL_MEMORY = "recall_memory"  # archival memory table: letta_agent_recall_{agent_id}
     PASSAGES = "passages"  # TODO
-    DOCUMENTS = "documents"  # TODO
+    DOCUMENTS = "documents"
 
 
 # table names used by Letta
@@ -61,7 +61,7 @@ class StorageConnector:
             self.table_name = RECALL_TABLE_NAME
         elif table_type == TableType.DOCUMENTS:
             self.type = Document
-            self.table_name == DOCUMENT_TABLE_NAME
+            self.table_name = DOCUMENT_TABLE_NAME
         elif table_type == TableType.PASSAGES:
             self.type = Passage
             self.table_name = PASSAGE_TABLE_NAME
@@ -92,6 +92,8 @@ class StorageConnector:
             storage_type = config.archival_storage_type
         elif table_type == TableType.RECALL_MEMORY:
             storage_type = config.recall_storage_type
+        elif table_type == TableType.DOCUMENTS:
+            storage_type = config.documents_storage_type
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 

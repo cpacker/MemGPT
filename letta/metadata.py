@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     Index,
     String,
+    Text,
     TypeDecorator,
     desc,
     func,
@@ -23,6 +24,7 @@ from letta.config import LettaConfig
 from letta.schemas.agent import AgentState
 from letta.schemas.api_key import APIKey
 from letta.schemas.block import Block, Human, Persona
+from letta.schemas.document import Document
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus
 from letta.schemas.job import Job
@@ -37,6 +39,33 @@ from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
 
 Base = declarative_base()
+
+
+class DocumentModel(Base):
+    __tablename__ = "documents"
+    __table_args__ = {"extend_existing": True}
+
+    id = Column(String, primary_key=True, nullable=False)
+    user_id = Column(String, nullable=False)
+    # TODO: Investigate why this breaks during table creation due to FK
+    # source_id = Column(String, ForeignKey("sources.id"), nullable=False)
+    source_id = Column(String, nullable=False)
+    text = Column(Text, nullable=False)  # The text of the document
+    metadata_ = Column(JSON, nullable=True)  # Any additional metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<Document(id='{self.id}', source_id='{self.source_id}')>"
+
+    def to_record(self):
+        return Document(
+            id=self.id,
+            user_id=self.user_id,
+            source_id=self.source_id,
+            text=self.text,
+            metadata_=self.metadata_,
+            created_at=self.created_at,
+        )
 
 
 class LLMConfigColumn(TypeDecorator):
@@ -865,6 +894,12 @@ class MetadataStore:
         with self.session_maker() as session:
             session.add(JobModel(**vars(job)))
             session.commit()
+
+    @enforce_types
+    def list_documents_from_source(self, source_id: str):
+        with self.session_maker() as session:
+            results = session.query(DocumentModel).filter(DocumentModel.source_id == source_id).all()
+            return [r.to_record() for r in results]
 
     def delete_job(self, job_id: str):
         with self.session_maker() as session:

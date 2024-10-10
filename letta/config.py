@@ -78,6 +78,11 @@ class LettaConfig:
     metadata_storage_path: str = LETTA_DIR
     metadata_storage_uri: str = None
 
+    # database configs: document storage
+    documents_storage_type: str = "sqlite"
+    documents_storage_path: str = LETTA_DIR
+    documents_storage_uri: str = None
+
     # database configs: agent state
     persistence_manager_type: str = None  # in-memory, db
     persistence_manager_save_file: str = None  # local file

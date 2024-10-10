@@ -1,4 +1,4 @@
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Dict, Iterator, List, Tuple
 
 import typer
 from llama_index.core import Document as LlamaIndexDocument
@@ -41,7 +41,7 @@ def load_data(
     connector: DataConnector,
     source: Source,
     passage_store: StorageConnector,
-    document_store: Optional[StorageConnector] = None,
+    document_store: StorageConnector,
 ):
     """Load data from a connector (generates documents and passages) into a specified source_id, associatedw with a user_id."""
     embedding_config = source.embedding_config
@@ -57,14 +57,14 @@ def load_data(
     for document_text, document_metadata in connector.generate_documents():
         # insert document into storage
         document = Document(
+            id=create_uuid_from_string(f"{str(source.id)}_{document_text}"),
+            user_id=source.user_id,
+            source_id=source.id,
             text=document_text,
             metadata_=document_metadata,
-            source_id=source.id,
-            user_id=source.user_id,
         )
         document_count += 1
-        if document_store:
-            document_store.insert(document)
+        document_store.insert(document)
 
         # generate passages
         for passage_text, passage_metadata in connector.generate_passages([document], chunk_size=embedding_config.embedding_chunk_size):
@@ -158,9 +158,6 @@ class DirectoryConnector(DataConnector):
 
         llama_index_docs = reader.load_data(show_progress=True)
         for llama_index_doc in llama_index_docs:
-            # TODO: add additional metadata?
-            # doc = Document(text=llama_index_doc.text, metadata=llama_index_doc.metadata)
-            # docs.append(doc)
             yield llama_index_doc.text, llama_index_doc.metadata
 
     def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Passage]:

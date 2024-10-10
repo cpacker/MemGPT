@@ -1,8 +1,10 @@
+from datetime import datetime
 from typing import Dict, Optional
 
 from pydantic import Field
 
 from letta.schemas.letta_base import LettaBase
+from letta.utils import get_utc_time
 
 
 class DocumentBase(LettaBase):
@@ -15,7 +17,11 @@ class Document(DocumentBase):
     """Representation of a single document (broken up into `Passage` objects)"""
 
     id: str = DocumentBase.generate_id_field()
-    text: str = Field(..., description="The text of the document.")
-    source_id: str = Field(..., description="The unique identifier of the source associated with the document.")
     user_id: str = Field(description="The unique identifier of the user associated with the document.")
+    source_id: str = Field(..., description="The unique identifier of the source associated with the document.")
+    text: str = Field(..., description="The text of the document.")
     metadata_: Optional[Dict] = Field({}, description="The metadata of the document.")
+    created_at: datetime = Field(default_factory=get_utc_time, description="The creation date of the passage.")
+
+    class Config:
+        extra = "allow"
