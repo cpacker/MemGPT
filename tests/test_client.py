@@ -12,12 +12,13 @@ from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import JobStatus, MessageStreamStatus
+from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import FunctionCallMessage, InternalMonologue
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
+from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
 
@@ -298,6 +299,42 @@ def test_config(client: Union[LocalClient, RESTClient], agent: AgentState):
     # print("CONFIG", config_response)
 
 
+def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
+    # clear sources
+    for source in client.list_sources():
+        client.delete_source(source.id)
+
+    # clear jobs
+    for job in client.list_jobs():
+        client.delete_job(job.id)
+
+    # create a source
+    source = client.create_source(name="test_source")
+
+    # load files into sources
+    file_a = "tests/data/memgpt_paper.pdf"
+    file_b = "tests/data/test.txt"
+    upload_file_using_client(client, source, file_a)
+    upload_file_using_client(client, source, file_b)
+
+    # Get the first file
+    response_a = client.list_files_from_source(source.id, limit=1)
+    files = response_a.files
+    assert len(files) == 1  # Should be condensed to one document
+    assert files[0].source_id == source.id
+
+    # Use the cursor from response_a to get the remaining file
+    response_b = client.list_files_from_source(source.id, limit=1, cursor=response_a.next_cursor)
+    files = response_b.files
+    assert len(files) == 1  # Should be condensed to one document
+    assert files[0].source_id == source.id
+
+    # Use the cursor from response_b to list files, should be empty
+    response_c = client.list_files_from_source(source.id, limit=1, cursor=response_b.next_cursor)
+    files = response_c.files
+    assert len(files) == 0  # Should be condensed to one document
+
+
 def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
@@ -314,27 +351,7 @@ def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # load a file into a source (non-blocking job)
     filename = "tests/data/memgpt_paper.pdf"
-    upload_job = client.load_file_into_source(filename=filename, source_id=source.id, blocking=False)
-    print("Upload job", upload_job, upload_job.status, upload_job.metadata_)
-
-    # view active jobs
-    active_jobs = client.list_active_jobs()
-    jobs = client.list_jobs()
-    assert upload_job.id in [j.id for j in jobs]
-    assert len(active_jobs) == 1
-    assert active_jobs[0].metadata_["source_id"] == source.id
-
-    # wait for job to finish (with timeout)
-    timeout = 120
-    start_time = time.time()
-    while True:
-        status = client.get_job(upload_job.id).status
-        print(f"\r{status}", end="", flush=True)
-        if status == JobStatus.completed:
-            break
-        time.sleep(1)
-        if time.time() - start_time > timeout:
-            raise ValueError("Job did not finish in time")
+    upload_file_using_client(client, source, filename)
 
     # Get the files
     list_files_response = client.list_files_from_source(source.id)
@@ -396,30 +413,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # load a file into a source (non-blocking job)
     filename = "tests/data/memgpt_paper.pdf"
-    upload_job = client.load_file_into_source(filename=filename, source_id=source.id, blocking=False)
-    print("Upload job", upload_job, upload_job.status, upload_job.metadata_)
-
-    # view active jobs
-    active_jobs = client.list_active_jobs()
-    jobs = client.list_jobs()
-    print(jobs)
-    assert upload_job.id in [j.id for j in jobs]
-    assert len(active_jobs) == 1
-    assert active_jobs[0].metadata_["source_id"] == source.id
-
-    # wait for job to finish (with timeout)
-    timeout = 120
-    start_time = time.time()
-    while True:
-        status = client.get_job(upload_job.id).status
-        print(status)
-        if status == JobStatus.completed:
-            break
-        time.sleep(1)
-        if time.time() - start_time > timeout:
-            raise ValueError("Job did not finish in time")
-    job = client.get_job(upload_job.id)
-    created_passages = job.metadata_["num_passages"]
+    upload_file_using_client(client, source, filename)
 
     # TODO: add test for blocking job
 
