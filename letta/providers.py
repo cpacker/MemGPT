@@ -13,7 +13,6 @@ from letta.schemas.llm_config import LLMConfig
 
 
 class Provider(BaseModel):
-    base_url: str
 
     def list_llm_models(self):
         return []
@@ -23,6 +22,32 @@ class Provider(BaseModel):
 
     def get_model_context_window(self, model_name: str):
         pass
+
+
+class LettaProvider(Provider):
+
+    name: str = "letta"
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        return [
+            LLMConfig(
+                model="letta-free",  # NOTE: renamed
+                model_endpoint_type="openai",
+                model_endpoint="https://inference.memgpt.ai",
+                context_window=16384,
+            )
+        ]
+
+    def list_embedding_models(self):
+        return [
+            EmbeddingConfig(
+                embedding_model="letta-free",  # NOTE: renamed
+                embedding_endpoint_type="hugging-face",
+                embedding_endpoint="https://embeddings.memgpt.ai",
+                embedding_dim=1024,
+                embedding_chunk_size=300,
+            )
+        ]
 
 
 class OpenAIProvider(Provider):
@@ -45,6 +70,12 @@ class OpenAIProvider(Provider):
             configs.append(
                 LLMConfig(model=model_name, model_endpoint_type="openai", model_endpoint=self.base_url, context_window=context_window_size)
             )
+
+        # for OpenAI, sort in reverse order
+        if self.base_url == "https://api.openai.com/v1":
+            # alphnumeric sort
+            configs.sort(key=lambda x: x.model, reverse=True)
+
         return configs
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
@@ -217,14 +248,12 @@ class GroqProvider(OpenAIProvider):
 class GoogleAIProvider(Provider):
     # gemini
     api_key: str = Field(..., description="API key for the Google AI API.")
-    service_endpoint: str = "generativelanguage"  # TODO: remove once old functions are refactored to just use base_url
     base_url: str = "https://generativelanguage.googleapis.com"
 
     def list_llm_models(self):
         from letta.llm_api.google_ai import google_ai_get_model_list
 
-        # TODO: use base_url instead
-        model_options = google_ai_get_model_list(service_endpoint=self.service_endpoint, api_key=self.api_key)
+        model_options = google_ai_get_model_list(base_url=self.base_url, api_key=self.api_key)
         # filter by 'generateContent' models
         model_options = [mo for mo in model_options if "generateContent" in mo["supportedGenerationMethods"]]
         model_options = [str(m["name"]) for m in model_options]
@@ -251,7 +280,7 @@ class GoogleAIProvider(Provider):
         from letta.llm_api.google_ai import google_ai_get_model_list
 
         # TODO: use base_url instead
-        model_options = google_ai_get_model_list(service_endpoint=self.service_endpoint, api_key=self.api_key)
+        model_options = google_ai_get_model_list(base_url=self.base_url, api_key=self.api_key)
         # filter by 'generateContent' models
         model_options = [mo for mo in model_options if "embedContent" in mo["supportedGenerationMethods"]]
         model_options = [str(m["name"]) for m in model_options]
@@ -273,8 +302,7 @@ class GoogleAIProvider(Provider):
     def get_model_context_window(self, model_name: str):
         from letta.llm_api.google_ai import google_ai_get_model_context_window
 
-        # TODO: use base_url instead
-        return google_ai_get_model_context_window(self.service_endpoint, self.api_key, model_name)
+        return google_ai_get_model_context_window(self.base_url, self.api_key, model_name)
 
 
 class AzureProvider(Provider):

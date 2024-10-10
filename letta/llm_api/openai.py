@@ -9,7 +9,7 @@ from httpx_sse._exceptions import SSEError
 
 from letta.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from letta.errors import LLMError
-from letta.llm_api.helpers import add_inner_thoughts_to_functions
+from letta.llm_api.helpers import add_inner_thoughts_to_functions, make_post_request
 from letta.local_llm.constants import (
     INNER_THOUGHTS_KWARG,
     INNER_THOUGHTS_KWARG_DESCRIPTION,
@@ -145,6 +145,7 @@ def build_openai_chat_completions_request(
         import uuid
 
         data.user = str(uuid.UUID(int=0))
+        data.model = "memgpt-openai"
 
     return data
 
@@ -483,58 +484,14 @@ def openai_chat_completions_request(
         data.pop("tools")
         data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
 
-    printd(f"Sending request to {url}")
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        printd(f"response = {response}, response.text = {response.text}")
-        # print(json.dumps(data, indent=4))
-        # raise requests.exceptions.HTTPError
-        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
-
-        response = response.json()  # convert to dict from string
-        printd(f"response.json = {response}")
-
-        response = ChatCompletionResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
-        return response
-    except requests.exceptions.HTTPError as http_err:
-        # Handle HTTP errors (e.g., response 4XX, 5XX)
-        printd(f"Got HTTPError, exception={http_err}, payload={data}")
-        raise http_err
-    except requests.exceptions.RequestException as req_err:
-        # Handle other requests-related errors (e.g., connection error)
-        printd(f"Got RequestException, exception={req_err}")
-        raise req_err
-    except Exception as e:
-        # Handle other potential errors
-        printd(f"Got unknown Exception, exception={e}")
-        raise e
+    response_json = make_post_request(url, headers, data)
+    return ChatCompletionResponse(**response_json)
 
 
 def openai_embeddings_request(url: str, api_key: str, data: dict) -> EmbeddingResponse:
     """https://platform.openai.com/docs/api-reference/embeddings/create"""
-    from letta.utils import printd
 
     url = smart_urljoin(url, "embeddings")
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-
-    printd(f"Sending request to {url}")
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        printd(f"response = {response}")
-        response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
-        response = response.json()  # convert to dict from string
-        printd(f"response.json = {response}")
-        response = EmbeddingResponse(**response)  # convert to 'dot-dict' style which is the openai python client default
-        return response
-    except requests.exceptions.HTTPError as http_err:
-        # Handle HTTP errors (e.g., response 4XX, 5XX)
-        printd(f"Got HTTPError, exception={http_err}, payload={data}")
-        raise http_err
-    except requests.exceptions.RequestException as req_err:
-        # Handle other requests-related errors (e.g., connection error)
-        printd(f"Got RequestException, exception={req_err}")
-        raise req_err
-    except Exception as e:
-        # Handle other potential errors
-        printd(f"Got unknown Exception, exception={e}")
-        raise e
+    response_json = make_post_request(url, headers, data)
+    return EmbeddingResponse(**response_json)
