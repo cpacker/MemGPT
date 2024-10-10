@@ -106,7 +106,7 @@ def load_vector_database(
     #            document_store=None,
     #            passage_store=passage_storage,
     #        )
-    #        print(f"Loaded {num_passages} passages and {num_documents} documents from {name}")
+    #        print(f"Loaded {num_passages} passages and {num_documents} files from {name}")
     #    except Exception as e:
     #        typer.secho(f"Failed to load data from provided information.\n{e}", fg=typer.colors.RED)
     #        ms.delete_source(source_id=source.id)

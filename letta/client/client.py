@@ -25,6 +25,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
 from letta.schemas.enums import JobStatus, MessageRole
+from letta.schemas.file import File
 from letta.schemas.job import Job
 from letta.schemas.letta_request import LettaRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
@@ -230,6 +231,9 @@ class AbstractClient(object):
         raise NotImplementedError
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
+        raise NotImplementedError
+
+    def list_files_from_source(self, source_id: str) -> List[File]:
         raise NotImplementedError
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
@@ -1016,6 +1020,12 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get job: {response.text}")
         return Job(**response.json())
 
+    def delete_job(self, job_id: str) -> Job:
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/jobs/{job_id}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to delete job: {response.text}")
+        return Job(**response.json())
+
     def list_jobs(self):
         response = requests.get(f"{self.base_url}/{self.api_prefix}/jobs", headers=self.headers)
         return [Job(**job) for job in response.json()]
@@ -1087,6 +1097,21 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to list attached sources: {response.text}")
         return [Source(**source) for source in response.json()]
+
+    def list_files_from_source(self, source_id: str) -> List[File]:
+        """
+        List files from source.
+
+        Args:
+            source_id (str): ID of the source
+
+        Returns:
+            files (List[File]): List of files
+        """
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/files", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list files with source id {source_id}: [{response.status_code}] {response.text}")
+        return [File(**file) for file in response.json()]
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """
@@ -2162,6 +2187,9 @@ class LocalClient(AbstractClient):
     def get_job(self, job_id: str):
         return self.server.get_job(job_id=job_id)
 
+    def delete_job(self, job_id: str):
+        return self.server.delete_job(job_id)
+
     def list_jobs(self):
         return self.server.list_jobs(user_id=self.user_id)
 
@@ -2260,6 +2288,18 @@ class LocalClient(AbstractClient):
             sources (List[Source]): List of sources
         """
         return self.server.list_attached_sources(agent_id=agent_id)
+
+    def list_files_from_source(self, source_id: str) -> List[File]:
+        """
+        List files from source.
+
+        Args:
+            source_id (str): ID of the source
+
+        Returns:
+            files (List[File]): List of files
+        """
+        return self.server.list_files_from_source(source_id=source_id)
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """

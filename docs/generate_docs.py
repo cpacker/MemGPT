@@ -70,7 +70,7 @@ schema_models = [
     "Message",
     "Passage",
     "AgentState",
-    "Document",
+    "File",
     "Source",
     "LLMConfig",
     "EmbeddingConfig",

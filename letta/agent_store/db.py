@@ -27,7 +27,7 @@ from tqdm import tqdm
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
-from letta.metadata import EmbeddingConfigColumn, ToolCallColumn
+from letta.metadata import EmbeddingConfigColumn, FileModel, ToolCallColumn
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.message import Message
@@ -365,12 +365,17 @@ class PostgresStorageConnector(SQLStorageConnector):
                 self.uri = self.config.archival_storage_uri
                 self.db_model = PassageModel
                 if self.config.archival_storage_uri is None:
-                    raise ValueError(f"Must specifiy archival_storage_uri in config {self.config.config_path}")
+                    raise ValueError(f"Must specify archival_storage_uri in config {self.config.config_path}")
             elif table_type == TableType.RECALL_MEMORY:
                 self.uri = self.config.recall_storage_uri
                 self.db_model = MessageModel
                 if self.config.recall_storage_uri is None:
-                    raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
+                    raise ValueError(f"Must specify recall_storage_uri in config {self.config.config_path}")
+            elif table_type == TableType.FILES:
+                self.uri = self.config.documents_storage_uri
+                self.db_model = FileModel
+                if self.config.documents_storage_uri is None:
+                    raise ValueError(f"Must specify documents_storage_uri in config {self.config.config_path}")
             else:
                 raise ValueError(f"Table type {table_type} not implemented")
 
@@ -487,8 +492,14 @@ class SQLLiteStorageConnector(SQLStorageConnector):
             # TODO: eventually implement URI option
             self.path = self.config.recall_storage_path
             if self.path is None:
-                raise ValueError(f"Must specifiy recall_storage_path in config {self.config.recall_storage_path}")
+                raise ValueError(f"Must specify recall_storage_path in config.")
             self.db_model = MessageModel
+        elif table_type == TableType.FILES:
+            self.path = self.config.documents_storage_path
+            if self.path is None:
+                raise ValueError(f"Must specify documents_storage_path in config.")
+            self.db_model = FileModel
+
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
