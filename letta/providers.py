@@ -70,6 +70,12 @@ class OpenAIProvider(Provider):
             configs.append(
                 LLMConfig(model=model_name, model_endpoint_type="openai", model_endpoint=self.base_url, context_window=context_window_size)
             )
+
+        # for OpenAI, sort in reverse order
+        if self.base_url == "https://api.openai.com/v1":
+            # alphnumeric sort
+            configs.sort(key=lambda x: x.model, reverse=True)
+
         return configs
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:

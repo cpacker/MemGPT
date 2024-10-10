@@ -75,6 +75,27 @@ NON_USER_MSG_PREFIX = "[This is an automated system message hidden from the user
 LLM_MAX_TOKENS = {
     "DEFAULT": 8192,
     ## OpenAI models: https://platform.openai.com/docs/models/overview
+    # "o1-preview
+    "chatgpt-4o-latest": 128000,
+    # "o1-preview-2024-09-12
+    "gpt-4o-2024-08-06": 128000,
+    "gpt-4-turbo-preview": 128000,
+    "gpt-4o": 128000,
+    "gpt-3.5-turbo-instruct": 16385,
+    "gpt-4-0125-preview": 128000,
+    "gpt-3.5-turbo-0125": 16385,
+    # "babbage-002": 128000,
+    # "davinci-002": 128000,
+    "gpt-4-turbo-2024-04-09": 128000,
+    # "gpt-4o-realtime-preview-2024-10-01
+    "gpt-4-turbo": 8192,
+    "gpt-4o-2024-05-13": 128000,
+    # "o1-mini
+    # "o1-mini-2024-09-12
+    # "gpt-3.5-turbo-instruct-0914
+    "gpt-4o-mini": 128000,
+    # "gpt-4o-realtime-preview
+    "gpt-4o-mini-2024-07-18": 128000,
     # gpt-4
     "gpt-4-1106-preview": 128000,
     "gpt-4": 8192,
