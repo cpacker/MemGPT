@@ -41,7 +41,7 @@ from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
-from letta.metadata import MetadataStore, engine
+from letta.metadata import Base, MetadataStore, engine
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
@@ -149,19 +149,16 @@ class Server(object):
         raise NotImplementedError
 
 
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from letta.config import LettaConfig
 
 # NOTE: hack to see if single session management works
 from letta.settings import model_settings, settings
 
-Base = declarative_base()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-Base.metadata.create_all(
-    engine,
-)
+Base.metadata.create_all(engine)
 
 
 # Dependency

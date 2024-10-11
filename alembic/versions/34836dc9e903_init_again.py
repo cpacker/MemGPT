@@ -11,6 +11,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 
 from alembic import op
+from letta.metadata import EmbeddingConfigColumn, LLMConfigColumn
 
 # revision identifiers, used by Alembic.
 revision: str = "34836dc9e903"
@@ -42,8 +43,8 @@ def upgrade() -> None:
         sa.Column("system", sa.String(), nullable=True),
         sa.Column("tools", sa.JSON(), nullable=True),
         sa.Column("agent_type", sa.String(), nullable=True),
-        sa.Column("llm_config", letta.metadata.LLMConfigColumn(), nullable=True),
-        sa.Column("embedding_config", letta.metadata.EmbeddingConfigColumn(), nullable=True),
+        sa.Column("llm_config", LLMConfigColumn(), nullable=True),
+        sa.Column("embedding_config", EmbeddingConfigColumn(), nullable=True),
         sa.Column("metadata_", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -85,7 +86,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
-        sa.Column("embedding_config", letta.metadata.EmbeddingConfigColumn(), nullable=True),
+        sa.Column("embedding_config", EmbeddingConfigColumn(), nullable=True),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column("metadata_", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("id"),

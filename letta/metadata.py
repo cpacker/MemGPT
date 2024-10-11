@@ -186,6 +186,7 @@ class APIKeyModel(Base):
     """Data model for authentication tokens. One-to-many relationship with UserModel (1 User - N tokens)."""
 
     __tablename__ = "tokens"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
     # each api key is tied to a user account (that it validates access for)
@@ -308,6 +309,7 @@ class AgentSourceMappingModel(Base):
     """Stores mapping between agent -> source"""
 
     __tablename__ = "agent_source_mapping"
+    __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
     user_id = Column(String, nullable=False)
