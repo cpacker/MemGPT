@@ -11,8 +11,10 @@ from sqlalchemy import (
     Column,
     DateTime,
     Index,
+    MetaData,
     String,
     TypeDecorator,
+    create_engine,
     desc,
     func,
 )
@@ -36,7 +38,24 @@ from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
 
-Base = declarative_base()
+config = LettaConfig.load()
+
+if settings.letta_pg_uri_no_default:
+    config.recall_storage_type = "postgres"
+    config.recall_storage_uri = settings.letta_pg_uri_no_default
+    config.archival_storage_type = "postgres"
+    config.archival_storage_uri = settings.letta_pg_uri_no_default
+
+    # create engine
+    engine = create_engine(settings.letta_pg_uri)
+else:
+    # TODO: don't rely on config storage
+    engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
+
+
+meta = MetaData()
+meta.reflect(bind=engine)
+Base = declarative_base(metadata=meta)
 
 
 class LLMConfigColumn(TypeDecorator):
