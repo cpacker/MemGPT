@@ -8,24 +8,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
-    services:
-      postgres:
-        image: ankane/pgvector
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_DB: letta
-          POSTGRES_PASSWORD: letta
-          POSTGRES_USER: letta
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Build and run container
+        run: bash db/run_postgres.sh
 
       - name: "Setup Python, Poetry and Dependencies"
         uses: packetcoders/action-setup-cache-python-poetry@main
@@ -37,7 +25,7 @@ jobs:
         run: poetry run python -c "from sqlalchemy import inspect, create_engine; engine = create_engine('postgresql+pg8000://letta:letta@localhost:5432/letta'); inspection = inspect(engine); print(inspection.get_table_names())"
       - name: Test alembic migration
         env:
-          LETTA_PG_PORT: 5432
+          LETTA_PG_PORT: 8888
           LETTA_PG_USER: letta
           LETTA_PG_PASSWORD: letta
           LETTA_PG_DB: letta
