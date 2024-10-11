@@ -7,7 +7,7 @@ import requests
 
 from letta.config import LettaConfig
 from letta.data_sources.connectors import DataConnector
-from letta.schemas.file import File
+from letta.schemas.file import FileMetadata
 from letta.settings import TestSettings
 
 from .constants import TIMEOUT
@@ -23,7 +23,7 @@ class DummyDataConnector(DataConnector):
         for text in self.texts:
             yield text, {"metadata": "dummy"}
 
-    def generate_passages(self, file_text: str, file: File, chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
+    def generate_passages(self, file_text: str, file: FileMetadata, chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
         yield file_text, file.metadata_
 
 

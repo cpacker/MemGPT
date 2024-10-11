@@ -25,7 +25,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
 from letta.schemas.enums import JobStatus, MessageRole
-from letta.schemas.file import File, PaginatedListFilesResponse
+from letta.schemas.file import FileMetadata, PaginatedListFilesResponse
 from letta.schemas.job import Job
 from letta.schemas.letta_request import LettaRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
@@ -233,7 +233,7 @@ class AbstractClient(object):
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         raise NotImplementedError
 
-    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> List[File]:
+    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> List[FileMetadata]:
         raise NotImplementedError
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
@@ -1108,7 +1108,7 @@ class RESTClient(AbstractClient):
             cursor (Optional[str]): Pagination cursor for fetching the next page
 
         Returns:
-            List[File]: List of files
+            List[FileMetadata]: List of files
         """
         # Prepare query parameters for pagination
         params = {"limit": limit, "cursor": cursor}
@@ -2308,7 +2308,7 @@ class LocalClient(AbstractClient):
             cursor (str): The cursor for fetching the next page
 
         Returns:
-            files (List[File]): List of files
+            files (List[FileMetadata]): List of files
         """
         return self.server.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
 

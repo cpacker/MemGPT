@@ -11,6 +11,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Index,
+    Integer,
     String,
     TypeDecorator,
     desc,
@@ -25,7 +26,7 @@ from letta.schemas.api_key import APIKey
 from letta.schemas.block import Block, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import File, PaginatedListFilesResponse
+from letta.schemas.file import FileMetadata, PaginatedListFilesResponse
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
@@ -49,18 +50,28 @@ class FileModel(Base):
     # TODO: Investigate why this breaks during table creation due to FK
     # source_id = Column(String, ForeignKey("sources.id"), nullable=False)
     source_id = Column(String, nullable=False)
-    metadata_ = Column(JSON, nullable=True)  # Any additional metadata
+    file_name = Column(String, nullable=True)
+    file_path = Column(String, nullable=True)
+    file_type = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    file_creation_date = Column(String, nullable=True)
+    file_last_modified_date = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self):
-        return f"<File(id='{self.id}', source_id='{self.source_id}')>"
+        return f"<FileMetadata(id='{self.id}', source_id='{self.source_id}', file_name='{self.file_name}')>"
 
     def to_record(self):
-        return File(
+        return FileMetadata(
             id=self.id,
             user_id=self.user_id,
             source_id=self.source_id,
-            metadata_=self.metadata_,
+            file_name=self.file_name,
+            file_path=self.file_path,
+            file_type=self.file_type,
+            file_size=self.file_size,
+            file_creation_date=self.file_creation_date,
+            file_last_modified_date=self.file_last_modified_date,
             created_at=self.created_at,
         )
 
@@ -908,7 +919,7 @@ class MetadataStore:
             # Limit the number of results returned
             results = query.limit(limit).all()
 
-            # Convert the results to the required File objects
+            # Convert the results to the required FileMetadata objects
             files = [r.to_record() for r in results]
 
             # Generate the next cursor from the last item in the current result set

@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 from pydantic import BaseModel
 
 from letta.config import LettaConfig
-from letta.schemas.file import File
+from letta.schemas.file import FileMetadata
 from letta.schemas.message import Message
 from letta.schemas.passage import Passage
 from letta.utils import printd
@@ -60,7 +60,7 @@ class StorageConnector:
             self.type = Message
             self.table_name = RECALL_TABLE_NAME
         elif table_type == TableType.FILES:
-            self.type = File
+            self.type = FileMetadata
             self.table_name = FILE_TABLE_NAME
         elif table_type == TableType.PASSAGES:
             self.type = Passage
