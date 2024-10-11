@@ -19,10 +19,11 @@ class DummyDataConnector(DataConnector):
 
     def __init__(self, texts: List[str]):
         self.texts = texts
+        self.file_to_text = {}
 
     def find_files(self, source) -> Iterator[FileMetadata]:
-        for _ in self.texts:
-            yield FileMetadata(
+        for text in self.texts:
+            file_metadata = FileMetadata(
                 user_id="",
                 source_id="",
                 file_name="",
@@ -33,9 +34,12 @@ class DummyDataConnector(DataConnector):
                 file_last_modified_date="1970-01-01",  # Placeholder date
                 created_at=datetime.utcnow(),
             )
+            self.file_to_text[file_metadata.id] = text
+
+            yield file_metadata
 
     def generate_passages(self, file: FileMetadata, chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
-        yield "test", {}
+        yield self.file_to_text[file.id], {}
 
 
 def wipe_config():
