@@ -81,31 +81,23 @@ jobs:
     - name: Summarize test results
       if: always()
       run: |
-        # Print the values of the exit codes for debugging
-        echo "TEST_FIRST_MESSAGE_EXIT_CODE=$TEST_FIRST_MESSAGE_EXIT_CODE"
-        echo "TEST_KEYWORD_MESSAGE_EXIT_CODE=$TEST_KEYWORD_MESSAGE_EXIT_CODE"
-        echo "TEST_EXTERNAL_TOOL_EXIT_CODE=$TEST_EXTERNAL_TOOL_EXIT_CODE"
-        echo "TEST_CHAT_MEMORY_EXIT_CODE=$TEST_CHAT_MEMORY_EXIT_CODE"
-        echo "TEST_ARCHIVAL_MEMORY_EXIT_CODE=$TEST_ARCHIVAL_MEMORY_EXIT_CODE"
-        echo "TEST_CORE_MEMORY_EXIT_CODE=$TEST_CORE_MEMORY_EXIT_CODE"
-
         echo "Test Results Summary:"
-        echo "Test first message: $([[ $TEST_FIRST_MESSAGE_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model sends message with keyword: $([[ $TEST_KEYWORD_MESSAGE_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model uses external tool: $([[ $TEST_EXTERNAL_TOOL_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model recalls chat memory: $([[ $TEST_CHAT_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model uses 'archival_memory_search' to find secret: $([[ $TEST_ARCHIVAL_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model can edit core memories: $([[ $TEST_CORE_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test embedding endpoint: $([[ $TEST_EMBEDDING_ENDPOINT_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
 
-        # Check if any test failed
-        if [[ $TEST_FIRST_MESSAGE_EXIT_CODE -ne 0 || \
-              $TEST_KEYWORD_MESSAGE_EXIT_CODE -ne 0 || \
-              $TEST_EXTERNAL_TOOL_EXIT_CODE -ne 0 || \
-              $TEST_CHAT_MEMORY_EXIT_CODE -ne 0 || \
-              $TEST_ARCHIVAL_MEMORY_EXIT_CODE -ne 0 || \
-              $TEST_CORE_MEMORY_EXIT_CODE -ne 0 || \
-              $TEST_EMBEDDING_ENDPOINT_EXIT_CODE -ne 0 ]]; then
+        # If the exit code is empty, treat it as a failure (❌)
+        echo "Test first message: $([[ -z $TEST_FIRST_MESSAGE_EXIT_CODE || $TEST_FIRST_MESSAGE_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model sends message with keyword: $([[ -z $TEST_KEYWORD_MESSAGE_EXIT_CODE || $TEST_KEYWORD_MESSAGE_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model uses external tool: $([[ -z $TEST_EXTERNAL_TOOL_EXIT_CODE || $TEST_EXTERNAL_TOOL_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model recalls chat memory: $([[ -z $TEST_CHAT_MEMORY_EXIT_CODE || $TEST_CHAT_MEMORY_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model uses 'archival_memory_search' to find secret: $([[ -z $TEST_ARCHIVAL_MEMORY_EXIT_CODE || $TEST_ARCHIVAL_MEMORY_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model can edit core memories: $([[ -z $TEST_CORE_MEMORY_EXIT_CODE || $TEST_CORE_MEMORY_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+
+        # Check if any test failed (either non-zero or unset exit code)
+        if [[ -z $TEST_FIRST_MESSAGE_EXIT_CODE || $TEST_FIRST_MESSAGE_EXIT_CODE -ne 0 || \
+              -z $TEST_KEYWORD_MESSAGE_EXIT_CODE || $TEST_KEYWORD_MESSAGE_EXIT_CODE -ne 0 || \
+              -z $TEST_EXTERNAL_TOOL_EXIT_CODE || $TEST_EXTERNAL_TOOL_EXIT_CODE -ne 0 || \
+              -z $TEST_CHAT_MEMORY_EXIT_CODE || $TEST_CHAT_MEMORY_EXIT_CODE -ne 0 || \
+              -z $TEST_ARCHIVAL_MEMORY_EXIT_CODE || $TEST_ARCHIVAL_MEMORY_EXIT_CODE -ne 0 || \
+              -z $TEST_CORE_MEMORY_EXIT_CODE || $TEST_CORE_MEMORY_EXIT_CODE -ne 0 ]]; then
           echo "Some tests failed."
           exit 78
-        fi
+        fi`
