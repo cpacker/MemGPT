@@ -385,7 +385,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     # list archival memory
     archival_memories = client.get_archival_memory(agent_id=agent.id)
     # print(archival_memories)
-    assert len(archival_memories) == created_passages
+    assert len(archival_memories) == created_passages, f"Mismatched length {len(archival_memories)} vs. {created_passages}"
 
     # check number of passages
     sources = client.list_sources()
