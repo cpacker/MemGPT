@@ -14,14 +14,18 @@ from letta.schemas.llm_config import LLMConfig
 
 class Provider(BaseModel):
 
-    def list_llm_models(self):
+    def list_llm_models(self) -> List[LLMConfig]:
         return []
 
-    def list_embedding_models(self):
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
         return []
 
-    def get_model_context_window(self, model_name: str):
-        pass
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
+        raise NotImplementedError
+
+    def provider_tag(self) -> str:
+        """String representation of the provider for display purposes"""
+        raise NotImplementedError
 
 
 class LettaProvider(Provider):
@@ -162,7 +166,7 @@ class OllamaProvider(OpenAIProvider):
             )
         return configs
 
-    def get_model_context_window(self, model_name: str):
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
 
         import requests
 
@@ -310,7 +314,7 @@ class GoogleAIProvider(Provider):
             )
         return configs
 
-    def get_model_context_window(self, model_name: str):
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
         from letta.llm_api.google_ai import google_ai_get_model_context_window
 
         return google_ai_get_model_context_window(self.base_url, self.api_key, model_name)
@@ -371,16 +375,75 @@ class AzureProvider(Provider):
             )
         return configs
 
-    def get_model_context_window(self, model_name: str):
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
         """
         This is hardcoded for now, since there is no API endpoints to retrieve metadata for a model.
         """
         return AZURE_MODEL_TO_CONTEXT_LENGTH.get(model_name, 4096)
 
 
-class VLLMProvider(OpenAIProvider):
+class VLLMChatCompletionsProvider(Provider):
+    """vLLM provider that treats vLLM as an OpenAI /chat/completions proxy"""
+
     # NOTE: vLLM only serves one model at a time (so could configure that through env variables)
-    pass
+    name: str = "vllm"
+    base_url: str = Field(..., description="Base URL for the vLLM API.")
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        # not supported with vLLM
+        from letta.llm_api.openai import openai_get_model_list
+
+        assert self.base_url, "base_url is required for vLLM provider"
+        response = openai_get_model_list(self.base_url, api_key=None)
+
+        configs = []
+        print(response)
+        for model in response["data"]:
+            configs.append(
+                LLMConfig(
+                    model=model["id"],
+                    model_endpoint_type="openai",
+                    model_endpoint=self.base_url,
+                    context_window=model["max_model_len"],
+                )
+            )
+        return configs
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        # not supported with vLLM
+        return []
+
+
+class VLLMCompletionsProvider(Provider):
+    """This uses /completions API as the backend, not /chat/completions, so we need to specify a model wrapper"""
+
+    # NOTE: vLLM only serves one model at a time (so could configure that through env variables)
+    name: str = "vllm"
+    base_url: str = Field(..., description="Base URL for the vLLM API.")
+    default_prompt_formatter: str = Field(..., description="Default prompt formatter (aka model wrapper)to use on vLLM /completions API.")
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        # not supported with vLLM
+        from letta.llm_api.openai import openai_get_model_list
+
+        response = openai_get_model_list(self.base_url, api_key=None)
+
+        configs = []
+        for model in response["data"]:
+            configs.append(
+                LLMConfig(
+                    model=model["id"],
+                    model_endpoint_type="vllm",
+                    model_endpoint=self.base_url,
+                    model_wrapper=self.default_prompt_formatter,
+                    context_window=model["max_model_len"],
+                )
+            )
+        return configs
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        # not supported with vLLM
+        return []
 
 
 class CohereProvider(OpenAIProvider):

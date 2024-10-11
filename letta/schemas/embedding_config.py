@@ -52,3 +52,10 @@ class EmbeddingConfig(BaseModel):
             )
         else:
             raise ValueError(f"Model {model_name} not supported.")
+
+    def pretty_print(self) -> str:
+        return (
+            f"{self.embedding_model}"
+            + (f" [type={self.embedding_endpoint_type}]" if self.embedding_endpoint_type else "")
+            + (f" [ip={self.embedding_endpoint}]" if self.embedding_endpoint else "")
+        )

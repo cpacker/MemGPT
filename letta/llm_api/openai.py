@@ -61,6 +61,7 @@ def openai_get_model_list(
         headers["Authorization"] = f"Bearer {api_key}"
 
     printd(f"Sending request to {url}")
+    response = None
     try:
         # TODO add query param "tool" to be true
         response = requests.get(url, headers=headers, params=extra_params)
@@ -71,7 +72,8 @@ def openai_get_model_list(
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
         try:
-            response = response.json()
+            if response:
+                response = response.json()
         except:
             pass
         printd(f"Got HTTPError, exception={http_err}, response={response}")
@@ -79,7 +81,8 @@ def openai_get_model_list(
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
         try:
-            response = response.json()
+            if response:
+                response = response.json()
         except:
             pass
         printd(f"Got RequestException, exception={req_err}, response={response}")
@@ -87,7 +90,8 @@ def openai_get_model_list(
     except Exception as e:
         # Handle other potential errors
         try:
-            response = response.json()
+            if response:
+                response = response.json()
         except:
             pass
         printd(f"Got unknown Exception, exception={e}, response={response}")

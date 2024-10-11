@@ -51,7 +51,8 @@ from letta.providers import (
     OllamaProvider,
     OpenAIProvider,
     Provider,
-    VLLMProvider,
+    VLLMChatCompletionsProvider,
+    VLLMCompletionsProvider,
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
@@ -244,12 +245,11 @@ class SyncServer(Server):
         if model_settings.anthropic_api_key:
             self._enabled_providers.append(AnthropicProvider(api_key=model_settings.anthropic_api_key))
         if model_settings.ollama_base_url:
-            self._enabled_providers.append(OllamaProvider(base_url=model_settings.ollama_base_url))
-        if model_settings.vllm_base_url:
-            self._enabled_providers.append(VLLMProvider(base_url=model_settings.vllm_base_url))
+            self._enabled_providers.append(OllamaProvider(base_url=model_settings.ollama_base_url, api_key=None))
         if model_settings.gemini_api_key:
             self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
         if model_settings.azure_api_key and model_settings.azure_base_url:
+            assert model_settings.azure_api_version, "AZURE_API_VERSION is required"
             self._enabled_providers.append(
                 AzureProvider(
                     api_key=model_settings.azure_api_key,
@@ -257,6 +257,18 @@ class SyncServer(Server):
                     api_version=model_settings.azure_api_version,
                 )
             )
+        if model_settings.vllm_api_base:
+            # vLLM exposes both a /chat/completions and a /completions endpoint
+            self._enabled_providers.append(
+                VLLMCompletionsProvider(
+                    base_url=model_settings.vllm_api_base,
+                    default_prompt_formatter=model_settings.default_prompt_formatter,
+                )
+            )
+            # NOTE: to use the /chat/completions endpoint, you need to specify extra flags on vLLM startup
+            # see: https://docs.vllm.ai/en/latest/getting_started/examples/openai_chat_completion_client_with_tools.html
+            # e.g. "... --enable-auto-tool-choice --tool-call-parser hermes"
+            self._enabled_providers.append(VLLMChatCompletionsProvider(base_url=model_settings.vllm_api_base))
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""

@@ -70,6 +70,10 @@ def retry_with_exponential_backoff(
                 return func(*args, **kwargs)
 
             except requests.exceptions.HTTPError as http_err:
+
+                if not hasattr(http_err, "response") or not http_err.response:
+                    raise
+
                 # Retry on specified errors
                 if http_err.response.status_code in error_codes:
                     # Increment retries
