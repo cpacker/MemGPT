@@ -8,7 +8,7 @@ import typer
 
 import letta.utils as utils
 from letta import create_client
-from letta.agent import Agent
+from letta.agent import Agent, save_agent
 from letta.config import LettaConfig
 from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR
 from letta.local_llm.constants import ASSISTANT_MESSAGE_CLI_SYMBOL
@@ -301,17 +301,19 @@ def run(
         typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
         tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
 
-        letta_agent = load_split_thread_agent(agent_state, interface, client)
-
-        # letta_agent = Agent(
-        #     interface=interface(),
-        #     agent_state=agent_state,
-        #     tools=tools,
-        #     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-        #     first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
-        # )
-        # save_agent(agent=letta_agent, ms=ms)
-        # letta_agent = client.get_agent(agent_id=agent_state.id)
+        if agent_state.agent_type == AgentType.memgpt_agent:
+            letta_agent = Agent(
+                interface=interface(),
+                agent_state=agent_state,
+                tools=tools,
+                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
+            )
+            save_agent(agent=letta_agent, ms=ms)
+        elif agent_state.agent_type == AgentType.split_thread_agent:
+            letta_agent = load_split_thread_agent(agent_state, interface, client)
+        else:
+            raise ValueError(f"Invalid agent type: {agent_state.agent_type}")
         typer.secho(f"🎉 Created new agent '{letta_agent.agent_state.name}' (id={letta_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # start event loop
