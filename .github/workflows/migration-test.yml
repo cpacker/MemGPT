@@ -39,9 +39,9 @@ jobs:
           poetry-version: "1.8.2"
           install-args: "-E dev -E postgres -E tests"
 
-      - name: Test `letta run` up until first message
+      - name: Test alembic migration
         env:
-          LETTA_PG_PORT: 8888
+          LETTA_PG_PORT: 5432
           LETTA_PG_USER: letta
           LETTA_PG_PASSWORD: letta
           LETTA_PG_DB: letta
