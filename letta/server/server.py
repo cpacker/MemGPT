@@ -14,6 +14,7 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
+from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
@@ -172,6 +173,8 @@ else:
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+attach_base()
 
 Base.metadata.create_all(bind=engine)
 
