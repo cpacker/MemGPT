@@ -148,29 +148,32 @@ class SplitThreadAgent(BaseAgent):
         with self.conversation_agent_lock:
             conversation_step = self.conversation_agent.step(**kwargs)
 
-            last_message = conversation_step.messages[-1]
-            waited = isinstance(last_message, Message) and last_message.name == "wait_for_memory_update"
+        last_message = conversation_step.messages[-1]
+        waited = isinstance(last_message, Message) and last_message.name == "wait_for_memory_update"
 
-            if waited:
-                # If the conversation agent decided to wait for memory update, we need a response after the memory update
-                with self.conversation_condition:
-                    while not self.memory_result:
-                        self.conversation_condition.wait()
-                    assert self.memory_result is not None, "Memory result should not be None after waiting for memory update"
+        if waited:
+            # If the conversation agent decided to wait for memory update, we need a response after the memory update
+            with self.conversation_condition:
+                while not self.memory_result:
+                    self.conversation_condition.wait()
+                assert self.memory_result is not None, "Memory result should not be None after waiting for memory update"
 
-                    # Flush the memory output into this step
-                    conversation_step = self._combine_steps(conversation_step, self.memory_result)
-                    self.memory_result = None
+                # Flush the memory output into this step
+                conversation_step = self._combine_steps(conversation_step, self.memory_result)
+                self.memory_result = None
 
+            with self.conversation_agent_lock:
                 next_conversation_step = self.conversation_agent.step(**kwargs)
-                conversation_step = self._combine_steps(conversation_step, next_conversation_step)
-            else:
-                # If the conversation agent did not wait for memory update, we can flush the memory result
-                with self.conversation_condition:
-                    if self.memory_result:
-                        # Flush the memory output into this step
-                        conversation_step = self._combine_steps(self.memory_result, conversation_step)
-                        self.memory_result = None
+
+            conversation_step = self._combine_steps(conversation_step, next_conversation_step)
+
+        else:
+            # If the conversation agent did not wait for memory update, we can flush the memory result
+            with self.conversation_condition:
+                if self.memory_result:
+                    # Flush the memory output into this step
+                    conversation_step = self._combine_steps(self.memory_result, conversation_step)
+                    self.memory_result = None
 
         return conversation_step
 
@@ -186,6 +189,11 @@ class SplitThreadAgent(BaseAgent):
 
                 kwargs = self.memory_queue.pop(0)
                 memory_step = self.memory_agent.step(**kwargs)
+
+            with self.conversation_agent_lock:
+                self.conversation_agent.memory = self.memory_agent.memory
+                self.conversation_agent.update_state()
+                save_agent(agent=self.conversation_agent, ms=kwargs["ms"])
 
             with self.conversation_condition:
                 if self.memory_result:
@@ -229,6 +237,44 @@ class SplitThreadAgent(BaseAgent):
         self.agent_state.system = self.system
 
         return self.agent_state
+
+
+def load_split_thread_agent(agent_state: AgentState, interface: AgentInterface, client) -> SplitThreadAgent:
+    print("Conversation Name: ", agent_state.name + "_conversation")
+    print("Memory Name: ", agent_state.name + "_memory")
+
+    for i in client.list_agents():
+        print(f"{i.name} {i.user_id}")
+
+    print(client.user_id)
+    conversation_agent_state = client.get_agent_by_name(agent_name=agent_state.name + "_conversation", user_id=agent_state.user_id)
+    memory_agent_state = client.get_agent_by_name(agent_name=agent_state.name + "_memory", user_id=agent_state.user_id)
+
+    def get_tools_from_agent_state(agent_state):
+        tools = []
+        for name in agent_state.tools:
+            tool_id = client.get_tool_id(name=name)
+            if not tool_id:
+                raise ValueError(f"Tool {name} does not exist for user {agent_state.user_id}")
+            tool_obj = client.get_tool(id=tool_id)
+            if not tool_obj:
+                raise ValueError(f"Tool {name} does not exist for user {agent_state.user_id}")
+            tools.append(tool_obj)
+        return tools
+
+    assert conversation_agent_state is not None, "Conversation agent state must exist."
+    assert memory_agent_state is not None, "Memory agent state must exist."
+
+    agent = SplitThreadAgent(
+        interface=interface,
+        agent_state=agent_state,
+        conversation_agent_state=conversation_agent_state,
+        conversation_tools=get_tools_from_agent_state(conversation_agent_state),
+        memory_agent_state=memory_agent_state,
+        memory_tools=get_tools_from_agent_state(memory_agent_state),
+    )
+
+    return agent
 
 
 def create_split_thread_agent(
