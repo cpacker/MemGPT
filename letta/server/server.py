@@ -152,21 +152,9 @@ class Server(object):
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-from letta.agent_store.db import MessageModel, PassageModel
 from letta.config import LettaConfig
 
 # NOTE: hack to see if single session management works
-from letta.metadata import (
-    AgentModel,
-    AgentSourceMappingModel,
-    APIKeyModel,
-    BlockModel,
-    JobModel,
-    OrganizationModel,
-    SourceModel,
-    ToolModel,
-    UserModel,
-)
 from letta.settings import model_settings, settings
 
 config = LettaConfig.load()
@@ -185,22 +173,8 @@ else:
 
 Base = declarative_base()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base.metadata.create_all(
-    engine,
-    tables=[
-        UserModel.__table__,
-        AgentModel.__table__,
-        SourceModel.__table__,
-        AgentSourceMappingModel.__table__,
-        APIKeyModel.__table__,
-        BlockModel.__table__,
-        ToolModel.__table__,
-        JobModel.__table__,
-        PassageModel.__table__,
-        MessageModel.__table__,
-        OrganizationModel.__table__,
-    ],
-)
+
+Base.metadata.create_all(engine)
 
 
 # Dependency
