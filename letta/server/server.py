@@ -395,7 +395,6 @@ class SyncServer(Server):
             total_usage = UsageStatistics()
             step_count = 0
             while True:
-                print("step", step_count)
                 assert isinstance(
                     letta_agent.agent_state.memory, Memory
                 ), f"Memory object is not of type Memory: {type(letta_agent.agent_state.memory)}"
