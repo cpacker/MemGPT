@@ -33,7 +33,8 @@ jobs:
           python-version: "3.12"
           poetry-version: "1.8.2"
           install-args: "--all-extras"
-
+      - name: Show all postgres tables
+        run: poetry run python -c "from sqlalchemy import inspect, create_engine; engine = create_engine('postgresql+pg8000://letta:letta@localhost:5432/letta'); inspection = inspect(engine); print(inspection.get_table_names())"
       - name: Test alembic migration
         env:
           LETTA_PG_PORT: 5432
