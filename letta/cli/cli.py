@@ -14,7 +14,6 @@ from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR
 from letta.local_llm.constants import ASSISTANT_MESSAGE_CLI_SYMBOL
 from letta.log import get_logger
 from letta.metadata import MetadataStore
-from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import OptionState
 from letta.schemas.memory import ChatMemory, Memory
 from letta.server.server import logger as server_logger
@@ -249,17 +248,8 @@ def run(
         embedding_configs = client.list_embedding_configs()
         embedding_options = [embedding_config.embedding_model for embedding_config in embedding_configs]
 
-        # TODO move into EmbeddingConfig as a class method?
-        def prettify_embed_config(embedding_config: EmbeddingConfig) -> str:
-            return (
-                f"{embedding_config.embedding_model}" + f" ({embedding_config.embedding_endpoint})"
-                if embedding_config.embedding_endpoint
-                else ""
-            )
-
         embedding_choices = [
-            questionary.Choice(title=prettify_embed_config(embedding_config), value=embedding_config)
-            for embedding_config in embedding_configs
+            questionary.Choice(title=embedding_config.pretty_print(), value=embedding_config) for embedding_config in embedding_configs
         ]
 
         # select model
