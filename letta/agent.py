@@ -1351,6 +1351,12 @@ class Agent(BaseAgent):
 def save_agent(agent: Agent, ms: MetadataStore):
     """Save agent to metadata store"""
 
+    from letta.split_thread_agent import SplitThreadAgent, save_split_thread_agent
+
+    if isinstance(agent, SplitThreadAgent):
+        save_split_thread_agent(agent, ms)
+        return
+
     agent.update_state()
     agent_state = agent.agent_state
     agent_id = agent_state.id
