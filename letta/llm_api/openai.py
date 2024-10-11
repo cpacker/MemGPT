@@ -157,7 +157,7 @@ def openai_chat_completions_process_stream(
     url: str,
     api_key: str,
     chat_completion_request: ChatCompletionRequest,
-    stream_inferface: Optional[Union[AgentChunkStreamingInterface, AgentRefreshStreamingInterface]] = None,
+    stream_interface: Optional[Union[AgentChunkStreamingInterface, AgentRefreshStreamingInterface]] = None,
     create_message_id: bool = True,
     create_message_datetime: bool = True,
 ) -> ChatCompletionResponse:
@@ -167,7 +167,7 @@ def openai_chat_completions_process_stream(
     on the chunks received from the OpenAI-compatible server POST SSE response.
     """
     assert chat_completion_request.stream == True
-    assert stream_inferface is not None, "Required"
+    assert stream_interface is not None, "Required"
 
     # Count the prompt tokens
     # TODO move to post-request?
@@ -220,8 +220,8 @@ def openai_chat_completions_process_stream(
         ),
     )
 
-    if stream_inferface:
-        stream_inferface.stream_start()
+    if stream_interface:
+        stream_interface.stream_start()
 
     n_chunks = 0  # approx == n_tokens
     try:
@@ -230,17 +230,17 @@ def openai_chat_completions_process_stream(
         ):
             assert isinstance(chat_completion_chunk, ChatCompletionChunkResponse), type(chat_completion_chunk)
 
-            if stream_inferface:
-                if isinstance(stream_inferface, AgentChunkStreamingInterface):
-                    stream_inferface.process_chunk(
+            if stream_interface:
+                if isinstance(stream_interface, AgentChunkStreamingInterface):
+                    stream_interface.process_chunk(
                         chat_completion_chunk,
                         message_id=chat_completion_response.id if create_message_id else chat_completion_chunk.id,
                         message_date=chat_completion_response.created if create_message_datetime else chat_completion_chunk.created,
                     )
-                elif isinstance(stream_inferface, AgentRefreshStreamingInterface):
-                    stream_inferface.process_refresh(chat_completion_response)
+                elif isinstance(stream_interface, AgentRefreshStreamingInterface):
+                    stream_interface.process_refresh(chat_completion_response)
                 else:
-                    raise TypeError(stream_inferface)
+                    raise TypeError(stream_interface)
 
             if chunk_idx == 0:
                 # initialize the choice objects which we will increment with the deltas
@@ -314,13 +314,13 @@ def openai_chat_completions_process_stream(
             n_chunks += 1
 
     except Exception as e:
-        if stream_inferface:
-            stream_inferface.stream_end()
+        if stream_interface:
+            stream_interface.stream_end()
         print(f"Parsing ChatCompletion stream failed with error:\n{str(e)}")
         raise e
     finally:
-        if stream_inferface:
-            stream_inferface.stream_end()
+        if stream_interface:
+            stream_interface.stream_end()
 
     # make sure we didn't leave temp stuff in
     assert all([c.finish_reason != TEMP_STREAM_FINISH_REASON for c in chat_completion_response.choices])

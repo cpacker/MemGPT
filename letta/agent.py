@@ -481,7 +481,7 @@ class Agent(BaseAgent):
                 first_message=first_message,
                 # streaming
                 stream=stream,
-                stream_inferface=self.interface,
+                stream_interface=self.interface,
                 # putting inner thoughts in func args or not
                 inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             )

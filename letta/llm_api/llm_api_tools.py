@@ -115,7 +115,7 @@ def create(
     use_tool_naming: bool = True,
     # streaming?
     stream: bool = False,
-    stream_inferface: Optional[Union[AgentRefreshStreamingInterface, AgentChunkStreamingInterface]] = None,
+    stream_interface: Optional[Union[AgentRefreshStreamingInterface, AgentChunkStreamingInterface]] = None,
     # TODO move to llm_config?
     # if unspecified (None), default to something we've tested
     inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
@@ -149,19 +149,19 @@ def create(
 
         if stream:  # Client requested token streaming
             data.stream = True
-            assert isinstance(stream_inferface, AgentChunkStreamingInterface) or isinstance(
-                stream_inferface, AgentRefreshStreamingInterface
-            ), type(stream_inferface)
+            assert isinstance(stream_interface, AgentChunkStreamingInterface) or isinstance(
+                stream_interface, AgentRefreshStreamingInterface
+            ), type(stream_interface)
             response = openai_chat_completions_process_stream(
                 url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
                 api_key=model_settings.openai_api_key,
                 chat_completion_request=data,
-                stream_inferface=stream_inferface,
+                stream_interface=stream_interface,
             )
         else:  # Client did not request token streaming (expect a blocking backend response)
             data.stream = False
-            if isinstance(stream_inferface, AgentChunkStreamingInterface):
-                stream_inferface.stream_start()
+            if isinstance(stream_interface, AgentChunkStreamingInterface):
+                stream_interface.stream_start()
             try:
                 response = openai_chat_completions_request(
                     url=llm_config.model_endpoint,  # https://api.openai.com/v1 -> https://api.openai.com/v1/chat/completions
@@ -169,8 +169,8 @@ def create(
                     chat_completion_request=data,
                 )
             finally:
-                if isinstance(stream_inferface, AgentChunkStreamingInterface):
-                    stream_inferface.stream_end()
+                if isinstance(stream_interface, AgentChunkStreamingInterface):
+                    stream_interface.stream_end()
 
         if inner_thoughts_in_kwargs:
             response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
@@ -317,8 +317,8 @@ def create(
         # They mention that none of the messages can have names, but it seems to not error out (for now)
 
         data.stream = False
-        if isinstance(stream_inferface, AgentChunkStreamingInterface):
-            stream_inferface.stream_start()
+        if isinstance(stream_interface, AgentChunkStreamingInterface):
+            stream_interface.stream_start()
         try:
             # groq uses the openai chat completions API, so this component should be reusable
             assert model_settings.groq_api_key is not None, "Groq key is missing"
@@ -328,8 +328,8 @@ def create(
                 chat_completion_request=data,
             )
         finally:
-            if isinstance(stream_inferface, AgentChunkStreamingInterface):
-                stream_inferface.stream_end()
+            if isinstance(stream_interface, AgentChunkStreamingInterface):
+                stream_interface.stream_end()
 
         if inner_thoughts_in_kwargs:
             response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
