@@ -240,13 +240,6 @@ class SplitThreadAgent(BaseAgent):
 
 
 def load_split_thread_agent(agent_state: AgentState, interface: AgentInterface, client) -> SplitThreadAgent:
-    print("Conversation Name: ", agent_state.name + "_conversation")
-    print("Memory Name: ", agent_state.name + "_memory")
-
-    for i in client.list_agents():
-        print(f"{i.name} {i.user_id}")
-
-    print(client.user_id)
     conversation_agent_state = client.get_agent_by_name(agent_name=agent_state.name + "_conversation", user_id=agent_state.user_id)
     memory_agent_state = client.get_agent_by_name(agent_name=agent_state.name + "_memory", user_id=agent_state.user_id)
 

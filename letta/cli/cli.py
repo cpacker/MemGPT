@@ -311,7 +311,7 @@ def run(
             )
             save_agent(agent=letta_agent, ms=ms)
         elif agent_state.agent_type == AgentType.split_thread_agent:
-            letta_agent = load_split_thread_agent(agent_state, interface, client)
+            letta_agent = load_split_thread_agent(agent_state, interface(), client)
         else:
             raise ValueError(f"Invalid agent type: {agent_state.agent_type}")
         typer.secho(f"🎉 Created new agent '{letta_agent.agent_state.name}' (id={letta_agent.agent_state.id})", fg=typer.colors.GREEN)
