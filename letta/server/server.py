@@ -261,6 +261,9 @@ class SyncServer(Server):
         # add global default tools (for admin)
         self.add_default_tools(module_name="base")
 
+        # create default user  / blocks
+        self.get_default_user()
+
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
         if model_settings.openai_api_key:

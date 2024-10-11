@@ -7909,6 +7909,25 @@ MarkupSafe = ">=2.1.1"
 watchdog = ["watchdog (>=2.3)"]
 
 [[package]]
+name = "whyhow"
+version = "0.1.7"
+description = "Whyhow automated KG SDK"
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "whyhow-0.1.7-py3-none-any.whl", hash = "sha256:e85c6b24a4c55a3b26aa38cb1513e354081c99be81483cfd59ae3981a5ceb492"},
+    {file = "whyhow-0.1.7.tar.gz", hash = "sha256:2ae6c51a43980a54456372d0d7e2987fa3e8bb044f5f422c841a9bd1c7177fe4"},
+]
+
+[package.dependencies]
+httpx = "*"
+pydantic = ">1"
+
+[package.extras]
+dev = ["bandit[toml]", "black", "datamodel-code-generator", "flake8", "flake8-docstrings", "fpdf", "isort", "mypy", "pydocstyle[toml]", "pytest", "pytest-asyncio", "pytest-cov", "pytest-httpx"]
+docs = ["markdown-callouts", "markdown-exec", "mkdocs", "mkdocs-jupyter", "mkdocs-material", "mkdocstrings[python]", "pymdown-extensions"]
+
+[[package]]
 name = "wikipedia"
 version = "1.4.0"
 description = "Wikipedia API for Python"
@@ -8354,4 +8373,4 @@ tests = ["wikipedia"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "aa0bbf5825741bdc9c06388e7e27c1d9a2d85d517abb7f51cca71cc8349d1170"
+content-hash = "8df5d19e36e08c24ed40e4c1b887198723ea61db9e5d5184384044f82b168e4f"

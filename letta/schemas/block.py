@@ -39,11 +39,18 @@ class BaseBlock(LettaBase, validate_assignment=True):
             raise e
         return self
 
-    @model_validator(mode="after")
-    def ensure_label(self) -> Self:
-        if not self.label:
-            self.label = self.name
-        return self
+    # @model_validator
+    # def ensure_label(self) -> Self:
+    # if not self.label:
+    # self.label = self.name
+    # return self
+
+    @model_validator(mode="before")
+    def set_label_to_name_if_none(cls, values):
+        """Sets label to name if label is None"""
+        if values.get("label") is None and values.get("name") is not None:
+            values["label"] = values["name"]
+        return values
 
     def __len__(self):
         return len(self.value)

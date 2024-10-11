@@ -76,6 +76,7 @@ langchain = {version = "^0.2.16", optional = true}
 langchain-community = {version = "^0.2.17", optional = true}
 composio-langchain = "^0.5.28"
 composio-core = "^0.5.28"
+whyhow = "^0.1.7"
 
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]
