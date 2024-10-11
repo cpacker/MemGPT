@@ -68,3 +68,10 @@ class LLMConfig(BaseModel):
             )
         else:
             raise ValueError(f"Model {model_name} not supported.")
+
+    def pretty_print(self) -> str:
+        return (
+            f"{self.model}"
+            + (f" [{self.model_endpoint_type}]" if self.model_endpoint_type else "")
+            + (f" [{self.model_endpoint}]" if self.model_endpoint else "")
+        )
