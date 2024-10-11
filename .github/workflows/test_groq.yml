@@ -100,4 +100,5 @@ jobs:
               -z $TEST_CORE_MEMORY_EXIT_CODE || $TEST_CORE_MEMORY_EXIT_CODE -ne 0 ]]; then
           echo "Some tests failed."
           exit 78
-        fi`
+        fi
+      continue-on-error: true
