@@ -45,7 +45,7 @@ jobs:
           LETTA_PG_USER: letta
           LETTA_PG_PASSWORD: letta
           LETTA_PG_DB: letta
-          LETTA_PG_HOST: postgres
+          LETTA_PG_HOST: localhost
           LETTA_SERVER_PASS: test_server_token
         run: |
           poetry run alembic upgrade head
