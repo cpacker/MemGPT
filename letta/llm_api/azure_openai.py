@@ -79,7 +79,7 @@ def azure_openai_chat_completions_request(
         data.pop("tools")
         data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
 
-    url = get_azure_chat_completions_endpoint(model_settings.azure_base_url, llm_config.model, model_settings.api_version)
+    url = get_azure_chat_completions_endpoint(model_settings.azure_base_url, llm_config.model, model_settings.azure_api_version)
     response_json = make_post_request(url, headers, data)
     # NOTE: azure openai does not include "content" in the response when it is None, so we need to add it
     if "content" not in response_json["choices"][0].get("message"):

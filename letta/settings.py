@@ -25,7 +25,10 @@ class ModelSettings(BaseSettings):
     # azure
     azure_api_key: Optional[str] = None
     azure_base_url: Optional[str] = None
-    azure_api_version: Optional[str] = None
+    # We provide a default here, since usually people will want to be on the latest API version.
+    azure_api_version: Optional[str] = (
+        "2024-09-01-preview"  # https://learn.microsoft.com/en-us/azure/ai-services/openai/api-version-deprecation
+    )
 
     # google ai
     gemini_api_key: Optional[str] = None
