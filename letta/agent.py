@@ -483,7 +483,7 @@ class Agent(BaseAgent):
             if len(response.choices) == 0:
                 raise Exception(f"API call didn't return a message: {response}")
 
-            if response.choices[0].message is None:
+            if response.choices[0] is None:
                 raise Exception(f"API call returned a message that is None: {response}")
 
             # special case for 'length'
