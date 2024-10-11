@@ -153,6 +153,7 @@ def unpack_inner_thoughts_from_kwargs(choice: Choice, inner_thoughts_key: str) -
                 return new_choice
             else:
                 warnings.warn(f"Did not find inner thoughts in tool call: {str(tool_call)}")
+                return choice
 
         except json.JSONDecodeError as e:
             warnings.warn(f"Failed to strip inner thoughts from kwargs: {e}")
