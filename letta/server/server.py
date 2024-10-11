@@ -15,7 +15,6 @@ import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
 from letta.agent_store.storage import StorageConnector, TableType
-from letta.config import LettaConfig
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -41,7 +40,7 @@ from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
-from letta.metadata import Base, MetadataStore, engine
+from letta.metadata import Base, MetadataStore
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
@@ -149,6 +148,7 @@ class Server(object):
         raise NotImplementedError
 
 
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from letta.config import LettaConfig
@@ -156,7 +156,24 @@ from letta.config import LettaConfig
 # NOTE: hack to see if single session management works
 from letta.settings import model_settings, settings
 
+config = LettaConfig.load()
+
+if settings.letta_pg_uri_no_default:
+    config.recall_storage_type = "postgres"
+    config.recall_storage_uri = settings.letta_pg_uri_no_default
+    config.archival_storage_type = "postgres"
+    config.archival_storage_uri = settings.letta_pg_uri_no_default
+
+    # create engine
+    engine = create_engine(settings.letta_pg_uri)
+else:
+    # TODO: don't rely on config storage
+    engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
+
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+print(Base.metadata.tables)
 
 Base.metadata.create_all(bind=engine)
 

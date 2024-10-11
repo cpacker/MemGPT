@@ -96,7 +96,7 @@ class StorageConnector:
             raise ValueError(f"Table type {table_type} not implemented")
 
         if storage_type == "postgres":
-            from letta.agent_store.db import PostgresStorageConnector
+            from letta.metadata import PostgresStorageConnector
 
             return PostgresStorageConnector(table_type, config, user_id, agent_id)
         elif storage_type == "chroma":
@@ -115,7 +115,7 @@ class StorageConnector:
         #    return LanceDBConnector(agent_config=agent_config, table_type=table_type)
 
         elif storage_type == "sqlite":
-            from letta.agent_store.db import SQLLiteStorageConnector
+            from letta.metadata import SQLLiteStorageConnector
 
             return SQLLiteStorageConnector(table_type, config, user_id, agent_id)
         elif storage_type == "milvus":
