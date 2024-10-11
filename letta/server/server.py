@@ -14,8 +14,8 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
+from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
-from letta.config import LettaConfig
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -41,7 +41,7 @@ from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
-from letta.metadata import MetadataStore
+from letta.metadata import Base, MetadataStore
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
@@ -150,23 +150,11 @@ class Server(object):
 
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
-from letta.agent_store.db import MessageModel, PassageModel
 from letta.config import LettaConfig
 
 # NOTE: hack to see if single session management works
-from letta.metadata import (
-    AgentModel,
-    AgentSourceMappingModel,
-    APIKeyModel,
-    BlockModel,
-    JobModel,
-    OrganizationModel,
-    SourceModel,
-    ToolModel,
-    UserModel,
-)
 from letta.settings import model_settings, settings
 
 config = LettaConfig.load()
@@ -183,24 +171,12 @@ else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
 
-Base = declarative_base()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base.metadata.create_all(
-    engine,
-    tables=[
-        UserModel.__table__,
-        AgentModel.__table__,
-        SourceModel.__table__,
-        AgentSourceMappingModel.__table__,
-        APIKeyModel.__table__,
-        BlockModel.__table__,
-        ToolModel.__table__,
-        JobModel.__table__,
-        PassageModel.__table__,
-        MessageModel.__table__,
-        OrganizationModel.__table__,
-    ],
-)
+
+attach_base()
+
+Base.metadata.create_all(bind=engine)
 
 
 # Dependency

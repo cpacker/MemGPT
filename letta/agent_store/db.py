@@ -18,13 +18,14 @@ from sqlalchemy import (
     select,
     text,
 )
-from sqlalchemy.orm import declarative_base, mapped_column
+from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm.session import close_all_sessions
 from sqlalchemy.sql import func
 from sqlalchemy_json import MutableJson
 from tqdm import tqdm
 
 from letta.agent_store.storage import StorageConnector, TableType
+from letta.base import Base
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
 from letta.metadata import EmbeddingConfigColumn, ToolCallColumn
@@ -35,7 +36,6 @@ from letta.schemas.openai.chat_completions import ToolCall
 from letta.schemas.passage import Passage
 from letta.settings import settings
 
-Base = declarative_base()
 config = LettaConfig()
 
 
@@ -560,3 +560,9 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
             # Commit the changes to the database
             session.commit()
+
+
+def attach_base():
+    # This should be invoked in server.py to make sure Base gets initialized properly
+    # DO NOT REMOVE
+    print("Initializing database...")
