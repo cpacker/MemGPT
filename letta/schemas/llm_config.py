@@ -72,6 +72,6 @@ class LLMConfig(BaseModel):
     def pretty_print(self) -> str:
         return (
             f"{self.model}"
-            + (f" [{self.model_endpoint_type}]" if self.model_endpoint_type else "")
-            + (f" [{self.model_endpoint}]" if self.model_endpoint else "")
+            + (f" [type={self.model_endpoint_type}]" if self.model_endpoint_type else "")
+            + (f" [ip={self.model_endpoint}]" if self.model_endpoint else "")
         )
