@@ -47,7 +47,7 @@ if settings.letta_pg_uri_no_default:
     config.archival_storage_uri = settings.letta_pg_uri_no_default
 
     # create engine
-    engine = create_engine(settings.letta_pg_uri)
+    engine = create_engine(settings.letta_pg_uri, echo=True)
 else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
