@@ -565,4 +565,4 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 def attach_base():
     # This should be invoked in server.py to make sure Base gets initialized properly
     # DO NOT REMOVE
-    print("Accepted Base")
+    print("Initializing database...")
