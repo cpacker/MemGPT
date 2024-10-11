@@ -326,7 +326,7 @@ def run(
         first=first,
         ms=ms,
         no_verify=no_verify,
-        stream=False,
+        stream=stream,
         inner_thoughts_in_kwargs=no_content,
     )  # TODO: add back no_verify
 
