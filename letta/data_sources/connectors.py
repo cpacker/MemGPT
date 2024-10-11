@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Dict, Iterator, List, Tuple
 
 import typer
@@ -167,15 +166,12 @@ class DirectoryConnector(DataConnector):
             )
 
     def generate_passages(self, file: FileMetadata, chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:
+        from llama_index.core import SimpleDirectoryReader
         from llama_index.core.node_parser import TokenTextSplitter
-        from llama_index.readers.file import FlatReader
-
-        # TODO: Extend to different kinds of files
-        # This one just reads raw text
-        docs = FlatReader().load_data(Path(file.file_path))
 
         parser = TokenTextSplitter(chunk_size=chunk_size)
-        nodes = parser.get_nodes_from_documents(docs)
+        documents = SimpleDirectoryReader(input_files=[file.file_path]).load_data()
+        nodes = parser.get_nodes_from_documents(documents)
         for node in nodes:
             yield node.text, None
 

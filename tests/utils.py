@@ -1,5 +1,6 @@
 import datetime
 import os
+from datetime import datetime
 from importlib import util
 from typing import Dict, Iterator, List, Tuple
 
@@ -19,12 +20,22 @@ class DummyDataConnector(DataConnector):
     def __init__(self, texts: List[str]):
         self.texts = texts
 
-    def generate_files(self) -> Iterator[Tuple[str, Dict]]:
-        for text in self.texts:
-            yield text, {"metadata": "dummy"}
+    def find_files(self, source) -> Iterator[FileMetadata]:
+        for _ in self.texts:
+            yield FileMetadata(
+                user_id="",
+                source_id="",
+                file_name="",
+                file_path="",
+                file_type="",
+                file_size=0,  # Set to 0 as a placeholder
+                file_creation_date="1970-01-01",  # Placeholder date
+                file_last_modified_date="1970-01-01",  # Placeholder date
+                created_at=datetime.utcnow(),
+            )
 
-    def generate_passages(self, file_text: str, file: FileMetadata, chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
-        yield file_text, file.metadata_
+    def generate_passages(self, file: FileMetadata, chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
+        yield "test", {}
 
 
 def wipe_config():

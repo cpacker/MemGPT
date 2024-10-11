@@ -359,9 +359,9 @@ def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert len(files) == 1  # Should be condensed to one document
 
     # Get the memgpt paper
-    document = files[0]
-    assert document.metadata_.get("file_name", None) == "memgpt_paper.pdf"
-    assert document.source_id == source.id
+    file = files[0]
+    assert file.file_name == "memgpt_paper.pdf"
+    assert file.source_id == source.id
 
 
 def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
