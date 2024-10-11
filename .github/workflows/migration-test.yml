@@ -10,10 +10,6 @@ jobs:
     timeout-minutes: 15
 
     services:
-      qdrant:
-        image: qdrant/qdrant
-        ports:
-          - 6333:6333
       postgres:
         image: ankane/pgvector
         ports:
@@ -27,7 +23,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,7 +32,7 @@ jobs:
         with:
           python-version: "3.12"
           poetry-version: "1.8.2"
-          install-args: "-E dev -E postgres -E tests"
+          install-args: "--all-extras"
 
       - name: Test alembic migration
         env:
