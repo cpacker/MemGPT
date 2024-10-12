@@ -354,8 +354,7 @@ def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
     upload_file_using_client(client, source, filename)
 
     # Get the files
-    list_files_response = client.list_files_from_source(source.id)
-    files = list_files_response.files
+    files = client.list_files_from_source(source.id)
     assert len(files) == 1  # Should be condensed to one document
 
     # Get the memgpt paper
