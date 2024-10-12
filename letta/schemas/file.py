@@ -8,13 +8,13 @@ from letta.utils import get_utc_time
 
 
 class FileMetadataBase(LettaBase):
-    """Base class for document schemas"""
+    """Base class for FileMetadata schemas"""
 
     __id_prefix__ = "file"
 
 
 class FileMetadata(FileMetadataBase):
-    """Representation of a single FileMetadata (broken up into `Passage` objects)"""
+    """Representation of a single FileMetadata"""
 
     id: str = FileMetadataBase.generate_id_field()
     user_id: str = Field(description="The unique identifier of the user associated with the document.")
