@@ -52,3 +52,11 @@ def test_googleai():
     print(models)
 
     provider.list_embedding_models()
+
+
+# def test_vllm():
+#    provider = VLLMProvider(base_url=os.getenv("VLLM_API_BASE"))
+#    models = provider.list_llm_models()
+#    print(models)
+#
+#    provider.list_embedding_models()

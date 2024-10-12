@@ -25,7 +25,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
 from letta.schemas.enums import JobStatus, MessageRole
-from letta.schemas.file import FileMetadata, PaginatedListFilesResponse
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_request import LettaRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
@@ -233,7 +233,7 @@ class AbstractClient(object):
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         raise NotImplementedError
 
-    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> List[FileMetadata]:
+    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
         raise NotImplementedError
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
@@ -1098,7 +1098,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to list attached sources: {response.text}")
         return [Source(**source) for source in response.json()]
 
-    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> PaginatedListFilesResponse:
+    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
         """
         List files from source with pagination support.
 
@@ -1120,7 +1120,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to list files with source id {source_id}: [{response.status_code}] {response.text}")
 
         # Parse the JSON response
-        return PaginatedListFilesResponse(**response.json())
+        return [FileMetadata(**metadata) for metadata in response.json()]
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """
@@ -2298,7 +2298,7 @@ class LocalClient(AbstractClient):
         """
         return self.server.list_attached_sources(agent_id=agent_id)
 
-    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> PaginatedListFilesResponse:
+    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
         """
         List files from source.
 

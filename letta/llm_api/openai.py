@@ -41,7 +41,9 @@ from letta.utils import smart_urljoin
 OPENAI_SSE_DONE = "[DONE]"
 
 
-def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional[bool] = False) -> dict:
+def openai_get_model_list(
+    url: str, api_key: Union[str, None], fix_url: Optional[bool] = False, extra_params: Optional[dict] = None
+) -> dict:
     """https://platform.openai.com/docs/api-reference/models/list"""
     from letta.utils import printd
 
@@ -59,8 +61,10 @@ def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional
         headers["Authorization"] = f"Bearer {api_key}"
 
     printd(f"Sending request to {url}")
+    response = None
     try:
-        response = requests.get(url, headers=headers)
+        # TODO add query param "tool" to be true
+        response = requests.get(url, headers=headers, params=extra_params)
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
         printd(f"response = {response}")
@@ -68,7 +72,8 @@ def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional
     except requests.exceptions.HTTPError as http_err:
         # Handle HTTP errors (e.g., response 4XX, 5XX)
         try:
-            response = response.json()
+            if response:
+                response = response.json()
         except:
             pass
         printd(f"Got HTTPError, exception={http_err}, response={response}")
@@ -76,7 +81,8 @@ def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional
     except requests.exceptions.RequestException as req_err:
         # Handle other requests-related errors (e.g., connection error)
         try:
-            response = response.json()
+            if response:
+                response = response.json()
         except:
             pass
         printd(f"Got RequestException, exception={req_err}, response={response}")
@@ -84,7 +90,8 @@ def openai_get_model_list(url: str, api_key: Union[str, None], fix_url: Optional
     except Exception as e:
         # Handle other potential errors
         try:
-            response = response.json()
+            if response:
+                response = response.json()
         except:
             pass
         printd(f"Got unknown Exception, exception={e}, response={response}")
@@ -154,7 +161,7 @@ def openai_chat_completions_process_stream(
     url: str,
     api_key: str,
     chat_completion_request: ChatCompletionRequest,
-    stream_inferface: Optional[Union[AgentChunkStreamingInterface, AgentRefreshStreamingInterface]] = None,
+    stream_interface: Optional[Union[AgentChunkStreamingInterface, AgentRefreshStreamingInterface]] = None,
     create_message_id: bool = True,
     create_message_datetime: bool = True,
 ) -> ChatCompletionResponse:
@@ -164,7 +171,7 @@ def openai_chat_completions_process_stream(
     on the chunks received from the OpenAI-compatible server POST SSE response.
     """
     assert chat_completion_request.stream == True
-    assert stream_inferface is not None, "Required"
+    assert stream_interface is not None, "Required"
 
     # Count the prompt tokens
     # TODO move to post-request?
@@ -217,8 +224,8 @@ def openai_chat_completions_process_stream(
         ),
     )
 
-    if stream_inferface:
-        stream_inferface.stream_start()
+    if stream_interface:
+        stream_interface.stream_start()
 
     n_chunks = 0  # approx == n_tokens
     try:
@@ -227,17 +234,17 @@ def openai_chat_completions_process_stream(
         ):
             assert isinstance(chat_completion_chunk, ChatCompletionChunkResponse), type(chat_completion_chunk)
 
-            if stream_inferface:
-                if isinstance(stream_inferface, AgentChunkStreamingInterface):
-                    stream_inferface.process_chunk(
+            if stream_interface:
+                if isinstance(stream_interface, AgentChunkStreamingInterface):
+                    stream_interface.process_chunk(
                         chat_completion_chunk,
                         message_id=chat_completion_response.id if create_message_id else chat_completion_chunk.id,
                         message_date=chat_completion_response.created if create_message_datetime else chat_completion_chunk.created,
                     )
-                elif isinstance(stream_inferface, AgentRefreshStreamingInterface):
-                    stream_inferface.process_refresh(chat_completion_response)
+                elif isinstance(stream_interface, AgentRefreshStreamingInterface):
+                    stream_interface.process_refresh(chat_completion_response)
                 else:
-                    raise TypeError(stream_inferface)
+                    raise TypeError(stream_interface)
 
             if chunk_idx == 0:
                 # initialize the choice objects which we will increment with the deltas
@@ -311,13 +318,13 @@ def openai_chat_completions_process_stream(
             n_chunks += 1
 
     except Exception as e:
-        if stream_inferface:
-            stream_inferface.stream_end()
+        if stream_interface:
+            stream_interface.stream_end()
         print(f"Parsing ChatCompletion stream failed with error:\n{str(e)}")
         raise e
     finally:
-        if stream_inferface:
-            stream_inferface.stream_end()
+        if stream_interface:
+            stream_interface.stream_end()
 
     # make sure we didn't leave temp stuff in
     assert all([c.finish_reason != TEMP_STREAM_FINISH_REASON for c in chat_completion_response.choices])

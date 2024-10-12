@@ -14,8 +14,8 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
+from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
-from letta.config import LettaConfig
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -41,7 +41,7 @@ from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
-from letta.metadata import MetadataStore
+from letta.metadata import Base, MetadataStore
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
@@ -50,7 +50,9 @@ from letta.providers import (
     LettaProvider,
     OllamaProvider,
     OpenAIProvider,
-    VLLMProvider,
+    Provider,
+    VLLMChatCompletionsProvider,
+    VLLMCompletionsProvider,
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
@@ -65,7 +67,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import PaginatedListFilesResponse
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
@@ -149,23 +151,11 @@ class Server(object):
 
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
-from letta.agent_store.db import FileModel, MessageModel, PassageModel
 from letta.config import LettaConfig
 
 # NOTE: hack to see if single session management works
-from letta.metadata import (
-    AgentModel,
-    AgentSourceMappingModel,
-    APIKeyModel,
-    BlockModel,
-    JobModel,
-    OrganizationModel,
-    SourceModel,
-    ToolModel,
-    UserModel,
-)
 from letta.settings import model_settings, settings
 
 config = LettaConfig.load()
@@ -182,25 +172,12 @@ else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
 
-Base = declarative_base()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base.metadata.create_all(
-    engine,
-    tables=[
-        UserModel.__table__,
-        AgentModel.__table__,
-        SourceModel.__table__,
-        AgentSourceMappingModel.__table__,
-        APIKeyModel.__table__,
-        BlockModel.__table__,
-        ToolModel.__table__,
-        JobModel.__table__,
-        PassageModel.__table__,
-        MessageModel.__table__,
-        FileModel.__table__,
-        OrganizationModel.__table__,
-    ],
-)
+
+attach_base()
+
+Base.metadata.create_all(bind=engine)
 
 
 # Dependency
@@ -262,18 +239,17 @@ class SyncServer(Server):
         self.add_default_tools(module_name="base")
 
         # collect providers (always has Letta as a default)
-        self._enabled_providers = [LettaProvider()]
+        self._enabled_providers: List[Provider] = [LettaProvider()]
         if model_settings.openai_api_key:
-            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key))
+            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key, base_url=model_settings.openai_api_base))
         if model_settings.anthropic_api_key:
             self._enabled_providers.append(AnthropicProvider(api_key=model_settings.anthropic_api_key))
         if model_settings.ollama_base_url:
-            self._enabled_providers.append(OllamaProvider(base_url=model_settings.ollama_base_url))
-        if model_settings.vllm_base_url:
-            self._enabled_providers.append(VLLMProvider(base_url=model_settings.vllm_base_url))
+            self._enabled_providers.append(OllamaProvider(base_url=model_settings.ollama_base_url, api_key=None))
         if model_settings.gemini_api_key:
             self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
         if model_settings.azure_api_key and model_settings.azure_base_url:
+            assert model_settings.azure_api_version, "AZURE_API_VERSION is required"
             self._enabled_providers.append(
                 AzureProvider(
                     api_key=model_settings.azure_api_key,
@@ -281,6 +257,18 @@ class SyncServer(Server):
                     api_version=model_settings.azure_api_version,
                 )
             )
+        if model_settings.vllm_api_base:
+            # vLLM exposes both a /chat/completions and a /completions endpoint
+            self._enabled_providers.append(
+                VLLMCompletionsProvider(
+                    base_url=model_settings.vllm_api_base,
+                    default_prompt_formatter=model_settings.default_prompt_formatter,
+                )
+            )
+            # NOTE: to use the /chat/completions endpoint, you need to specify extra flags on vLLM startup
+            # see: https://docs.vllm.ai/en/latest/getting_started/examples/openai_chat_completion_client_with_tools.html
+            # e.g. "... --enable-auto-tool-choice --tool-call-parser hermes"
+            self._enabled_providers.append(VLLMChatCompletionsProvider(base_url=model_settings.vllm_api_base))
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -1574,10 +1562,10 @@ class SyncServer(Server):
 
         # get the data connectors
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        document_store = StorageConnector.get_storage_connector(TableType.FILES, self.config, user_id=user_id)
+        file_store = StorageConnector.get_storage_connector(TableType.FILES, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, document_store)
+        passage_count, document_count = load_data(connector, source, passage_store, file_store)
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1634,7 +1622,7 @@ class SyncServer(Server):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
-    def list_files_from_source(self, source_id: str, limit: int = 10, cursor: Optional[str] = None) -> PaginatedListFilesResponse:
+    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
         # list all attached sources to an agent
         return self.ms.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
 

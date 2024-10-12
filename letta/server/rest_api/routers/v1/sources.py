@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, UploadFile
 
-from letta.schemas.file import PaginatedListFilesResponse
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
@@ -186,10 +186,10 @@ def list_passages(
     return passages
 
 
-@router.get("/{source_id}/files", response_model=PaginatedListFilesResponse, operation_id="list_files_from_source")
+@router.get("/{source_id}/files", response_model=List[FileMetadata], operation_id="list_files_from_source")
 def list_files_from_source(
     source_id: str,
-    limit: int = Query(10, description="Number of files to return"),
+    limit: int = Query(1000, description="Number of files to return"),
     cursor: Optional[str] = Query(None, description="Pagination cursor to fetch the next set of results"),
     server: "SyncServer" = Depends(get_letta_server),
 ):

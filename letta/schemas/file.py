@@ -1,22 +1,22 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from letta.schemas.letta_base import LettaBase
 from letta.utils import get_utc_time
 
 
-class FileBase(LettaBase):
+class FileMetadataBase(LettaBase):
     """Base class for document schemas"""
 
-    __id_prefix__ = "doc"
+    __id_prefix__ = "file"
 
 
-class FileMetadata(FileBase):
+class FileMetadata(FileMetadataBase):
     """Representation of a single FileMetadata (broken up into `Passage` objects)"""
 
-    id: str = FileBase.generate_id_field()
+    id: str = FileMetadataBase.generate_id_field()
     user_id: str = Field(description="The unique identifier of the user associated with the document.")
     source_id: str = Field(..., description="The unique identifier of the source associated with the document.")
     file_name: Optional[str] = Field(None, description="The name of the file.")
@@ -29,8 +29,3 @@ class FileMetadata(FileBase):
 
     class Config:
         extra = "allow"
-
-
-class PaginatedListFilesResponse(BaseModel):
-    files: List[FileMetadata]
-    next_cursor: Optional[str] = None  # The cursor for fetching the next page, if any

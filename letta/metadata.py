@@ -15,21 +15,22 @@ from sqlalchemy import (
     String,
     TypeDecorator,
     desc,
-    func,
 )
-from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 
+from letta.base import Base
 from letta.config import LettaConfig
 from letta.schemas.agent import AgentState
 from letta.schemas.api_key import APIKey
 from letta.schemas.block import Block, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import FileMetadata, PaginatedListFilesResponse
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
+
+# from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from letta.schemas.organization import Organization
 from letta.schemas.source import Source
@@ -37,8 +38,6 @@ from letta.schemas.tool import Tool
 from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
-
-Base = declarative_base()
 
 
 class FileModel(Base):
@@ -922,10 +921,7 @@ class MetadataStore:
             # Convert the results to the required FileMetadata objects
             files = [r.to_record() for r in results]
 
-            # Generate the next cursor from the last item in the current result set
-            next_cursor = files[-1].id if len(files) == limit else None
-
-            return PaginatedListFilesResponse(files=files, next_cursor=next_cursor)
+            return files
 
     def delete_job(self, job_id: str):
         with self.session_maker() as session:

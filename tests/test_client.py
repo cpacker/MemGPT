@@ -318,20 +318,20 @@ def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: Ag
     upload_file_using_client(client, source, file_b)
 
     # Get the first file
-    response_a = client.list_files_from_source(source.id, limit=1)
-    files = response_a.files
-    assert len(files) == 1
-    assert files[0].source_id == source.id
+    files_a = client.list_files_from_source(source.id, limit=1)
+    assert len(files_a) == 1
+    assert files_a[0].source_id == source.id
 
     # Use the cursor from response_a to get the remaining file
-    response_b = client.list_files_from_source(source.id, limit=1, cursor=response_a.next_cursor)
-    files = response_b.files
-    assert len(files) == 1
-    assert files[0].source_id == source.id
+    files_b = client.list_files_from_source(source.id, limit=1, cursor=files_a[-1].id)
+    assert len(files_b) == 1
+    assert files_b[0].source_id == source.id
+
+    # Check files are different to ensure the cursor works
+    assert files_a[0].file_name != files_b[0].file_name
 
     # Use the cursor from response_b to list files, should be empty
-    response_c = client.list_files_from_source(source.id, limit=1, cursor=response_b.next_cursor)
-    files = response_c.files
+    files = client.list_files_from_source(source.id, limit=1, cursor=files_b[-1].id)
     assert len(files) == 0  # Should be empty
 
 
@@ -434,7 +434,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     # list archival memory
     archival_memories = client.get_archival_memory(agent_id=agent.id)
     # print(archival_memories)
-    assert len(archival_memories) == created_passages
+    assert len(archival_memories) == created_passages, f"Mismatched length {len(archival_memories)} vs. {created_passages}"
 
     # check number of passages
     sources = client.list_sources()
