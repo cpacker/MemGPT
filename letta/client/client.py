@@ -2028,6 +2028,7 @@ class LocalClient(AbstractClient):
         name: Optional[str] = None,
         update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
+        terminal: Optional[bool] = False,
     ) -> Tool:
         """
         Create a tool. This stores the source code of function on the server, so that the server can execute the function and generate an OpenAI JSON schemas for it when using with an agent.
@@ -2037,6 +2038,7 @@ class LocalClient(AbstractClient):
             name: (str): Name of the tool (must be unique per-user.)
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
             update (bool, optional): Update the tool if it already exists. Defaults to True.
+            terminal (bool, optional): Whether the tool is a terminal tool (no more agent steps). Defaults to False.
 
         Returns:
             tool (Tool): The created tool.
@@ -2052,7 +2054,7 @@ class LocalClient(AbstractClient):
         # call server function
         return self.server.create_tool(
             # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
-            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags),
+            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags, terminal=terminal),
             user_id=self.user_id,
             update=update,
         )
