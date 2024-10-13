@@ -883,6 +883,9 @@ class Agent(BaseAgent):
         -> agent.step(messages=[Message(role='user', text=...)])
         """
         # Wrap with metadata, dumps to JSON
+        assert user_message_str and isinstance(
+            user_message_str, str
+        ), f"user_message_str should be a non-empty string, got {type(user_message_str)}"
         user_message_json_str = package_user_message(user_message_str)
 
         # Validate JSON via save/load
