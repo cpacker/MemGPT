@@ -200,7 +200,7 @@ class SyncServer(Server):
     def __init__(
         self,
         chaining: bool = True,
-        max_chaining_steps: bool = None,
+        max_chaining_steps: Optional[bool] = None,
         default_interface_factory: Callable[[], AgentInterface] = lambda: CLIInterface(),
         # default_interface: AgentInterface = CLIInterface(),
         # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
@@ -241,13 +241,32 @@ class SyncServer(Server):
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
         if model_settings.openai_api_key:
-            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key, base_url=model_settings.openai_api_base))
+            self._enabled_providers.append(
+                OpenAIProvider(
+                    api_key=model_settings.openai_api_key,
+                    base_url=model_settings.openai_api_base,
+                )
+            )
         if model_settings.anthropic_api_key:
-            self._enabled_providers.append(AnthropicProvider(api_key=model_settings.anthropic_api_key))
+            self._enabled_providers.append(
+                AnthropicProvider(
+                    api_key=model_settings.anthropic_api_key,
+                )
+            )
         if model_settings.ollama_base_url:
-            self._enabled_providers.append(OllamaProvider(base_url=model_settings.ollama_base_url, api_key=None))
+            self._enabled_providers.append(
+                OllamaProvider(
+                    base_url=model_settings.ollama_base_url,
+                    api_key=None,
+                    default_prompt_formatter=model_settings.default_prompt_formatter,
+                )
+            )
         if model_settings.gemini_api_key:
-            self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
+            self._enabled_providers.append(
+                GoogleAIProvider(
+                    api_key=model_settings.gemini_api_key,
+                )
+            )
         if model_settings.azure_api_key and model_settings.azure_base_url:
             assert model_settings.azure_api_version, "AZURE_API_VERSION is required"
             self._enabled_providers.append(
@@ -268,7 +287,11 @@ class SyncServer(Server):
             # NOTE: to use the /chat/completions endpoint, you need to specify extra flags on vLLM startup
             # see: https://docs.vllm.ai/en/latest/getting_started/examples/openai_chat_completion_client_with_tools.html
             # e.g. "... --enable-auto-tool-choice --tool-call-parser hermes"
-            self._enabled_providers.append(VLLMChatCompletionsProvider(base_url=model_settings.vllm_api_base))
+            self._enabled_providers.append(
+                VLLMChatCompletionsProvider(
+                    base_url=model_settings.vllm_api_base,
+                )
+            )
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
