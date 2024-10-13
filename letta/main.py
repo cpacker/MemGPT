@@ -356,12 +356,12 @@ def run_agent_loop(
             else:
                 # If message did not begin with command prefix, pass inputs to Letta
                 # Handle user message and append to messages
-                user_message = system.package_user_message(user_input)
+                user_message = user_input.strip()
 
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
-            step_response = letta_agent.step(
+            step_response = letta_agent.step_user_message(
                 user_message,
                 first_message=False,
                 skip_verify=no_verify,

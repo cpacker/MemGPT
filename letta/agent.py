@@ -39,6 +39,7 @@ from letta.system import (
     get_login_event,
     package_function_response,
     package_summarize_message,
+    package_user_message,
 )
 from letta.utils import (
     count_tokens,
@@ -872,6 +873,37 @@ class Agent(BaseAgent):
                 printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e
 
+    def step_user_message(self, user_message_str: str, **kwargs) -> AgentStepResponse:
+        """Takes a basic user message string, turns it into a stringified JSON with extra metadata, then sends it to the agent
+
+        Example:
+        -> user_message_str = 'hi'
+        -> {'message': 'hi', 'type': 'user_message', ...}
+        -> json.dumps(...)
+        -> agent.step(messages=[Message(role='user', text=...)])
+        """
+        # Wrap with metadata, dumps to JSON
+        user_message_json_str = package_user_message(user_message_str)
+
+        # Validate JSON via save/load
+        user_message = validate_json(user_message_json_str)
+        cleaned_user_message_text, name = strip_name_field_from_user_message(user_message)
+
+        # Turn into a dict
+        openai_message_dict = {"role": "user", "content": cleaned_user_message_text, "name": name}
+
+        # Create the associated Message object (in the database)
+        assert self.agent_state.user_id is not None, "User ID is not set"
+        user_message = Message.dict_to_message(
+            agent_id=self.agent_state.id,
+            user_id=self.agent_state.user_id,
+            model=self.model,
+            openai_message_dict=openai_message_dict,
+            # created_at=timestamp,
+        )
+
+        return self.step(messages=[user_message], **kwargs)
+
     def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True, disallow_tool_as_first=True):
         assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
 
@@ -1290,7 +1322,8 @@ class Agent(BaseAgent):
 
         self.pop_until_user()
         user_message = self.pop_message(count=1)[0]
-        step_response = self.step(user_message=user_message.text, return_dicts=False)
+        assert user_message.text is not None, "User message text is None"
+        step_response = self.step_user_message(user_message_str=user_message.text, return_dicts=False)
         messages = step_response.messages
 
         assert messages is not None
