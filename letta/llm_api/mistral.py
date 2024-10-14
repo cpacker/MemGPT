@@ -2,32 +2,6 @@ import requests
 
 from letta.utils import printd, smart_urljoin
 
-# https://docs.anthropic.com/claude/docs/models-overview
-# Sadly hardcoded
-MODEL_LIST = [
-    {
-        "name": "claude-3-opus-20240229",
-        "context_window": 200000,
-    },
-    {
-        "name": "claude-3-sonnet-20240229",
-        "context_window": 200000,
-    },
-    {
-        "name": "claude-3-haiku-20240307",
-        "context_window": 200000,
-    },
-]
-
-DUMMY_FIRST_USER_MESSAGE = "User initializing bootup sequence."
-
-
-# def antropic_get_model_context_window(url: str, api_key: Union[str, None], model: str, ) -> int:
-#     for model_dict in anthropic_get_model_list(url=url, api_key=api_key):
-#         if model_dict["name"] == model:
-#             return model_dict["context_window"]
-#     raise ValueError(f"Can't find model '{model}' in Anthropic model list")
-
 
 def mistral_get_model_list(url: str, api_key: str) -> dict:
     url = smart_urljoin(url, "models")
