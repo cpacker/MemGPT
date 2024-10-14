@@ -40,7 +40,7 @@ from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
 
 
-class FileModel(Base):
+class FileMetadataModel(Base):
     __tablename__ = "files"
     __table_args__ = {"extend_existing": True}
 
@@ -906,14 +906,14 @@ class MetadataStore:
     def list_files_from_source(self, source_id: str, limit: int, cursor: Optional[str]):
         with self.session_maker() as session:
             # Start with the basic query filtered by source_id
-            query = session.query(FileModel).filter(FileModel.source_id == source_id)
+            query = session.query(FileMetadataModel).filter(FileMetadataModel.source_id == source_id)
 
             if cursor:
                 # Assuming cursor is the ID of the last file in the previous page
-                query = query.filter(FileModel.id > cursor)
+                query = query.filter(FileMetadataModel.id > cursor)
 
             # Order by ID or other ordering criteria to ensure correct pagination
-            query = query.order_by(FileModel.id)
+            query = query.order_by(FileMetadataModel.id)
 
             # Limit the number of results returned
             results = query.limit(limit).all()

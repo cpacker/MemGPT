@@ -28,7 +28,7 @@ from letta.agent_store.storage import StorageConnector, TableType
 from letta.base import Base
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
-from letta.metadata import EmbeddingConfigColumn, FileModel, ToolCallColumn
+from letta.metadata import EmbeddingConfigColumn, FileMetadataModel, ToolCallColumn
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.message import Message
@@ -373,7 +373,7 @@ class PostgresStorageConnector(SQLStorageConnector):
                     raise ValueError(f"Must specify recall_storage_uri in config {self.config.config_path}")
             elif table_type == TableType.FILES:
                 self.uri = self.config.metadata_storage_uri
-                self.db_model = FileModel
+                self.db_model = FileMetadataModel
                 if self.config.metadata_storage_uri is None:
                     raise ValueError(f"Must specify metadata_storage_uri in config {self.config.config_path}")
             else:
@@ -498,7 +498,7 @@ class SQLLiteStorageConnector(SQLStorageConnector):
             self.path = self.config.metadata_storage_path
             if self.path is None:
                 raise ValueError(f"Must specify metadata_storage_path in config.")
-            self.db_model = FileModel
+            self.db_model = FileMetadataModel
 
         else:
             raise ValueError(f"Table type {table_type} not implemented")
