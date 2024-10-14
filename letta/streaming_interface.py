@@ -358,7 +358,7 @@ class StreamingRefreshCLIInterface(AgentRefreshStreamingInterface):
         StreamingCLIInterface.nonstreaming_interface.warning_message(msg)
 
     def internal_monologue(self, msg: str, msg_obj: Optional[Message] = None):
-        if self.disable_inner_mono_call:
+        if hasattr(self, "disable_inner_mono_call") and self.disable_inner_mono_call:
             return
         StreamingCLIInterface.nonstreaming_interface.internal_monologue(msg, msg_obj)
 
