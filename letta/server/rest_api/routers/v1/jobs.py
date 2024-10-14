@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from letta.schemas.job import Job
 from letta.server.rest_api.utils import get_letta_server
@@ -54,3 +54,19 @@ def get_job(
     """
 
     return server.get_job(job_id=job_id)
+
+
+@router.delete("/{job_id}", response_model=Job, operation_id="delete_job")
+def delete_job(
+    job_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+):
+    """
+    Delete a job by its job_id.
+    """
+    job = server.get_job(job_id=job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    server.delete_job(job_id=job_id)
+    return job

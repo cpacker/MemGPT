@@ -1,5 +1,6 @@
 import datetime
 import os
+from datetime import datetime
 from importlib import util
 from typing import Dict, Iterator, List, Tuple
 
@@ -7,7 +8,7 @@ import requests
 
 from letta.config import LettaConfig
 from letta.data_sources.connectors import DataConnector
-from letta.schemas.document import Document
+from letta.schemas.file import FileMetadata
 from letta.settings import TestSettings
 
 from .constants import TIMEOUT
@@ -18,14 +19,27 @@ class DummyDataConnector(DataConnector):
 
     def __init__(self, texts: List[str]):
         self.texts = texts
+        self.file_to_text = {}
 
-    def generate_documents(self) -> Iterator[Tuple[str, Dict]]:
+    def find_files(self, source) -> Iterator[FileMetadata]:
         for text in self.texts:
-            yield text, {"metadata": "dummy"}
+            file_metadata = FileMetadata(
+                user_id="",
+                source_id="",
+                file_name="",
+                file_path="",
+                file_type="",
+                file_size=0,  # Set to 0 as a placeholder
+                file_creation_date="1970-01-01",  # Placeholder date
+                file_last_modified_date="1970-01-01",  # Placeholder date
+                created_at=datetime.utcnow(),
+            )
+            self.file_to_text[file_metadata.id] = text
 
-    def generate_passages(self, documents: List[Document], chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
-        for doc in documents:
-            yield doc.text, doc.metadata_
+            yield file_metadata
+
+    def generate_passages(self, file: FileMetadata, chunk_size: int = 1024) -> Iterator[Tuple[str | Dict]]:
+        yield self.file_to_text[file.id], {}
 
 
 def wipe_config():

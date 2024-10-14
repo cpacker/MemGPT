@@ -11,6 +11,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Index,
+    Integer,
     String,
     TypeDecorator,
     desc,
@@ -24,6 +25,7 @@ from letta.schemas.api_key import APIKey
 from letta.schemas.block import Block, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
@@ -36,6 +38,41 @@ from letta.schemas.tool import Tool
 from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
+
+
+class FileMetadataModel(Base):
+    __tablename__ = "files"
+    __table_args__ = {"extend_existing": True}
+
+    id = Column(String, primary_key=True, nullable=False)
+    user_id = Column(String, nullable=False)
+    # TODO: Investigate why this breaks during table creation due to FK
+    # source_id = Column(String, ForeignKey("sources.id"), nullable=False)
+    source_id = Column(String, nullable=False)
+    file_name = Column(String, nullable=True)
+    file_path = Column(String, nullable=True)
+    file_type = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    file_creation_date = Column(String, nullable=True)
+    file_last_modified_date = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<FileMetadata(id='{self.id}', source_id='{self.source_id}', file_name='{self.file_name}')>"
+
+    def to_record(self):
+        return FileMetadata(
+            id=self.id,
+            user_id=self.user_id,
+            source_id=self.source_id,
+            file_name=self.file_name,
+            file_path=self.file_path,
+            file_type=self.file_type,
+            file_size=self.file_size,
+            file_creation_date=self.file_creation_date,
+            file_last_modified_date=self.file_last_modified_date,
+            created_at=self.created_at,
+        )
 
 
 class LLMConfigColumn(TypeDecorator):
@@ -864,6 +901,27 @@ class MetadataStore:
         with self.session_maker() as session:
             session.add(JobModel(**vars(job)))
             session.commit()
+
+    @enforce_types
+    def list_files_from_source(self, source_id: str, limit: int, cursor: Optional[str]):
+        with self.session_maker() as session:
+            # Start with the basic query filtered by source_id
+            query = session.query(FileMetadataModel).filter(FileMetadataModel.source_id == source_id)
+
+            if cursor:
+                # Assuming cursor is the ID of the last file in the previous page
+                query = query.filter(FileMetadataModel.id > cursor)
+
+            # Order by ID or other ordering criteria to ensure correct pagination
+            query = query.order_by(FileMetadataModel.id)
+
+            # Limit the number of results returned
+            results = query.limit(limit).all()
+
+            # Convert the results to the required FileMetadata objects
+            files = [r.to_record() for r in results]
+
+            return files
 
     def delete_job(self, job_id: str):
         with self.session_maker() as session:

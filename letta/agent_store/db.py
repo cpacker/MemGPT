@@ -28,7 +28,7 @@ from letta.agent_store.storage import StorageConnector, TableType
 from letta.base import Base
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
-from letta.metadata import EmbeddingConfigColumn, ToolCallColumn
+from letta.metadata import EmbeddingConfigColumn, FileMetadataModel, ToolCallColumn
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.message import Message
@@ -141,7 +141,7 @@ class PassageModel(Base):
     id = Column(String, primary_key=True)
     user_id = Column(String, nullable=False)
     text = Column(String)
-    doc_id = Column(String)
+    file_id = Column(String)
     agent_id = Column(String)
     source_id = Column(String)
 
@@ -160,7 +160,7 @@ class PassageModel(Base):
     # Add a datetime column, with default value as the current time
     created_at = Column(DateTime(timezone=True))
 
-    Index("passage_idx_user", user_id, agent_id, doc_id),
+    Index("passage_idx_user", user_id, agent_id, file_id),
 
     def __repr__(self):
         return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
@@ -170,7 +170,7 @@ class PassageModel(Base):
             text=self.text,
             embedding=self.embedding,
             embedding_config=self.embedding_config,
-            doc_id=self.doc_id,
+            file_id=self.file_id,
             user_id=self.user_id,
             id=self.id,
             source_id=self.source_id,
@@ -365,12 +365,17 @@ class PostgresStorageConnector(SQLStorageConnector):
                 self.uri = self.config.archival_storage_uri
                 self.db_model = PassageModel
                 if self.config.archival_storage_uri is None:
-                    raise ValueError(f"Must specifiy archival_storage_uri in config {self.config.config_path}")
+                    raise ValueError(f"Must specify archival_storage_uri in config {self.config.config_path}")
             elif table_type == TableType.RECALL_MEMORY:
                 self.uri = self.config.recall_storage_uri
                 self.db_model = MessageModel
                 if self.config.recall_storage_uri is None:
-                    raise ValueError(f"Must specifiy recall_storage_uri in config {self.config.config_path}")
+                    raise ValueError(f"Must specify recall_storage_uri in config {self.config.config_path}")
+            elif table_type == TableType.FILES:
+                self.uri = self.config.metadata_storage_uri
+                self.db_model = FileMetadataModel
+                if self.config.metadata_storage_uri is None:
+                    raise ValueError(f"Must specify metadata_storage_uri in config {self.config.config_path}")
             else:
                 raise ValueError(f"Table type {table_type} not implemented")
 
@@ -487,8 +492,14 @@ class SQLLiteStorageConnector(SQLStorageConnector):
             # TODO: eventually implement URI option
             self.path = self.config.recall_storage_path
             if self.path is None:
-                raise ValueError(f"Must specifiy recall_storage_path in config {self.config.recall_storage_path}")
+                raise ValueError(f"Must specify recall_storage_path in config.")
             self.db_model = MessageModel
+        elif table_type == TableType.FILES:
+            self.path = self.config.metadata_storage_path
+            if self.path is None:
+                raise ValueError(f"Must specify metadata_storage_path in config.")
+            self.db_model = FileMetadataModel
+
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 

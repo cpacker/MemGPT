@@ -25,6 +25,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
 from letta.schemas.enums import JobStatus, MessageRole
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_request import LettaRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
@@ -230,6 +231,9 @@ class AbstractClient(object):
         raise NotImplementedError
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
+        raise NotImplementedError
+
+    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
         raise NotImplementedError
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
@@ -1016,6 +1020,12 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get job: {response.text}")
         return Job(**response.json())
 
+    def delete_job(self, job_id: str) -> Job:
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/jobs/{job_id}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to delete job: {response.text}")
+        return Job(**response.json())
+
     def list_jobs(self):
         response = requests.get(f"{self.base_url}/{self.api_prefix}/jobs", headers=self.headers)
         return [Job(**job) for job in response.json()]
@@ -1087,6 +1097,30 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to list attached sources: {response.text}")
         return [Source(**source) for source in response.json()]
+
+    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
+        """
+        List files from source with pagination support.
+
+        Args:
+            source_id (str): ID of the source
+            limit (int): Number of files to return
+            cursor (Optional[str]): Pagination cursor for fetching the next page
+
+        Returns:
+            List[FileMetadata]: List of files
+        """
+        # Prepare query parameters for pagination
+        params = {"limit": limit, "cursor": cursor}
+
+        # Make the request to the FastAPI endpoint
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/files", headers=self.headers, params=params)
+
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list files with source id {source_id}: [{response.status_code}] {response.text}")
+
+        # Parse the JSON response
+        return [FileMetadata(**metadata) for metadata in response.json()]
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """
@@ -2162,6 +2196,9 @@ class LocalClient(AbstractClient):
     def get_job(self, job_id: str):
         return self.server.get_job(job_id=job_id)
 
+    def delete_job(self, job_id: str):
+        return self.server.delete_job(job_id)
+
     def list_jobs(self):
         return self.server.list_jobs(user_id=self.user_id)
 
@@ -2260,6 +2297,20 @@ class LocalClient(AbstractClient):
             sources (List[Source]): List of sources
         """
         return self.server.list_attached_sources(agent_id=agent_id)
+
+    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
+        """
+        List files from source.
+
+        Args:
+            source_id (str): ID of the source
+            limit (int): The # of items to return
+            cursor (str): The cursor for fetching the next page
+
+        Returns:
+            files (List[FileMetadata]): List of files
+        """
+        return self.server.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """

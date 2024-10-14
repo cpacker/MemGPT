@@ -26,7 +26,7 @@ class MilvusStorageConnector(StorageConnector):
             raise ValueError("Please set `archival_storage_uri` in the config file when using Milvus.")
 
         # need to be converted to strings
-        self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "doc_id"]
+        self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "file_id"]
 
     def _create_collection(self):
         schema = MilvusClient.create_schema(
