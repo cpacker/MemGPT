@@ -19,8 +19,8 @@ class PassageBase(LettaBase):
     # origin data source
     source_id: Optional[str] = Field(None, description="The data source of the passage.")
 
-    # document association
-    doc_id: Optional[str] = Field(None, description="The unique identifier of the document associated with the passage.")
+    # file association
+    file_id: Optional[str] = Field(None, description="The unique identifier of the file associated with the passage.")
     metadata_: Optional[Dict] = Field({}, description="The metadata of the passage.")
 
 
@@ -36,7 +36,7 @@ class Passage(PassageBase):
         user_id (str): The unique identifier of the user associated with the passage.
         agent_id (str): The unique identifier of the agent associated with the passage.
         source_id (str): The data source of the passage.
-        doc_id (str): The unique identifier of the document associated with the passage.
+        file_id (str): The unique identifier of the file associated with the passage.
     """
 
     id: str = PassageBase.generate_id_field()

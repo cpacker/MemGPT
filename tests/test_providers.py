@@ -2,7 +2,9 @@ import os
 
 from letta.providers import (
     AnthropicProvider,
+    AzureProvider,
     GoogleAIProvider,
+    MistralProvider,
     OllamaProvider,
     OpenAIProvider,
 )
@@ -33,10 +35,13 @@ def test_anthropic():
 #
 
 
-# TODO: Add this test
-# https://linear.app/letta/issue/LET-159/add-tests-for-azure-openai-in-test-providerspy-and-test-endpointspy
 def test_azure():
-    pass
+    provider = AzureProvider(api_key=os.getenv("AZURE_API_KEY"), base_url=os.getenv("AZURE_BASE_URL"))
+    models = provider.list_llm_models()
+    print([m.model for m in models])
+
+    embed_models = provider.list_embedding_models()
+    print([m.embedding_model for m in embed_models])
 
 
 def test_ollama():
@@ -58,6 +63,12 @@ def test_googleai():
     print(models)
 
     provider.list_embedding_models()
+
+
+def test_mistral():
+    provider = MistralProvider(api_key=os.getenv("MISTRAL_API_KEY"))
+    models = provider.list_llm_models()
+    print([m.model for m in models])
 
 
 # def test_vllm():

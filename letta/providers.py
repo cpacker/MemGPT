@@ -139,6 +139,50 @@ class AnthropicProvider(Provider):
         return []
 
 
+class MistralProvider(Provider):
+    name: str = "mistral"
+    api_key: str = Field(..., description="API key for the Mistral API.")
+    base_url: str = "https://api.mistral.ai/v1"
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        from letta.llm_api.mistral import mistral_get_model_list
+
+        # Some hardcoded support for OpenRouter (so that we only get models with tool calling support)...
+        # See: https://openrouter.ai/docs/requests
+        response = mistral_get_model_list(self.base_url, api_key=self.api_key)
+
+        assert "data" in response, f"Mistral model query response missing 'data' field: {response}"
+
+        configs = []
+        for model in response["data"]:
+            # If model has chat completions and function calling enabled
+            if model["capabilities"]["completion_chat"] and model["capabilities"]["function_calling"]:
+                configs.append(
+                    LLMConfig(
+                        model=model["id"],
+                        model_endpoint_type="openai",
+                        model_endpoint=self.base_url,
+                        context_window=model["max_context_length"],
+                    )
+                )
+
+        return configs
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        # Not supported for mistral
+        return []
+
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
+        # Redoing this is fine because it's a pretty lightweight call
+        models = self.list_llm_models()
+
+        for m in models:
+            if model_name in m["id"]:
+                return int(m["max_context_length"])
+
+        return None
+
+
 class OllamaProvider(OpenAIProvider):
     """Ollama provider that uses the native /api/generate endpoint
 

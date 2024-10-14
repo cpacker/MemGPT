@@ -356,19 +356,29 @@ def run_agent_loop(
             else:
                 # If message did not begin with command prefix, pass inputs to Letta
                 # Handle user message and append to messages
-                user_message = system.package_user_message(user_input)
+                user_message = str(user_input)
 
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
-            step_response = letta_agent.step(
-                user_message,
-                first_message=False,
-                skip_verify=no_verify,
-                stream=stream,
-                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
-                ms=ms,
-            )
+            if user_message is None:
+                step_response = letta_agent.step(
+                    messages=[],
+                    first_message=False,
+                    skip_verify=no_verify,
+                    stream=stream,
+                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
+                    ms=ms,
+                )
+            else:
+                step_response = letta_agent.step_user_message(
+                    user_message_str=user_message,
+                    first_message=False,
+                    skip_verify=no_verify,
+                    stream=stream,
+                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
+                    ms=ms,
+                )
             new_messages = step_response.messages
             heartbeat_request = step_response.heartbeat_request
             function_failed = step_response.function_failed

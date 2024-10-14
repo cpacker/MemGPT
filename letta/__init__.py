@@ -7,9 +7,9 @@ from letta.client.client import LocalClient, RESTClient, create_client
 # imports for easier access
 from letta.schemas.agent import AgentState
 from letta.schemas.block import Block
-from letta.schemas.document import Document
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig

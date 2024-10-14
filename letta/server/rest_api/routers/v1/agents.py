@@ -8,7 +8,7 @@ from starlette.responses import StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from letta.schemas.enums import MessageRole, MessageStreamStatus
+from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
     LettaMessage,
@@ -23,7 +23,7 @@ from letta.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, UpdateMessage
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
 from letta.server.rest_api.interface import StreamingServerInterface
@@ -326,14 +326,15 @@ async def send_message(
 
     # TODO(charles): support sending multiple messages
     assert len(request.messages) == 1, f"Multiple messages not supported: {request.messages}"
-    message = request.messages[0]
+    request.messages[0]
 
     return await send_message_to_agent(
         server=server,
         agent_id=agent_id,
         user_id=actor.id,
-        role=message.role,
-        message=message.text,
+        # role=message.role,
+        # message=message.text,
+        messages=request.messages,
         stream_steps=request.stream_steps,
         stream_tokens=request.stream_tokens,
         return_message_object=request.return_message_object,
@@ -349,8 +350,8 @@ async def send_message_to_agent(
     server: SyncServer,
     agent_id: str,
     user_id: str,
-    role: MessageRole,
-    message: str,
+    # role: MessageRole,
+    messages: Union[List[Message], List[MessageCreate]],
     stream_steps: bool,
     stream_tokens: bool,
     # related to whether or not we return `LettaMessage`s or `Message`s
@@ -366,14 +367,6 @@ async def send_message_to_agent(
 
     # TODO: @charles is this the correct way to handle?
     include_final_message = True
-
-    # determine role
-    if role == MessageRole.user:
-        message_func = server.user_message
-    elif role == MessageRole.system:
-        message_func = server.system_message
-    else:
-        raise HTTPException(status_code=500, detail=f"Bad role {role}")
 
     if not stream_steps and stream_tokens:
         raise HTTPException(status_code=400, detail="stream_steps must be 'true' if stream_tokens is 'true'")
@@ -413,7 +406,8 @@ async def send_message_to_agent(
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
         task = asyncio.create_task(
-            asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=message, timestamp=timestamp)
+            # asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=message, timestamp=timestamp)
+            asyncio.to_thread(server.send_messages, user_id=user_id, agent_id=agent_id, messages=messages)
         )
 
         if stream_steps:

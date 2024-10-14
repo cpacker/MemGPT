@@ -39,6 +39,7 @@ from letta.system import (
     get_login_event,
     package_function_response,
     package_summarize_message,
+    package_user_message,
 )
 from letta.utils import (
     count_tokens,
@@ -200,16 +201,7 @@ class BaseAgent(ABC):
     @abstractmethod
     def step(
         self,
-        messages: Union[Message, List[Message], str],  # TODO deprecate str inputs
-        first_message: bool = False,
-        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
-        skip_verify: bool = False,
-        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
-        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
-        stream: bool = False,  # TODO move to config?
-        timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
-        ms: Optional[MetadataStore] = None,
+        messages: Union[Message, List[Message]],
     ) -> AgentStepResponse:
         """
         Top-level event message handler for the agent.
@@ -730,14 +722,13 @@ class Agent(BaseAgent):
 
     def step(
         self,
-        user_message: Union[Message, None, str],  # NOTE: should be json.dump(dict)
+        messages: Union[Message, List[Message]],
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
         return_dicts: bool = True,
-        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
+        # recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
-        timestamp: Optional[datetime.datetime] = None,
         inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
@@ -760,50 +751,13 @@ class Agent(BaseAgent):
                     self.rebuild_memory(force=True, ms=ms)
 
             # Step 1: add user message
-            if user_message is not None:
-                if isinstance(user_message, Message):
-                    assert user_message.text is not None
+            if isinstance(messages, Message):
+                messages = [messages]
 
-                    # Validate JSON via save/load
-                    user_message_text = validate_json(user_message.text)
-                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message_text)
+            if not all(isinstance(m, Message) for m in messages):
+                raise ValueError(f"messages should be a Message or a list of Message, got {type(messages)}")
 
-                    if name is not None:
-                        # Update Message object
-                        user_message.text = cleaned_user_message_text
-                        user_message.name = name
-
-                    # Recreate timestamp
-                    if recreate_message_timestamp:
-                        user_message.created_at = get_utc_time()
-
-                elif isinstance(user_message, str):
-                    # Validate JSON via save/load
-                    user_message = validate_json(user_message)
-                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message)
-
-                    # If user_message['name'] is not None, it will be handled properly by dict_to_message
-                    # So no need to run strip_name_field_from_user_message
-
-                    # Create the associated Message object (in the database)
-                    user_message = Message.dict_to_message(
-                        agent_id=self.agent_state.id,
-                        user_id=self.agent_state.user_id,
-                        model=self.model,
-                        openai_message_dict={"role": "user", "content": cleaned_user_message_text, "name": name},
-                        created_at=timestamp,
-                    )
-
-                else:
-                    raise ValueError(f"Bad type for user_message: {type(user_message)}")
-
-                self.interface.user_message(user_message.text, msg_obj=user_message)
-
-                input_message_sequence = self._messages + [user_message]
-
-            # Alternatively, the requestor can send an empty user message
-            else:
-                input_message_sequence = self._messages
+            input_message_sequence = self._messages + messages
 
             if len(input_message_sequence) > 1 and input_message_sequence[-1].role != "user":
                 printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
@@ -846,11 +800,8 @@ class Agent(BaseAgent):
             )
 
             # Step 6: extend the message history
-            if user_message is not None:
-                if isinstance(user_message, Message):
-                    all_new_messages = [user_message] + all_response_messages
-                else:
-                    raise ValueError(type(user_message))
+            if len(messages) > 0:
+                all_new_messages = messages + all_response_messages
             else:
                 all_new_messages = all_response_messages
 
@@ -897,7 +848,7 @@ class Agent(BaseAgent):
             )
 
         except Exception as e:
-            printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
+            printd(f"step() failed\nmessages = {messages}\nerror = {e}")
 
             # If we got a context alert, try trimming the messages length, then try again
             if is_context_overflow_error(e):
@@ -906,14 +857,14 @@ class Agent(BaseAgent):
 
                 # Try step again
                 return self.step(
-                    user_message,
+                    messages=messages,
                     first_message=first_message,
                     first_message_retry_limit=first_message_retry_limit,
                     skip_verify=skip_verify,
                     return_dicts=return_dicts,
-                    recreate_message_timestamp=recreate_message_timestamp,
+                    # recreate_message_timestamp=recreate_message_timestamp,
                     stream=stream,
-                    timestamp=timestamp,
+                    # timestamp=timestamp,
                     inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     ms=ms,
                 )
@@ -921,6 +872,40 @@ class Agent(BaseAgent):
             else:
                 printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e
+
+    def step_user_message(self, user_message_str: str, **kwargs) -> AgentStepResponse:
+        """Takes a basic user message string, turns it into a stringified JSON with extra metadata, then sends it to the agent
+
+        Example:
+        -> user_message_str = 'hi'
+        -> {'message': 'hi', 'type': 'user_message', ...}
+        -> json.dumps(...)
+        -> agent.step(messages=[Message(role='user', text=...)])
+        """
+        # Wrap with metadata, dumps to JSON
+        assert user_message_str and isinstance(
+            user_message_str, str
+        ), f"user_message_str should be a non-empty string, got {type(user_message_str)}"
+        user_message_json_str = package_user_message(user_message_str)
+
+        # Validate JSON via save/load
+        user_message = validate_json(user_message_json_str)
+        cleaned_user_message_text, name = strip_name_field_from_user_message(user_message)
+
+        # Turn into a dict
+        openai_message_dict = {"role": "user", "content": cleaned_user_message_text, "name": name}
+
+        # Create the associated Message object (in the database)
+        assert self.agent_state.user_id is not None, "User ID is not set"
+        user_message = Message.dict_to_message(
+            agent_id=self.agent_state.id,
+            user_id=self.agent_state.user_id,
+            model=self.model,
+            openai_message_dict=openai_message_dict,
+            # created_at=timestamp,
+        )
+
+        return self.step(messages=[user_message], **kwargs)
 
     def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True, disallow_tool_as_first=True):
         assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
@@ -1340,7 +1325,8 @@ class Agent(BaseAgent):
 
         self.pop_until_user()
         user_message = self.pop_message(count=1)[0]
-        step_response = self.step(user_message=user_message.text, return_dicts=False)
+        assert user_message.text is not None, "User message text is None"
+        step_response = self.step_user_message(user_message_str=user_message.text, return_dicts=False)
         messages = step_response.messages
 
         assert messages is not None
