@@ -72,7 +72,7 @@ from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
-from letta.schemas.message import Message, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.organization import Organization, OrganizationCreate
 from letta.schemas.passage import Passage
@@ -139,6 +139,11 @@ class Server(object):
     @abstractmethod
     def system_message(self, user_id: str, agent_id: str, message: str) -> None:
         """Process a message from the system, internally calls step"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def send_messages(self, user_id: str, agent_id: str, messages: Union[MessageCreate, List[Message]]) -> None:
+        """Send a list of messages to the agent"""
         raise NotImplementedError
 
     @abstractmethod
@@ -724,6 +729,68 @@ class SyncServer(Server):
 
         # Run the agent state forward
         return self._step(user_id=user_id, agent_id=agent_id, input_messages=message)
+
+    def send_messages(
+        self,
+        user_id: str,
+        agent_id: str,
+        messages: Union[List[MessageCreate], List[Message]],
+        # whether or not to wrap user and system message as MemGPT-style stringified JSON
+        wrap_user_message: bool = True,
+        wrap_system_message: bool = True,
+    ) -> LettaUsageStatistics:
+        """Send a list of messages to the agent
+
+        If the messages are of type MessageCreate, we need to turn them into
+        Message objects first before sending them through step.
+
+        Otherwise, we can pass them in directly.
+        """
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        message_objects: List[Message] = []
+
+        if all(isinstance(m, MessageCreate) for m in messages):
+            for message in messages:
+                assert isinstance(message, MessageCreate)
+
+                # If wrapping is eanbled, wrap with metadata before placing content inside the Message object
+                if message.role == MessageRole.user and wrap_user_message:
+                    message.text = system.package_user_message(user_message=message.text)
+                elif message.role == MessageRole.system and wrap_system_message:
+                    message.text = system.package_system_message(system_message=message.text)
+                else:
+                    raise ValueError(f"Invalid message role: {message.role}")
+
+                # Create the Message object
+                message_objects.append(
+                    Message(
+                        user_id=user_id,
+                        agent_id=agent_id,
+                        role=message.role,
+                        text=message.text,
+                        name=message.name,
+                        # assigned later?
+                        model=None,
+                        # irrelevant
+                        tool_calls=None,
+                        tool_call_id=None,
+                    )
+                )
+
+        elif all(isinstance(m, Message) for m in messages):
+            for message in messages:
+                assert isinstance(message, Message)
+                message_objects.append(message)
+
+        else:
+            raise ValueError(f"All messages must be of type Message or MessageCreate, got {type(messages)}")
+
+        # Run the agent state forward
+        return self._step(user_id=user_id, agent_id=agent_id, input_messages=message_objects)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
