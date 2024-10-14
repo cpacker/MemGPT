@@ -383,9 +383,22 @@ class SyncServer(Server):
             letta_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return letta_agent
 
-    def _step(self, user_id: str, agent_id: str, input_message: Union[str, Message], timestamp: Optional[datetime]) -> LettaUsageStatistics:
+    def _step(
+        self,
+        user_id: str,
+        agent_id: str,
+        input_messages: Union[Message, List[Message]],
+        # timestamp: Optional[datetime],
+    ) -> LettaUsageStatistics:
         """Send the input message through the agent"""
-        logger.debug(f"Got input message: {input_message}")
+
+        # Input validation
+        if isinstance(input_messages, Message):
+            input_messages = [input_messages]
+        if not all(isinstance(m, Message) for m in input_messages):
+            raise ValueError(f"messages should be a Message or a list of Message, got {type(input_messages)}")
+
+        logger.debug(f"Got input messages: {input_messages}")
         try:
 
             # Get the agent object (loaded in memory)
@@ -398,18 +411,18 @@ class SyncServer(Server):
 
             logger.debug(f"Starting agent step")
             no_verify = True
-            next_input_message = input_message
+            next_input_message = input_messages
             counter = 0
             total_usage = UsageStatistics()
             step_count = 0
             while True:
                 step_response = letta_agent.step(
-                    next_input_message,
+                    messages=next_input_message,
                     first_message=False,
                     skip_verify=no_verify,
                     return_dicts=False,
                     stream=token_streaming,
-                    timestamp=timestamp,
+                    # timestamp=timestamp,
                     ms=self.ms,
                 )
                 step_response.messages
@@ -436,13 +449,40 @@ class SyncServer(Server):
                     break
                 # Chain handlers
                 elif token_warning:
-                    next_input_message = system.get_token_limit_warning()
+                    assert letta_agent.agent_state.user_id is not None
+                    next_input_message = Message.dict_to_message(
+                        agent_id=letta_agent.agent_state.id,
+                        user_id=letta_agent.agent_state.user_id,
+                        model=letta_agent.model,
+                        openai_message_dict={
+                            "role": "user",  # TODO: change to system?
+                            "content": system.get_token_limit_warning(),
+                        },
+                    )
                     continue  # always chain
                 elif function_failed:
-                    next_input_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
+                    assert letta_agent.agent_state.user_id is not None
+                    next_input_message = Message.dict_to_message(
+                        agent_id=letta_agent.agent_state.id,
+                        user_id=letta_agent.agent_state.user_id,
+                        model=letta_agent.model,
+                        openai_message_dict={
+                            "role": "user",  # TODO: change to system?
+                            "content": system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE),
+                        },
+                    )
                     continue  # always chain
                 elif heartbeat_request:
-                    next_input_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
+                    assert letta_agent.agent_state.user_id is not None
+                    next_input_message = Message.dict_to_message(
+                        agent_id=letta_agent.agent_state.id,
+                        user_id=letta_agent.agent_state.user_id,
+                        model=letta_agent.model,
+                        openai_message_dict={
+                            "role": "user",  # TODO: change to system?
+                            "content": system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE),
+                        },
+                    )
                     continue  # always chain
                 # Letta no-op / yield
                 else:
@@ -621,7 +661,7 @@ class SyncServer(Server):
                 )
 
         # Run the agent state forward
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=message, timestamp=timestamp)
+        usage = self._step(user_id=user_id, agent_id=agent_id, input_messages=message)
         return usage
 
     def system_message(
@@ -669,7 +709,7 @@ class SyncServer(Server):
 
         if isinstance(message, Message):
             # Can't have a null text field
-            if len(message.text) == 0 or message.text is None:
+            if message.text is None or len(message.text) == 0:
                 raise ValueError(f"Invalid input: '{message.text}'")
             # If the input begins with a command prefix, reject
             elif message.text.startswith("/"):
@@ -683,7 +723,7 @@ class SyncServer(Server):
             message.created_at = timestamp
 
         # Run the agent state forward
-        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message, timestamp=timestamp)
+        return self._step(user_id=user_id, agent_id=agent_id, input_messages=message)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
