@@ -732,7 +732,7 @@ class Agent(BaseAgent):
         chaining: bool = True,
         max_chaining_steps: Optional[int] = None,
         stream: bool = False,
-        # ms: Optional[MetadataStore] = None,
+        ms: Optional[MetadataStore] = None,
         skip_verify: bool = False,
         **kwargs,
     ) -> LettaUsageStatistics:
@@ -750,7 +750,7 @@ class Agent(BaseAgent):
                 skip_verify=skip_verify,
                 return_dicts=False,
                 stream=stream,
-                # ms=ms,
+                ms=ms,
                 **kwargs,
             )
             step_response.messages
@@ -766,7 +766,8 @@ class Agent(BaseAgent):
 
             # logger.debug("Saving agent state")
             # save updated state
-            # save_agent(self, ms)
+            if ms:
+                save_agent(self, ms)
 
             # Chain stops
             if not chaining:
@@ -954,7 +955,7 @@ class Agent(BaseAgent):
                 self.summarize_messages_inplace()
 
                 # Try step again
-                return self.step(
+                return self.inner_step(
                     messages=messages,
                     first_message=first_message,
                     first_message_retry_limit=first_message_retry_limit,
