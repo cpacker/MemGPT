@@ -732,12 +732,12 @@ class Agent(BaseAgent):
         chaining: bool = True,
         max_chaining_steps: Optional[int] = None,
         stream: bool = False,
-        ms: Optional[MetadataStore] = None,
+        # ms: Optional[MetadataStore] = None,
         skip_verify: bool = False,
         **kwargs,
     ) -> LettaUsageStatistics:
         """Run Agent.step in a loop, handling chaining via heartbeat requests and function failures"""
-        assert ms is not None, "MetadataStore is required"
+        # assert ms is not None, "MetadataStore is required"
 
         next_input_message = messages if isinstance(messages, list) else [messages]
         counter = 0
@@ -750,7 +750,7 @@ class Agent(BaseAgent):
                 skip_verify=skip_verify,
                 return_dicts=False,
                 stream=stream,
-                ms=ms,
+                # ms=ms,
                 **kwargs,
             )
             step_response.messages
@@ -766,7 +766,7 @@ class Agent(BaseAgent):
 
             # logger.debug("Saving agent state")
             # save updated state
-            save_agent(self, ms)
+            # save_agent(self, ms)
 
             # Chain stops
             if not chaining:
