@@ -89,7 +89,7 @@ Hit enter to begin (will request first Letta message)
 
 You can start the Letta API server with `letta server` (see the full API reference [here](https://docs.letta.com/api-reference)):
 ```sh
-letta server
+$ letta server
 ```
 ```
 Initializing database...
