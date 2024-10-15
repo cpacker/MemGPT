@@ -49,14 +49,14 @@ def test_schema_generator():
 
     # Check that missing types results in an error
     try:
-        _ = generate_schema(send_message_missing_types)
+        _ = generate_schema(send_message_missing_types, terminal=True)
         assert False
     except:
         pass
 
     # Check that missing docstring results in an error
     try:
-        _ = generate_schema(send_message_missing_docstring)
+        _ = generate_schema(send_message_missing_docstring, terminal=True)
         assert False
     except:
         pass
