@@ -39,24 +39,24 @@ The two main ways to install Letta are through **pypi** (`pip`) or via **Docker*
 
 ### Step 1 - Install Letta using `pip`
 ```sh
-pip install -U letta
+$ pip install -U letta
 ```
 
 ### Step 2 - Set your environment variables for your chosen LLM / embedding providers
 ```sh
-export OPENAI_API_KEY=sk-...
+$ export OPENAI_API_KEY=sk-...
 ```
 
 For Ollama (see our full [documentation](https://docs.letta.com/install) for examples of how to set up various providers):
 ```sh
-export OLLAMA_BASE_URL=http://localhost:11434
+$ export OLLAMA_BASE_URL=http://localhost:11434
 ```
 
-### Step 3 - Run the Letta CLI or Letta server
+### Step 3 - Run the Letta CLI
 
 You can create agents and chat with them via the Letta CLI tool (`letta run`):
 ```sh
-letta run
+$ letta run
 ```
 ```
 🧬 Creating new agent...
@@ -85,6 +85,8 @@ Hit enter to begin (will request first Letta message)
 > Enter your message:
 ```
 
+### Step 4 - Run the Letta server
+
 You can start the Letta API server with `letta server` (see the full API reference [here](https://docs.letta.com/api-reference)):
 ```sh
 letta server
@@ -99,9 +101,9 @@ INFO:     Uvicorn running on http://localhost:8283 (Press CTRL+C to quit)
 ```
 
 When you start the Letta API server, the ADE (Agent Development Environment) will be available on `http://localhost:8283`:
-<img alt="Screenshot of the Letta ADE (Agent Development Environment)" src="assets/letta_ade_screenshot.png" width="500">
+<img alt="Screenshot of the Letta ADE (Agent Development Environment)" src="assets/letta_ade_screenshot.png" width="1600">
 
-Check out the [quickstart guide on our docs](https://docs.letta.com/quickstart) for a tutorial where you create an agent in the CLI and message the same agent via the Letta API.
+In Letta, all agents are stored/persisted in the same database, so the agents you create in the CLI are accessible via the API and ADE, and vice versa. Check out the [quickstart guide on our docs](https://docs.letta.com/quickstart) for a tutorial where you create an agent in the Letta CLI and message the same agent via the Letta API.
 
 ## 🤗 How to contribute
 
