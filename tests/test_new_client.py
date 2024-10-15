@@ -17,6 +17,7 @@ def client():
     client = create_client()
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+
     yield client
 
 
@@ -132,13 +133,22 @@ def test_agent_add_remove_tools(client: Union[LocalClient, RESTClient], agent):
     scrape_website_tool = Tool.from_crewai(ScrapeWebsiteTool(website_url="https://www.example.com"))
     client.add_tool(scrape_website_tool)
 
+    # assert both got added
+    tools = client.list_tools()
+    assert github_tool.id in [t.id for t in tools]
+    assert scrape_website_tool.id in [t.id for t in tools]
+
+    # Assert that all combinations of tool_names, tool_user_ids are unique
+    combinations = [(t.name, t.user_id) for t in tools]
+    assert len(combinations) == len(set(combinations))
+
     # create agent
     agent_state = agent
     curr_num_tools = len(agent_state.tools)
 
     # add both tools to agent in steps
-    agent_state = client.add_tools_to_agent(agent_id=agent_state.id, tools=[github_tool.name])
-    agent_state = client.add_tools_to_agent(agent_id=agent_state.id, tools=[scrape_website_tool.name])
+    agent_state = client.add_tools_to_agent(agent_id=agent_state.id, tool_ids=[github_tool.id])
+    agent_state = client.add_tools_to_agent(agent_id=agent_state.id, tool_ids=[scrape_website_tool.id])
 
     # confirm that both tools are in the agent state
     curr_tools = agent_state.tools
@@ -147,7 +157,7 @@ def test_agent_add_remove_tools(client: Union[LocalClient, RESTClient], agent):
     assert scrape_website_tool.name in curr_tools
 
     # remove only the github tool
-    agent_state = client.remove_tools_to_agent(agent_id=agent_state.id, tools=[github_tool.name])
+    agent_state = client.remove_tools_to_agent(agent_id=agent_state.id, tool_ids=[github_tool.id])
 
     # confirm that only one tool left
     curr_tools = agent_state.tools

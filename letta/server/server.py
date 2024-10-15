@@ -1036,25 +1036,34 @@ class SyncServer(Server):
         """Update the agents core memory block, return the new state"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=request.id) is None:
-            raise ValueError(f"Agent agent_id={request.id} does not exist")
+        if self.ms.get_agent(agent_id=request.agent_id) is None:
+            raise ValueError(f"Agent agent_id={request.agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        letta_agent = self._get_or_load_agent(agent_id=request.id)
+        letta_agent = self._get_or_load_agent(agent_id=request.agent_id)
 
-        # (1) Get tools + make sure they exist
-        # Get unique in case of overlap
-        all_tool_names = set(letta_agent.agent_state.tools + request.tools)
+        # Get a set of the tool objects
+        request_tool_id_set = set(request.tool_ids)
+
+        # Get all the tool objects from the request
         tool_objs = []
-        for tool_name in all_tool_names:
-            tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-            assert tool_obj, f"Tool {tool_name} does not exist"
+        for tool_id in request_tool_id_set:
+            tool_obj = self.ms.get_tool(tool_id=tool_id, user_id=user_id)
+            assert tool_obj, f"Tool with id={tool_id} does not exist"
             tool_objs.append(tool_obj)
 
-        # (2) replace the list of tool names ("ids") inside the agent state
-        letta_agent.agent_state.tools = all_tool_names
+        for tool in letta_agent.tools:
+            tool_obj = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
+            assert tool_obj, f"Tool with id={tool.id} does not exist"
 
-        # (3) then attempt to link the tools modules
+            # If it's not already in the tool_obj set
+            if tool_obj.id not in request_tool_id_set:
+                tool_objs.append(tool_obj)
+
+        # replace the list of tool names ("ids") inside the agent state
+        letta_agent.agent_state.tools = [tool.name for tool in tool_objs]
+
+        # then attempt to link the tools modules
         letta_agent.link_tools(tool_objs)
 
         # save the agent
@@ -1069,24 +1078,29 @@ class SyncServer(Server):
         """Update the agents core memory block, return the new state"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=request.id) is None:
-            raise ValueError(f"Agent agent_id={request.id} does not exist")
+        if self.ms.get_agent(agent_id=request.agent_id) is None:
+            raise ValueError(f"Agent agent_id={request.agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        letta_agent = self._get_or_load_agent(agent_id=request.id)
+        letta_agent = self._get_or_load_agent(agent_id=request.agent_id)
 
-        # (1) Get set difference of current tools and the tools to be removed
-        desired_tool_names = set(letta_agent.agent_state.tools) - set(request.tools)
+        # Get a set of the tool objects
+        request_tool_id_set = set(request.tool_ids)
+
+        # Get all the tool_objs
         tool_objs = []
-        for tool_name in desired_tool_names:
-            tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-            assert tool_obj, f"Tool {tool_name} does not exist"
-            tool_objs.append(tool_obj)
+        for tool in letta_agent.tools:
+            tool_obj = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
+            assert tool_obj, f"Tool with id={tool.id} does not exist"
 
-        # (2) replace the list of tool names ("ids") inside the agent state
-        letta_agent.agent_state.tools = desired_tool_names
+            # If it's not already in the tool_obj set
+            if tool_obj.id not in request_tool_id_set:
+                tool_objs.append(tool_obj)
 
-        # (3) then attempt to link the tools modules
+        # replace the list of tool names ("ids") inside the agent state
+        letta_agent.agent_state.tools = [tool.name for tool in tool_objs]
+
+        # then attempt to link the tools modules
         letta_agent.link_tools(tool_objs)
 
         # save the agent
@@ -1876,6 +1890,15 @@ class SyncServer(Server):
         """Get tool by ID."""
         return self.ms.get_tool(tool_id=tool_id)
 
+    def tool_id_exists(self, tool_id: str, user_id: Optional[str] = None) -> bool:
+        """Check if tool exists"""
+        tool = self.ms.get_tool(tool_id=tool_id, user_id=user_id)
+
+        if tool is None:
+            return False
+        else:
+            return True
+
     def get_tool_id(self, name: str, user_id: str) -> Optional[str]:
         """Get tool ID from name and user_id."""
         tool = self.ms.get_tool(tool_name=name, user_id=user_id)
@@ -1893,6 +1916,10 @@ class SyncServer(Server):
             raise ValueError(f"Tool does not exist")
 
         # override updated fields
+        if request.id:
+            existing_tool.id = request.id
+        if request.description:
+            existing_tool.description = request.description
         if request.source_code:
             existing_tool.source_code = request.source_code
         if request.source_type:
@@ -1942,14 +1969,22 @@ class SyncServer(Server):
             assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
 
         # check if already exists:
-        existing_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
+        existing_tool = self.ms.get_tool(tool_id=request.id, tool_name=request.name, user_id=user_id)
         if existing_tool:
             if update:
-                updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
+                # id is an optional field, so we will fill it with the existing tool id
+                if not request.id:
+                    request.id = existing_tool.id
+                updated_tool = self.update_tool(ToolUpdate(**vars(request)))
                 assert updated_tool is not None, f"Failed to update tool {request.name}"
                 return updated_tool
             else:
                 raise ValueError(f"Tool {request.name} already exists and update=False")
+
+        # check for description
+        description = None
+        if request.description:
+            description = request.description
 
         tool = Tool(
             name=request.name,
@@ -1958,9 +1993,14 @@ class SyncServer(Server):
             tags=request.tags,
             json_schema=json_schema,
             user_id=user_id,
+            description=description,
         )
+
+        if request.id:
+            tool.id = request.id
+
         self.ms.create_tool(tool)
-        created_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
+        created_tool = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
         return created_tool
 
     def delete_tool(self, tool_id: str):

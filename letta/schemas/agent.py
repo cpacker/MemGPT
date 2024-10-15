@@ -132,10 +132,10 @@ class AgentStepResponse(BaseModel):
 
 
 class AddToolsToAgent(BaseModel):
-    id: str = Field(..., description="The id of the agent.")
-    tools: Optional[List[str]] = Field(None, description="The tools to be added to the agent.")
+    agent_id: str = Field(..., description="The id of the agent.")
+    tool_ids: Optional[List[str]] = Field(None, description="The tools to be added to the agent.")
 
 
 class RemoveToolsFromAgent(BaseModel):
-    id: str = Field(..., description="The id of the agent.")
-    tools: Optional[List[str]] = Field(None, description="The tools to be removed from the agent.")
+    agent_id: str = Field(..., description="The id of the agent.")
+    tool_ids: Optional[List[str]] = Field(None, description="The tools to be removed from the agent.")

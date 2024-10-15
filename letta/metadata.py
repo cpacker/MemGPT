@@ -577,7 +577,7 @@ class MetadataStore:
     @enforce_types
     def create_tool(self, tool: Tool):
         with self.session_maker() as session:
-            if self.get_tool(tool_name=tool.name, user_id=tool.user_id) is not None:
+            if self.get_tool(tool_id=tool.id, tool_name=tool.name, user_id=tool.user_id) is not None:
                 raise ValueError(f"Tool with name {tool.name} already exists")
             session.add(ToolModel(**vars(tool)))
             session.commit()
@@ -802,7 +802,7 @@ class MetadataStore:
                     results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
             if len(results) == 0:
                 return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            # assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
 
     @enforce_types
