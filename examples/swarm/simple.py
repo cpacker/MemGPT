@@ -62,3 +62,11 @@ agent_b = swarm.create_agent(name="agenta", tools=[transfer_b.name])
 response = swarm.run(agent_name="agenta", message="Transfer me to agent b by calling the transfer_agent_b tool")
 print("Response:")
 typer.secho(f"{response}", fg=typer.colors.GREEN)
+
+response = swarm.run(agent_name="agenta", message="My name is actually Sarah. Transfer me to agent b to write a haiku about my name")
+print("Response:")
+typer.secho(f"{response}", fg=typer.colors.GREEN)
+
+response = swarm.run(agent_name="agenta", message="Transfer me to agent b - I want a haiku with my name in it")
+print("Response:")
+typer.secho(f"{response}", fg=typer.colors.GREEN)

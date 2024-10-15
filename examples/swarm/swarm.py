@@ -15,7 +15,7 @@ class Swarm:
         self.client = create_client()
 
         # shared memory block (shared section of context window accross agents)
-        self.shared_memory = Block(name="context_variables", label="context_variables", value="")
+        self.shared_memory = Block(name="human", label="human", value="")
 
     def create_agent(
         self,
@@ -35,7 +35,12 @@ class Swarm:
     ) -> AgentState:
 
         # todo: process tools for agent handoff
-        persona_block = Block(name="persona", label="persona", value=f"You are agent with name {name}. You instructions are {instructions}")
+        persona_value = (
+            f"You are agent with name {name}. You instructions are {instructions}"
+            if len(instructions) > 0
+            else f"You are agent with name {name}"
+        )
+        persona_block = Block(name="persona", label="persona", value=persona_value)
         memory = BasicBlockMemory(blocks=[persona_block, self.shared_memory])
 
         agent = self.client.create_agent(

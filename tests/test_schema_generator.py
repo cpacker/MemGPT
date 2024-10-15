@@ -42,7 +42,7 @@ def test_schema_generator():
             "required": ["message"],
         },
     }
-    generated_schema = generate_schema(send_message)
+    generated_schema = generate_schema(send_message, terminal=True)
     print(f"\n\nreference_schema={correct_schema}")
     print(f"\n\ngenerated_schema={generated_schema}")
     assert correct_schema == generated_schema
