@@ -953,8 +953,8 @@ class Agent(BaseAgent):
                 # Try step again
                 print("Retrying step after summarizing")
                 assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
-                return self.inner_step(
-                    messages=messages,
+                return self.step(
+                    user_message,
                     first_message=first_message,
                     first_message_retry_limit=first_message_retry_limit,
                     skip_verify=skip_verify,

@@ -41,7 +41,7 @@ from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
-from letta.metadata import Base, MetadataStore
+from letta.metadata import MetadataStore
 from letta.o1_agent import O1Agent
 from letta.prompts import gpt_system
 from letta.providers import (
@@ -364,7 +364,7 @@ class SyncServer(Server):
             elif agent_state.agent_type == AgentType.o1_agent:
                 letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
             else:
-                raise NotImplementedError("Only base agents are supported as of right now!")
+                raise NotImplementedError("Not a supported agent type")
 
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
