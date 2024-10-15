@@ -14,8 +14,8 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
+from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
-from letta.config import LettaConfig
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -41,7 +41,7 @@ from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
-from letta.metadata import MetadataStore
+from letta.metadata import Base, MetadataStore
 from letta.o1_agent import O1Agent
 from letta.prompts import gpt_system
 from letta.providers import (
@@ -52,7 +52,8 @@ from letta.providers import (
     OllamaProvider,
     OpenAIProvider,
     Provider,
-    VLLMProvider,
+    VLLMChatCompletionsProvider,
+    VLLMCompletionsProvider,
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
@@ -63,17 +64,16 @@ from letta.schemas.block import (
     CreatePersona,
     UpdateBlock,
 )
-from letta.schemas.document import Document
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from letta.schemas.enums import JobStatus
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
-from letta.schemas.message import Message, UpdateMessage
-from letta.schemas.openai.chat_completion_response import UsageStatistics
+from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
 from letta.schemas.organization import Organization, OrganizationCreate
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
@@ -142,6 +142,11 @@ class Server(object):
         raise NotImplementedError
 
     @abstractmethod
+    def send_messages(self, user_id: str, agent_id: str, messages: Union[MessageCreate, List[Message]]) -> None:
+        """Send a list of messages to the agent"""
+        raise NotImplementedError
+
+    @abstractmethod
     def run_command(self, user_id: str, agent_id: str, command: str) -> Union[str, None]:
         """Run a command on the agent, e.g. /memory
 
@@ -151,23 +156,11 @@ class Server(object):
 
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
-from letta.agent_store.db import MessageModel, PassageModel
 from letta.config import LettaConfig
 
 # NOTE: hack to see if single session management works
-from letta.metadata import (
-    AgentModel,
-    AgentSourceMappingModel,
-    APIKeyModel,
-    BlockModel,
-    JobModel,
-    OrganizationModel,
-    SourceModel,
-    ToolModel,
-    UserModel,
-)
 from letta.settings import model_settings, settings
 
 config = LettaConfig.load()
@@ -184,24 +177,12 @@ else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
 
-Base = declarative_base()
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base.metadata.create_all(
-    engine,
-    tables=[
-        UserModel.__table__,
-        AgentModel.__table__,
-        SourceModel.__table__,
-        AgentSourceMappingModel.__table__,
-        APIKeyModel.__table__,
-        BlockModel.__table__,
-        ToolModel.__table__,
-        JobModel.__table__,
-        PassageModel.__table__,
-        MessageModel.__table__,
-        OrganizationModel.__table__,
-    ],
-)
+
+attach_base()
+
+Base.metadata.create_all(bind=engine)
 
 
 # Dependency
@@ -224,7 +205,7 @@ class SyncServer(Server):
     def __init__(
         self,
         chaining: bool = True,
-        max_chaining_steps: bool = None,
+        max_chaining_steps: Optional[bool] = None,
         default_interface_factory: Callable[[], AgentInterface] = lambda: CLIInterface(),
         # default_interface: AgentInterface = CLIInterface(),
         # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
@@ -265,21 +246,55 @@ class SyncServer(Server):
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
         if model_settings.openai_api_key:
-            self._enabled_providers.append(OpenAIProvider(api_key=model_settings.openai_api_key, base_url=model_settings.openai_api_base))
+            self._enabled_providers.append(
+                OpenAIProvider(
+                    api_key=model_settings.openai_api_key,
+                    base_url=model_settings.openai_api_base,
+                )
+            )
         if model_settings.anthropic_api_key:
-            self._enabled_providers.append(AnthropicProvider(api_key=model_settings.anthropic_api_key))
+            self._enabled_providers.append(
+                AnthropicProvider(
+                    api_key=model_settings.anthropic_api_key,
+                )
+            )
         if model_settings.ollama_base_url:
-            self._enabled_providers.append(OllamaProvider(base_url=model_settings.ollama_base_url))
-        if model_settings.vllm_base_url:
-            self._enabled_providers.append(VLLMProvider(base_url=model_settings.vllm_base_url))
+            self._enabled_providers.append(
+                OllamaProvider(
+                    base_url=model_settings.ollama_base_url,
+                    api_key=None,
+                    default_prompt_formatter=model_settings.default_prompt_formatter,
+                )
+            )
         if model_settings.gemini_api_key:
-            self._enabled_providers.append(GoogleAIProvider(api_key=model_settings.gemini_api_key))
+            self._enabled_providers.append(
+                GoogleAIProvider(
+                    api_key=model_settings.gemini_api_key,
+                )
+            )
         if model_settings.azure_api_key and model_settings.azure_base_url:
+            assert model_settings.azure_api_version, "AZURE_API_VERSION is required"
             self._enabled_providers.append(
                 AzureProvider(
                     api_key=model_settings.azure_api_key,
                     base_url=model_settings.azure_base_url,
                     api_version=model_settings.azure_api_version,
+                )
+            )
+        if model_settings.vllm_api_base:
+            # vLLM exposes both a /chat/completions and a /completions endpoint
+            self._enabled_providers.append(
+                VLLMCompletionsProvider(
+                    base_url=model_settings.vllm_api_base,
+                    default_prompt_formatter=model_settings.default_prompt_formatter,
+                )
+            )
+            # NOTE: to use the /chat/completions endpoint, you need to specify extra flags on vLLM startup
+            # see: https://docs.vllm.ai/en/latest/getting_started/examples/openai_chat_completion_client_with_tools.html
+            # e.g. "... --enable-auto-tool-choice --tool-call-parser hermes"
+            self._enabled_providers.append(
+                VLLMChatCompletionsProvider(
+                    base_url=model_settings.vllm_api_base,
                 )
             )
 
@@ -375,9 +390,23 @@ class SyncServer(Server):
             letta_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
         return letta_agent
 
-    def _step(self, user_id: str, agent_id: str, input_message: Union[str, Message], timestamp: Optional[datetime]) -> LettaUsageStatistics:
+    def _step(
+        self,
+        user_id: str,
+        agent_id: str,
+        input_messages: Union[Message, List[Message]],
+        # timestamp: Optional[datetime],
+    ) -> LettaUsageStatistics:
         """Send the input message through the agent"""
-        logger.debug(f"Got input message: {input_message}")
+
+        # Input validation
+        if isinstance(input_messages, Message):
+            input_messages = [input_messages]
+        if not all(isinstance(m, Message) for m in input_messages):
+            raise ValueError(f"messages should be a Message or a list of Message, got {type(input_messages)}")
+
+        logger.debug(f"Got input messages: {input_messages}")
+        letta_agent = None
         try:
 
             # Get the agent object (loaded in memory)
@@ -389,63 +418,14 @@ class SyncServer(Server):
             token_streaming = letta_agent.interface.streaming_mode if hasattr(letta_agent.interface, "streaming_mode") else False
 
             logger.debug(f"Starting agent step")
-            no_verify = True
-            next_input_message = input_message
-            counter = 0
-            total_usage = UsageStatistics()
-            step_count = 0
-            while True:
-                assert isinstance(
-                    letta_agent.agent_state.memory, Memory
-                ), f"Memory object is not of type Memory: {type(letta_agent.agent_state.memory)}"
-
-                step_response = letta_agent.step(
-                    next_input_message,
-                    first_message=False,
-                    skip_verify=no_verify,
-                    return_dicts=False,
-                    stream=token_streaming,
-                    timestamp=timestamp,
-                    ms=self.ms,
-                )
-                step_response.messages
-                heartbeat_request = step_response.heartbeat_request
-                function_failed = step_response.function_failed
-                token_warning = step_response.in_context_memory_warning
-                usage = step_response.usage
-
-                step_count += 1
-                total_usage += usage
-                counter += 1
-                letta_agent.interface.step_complete()
-
-                logger.debug("Saving agent state")
-                # save updated state
-                save_agent(letta_agent, self.ms)
-                assert isinstance(
-                    letta_agent.agent_state.memory, Memory
-                ), f"Memory object is not of type Memory: {type(letta_agent.agent_state.memory)}"
-
-                # Chain stops
-                if not self.chaining:
-                    logger.debug("No chaining, stopping after one step")
-                    break
-                elif self.max_chaining_steps is not None and counter > self.max_chaining_steps:
-                    logger.debug(f"Hit max chaining steps, stopping after {counter} steps")
-                    break
-                # Chain handlers
-                elif token_warning:
-                    next_input_message = system.get_token_limit_warning()
-                    continue  # always chain
-                elif function_failed:
-                    next_input_message = system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE)
-                    continue  # always chain
-                elif heartbeat_request:
-                    next_input_message = system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE)
-                    continue  # always chain
-                # Letta no-op / yield
-                else:
-                    break
+            usage_stats = letta_agent.step(
+                messages=input_messages,
+                chaining=self.chaining,
+                max_chaining_steps=self.max_chaining_steps,
+                stream=token_streaming,
+                ms=self.ms,
+                skip_verify=True,
+            )
 
         except Exception as e:
             logger.error(f"Error in server._step: {e}")
@@ -453,9 +433,10 @@ class SyncServer(Server):
             raise
         finally:
             logger.debug("Calling step_yield()")
-            letta_agent.interface.step_yield()
+            if letta_agent:
+                letta_agent.interface.step_yield()
 
-        return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)
+        return usage_stats
 
     def _command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
         """Process a CLI command"""
@@ -620,7 +601,7 @@ class SyncServer(Server):
                 )
 
         # Run the agent state forward
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_message=message, timestamp=timestamp)
+        usage = self._step(user_id=user_id, agent_id=agent_id, input_messages=message)
         return usage
 
     def system_message(
@@ -668,7 +649,7 @@ class SyncServer(Server):
 
         if isinstance(message, Message):
             # Can't have a null text field
-            if len(message.text) == 0 or message.text is None:
+            if message.text is None or len(message.text) == 0:
                 raise ValueError(f"Invalid input: '{message.text}'")
             # If the input begins with a command prefix, reject
             elif message.text.startswith("/"):
@@ -682,7 +663,69 @@ class SyncServer(Server):
             message.created_at = timestamp
 
         # Run the agent state forward
-        return self._step(user_id=user_id, agent_id=agent_id, input_message=packaged_system_message, timestamp=timestamp)
+        return self._step(user_id=user_id, agent_id=agent_id, input_messages=message)
+
+    def send_messages(
+        self,
+        user_id: str,
+        agent_id: str,
+        messages: Union[List[MessageCreate], List[Message]],
+        # whether or not to wrap user and system message as MemGPT-style stringified JSON
+        wrap_user_message: bool = True,
+        wrap_system_message: bool = True,
+    ) -> LettaUsageStatistics:
+        """Send a list of messages to the agent
+
+        If the messages are of type MessageCreate, we need to turn them into
+        Message objects first before sending them through step.
+
+        Otherwise, we can pass them in directly.
+        """
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        message_objects: List[Message] = []
+
+        if all(isinstance(m, MessageCreate) for m in messages):
+            for message in messages:
+                assert isinstance(message, MessageCreate)
+
+                # If wrapping is eanbled, wrap with metadata before placing content inside the Message object
+                if message.role == MessageRole.user and wrap_user_message:
+                    message.text = system.package_user_message(user_message=message.text)
+                elif message.role == MessageRole.system and wrap_system_message:
+                    message.text = system.package_system_message(system_message=message.text)
+                else:
+                    raise ValueError(f"Invalid message role: {message.role}")
+
+                # Create the Message object
+                message_objects.append(
+                    Message(
+                        user_id=user_id,
+                        agent_id=agent_id,
+                        role=message.role,
+                        text=message.text,
+                        name=message.name,
+                        # assigned later?
+                        model=None,
+                        # irrelevant
+                        tool_calls=None,
+                        tool_call_id=None,
+                    )
+                )
+
+        elif all(isinstance(m, Message) for m in messages):
+            for message in messages:
+                assert isinstance(message, Message)
+                message_objects.append(message)
+
+        else:
+            raise ValueError(f"All messages must be of type Message or MessageCreate, got {type(messages)}")
+
+        # Run the agent state forward
+        return self._step(user_id=user_id, agent_id=agent_id, input_messages=message_objects)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
@@ -1571,7 +1614,7 @@ class SyncServer(Server):
         #    job.status = JobStatus.failed
         #    job.metadata_["error"] = error
         #    self.ms.update_job(job)
-        #    # TODO: delete any associated passages/documents?
+        #    # TODO: delete any associated passages/files?
 
         #    # return failed job
         #    return job
@@ -1600,11 +1643,10 @@ class SyncServer(Server):
 
         # get the data connectors
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        # TODO: add document store support
-        document_store = None  # StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
+        file_store = StorageConnector.get_storage_connector(TableType.FILES, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, document_store)
+        passage_count, document_count = load_data(connector, source, passage_store, file_store)
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1661,12 +1703,12 @@ class SyncServer(Server):
         # list all attached sources to an agent
         return self.ms.list_attached_sources(agent_id)
 
+    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
+        # list all attached sources to an agent
+        return self.ms.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
+
     def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
-        return []
-
-    def list_data_source_documents(self, user_id: str, source_id: str) -> List[Document]:
-        warnings.warn("list_data_source_documents is not yet implemented, returning empty list.", category=UserWarning)
         return []
 
     def list_all_sources(self, user_id: str) -> List[Source]:
@@ -1682,9 +1724,9 @@ class SyncServer(Server):
             passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
             num_passages = passage_conn.size({"source_id": source.id})
 
-            # TODO: add when documents table implemented
-            ## count number of documents
-            # document_conn = StorageConnector.get_storage_connector(TableType.DOCUMENTS, self.config, user_id=user_id)
+            # TODO: add when files table implemented
+            ## count number of files
+            # document_conn = StorageConnector.get_storage_connector(TableType.FILES, self.config, user_id=user_id)
             # num_documents = document_conn.size({"data_source": source.name})
             num_documents = 0
 

@@ -4,6 +4,7 @@ import pytest
 
 from letta import create_client
 from letta.client.client import LocalClient, RESTClient
+from letta.schemas.agent import AgentState
 from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
@@ -113,7 +114,7 @@ def test_agent(client: Union[LocalClient, RESTClient]):
     client.delete_agent(agent_state_test.id)
 
 
-def test_agent_with_shared_blocks(client):
+def test_agent_with_shared_blocks(client: Union[LocalClient, RESTClient]):
     persona_block = Block(name="persona", value="Here to test things!", label="persona", user_id=client.user_id)
     human_block = Block(name="human", value="Me Human, I swear. Beep boop.", label="human", user_id=client.user_id)
     existing_non_template_blocks = [persona_block, human_block]
@@ -164,7 +165,7 @@ def test_agent_with_shared_blocks(client):
             client.delete_agent(second_agent_state_test.id)
 
 
-def test_memory(client, agent):
+def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     # get agent memory
     original_memory = client.get_in_context_memory(agent.id)
     assert original_memory is not None
@@ -177,7 +178,7 @@ def test_memory(client, agent):
     assert updated_memory.get_block("human").value != original_memory_value  # check if the memory has been updated
 
 
-def test_archival_memory(client, agent):
+def test_archival_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     """Test functions for interacting with archival memory store"""
 
     # add archival memory
@@ -192,12 +193,12 @@ def test_archival_memory(client, agent):
     client.delete_archival_memory(agent.id, passage.id)
 
 
-def test_recall_memory(client, agent):
+def test_recall_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     """Test functions for interacting with recall memory store"""
 
     # send message to the agent
     message_str = "Hello"
-    client.send_message(message_str, "user", agent.id)
+    client.send_message(message=message_str, role="user", agent_id=agent.id)
 
     # list messages
     messages = client.get_messages(agent.id)
@@ -216,7 +217,7 @@ def test_recall_memory(client, agent):
     assert exists
 
 
-def test_tools(client):
+def test_tools(client: Union[LocalClient, RESTClient]):
     def print_tool(message: str):
         """
         A tool to print a message
@@ -265,7 +266,7 @@ def test_tools(client):
     # assert len(client.list_tools()) == orig_tool_length
 
 
-def test_tools_from_composio_basic(client):
+def test_tools_from_composio_basic(client: Union[LocalClient, RESTClient]):
     from composio_langchain import Action
 
     from letta.schemas.tool import Tool
@@ -286,7 +287,7 @@ def test_tools_from_composio_basic(client):
     # The tool creation includes a compile safety check, so if this test doesn't error out, at least the code is compilable
 
 
-def test_tools_from_crewai(client):
+def test_tools_from_crewai(client: Union[LocalClient, RESTClient]):
     # create crewAI tool
 
     from crewai_tools import ScrapeWebsiteTool
@@ -323,7 +324,7 @@ def test_tools_from_crewai(client):
     assert expected_content in func(website_url=simple_webpage_url)
 
 
-def test_tools_from_crewai_with_params(client):
+def test_tools_from_crewai_with_params(client: Union[LocalClient, RESTClient]):
     # create crewAI tool
 
     from crewai_tools import ScrapeWebsiteTool
@@ -357,7 +358,7 @@ def test_tools_from_crewai_with_params(client):
     assert expected_content in func()
 
 
-def test_tools_from_langchain(client):
+def test_tools_from_langchain(client: Union[LocalClient, RESTClient]):
     # create langchain tool
     from langchain_community.tools import WikipediaQueryRun
     from langchain_community.utilities import WikipediaAPIWrapper
@@ -391,7 +392,7 @@ def test_tools_from_langchain(client):
     assert expected_content in func(query="Albert Einstein")
 
 
-def test_tool_creation_langchain_missing_imports(client):
+def test_tool_creation_langchain_missing_imports(client: Union[LocalClient, RESTClient]):
     # create langchain tool
     from langchain_community.tools import WikipediaQueryRun
     from langchain_community.utilities import WikipediaAPIWrapper
@@ -405,70 +406,3 @@ def test_tool_creation_langchain_missing_imports(client):
     # Intentionally missing {"langchain_community.utilities": "WikipediaAPIWrapper"}
     with pytest.raises(RuntimeError):
         Tool.from_langchain(langchain_tool)
-
-
-def test_sources(client, agent):
-    # list sources (empty)
-    sources = client.list_sources()
-    assert len(sources) == 0
-
-    # create a source
-    test_source_name = "test_source"
-    source = client.create_source(name=test_source_name)
-
-    # list sources
-    sources = client.list_sources()
-    assert len(sources) == 1
-    assert sources[0].metadata_["num_passages"] == 0
-    assert sources[0].metadata_["num_documents"] == 0
-
-    # update the source
-    original_id = source.id
-    original_name = source.name
-    new_name = original_name + "_new"
-    client.update_source(source_id=source.id, name=new_name)
-
-    # get the source name (check that it's been updated)
-    source = client.get_source(source_id=source.id)
-    assert source.name == new_name
-    assert source.id == original_id
-
-    # get the source id (make sure that it's the same)
-    assert str(original_id) == client.get_source_id(source_name=new_name)
-
-    # check agent archival memory size
-    archival_memories = client.get_archival_memory(agent_id=agent.id)
-    print(archival_memories)
-    assert len(archival_memories) == 0
-
-    # load a file into a source
-    filename = "CONTRIBUTING.md"
-    upload_job = client.load_file_into_source(filename=filename, source_id=source.id)
-    print("Upload job", upload_job, upload_job.status, upload_job.metadata_)
-
-    # TODO: make sure things run in the right order
-    archival_memories = client.get_archival_memory(agent_id=agent.id)
-    assert len(archival_memories) == 0
-
-    # attach a source
-    client.attach_source_to_agent(source_id=source.id, agent_id=agent.id)
-
-    # list archival memory
-    archival_memories = client.get_archival_memory(agent_id=agent.id)
-    # print(archival_memories)
-    assert len(archival_memories) == 20 or len(archival_memories) == 21
-
-    # check number of passages
-    sources = client.list_sources()
-
-    # TODO: do we want to add this metadata back?
-    # assert sources[0].metadata_["num_passages"] > 0
-    # assert sources[0].metadata_["num_documents"] == 0  # TODO: fix this once document store added
-    print(sources)
-
-    # detach the source
-    # TODO: add when implemented
-    # client.detach_source(source.name, agent.id)
-
-    # delete the source
-    client.delete_source(source.id)

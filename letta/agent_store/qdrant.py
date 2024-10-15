@@ -38,7 +38,7 @@ class QdrantStorageConnector(StorageConnector):
                     distance=models.Distance.COSINE,
                 ),
             )
-        self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "doc_id"]
+        self.uuid_fields = ["id", "user_id", "agent_id", "source_id", "file_id"]
 
     def get_all_paginated(self, filters: Optional[Dict] = {}, page_size: int = 10) -> Iterator[List[RecordType]]:
         from qdrant_client import grpc

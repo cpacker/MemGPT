@@ -85,9 +85,7 @@ def get_chat_completion(
     elif wrapper is None:
         # Warn the user that we're using the fallback
         if not has_shown_warning:
-            print(
-                f"{CLI_WARNING_PREFIX}no wrapper specified for local LLM, using the default wrapper (you can remove this warning by specifying the wrapper with --model-wrapper)"
-            )
+            print(f"{CLI_WARNING_PREFIX}no prompt formatter specified for local LLM, using the default formatter")
             has_shown_warning = True
 
         llm_wrapper = DEFAULT_WRAPPER()

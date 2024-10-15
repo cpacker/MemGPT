@@ -4,14 +4,20 @@ from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from letta.local_llm.constants import DEFAULT_WRAPPER_NAME
+
 
 class ModelSettings(BaseSettings):
 
     # env_prefix='my_prefix_'
 
+    # when we use /completions APIs (instead of /chat/completions), we need to specify a model wrapper
+    # the "model wrapper" is responsible for prompt formatting and function calling parsing
+    default_prompt_formatter: str = DEFAULT_WRAPPER_NAME
+
     # openai
     openai_api_key: Optional[str] = None
-    openai_api_base: Optional[str] = "https://api.openai.com/v1"
+    openai_api_base: str = "https://api.openai.com/v1"
 
     # groq
     groq_api_key: Optional[str] = None
@@ -25,13 +31,16 @@ class ModelSettings(BaseSettings):
     # azure
     azure_api_key: Optional[str] = None
     azure_base_url: Optional[str] = None
-    azure_api_version: Optional[str] = None
+    # We provide a default here, since usually people will want to be on the latest API version.
+    azure_api_version: Optional[str] = (
+        "2024-09-01-preview"  # https://learn.microsoft.com/en-us/azure/ai-services/openai/api-version-deprecation
+    )
 
     # google ai
     gemini_api_key: Optional[str] = None
 
     # vLLM
-    vllm_base_url: Optional[str] = None
+    vllm_api_base: Optional[str] = None
 
     # openllm
     openllm_auth_type: Optional[str] = None

@@ -356,19 +356,31 @@ def run_agent_loop(
             else:
                 # If message did not begin with command prefix, pass inputs to Letta
                 # Handle user message and append to messages
-                user_message = system.package_user_message(user_input)
+                user_message = str(user_input)
 
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
-            step_response = letta_agent.step(
-                user_message,
-                first_message=False,
-                skip_verify=no_verify,
-                stream=stream,
-                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
-                ms=ms,
-            )
+            # TODO(charles): update to use agent.step() instead of inner_step()
+
+            if user_message is None:
+                step_response = letta_agent.inner_step(
+                    messages=[],
+                    first_message=False,
+                    skip_verify=no_verify,
+                    stream=stream,
+                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
+                    ms=ms,
+                )
+            else:
+                step_response = letta_agent.step_user_message(
+                    user_message_str=user_message,
+                    first_message=False,
+                    skip_verify=no_verify,
+                    stream=stream,
+                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
+                    ms=ms,
+                )
             new_messages = step_response.messages
             heartbeat_request = step_response.heartbeat_request
             function_failed = step_response.function_failed
@@ -392,15 +404,15 @@ def run_agent_loop(
         while True:
             try:
                 if strip_ui:
-                    new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                    _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
                 else:
                     if stream:
                         # Don't display the "Thinking..." if streaming
-                        new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                        _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     else:
                         with console.status("[bold cyan]Thinking...") as status:
-                            new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                            _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
             except KeyboardInterrupt:
                 print("User interrupt occurred.")
