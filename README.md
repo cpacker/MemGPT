@@ -1,7 +1,7 @@
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://example.com/dark-mode-image.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://example.com/light-mode-image.png">
-  <img alt="An adaptive banner that changes based on light/dark mode" src="https://example.com/default-image.png">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/Letta-logo-RGB_GreyonTransparent.png">
+  <source media="(prefers-color-scheme: light)" srcset="assets/Letta-logo-RGB_OffBlackonTransparent.png">
+  <img alt="An adaptive banner that changes based on light/dark mode" src="assets/Letta-logo-RGB_GreyonOffBlack.png">
 </picture>
 
 # 👾 Letta (previously MemGPT)
