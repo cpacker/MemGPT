@@ -25,6 +25,9 @@ class ContextWindowOverview(BaseModel):
     num_messages: int = Field(..., description="The number of messages in the context window.")
     num_archival_memory: int = Field(..., description="The number of messages in the archival memory.")
     num_recall_memory: int = Field(..., description="The number of messages in the recall memory.")
+    num_tokens_external_memory_summary: int = Field(
+        ..., description="The number of tokens in the external memory summary (archival + recall metadata)."
+    )
 
     # context window breakdown (in tokens)
     # this should all add up to context_window_size_current

@@ -1370,11 +1370,21 @@ class Agent(BaseAgent):
                 num_tokens_from_messages(messages=messages_openai_format[1:], model=self.model) if len(messages_openai_format) > 1 else 0
             )
 
+        num_archival_memory = self.persistence_manager.archival_memory.storage.size()
+        num_recall_memory = self.persistence_manager.recall_memory.storage.size()
+        external_memory_summary = compile_memory_metadata_block(
+            memory_edit_timestamp=get_utc_time(),  # dummy timestamp
+            archival_memory=self.persistence_manager.archival_memory,
+            recall_memory=self.persistence_manager.recall_memory,
+        )
+        num_tokens_external_memory_summary = count_tokens(external_memory_summary)
+
         return ContextWindowOverview(
             # context window breakdown (in messages)
             num_messages=len(self._messages),
-            num_archival_memory=self.persistence_manager.archival_memory.storage.size(),
-            num_recall_memory=self.persistence_manager.recall_memory.storage.size(),
+            num_archival_memory=num_archival_memory,
+            num_recall_memory=num_recall_memory,
+            num_tokens_external_memory_summary=num_tokens_external_memory_summary,
             # top-level information
             context_window_size_max=self.agent_state.llm_config.context_window,
             context_window_size_current=num_tokens_system + num_tokens_core_memory + num_tokens_summary_memory + num_tokens_messages,
