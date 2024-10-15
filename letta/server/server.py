@@ -1425,13 +1425,13 @@ class SyncServer(Server):
 
         modified = False
         for key, value in new_memory_contents.items():
-            if letta_agent.agent_state.memory.get_block(key) is None:
+            if letta_agent.memory.get_block(key) is None:
                 # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.agent_state.memory.list_block_names())}")
                 raise ValueError(f"Key {key} not found in agent memory {str(letta_agent.agent_state.memory.memory)}")
             if value is None:
                 continue
-            if letta_agent.agent_state.memory.get_block(key) != value:
-                letta_agent.agent_state.memory.update_block_value(name=key, value=value)  # update agent memory
+            if letta_agent.memory.get_block(key) != value:
+                letta_agent.memory.update_block_value(name=key, value=value)  # update agent memory
                 modified = True
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message
