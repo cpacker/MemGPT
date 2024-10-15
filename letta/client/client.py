@@ -206,7 +206,10 @@ class AbstractClient(object):
     def load_data(self, connector: DataConnector, source_name: str):
         raise NotImplementedError
 
-    def load_file_into_source(self, filename: str, source_id: str, blocking=True) -> Job:
+    def load_file_to_source(self, filename: str, source_id: str, blocking=True) -> Job:
+        raise NotImplementedError
+
+    def delete_file_from_source(self, source_id: str, file_id: str) -> None:
         raise NotImplementedError
 
     def create_source(self, name: str) -> Source:
@@ -1038,7 +1041,7 @@ class RESTClient(AbstractClient):
     def load_data(self, connector: DataConnector, source_name: str):
         raise NotImplementedError
 
-    def load_file_into_source(self, filename: str, source_id: str, blocking=True):
+    def load_file_to_source(self, filename: str, source_id: str, blocking=True):
         """
         Load a file into a source
 
@@ -1068,6 +1071,11 @@ class RESTClient(AbstractClient):
                     raise ValueError(f"Job failed: {job.metadata}")
                 time.sleep(1)
         return job
+
+    def delete_file_from_source(self, source_id: str, file_id: str) -> None:
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/{file_id}", headers=self.headers)
+        if response.status_code not in [200, 204]:
+            raise ValueError(f"Failed to delete tool: {response.text}")
 
     def create_source(self, name: str) -> Source:
         """
@@ -2175,7 +2183,7 @@ class LocalClient(AbstractClient):
         """
         self.server.load_data(user_id=self.user_id, connector=connector, source_name=source_name)
 
-    def load_file_into_source(self, filename: str, source_id: str, blocking=True):
+    def load_file_to_source(self, filename: str, source_id: str, blocking=True):
         """
         Load a file into a source
 
@@ -2193,6 +2201,9 @@ class LocalClient(AbstractClient):
         # TODO: implement blocking vs. non-blocking
         self.server.load_file_to_source(source_id=source_id, file_path=filename, job_id=job.id)
         return job
+
+    def delete_file_from_source(self, source_id: str, file_id: str):
+        self.server.delete_file_from_source(source_id, file_id, user_id=self.user_id)
 
     def get_job(self, job_id: str):
         return self.server.get_job(job_id=job_id)

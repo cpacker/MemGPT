@@ -345,7 +345,7 @@ Load data into a source
   * **connector** (`DataConnector`) – Data connector
   * **source_name** (`str`) – Name of the source
 
-#### load_file_into_source(filename: str, source_id: str, blocking=True) → Job
+#### load_file_to_source(filename: str, source_id: str, blocking=True) → Job
 
 Load a file into a source
 
@@ -820,7 +820,7 @@ Load data into a source
   * **connector** (`DataConnector`) – Data connector
   * **source_name** (`str`) – Name of the source
 
-#### load_file_into_source(filename: str, source_id: str, blocking=True)
+#### load_file_to_source(filename: str, source_id: str, blocking=True)
 
 Load {filename} and insert into source
 
@@ -1243,7 +1243,7 @@ List available tools
 * **Returns:**
   *tools (List[Tool])* – List of tools
 
-#### load_file_into_source(filename: str, source_id: str, blocking=True)
+#### load_file_to_source(filename: str, source_id: str, blocking=True)
 
 Load {filename} and insert into source
 
