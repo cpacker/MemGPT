@@ -19,6 +19,7 @@ from letta.constants import (
 )
 from letta.interface import AgentInterface
 from letta.llm_api.llm_api_tools import create
+from letta.local_llm.utils import num_tokens_from_messages
 from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.persistence_manager import LocalStateManager
@@ -1335,14 +1336,38 @@ class Agent(BaseAgent):
 
     def get_context_window(self) -> ContextWindowOverview:
         """Get the context window of the agent"""
+
+        num_tokens_system = count_tokens(self.agent_state.system)  # TODO is this the current system or the initial system?
+        num_tokens_core_memory = count_tokens(self.memory.compile())
+
+        # Check if there's a summary message in the message queue
+        if (
+            self._messages[1].role == MessageRole.user
+            and isinstance(self._messages[1].text, str)
+            # TODO remove hardcoding
+            and "The following is a summary of the previous " in self._messages[1].text
+        ):
+            # Summary message exists
+            assert self._messages[1].text is not None
+            num_tokens_summary_memory = count_tokens(self._messages[1].text)
+            num_tokens_messages = num_tokens_from_messages(messages=self.messages[2:], model=self.model)
+        else:
+            num_tokens_summary_memory = 0
+            num_tokens_messages = num_tokens_from_messages(messages=self.messages[1:], model=self.model)
+
         return ContextWindowOverview(
+            # context window breakdown (in messages)
             num_messages=len(self._messages),
             num_archival_memory=self.persistence_manager.archival_memory.storage.size(),
             num_recall_memory=self.persistence_manager.recall_memory.storage.size(),
-            num_tokens_system=100,
-            num_tokens_core_memory=100,
-            num_tokens_summary_memory=100,
-            num_tokens_messages=100,
+            # top-level information
+            context_window_size_max=self.agent_state.llm_config.context_window,
+            context_window_size_current=num_tokens_system + num_tokens_core_memory + num_tokens_summary_memory + num_tokens_messages,
+            # context window breakdown (in tokens)
+            num_tokens_system=num_tokens_system,
+            num_tokens_core_memory=num_tokens_core_memory,
+            num_tokens_summary_memory=num_tokens_core_memory,
+            num_tokens_messages=num_tokens_messages,
         )
 
 

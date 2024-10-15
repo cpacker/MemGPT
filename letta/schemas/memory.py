@@ -15,10 +15,18 @@ class ContextWindowOverview(BaseModel):
     Overview of the context window, including the number of messages and tokens.
     """
 
+    # top-level information
+    context_window_size_max: int = Field(..., description="The maximum amount of tokens the context window can hold.")
+    context_window_size_current: int = Field(..., description="The current number of tokens in the context window.")
+
+    # context window breakdown (in messages)
     num_messages: int = Field(..., description="The number of messages in the context window.")
+    # (technically not in the context window, but useful to know)
     num_archival_memory: int = Field(..., description="The number of messages in the archival memory.")
     num_recall_memory: int = Field(..., description="The number of messages in the recall memory.")
 
+    # context window breakdown (in tokens)
+    # this should all add up to context_window_size_current
     num_tokens_system: int = Field(..., description="The number of tokens in the system prompt.")
     num_tokens_core_memory: int = Field(..., description="The number of tokens in the core memory.")
     num_tokens_summary_memory: int = Field(..., description="The number of tokens in the summary memory.")
