@@ -787,7 +787,7 @@ class SyncServer(Server):
                 message_objects.append(message)
 
         else:
-            raise ValueError(f"All messages must be of type Message or MessageCreate, got {type(messages)}")
+            raise ValueError(f"All messages must be of type Message or MessageCreate, got {[type(message) for message in messages]}")
 
         # Run the agent state forward
         return self._step(user_id=user_id, agent_id=agent_id, input_messages=message_objects)

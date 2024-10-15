@@ -1763,6 +1763,40 @@ class LocalClient(AbstractClient):
 
     # agent interactions
 
+    def send_messages(
+        self,
+        agent_id: str,
+        messages: List[Union[Message | MessageCreate]],
+        include_full_message: Optional[bool] = False,
+    ):
+        """
+        Send pre-packed messages to an agent.
+
+        Args:
+            agent_id (str): ID of the agent
+            messages (List[Union[Message | MessageCreate]]): List of messages to send
+
+        Returns:
+            response (LettaResponse): Response from the agent
+        """
+        self.interface.clear()
+        usage = self.server.send_messages(user_id=self.user_id, agent_id=agent_id, messages=messages)
+
+        # auto-save
+        if self.auto_save:
+            self.save()
+
+        # format messages
+        messages = self.interface.to_list()
+        if include_full_message:
+            letta_messages = messages
+        else:
+            letta_messages = []
+            for m in messages:
+                letta_messages += m.to_letta_message()
+
+        return LettaResponse(messages=letta_messages, usage=usage)
+
     def send_message(
         self,
         message: str,
@@ -1808,18 +1842,19 @@ class LocalClient(AbstractClient):
         if self.auto_save:
             self.save()
 
-        # TODO: need to make sure date/timestamp is propely passed
-        # TODO: update self.interface.to_list() to return actual Message objects
-        #       here, the message objects will have faulty created_by timestamps
-        messages = self.interface.to_list()
-        for m in messages:
-            assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
-        letta_messages = []
-        for m in messages:
-            letta_messages += m.to_letta_message()
-        return LettaResponse(messages=letta_messages, usage=usage)
+        ## TODO: need to make sure date/timestamp is propely passed
+        ## TODO: update self.interface.to_list() to return actual Message objects
+        ##       here, the message objects will have faulty created_by timestamps
+        # messages = self.interface.to_list()
+        # for m in messages:
+        #    assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
+        # letta_messages = []
+        # for m in messages:
+        #    letta_messages += m.to_letta_message()
+        # return LettaResponse(messages=letta_messages, usage=usage)
 
         # format messages
+        messages = self.interface.to_list()
         if include_full_message:
             letta_messages = messages
         else:
