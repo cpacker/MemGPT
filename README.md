@@ -1,6 +1,12 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://example.com/dark-mode-image.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://example.com/light-mode-image.png">
+  <img alt="An adaptive banner that changes based on light/dark mode" src="https://example.com/default-image.png">
+</picture>
+
 # 👾 Letta (previously MemGPT)
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/letta)
-[![Twitter Follow](https://img.shields.io/badge/follow-%40Letta__AI-1DA1F2?style=flat-square&logo=x&logoColor=white)](https://twitter.com/Letta_AI)
+[![Twitter Follow](https://img.shields.io/badge/Follow-%40Letta__AI-1DA1F2?style=flat-square&logo=x&logoColor=white)](https://twitter.com/Letta_AI)
 [![arxiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
 
 > [!NOTE]
@@ -12,9 +18,7 @@
 
 Visit our [documentation page](https://docs.letta.com) for information on setup and usage.
 
-## ⚡ Quick install
-
-
+## 👾 Quick install
 
 ## 🤗 How to contribute
 
