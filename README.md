@@ -6,10 +6,23 @@
   </picture>
 </p>
 
-# 👾 Letta (previously MemGPT)
+<div align="center">
+<h1>Letta (previously MemGPT)</h1>
+  
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/letta)
 [![Twitter Follow](https://img.shields.io/badge/Follow-%40Letta__AI-1DA1F2?style=flat-square&logo=x&logoColor=white)](https://twitter.com/Letta_AI)
-[![arxiv 2310.08560](https://img.shields.io/badge/arXiv-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
+[![arxiv 2310.08560](https://img.shields.io/badge/Research-2310.08560-B31B1B?logo=arxiv&style=flat-square)](https://arxiv.org/abs/2310.08560)
+[![Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-silver?style=flat-square)](LICENSE.md)
+[![Release](https://img.shields.io/github/v/release/cpacker/MemGPT?style=flat-square&label=Release&color=limegreen)](https://github.com/cpacker/MemGPT/releases)
+[![GitHub](https://img.shields.io/github/stars/cpacker/MemGPT?style=flat-square&logo=github&label=Stars&color=gold)](https://github.com/cpacker/MemGPT)
+
+<h3>
+
+[Homepage](https://letta.com) // [Documentation](https://docs.letta.com) // [Letta Cloud](https://forms.letta.com/early-access)
+
+</h3>
+
+</div>
 
 > [!NOTE]
 > **Looking for MemGPT?** You're in the right place!
@@ -17,8 +30,6 @@
 > The MemGPT package and Docker image have been renamed to `letta` to clarify the distinction between MemGPT agents and the API server / runtime that runs LLM agents as *services*.
 >
 > You use the **Letta _framework_** to create **MemGPT _agents_**. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
-
-Visit our [documentation page](https://docs.letta.com) for information on setup and usage.
 
 ## 👾 Quick install
 
