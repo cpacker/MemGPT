@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -121,8 +121,7 @@ class UpdateAgentState(BaseAgent):
 
 
 class AgentStepResponse(BaseModel):
-    # TODO remove support for list of dicts
-    messages: Union[List[Message], List[dict]] = Field(..., description="The messages generated during the agent's step.")
+    messages: List[Message] = Field(..., description="The messages generated during the agent's step.")
     heartbeat_request: bool = Field(..., description="Whether the agent requested a heartbeat (i.e. follow-up execution).")
     function_failed: bool = Field(..., description="Whether the agent step ended because a function call failed.")
     in_context_memory_warning: bool = Field(

@@ -404,15 +404,15 @@ def run_agent_loop(
         while True:
             try:
                 if strip_ui:
-                    new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                    _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
                 else:
                     if stream:
                         # Don't display the "Thinking..." if streaming
-                        new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                        _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     else:
                         with console.status("[bold cyan]Thinking...") as status:
-                            new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                            _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
             except KeyboardInterrupt:
                 print("User interrupt occurred.")

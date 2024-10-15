@@ -744,7 +744,6 @@ class Agent(BaseAgent):
         while True:
             kwargs["ms"] = ms
             kwargs["first_message"] = False
-            kwargs["return_dicts"] = False
             step_response = self.inner_step(
                 messages=next_input_message,
                 **kwargs,
@@ -821,8 +820,6 @@ class Agent(BaseAgent):
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
-        return_dicts: bool = True,
-        # recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
         inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
@@ -929,13 +926,12 @@ class Agent(BaseAgent):
                 )
 
             self._append_to_messages(all_new_messages)
-            messages_to_return = [msg.to_openai_dict() for msg in all_new_messages] if return_dicts else all_new_messages
 
             # update state after each step
             self.update_state()
 
             return AgentStepResponse(
-                messages=messages_to_return,
+                messages=all_new_messages,
                 heartbeat_request=heartbeat_request,
                 function_failed=function_failed,
                 in_context_memory_warning=active_memory_warning,
@@ -956,10 +952,7 @@ class Agent(BaseAgent):
                     first_message=first_message,
                     first_message_retry_limit=first_message_retry_limit,
                     skip_verify=skip_verify,
-                    return_dicts=return_dicts,
-                    # recreate_message_timestamp=recreate_message_timestamp,
                     stream=stream,
-                    # timestamp=timestamp,
                     inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     ms=ms,
                 )
@@ -1421,7 +1414,7 @@ class Agent(BaseAgent):
         self.pop_until_user()
         user_message = self.pop_message(count=1)[0]
         assert user_message.text is not None, "User message text is None"
-        step_response = self.step_user_message(user_message_str=user_message.text, return_dicts=False)
+        step_response = self.step_user_message(user_message_str=user_message.text)
         messages = step_response.messages
 
         assert messages is not None
