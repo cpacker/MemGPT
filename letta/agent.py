@@ -1342,22 +1342,33 @@ class Agent(BaseAgent):
         core_memory = self.memory.compile()
         num_tokens_core_memory = count_tokens(core_memory)
 
+        # conversion of messages to OpenAI dict format, which is passed to the token counter
+        messages_openai_format = self.messages
+
         # Check if there's a summary message in the message queue
         if (
-            self._messages[1].role == MessageRole.user
+            len(self._messages) > 1
+            and self._messages[1].role == MessageRole.user
             and isinstance(self._messages[1].text, str)
             # TODO remove hardcoding
             and "The following is a summary of the previous " in self._messages[1].text
         ):
             # Summary message exists
             assert self._messages[1].text is not None
-            num_tokens_summary_memory = count_tokens(self._messages[1].text)
-            num_tokens_messages = num_tokens_from_messages(messages=self.messages[2:], model=self.model)
             summary_memory = self._messages[1].text
+            num_tokens_summary_memory = count_tokens(self._messages[1].text)
+            # with a summary message, the real messages start at index 2
+            num_tokens_messages = (
+                num_tokens_from_messages(messages=messages_openai_format[2:], model=self.model) if len(messages_openai_format) > 2 else 0
+            )
+
         else:
-            num_tokens_summary_memory = 0
-            num_tokens_messages = num_tokens_from_messages(messages=self.messages[1:], model=self.model)
             summary_memory = None
+            num_tokens_summary_memory = 0
+            # with no summary message, the real messages start at index 1
+            num_tokens_messages = (
+                num_tokens_from_messages(messages=messages_openai_format[1:], model=self.model) if len(messages_openai_format) > 1 else 0
+            )
 
         return ContextWindowOverview(
             # context window breakdown (in messages)
