@@ -1,8 +1,10 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/Letta-logo-RGB_GreyonTransparent.png">
-  <source media="(prefers-color-scheme: light)" srcset="assets/Letta-logo-RGB_OffBlackonTransparent.png">
-  <img alt="An adaptive banner that changes based on light/dark mode" src="assets/Letta-logo-RGB_GreyonOffBlack.png">
-</picture>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/Letta-logo-RGB_GreyonTransparent_cropped_small.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/Letta-logo-RGB_OffBlackonTransparent_cropped_small.png">
+    <img alt="Letta logo" src="assets/Letta-logo-RGB_GreyonOffBlack_cropped_small.png" width="600">
+  </picture>
+</p>
 
 # 👾 Letta (previously MemGPT)
 [![Discord](https://img.shields.io/discord/1161736243340640419?label=Discord&logo=discord&logoColor=5865F2&style=flat-square&color=5865F2)](https://discord.gg/letta)
