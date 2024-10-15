@@ -362,7 +362,7 @@ def run_agent_loop(
 
         def process_agent_step(user_message, no_verify):
             if user_message is None:
-                step_response = letta_agent.step(
+                step_response = letta_agent.inner_step(
                     messages=[],
                     first_message=False,
                     skip_verify=no_verify,

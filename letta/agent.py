@@ -1002,7 +1002,7 @@ class Agent(BaseAgent):
             # created_at=timestamp,
         )
 
-        return self.step(messages=[user_message], **kwargs)
+        return self.inner_step(messages=[user_message], **kwargs)
 
     def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True, disallow_tool_as_first=True):
         assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
