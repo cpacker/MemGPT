@@ -16,6 +16,7 @@ import letta.system as system
 from letta.agent import Agent, save_agent
 from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
+from letta.client.utils import derive_function_name_regex
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -1890,9 +1891,9 @@ class SyncServer(Server):
         """Get tool by ID."""
         return self.ms.get_tool(tool_id=tool_id)
 
-    def tool_id_exists(self, tool_id: str, user_id: Optional[str] = None) -> bool:
+    def tool_with_name_and_user_id_exists(self, tool: Tool, user_id: Optional[str] = None) -> bool:
         """Check if tool exists"""
-        tool = self.ms.get_tool(tool_id=tool_id, user_id=user_id)
+        tool = self.ms.get_tool_with_name_and_user_id(tool_name=tool.name, user_id=user_id)
 
         if tool is None:
             return False
@@ -1906,14 +1907,21 @@ class SyncServer(Server):
             return None
         return tool.id
 
-    def update_tool(
-        self,
-        request: ToolUpdate,
-    ) -> Tool:
+    def update_tool(self, request: ToolUpdate, user_id: Optional[str] = None) -> Tool:
         """Update an existing tool"""
-        existing_tool = self.ms.get_tool(tool_id=request.id)
-        if not existing_tool:
-            raise ValueError(f"Tool does not exist")
+        if request.name:
+            existing_tool = self.ms.get_tool_with_name_and_user_id(tool_name=request.name, user_id=user_id)
+            if existing_tool is None:
+                raise ValueError(f"Tool with name={request.name}, user_id={user_id} does not exist")
+        else:
+            existing_tool = self.ms.get_tool(tool_id=request.id)
+            if existing_tool is None:
+                raise ValueError(f"Tool with id={request.id} does not exist")
+
+        # Preserve the original tool id
+        # As we can override the tool id as well
+        # This is probably bad design if this is exposed to users...
+        original_id = existing_tool.id
 
         # override updated fields
         if request.id:
@@ -1928,10 +1936,15 @@ class SyncServer(Server):
             existing_tool.tags = request.tags
         if request.json_schema:
             existing_tool.json_schema = request.json_schema
+
+        # If name is explicitly provided here, overide the tool name
         if request.name:
             existing_tool.name = request.name
+        # Otherwise, if there's no name, and there's source code, we try to derive the name
+        elif request.source_code:
+            existing_tool.name = derive_function_name_regex(request.source_code)
 
-        self.ms.update_tool(existing_tool)
+        self.ms.update_tool(original_id, existing_tool)
         return self.ms.get_tool(tool_id=request.id)
 
     def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = True) -> Tool:  # TODO: add other fields
@@ -1975,7 +1988,7 @@ class SyncServer(Server):
                 # id is an optional field, so we will fill it with the existing tool id
                 if not request.id:
                     request.id = existing_tool.id
-                updated_tool = self.update_tool(ToolUpdate(**vars(request)))
+                updated_tool = self.update_tool(ToolUpdate(**vars(request)), user_id)
                 assert updated_tool is not None, f"Failed to update tool {request.name}"
                 return updated_tool
             else:

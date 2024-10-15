@@ -2112,7 +2112,7 @@ class LocalClient(AbstractClient):
         Returns:
             None
         """
-        if self.tool_id_exists(tool.id):
+        if self.tool_with_name_and_user_id_exists(tool):
             if update:
                 return self.server.update_tool(
                     ToolUpdate(
@@ -2123,7 +2123,8 @@ class LocalClient(AbstractClient):
                         tags=tool.tags,
                         json_schema=tool.json_schema,
                         name=tool.name,
-                    )
+                    ),
+                    self.user_id,
                 )
             else:
                 raise ValueError(f"Tool with id={tool.id} and name={tool.name}already exists")
@@ -2205,7 +2206,9 @@ class LocalClient(AbstractClient):
 
         source_type = "python"
 
-        return self.server.update_tool(ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name))
+        return self.server.update_tool(
+            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name), self.user_id
+        )
 
     def list_tools(self):
         """
@@ -2250,17 +2253,17 @@ class LocalClient(AbstractClient):
         """
         return self.server.get_tool_id(name, self.user_id)
 
-    def tool_id_exists(self, tool_id: str) -> bool:
+    def tool_with_name_and_user_id_exists(self, tool: Tool) -> bool:
         """
-        Check if the id exists in the database already.
+        Check if the tool with name and user_id exists
 
         Args:
-            tool_id (str): Id of the tool
+            tool (Tool): the tool
 
         Returns:
             (bool): True if the id exists, False otherwise.
         """
-        return self.server.tool_id_exists(tool_id, self.user_id)
+        return self.server.tool_with_name_and_user_id_exists(tool, self.user_id)
 
     def load_data(self, connector: DataConnector, source_name: str):
         """

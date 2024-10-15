@@ -1,6 +1,9 @@
+import re
 from datetime import datetime
+from typing import Optional
 
 from IPython.display import HTML, display
+from sqlalchemy.testing.plugin.plugin_base import warnings
 
 from letta.local_llm.constants import (
     ASSISTANT_MESSAGE_CLI_SYMBOL,
@@ -64,3 +67,15 @@ def pprint(messages):
     html_content += "</div>"
 
     display(HTML(html_content))
+
+
+def derive_function_name_regex(function_string: str) -> Optional[str]:
+    # Regular expression to match the function name
+    match = re.search(r"def\s+([a-zA-Z_]\w*)\s*\(", function_string)
+
+    if match:
+        function_name = match.group(1)
+        return function_name
+    else:
+        warnings.warn("No function name found.")
+        return None

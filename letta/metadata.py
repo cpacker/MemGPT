@@ -620,9 +620,9 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def update_tool(self, tool: Tool):
+    def update_tool(self, tool_id: str, tool: Tool):
         with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.id == tool.id).update(vars(tool))
+            session.query(ToolModel).filter(ToolModel.id == tool_id).update(vars(tool))
             session.commit()
 
     @enforce_types
@@ -803,6 +803,15 @@ class MetadataStore:
             if len(results) == 0:
                 return None
             # assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    @enforce_types
+    def get_tool_with_name_and_user_id(self, tool_name: Optional[str] = None, user_id: Optional[str] = None) -> Optional[ToolModel]:
+        with self.session_maker() as session:
+            results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
+            if len(results) == 0:
+                return None
+            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
 
     @enforce_types
