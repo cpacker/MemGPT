@@ -361,6 +361,8 @@ def run_agent_loop(
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
+            # TODO(charles): update to use agent.step() instead of inner_step()
+
             if user_message is None:
                 step_response = letta_agent.inner_step(
                     messages=[],
