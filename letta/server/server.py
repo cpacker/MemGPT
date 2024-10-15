@@ -72,7 +72,12 @@ from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
+from letta.schemas.memory import (
+    ArchivalMemorySummary,
+    ContextWindowOverview,
+    Memory,
+    RecallMemorySummary,
+)
 from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.organization import Organization, OrganizationCreate
@@ -2087,3 +2092,10 @@ class SyncServer(Server):
 
     def add_embedding_model(self, request: EmbeddingConfig) -> EmbeddingConfig:
         """Add a new embedding model"""
+
+    def get_agent_context_window(
+        self,
+        user_id: str,
+        agent_id: str,
+    ) -> ContextWindowOverview:
+        raise NotImplementedError

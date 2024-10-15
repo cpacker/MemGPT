@@ -10,6 +10,15 @@ if TYPE_CHECKING:
 from letta.schemas.block import Block
 
 
+class ContextWindowOverview(BaseModel):
+    """
+    Overview of the context window, including the number of messages and tokens.
+    """
+
+    num_messages: int = Field(..., description="The number of messages in the context window.")
+    num_tokens: int = Field(..., description="The number of tokens in the context window.")
+
+
 class Memory(BaseModel, validate_assignment=True):
     """
 
