@@ -1337,8 +1337,10 @@ class Agent(BaseAgent):
     def get_context_window(self) -> ContextWindowOverview:
         """Get the context window of the agent"""
 
-        num_tokens_system = count_tokens(self.agent_state.system)  # TODO is this the current system or the initial system?
-        num_tokens_core_memory = count_tokens(self.memory.compile())
+        system_prompt = self.agent_state.system  # TODO is this the current system or the initial system?
+        num_tokens_system = count_tokens(system_prompt)
+        core_memory = self.memory.compile()
+        num_tokens_core_memory = count_tokens(core_memory)
 
         # Check if there's a summary message in the message queue
         if (
@@ -1351,9 +1353,11 @@ class Agent(BaseAgent):
             assert self._messages[1].text is not None
             num_tokens_summary_memory = count_tokens(self._messages[1].text)
             num_tokens_messages = num_tokens_from_messages(messages=self.messages[2:], model=self.model)
+            summary_memory = self._messages[1].text
         else:
             num_tokens_summary_memory = 0
             num_tokens_messages = num_tokens_from_messages(messages=self.messages[1:], model=self.model)
+            summary_memory = None
 
         return ContextWindowOverview(
             # context window breakdown (in messages)
@@ -1365,9 +1369,13 @@ class Agent(BaseAgent):
             context_window_size_current=num_tokens_system + num_tokens_core_memory + num_tokens_summary_memory + num_tokens_messages,
             # context window breakdown (in tokens)
             num_tokens_system=num_tokens_system,
+            system_prompt=system_prompt,
             num_tokens_core_memory=num_tokens_core_memory,
+            core_memory=core_memory,
             num_tokens_summary_memory=num_tokens_summary_memory,
+            summary_memory=summary_memory,
             num_tokens_messages=num_tokens_messages,
+            messages=self._messages,
         )
 
 
