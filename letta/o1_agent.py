@@ -1,14 +1,13 @@
-import datetime
 from typing import List, Optional, Union
 
-from letta.agent import Agent
-from letta.constants import FIRST_MESSAGE_ATTEMPTS
+from letta.agent import Agent, save_agent
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
-from letta.schemas.agent import AgentState, AgentStepResponse
-from letta.schemas.enums import OptionState
+from letta.schemas.agent import AgentState
 from letta.schemas.message import Message
+from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.tool import Tool
+from letta.schemas.usage import LettaUsageStatistics
 
 
 def send_thinking_message(self: Agent, message: str) -> Optional[str]:
@@ -55,51 +54,41 @@ class O1Agent(Agent):
 
     def step(
         self,
-        user_message: Union[Message, None, str],  # NOTE: should be json.dump(dict)
-        first_message: bool = False,
-        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
-        skip_verify: bool = False,
-        return_dicts: bool = True,
-        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
-        stream: bool = False,  # TODO move to config?
-        timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
+        messages: Union[Message, List[Message]],
+        chaining: bool = True,
+        max_chaining_steps: Optional[int] = None,
         ms: Optional[MetadataStore] = None,
-    ) -> AgentStepResponse:
+        **kwargs,
+    ) -> LettaUsageStatistics:
+        """Run Agent.inner_step in a loop, terminate when final thinking message is sent or max_thinking_steps is reached"""
+        # assert ms is not None, "MetadataStore is required"
+        next_input_message = messages if isinstance(messages, list) else [messages]
+        counter = 0
+        total_usage = UsageStatistics()
+        step_count = 0
+        while step_count < self.max_thinking_steps:
+            import pdb
 
-        thinking_agent = Agent(
-            interface=self.interface,
-            agent_state=self.agent_state,
-            tools=self.tools,
-            first_message_verify_mono=self.first_message_verify_mono,
-        )
-        response = thinking_agent.step(
-            user_message,
-            first_message,
-            first_message_retry_limit,
-            skip_verify,
-            return_dicts,
-            recreate_message_timestamp,
-            stream,
-            timestamp,
-            inner_thoughts_in_kwargs,
-            ms,
-        )
-
-        for _ in range(self.max_thinking_steps):
-            response = thinking_agent.step(
-                None,
-                first_message,
-                first_message_retry_limit,
-                skip_verify,
-                return_dicts,
-                recreate_message_timestamp,
-                stream,
-                timestamp,
-                inner_thoughts_in_kwargs,
-                ms,
+            pdb.set_trace()
+            kwargs["ms"] = ms
+            kwargs["first_message"] = False
+            step_response = self.inner_step(
+                messages=next_input_message,
+                **kwargs,
             )
-            assert all(isinstance(m, Message) for m in response.messages)
-            if response.messages[-1].name == "send_final_message":
+            step_response.heartbeat_request
+            step_response.function_failed
+            step_response.in_context_memory_warning
+            usage = step_response.usage
+
+            step_count += 1
+            total_usage += usage
+            counter += 1
+            self.interface.step_complete()
+            # check if it is final thinking message
+            if step_response.messages[-1].name == "send_final_message":
                 break
-        return response
+            if ms:
+                save_agent(self, ms)
+
+        return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)

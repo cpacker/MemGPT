@@ -41,7 +41,7 @@ from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
-from letta.metadata import MetadataStore
+from letta.metadata import Base, MetadataStore
 from letta.o1_agent import O1Agent
 from letta.prompts import gpt_system
 from letta.providers import (
