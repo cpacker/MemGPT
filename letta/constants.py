@@ -39,7 +39,7 @@ DEFAULT_PRESET = "memgpt_chat"
 # Tools
 BASE_TOOLS = [
     "send_message",
-    "pause_heartbeats",
+    # "pause_heartbeats",
     "conversation_search",
     "conversation_search_date",
     "archival_memory_insert",

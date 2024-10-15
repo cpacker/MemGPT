@@ -182,6 +182,7 @@ class ToolCreate(BaseTool):
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
+    terminal: Optional[bool] = Field(None, description="Whether the tool is a terminal tool (allow requesting heartbeats).")
 
 
 class ToolUpdate(ToolCreate):

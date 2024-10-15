@@ -1772,6 +1772,40 @@ class LocalClient(AbstractClient):
 
     # agent interactions
 
+    def send_messages(
+        self,
+        agent_id: str,
+        messages: List[Union[Message | MessageCreate]],
+        include_full_message: Optional[bool] = False,
+    ):
+        """
+        Send pre-packed messages to an agent.
+
+        Args:
+            agent_id (str): ID of the agent
+            messages (List[Union[Message | MessageCreate]]): List of messages to send
+
+        Returns:
+            response (LettaResponse): Response from the agent
+        """
+        self.interface.clear()
+        usage = self.server.send_messages(user_id=self.user_id, agent_id=agent_id, messages=messages)
+
+        # auto-save
+        if self.auto_save:
+            self.save()
+
+        # format messages
+        messages = self.interface.to_list()
+        if include_full_message:
+            letta_messages = messages
+        else:
+            letta_messages = []
+            for m in messages:
+                letta_messages += m.to_letta_message()
+
+        return LettaResponse(messages=letta_messages, usage=usage)
+
     def send_message(
         self,
         message: str,
@@ -1817,18 +1851,19 @@ class LocalClient(AbstractClient):
         if self.auto_save:
             self.save()
 
-        # TODO: need to make sure date/timestamp is propely passed
-        # TODO: update self.interface.to_list() to return actual Message objects
-        #       here, the message objects will have faulty created_by timestamps
-        messages = self.interface.to_list()
-        for m in messages:
-            assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
-        letta_messages = []
-        for m in messages:
-            letta_messages += m.to_letta_message()
-        return LettaResponse(messages=letta_messages, usage=usage)
+        ## TODO: need to make sure date/timestamp is propely passed
+        ## TODO: update self.interface.to_list() to return actual Message objects
+        ##       here, the message objects will have faulty created_by timestamps
+        # messages = self.interface.to_list()
+        # for m in messages:
+        #    assert isinstance(m, Message), f"Expected Message object, got {type(m)}"
+        # letta_messages = []
+        # for m in messages:
+        #    letta_messages += m.to_letta_message()
+        # return LettaResponse(messages=letta_messages, usage=usage)
 
         # format messages
+        messages = self.interface.to_list()
         if include_full_message:
             letta_messages = messages
         else:
@@ -1880,6 +1915,13 @@ class LocalClient(AbstractClient):
     # archival memory
 
     # humans / personas
+
+    def get_block_id(self, name: str, label: str) -> str:
+
+        block = self.server.get_blocks(name=name, label=label, user_id=self.user_id, template=True)
+        if not block:
+            return None
+        return block[0].id
 
     def create_human(self, name: str, text: str):
         """
@@ -2071,6 +2113,7 @@ class LocalClient(AbstractClient):
         name: Optional[str] = None,
         update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
+        terminal: Optional[bool] = False,
     ) -> Tool:
         """
         Create a tool. This stores the source code of function on the server, so that the server can execute the function and generate an OpenAI JSON schemas for it when using with an agent.
@@ -2080,6 +2123,7 @@ class LocalClient(AbstractClient):
             name: (str): Name of the tool (must be unique per-user.)
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
             update (bool, optional): Update the tool if it already exists. Defaults to True.
+            terminal (bool, optional): Whether the tool is a terminal tool (no more agent steps). Defaults to False.
 
         Returns:
             tool (Tool): The created tool.
@@ -2095,7 +2139,7 @@ class LocalClient(AbstractClient):
         # call server function
         return self.server.create_tool(
             # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
-            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags),
+            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags, terminal=terminal),
             user_id=self.user_id,
             update=update,
         )
