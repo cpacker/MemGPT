@@ -731,9 +731,7 @@ class Agent(BaseAgent):
         # additional args
         chaining: bool = True,
         max_chaining_steps: Optional[int] = None,
-        stream: bool = False,
         ms: Optional[MetadataStore] = None,
-        skip_verify: bool = False,
         **kwargs,
     ) -> LettaUsageStatistics:
         """Run Agent.step in a loop, handling chaining via heartbeat requests and function failures"""
