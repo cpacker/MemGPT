@@ -1366,7 +1366,7 @@ class Agent(BaseAgent):
             # context window breakdown (in tokens)
             num_tokens_system=num_tokens_system,
             num_tokens_core_memory=num_tokens_core_memory,
-            num_tokens_summary_memory=num_tokens_core_memory,
+            num_tokens_summary_memory=num_tokens_summary_memory,
             num_tokens_messages=num_tokens_messages,
         )
 
