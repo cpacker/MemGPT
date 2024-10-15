@@ -47,6 +47,7 @@ from letta.providers import (
     AnthropicProvider,
     AzureProvider,
     GoogleAIProvider,
+    GroqProvider,
     LettaProvider,
     OllamaProvider,
     OpenAIProvider,
@@ -295,6 +296,12 @@ class SyncServer(Server):
             self._enabled_providers.append(
                 VLLMChatCompletionsProvider(
                     base_url=model_settings.vllm_api_base,
+                )
+            )
+        if model_settings.groq_api_key:
+            self._enabled_providers.append(
+                GroqProvider(
+                    api_key=model_settings.groq_api_key,
                 )
             )
 
