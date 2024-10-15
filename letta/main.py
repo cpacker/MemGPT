@@ -361,8 +361,10 @@ def run_agent_loop(
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
+            # TODO(charles): update to use agent.step() instead of inner_step()
+
             if user_message is None:
-                step_response = letta_agent.step(
+                step_response = letta_agent.inner_step(
                     messages=[],
                     first_message=False,
                     skip_verify=no_verify,
@@ -402,15 +404,15 @@ def run_agent_loop(
         while True:
             try:
                 if strip_ui:
-                    new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                    _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
                 else:
                     if stream:
                         # Don't display the "Thinking..." if streaming
-                        new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                        _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     else:
                         with console.status("[bold cyan]Thinking...") as status:
-                            new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                            _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
             except KeyboardInterrupt:
                 print("User interrupt occurred.")

@@ -74,7 +74,6 @@ from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
 from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
-from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.organization import Organization, OrganizationCreate
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
@@ -411,6 +410,7 @@ class SyncServer(Server):
             raise ValueError(f"messages should be a Message or a list of Message, got {type(input_messages)}")
 
         logger.debug(f"Got input messages: {input_messages}")
+        letta_agent = None
         try:
 
             # Get the agent object (loaded in memory)
@@ -422,83 +422,14 @@ class SyncServer(Server):
             token_streaming = letta_agent.interface.streaming_mode if hasattr(letta_agent.interface, "streaming_mode") else False
 
             logger.debug(f"Starting agent step")
-            no_verify = True
-            next_input_message = input_messages
-            counter = 0
-            total_usage = UsageStatistics()
-            step_count = 0
-            while True:
-                step_response = letta_agent.step(
-                    messages=next_input_message,
-                    first_message=False,
-                    skip_verify=no_verify,
-                    return_dicts=False,
-                    stream=token_streaming,
-                    # timestamp=timestamp,
-                    ms=self.ms,
-                )
-                step_response.messages
-                heartbeat_request = step_response.heartbeat_request
-                function_failed = step_response.function_failed
-                token_warning = step_response.in_context_memory_warning
-                usage = step_response.usage
-
-                step_count += 1
-                total_usage += usage
-                counter += 1
-                letta_agent.interface.step_complete()
-
-                logger.debug("Saving agent state")
-                # save updated state
-                save_agent(letta_agent, self.ms)
-
-                # Chain stops
-                if not self.chaining:
-                    logger.debug("No chaining, stopping after one step")
-                    break
-                elif self.max_chaining_steps is not None and counter > self.max_chaining_steps:
-                    logger.debug(f"Hit max chaining steps, stopping after {counter} steps")
-                    break
-                # Chain handlers
-                elif token_warning:
-                    assert letta_agent.agent_state.user_id is not None
-                    next_input_message = Message.dict_to_message(
-                        agent_id=letta_agent.agent_state.id,
-                        user_id=letta_agent.agent_state.user_id,
-                        model=letta_agent.model,
-                        openai_message_dict={
-                            "role": "user",  # TODO: change to system?
-                            "content": system.get_token_limit_warning(),
-                        },
-                    )
-                    continue  # always chain
-                elif function_failed:
-                    assert letta_agent.agent_state.user_id is not None
-                    next_input_message = Message.dict_to_message(
-                        agent_id=letta_agent.agent_state.id,
-                        user_id=letta_agent.agent_state.user_id,
-                        model=letta_agent.model,
-                        openai_message_dict={
-                            "role": "user",  # TODO: change to system?
-                            "content": system.get_heartbeat(constants.FUNC_FAILED_HEARTBEAT_MESSAGE),
-                        },
-                    )
-                    continue  # always chain
-                elif heartbeat_request:
-                    assert letta_agent.agent_state.user_id is not None
-                    next_input_message = Message.dict_to_message(
-                        agent_id=letta_agent.agent_state.id,
-                        user_id=letta_agent.agent_state.user_id,
-                        model=letta_agent.model,
-                        openai_message_dict={
-                            "role": "user",  # TODO: change to system?
-                            "content": system.get_heartbeat(constants.REQ_HEARTBEAT_MESSAGE),
-                        },
-                    )
-                    continue  # always chain
-                # Letta no-op / yield
-                else:
-                    break
+            usage_stats = letta_agent.step(
+                messages=input_messages,
+                chaining=self.chaining,
+                max_chaining_steps=self.max_chaining_steps,
+                stream=token_streaming,
+                ms=self.ms,
+                skip_verify=True,
+            )
 
         except Exception as e:
             logger.error(f"Error in server._step: {e}")
@@ -506,9 +437,10 @@ class SyncServer(Server):
             raise
         finally:
             logger.debug("Calling step_yield()")
-            letta_agent.interface.step_yield()
+            if letta_agent:
+                letta_agent.interface.step_yield()
 
-        return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)
+        return usage_stats
 
     def _command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
         """Process a CLI command"""

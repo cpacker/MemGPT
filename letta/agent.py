@@ -11,13 +11,17 @@ from letta.agent_store.storage import StorageConnector
 from letta.constants import (
     CLI_WARNING_PREFIX,
     FIRST_MESSAGE_ATTEMPTS,
+    FUNC_FAILED_HEARTBEAT_MESSAGE,
     IN_CONTEXT_MEMORY_KEYWORD,
     LLM_MAX_TOKENS,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
+    REQ_HEARTBEAT_MESSAGE,
 )
+from letta.errors import LLMError
 from letta.interface import AgentInterface
+from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
 from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
@@ -32,11 +36,15 @@ from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.schemas.openai.chat_completion_response import (
     Message as ChatCompletionMessage,
 )
+from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.passage import Passage
 from letta.schemas.tool import Tool
+from letta.schemas.usage import LettaUsageStatistics
 from letta.system import (
+    get_heartbeat,
     get_initial_boot_messages,
     get_login_event,
+    get_token_limit_warning,
     package_function_response,
     package_summarize_message,
     package_user_message,
@@ -55,9 +63,6 @@ from letta.utils import (
     validate_function_response,
     verify_first_message_correctness,
 )
-
-from .errors import LLMError
-from .llm_api.helpers import is_context_overflow_error
 
 
 def compile_memory_metadata_block(
@@ -202,7 +207,7 @@ class BaseAgent(ABC):
     def step(
         self,
         messages: Union[Message, List[Message]],
-    ) -> AgentStepResponse:
+    ) -> LettaUsageStatistics:
         """
         Top-level event message handler for the agent.
         """
@@ -723,16 +728,103 @@ class Agent(BaseAgent):
     def step(
         self,
         messages: Union[Message, List[Message]],
+        # additional args
+        chaining: bool = True,
+        max_chaining_steps: Optional[int] = None,
+        ms: Optional[MetadataStore] = None,
+        **kwargs,
+    ) -> LettaUsageStatistics:
+        """Run Agent.step in a loop, handling chaining via heartbeat requests and function failures"""
+        # assert ms is not None, "MetadataStore is required"
+
+        next_input_message = messages if isinstance(messages, list) else [messages]
+        counter = 0
+        total_usage = UsageStatistics()
+        step_count = 0
+        while True:
+            kwargs["ms"] = ms
+            kwargs["first_message"] = False
+            step_response = self.inner_step(
+                messages=next_input_message,
+                **kwargs,
+            )
+            step_response.messages
+            heartbeat_request = step_response.heartbeat_request
+            function_failed = step_response.function_failed
+            token_warning = step_response.in_context_memory_warning
+            usage = step_response.usage
+
+            step_count += 1
+            total_usage += usage
+            counter += 1
+            self.interface.step_complete()
+
+            # logger.debug("Saving agent state")
+            # save updated state
+            if ms:
+                save_agent(self, ms)
+
+            # Chain stops
+            if not chaining:
+                printd("No chaining, stopping after one step")
+                break
+            elif max_chaining_steps is not None and counter > max_chaining_steps:
+                printd(f"Hit max chaining steps, stopping after {counter} steps")
+                break
+            # Chain handlers
+            elif token_warning:
+                assert self.agent_state.user_id is not None
+                next_input_message = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict={
+                        "role": "user",  # TODO: change to system?
+                        "content": get_token_limit_warning(),
+                    },
+                )
+                continue  # always chain
+            elif function_failed:
+                assert self.agent_state.user_id is not None
+                next_input_message = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict={
+                        "role": "user",  # TODO: change to system?
+                        "content": get_heartbeat(FUNC_FAILED_HEARTBEAT_MESSAGE),
+                    },
+                )
+                continue  # always chain
+            elif heartbeat_request:
+                assert self.agent_state.user_id is not None
+                next_input_message = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict={
+                        "role": "user",  # TODO: change to system?
+                        "content": get_heartbeat(REQ_HEARTBEAT_MESSAGE),
+                    },
+                )
+                continue  # always chain
+            # Letta no-op / yield
+            else:
+                break
+
+        return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)
+
+    def inner_step(
+        self,
+        messages: Union[Message, List[Message]],
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
-        return_dicts: bool = True,
-        # recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
         inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
-        """Top-level event message handler for the Letta agent"""
+        """Runs a single step in the agent loop (generates at most one LLM call)"""
 
         try:
 
@@ -834,13 +926,12 @@ class Agent(BaseAgent):
                 )
 
             self._append_to_messages(all_new_messages)
-            messages_to_return = [msg.to_openai_dict() for msg in all_new_messages] if return_dicts else all_new_messages
 
             # update state after each step
             self.update_state()
 
             return AgentStepResponse(
-                messages=messages_to_return,
+                messages=all_new_messages,
                 heartbeat_request=heartbeat_request,
                 function_failed=function_failed,
                 in_context_memory_warning=active_memory_warning,
@@ -856,15 +947,12 @@ class Agent(BaseAgent):
                 self.summarize_messages_inplace()
 
                 # Try step again
-                return self.step(
+                return self.inner_step(
                     messages=messages,
                     first_message=first_message,
                     first_message_retry_limit=first_message_retry_limit,
                     skip_verify=skip_verify,
-                    return_dicts=return_dicts,
-                    # recreate_message_timestamp=recreate_message_timestamp,
                     stream=stream,
-                    # timestamp=timestamp,
                     inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     ms=ms,
                 )
@@ -905,7 +993,7 @@ class Agent(BaseAgent):
             # created_at=timestamp,
         )
 
-        return self.step(messages=[user_message], **kwargs)
+        return self.inner_step(messages=[user_message], **kwargs)
 
     def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True, disallow_tool_as_first=True):
         assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
@@ -1326,7 +1414,7 @@ class Agent(BaseAgent):
         self.pop_until_user()
         user_message = self.pop_message(count=1)[0]
         assert user_message.text is not None, "User message text is None"
-        step_response = self.step_user_message(user_message_str=user_message.text, return_dicts=False)
+        step_response = self.step_user_message(user_message_str=user_message.text)
         messages = step_response.messages
 
         assert messages is not None

@@ -747,8 +747,9 @@ class RESTClient(AbstractClient):
             # simplify messages
             if not include_full_message:
                 messages = []
-                for message in response.messages:
-                    messages += message.to_letta_message()
+                for m in response.messages:
+                    assert isinstance(m, Message)
+                    messages += m.to_letta_message()
                 response.messages = messages
 
             return response
@@ -1677,7 +1678,7 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_id(self, agent_name: str) -> AgentState:
+    def get_agent_id(self, agent_name: str) -> Optional[str]:
         """
         Get the ID of an agent by name (names are unique per user)
 
@@ -1767,6 +1768,7 @@ class LocalClient(AbstractClient):
         self,
         message: str,
         role: str,
+        name: Optional[str] = None,
         agent_id: Optional[str] = None,
         agent_name: Optional[str] = None,
         stream_steps: bool = False,
@@ -1790,19 +1792,18 @@ class LocalClient(AbstractClient):
             # lookup agent by name
             assert agent_name, f"Either agent_id or agent_name must be provided"
             agent_id = self.get_agent_id(agent_name=agent_name)
-
-        agent_state = self.get_agent(agent_id=agent_id)
+            assert agent_id, f"Agent with name {agent_name} not found"
 
         if stream_steps or stream_tokens:
             # TODO: implement streaming with stream=True/False
             raise NotImplementedError
         self.interface.clear()
-        if role == "system":
-            usage = self.server.system_message(user_id=self.user_id, agent_id=agent_id, message=message)
-        elif role == "user":
-            usage = self.server.user_message(user_id=self.user_id, agent_id=agent_id, message=message)
-        else:
-            raise ValueError(f"Role {role} not supported")
+
+        usage = self.server.send_messages(
+            user_id=self.user_id,
+            agent_id=agent_id,
+            messages=[MessageCreate(role=MessageRole(role), text=message, name=name)],
+        )
 
         # auto-save
         if self.auto_save:
