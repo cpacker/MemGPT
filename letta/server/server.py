@@ -2098,4 +2098,7 @@ class SyncServer(Server):
         user_id: str,
         agent_id: str,
     ) -> ContextWindowOverview:
-        raise NotImplementedError
+
+        # Get the current message
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        return letta_agent.get_context_window()

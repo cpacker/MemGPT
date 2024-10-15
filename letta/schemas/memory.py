@@ -16,7 +16,13 @@ class ContextWindowOverview(BaseModel):
     """
 
     num_messages: int = Field(..., description="The number of messages in the context window.")
-    num_tokens: int = Field(..., description="The number of tokens in the context window.")
+    num_archival_memory: int = Field(..., description="The number of messages in the archival memory.")
+    num_recall_memory: int = Field(..., description="The number of messages in the recall memory.")
+
+    num_tokens_system: int = Field(..., description="The number of tokens in the system prompt.")
+    num_tokens_core_memory: int = Field(..., description="The number of tokens in the core memory.")
+    num_tokens_summary_memory: int = Field(..., description="The number of tokens in the summary memory.")
+    num_tokens_messages: int = Field(..., description="The number of tokens in the messages list.")
 
 
 class Memory(BaseModel, validate_assignment=True):
