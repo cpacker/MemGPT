@@ -9,14 +9,7 @@ from letta.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
-from letta.schemas.agent import (
-    AddToolsToAgent,
-    AgentState,
-    AgentType,
-    CreateAgent,
-    RemoveToolsFromAgent,
-    UpdateAgentState,
-)
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.block import (
     Block,
     CreateBlock,
@@ -103,10 +96,10 @@ class AbstractClient(object):
     ):
         raise NotImplementedError
 
-    def add_tools_to_agent(self, agent_id: str, tool_ids: List[str]):
+    def add_tool_to_agent(self, agent_id: str, tool_id: str):
         raise NotImplementedError
 
-    def remove_tools_to_agent(self, agent_id: str, tool_ids: List[str]):
+    def remove_tool_from_agent(self, agent_id: str, tool_id: str):
         raise NotImplementedError
 
     def rename_agent(self, agent_id: str, new_name: str):
@@ -484,41 +477,35 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
 
-    def add_tools_to_agent(self, agent_id: str, tool_ids: List[str]):
+    def add_tool_to_agent(self, agent_id: str, tool_id: str):
         """
-        Add tools to an existing agent
+        Add tool to an existing agent
 
         Args:
             agent_id (str): ID of the agent
-            tool_ids (List[str]): List of tools ids
+            tool_id (str): A tool id
 
         Returns:
             agent_state (AgentState): State of the updated agent
         """
-        request = AddToolsToAgent(agent_id=agent_id, tool_ids=tool_ids)
-        response = requests.patch(
-            f"{self.base_url}/{self.api_prefix}/agents/add-tools/{agent_id}", json=request.model_dump(), headers=self.headers
-        )
+        response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/add-tool/{tool_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
 
-    def remove_tools_to_agent(self, agent_id: str, tool_ids: List[str]):
+    def remove_tool_from_agent(self, agent_id: str, tool_id: str):
         """
         Removes tools from an existing agent
 
         Args:
             agent_id (str): ID of the agent
-            tool_ids (List[str]): List of tool ids
+            tool_id (str): The tool id
 
         Returns:
             agent_state (AgentState): State of the updated agent
         """
 
-        request = RemoveToolsFromAgent(agent_id=agent_id, tool_ids=tool_ids)
-        response = requests.patch(
-            f"{self.base_url}/{self.api_prefix}/agents/remove-tools/{agent_id}", json=request.model_dump(), headers=self.headers
-        )
+        response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/remove-tool/{tool_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
@@ -1697,34 +1684,34 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
-    def add_tools_to_agent(self, agent_id: str, tool_ids: List[str]):
+    def add_tool_to_agent(self, agent_id: str, tool_id: str):
         """
-        Add tools to an existing agent
+        Add tool to an existing agent
 
         Args:
             agent_id (str): ID of the agent
-            tool_ids (List[str]): List of tool ids
+            tool_id (str): A tool id
 
         Returns:
             agent_state (AgentState): State of the updated agent
         """
         self.interface.clear()
-        agent_state = self.server.add_tools_to_agent(AddToolsToAgent(agent_id=agent_id, tool_ids=tool_ids), user_id=self.user_id)
+        agent_state = self.server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=self.user_id)
         return agent_state
 
-    def remove_tools_to_agent(self, agent_id: str, tool_ids: List[str]):
+    def remove_tool_from_agent(self, agent_id: str, tool_id: str):
         """
         Removes tools from an existing agent
 
         Args:
             agent_id (str): ID of the agent
-            tool_ids (List[str]): List of tool ids
+            tool_id (str): The tool id
 
         Returns:
             agent_state (AgentState): State of the updated agent
         """
         self.interface.clear()
-        agent_state = self.server.remove_tools_from_agent(RemoveToolsFromAgent(agent_id=agent_id, tool_ids=tool_ids), user_id=self.user_id)
+        agent_state = self.server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=self.user_id)
         return agent_state
 
     def rename_agent(self, agent_id: str, new_name: str):

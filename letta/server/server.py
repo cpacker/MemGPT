@@ -56,14 +56,7 @@ from letta.providers import (
     VLLMChatCompletionsProvider,
     VLLMCompletionsProvider,
 )
-from letta.schemas.agent import (
-    AddToolsToAgent,
-    AgentState,
-    AgentType,
-    CreateAgent,
-    RemoveToolsFromAgent,
-    UpdateAgentState,
-)
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
     Block,
@@ -973,36 +966,33 @@ class SyncServer(Server):
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
 
-    def add_tools_to_agent(
+    def add_tool_to_agent(
         self,
-        request: AddToolsToAgent,
+        agent_id: str,
+        tool_id: str,
         user_id: str,
     ):
         """Update the agents core memory block, return the new state"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=request.agent_id) is None:
-            raise ValueError(f"Agent agent_id={request.agent_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        letta_agent = self._get_or_load_agent(agent_id=request.agent_id)
-
-        # Get a set of the tool objects
-        request_tool_id_set = set(request.tool_ids)
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
 
         # Get all the tool objects from the request
         tool_objs = []
-        for tool_id in request_tool_id_set:
-            tool_obj = self.ms.get_tool(tool_id=tool_id, user_id=user_id)
-            assert tool_obj, f"Tool with id={tool_id} does not exist"
-            tool_objs.append(tool_obj)
+        tool_obj = self.ms.get_tool(tool_id=tool_id, user_id=user_id)
+        assert tool_obj, f"Tool with id={tool_id} does not exist"
+        tool_objs.append(tool_obj)
 
         for tool in letta_agent.tools:
             tool_obj = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
-            # If it's not already in the tool_obj set
-            if tool_obj.id not in request_tool_id_set:
+            # If it's not the already added tool
+            if tool_obj.id != tool_id:
                 tool_objs.append(tool_obj)
 
         # replace the list of tool names ("ids") inside the agent state
@@ -1015,22 +1005,20 @@ class SyncServer(Server):
         save_agent(letta_agent, self.ms)
         return letta_agent.agent_state
 
-    def remove_tools_from_agent(
+    def remove_tool_from_agent(
         self,
-        request: RemoveToolsFromAgent,
+        agent_id: str,
+        tool_id: str,
         user_id: str,
     ):
         """Update the agents core memory block, return the new state"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=request.agent_id) is None:
-            raise ValueError(f"Agent agent_id={request.agent_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
-        letta_agent = self._get_or_load_agent(agent_id=request.agent_id)
-
-        # Get a set of the tool objects
-        request_tool_id_set = set(request.tool_ids)
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
 
         # Get all the tool_objs
         tool_objs = []
@@ -1038,8 +1026,8 @@ class SyncServer(Server):
             tool_obj = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
-            # If it's not already in the tool_obj set
-            if tool_obj.id not in request_tool_id_set:
+            # If it's not the tool we want to remove
+            if tool_obj.id != tool_id:
                 tool_objs.append(tool_obj)
 
         # replace the list of tool names ("ids") inside the agent state

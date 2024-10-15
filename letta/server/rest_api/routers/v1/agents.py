@@ -7,13 +7,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.responses import StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
-from letta.schemas.agent import (
-    AddToolsToAgent,
-    AgentState,
-    CreateAgent,
-    RemoveToolsFromAgent,
-    UpdateAgentState,
-)
+from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
@@ -106,7 +100,7 @@ def update_agent(
     return server.update_agent(update_agent, user_id=actor.id)
 
 
-@router.patch("/{agent_id}/tools/{tool_id}", response_model=AgentState, operation_id="add_tool_to_agent")
+@router.patch("/{agent_id}/add-tool/{tool_id}", response_model=AgentState, operation_id="add_tool_to_agent")
 def add_tool_to_agent(
     agent_id: str,
     tool_id: str,
@@ -117,11 +111,10 @@ def add_tool_to_agent(
     actor = server.get_user_or_default(user_id=user_id)
 
     update_agent.id = agent_id
-    request = AddToolsToAgent(agent_id=agent_id, tool_ids=[tool_id])
-    return server.add_tools_to_agent(request, user_id=actor.id)
+    return server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
 
-@router.patch("/{agent_id}/tools/{tool_id}", response_model=AgentState, operation_id="remove_tool_from_agent")
+@router.patch("/{agent_id}/remove-tool/{tool_id}", response_model=AgentState, operation_id="remove_tool_from_agent")
 def remove_tool_from_agent(
     agent_id: str,
     tool_id: str,
@@ -132,8 +125,7 @@ def remove_tool_from_agent(
     actor = server.get_user_or_default(user_id=user_id)
 
     update_agent.id = agent_id
-    request = RemoveToolsFromAgent(agent_id=agent_id, tool_ids=[tool_id])
-    return server.remove_tools_from_agent(request, user_id=actor.id)
+    return server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
 
 @router.get("/{agent_id}", response_model=AgentState, operation_id="get_agent")

@@ -148,8 +148,8 @@ def test_agent_add_remove_tools(client: Union[LocalClient, RESTClient], agent):
     curr_num_tools = len(agent_state.tools)
 
     # add both tools to agent in steps
-    agent_state = client.add_tools_to_agent(agent_id=agent_state.id, tool_ids=[github_tool.id])
-    agent_state = client.add_tools_to_agent(agent_id=agent_state.id, tool_ids=[scrape_website_tool.id])
+    agent_state = client.add_tool_to_agent(agent_id=agent_state.id, tool_id=github_tool.id)
+    agent_state = client.add_tool_to_agent(agent_id=agent_state.id, tool_id=scrape_website_tool.id)
 
     # confirm that both tools are in the agent state
     curr_tools = agent_state.tools
@@ -158,7 +158,7 @@ def test_agent_add_remove_tools(client: Union[LocalClient, RESTClient], agent):
     assert scrape_website_tool.name in curr_tools
 
     # remove only the github tool
-    agent_state = client.remove_tools_to_agent(agent_id=agent_state.id, tool_ids=[github_tool.id])
+    agent_state = client.remove_tool_from_agent(agent_id=agent_state.id, tool_id=github_tool.id)
 
     # confirm that only one tool left
     curr_tools = agent_state.tools
