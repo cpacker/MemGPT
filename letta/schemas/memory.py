@@ -8,6 +8,43 @@ if TYPE_CHECKING:
     from letta.agent import Agent
 
 from letta.schemas.block import Block
+from letta.schemas.message import Message
+
+
+class ContextWindowOverview(BaseModel):
+    """
+    Overview of the context window, including the number of messages and tokens.
+    """
+
+    # top-level information
+    context_window_size_max: int = Field(..., description="The maximum amount of tokens the context window can hold.")
+    context_window_size_current: int = Field(..., description="The current number of tokens in the context window.")
+
+    # context window breakdown (in messages)
+    # (technically not in the context window, but useful to know)
+    num_messages: int = Field(..., description="The number of messages in the context window.")
+    num_archival_memory: int = Field(..., description="The number of messages in the archival memory.")
+    num_recall_memory: int = Field(..., description="The number of messages in the recall memory.")
+    num_tokens_external_memory_summary: int = Field(
+        ..., description="The number of tokens in the external memory summary (archival + recall metadata)."
+    )
+
+    # context window breakdown (in tokens)
+    # this should all add up to context_window_size_current
+
+    num_tokens_system: int = Field(..., description="The number of tokens in the system prompt.")
+    system_prompt: str = Field(..., description="The content of the system prompt.")
+
+    num_tokens_core_memory: int = Field(..., description="The number of tokens in the core memory.")
+    core_memory: str = Field(..., description="The content of the core memory.")
+
+    num_tokens_summary_memory: int = Field(..., description="The number of tokens in the summary memory.")
+    summary_memory: Optional[str] = Field(None, description="The content of the summary memory.")
+
+    num_tokens_messages: int = Field(..., description="The number of tokens in the messages list.")
+    # TODO make list of messages?
+    # messages: List[dict] = Field(..., description="The messages in the context window.")
+    messages: List[Message] = Field(..., description="The messages in the context window.")
 
 
 class Memory(BaseModel, validate_assignment=True):

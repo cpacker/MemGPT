@@ -23,6 +23,7 @@ from letta.errors import LLMError
 from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
+from letta.local_llm.utils import num_tokens_from_messages
 from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.persistence_manager import LocalStateManager
@@ -30,7 +31,7 @@ from letta.schemas.agent import AgentState, AgentStepResponse
 from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole, OptionState
-from letta.schemas.memory import Memory
+from letta.schemas.memory import ContextWindowOverview, Memory
 from letta.schemas.message import Message, UpdateMessage
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.schemas.openai.chat_completion_response import (
@@ -1420,6 +1421,71 @@ class Agent(BaseAgent):
         assert messages is not None
         assert all(isinstance(msg, Message) for msg in messages), "step() returned non-Message objects"
         return messages
+
+    def get_context_window(self) -> ContextWindowOverview:
+        """Get the context window of the agent"""
+
+        system_prompt = self.agent_state.system  # TODO is this the current system or the initial system?
+        num_tokens_system = count_tokens(system_prompt)
+        core_memory = self.memory.compile()
+        num_tokens_core_memory = count_tokens(core_memory)
+
+        # conversion of messages to OpenAI dict format, which is passed to the token counter
+        messages_openai_format = self.messages
+
+        # Check if there's a summary message in the message queue
+        if (
+            len(self._messages) > 1
+            and self._messages[1].role == MessageRole.user
+            and isinstance(self._messages[1].text, str)
+            # TODO remove hardcoding
+            and "The following is a summary of the previous " in self._messages[1].text
+        ):
+            # Summary message exists
+            assert self._messages[1].text is not None
+            summary_memory = self._messages[1].text
+            num_tokens_summary_memory = count_tokens(self._messages[1].text)
+            # with a summary message, the real messages start at index 2
+            num_tokens_messages = (
+                num_tokens_from_messages(messages=messages_openai_format[2:], model=self.model) if len(messages_openai_format) > 2 else 0
+            )
+
+        else:
+            summary_memory = None
+            num_tokens_summary_memory = 0
+            # with no summary message, the real messages start at index 1
+            num_tokens_messages = (
+                num_tokens_from_messages(messages=messages_openai_format[1:], model=self.model) if len(messages_openai_format) > 1 else 0
+            )
+
+        num_archival_memory = self.persistence_manager.archival_memory.storage.size()
+        num_recall_memory = self.persistence_manager.recall_memory.storage.size()
+        external_memory_summary = compile_memory_metadata_block(
+            memory_edit_timestamp=get_utc_time(),  # dummy timestamp
+            archival_memory=self.persistence_manager.archival_memory,
+            recall_memory=self.persistence_manager.recall_memory,
+        )
+        num_tokens_external_memory_summary = count_tokens(external_memory_summary)
+
+        return ContextWindowOverview(
+            # context window breakdown (in messages)
+            num_messages=len(self._messages),
+            num_archival_memory=num_archival_memory,
+            num_recall_memory=num_recall_memory,
+            num_tokens_external_memory_summary=num_tokens_external_memory_summary,
+            # top-level information
+            context_window_size_max=self.agent_state.llm_config.context_window,
+            context_window_size_current=num_tokens_system + num_tokens_core_memory + num_tokens_summary_memory + num_tokens_messages,
+            # context window breakdown (in tokens)
+            num_tokens_system=num_tokens_system,
+            system_prompt=system_prompt,
+            num_tokens_core_memory=num_tokens_core_memory,
+            core_memory=core_memory,
+            num_tokens_summary_memory=num_tokens_summary_memory,
+            summary_memory=summary_memory,
+            num_tokens_messages=num_tokens_messages,
+            messages=self._messages,
+        )
 
 
 def save_agent(agent: Agent, ms: MetadataStore):
