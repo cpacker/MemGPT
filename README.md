@@ -33,7 +33,7 @@
 >
 > You use the **Letta _framework_** to create **MemGPT _agents_**. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
 
-## 👾 Quickstart
+## ⚡ Quickstart
 
 The two main ways to install Letta are through **pypi** (`pip`) or via **Docker**:
 * **`pip`** (guide below) - the easiest way to try Letta, will default to using SQLite and ChromaDB for the database backends
@@ -109,7 +109,7 @@ In Letta, all agents are stored/persisted in the same database, so the agents yo
 
 ## 🤗 How to contribute
 
-Letta is an open source AI project built by over a hundred contributors. There are many ways to get involved in the Letta OSS project!
+Letta is an open source project built by over a hundred contributors. There are many ways to get involved in the Letta OSS project!
 
 * **Contribute to the project**: Interested in contributing? Start by reading our [Contribution Guidelines](https://github.com/cpacker/MemGPT/tree/main/CONTRIBUTING.md).
 * **Ask a question**: Join our community on [Discord](https://discord.gg/letta) and direct your questions to the `#support` channel.
