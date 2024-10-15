@@ -744,13 +744,11 @@ class Agent(BaseAgent):
         total_usage = UsageStatistics()
         step_count = 0
         while True:
+            kwargs["ms"] = ms
+            kwargs["first_message"] = False
+            kwargs["return_dicts"] = False
             step_response = self.inner_step(
                 messages=next_input_message,
-                first_message=False,
-                skip_verify=skip_verify,
-                return_dicts=False,
-                stream=stream,
-                ms=ms,
                 **kwargs,
             )
             step_response.messages
