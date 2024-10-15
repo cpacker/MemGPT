@@ -2,7 +2,15 @@ import os
 import tempfile
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 
 from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
@@ -197,6 +205,25 @@ def list_files_from_source(
     List paginated files associated with a data source.
     """
     return server.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
+
+
+# it's redundant to include /delete in the URL path. The HTTP verb DELETE already implies that action.
+# it's still good practice to return a status indicating the success or failure of the deletion
+@router.delete("/{source_id}/{file_id}", status_code=204, operation_id="delete_file_from_source")
+def delete_file_from_source(
+    source_id: str,
+    file_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Delete a data source.
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+
+    deleted_file = server.delete_file_from_source(source_id=source_id, file_id=file_id, user_id=actor.id)
+    if deleted_file is None:
+        raise HTTPException(status_code=404, detail=f"File with id={file_id} not found.")
 
 
 def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):

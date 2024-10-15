@@ -1620,6 +1620,9 @@ class SyncServer(Server):
 
         return job
 
+    def delete_file_from_source(self, source_id: str, file_id: str, user_id: Optional[str]) -> Optional[FileMetadata]:
+        return self.ms.delete_file_from_source(source_id=source_id, file_id=file_id, user_id=user_id)
+
     def load_data(
         self,
         user_id: str,

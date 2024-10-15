@@ -335,6 +335,35 @@ def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: Ag
     assert len(files) == 0  # Should be empty
 
 
+def test_delete_file_from_source(client: Union[LocalClient, RESTClient], agent: AgentState):
+    # clear sources
+    for source in client.list_sources():
+        client.delete_source(source.id)
+
+    # clear jobs
+    for job in client.list_jobs():
+        client.delete_job(job.id)
+
+    # create a source
+    source = client.create_source(name="test_source")
+
+    # load files into sources
+    file_a = "tests/data/test.txt"
+    upload_file_using_client(client, source, file_a)
+
+    # Get the first file
+    files_a = client.list_files_from_source(source.id, limit=1)
+    assert len(files_a) == 1
+    assert files_a[0].source_id == source.id
+
+    # Delete the file
+    client.delete_file_from_source(source.id, files_a[0].id)
+
+    # Check that no files are attached to the source
+    empty_files = client.list_files_from_source(source.id, limit=1)
+    assert len(empty_files) == 0
+
+
 def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 

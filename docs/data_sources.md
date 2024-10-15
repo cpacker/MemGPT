@@ -83,7 +83,7 @@ client = create_client()
 source = client.create_source(name="example_source")
 
 # Add file data into a source 
-client.load_file_into_source(filename=filename, source_id=source.id)
+client.load_file_to_source(filename=filename, source_id=source.id)
 ```
 
 ### Loading with custom connectors 

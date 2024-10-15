@@ -632,6 +632,21 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
+    def delete_file_from_source(self, source_id: str, file_id: str, user_id: Optional[str]):
+        with self.session_maker() as session:
+            file_metadata = (
+                session.query(FileMetadataModel)
+                .filter(FileMetadataModel.source_id == source_id, FileMetadataModel.id == file_id, FileMetadataModel.user_id == user_id)
+                .first()
+            )
+
+            if file_metadata:
+                session.delete(file_metadata)
+                session.commit()
+
+            return file_metadata
+
+    @enforce_types
     def delete_block(self, block_id: str):
         with self.session_maker() as session:
             session.query(BlockModel).filter(BlockModel.id == block_id).delete()
