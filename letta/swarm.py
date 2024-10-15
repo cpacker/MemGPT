@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from letta import AgentState, EmbeddingConfig, LLMConfig, create_client
 from letta.schemas.agent import AgentType
+from letta.schemas.memory import BasicBlockMemory
 
 
 class Swarm:
@@ -10,6 +11,9 @@ class Swarm:
     def __init__(self):
         self.agents = []
         self.client = create_client()
+
+        # shared memory block (shared section of context window)
+        self.shared_memory = self.client.create_block(name="context_variable", label="context_variable", text="")
 
     def create_agent(
         self,
@@ -26,9 +30,15 @@ class Swarm:
         # tools
         tools: Optional[List[str]] = None,
         include_base_tools: Optional[bool] = True,
+        # instructions
+        instructions: str = "",
     ) -> AgentState:
 
         # todo: process tools for agent handoff
+        persona_block = self.client.create_block(name=name, label="persona", text=instructions)
+        memory = BasicBlockMemory(blocks=[persona_block, self.shared_memory])
+
+        print("Creating agent", name, memory.compile())
 
         agent = self.client.create_agent(
             name=name,
@@ -38,6 +48,7 @@ class Swarm:
             system=system,
             tools=tools,
             include_base_tools=include_base_tools,
+            memory=memory,
         )
         self.agents.append(agent)
 
@@ -47,6 +58,8 @@ class Swarm:
         # delete all agents
         for agent in self.agents:
             self.client.delete_agent(agent.id)
+        for block in self.client.list_blocks():
+            self.client.delete_block(block.id)
 
     def run(self, agent_name: str, message: str):
 
@@ -117,7 +130,7 @@ try:
     swarm.client.set_default_llm_config(LLMConfig.default_config(model_name="gpt-4"))
     transfer_a = swarm.client.create_tool(transfer_agent_a, terminal=True)
     transfer_b = swarm.client.create_tool(transfer_agent_b, terminal=True)
-    agent_a = swarm.create_agent(name="agentb", tools=[transfer_a.name])
+    agent_a = swarm.create_agent(name="agentb", tools=[transfer_a.name], instructions="Only speak in haikus")
     agent_b = swarm.create_agent(name="agenta", tools=[transfer_b.name])
 
     swarm.run(agent_name="agenta", message="Transfer me to agent b by calling the transfer_agent_b tool")
