@@ -31,7 +31,77 @@
 >
 > You use the **Letta _framework_** to create **MemGPT _agents_**. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
 
-## 👾 Quick install
+## 👾 Quickstart
+
+The two main ways to install Letta are through **pypi** (`pip`) or via **Docker**:
+* **`pip`** (guide below) - the easiest way to try Letta, will default to using SQLite and ChromaDB for the database backends
+* **Docker** (guide [here](https://docs.letta.com/install#run-letta-with-docker)) - recommended for production settings, will default to using Postgres (+ pgvector) for the database backend
+
+### Step 1 - Install Letta using `pip`
+```sh
+pip install -U letta
+```
+
+### Step 2 - Set your environment variables for your chosen LLM / embedding providers
+```sh
+export OPENAI_API_KEY=sk-...
+```
+
+For Ollama (see our full [documentation](https://docs.letta.com/install) for examples of how to set up various providers):
+```sh
+export OLLAMA_BASE_URL=http://localhost:11434
+```
+
+### Step 3 - Run the Letta CLI or Letta server
+
+You can create agents and chat with them via the Letta CLI tool (`letta run`):
+```sh
+letta run
+```
+```
+🧬 Creating new agent...
+? Select LLM model: letta-free [type=openai] [ip=https://inference.memgpt.ai]
+? Select embedding model: letta-free [type=hugging-face] [ip=https://embeddings.memgpt.ai]
+->  🤖 Using persona profile: 'sam_pov'
+->  🧑 Using human profile: 'basic'
+->  🛠️  8 tools: send_message, pause_heartbeats, conversation_search, conversation_search_date, archival_memory_insert, archival_memory_search, core_memory_append, core_memory_replace
+
+🎉 Created new agent 'InspiringSpinach'
+
+Hit enter to begin (will request first Letta message)
+
+💭 User engaged. Recognize as Chad. Acknowledge presence and establish connection. Explore interests and engage in meaningful discourse.
+🤖 Hello, Chad. It's nice to meet you. I am keen on learning and exploring new ideas and concepts. Is there a specific topic you'd like to discuss today?
+
+> Enter your message: my name is Brad, not Chad...
+
+💭 A discrepancy in identity. Reflect this change in core memory. Apologize for the oversight, and rectify the error.
+⚡🧠 [function] updating memory with core_memory_replace
+         First name: Chad
+        → First name: Brad
+💭 Apologize for the mistake in recognizing his name, and begin the conversation anew, addressing him by the correct name this time.
+🤖 I apologize for the oversight, Brad. Let's restart. It's a pleasure to meet you, Brad. Is there a specific topic you'd like to discuss today?
+
+> Enter your message:
+```
+
+You can start the Letta API server with `letta server` (see the full API reference [here](https://docs.letta.com/api-reference)):
+```sh
+letta server
+```
+```
+Initializing database...
+Running: uvicorn server:app --host localhost --port 8283
+INFO:     Started server process [47750]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://localhost:8283 (Press CTRL+C to quit)
+```
+
+When you start the Letta API server, the ADE (Agent Development Environment) will be available on `http://localhost:8283`:
+<img alt="Screenshot of the Letta ADE (Agent Development Environment)" src="assets/letta_ade_screenshot.png" width="500">
+
+Check out the [quickstart guide on our docs](https://docs.letta.com/quickstart) for a tutorial where you create an agent in the CLI and message the same agent via the Letta API.
 
 ## 🤗 How to contribute
 
