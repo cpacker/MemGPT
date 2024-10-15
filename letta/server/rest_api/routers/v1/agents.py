@@ -100,6 +100,34 @@ def update_agent(
     return server.update_agent(update_agent, user_id=actor.id)
 
 
+@router.patch("/{agent_id}/add-tool/{tool_id}", response_model=AgentState, operation_id="add_tool_to_agent")
+def add_tool_to_agent(
+    agent_id: str,
+    tool_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """Add tools to an exsiting agent"""
+    actor = server.get_user_or_default(user_id=user_id)
+
+    update_agent.id = agent_id
+    return server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
+
+
+@router.patch("/{agent_id}/remove-tool/{tool_id}", response_model=AgentState, operation_id="remove_tool_from_agent")
+def remove_tool_from_agent(
+    agent_id: str,
+    tool_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """Add tools to an exsiting agent"""
+    actor = server.get_user_or_default(user_id=user_id)
+
+    update_agent.id = agent_id
+    return server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
+
+
 @router.get("/{agent_id}", response_model=AgentState, operation_id="get_agent")
 def get_agent_state(
     agent_id: str,

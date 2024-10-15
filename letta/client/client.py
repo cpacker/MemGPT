@@ -96,6 +96,12 @@ class AbstractClient(object):
     ):
         raise NotImplementedError
 
+    def add_tool_to_agent(self, agent_id: str, tool_id: str):
+        raise NotImplementedError
+
+    def remove_tool_from_agent(self, agent_id: str, tool_id: str):
+        raise NotImplementedError
+
     def rename_agent(self, agent_id: str, new_name: str):
         raise NotImplementedError
 
@@ -470,6 +476,39 @@ class RESTClient(AbstractClient):
             memory=memory,
         )
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent: {response.text}")
+        return AgentState(**response.json())
+
+    def add_tool_to_agent(self, agent_id: str, tool_id: str):
+        """
+        Add tool to an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            tool_id (str): A tool id
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
+        response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/add-tool/{tool_id}", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent: {response.text}")
+        return AgentState(**response.json())
+
+    def remove_tool_from_agent(self, agent_id: str, tool_id: str):
+        """
+        Removes tools from an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            tool_id (str): The tool id
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
+
+        response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/remove-tool/{tool_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
@@ -1653,6 +1692,36 @@ class LocalClient(AbstractClient):
         )
         return agent_state
 
+    def add_tool_to_agent(self, agent_id: str, tool_id: str):
+        """
+        Add tool to an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            tool_id (str): A tool id
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
+        self.interface.clear()
+        agent_state = self.server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=self.user_id)
+        return agent_state
+
+    def remove_tool_from_agent(self, agent_id: str, tool_id: str):
+        """
+        Removes tools from an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            tool_id (str): The tool id
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
+        self.interface.clear()
+        agent_state = self.server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=self.user_id)
+        return agent_state
+
     def rename_agent(self, agent_id: str, new_name: str):
         """
         Rename an agent
@@ -2081,30 +2150,37 @@ class LocalClient(AbstractClient):
         Returns:
             None
         """
-        existing_tool_id = self.get_tool_id(tool.name)
-        if existing_tool_id:
+        if self.tool_with_name_and_user_id_exists(tool):
             if update:
-                self.server.update_tool(
+                return self.server.update_tool(
                     ToolUpdate(
-                        id=existing_tool_id,
+                        id=tool.id,
+                        description=tool.description,
                         source_type=tool.source_type,
                         source_code=tool.source_code,
                         tags=tool.tags,
                         json_schema=tool.json_schema,
                         name=tool.name,
-                    )
+                    ),
+                    self.user_id,
                 )
             else:
-                raise ValueError(f"Tool with name {tool.name} already exists")
-
-        # call server function
-        return self.server.create_tool(
-            ToolCreate(
-                source_type=tool.source_type, source_code=tool.source_code, name=tool.name, json_schema=tool.json_schema, tags=tool.tags
-            ),
-            user_id=self.user_id,
-            update=update,
-        )
+                raise ValueError(f"Tool with id={tool.id} and name={tool.name}already exists")
+        else:
+            # call server function
+            return self.server.create_tool(
+                ToolCreate(
+                    id=tool.id,
+                    description=tool.description,
+                    source_type=tool.source_type,
+                    source_code=tool.source_code,
+                    name=tool.name,
+                    json_schema=tool.json_schema,
+                    tags=tool.tags,
+                ),
+                user_id=self.user_id,
+                update=update,
+            )
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
@@ -2170,7 +2246,9 @@ class LocalClient(AbstractClient):
 
         source_type = "python"
 
-        return self.server.update_tool(ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name))
+        return self.server.update_tool(
+            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name), self.user_id
+        )
 
     def list_tools(self):
         """
@@ -2215,7 +2293,17 @@ class LocalClient(AbstractClient):
         """
         return self.server.get_tool_id(name, self.user_id)
 
-    # data sources
+    def tool_with_name_and_user_id_exists(self, tool: Tool) -> bool:
+        """
+        Check if the tool with name and user_id exists
+
+        Args:
+            tool (Tool): the tool
+
+        Returns:
+            (bool): True if the id exists, False otherwise.
+        """
+        return self.server.tool_with_name_and_user_id_exists(tool, self.user_id)
 
     def load_data(self, connector: DataConnector, source_name: str):
         """

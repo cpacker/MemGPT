@@ -105,4 +105,4 @@ def update_tool(
     """
     assert tool_id == request.id, "Tool ID in path must match tool ID in request body"
     # actor = server.get_user_or_default(user_id=user_id)
-    return server.update_tool(request)
+    return server.update_tool(request, user_id)

@@ -16,6 +16,7 @@ import letta.system as system
 from letta.agent import Agent, save_agent
 from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
+from letta.client.utils import derive_function_name_regex
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -965,6 +966,80 @@ class SyncServer(Server):
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
 
+    def add_tool_to_agent(
+        self,
+        agent_id: str,
+        tool_id: str,
+        user_id: str,
+    ):
+        """Update the agents core memory block, return the new state"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+
+        # Get all the tool objects from the request
+        tool_objs = []
+        tool_obj = self.ms.get_tool(tool_id=tool_id, user_id=user_id)
+        assert tool_obj, f"Tool with id={tool_id} does not exist"
+        tool_objs.append(tool_obj)
+
+        for tool in letta_agent.tools:
+            tool_obj = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
+            assert tool_obj, f"Tool with id={tool.id} does not exist"
+
+            # If it's not the already added tool
+            if tool_obj.id != tool_id:
+                tool_objs.append(tool_obj)
+
+        # replace the list of tool names ("ids") inside the agent state
+        letta_agent.agent_state.tools = [tool.name for tool in tool_objs]
+
+        # then attempt to link the tools modules
+        letta_agent.link_tools(tool_objs)
+
+        # save the agent
+        save_agent(letta_agent, self.ms)
+        return letta_agent.agent_state
+
+    def remove_tool_from_agent(
+        self,
+        agent_id: str,
+        tool_id: str,
+        user_id: str,
+    ):
+        """Update the agents core memory block, return the new state"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+
+        # Get all the tool_objs
+        tool_objs = []
+        for tool in letta_agent.tools:
+            tool_obj = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
+            assert tool_obj, f"Tool with id={tool.id} does not exist"
+
+            # If it's not the tool we want to remove
+            if tool_obj.id != tool_id:
+                tool_objs.append(tool_obj)
+
+        # replace the list of tool names ("ids") inside the agent state
+        letta_agent.agent_state.tools = [tool.name for tool in tool_objs]
+
+        # then attempt to link the tools modules
+        letta_agent.link_tools(tool_objs)
+
+        # save the agent
+        save_agent(letta_agent, self.ms)
+        return letta_agent.agent_state
+
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
         """Convert AgentState to a dict for a JSON response"""
         assert agent_state is not None
@@ -1751,6 +1826,15 @@ class SyncServer(Server):
         """Get tool by ID."""
         return self.ms.get_tool(tool_id=tool_id)
 
+    def tool_with_name_and_user_id_exists(self, tool: Tool, user_id: Optional[str] = None) -> bool:
+        """Check if tool exists"""
+        tool = self.ms.get_tool_with_name_and_user_id(tool_name=tool.name, user_id=user_id)
+
+        if tool is None:
+            return False
+        else:
+            return True
+
     def get_tool_id(self, name: str, user_id: str) -> Optional[str]:
         """Get tool ID from name and user_id."""
         tool = self.ms.get_tool(tool_name=name, user_id=user_id)
@@ -1758,16 +1842,27 @@ class SyncServer(Server):
             return None
         return tool.id
 
-    def update_tool(
-        self,
-        request: ToolUpdate,
-    ) -> Tool:
+    def update_tool(self, request: ToolUpdate, user_id: Optional[str] = None) -> Tool:
         """Update an existing tool"""
-        existing_tool = self.ms.get_tool(tool_id=request.id)
-        if not existing_tool:
-            raise ValueError(f"Tool does not exist")
+        if request.name:
+            existing_tool = self.ms.get_tool_with_name_and_user_id(tool_name=request.name, user_id=user_id)
+            if existing_tool is None:
+                raise ValueError(f"Tool with name={request.name}, user_id={user_id} does not exist")
+        else:
+            existing_tool = self.ms.get_tool(tool_id=request.id)
+            if existing_tool is None:
+                raise ValueError(f"Tool with id={request.id} does not exist")
+
+        # Preserve the original tool id
+        # As we can override the tool id as well
+        # This is probably bad design if this is exposed to users...
+        original_id = existing_tool.id
 
         # override updated fields
+        if request.id:
+            existing_tool.id = request.id
+        if request.description:
+            existing_tool.description = request.description
         if request.source_code:
             existing_tool.source_code = request.source_code
         if request.source_type:
@@ -1776,10 +1871,15 @@ class SyncServer(Server):
             existing_tool.tags = request.tags
         if request.json_schema:
             existing_tool.json_schema = request.json_schema
+
+        # If name is explicitly provided here, overide the tool name
         if request.name:
             existing_tool.name = request.name
+        # Otherwise, if there's no name, and there's source code, we try to derive the name
+        elif request.source_code:
+            existing_tool.name = derive_function_name_regex(request.source_code)
 
-        self.ms.update_tool(existing_tool)
+        self.ms.update_tool(original_id, existing_tool)
         return self.ms.get_tool(tool_id=request.id)
 
     def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = True) -> Tool:  # TODO: add other fields
@@ -1817,14 +1917,22 @@ class SyncServer(Server):
             assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
 
         # check if already exists:
-        existing_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
+        existing_tool = self.ms.get_tool(tool_id=request.id, tool_name=request.name, user_id=user_id)
         if existing_tool:
             if update:
-                updated_tool = self.update_tool(ToolUpdate(id=existing_tool.id, **vars(request)))
+                # id is an optional field, so we will fill it with the existing tool id
+                if not request.id:
+                    request.id = existing_tool.id
+                updated_tool = self.update_tool(ToolUpdate(**vars(request)), user_id)
                 assert updated_tool is not None, f"Failed to update tool {request.name}"
                 return updated_tool
             else:
                 raise ValueError(f"Tool {request.name} already exists and update=False")
+
+        # check for description
+        description = None
+        if request.description:
+            description = request.description
 
         tool = Tool(
             name=request.name,
@@ -1833,9 +1941,14 @@ class SyncServer(Server):
             tags=request.tags,
             json_schema=json_schema,
             user_id=user_id,
+            description=description,
         )
+
+        if request.id:
+            tool.id = request.id
+
         self.ms.create_tool(tool)
-        created_tool = self.ms.get_tool(tool_name=request.name, user_id=user_id)
+        created_tool = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
         return created_tool
 
     def delete_tool(self, tool_id: str):
