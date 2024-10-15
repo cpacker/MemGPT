@@ -67,20 +67,13 @@ class O1Agent(Agent):
         total_usage = UsageStatistics()
         step_count = 0
         while step_count < self.max_thinking_steps:
-            import pdb
-
-            pdb.set_trace()
             kwargs["ms"] = ms
             kwargs["first_message"] = False
             step_response = self.inner_step(
                 messages=next_input_message,
                 **kwargs,
             )
-            step_response.heartbeat_request
-            step_response.function_failed
-            step_response.in_context_memory_warning
             usage = step_response.usage
-
             step_count += 1
             total_usage += usage
             counter += 1
