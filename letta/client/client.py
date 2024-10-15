@@ -1907,6 +1907,13 @@ class LocalClient(AbstractClient):
 
     # humans / personas
 
+    def get_block_id(self, name: str, label: str) -> str:
+
+        block = self.server.get_blocks(name=name, label=label, user_id=self.user_id, template=True)
+        if not block:
+            return None
+        return block[0].id
+
     def create_human(self, name: str, text: str):
         """
         Create a human block template (saved human string to pre-fill `ChatMemory`)
