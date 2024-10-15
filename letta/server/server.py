@@ -54,7 +54,14 @@ from letta.providers import (
     VLLMChatCompletionsProvider,
     VLLMCompletionsProvider,
 )
-from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
+from letta.schemas.agent import (
+    AddToolsToAgent,
+    AgentState,
+    AgentType,
+    CreateAgent,
+    RemoveToolsFromAgent,
+    UpdateAgentState,
+)
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import (
     Block,
@@ -1019,6 +1026,71 @@ class SyncServer(Server):
         assert isinstance(letta_agent.memory, Memory)
         save_agent(letta_agent, self.ms)
         # TODO: probably reload the agent somehow?
+        return letta_agent.agent_state
+
+    def add_tools_to_agent(
+        self,
+        request: AddToolsToAgent,
+        user_id: str,
+    ):
+        """Update the agents core memory block, return the new state"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=request.id) is None:
+            raise ValueError(f"Agent agent_id={request.id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        letta_agent = self._get_or_load_agent(agent_id=request.id)
+
+        # (1) Get tools + make sure they exist
+        # Get unique in case of overlap
+        all_tool_names = set(letta_agent.agent_state.tools + request.tools)
+        tool_objs = []
+        for tool_name in all_tool_names:
+            tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+            assert tool_obj, f"Tool {tool_name} does not exist"
+            tool_objs.append(tool_obj)
+
+        # (2) replace the list of tool names ("ids") inside the agent state
+        letta_agent.agent_state.tools = all_tool_names
+
+        # (3) then attempt to link the tools modules
+        letta_agent.link_tools(tool_objs)
+
+        # save the agent
+        save_agent(letta_agent, self.ms)
+        return letta_agent.agent_state
+
+    def remove_tools_from_agent(
+        self,
+        request: RemoveToolsFromAgent,
+        user_id: str,
+    ):
+        """Update the agents core memory block, return the new state"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=request.id) is None:
+            raise ValueError(f"Agent agent_id={request.id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        letta_agent = self._get_or_load_agent(agent_id=request.id)
+
+        # (1) Get set difference of current tools and the tools to be removed
+        desired_tool_names = set(letta_agent.agent_state.tools) - set(request.tools)
+        tool_objs = []
+        for tool_name in desired_tool_names:
+            tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
+            assert tool_obj, f"Tool {tool_name} does not exist"
+            tool_objs.append(tool_obj)
+
+        # (2) replace the list of tool names ("ids") inside the agent state
+        letta_agent.agent_state.tools = desired_tool_names
+
+        # (3) then attempt to link the tools modules
+        letta_agent.link_tools(tool_objs)
+
+        # save the agent
+        save_agent(letta_agent, self.ms)
         return letta_agent.agent_state
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:

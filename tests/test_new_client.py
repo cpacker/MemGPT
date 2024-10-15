@@ -1,3 +1,4 @@
+import uuid
 from typing import Union
 
 import pytest
@@ -8,6 +9,7 @@ from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
+from letta.schemas.tool import Tool
 
 
 @pytest.fixture(scope="module")
@@ -20,7 +22,11 @@ def client():
 
 @pytest.fixture(scope="module")
 def agent(client):
-    agent_state = client.create_agent(name="test_agent")
+    # Generate uuid for agent name for this example
+    namespace = uuid.NAMESPACE_DNS
+    agent_uuid = str(uuid.uuid5(namespace, "test_new_client_test_agent"))
+
+    agent_state = client.create_agent(name=agent_uuid)
     yield agent_state
 
     client.delete_agent(agent_state.id)
@@ -111,6 +117,43 @@ def test_agent(client: Union[LocalClient, RESTClient]):
 
     # delete agent
     client.delete_agent(agent_state_test.id)
+
+
+def test_agent_add_remove_tools(client: Union[LocalClient, RESTClient], agent):
+    # Create and add two tools to the client
+    # tool 1
+    from composio_langchain import Action
+
+    github_tool = Tool.get_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    client.add_tool(github_tool)
+    # tool 2
+    from crewai_tools import ScrapeWebsiteTool
+
+    scrape_website_tool = Tool.from_crewai(ScrapeWebsiteTool(website_url="https://www.example.com"))
+    client.add_tool(scrape_website_tool)
+
+    # create agent
+    agent_state = agent
+    curr_num_tools = len(agent_state.tools)
+
+    # add both tools to agent in steps
+    agent_state = client.add_tools_to_agent(agent_id=agent_state.id, tools=[github_tool.name])
+    agent_state = client.add_tools_to_agent(agent_id=agent_state.id, tools=[scrape_website_tool.name])
+
+    # confirm that both tools are in the agent state
+    curr_tools = agent_state.tools
+    assert len(curr_tools) == curr_num_tools + 2
+    assert github_tool.name in curr_tools
+    assert scrape_website_tool.name in curr_tools
+
+    # remove only the github tool
+    agent_state = client.remove_tools_to_agent(agent_id=agent_state.id, tools=[github_tool.name])
+
+    # confirm that only one tool left
+    curr_tools = agent_state.tools
+    assert len(curr_tools) == curr_num_tools + 1
+    assert github_tool.name not in curr_tools
+    assert scrape_website_tool.name in curr_tools
 
 
 def test_agent_with_shared_blocks(client):
@@ -268,8 +311,6 @@ def test_tools(client):
 def test_tools_from_composio_basic(client):
     from composio_langchain import Action
 
-    from letta.schemas.tool import Tool
-
     # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
     client = create_client()
 
@@ -290,8 +331,6 @@ def test_tools_from_crewai(client):
     # create crewAI tool
 
     from crewai_tools import ScrapeWebsiteTool
-
-    from letta.schemas.tool import Tool
 
     crewai_tool = ScrapeWebsiteTool()
 
@@ -328,8 +367,6 @@ def test_tools_from_crewai_with_params(client):
 
     from crewai_tools import ScrapeWebsiteTool
 
-    from letta.schemas.tool import Tool
-
     crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
 
     # Translate to memGPT Tool
@@ -362,8 +399,6 @@ def test_tools_from_langchain(client):
     from langchain_community.tools import WikipediaQueryRun
     from langchain_community.utilities import WikipediaAPIWrapper
 
-    from letta.schemas.tool import Tool
-
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
     langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
 
@@ -395,8 +430,6 @@ def test_tool_creation_langchain_missing_imports(client):
     # create langchain tool
     from langchain_community.tools import WikipediaQueryRun
     from langchain_community.utilities import WikipediaAPIWrapper
-
-    from letta.schemas.tool import Tool
 
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
     langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)

@@ -9,7 +9,14 @@ from letta.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
-from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
+from letta.schemas.agent import (
+    AddToolsToAgent,
+    AgentState,
+    AgentType,
+    CreateAgent,
+    RemoveToolsFromAgent,
+    UpdateAgentState,
+)
 from letta.schemas.block import (
     Block,
     CreateBlock,
@@ -94,6 +101,12 @@ class AbstractClient(object):
         message_ids: Optional[List[str]] = None,
         memory: Optional[Memory] = None,
     ):
+        raise NotImplementedError
+
+    def add_tools_to_agent(self, agent_id: str, tools: List[str]):
+        raise NotImplementedError
+
+    def remove_tools_to_agent(self, agent_id: str, tools: List[str]):
         raise NotImplementedError
 
     def rename_agent(self, agent_id: str, new_name: str):
@@ -467,6 +480,45 @@ class RESTClient(AbstractClient):
             memory=memory,
         )
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent: {response.text}")
+        return AgentState(**response.json())
+
+    def add_tools_to_agent(self, agent_id: str, tools: List[str]):
+        """
+        Add tools to an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            tools (List[str]): List of tools
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
+        request = AddToolsToAgent(id=agent_id, tools=tools)
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/agents/add-tools/{agent_id}", json=request.model_dump(), headers=self.headers
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent: {response.text}")
+        return AgentState(**response.json())
+
+    def remove_tools_to_agent(self, agent_id: str, tools: List[str]):
+        """
+        Removes tools from an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            tools (List[str]): List of tools
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
+
+        request = RemoveToolsFromAgent(id=agent_id, tools=tools)
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/agents/remove-tools/{agent_id}", json=request.model_dump(), headers=self.headers
+        )
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
@@ -1642,6 +1694,36 @@ class LocalClient(AbstractClient):
             ),
             user_id=self.user_id,
         )
+        return agent_state
+
+    def add_tools_to_agent(self, agent_id: str, tools: List[str]):
+        """
+        Add tools to an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            tools (List[str]): List of tools
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
+        self.interface.clear()
+        agent_state = self.server.add_tools_to_agent(AddToolsToAgent(id=agent_id, tools=tools), user_id=self.user_id)
+        return agent_state
+
+    def remove_tools_to_agent(self, agent_id: str, tools: List[str]):
+        """
+        Removes tools from an existing agent
+
+        Args:
+            agent_id (str): ID of the agent
+            tools (List[str]): List of tools
+
+        Returns:
+            agent_state (AgentState): State of the updated agent
+        """
+        self.interface.clear()
+        agent_state = self.server.remove_tools_from_agent(RemoveToolsFromAgent(id=agent_id, tools=tools), user_id=self.user_id)
         return agent_state
 
     def rename_agent(self, agent_id: str, new_name: str):

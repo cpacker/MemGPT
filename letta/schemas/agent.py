@@ -129,3 +129,13 @@ class AgentStepResponse(BaseModel):
         ..., description="Whether the agent step ended because the in-context memory is near its limit."
     )
     usage: UsageStatistics = Field(..., description="Usage statistics of the LLM call during the agent's step.")
+
+
+class AddToolsToAgent(BaseModel):
+    id: str = Field(..., description="The id of the agent.")
+    tools: Optional[List[str]] = Field(None, description="The tools to be added to the agent.")
+
+
+class RemoveToolsFromAgent(BaseModel):
+    id: str = Field(..., description="The id of the agent.")
+    tools: Optional[List[str]] = Field(None, description="The tools to be removed from the agent.")

@@ -7,7 +7,13 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.responses import StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agent import (
+    AddToolsToAgent,
+    AgentState,
+    CreateAgent,
+    RemoveToolsFromAgent,
+    UpdateAgentState,
+)
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
@@ -83,6 +89,34 @@ def update_agent(
 
     update_agent.id = agent_id
     return server.update_agent(update_agent, user_id=actor.id)
+
+
+@router.patch("/add_tools/{agent_id}", response_model=AgentState, operation_id="update_agent")
+def add_tools_to_agent(
+    agent_id: str,
+    add_tools_to_agent_request: AddToolsToAgent = Body(...),
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """Add tools to an exsiting agent"""
+    actor = server.get_user_or_default(user_id=user_id)
+
+    update_agent.id = agent_id
+    return server.add_tools_to_agent(add_tools_to_agent_request, user_id=actor.id)
+
+
+@router.patch("/remove_tools/{agent_id}", response_model=AgentState, operation_id="update_agent")
+def remove_tools_from_agent(
+    agent_id: str,
+    remove_tools_from_agent_request: RemoveToolsFromAgent = Body(...),
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """Add tools to an exsiting agent"""
+    actor = server.get_user_or_default(user_id=user_id)
+
+    update_agent.id = agent_id
+    return server.remove_tools_from_agent(remove_tools_from_agent_request, user_id=actor.id)
 
 
 @router.get("/{agent_id}", response_model=AgentState, operation_id="get_agent")
