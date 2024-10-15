@@ -1,6 +1,8 @@
 import json
 from typing import List, Optional
 
+import typer
+
 from letta import AgentState, EmbeddingConfig, LLMConfig, create_client
 from letta.schemas.agent import AgentType
 from letta.schemas.memory import BasicBlockMemory, Block
@@ -98,48 +100,7 @@ class Swarm:
                 # swap the agent
                 return_data = json.loads(function_return.function_return)
                 agent_name = return_data["message"]
+                typer.secho(f"Transferring to agent: {agent_name}", fg=typer.colors.RED)
                 # print("Transferring to agent", agent_name)
 
             print()
-
-
-def transfer_agent_b(self):
-    """
-    Transfer conversation to agent B.
-
-    Returns:
-        str: name of agent to transfer to
-    """
-    return "agentb"
-
-
-def transfer_agent_a(self):
-    """
-    Transfer conversation to agent A.
-
-    Returns:
-        str: name of agent to transfer to
-    """
-    return "agenta"
-
-
-swarm = Swarm()
-
-# set client configs
-swarm.client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
-swarm.client.set_default_llm_config(LLMConfig.default_config(model_name="gpt-4"))
-
-# create tools
-transfer_a = swarm.client.create_tool(transfer_agent_a, terminal=True)
-transfer_b = swarm.client.create_tool(transfer_agent_b, terminal=True)
-
-# create agents
-if swarm.client.get_agent_id("agentb"):
-    swarm.client.delete_agent(swarm.client.get_agent_id("agentb"))
-if swarm.client.get_agent_id("agenta"):
-    swarm.client.delete_agent(swarm.client.get_agent_id("agenta"))
-agent_a = swarm.create_agent(name="agentb", tools=[transfer_a.name], instructions="Only speak in haikus")
-agent_b = swarm.create_agent(name="agenta", tools=[transfer_b.name])
-
-response = swarm.run(agent_name="agenta", message="Transfer me to agent b by calling the transfer_agent_b tool")
-print("Response:", response)
