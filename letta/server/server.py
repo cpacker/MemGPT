@@ -48,7 +48,6 @@ from letta.providers import (
     AnthropicProvider,
     AzureProvider,
     GoogleAIProvider,
-    GroqProvider,
     LettaProvider,
     OllamaProvider,
     OpenAIProvider,
@@ -73,12 +72,7 @@ from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.memory import (
-    ArchivalMemorySummary,
-    ContextWindowOverview,
-    Memory,
-    RecallMemorySummary,
-)
+from letta.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
 from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
 from letta.schemas.organization import Organization, OrganizationCreate
 from letta.schemas.passage import Passage
@@ -303,12 +297,6 @@ class SyncServer(Server):
                     base_url=model_settings.vllm_api_base,
                 )
             )
-        if model_settings.groq_api_key:
-            self._enabled_providers.append(
-                GroqProvider(
-                    api_key=model_settings.groq_api_key,
-                )
-            )
 
     def save_agents(self):
         """Saves all the agents that are in the in-memory object store"""
@@ -493,7 +481,7 @@ class SyncServer(Server):
         elif command.lower() == "memory":
             ret_str = (
                 f"\nDumping memory contents:\n"
-                + f"\n{str(letta_agent.agent_state.memory)}"
+                + f"\n{str(letta_agent.memory)}"
                 + f"\n{str(letta_agent.persistence_manager.archival_memory)}"
                 + f"\n{str(letta_agent.persistence_manager.recall_memory)}"
             )
@@ -980,7 +968,7 @@ class SyncServer(Server):
             letta_agent.agent_state.metadata_ = request.metadata_
 
         # save the agent
-        assert isinstance(letta_agent.agent_state.memory, Memory)
+        assert isinstance(letta_agent.memory, Memory)
         save_agent(letta_agent, self.ms)
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
@@ -1057,7 +1045,7 @@ class SyncServer(Server):
             return_dict["tools"] = tools
 
             # Add information about memory (raw core, size of recall, size of archival)
-            core_memory = letta_agent.agent_state.memory
+            core_memory = letta_agent.memory
             recall_memory = letta_agent.persistence_manager.recall_memory
             archival_memory = letta_agent.persistence_manager.archival_memory
             memory_obj = {
@@ -1397,7 +1385,7 @@ class SyncServer(Server):
 
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
-        assert isinstance(letta_agent.agent_state.memory, Memory)
+        assert isinstance(letta_agent.memory, Memory)
         return letta_agent.agent_state.model_copy(deep=True)
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
@@ -1438,8 +1426,8 @@ class SyncServer(Server):
         modified = False
         for key, value in new_memory_contents.items():
             if letta_agent.memory.get_block(key) is None:
-                # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.agent_state.memory.list_block_names())}")
-                raise ValueError(f"Key {key} not found in agent memory {str(letta_agent.agent_state.memory.memory)}")
+                # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.memory.list_block_names())}")
+                raise ValueError(f"Key {key} not found in agent memory {str(letta_agent.memory.memory)}")
             if value is None:
                 continue
             if letta_agent.memory.get_block(key) != value:
@@ -2043,13 +2031,3 @@ class SyncServer(Server):
 
     def add_embedding_model(self, request: EmbeddingConfig) -> EmbeddingConfig:
         """Add a new embedding model"""
-
-    def get_agent_context_window(
-        self,
-        user_id: str,
-        agent_id: str,
-    ) -> ContextWindowOverview:
-
-        # Get the current message
-        letta_agent = self._get_or_load_agent(agent_id=agent_id)
-        return letta_agent.get_context_window()
