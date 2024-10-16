@@ -249,6 +249,9 @@ class SyncServer(Server):
         # add global default tools (for admin)
         self.add_default_tools(module_name="base")
 
+        if settings.load_langchain_tools:
+            self.add_default_langchain_tools()
+
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
         if model_settings.openai_api_key:
@@ -1969,11 +1972,13 @@ class SyncServer(Server):
             # Handle other general exceptions
             raise e
 
+        functions_to_schema = []
         try:
             # Load the function set
             functions_to_schema = load_function_set(module)
         except ValueError as e:
             err = f"Error loading function set '{module_name}': {e}"
+            warnings.warn(err)
 
         # create tool in db
         for name, schema in functions_to_schema.items():
@@ -1996,6 +2001,9 @@ class SyncServer(Server):
                 ),
                 update=True,
             )
+
+    def add_default_langchain_tools(self, user_id: Optional[str] = None) -> bool:
+        """Add default langchain tools. Return true if successful, false otherwise."""
 
     def add_default_blocks(self, user_id: str):
         from letta.utils import list_human_files, list_persona_files

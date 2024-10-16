@@ -2,6 +2,8 @@ import json
 import uuid
 
 from letta import create_client
+from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.tool import Tool
 
@@ -38,6 +40,8 @@ def main():
 
     # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
     client = create_client()
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
     # create tool
     client.add_tool(wikipedia_query_tool)
