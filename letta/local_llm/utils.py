@@ -1,6 +1,6 @@
 import os
 import warnings
-from typing import List
+from typing import List, Union
 
 import requests
 import tiktoken
@@ -11,6 +11,7 @@ import letta.local_llm.llm_chat_completion_wrappers.configurable_wrapper as conf
 import letta.local_llm.llm_chat_completion_wrappers.dolphin as dolphin
 import letta.local_llm.llm_chat_completion_wrappers.llama3 as llama3
 import letta.local_llm.llm_chat_completion_wrappers.zephyr as zephyr
+from letta.schemas.openai.chat_completion_request import Tool, ToolCall
 
 
 def post_json_auth_request(uri, json_payload, auth_type, auth_key):
@@ -123,7 +124,7 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
     return num_tokens
 
 
-def num_tokens_from_tool_calls(tool_calls: List[dict], model: str = "gpt-4"):
+def num_tokens_from_tool_calls(tool_calls: Union[List[dict], List[ToolCall]], model: str = "gpt-4"):
     """Based on above code (num_tokens_from_functions).
 
     Example to encode:
@@ -144,10 +145,25 @@ def num_tokens_from_tool_calls(tool_calls: List[dict], model: str = "gpt-4"):
 
     num_tokens = 0
     for tool_call in tool_calls:
-        function_tokens = len(encoding.encode(tool_call["id"]))
-        function_tokens += 2 + len(encoding.encode(tool_call["type"]))
-        function_tokens += 2 + len(encoding.encode(tool_call["function"]["name"]))
-        function_tokens += 2 + len(encoding.encode(tool_call["function"]["arguments"]))
+        if isinstance(tool_call, dict):
+            tool_call_id = tool_call["id"]
+            tool_call_type = tool_call["type"]
+            tool_call_function = tool_call["function"]
+            tool_call_function_name = tool_call_function["name"]
+            tool_call_function_arguments = tool_call_function["arguments"]
+        elif isinstance(tool_call, Tool):
+            tool_call_id = tool_call.id
+            tool_call_type = tool_call.type
+            tool_call_function = tool_call.function
+            tool_call_function_name = tool_call_function.name
+            tool_call_function_arguments = tool_call_function.arguments
+        else:
+            raise ValueError(f"Unknown tool call type: {type(tool_call)}")
+
+        function_tokens = len(encoding.encode(tool_call_id))
+        function_tokens += 2 + len(encoding.encode(tool_call_type))
+        function_tokens += 2 + len(encoding.encode(tool_call_function_name))
+        function_tokens += 2 + len(encoding.encode(tool_call_function_arguments))
 
         num_tokens += function_tokens
 

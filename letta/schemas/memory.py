@@ -9,6 +9,7 @@ if TYPE_CHECKING:
 
 from letta.schemas.block import Block
 from letta.schemas.message import Message
+from letta.schemas.openai.chat_completion_request import Tool
 
 
 class ContextWindowOverview(BaseModel):
@@ -40,6 +41,9 @@ class ContextWindowOverview(BaseModel):
 
     num_tokens_summary_memory: int = Field(..., description="The number of tokens in the summary memory.")
     summary_memory: Optional[str] = Field(None, description="The content of the summary memory.")
+
+    num_tokens_functions_definitions: int = Field(..., description="The number of tokens in the functions definitions.")
+    functions_definitions: Optional[List[Tool]] = Field(..., description="The content of the functions definitions.")
 
     num_tokens_messages: int = Field(..., description="The number of tokens in the messages list.")
     # TODO make list of messages?
