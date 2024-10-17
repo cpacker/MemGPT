@@ -131,7 +131,7 @@ def build_openai_chat_completions_request(
 
     if use_tool_naming:
         if function_call is None:
-            tool_choice = "auto"
+            tool_choice = None
         elif function_call not in ["none", "auto", "required"]:
             tool_choice = ToolFunctionChoice(type="function", function=ToolFunctionChoiceFunctionCall(name=function_call))
         else:
