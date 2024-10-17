@@ -108,7 +108,7 @@ def build_openai_chat_completions_request(
     messages: List[_Message],
     user_id: Optional[str],
     functions: Optional[list],
-    function_call: str,
+    function_call: Optional[str],
     use_tool_naming: bool,
     inner_thoughts_in_kwargs: bool,
     max_tokens: Optional[int],
@@ -130,7 +130,9 @@ def build_openai_chat_completions_request(
         model = None
 
     if use_tool_naming:
-        if function_call not in ["none", "auto", "required"]:
+        if function_call is None:
+            tool_choice = "auto"
+        elif function_call not in ["none", "auto", "required"]:
             tool_choice = ToolFunctionChoice(type="function", function=ToolFunctionChoiceFunctionCall(name=function_call))
         else:
             tool_choice = function_call
