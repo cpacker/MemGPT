@@ -249,8 +249,8 @@ class SyncServer(Server):
         # add global default tools (for admin)
         self.add_default_tools(module_name="base")
 
-        if settings.load_langchain_tools:
-            self.add_default_langchain_tools()
+        if settings.load_default_external_tools:
+            self.add_default_external_tools()
 
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
@@ -2002,8 +2002,19 @@ class SyncServer(Server):
                 update=True,
             )
 
-    def add_default_langchain_tools(self, user_id: Optional[str] = None) -> bool:
+    def add_default_external_tools(self, user_id: Optional[str] = None) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
+        success = True
+        tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools() + Tool.load_default_composio_tools()
+        for tool in tools:
+            try:
+                self.ms.create_tool(tool)
+            except Exception as e:
+                warnings.warn(f"An error occurred while creating tool {tool}: {e}")
+                warnings.warn(traceback.format_exc())
+                success = False
+
+        return success
 
     def add_default_blocks(self, user_id: str):
         from letta.utils import list_human_files, list_persona_files

@@ -112,11 +112,11 @@ class Tool(BaseTool):
         Class method to create an instance of Tool from a Langchain tool (must be from langchain_community.tools).
 
         Args:
-            langchain_tool (LangChainBaseTool): An instance of a crewAI BaseTool (BaseTool from crewai)
+            langchain_tool (LangChainBaseTool): An instance of a LangChain BaseTool (BaseTool from LangChain)
             additional_imports_module_attr_map (dict[str, str]): A mapping of module names to attribute name. This is used internally to import all the required classes for the langchain tool. For example, you would pass in `{"langchain_community.utilities": "WikipediaAPIWrapper"}` for `from langchain_community.tools import WikipediaQueryRun`. NOTE: You do NOT need to specify the tool import here, that is done automatically for you.
 
         Returns:
-            Tool: A Letta Tool initialized with attributes derived from the provided crewAI BaseTool object.
+            Tool: A Letta Tool initialized with attributes derived from the provided LangChain BaseTool object.
         """
         description = langchain_tool.description
         source_type = "python"
@@ -173,6 +173,38 @@ class Tool(BaseTool):
             source_code=wrapper_function_str,
             json_schema=json_schema,
         )
+
+    @classmethod
+    def load_default_langchain_tools(cls) -> List["Tool"]:
+        # For now, we only support wikipedia tool
+        from langchain_community.tools import WikipediaQueryRun
+        from langchain_community.utilities import WikipediaAPIWrapper
+
+        wikipedia_tool = Tool.from_langchain(
+            WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper()), {"langchain_community.utilities": "WikipediaAPIWrapper"}
+        )
+
+        return [wikipedia_tool]
+
+    @classmethod
+    def load_default_crewai_tools(cls) -> List["Tool"]:
+        # For now, we only support scrape website tool
+        from crewai_tools import ScrapeWebsiteTool
+
+        web_scrape_tool = Tool.from_crewai(ScrapeWebsiteTool())
+
+        return [web_scrape_tool]
+
+    @classmethod
+    def load_default_composio_tools(cls) -> List["Tool"]:
+        from composio_langchain import Action
+
+        calculator = Tool.get_composio_tool(action=Action.MATHEMATICAL_CALCULATOR)
+        serp_news = Tool.get_composio_tool(action=Action.SERPAPI_NEWS_SEARCH)
+        serp_google_search = Tool.get_composio_tool(action=Action.SERPAPI_SEARCH)
+        serp_google_maps = Tool.get_composio_tool(action=Action.SERPAPI_GOOGLE_MAPS_SEARCH)
+
+        return [calculator, serp_news, serp_google_search, serp_google_maps]
 
 
 class ToolCreate(BaseTool):
