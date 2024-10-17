@@ -77,8 +77,6 @@ langchain-community = {version = "^0.2.17", optional = true}
 composio-langchain = "^0.5.28"
 composio-core = "^0.5.28"
 alembic = "^1.13.3"
-stackapi = "^0.3.1"
-yfinance = "^0.2.44"
 
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]
@@ -89,7 +87,7 @@ server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
-external-tools = ["crewai", "docker", "crewai-tools", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain", "stackapi", "yfinance"]
+external-tools = ["crewai", "docker", "crewai-tools", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
 tests = ["wikipedia"]
 
 [tool.poetry.group.dev.dependencies]
