@@ -30,7 +30,7 @@ from letta.persistence_manager import LocalStateManager
 from letta.schemas.agent import AgentState, AgentStepResponse
 from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import MessageRole, OptionState
+from letta.schemas.enums import MessageRole
 from letta.schemas.memory import ContextWindowOverview, Memory
 from letta.schemas.message import Message, UpdateMessage
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
@@ -463,15 +463,14 @@ class Agent(BaseAgent):
         function_call: str = "auto",
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
     ) -> ChatCompletionResponse:
         """Get response from LLM API"""
         try:
             response = create(
                 # agent_state=self.agent_state,
                 llm_config=self.agent_state.llm_config,
-                user_id=self.agent_state.user_id,
                 messages=message_sequence,
+                user_id=self.agent_state.user_id,
                 functions=self.functions,
                 functions_python=self.functions_python,
                 function_call=function_call,
@@ -480,8 +479,6 @@ class Agent(BaseAgent):
                 # streaming
                 stream=stream,
                 stream_interface=self.interface,
-                # putting inner thoughts in func args or not
-                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             )
 
             if len(response.choices) == 0 or response.choices[0] is None:
@@ -822,7 +819,6 @@ class Agent(BaseAgent):
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
         stream: bool = False,  # TODO move to config?
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
         """Runs a single step in the agent loop (generates at most one LLM call)"""
@@ -861,10 +857,7 @@ class Agent(BaseAgent):
                 counter = 0
                 while True:
                     response = self._get_ai_reply(
-                        message_sequence=input_message_sequence,
-                        first_message=True,  # passed through to the prompt formatter
-                        stream=stream,
-                        inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
+                        message_sequence=input_message_sequence, first_message=True, stream=stream  # passed through to the prompt formatter
                     )
                     if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -877,7 +870,6 @@ class Agent(BaseAgent):
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                     stream=stream,
-                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                 )
 
             # Step 3: check if LLM wanted to call a function
@@ -954,7 +946,6 @@ class Agent(BaseAgent):
                     first_message_retry_limit=first_message_retry_limit,
                     skip_verify=skip_verify,
                     stream=stream,
-                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     ms=ms,
                 )
 

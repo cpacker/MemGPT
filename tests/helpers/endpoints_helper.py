@@ -3,11 +3,7 @@ import logging
 import uuid
 from typing import Callable, List, Optional, Union
 
-from letta.llm_api.helpers import (
-    derive_inner_thoughts_in_kwargs,
-    unpack_inner_thoughts_from_kwargs,
-)
-from letta.schemas.enums import OptionState
+from letta.llm_api.helpers import unpack_inner_thoughts_from_kwargs
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -130,10 +126,8 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str) -> ChatComplet
     validator_func = lambda function_call: function_call.name == "send_message" or function_call.name == "archival_memory_search"
     assert_contains_valid_function_call(choice.message, validator_func)
 
-    # Get inner_thoughts_in_kwargs
-    inner_thoughts_in_kwargs = derive_inner_thoughts_in_kwargs(OptionState.DEFAULT, agent_state.llm_config.model)
     # Assert that the message has an inner monologue
-    assert_contains_correct_inner_monologue(choice, inner_thoughts_in_kwargs)
+    assert_contains_correct_inner_monologue(choice, agent_state.llm_config.put_inner_thoughts_in_kwargs)
 
     return response
 
