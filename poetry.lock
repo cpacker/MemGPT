@@ -7526,13 +7526,13 @@ test = ["argcomplete (>=3.0.3)", "mypy (>=1.7.0)", "pre-commit", "pytest (>=7.0,
 
 [[package]]
 name = "trio"
-version = "0.26.2"
+version = "0.27.0"
 description = "A friendly Python library for async concurrency and I/O"
 optional = true
 python-versions = ">=3.8"
 files = [
-    {file = "trio-0.26.2-py3-none-any.whl", hash = "sha256:c5237e8133eb0a1d72f09a971a55c28ebe69e351c783fc64bc37db8db8bbe1d0"},
-    {file = "trio-0.26.2.tar.gz", hash = "sha256:0346c3852c15e5c7d40ea15972c4805689ef2cb8b5206f794c9c19450119f3a4"},
+    {file = "trio-0.27.0-py3-none-any.whl", hash = "sha256:68eabbcf8f457d925df62da780eff15ff5dc68fd6b367e2dde59f7aaf2a0b884"},
+    {file = "trio-0.27.0.tar.gz", hash = "sha256:1dcc95ab1726b2da054afea8fd761af74bad79bd52381b84eae408e983c76831"},
 ]
 
 [package.dependencies]
@@ -8488,7 +8488,7 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [extras]
 autogen = ["pyautogen"]
 dev = ["autoflake", "black", "datasets", "isort", "pexpect", "pre-commit", "pyright", "pytest-asyncio", "pytest-order"]
-external-tools = ["composio-core", "composio-langchain", "crewai", "crewai-tools", "docker", "langchain", "langchain-community", "stackapi", "wikipedia"]
+external-tools = ["composio-core", "composio-langchain", "crewai", "crewai-tools", "docker", "langchain", "langchain-community", "wikipedia"]
 milvus = ["pymilvus"]
 ollama = ["llama-index-embeddings-ollama"]
 postgres = ["pg8000", "pgvector"]
@@ -8499,4 +8499,4 @@ tests = ["wikipedia"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "de499bc0af1a46b18dd55396dd1d0918da2e4688be8ee532d2d394f13074cf20"
+content-hash = "2302d430ae353f5453bbf4223e9e00be38fcca45259de2924b38b14e36ab8024"
