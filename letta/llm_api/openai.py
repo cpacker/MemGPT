@@ -105,10 +105,9 @@ def build_openai_chat_completions_request(
     functions: Optional[list],
     function_call: str,
     use_tool_naming: bool,
-    inner_thoughts_in_kwargs: bool,
     max_tokens: Optional[int],
 ) -> ChatCompletionRequest:
-    if inner_thoughts_in_kwargs:
+    if llm_config.put_inner_thoughts_in_kwargs:
         functions = add_inner_thoughts_to_functions(
             functions=functions,
             inner_thoughts_key=INNER_THOUGHTS_KWARG,
@@ -116,7 +115,7 @@ def build_openai_chat_completions_request(
         )
 
     openai_message_list = [
-        cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs)) for m in messages
+        cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=llm_config.put_inner_thoughts_in_kwargs)) for m in messages
     ]
     if llm_config.model:
         model = llm_config.model

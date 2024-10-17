@@ -320,7 +320,6 @@ def run(
         ms=ms,
         no_verify=no_verify,
         stream=stream,
-        inner_thoughts_in_kwargs=no_content,
     )  # TODO: add back no_verify
 
 
