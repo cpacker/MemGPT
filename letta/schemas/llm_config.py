@@ -1,6 +1,6 @@
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, root_validator
 
 
 class LLMConfig(BaseModel):
@@ -47,6 +47,24 @@ class LLMConfig(BaseModel):
     # FIXME hack to silence pydantic protected namespace warning
     model_config = ConfigDict(protected_namespaces=())
 
+    @root_validator(pre=True)
+    def set_default_put_inner_thoughts(cls, values):
+        """
+        Dynamically set the default for put_inner_thoughts_in_kwargs based on the model field,
+        falling back to True if no specific rule is defined.
+        """
+        model = values.get("model")
+
+        # Define models where we want put_inner_thoughts_in_kwargs to be False
+        # For now it is gpt-4
+        avoid_put_inner_thoughts_in_kwargs = ["gpt-4"]
+
+        # Only modify the value if it's None or not provided
+        if values.get("put_inner_thoughts_in_kwargs") is None:
+            values["put_inner_thoughts_in_kwargs"] = False if model in avoid_put_inner_thoughts_in_kwargs else True
+
+        return values
+
     @classmethod
     def default_config(cls, model_name: str):
         if model_name == "gpt-4":
@@ -56,7 +74,6 @@ class LLMConfig(BaseModel):
                 model_endpoint="https://api.openai.com/v1",
                 model_wrapper=None,
                 context_window=8192,
-                put_inner_thoughts_in_kwargs=False,
             )
         elif model_name == "gpt-4o-mini":
             return cls(
@@ -65,7 +82,6 @@ class LLMConfig(BaseModel):
                 model_endpoint="https://api.openai.com/v1",
                 model_wrapper=None,
                 context_window=128000,
-                put_inner_thoughts_in_kwargs=True,
             )
         elif model_name == "letta":
             return cls(
@@ -73,7 +89,6 @@ class LLMConfig(BaseModel):
                 model_endpoint_type="openai",
                 model_endpoint="https://inference.memgpt.ai",
                 context_window=16384,
-                put_inner_thoughts_in_kwargs=True,
             )
         else:
             raise ValueError(f"Model {model_name} not supported.")
