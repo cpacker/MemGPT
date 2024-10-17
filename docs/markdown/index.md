@@ -960,7 +960,7 @@ Create an agent
   * **tools** (`List[str]`) – List of tools (by name) to attach to the agent
   * **include_base_tools** (`bool`) – Whether to include base tools (default: True)
 * **Returns:**
-  *agent_state (AgentState)* – State of the the created agent.
+  *agent_state (AgentState)* – State of the created agent.
 
 #### create_block(label: str, name: str, text: str) → Block
 
