@@ -49,7 +49,6 @@ def server(
     ade: Annotated[bool, typer.Option(help="Allows remote access")] = False,
 ):
     """Launch a Letta server process"""
-
     if type == ServerChoice.rest_api:
         pass
 
