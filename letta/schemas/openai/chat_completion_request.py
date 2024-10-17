@@ -74,7 +74,7 @@ class ToolFunctionChoice(BaseModel):
     function: FunctionCall
 
 
-ToolChoice = Union[Literal["none", "auto"], ToolFunctionChoice]
+ToolChoice = Union[Literal["none", "auto", "required"], ToolFunctionChoice]
 
 
 ## tools ##
