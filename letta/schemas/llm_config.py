@@ -56,6 +56,7 @@ class LLMConfig(BaseModel):
                 model_endpoint="https://api.openai.com/v1",
                 model_wrapper=None,
                 context_window=8192,
+                put_inner_thoughts_in_kwargs=False,
             )
         elif model_name == "gpt-4o-mini":
             return cls(
@@ -64,6 +65,7 @@ class LLMConfig(BaseModel):
                 model_endpoint="https://api.openai.com/v1",
                 model_wrapper=None,
                 context_window=128000,
+                put_inner_thoughts_in_kwargs=True,
             )
         elif model_name == "letta":
             return cls(
@@ -71,6 +73,7 @@ class LLMConfig(BaseModel):
                 model_endpoint_type="openai",
                 model_endpoint="https://inference.memgpt.ai",
                 context_window=16384,
+                put_inner_thoughts_in_kwargs=True,
             )
         else:
             raise ValueError(f"Model {model_name} not supported.")
