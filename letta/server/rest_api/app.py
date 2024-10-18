@@ -70,6 +70,7 @@ def create_application() -> "FastAPI":
         title="Letta",
         summary="Create LLM agents with long-term memory and custom tools 📚🦙",
         version="1.0.0",  # TODO wire this up to the version in the package
+        debug=True,
     )
 
     if "--ade" in sys.argv:
