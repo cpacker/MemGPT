@@ -101,7 +101,7 @@ def update_agent(
     return server.update_agent(update_agent, user_id=actor.id)
 
 
-@router.patch("/{agent_id}/tools", response_model=List[Tool], operation_id="get_tools_from_agent")
+@router.get("/{agent_id}/tools", response_model=List[Tool], operation_id="get_tools_from_agent")
 def get_tools_from_agent(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),

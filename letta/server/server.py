@@ -978,7 +978,7 @@ class SyncServer(Server):
         return letta_agent.agent_state
 
     def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
-        """Update the agents core memory block, return the new state"""
+        """Get tools from an existing agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id) is None:
@@ -994,7 +994,7 @@ class SyncServer(Server):
         tool_id: str,
         user_id: str,
     ):
-        """Update the agents core memory block, return the new state"""
+        """Add tools from an existing agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id) is None:
@@ -1033,7 +1033,7 @@ class SyncServer(Server):
         tool_id: str,
         user_id: str,
     ):
-        """Update the agents core memory block, return the new state"""
+        """Remove tools from an existing agent"""
         if self.ms.get_user(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id) is None:
