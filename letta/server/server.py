@@ -977,6 +977,17 @@ class SyncServer(Server):
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
 
+    def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
+        """Update the agents core memory block, return the new state"""
+        if self.ms.get_user(user_id=user_id) is None:
+            raise ValueError(f"User user_id={user_id} does not exist")
+        if self.ms.get_agent(agent_id=agent_id) is None:
+            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+
+        # Get the agent object (loaded in memory)
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        return letta_agent.tools
+
     def add_tool_to_agent(
         self,
         agent_id: str,
