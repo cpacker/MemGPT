@@ -976,23 +976,19 @@ test = ["pytest"]
 
 [[package]]
 name = "composio-core"
-version = "0.5.31"
+version = "0.5.34"
 description = "Core package to act as a bridge between composio platform and other services."
 optional = false
 python-versions = "<4,>=3.9"
 files = [
-    {file = "composio_core-0.5.31-py3-none-any.whl", hash = "sha256:a6c7ac87ad202d01db406ab8d14fa0458fb97a2685a1f1d7a13665503cacdc6d"},
-    {file = "composio_core-0.5.31.tar.gz", hash = "sha256:291e43f79866528de46a5bcce26d718c95d4e118deb400acf2da89f9c73157a8"},
+    {file = "composio_core-0.5.34-py3-none-any.whl", hash = "sha256:3eabec4d1db76c5e8f2c6191e427dcbf982d775623ade3dcda9a8a5e3bdcf34b"},
+    {file = "composio_core-0.5.34.tar.gz", hash = "sha256:7099308a0e6fe2d73dbe66c876cde741439603800f542e596cf6bd8a5ab94d39"},
 ]
 
 [package.dependencies]
 aiohttp = "*"
 click = "*"
-docker = ">=7.1.0"
-e2b = ">=0.17.2a37"
-e2b-code-interpreter = "*"
 fastapi = "*"
-gql = "*"
 importlib-metadata = ">=4.8.1"
 inflection = ">=0.5.1"
 jsonref = ">=1.1.0"
@@ -1002,28 +998,31 @@ pydantic = ">=2.6.4,<3"
 pyperclip = ">=1.8.2,<2"
 pysher = "1.0.8"
 requests = ">=2.31.0,<3"
-requests-toolbelt = "*"
 rich = ">=13.7.1,<14"
 semver = ">=2.13.0"
 sentry-sdk = ">=2.0.0"
 uvicorn = "*"
 
 [package.extras]
-all = ["diskcache", "flake8", "networkx", "pathspec", "pygments", "ruff", "transformers", "tree-sitter (==0.21.3)", "tree-sitter-languages"]
+all = ["aiohttp", "click", "diskcache", "docker (>=7.1.0)", "e2b (>=0.17.2a37,<1)", "e2b-code-interpreter", "fastapi", "flake8", "gql", "importlib-metadata (>=4.8.1)", "inflection (>=0.5.1)", "jsonref (>=1.1.0)", "jsonschema (>=4.21.1,<5)", "networkx", "paramiko (>=3.4.1)", "pathspec", "pydantic (>=2.6.4,<3)", "pygments", "pyperclip (>=1.8.2,<2)", "pysher (==1.0.8)", "requests (>=2.31.0,<3)", "requests-toolbelt", "rich (>=13.7.1,<14)", "ruff", "semver (>=2.13.0)", "sentry-sdk (>=2.0.0)", "transformers", "tree-sitter (==0.21.3)", "tree-sitter-languages", "uvicorn"]
+docker = ["docker (>=7.1.0)"]
+e2b = ["e2b (>=0.17.2a37,<1)", "e2b-code-interpreter"]
+flyio = ["gql", "requests-toolbelt"]
+tools = ["diskcache", "flake8", "networkx", "pathspec", "pygments", "ruff", "transformers", "tree-sitter (==0.21.3)", "tree-sitter-languages"]
 
 [[package]]
 name = "composio-langchain"
-version = "0.5.31"
+version = "0.5.34"
 description = "Use Composio to get an array of tools with your LangChain agent."
 optional = false
 python-versions = "<4,>=3.9"
 files = [
-    {file = "composio_langchain-0.5.31-py3-none-any.whl", hash = "sha256:df975a7d669e8e35d10e7842c40204730f35969e9428d77f1f1af715f7a17836"},
-    {file = "composio_langchain-0.5.31.tar.gz", hash = "sha256:747303647a23f605743c009bf2f563126366981fc410bdd377dbba1648161d55"},
+    {file = "composio_langchain-0.5.34-py3-none-any.whl", hash = "sha256:3004fdce61890a96f7fe2b3e6200f73f771492eda8d14e60a5b38266a90ac45c"},
+    {file = "composio_langchain-0.5.34.tar.gz", hash = "sha256:3116018f53892854f744b402b0c03e6eaa077bb6e5ae62c91e7df10b3edf1f91"},
 ]
 
 [package.dependencies]
-composio-core = ">=0.5.30,<=0.5.31"
+composio-core = ">=0.5.30,<=0.5.34"
 langchain = ">=0.1.0"
 langchain-openai = ">=0.0.2.post1"
 langchainhub = ">=0.1.15"
@@ -1360,7 +1359,7 @@ files = [
 name = "docker"
 version = "7.1.0"
 description = "A Python library for the Docker Engine API."
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "docker-7.1.0-py3-none-any.whl", hash = "sha256:c96b93b7f0a746f9e77d325bcfb87422a3d8bd4f03136ae8a85b37f1898d5fc0"},
@@ -1409,42 +1408,6 @@ files = [
     {file = "durationpy-0.9-py3-none-any.whl", hash = "sha256:e65359a7af5cedad07fb77a2dd3f390f8eb0b74cb845589fa6c057086834dd38"},
     {file = "durationpy-0.9.tar.gz", hash = "sha256:fd3feb0a69a0057d582ef643c355c40d2fa1c942191f914d12203b1a01ac722a"},
 ]
-
-[[package]]
-name = "e2b"
-version = "1.0.1"
-description = "E2B SDK that give agents cloud environments"
-optional = false
-python-versions = "<4.0,>=3.8"
-files = [
-    {file = "e2b-1.0.1-py3-none-any.whl", hash = "sha256:1ef318c0a0836c7aa0bd8eddf10482d0805c78aa03eb20b30fe3121d33112b16"},
-    {file = "e2b-1.0.1.tar.gz", hash = "sha256:cc55137ae9a628f0bfc69828dbd7860326bb73b07bc764ceee3ca965b96bf0b1"},
-]
-
-[package.dependencies]
-attrs = ">=23.2.0,<24.0.0"
-httpcore = ">=1.0.5,<2.0.0"
-httpx = ">=0.27.0,<0.28.0"
-packaging = ">=24.1,<25.0"
-protobuf = ">=3.20.0,<6.0.0"
-python-dateutil = ">=2.8.2"
-typing-extensions = ">=4.12.2,<5.0.0"
-
-[[package]]
-name = "e2b-code-interpreter"
-version = "1.0.1"
-description = "E2B Code Interpreter - Stateful code execution"
-optional = false
-python-versions = "<4.0,>=3.8"
-files = [
-    {file = "e2b_code_interpreter-1.0.1-py3-none-any.whl", hash = "sha256:e27c40174ba7daac4942388611a73e1ac58300227f0ba6c0555ee54507d4944c"},
-    {file = "e2b_code_interpreter-1.0.1.tar.gz", hash = "sha256:b0c061e41315d21514affe78f80052be335b687204e669dd7ca852b59eeaaea2"},
-]
-
-[package.dependencies]
-attrs = ">=21.3.0"
-e2b = ">=1.0.0,<2.0.0"
-httpx = ">=0.20.0,<0.28.0"
 
 [[package]]
 name = "embedchain"
@@ -2281,45 +2244,6 @@ files = [
 cachetools = "*"
 numpy = "*"
 requests = "*"
-
-[[package]]
-name = "gql"
-version = "3.5.0"
-description = "GraphQL client for Python"
-optional = false
-python-versions = "*"
-files = [
-    {file = "gql-3.5.0-py2.py3-none-any.whl", hash = "sha256:70dda5694a5b194a8441f077aa5fb70cc94e4ec08016117523f013680901ecb7"},
-    {file = "gql-3.5.0.tar.gz", hash = "sha256:ccb9c5db543682b28f577069950488218ed65d4ac70bb03b6929aaadaf636de9"},
-]
-
-[package.dependencies]
-anyio = ">=3.0,<5"
-backoff = ">=1.11.1,<3.0"
-graphql-core = ">=3.2,<3.3"
-yarl = ">=1.6,<2.0"
-
-[package.extras]
-aiohttp = ["aiohttp (>=3.8.0,<4)", "aiohttp (>=3.9.0b0,<4)"]
-all = ["aiohttp (>=3.8.0,<4)", "aiohttp (>=3.9.0b0,<4)", "botocore (>=1.21,<2)", "httpx (>=0.23.1,<1)", "requests (>=2.26,<3)", "requests-toolbelt (>=1.0.0,<2)", "websockets (>=10,<12)"]
-botocore = ["botocore (>=1.21,<2)"]
-dev = ["aiofiles", "aiohttp (>=3.8.0,<4)", "aiohttp (>=3.9.0b0,<4)", "black (==22.3.0)", "botocore (>=1.21,<2)", "check-manifest (>=0.42,<1)", "flake8 (==3.8.1)", "httpx (>=0.23.1,<1)", "isort (==4.3.21)", "mock (==4.0.2)", "mypy (==0.910)", "parse (==1.15.0)", "pytest (==7.4.2)", "pytest-asyncio (==0.21.1)", "pytest-console-scripts (==1.3.1)", "pytest-cov (==3.0.0)", "requests (>=2.26,<3)", "requests-toolbelt (>=1.0.0,<2)", "sphinx (>=5.3.0,<6)", "sphinx-argparse (==0.2.5)", "sphinx-rtd-theme (>=0.4,<1)", "types-aiofiles", "types-mock", "types-requests", "vcrpy (==4.4.0)", "websockets (>=10,<12)"]
-httpx = ["httpx (>=0.23.1,<1)"]
-requests = ["requests (>=2.26,<3)", "requests-toolbelt (>=1.0.0,<2)"]
-test = ["aiofiles", "aiohttp (>=3.8.0,<4)", "aiohttp (>=3.9.0b0,<4)", "botocore (>=1.21,<2)", "httpx (>=0.23.1,<1)", "mock (==4.0.2)", "parse (==1.15.0)", "pytest (==7.4.2)", "pytest-asyncio (==0.21.1)", "pytest-console-scripts (==1.3.1)", "pytest-cov (==3.0.0)", "requests (>=2.26,<3)", "requests-toolbelt (>=1.0.0,<2)", "vcrpy (==4.4.0)", "websockets (>=10,<12)"]
-test-no-transport = ["aiofiles", "mock (==4.0.2)", "parse (==1.15.0)", "pytest (==7.4.2)", "pytest-asyncio (==0.21.1)", "pytest-console-scripts (==1.3.1)", "pytest-cov (==3.0.0)", "vcrpy (==4.4.0)"]
-websockets = ["websockets (>=10,<12)"]
-
-[[package]]
-name = "graphql-core"
-version = "3.2.5"
-description = "GraphQL implementation for Python, a port of GraphQL.js, the JavaScript reference implementation for GraphQL."
-optional = false
-python-versions = "<4,>=3.6"
-files = [
-    {file = "graphql_core-3.2.5-py3-none-any.whl", hash = "sha256:2f150d5096448aa4f8ab26268567bbfeef823769893b39c1a2e1409590939c8a"},
-    {file = "graphql_core-3.2.5.tar.gz", hash = "sha256:e671b90ed653c808715645e3998b7ab67d382d55467b7e2978549111bbabf8d5"},
-]
 
 [[package]]
 name = "greenlet"
@@ -8499,4 +8423,4 @@ tests = ["wikipedia"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "2302d430ae353f5453bbf4223e9e00be38fcca45259de2924b38b14e36ab8024"
+content-hash = "357ad0382673050758dd4f98ba71d574cdebea385eefc9481b9c8bab743eafd3"
