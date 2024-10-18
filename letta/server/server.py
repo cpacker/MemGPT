@@ -1965,9 +1965,9 @@ class SyncServer(Server):
         """Delete a tool"""
         self.ms.delete_tool(tool_id)
 
-    def list_tools(self, user_id: str) -> List[Tool]:
+    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[Tool]:
         """List tools available to user_id"""
-        tools = self.ms.list_tools(user_id)
+        tools = self.ms.list_tools(cursor=cursor, limit=limit, user_id=user_id)
         return tools
 
     def add_default_tools(self, module_name="base", user_id: Optional[str] = None):
