@@ -1377,8 +1377,8 @@ class RESTClient(AbstractClient):
         if limit:
             params["limit"] = limit
         response = requests.get(f"{self.base_url}/{self.api_prefix}/tools", params=params, headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to list tools: {response.text}")
+        # if response.status_code != 200:
+        #     raise ValueError(f"Failed to list tools: {response.text}")
         return [Tool(**tool) for tool in response.json()]
 
     def delete_tool(self, name: str):
@@ -2255,15 +2255,14 @@ class LocalClient(AbstractClient):
             ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name), self.user_id
         )
 
-    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
+    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """
         List available tools for the user.
 
         Returns:
             tools (List[Tool]): List of tools
         """
-        tools = self.server.list_tools(cursor=cursor, limit=limit, user_id=self.user_id)
-        return tools
+        return self.server.list_tools(cursor=cursor, limit=limit, user_id=self.user_id)
 
     def get_tool(self, id: str) -> Optional[Tool]:
         """
