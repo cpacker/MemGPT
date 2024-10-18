@@ -5,10 +5,10 @@ from pydantic import BaseModel
 
 def generate_composio_tool_wrapper(action: "ActionType") -> tuple[str, str]:
     # Instantiate the object
-    tool_instantiation_str = f"composio_toolset.get_tools(actions=[Action.{action.name}])[0]"
+    tool_instantiation_str = f"composio_toolset.get_tools(actions=[Action.{str(action)}])[0]"
 
     # Generate func name
-    func_name = f"run_{action.name}"
+    func_name = f"run_{action.name.lower()}"
 
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
@@ -19,7 +19,7 @@ def {func_name}(**kwargs):
 
     composio_toolset = ComposioToolSet()
     tool = {tool_instantiation_str}
-    tool.func(**kwargs)
+    return tool.func(**kwargs)['data']
     """
 
     # Compile safety check

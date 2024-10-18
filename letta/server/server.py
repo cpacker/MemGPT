@@ -43,12 +43,12 @@ from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import Base, MetadataStore
+from letta.o1_agent import O1Agent
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
     AzureProvider,
     GoogleAIProvider,
-    GroqProvider,
     LettaProvider,
     OllamaProvider,
     OpenAIProvider,
@@ -73,12 +73,7 @@ from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.memory import (
-    ArchivalMemorySummary,
-    ContextWindowOverview,
-    Memory,
-    RecallMemorySummary,
-)
+from letta.schemas.memory import ArchivalMemorySummary, Memory, RecallMemorySummary
 from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
 from letta.schemas.organization import Organization, OrganizationCreate
 from letta.schemas.passage import Passage
@@ -249,6 +244,9 @@ class SyncServer(Server):
         # add global default tools (for admin)
         self.add_default_tools(module_name="base")
 
+        if settings.load_default_external_tools:
+            self.add_default_external_tools()
+
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
         if model_settings.openai_api_key:
@@ -301,12 +299,6 @@ class SyncServer(Server):
             self._enabled_providers.append(
                 VLLMChatCompletionsProvider(
                     base_url=model_settings.vllm_api_base,
-                )
-            )
-        if model_settings.groq_api_key:
-            self._enabled_providers.append(
-                GroqProvider(
-                    api_key=model_settings.groq_api_key,
                 )
             )
 
@@ -373,8 +365,10 @@ class SyncServer(Server):
 
             if agent_state.agent_type == AgentType.memgpt_agent:
                 letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            elif agent_state.agent_type == AgentType.o1_agent:
+                letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
             else:
-                raise NotImplementedError("Only base agents are supported as of right now!")
+                raise NotImplementedError("Not a supported agent type")
 
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
@@ -806,10 +800,18 @@ class SyncServer(Server):
         if request.name is None:
             request.name = create_random_username()
 
+        if request.agent_type is None:
+            request.agent_type = AgentType.memgpt_agent
+
         # system debug
         if request.system is None:
             # TODO: don't hardcode
-            request.system = gpt_system.get_system_text("memgpt_chat")
+            if request.agent_type == AgentType.memgpt_agent:
+                request.system = gpt_system.get_system_text("memgpt_chat")
+            elif request.agent_type == AgentType.o1_agent:
+                request.system = gpt_system.get_system_text("memgpt_modified_o1")
+            else:
+                raise ValueError(f"Invalid agent type: {request.agent_type}")
 
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.ms.get_user(user_id=user_id)
@@ -869,13 +871,22 @@ class SyncServer(Server):
                 description=request.description,
                 metadata_=request.metadata_,
             )
-            agent = Agent(
-                interface=interface,
-                agent_state=agent_state,
-                tools=tool_objs,
-                # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
-            )
+            if request.agent_type == AgentType.memgpt_agent:
+                agent = Agent(
+                    interface=interface,
+                    agent_state=agent_state,
+                    tools=tool_objs,
+                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                )
+            elif request.agent_type == AgentType.o1_agent:
+                agent = O1Agent(
+                    interface=interface,
+                    agent_state=agent_state,
+                    tools=tool_objs,
+                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
             # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
@@ -1453,7 +1464,6 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         assert isinstance(letta_agent.memory, Memory)
-        assert isinstance(letta_agent.agent_state.memory, Memory)
         return letta_agent.agent_state.model_copy(deep=True)
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
@@ -1969,11 +1979,13 @@ class SyncServer(Server):
             # Handle other general exceptions
             raise e
 
+        functions_to_schema = []
         try:
             # Load the function set
             functions_to_schema = load_function_set(module)
         except ValueError as e:
             err = f"Error loading function set '{module_name}': {e}"
+            warnings.warn(err)
 
         # create tool in db
         for name, schema in functions_to_schema.items():
@@ -1996,6 +2008,20 @@ class SyncServer(Server):
                 ),
                 update=True,
             )
+
+    def add_default_external_tools(self, user_id: Optional[str] = None) -> bool:
+        """Add default langchain tools. Return true if successful, false otherwise."""
+        success = True
+        tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools() + Tool.load_default_composio_tools()
+        for tool in tools:
+            try:
+                self.ms.create_tool(tool)
+            except Exception as e:
+                warnings.warn(f"An error occurred while creating tool {tool}: {e}")
+                warnings.warn(traceback.format_exc())
+                success = False
+
+        return success
 
     def add_default_blocks(self, user_id: str):
         from letta.utils import list_human_files, list_persona_files
@@ -2140,13 +2166,3 @@ class SyncServer(Server):
 
     def add_embedding_model(self, request: EmbeddingConfig) -> EmbeddingConfig:
         """Add a new embedding model"""
-
-    def get_agent_context_window(
-        self,
-        user_id: str,
-        agent_id: str,
-    ) -> ContextWindowOverview:
-
-        # Get the current message
-        letta_agent = self._get_or_load_agent(agent_id=agent_id)
-        return letta_agent.get_context_window()

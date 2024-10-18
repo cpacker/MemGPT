@@ -3,5 +3,6 @@
     "model": "gpt-4",
     "model_endpoint_type": "openai",
     "model_endpoint": "https://api.openai.com/v1",
-    "model_wrapper": null
+    "model_wrapper": null,
+    "put_inner_thoughts_in_kwargs": false
 }
