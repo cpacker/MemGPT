@@ -507,3 +507,43 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     args_json = json.loads(last_agent_message.tool_calls[0].function.arguments)
     print(args_json)
     assert "message" in args_json and args_json["message"] is not None and args_json["message"] != new_text
+
+
+def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id: str):
+    """Test that the context window overview fetch works"""
+
+    overview = server.get_agent_context_window(user_id=user_id, agent_id=agent_id)
+    assert overview is not None
+
+    # Run some basic checks
+    assert overview.context_window_size_max is not None
+    assert overview.context_window_size_current is not None
+    assert overview.num_archival_memory is not None
+    assert overview.num_recall_memory is not None
+    assert overview.num_tokens_external_memory_summary is not None
+    assert overview.num_tokens_system is not None
+    assert overview.system_prompt is not None
+    assert overview.num_tokens_core_memory is not None
+    assert overview.core_memory is not None
+    assert overview.num_tokens_summary_memory is not None
+    if overview.num_tokens_summary_memory > 0:
+        assert overview.summary_memory is not None
+    else:
+        assert overview.summary_memory is None
+    assert overview.num_tokens_functions_definitions is not None
+    if overview.num_tokens_functions_definitions > 0:
+        assert overview.functions_definitions is not None
+    else:
+        assert overview.functions_definitions is None
+    assert overview.num_tokens_messages is not None
+    assert overview.messages is not None
+
+    assert overview.context_window_size_max >= overview.context_window_size_current
+    assert overview.context_window_size_current == (
+        overview.num_tokens_system
+        + overview.num_tokens_core_memory
+        + overview.num_tokens_summary_memory
+        + overview.num_tokens_messages
+        + overview.num_tokens_functions_definitions
+        + overview.num_tokens_external_memory_summary
+    )
