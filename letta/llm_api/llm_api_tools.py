@@ -1,4 +1,3 @@
-import os
 import random
 import time
 from typing import List, Optional, Union
@@ -8,14 +7,12 @@ import requests
 from letta.constants import CLI_WARNING_PREFIX
 from letta.llm_api.anthropic import anthropic_chat_completions_request
 from letta.llm_api.azure_openai import azure_openai_chat_completions_request
-from letta.llm_api.cohere import cohere_chat_completions_request
 from letta.llm_api.google_ai import (
     convert_tools_to_google_ai_format,
     google_ai_chat_completions_request,
 )
 from letta.llm_api.helpers import (
     add_inner_thoughts_to_functions,
-    derive_inner_thoughts_in_kwargs,
     unpack_all_inner_thoughts_from_kwargs,
 )
 from letta.llm_api.openai import (
@@ -28,7 +25,6 @@ from letta.local_llm.constants import (
     INNER_THOUGHTS_KWARG,
     INNER_THOUGHTS_KWARG_DESCRIPTION,
 )
-from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_request import (
@@ -120,9 +116,6 @@ def create(
     # streaming?
     stream: bool = False,
     stream_interface: Optional[Union[AgentRefreshStreamingInterface, AgentChunkStreamingInterface]] = None,
-    # TODO move to llm_config?
-    # if unspecified (None), default to something we've tested
-    inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
     max_tokens: Optional[int] = None,
     model_settings: Optional[dict] = None,  # TODO: eventually pass from server
 ) -> ChatCompletionResponse:
@@ -146,10 +139,7 @@ def create(
             # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"OpenAI key is missing from letta config file")
 
-        inner_thoughts_in_kwargs = derive_inner_thoughts_in_kwargs(inner_thoughts_in_kwargs_option, model=llm_config.model)
-        data = build_openai_chat_completions_request(
-            llm_config, messages, user_id, functions, function_call, use_tool_naming, inner_thoughts_in_kwargs, max_tokens
-        )
+        data = build_openai_chat_completions_request(llm_config, messages, user_id, functions, function_call, use_tool_naming, max_tokens)
 
         if stream:  # Client requested token streaming
             data.stream = True
@@ -176,7 +166,7 @@ def create(
                 if isinstance(stream_interface, AgentChunkStreamingInterface):
                     stream_interface.stream_end()
 
-        if inner_thoughts_in_kwargs:
+        if llm_config.put_inner_thoughts_in_kwargs:
             response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
 
         return response
@@ -198,9 +188,8 @@ def create(
         # Set the llm config model_endpoint from model_settings
         # For Azure, this model_endpoint is required to be configured via env variable, so users don't need to provide it in the LLM config
         llm_config.model_endpoint = model_settings.azure_base_url
-        inner_thoughts_in_kwargs = derive_inner_thoughts_in_kwargs(inner_thoughts_in_kwargs_option, llm_config.model)
         chat_completion_request = build_openai_chat_completions_request(
-            llm_config, messages, user_id, functions, function_call, use_tool_naming, inner_thoughts_in_kwargs, max_tokens
+            llm_config, messages, user_id, functions, function_call, use_tool_naming, max_tokens
         )
 
         response = azure_openai_chat_completions_request(
@@ -210,7 +199,7 @@ def create(
             chat_completion_request=chat_completion_request,
         )
 
-        if inner_thoughts_in_kwargs:
+        if llm_config.put_inner_thoughts_in_kwargs:
             response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
 
         return response
@@ -224,7 +213,7 @@ def create(
         if functions is not None:
             tools = [{"type": "function", "function": f} for f in functions]
             tools = [Tool(**t) for t in tools]
-            tools = convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=True)
+            tools = convert_tools_to_google_ai_format(tools, inner_thoughts_in_kwargs=llm_config.put_inner_thoughts_in_kwargs)
         else:
             tools = None
 
@@ -237,7 +226,7 @@ def create(
                 contents=[m.to_google_ai_dict() for m in messages],
                 tools=tools,
             ),
-            inner_thoughts_in_kwargs=True,
+            inner_thoughts_in_kwargs=llm_config.put_inner_thoughts_in_kwargs,
         )
 
     elif llm_config.model_endpoint_type == "anthropic":
@@ -260,32 +249,32 @@ def create(
             ),
         )
 
-    elif llm_config.model_endpoint_type == "cohere":
-        if stream:
-            raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
-        if not use_tool_naming:
-            raise NotImplementedError("Only tool calling supported on Cohere API requests")
-
-        if functions is not None:
-            tools = [{"type": "function", "function": f} for f in functions]
-            tools = [Tool(**t) for t in tools]
-        else:
-            tools = None
-
-        return cohere_chat_completions_request(
-            # url=llm_config.model_endpoint,
-            url="https://api.cohere.ai/v1",  # TODO
-            api_key=os.getenv("COHERE_API_KEY"),  # TODO remove
-            chat_completion_request=ChatCompletionRequest(
-                model="command-r-plus",  # TODO
-                messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
-                tools=tools,
-                tool_choice=function_call,
-                # user=str(user_id),
-                # NOTE: max_tokens is required for Anthropic API
-                # max_tokens=1024,  # TODO make dynamic
-            ),
-        )
+    # elif llm_config.model_endpoint_type == "cohere":
+    #     if stream:
+    #         raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
+    #     if not use_tool_naming:
+    #         raise NotImplementedError("Only tool calling supported on Cohere API requests")
+    #
+    #     if functions is not None:
+    #         tools = [{"type": "function", "function": f} for f in functions]
+    #         tools = [Tool(**t) for t in tools]
+    #     else:
+    #         tools = None
+    #
+    #     return cohere_chat_completions_request(
+    #         # url=llm_config.model_endpoint,
+    #         url="https://api.cohere.ai/v1",  # TODO
+    #         api_key=os.getenv("COHERE_API_KEY"),  # TODO remove
+    #         chat_completion_request=ChatCompletionRequest(
+    #             model="command-r-plus",  # TODO
+    #             messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
+    #             tools=tools,
+    #             tool_choice=function_call,
+    #             # user=str(user_id),
+    #             # NOTE: max_tokens is required for Anthropic API
+    #             # max_tokens=1024,  # TODO make dynamic
+    #         ),
+    #     )
 
     elif llm_config.model_endpoint_type == "groq":
         if stream:
@@ -295,8 +284,7 @@ def create(
             raise ValueError(f"Groq key is missing from letta config file")
 
         # force to true for groq, since they don't support 'content' is non-null
-        inner_thoughts_in_kwargs = True
-        if inner_thoughts_in_kwargs:
+        if llm_config.put_inner_thoughts_in_kwargs:
             functions = add_inner_thoughts_to_functions(
                 functions=functions,
                 inner_thoughts_key=INNER_THOUGHTS_KWARG,
@@ -306,7 +294,7 @@ def create(
         tools = [{"type": "function", "function": f} for f in functions] if functions is not None else None
         data = ChatCompletionRequest(
             model=llm_config.model,
-            messages=[m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs) for m in messages],
+            messages=[m.to_openai_dict(put_inner_thoughts_in_kwargs=llm_config.put_inner_thoughts_in_kwargs) for m in messages],
             tools=tools,
             tool_choice=function_call,
             user=str(user_id),
@@ -335,7 +323,7 @@ def create(
             if isinstance(stream_interface, AgentChunkStreamingInterface):
                 stream_interface.stream_end()
 
-        if inner_thoughts_in_kwargs:
+        if llm_config.put_inner_thoughts_in_kwargs:
             response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
 
         return response

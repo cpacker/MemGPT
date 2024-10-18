@@ -270,7 +270,7 @@ class AgentModel(Base):
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> AgentState:
-        return AgentState(
+        agent_state = AgentState(
             id=self.id,
             user_id=self.user_id,
             name=self.name,
@@ -285,6 +285,8 @@ class AgentModel(Base):
             embedding_config=self.embedding_config,
             metadata_=self.metadata_,
         )
+        assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
+        return agent_state
 
 
 class SourceModel(Base):
@@ -527,6 +529,7 @@ class MetadataStore:
                 raise ValueError(f"Agent with name {agent.name} already exists")
             fields = vars(agent)
             fields["memory"] = agent.memory.to_dict()
+            del fields["_internal_memory"]
             session.add(AgentModel(**fields))
             session.commit()
 
@@ -588,6 +591,7 @@ class MetadataStore:
             fields = vars(agent)
             if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
                 fields["memory"] = agent.memory.to_dict()
+            del fields["_internal_memory"]
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
 
