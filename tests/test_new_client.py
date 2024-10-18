@@ -49,6 +49,7 @@ def test_agent(client: Union[LocalClient, RESTClient]):
     assert agent_state_test.id in [a.id for a in agents]
 
     # get agent
+    tools = client.list_tools()
     print("TOOLS", [t.name for t in tools])
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
