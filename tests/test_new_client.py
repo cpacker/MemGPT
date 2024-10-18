@@ -36,8 +36,6 @@ def agent(client):
 
 
 def test_agent(client: Union[LocalClient, RESTClient]):
-    tools = client.list_tools()
-
     # create agent
     agent_state_test = client.create_agent(
         name="test_agent2",
