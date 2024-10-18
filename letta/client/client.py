@@ -96,6 +96,9 @@ class AbstractClient(object):
     ):
         raise NotImplementedError
 
+    def get_tools_from_agent(self, agent_id: str):
+        raise NotImplementedError
+
     def add_tool_to_agent(self, agent_id: str, tool_id: str):
         raise NotImplementedError
 
@@ -479,6 +482,21 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
+
+    def get_tools_from_agent(self, agent_id: str) -> List[Tool]:
+        """
+        Get tools to an existing agent
+
+        Args:
+           agent_id (str): ID of the agent
+
+        Returns:
+           List[Tool]: A List of Tool objs
+        """
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/tools", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get tools from agents: {response.text}")
+        return [Tool(**tool) for tool in response.json()]
 
     def add_tool_to_agent(self, agent_id: str, tool_id: str):
         """
@@ -1691,6 +1709,19 @@ class LocalClient(AbstractClient):
             user_id=self.user_id,
         )
         return agent_state
+
+    def get_tools_from_agent(self, agent_id: str) -> List[Tool]:
+        """
+        Get tools from an existing agent.
+
+        Args:
+            agent_id (str): ID of the agent
+
+        Returns:
+            List[Tool]: A list of Tool objs
+        """
+        self.interface.clear()
+        return self.server.get_tools_from_agent(agent_id=agent_id, user_id=self.user_id)
 
     def add_tool_to_agent(self, agent_id: str, tool_id: str):
         """

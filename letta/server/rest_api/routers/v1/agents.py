@@ -27,6 +27,7 @@ from letta.schemas.memory import (
 from letta.schemas.message import Message, MessageCreate, UpdateMessage
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
+from letta.schemas.tool import Tool
 from letta.server.rest_api.interface import StreamingServerInterface
 from letta.server.rest_api.utils import get_letta_server, sse_async_generator
 from letta.server.server import SyncServer
@@ -100,6 +101,17 @@ def update_agent(
     return server.update_agent(update_agent, user_id=actor.id)
 
 
+@router.get("/{agent_id}/tools", response_model=List[Tool], operation_id="get_tools_from_agent")
+def get_tools_from_agent(
+    agent_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """Get tools from an existing agent"""
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.get_tools_from_agent(agent_id=agent_id, user_id=actor.id)
+
+
 @router.patch("/{agent_id}/add-tool/{tool_id}", response_model=AgentState, operation_id="add_tool_to_agent")
 def add_tool_to_agent(
     agent_id: str,
@@ -107,10 +119,8 @@ def add_tool_to_agent(
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
-    """Add tools to an exsiting agent"""
+    """Add tools to an existing agent"""
     actor = server.get_user_or_default(user_id=user_id)
-
-    update_agent.id = agent_id
     return server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
 
@@ -121,10 +131,8 @@ def remove_tool_from_agent(
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
-    """Add tools to an exsiting agent"""
+    """Add tools to an existing agent"""
     actor = server.get_user_or_default(user_id=user_id)
-
-    update_agent.id = agent_id
     return server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
 
