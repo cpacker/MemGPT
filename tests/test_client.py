@@ -299,6 +299,28 @@ def test_config(client: Union[LocalClient, RESTClient], agent: AgentState):
     # print("CONFIG", config_response)
 
 
+def test_list_tools_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
+    tools = client.list_tools()
+    visited_ids = {t.id: False for t in tools}
+
+    cursor = None
+    # Choose 3 for uneven buckets (only 7 default tools)
+    num_tools = 3
+    # Construct a complete pagination test to see if we can return all the tools eventually
+    for _ in range(0, len(tools), num_tools):
+        curr_tools = client.list_tools(cursor, num_tools)
+        assert len(curr_tools) <= num_tools
+
+        for curr_tool in curr_tools:
+            assert curr_tool.id in visited_ids
+            visited_ids[curr_tool.id] = True
+
+        cursor = curr_tools[-1].id
+
+    # Assert that everything has been visited
+    assert all(visited_ids.values())
+
+
 def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
     # clear sources
     for source in client.list_sources():

@@ -14,7 +14,9 @@ from sqlalchemy import (
     Integer,
     String,
     TypeDecorator,
+    asc,
     desc,
+    or_,
 )
 from sqlalchemy.sql import func
 
@@ -707,12 +709,19 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    # def list_tools(self, user_id: str) -> List[ToolModel]: # TODO: add when users can creat tools
-    def list_tools(self, user_id: Optional[str] = None) -> List[ToolModel]:
+    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[ToolModel]:
         with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.user_id == None).all()
-            if user_id:
-                results += session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
+            # Query for public tools or user-specific tools
+            query = session.query(ToolModel).filter(or_(ToolModel.user_id == None, ToolModel.user_id == user_id))
+
+            # Apply cursor if provided (assuming cursor is an ID)
+            if cursor:
+                query = query.filter(ToolModel.id > cursor)
+
+            # Order by ID and apply limit
+            results = query.order_by(asc(ToolModel.id)).limit(limit).all()
+
+            # Convert to records
             res = [r.to_record() for r in results]
             return res
 

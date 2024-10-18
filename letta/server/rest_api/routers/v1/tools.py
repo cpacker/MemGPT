@@ -59,18 +59,21 @@ def get_tool_id(
 
 @router.get("/", response_model=List[Tool], operation_id="list_tools")
 def list_all_tools(
+    cursor: Optional[str] = None,
+    limit: Optional[int] = 50,
     server: SyncServer = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Get a list of all tools available to agents created by a user
     """
-    actor = server.get_user_or_default(user_id=user_id)
-    actor.id
-
-    # TODO: add back when user-specific
-    return server.list_tools(user_id=actor.id)
-    # return server.ms.list_tools(user_id=None)
+    try:
+        actor = server.get_user_or_default(user_id=user_id)
+        return server.list_tools(cursor=cursor, limit=limit, user_id=actor.id)
+    except Exception as e:
+        # Log or print the full exception here for debugging
+        print(f"Error occurred: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/", response_model=Tool, operation_id="create_tool")
