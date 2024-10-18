@@ -23,7 +23,7 @@ from letta.errors import LLMError
 from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
-from letta.local_llm.utils import num_tokens_from_messages
+from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
 from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.persistence_manager import LocalStateManager
@@ -33,6 +33,9 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole
 from letta.schemas.memory import ContextWindowOverview, Memory
 from letta.schemas.message import Message, UpdateMessage
+from letta.schemas.openai.chat_completion_request import (
+    Tool as ChatCompletionRequestTool,
+)
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.schemas.openai.chat_completion_response import (
     Message as ChatCompletionMessage,
@@ -1458,6 +1461,24 @@ class Agent(BaseAgent):
         )
         num_tokens_external_memory_summary = count_tokens(external_memory_summary)
 
+        # tokens taken up by function definitions
+        if self.functions:
+            available_functions_definitions = [ChatCompletionRequestTool(type="function", function=f) for f in self.functions]
+            num_tokens_available_functions_definitions = num_tokens_from_functions(functions=self.functions, model=self.model)
+        else:
+            available_functions_definitions = []
+            num_tokens_available_functions_definitions = 0
+
+        num_tokens_used_total = (
+            num_tokens_system  # system prompt
+            + num_tokens_available_functions_definitions  # function definitions
+            + num_tokens_core_memory  # core memory
+            + num_tokens_external_memory_summary  # metadata (statistics) about recall/archival
+            + num_tokens_summary_memory  # summary of ongoing conversation
+            + num_tokens_messages  # tokens taken by messages
+        )
+        assert isinstance(num_tokens_used_total, int)
+
         return ContextWindowOverview(
             # context window breakdown (in messages)
             num_messages=len(self._messages),
@@ -1466,7 +1487,7 @@ class Agent(BaseAgent):
             num_tokens_external_memory_summary=num_tokens_external_memory_summary,
             # top-level information
             context_window_size_max=self.agent_state.llm_config.context_window,
-            context_window_size_current=num_tokens_system + num_tokens_core_memory + num_tokens_summary_memory + num_tokens_messages,
+            context_window_size_current=num_tokens_used_total,
             # context window breakdown (in tokens)
             num_tokens_system=num_tokens_system,
             system_prompt=system_prompt,
@@ -1476,6 +1497,9 @@ class Agent(BaseAgent):
             summary_memory=summary_memory,
             num_tokens_messages=num_tokens_messages,
             messages=self._messages,
+            # related to functions
+            num_tokens_functions_definitions=num_tokens_available_functions_definitions,
+            functions_definitions=available_functions_definitions,
         )
 
 

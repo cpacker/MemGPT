@@ -18,8 +18,13 @@ from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_mes
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message as _Message
 from letta.schemas.message import MessageRole as _MessageRole
+from letta.schemas.openai.chat_completion_request import ChatCompletionRequest
 from letta.schemas.openai.chat_completion_request import (
-    ChatCompletionRequest,
+    FunctionCall as ToolFunctionChoiceFunctionCall,
+)
+from letta.schemas.openai.chat_completion_request import (
+    Tool,
+    ToolFunctionChoice,
     cast_message_to_subtype,
 )
 from letta.schemas.openai.chat_completion_response import (
@@ -100,10 +105,10 @@ def openai_get_model_list(
 
 def build_openai_chat_completions_request(
     llm_config: LLMConfig,
-    messages: List[Message],
+    messages: List[_Message],
     user_id: Optional[str],
     functions: Optional[list],
-    function_call: str,
+    function_call: Optional[str],
     use_tool_naming: bool,
     max_tokens: Optional[int],
 ) -> ChatCompletionRequest:
@@ -124,11 +129,17 @@ def build_openai_chat_completions_request(
         model = None
 
     if use_tool_naming:
+        if function_call is None:
+            tool_choice = None
+        elif function_call not in ["none", "auto", "required"]:
+            tool_choice = ToolFunctionChoice(type="function", function=ToolFunctionChoiceFunctionCall(name=function_call))
+        else:
+            tool_choice = function_call
         data = ChatCompletionRequest(
             model=model,
             messages=openai_message_list,
-            tools=[{"type": "function", "function": f} for f in functions] if functions else None,
-            tool_choice=function_call,
+            tools=[Tool(type="function", function=f) for f in functions] if functions else None,
+            tool_choice=tool_choice,
             user=str(user_id),
             max_tokens=max_tokens,
         )
