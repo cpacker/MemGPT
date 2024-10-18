@@ -16,6 +16,7 @@ from sqlalchemy import (
     TypeDecorator,
     asc,
     desc,
+    or_,
 )
 from sqlalchemy.sql import func
 
@@ -710,13 +711,8 @@ class MetadataStore:
     @enforce_types
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[ToolModel]:
         with self.session_maker() as session:
-            # Query for public tools (user_id is None)
-            query = session.query(ToolModel).filter(ToolModel.user_id == None)
-
-            # If user_id is provided, query for both public and user-specific tools
-            if user_id:
-                user_query = session.query(ToolModel).filter(ToolModel.user_id == user_id)
-                query = query.union(user_query)
+            # Query for public tools or user-specific tools
+            query = session.query(ToolModel).filter(or_(ToolModel.user_id == None, ToolModel.user_id == user_id))
 
             # Apply cursor if provided (assuming cursor is an ID)
             if cursor:
