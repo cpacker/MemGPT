@@ -1377,8 +1377,8 @@ class RESTClient(AbstractClient):
         if limit:
             params["limit"] = limit
         response = requests.get(f"{self.base_url}/{self.api_prefix}/tools", params=params, headers=self.headers)
-        # if response.status_code != 200:
-        #     raise ValueError(f"Failed to list tools: {response.text}")
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list tools: {response.text}")
         return [Tool(**tool) for tool in response.json()]
 
     def delete_tool(self, name: str):

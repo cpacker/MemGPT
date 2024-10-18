@@ -67,9 +67,13 @@ def list_all_tools(
     """
     Get a list of all tools available to agents created by a user
     """
-    actor = server.get_user_or_default(user_id=user_id)
-
-    return server.list_tools(cursor=cursor, limit=limit, user_id=actor.id)
+    try:
+        actor = server.get_user_or_default(user_id=user_id)
+        return server.list_tools(cursor=cursor, limit=limit, user_id=actor.id)
+    except Exception as e:
+        # Log or print the full exception here for debugging
+        print(f"Error occurred: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/", response_model=Tool, operation_id="create_tool")
