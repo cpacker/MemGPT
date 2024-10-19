@@ -178,6 +178,7 @@ class Message(BaseMessage):
                                 function_call=FunctionCall(
                                     name=tool_call.function.name,
                                     arguments=tool_call.function.arguments,
+                                    function_call_id=tool_call.id,
                                 ),
                             )
                         )
@@ -203,6 +204,7 @@ class Message(BaseMessage):
                     raise ValueError(f"Invalid status: {status}")
             except json.JSONDecodeError:
                 raise ValueError(f"Failed to decode function return: {self.text}")
+            assert self.tool_call_id is not None
             messages.append(
                 # TODO make sure this is what the API returns
                 # function_return may not match exactly...
@@ -211,6 +213,7 @@ class Message(BaseMessage):
                     date=self.created_at,
                     function_return=self.text,
                     status=status_enum,
+                    function_call_id=self.tool_call_id,
                 )
             )
         elif self.role == MessageRole.user:

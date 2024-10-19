@@ -531,7 +531,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                     processed_chunk = FunctionCallMessage(
                         id=message_id,
                         date=message_date,
-                        function_call=FunctionCallDelta(name=tool_call_delta.get("name"), arguments=tool_call_delta.get("arguments")),
+                        function_call=FunctionCallDelta(
+                            name=tool_call_delta.get("name"),
+                            arguments=tool_call_delta.get("arguments"),
+                            function_call_id=tool_call_delta.get("id"),
+                        ),
                     )
 
             else:
@@ -548,7 +552,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                 processed_chunk = FunctionCallMessage(
                     id=message_id,
                     date=message_date,
-                    function_call=FunctionCallDelta(name=tool_call_delta.get("name"), arguments=tool_call_delta.get("arguments")),
+                    function_call=FunctionCallDelta(
+                        name=tool_call_delta.get("name"),
+                        arguments=tool_call_delta.get("arguments"),
+                        function_call_id=tool_call_delta.get("id"),
+                    ),
                 )
 
         elif choice.finish_reason is not None:
@@ -759,6 +767,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                             function_call=FunctionCall(
                                 name=function_call.function.name,
                                 arguments=function_call.function.arguments,
+                                function_call_id=function_call.id,
                             ),
                         )
 
@@ -786,21 +795,25 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         elif msg.startswith("Success: "):
             msg = msg.replace("Success: ", "")
             # new_message = {"function_return": msg, "status": "success"}
+            assert msg_obj.tool_call_id is not None
             new_message = FunctionReturn(
                 id=msg_obj.id,
                 date=msg_obj.created_at,
                 function_return=msg,
                 status="success",
+                function_call_id=msg_obj.tool_call_id,
             )
 
         elif msg.startswith("Error: "):
             msg = msg.replace("Error: ", "")
             # new_message = {"function_return": msg, "status": "error"}
+            assert msg_obj.tool_call_id is not None
             new_message = FunctionReturn(
                 id=msg_obj.id,
                 date=msg_obj.created_at,
                 function_return=msg,
                 status="error",
+                function_call_id=msg_obj.tool_call_id,
             )
 
         else:
