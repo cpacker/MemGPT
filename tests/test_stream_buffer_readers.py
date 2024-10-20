@@ -1,14 +1,19 @@
+import pytest
+
 from letta.server.rest_api.interface import JSONInnerThoughtsExtractor
 
+# TODO make the wait_for_first_key automatically run both versions in pytest
 
-def test_inner_thoughts_in_args(wait_for_first_key=True):
+
+@pytest.mark.parametrize("wait_for_first_key", [True, False])
+def test_inner_thoughts_in_args(wait_for_first_key):
     """Test case where the function_delta.arguments contains inner_thoughts
 
     Correct output should be inner_thoughts VALUE (not KEY) being written to one buffer
     And everything else (omiting inner_thoughts KEY) being written to the other buffer
     """
     print("Running Test Case 1: With 'inner_thoughts'")
-    handler1 = JSONInnerThoughtsExtractor(inner_thoughts_key="inner_thoughts")
+    handler1 = JSONInnerThoughtsExtractor(inner_thoughts_key="inner_thoughts", wait_for_first_key=wait_for_first_key)
     fragments1 = [
         "{",
         """"inner_thoughts":"Chad's x2 tradition""",

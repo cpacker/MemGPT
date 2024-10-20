@@ -38,59 +38,31 @@ class JSONInnerThoughtsExtractor:
     - `main_json`: Accumulates the JSON data excluding the 'inner_thoughts' key-value pair.
     - `inner_thoughts`: Accumulates the value associated with the 'inner_thoughts' key.
 
+    **Parameters:**
+
+    - `inner_thoughts_key` (str): The key to extract from the JSON (default is 'inner_thoughts').
+    - `wait_for_first_key` (bool): If `True`, holds back main JSON output until after the 'inner_thoughts' value is processed.
+
     **Functionality:**
 
-    - **Stateful Parsing:** Maintains parsing state across fragments, handling JSON structures like objects, strings, and escaped characters.
-    - **String Handling:** Correctly processes strings within the JSON, respecting escape sequences and quotation marks.
-    - **Selective Extraction:** Identifies and extracts the value of the specified key without disrupting the integrity of the remaining JSON data.
-    - **Fragment Processing:** Designed to handle data that arrives in chunks, such as streaming data or partial reads from a file or network.
+    - **Stateful Parsing:** Maintains parsing state across fragments.
+    - **String Handling:** Correctly processes strings, escape sequences, and quotation marks.
+    - **Selective Extraction:** Identifies and extracts the value of the specified key.
+    - **Fragment Processing:** Handles data that arrives in chunks.
 
     **Usage:**
 
-    1. **Initialization:**
-       ```python
-       extractor = JSONInnerThoughtsExtractor(inner_thoughts_key="inner_thoughts")
-       ```
-       - `inner_thoughts_key` is the key whose value you want to extract separately.
-
-    2. **Processing Fragments:**
-       ```python
-       updates_main_json, updates_inner_thoughts = extractor.process_fragment(fragment)
-       ```
-       - Call this method with each incoming fragment of JSON data.
-       - It returns the updates to `main_json` and `inner_thoughts` buffers based on the fragment.
-
-    3. **Accessing Buffers:**
-       ```python
-       complete_json = extractor.main_json
-       inner_thoughts_content = extractor.inner_thoughts
-       ```
-       - Use these properties to access the accumulated data.
-
-    **Example:**
-
     ```python
-    extractor = JSONInnerThoughtsExtractor()
-    fragments = ['{"inner_thoughts":"I think', ' therefore I am", "message":"Hello"}']
+    extractor = JSONInnerThoughtsExtractor(wait_for_first_key=True)
     for fragment in fragments:
-        extractor.process_fragment(fragment)
-    print("Main JSON:", extractor.main_json)
-    print("Inner Thoughts:", extractor.inner_thoughts)
+        updates_main_json, updates_inner_thoughts = extractor.process_fragment(fragment)
     ```
-    - **Output:**
-      ```
-      Main JSON: {"message":"Hello"}
-      Inner Thoughts: I think therefore I am
-      ```
 
-    **Notes:**
-
-    - The class assumes that the JSON fragments are well-formed and that strings and escape sequences are not split across fragments.
-    - It does not perform full JSON validation but focuses on correctly parsing and extracting the specified key's value.
     """
 
-    def __init__(self, inner_thoughts_key="inner_thoughts"):
+    def __init__(self, inner_thoughts_key="inner_thoughts", wait_for_first_key=False):
         self.inner_thoughts_key = inner_thoughts_key
+        self.wait_for_first_key = wait_for_first_key
         self.main_buffer = ""
         self.inner_thoughts_buffer = ""
         self.state = "start"  # Possible states: start, key, colon, value, comma_or_end, end
@@ -98,6 +70,9 @@ class JSONInnerThoughtsExtractor:
         self.escaped = False
         self.current_key = ""
         self.is_inner_thoughts_value = False
+        self.inner_thoughts_processed = False
+        self.hold_main_json = wait_for_first_key
+        self.main_json_held_buffer = ""
 
     def process_fragment(self, fragment):
         updates_main_json = ""
@@ -115,12 +90,18 @@ class JSONInnerThoughtsExtractor:
                             updates_inner_thoughts += c
                             self.inner_thoughts_buffer += c
                         else:
-                            updates_main_json += c
-                            self.main_buffer += c
+                            if self.hold_main_json:
+                                self.main_json_held_buffer += c
+                            else:
+                                updates_main_json += c
+                                self.main_buffer += c
                 else:
                     if not self.is_inner_thoughts_value:
-                        updates_main_json += c
-                        self.main_buffer += c
+                        if self.hold_main_json:
+                            self.main_json_held_buffer += c
+                        else:
+                            updates_main_json += c
+                            self.main_buffer += c
             elif c == "\\":
                 self.escaped = True
                 if self.in_string:
@@ -131,12 +112,18 @@ class JSONInnerThoughtsExtractor:
                             updates_inner_thoughts += c
                             self.inner_thoughts_buffer += c
                         else:
-                            updates_main_json += c
-                            self.main_buffer += c
+                            if self.hold_main_json:
+                                self.main_json_held_buffer += c
+                            else:
+                                updates_main_json += c
+                                self.main_buffer += c
                 else:
                     if not self.is_inner_thoughts_value:
-                        updates_main_json += c
-                        self.main_buffer += c
+                        if self.hold_main_json:
+                            self.main_json_held_buffer += c
+                        else:
+                            updates_main_json += c
+                            self.main_buffer += c
             elif c == '"':
                 if not self.escaped:
                     self.in_string = not self.in_string
@@ -144,15 +131,26 @@ class JSONInnerThoughtsExtractor:
                         if self.state in ["start", "comma_or_end"]:
                             self.state = "key"
                             self.current_key = ""
+                            # Release held main_json when starting to process the next key
+                            if self.wait_for_first_key and self.hold_main_json and self.inner_thoughts_processed:
+                                updates_main_json += self.main_json_held_buffer
+                                self.main_buffer += self.main_json_held_buffer
+                                self.main_json_held_buffer = ""
+                                self.hold_main_json = False
                     else:
                         if self.state == "key":
                             self.state = "colon"
                         elif self.state == "value":
                             # End of value
-                            if not self.is_inner_thoughts_value:
-                                # Append closing quote to main_buffer
-                                updates_main_json += '"'
-                                self.main_buffer += '"'
+                            if self.is_inner_thoughts_value:
+                                self.inner_thoughts_processed = True
+                                # Do not release held main_json here
+                            else:
+                                if self.hold_main_json:
+                                    self.main_json_held_buffer += '"'
+                                else:
+                                    updates_main_json += '"'
+                                    self.main_buffer += '"'
                             self.state = "comma_or_end"
                 else:
                     self.escaped = False
@@ -164,8 +162,11 @@ class JSONInnerThoughtsExtractor:
                                 updates_inner_thoughts += '"'
                                 self.inner_thoughts_buffer += '"'
                             else:
-                                updates_main_json += '"'
-                                self.main_buffer += '"'
+                                if self.hold_main_json:
+                                    self.main_json_held_buffer += '"'
+                                else:
+                                    updates_main_json += '"'
+                                    self.main_buffer += '"'
             elif self.in_string:
                 if self.state == "key":
                     self.current_key += c
@@ -174,44 +175,64 @@ class JSONInnerThoughtsExtractor:
                         updates_inner_thoughts += c
                         self.inner_thoughts_buffer += c
                     else:
-                        updates_main_json += c
-                        self.main_buffer += c
+                        if self.hold_main_json:
+                            self.main_json_held_buffer += c
+                        else:
+                            updates_main_json += c
+                            self.main_buffer += c
             else:
                 if c == ":" and self.state == "colon":
                     self.state = "value"
                     self.is_inner_thoughts_value = self.current_key == self.inner_thoughts_key
-                    if not self.is_inner_thoughts_value:
-                        # For main_buffer, add the key and the colon and starting quote
+                    if self.is_inner_thoughts_value:
+                        pass  # Do not include 'inner_thoughts' key in main_json
+                    else:
                         key_colon = f'"{self.current_key}":'
-                        updates_main_json += key_colon
-                        self.main_buffer += key_colon
-                        updates_main_json += '"'
-                        self.main_buffer += '"'
+                        if self.hold_main_json:
+                            self.main_json_held_buffer += key_colon + '"'
+                        else:
+                            updates_main_json += key_colon + '"'
+                            self.main_buffer += key_colon + '"'
                 elif c == "," and self.state == "comma_or_end":
-                    if not self.is_inner_thoughts_value:
-                        updates_main_json += c
-                        self.main_buffer += c
-                    # Reset is_inner_thoughts_value after processing the comma
-                    self.is_inner_thoughts_value = False
-                    self.state = "start"
+                    if self.is_inner_thoughts_value:
+                        # Inner thoughts value ended
+                        self.is_inner_thoughts_value = False
+                        self.state = "start"
+                        # Do not release held main_json here
+                    else:
+                        if self.hold_main_json:
+                            self.main_json_held_buffer += c
+                        else:
+                            updates_main_json += c
+                            self.main_buffer += c
+                        self.state = "start"
                 elif c == "{":
-                    self.main_buffer += c
-                    updates_main_json += c
+                    if not self.is_inner_thoughts_value:
+                        if self.hold_main_json:
+                            self.main_json_held_buffer += c
+                        else:
+                            updates_main_json += c
+                            self.main_buffer += c
                 elif c == "}":
                     self.state = "end"
-                    self.main_buffer += c
-                    updates_main_json += c
+                    if self.hold_main_json:
+                        self.main_json_held_buffer += c
+                    else:
+                        updates_main_json += c
+                        self.main_buffer += c
                 else:
                     if self.state == "value":
                         if self.is_inner_thoughts_value:
                             updates_inner_thoughts += c
                             self.inner_thoughts_buffer += c
                         else:
-                            updates_main_json += c
-                            self.main_buffer += c
+                            if self.hold_main_json:
+                                self.main_json_held_buffer += c
+                            else:
+                                updates_main_json += c
+                                self.main_buffer += c
             i += 1
 
-        # Return the updates for testing
         return updates_main_json, updates_inner_thoughts
 
     @property
