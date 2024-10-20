@@ -482,14 +482,15 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                     raise NotImplementedError("inner_thoughts_in_kwargs with use_assistant_message not yet supported")
 
                 updates_main_json, updates_inner_thoughts = self.function_args_reader.process_fragment(tool_call.function.arguments)
+
                 if updates_inner_thoughts:
                     processed_chunk = InternalMonologue(
                         id=message_id,
                         date=message_date,
                         internal_monologue=updates_inner_thoughts,
                     )
-                elif updates_main_json:
 
+                elif updates_main_json:
                     tool_call_delta = {}
                     if tool_call.id:
                         tool_call_delta["id"] = tool_call.id
@@ -506,6 +507,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                         date=message_date,
                         function_call=FunctionCallDelta(name=tool_call_delta.get("name"), arguments=tool_call_delta.get("arguments")),
                     )
+
                 else:
                     processed_chunk = None
 
