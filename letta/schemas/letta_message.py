@@ -78,12 +78,14 @@ class FunctionCall(BaseModel):
 
     name: str
     arguments: str
+    function_call_id: str
 
 
 class FunctionCallDelta(BaseModel):
 
     name: Optional[str]
     arguments: Optional[str]
+    function_call_id: Optional[str]
 
     # NOTE: this is a workaround to exclude None values from the JSON dump,
     # since the OpenAI style of returning chunks doesn't include keys with null values
@@ -129,10 +131,10 @@ class FunctionCallMessage(LettaMessage):
     @classmethod
     def validate_function_call(cls, v):
         if isinstance(v, dict):
-            if "name" in v and "arguments" in v:
-                return FunctionCall(name=v["name"], arguments=v["arguments"])
-            elif "name" in v or "arguments" in v:
-                return FunctionCallDelta(name=v.get("name"), arguments=v.get("arguments"))
+            if "name" in v and "arguments" in v and "function_call_id" in v:
+                return FunctionCall(name=v["name"], arguments=v["arguments"], function_call_id=v["function_call_id"])
+            elif "name" in v or "arguments" in v or "function_call_id" in v:
+                return FunctionCallDelta(name=v.get("name"), arguments=v.get("arguments"), function_call_id=v.get("function_call_id"))
             else:
                 raise ValueError("function_call must contain either 'name' or 'arguments'")
         return v
@@ -147,11 +149,13 @@ class FunctionReturn(LettaMessage):
         status (Literal["success", "error"]): The status of the function call
         id (str): The ID of the message
         date (datetime): The date the message was created in ISO format
+        function_call_id (str): A unique identifier for the function call that generated this message
     """
 
     message_type: Literal["function_return"] = "function_return"
     function_return: str
     status: Literal["success", "error"]
+    function_call_id: str
 
 
 # Legacy Letta API had an additional type "assistant_message" and the "function_call" was a formatted string
