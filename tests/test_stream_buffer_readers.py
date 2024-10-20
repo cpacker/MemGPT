@@ -1,6 +1,6 @@
 import pytest
 
-from letta.server.rest_api.interface import JSONInnerThoughtsExtractor
+from letta.streaming_utils import JSONInnerThoughtsExtractor
 
 # TODO make the wait_for_first_key automatically run both versions in pytest
 
