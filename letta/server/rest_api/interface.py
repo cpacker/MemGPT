@@ -6,8 +6,11 @@ from collections import deque
 from datetime import datetime
 from typing import AsyncGenerator, Literal, Optional, Union
 
+from zmq import Enum
+
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.interface import AgentInterface
+from letta.local_llm.constants import INNER_THOUGHTS_KWARG
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     AssistantMessage,
@@ -24,6 +27,200 @@ from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import ChatCompletionChunkResponse
 from letta.streaming_interface import AgentChunkStreamingInterface
 from letta.utils import is_utc_datetime
+
+
+class JSONInnerThoughtsExtractor:
+    """
+    A class to process incoming JSON fragments and extract 'inner_thoughts' separately from the main JSON.
+
+    This handler processes JSON fragments incrementally, parsing out the value associated with a specified key (default is 'inner_thoughts'). It maintains two separate buffers:
+
+    - `main_json`: Accumulates the JSON data excluding the 'inner_thoughts' key-value pair.
+    - `inner_thoughts`: Accumulates the value associated with the 'inner_thoughts' key.
+
+    **Functionality:**
+
+    - **Stateful Parsing:** Maintains parsing state across fragments, handling JSON structures like objects, strings, and escaped characters.
+    - **String Handling:** Correctly processes strings within the JSON, respecting escape sequences and quotation marks.
+    - **Selective Extraction:** Identifies and extracts the value of the specified key without disrupting the integrity of the remaining JSON data.
+    - **Fragment Processing:** Designed to handle data that arrives in chunks, such as streaming data or partial reads from a file or network.
+
+    **Usage:**
+
+    1. **Initialization:**
+       ```python
+       extractor = JSONInnerThoughtsExtractor(inner_thoughts_key="inner_thoughts")
+       ```
+       - `inner_thoughts_key` is the key whose value you want to extract separately.
+
+    2. **Processing Fragments:**
+       ```python
+       updates_main_json, updates_inner_thoughts = extractor.process_fragment(fragment)
+       ```
+       - Call this method with each incoming fragment of JSON data.
+       - It returns the updates to `main_json` and `inner_thoughts` buffers based on the fragment.
+
+    3. **Accessing Buffers:**
+       ```python
+       complete_json = extractor.main_json
+       inner_thoughts_content = extractor.inner_thoughts
+       ```
+       - Use these properties to access the accumulated data.
+
+    **Example:**
+
+    ```python
+    extractor = JSONInnerThoughtsExtractor()
+    fragments = ['{"inner_thoughts":"I think', ' therefore I am", "message":"Hello"}']
+    for fragment in fragments:
+        extractor.process_fragment(fragment)
+    print("Main JSON:", extractor.main_json)
+    print("Inner Thoughts:", extractor.inner_thoughts)
+    ```
+    - **Output:**
+      ```
+      Main JSON: {"message":"Hello"}
+      Inner Thoughts: I think therefore I am
+      ```
+
+    **Notes:**
+
+    - The class assumes that the JSON fragments are well-formed and that strings and escape sequences are not split across fragments.
+    - It does not perform full JSON validation but focuses on correctly parsing and extracting the specified key's value.
+    """
+
+    def __init__(self, inner_thoughts_key="inner_thoughts"):
+        self.inner_thoughts_key = inner_thoughts_key
+        self.main_buffer = ""
+        self.inner_thoughts_buffer = ""
+        self.state = "start"  # Possible states: start, key, colon, value, comma_or_end, end
+        self.in_string = False
+        self.escaped = False
+        self.current_key = ""
+        self.is_inner_thoughts_value = False
+
+    def process_fragment(self, fragment):
+        updates_main_json = ""
+        updates_inner_thoughts = ""
+        i = 0
+        while i < len(fragment):
+            c = fragment[i]
+            if self.escaped:
+                self.escaped = False
+                if self.in_string:
+                    if self.state == "key":
+                        self.current_key += c
+                    elif self.state == "value":
+                        if self.is_inner_thoughts_value:
+                            updates_inner_thoughts += c
+                            self.inner_thoughts_buffer += c
+                        else:
+                            updates_main_json += c
+                            self.main_buffer += c
+                else:
+                    if not self.is_inner_thoughts_value:
+                        updates_main_json += c
+                        self.main_buffer += c
+            elif c == "\\":
+                self.escaped = True
+                if self.in_string:
+                    if self.state == "key":
+                        self.current_key += c
+                    elif self.state == "value":
+                        if self.is_inner_thoughts_value:
+                            updates_inner_thoughts += c
+                            self.inner_thoughts_buffer += c
+                        else:
+                            updates_main_json += c
+                            self.main_buffer += c
+                else:
+                    if not self.is_inner_thoughts_value:
+                        updates_main_json += c
+                        self.main_buffer += c
+            elif c == '"':
+                if not self.escaped:
+                    self.in_string = not self.in_string
+                    if self.in_string:
+                        if self.state in ["start", "comma_or_end"]:
+                            self.state = "key"
+                            self.current_key = ""
+                    else:
+                        if self.state == "key":
+                            self.state = "colon"
+                        elif self.state == "value":
+                            # End of value
+                            if not self.is_inner_thoughts_value:
+                                # Append closing quote to main_buffer
+                                updates_main_json += '"'
+                                self.main_buffer += '"'
+                            self.state = "comma_or_end"
+                else:
+                    self.escaped = False
+                    if self.in_string:
+                        if self.state == "key":
+                            self.current_key += '"'
+                        elif self.state == "value":
+                            if self.is_inner_thoughts_value:
+                                updates_inner_thoughts += '"'
+                                self.inner_thoughts_buffer += '"'
+                            else:
+                                updates_main_json += '"'
+                                self.main_buffer += '"'
+            elif self.in_string:
+                if self.state == "key":
+                    self.current_key += c
+                elif self.state == "value":
+                    if self.is_inner_thoughts_value:
+                        updates_inner_thoughts += c
+                        self.inner_thoughts_buffer += c
+                    else:
+                        updates_main_json += c
+                        self.main_buffer += c
+            else:
+                if c == ":" and self.state == "colon":
+                    self.state = "value"
+                    self.is_inner_thoughts_value = self.current_key == self.inner_thoughts_key
+                    if not self.is_inner_thoughts_value:
+                        # For main_buffer, add the key and the colon and starting quote
+                        key_colon = f'"{self.current_key}":'
+                        updates_main_json += key_colon
+                        self.main_buffer += key_colon
+                        updates_main_json += '"'
+                        self.main_buffer += '"'
+                elif c == "," and self.state == "comma_or_end":
+                    if not self.is_inner_thoughts_value:
+                        updates_main_json += c
+                        self.main_buffer += c
+                    # Reset is_inner_thoughts_value after processing the comma
+                    self.is_inner_thoughts_value = False
+                    self.state = "start"
+                elif c == "{":
+                    self.main_buffer += c
+                    updates_main_json += c
+                elif c == "}":
+                    self.state = "end"
+                    self.main_buffer += c
+                    updates_main_json += c
+                else:
+                    if self.state == "value":
+                        if self.is_inner_thoughts_value:
+                            updates_inner_thoughts += c
+                            self.inner_thoughts_buffer += c
+                        else:
+                            updates_main_json += c
+                            self.main_buffer += c
+            i += 1
+
+        # Return the updates for testing
+        return updates_main_json, updates_inner_thoughts
+
+    @property
+    def main_json(self):
+        return self.main_buffer
+
+    @property
+    def inner_thoughts(self):
+        return self.inner_thoughts_buffer
 
 
 class QueuingInterface(AgentInterface):
@@ -300,6 +497,13 @@ class FunctionArgumentsStreamHandler:
         return None
 
 
+class FunctionChunksParsingState(Enum):
+    PRE_KEY = 1
+    READING_KEY = 2
+    POST_KEY = 3
+    READING_VALUE = 4
+
+
 class StreamingServerInterface(AgentChunkStreamingInterface):
     """Maintain a generator that is a proxy for self.process_chunk()
 
@@ -316,9 +520,13 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
     def __init__(
         self,
         multi_step=True,
+        # Related to if we want to try and pass back the AssistantMessage as a special case function
         use_assistant_message=False,
         assistant_message_function_name=DEFAULT_MESSAGE_TOOL,
         assistant_message_function_kwarg=DEFAULT_MESSAGE_TOOL_KWARG,
+        # Related to if we expect inner_thoughts to be in the kwargs
+        inner_thoughts_in_kwargs=True,
+        inner_thoughts_kwarg=INNER_THOUGHTS_KWARG,
     ):
         # If streaming mode, ignores base interface calls like .assistant_message, etc
         self.streaming_mode = False
@@ -346,6 +554,14 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self.assistant_message_function_name = assistant_message_function_name
         self.assistant_message_function_kwarg = assistant_message_function_kwarg
 
+        # Support for inner_thoughts_in_kwargs
+        self.inner_thoughts_in_kwargs = inner_thoughts_in_kwargs
+        self.inner_thoughts_kwarg = inner_thoughts_kwarg
+        # A buffer for accumulating function arguments (we want to buffer keys and run checks on each one)
+        self.function_args_buffer = ""
+        self.function_chunks_parsing_state = None
+        self.function_args_reader = JSONInnerThoughtsExtractor(inner_thoughts_key=inner_thoughts_kwarg)
+
         # extra prints
         self.debug = False
         self.timeout = 30
@@ -364,16 +580,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
             # Reset the event until a new item is pushed
             self._event.clear()
-
-        # while self._active:
-        #     # Wait until there is an item in the deque or the stream is deactivated
-        #     await self._event.wait()
-
-        #     while self._chunks:
-        #         yield self._chunks.popleft()
-
-        #     # Reset the event until a new item is pushed
-        #     self._event.clear()
 
     def get_generator(self) -> AsyncGenerator:
         """Get the generator that yields processed chunks."""
@@ -419,18 +625,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         if not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
             self._push_to_buffer(self.multi_step_gen_indicator)
 
-        # self._active = False
-        # self._event.set()  # Unblock the generator if it's waiting to allow it to complete
-
-        # if not self.multi_step:
-        #     # end the stream
-        #     self._active = False
-        #     self._event.set()  # Unblock the generator if it's waiting to allow it to complete
-        # else:
-        #     # signal that a new step has started in the stream
-        #     self._chunks.append(self.multi_step_indicator)
-        #     self._event.set()  # Signal that new data is available
-
     def step_complete(self):
         """Signal from the agent that one 'step' finished (step = LLM response + tool execution)"""
         if not self.multi_step:
@@ -443,8 +637,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
     def step_yield(self):
         """If multi_step, this is the true 'stream_end' function."""
-        # if self.multi_step:
-        # end the stream
         self._active = False
         self._event.set()  # Unblock the generator if it's waiting to allow it to complete
 
@@ -481,6 +673,8 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
             # special case for trapping `send_message`
             if self.use_assistant_message and tool_call.function:
+                if self.inner_thoughts_in_kwargs:
+                    raise NotImplementedError("inner_thoughts_in_kwargs with use_assistant_message not yet supported")
 
                 # If we just received a chunk with the message in it, we either enter "send_message" mode, or we do standard FunctionCallMessage passthrough mode
 
@@ -533,6 +727,111 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                         date=message_date,
                         function_call=FunctionCallDelta(name=tool_call_delta.get("name"), arguments=tool_call_delta.get("arguments")),
                     )
+
+            elif self.inner_thoughts_in_kwargs and tool_call.function:
+                if self.use_assistant_message:
+                    raise NotImplementedError("inner_thoughts_in_kwargs with use_assistant_message not yet supported")
+
+                updates_main_json, updates_inner_thoughts = self.function_args_reader.process_fragment(tool_call.function.arguments)
+                if updates_inner_thoughts:
+                    processed_chunk = InternalMonologue(
+                        id=message_id,
+                        date=message_date,
+                        internal_monologue=updates_inner_thoughts,
+                    )
+                elif updates_main_json:
+
+                    tool_call_delta = {}
+                    if tool_call.id:
+                        tool_call_delta["id"] = tool_call.id
+                    if tool_call.function:
+                        if tool_call.function.arguments:
+                            # tool_call_delta["arguments"] = tool_call.function.arguments
+                            # NOTE: using the stripped one
+                            tool_call_delta["arguments"] = updates_main_json
+                        if tool_call.function.name:
+                            tool_call_delta["name"] = tool_call.function.name
+
+                    processed_chunk = FunctionCallMessage(
+                        id=message_id,
+                        date=message_date,
+                        function_call=FunctionCallDelta(name=tool_call_delta.get("name"), arguments=tool_call_delta.get("arguments")),
+                    )
+                else:
+                    processed_chunk = None
+
+                return processed_chunk
+
+                # # NOTE: this is a simplified version of the parsing code that:
+                # # (1) assumes that the inner_thoughts key will always come first
+                # # (2) assumes that there's no extra spaces in the stringified JSON
+                # # i.e., the prefix will look exactly like: "{\"variable\":\"}"
+                # if tool_call.function.arguments:
+                #     self.function_args_buffer += tool_call.function.arguments
+
+                #     # prefix_str = f'{{"\\"{self.inner_thoughts_kwarg}\\":\\"}}'
+                #     prefix_str = f'{{"{self.inner_thoughts_kwarg}":'
+                #     if self.function_args_buffer.startswith(prefix_str):
+                #         print(f"Found prefix!!!: {self.function_args_buffer}")
+                #     else:
+                #         print(f"No prefix found: {self.function_args_buffer}")
+
+                # tool_call_delta = {}
+                # if tool_call.id:
+                #     tool_call_delta["id"] = tool_call.id
+                # if tool_call.function:
+                #     if tool_call.function.arguments:
+                #         tool_call_delta["arguments"] = tool_call.function.arguments
+                #     if tool_call.function.name:
+                #         tool_call_delta["name"] = tool_call.function.name
+
+                # processed_chunk = FunctionCallMessage(
+                #     id=message_id,
+                #     date=message_date,
+                #     function_call=FunctionCallDelta(name=tool_call_delta.get("name"), arguments=tool_call_delta.get("arguments")),
+                # )
+
+            # elif False and self.inner_thoughts_in_kwargs and tool_call.function:
+            #     if self.use_assistant_message:
+            #         raise NotImplementedError("inner_thoughts_in_kwargs with use_assistant_message not yet supported")
+
+            # if tool_call.function.arguments:
+
+            # Maintain a state machine to track if we're reading a key vs reading a value
+            # Technically we can we pre-key, post-key, pre-value, post-value
+
+            # for c in tool_call.function.arguments:
+            #     if self.function_chunks_parsing_state == FunctionChunksParsingState.PRE_KEY:
+            #         if c == '"':
+            #             self.function_chunks_parsing_state = FunctionChunksParsingState.READING_KEY
+            #     elif self.function_chunks_parsing_state == FunctionChunksParsingState.READING_KEY:
+            #         if c == '"':
+            #             self.function_chunks_parsing_state = FunctionChunksParsingState.POST_KEY
+
+            # If we're reading a key:
+            # if self.function_chunks_parsing_state == FunctionChunksParsingState.READING_KEY:
+
+            # We need to buffer the function arguments until we get complete keys
+            # We are reading stringified-JSON, so we need to check for keys in data that looks like:
+            # "arguments":"{\""
+            # "arguments":"inner"
+            # "arguments":"_th"
+            # "arguments":"ought"
+            # "arguments":"s"
+            # "arguments":"\":\""
+
+            # Once we get a complete key, check if the key matches
+
+            # If it does match, start processing the value (stringified-JSON string
+            # And with each new chunk, output it as a chunk of type InternalMonologue
+
+            # If the key doesn't match, then flush the buffer as a single FunctionCallMessage chunk
+
+            # If we're reading a value
+
+            # If we're reading the inner thoughts value, we output chunks of type InternalMonologue
+
+            # Otherwise, do simple chunks of FunctionCallMessage
 
             else:
 
@@ -655,6 +954,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             #     "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
             #     "id": str(msg_obj.id) if msg_obj is not None else None,
             # }
+            assert msg_obj is not None, "Internal monologue requires msg_obj references for metadata"
             processed_chunk = InternalMonologue(
                 id=msg_obj.id,
                 date=msg_obj.created_at,
@@ -668,18 +968,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
     def assistant_message(self, msg: str, msg_obj: Optional[Message] = None):
         """Letta uses send_message"""
 
-        # if not self.streaming_mode and self.send_message_special_case:
-
-        #     # create a fake "chunk" of a stream
-        #     processed_chunk = {
-        #         "assistant_message": msg,
-        #         "date": msg_obj.created_at.isoformat() if msg_obj is not None else get_utc_time().isoformat(),
-        #         "id": str(msg_obj.id) if msg_obj is not None else None,
-        #     }
-
-        #     self._chunks.append(processed_chunk)
-        #     self._event.set()  # Signal that new data is available
-
+        # NOTE: this is a no-op, we handle this special case in function_message instead
         return
 
     def function_message(self, msg: str, msg_obj: Optional[Message] = None):
@@ -691,6 +980,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         if msg.startswith("Running "):
             if not self.streaming_mode:
                 # create a fake "chunk" of a stream
+                assert msg_obj.tool_calls is not None and len(msg_obj.tool_calls) > 0, "Function call required for function_message"
                 function_call = msg_obj.tool_calls[0]
 
                 if self.nonstreaming_legacy_mode:
@@ -775,13 +1065,9 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                 return
             else:
                 return
-            # msg = msg.replace("Running ", "")
-            # new_message = {"function_call": msg}
 
         elif msg.startswith("Ran "):
             return
-            # msg = msg.replace("Ran ", "Function call returned: ")
-            # new_message = {"function_call": msg}
 
         elif msg.startswith("Success: "):
             msg = msg.replace("Success: ", "")
@@ -807,11 +1093,5 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             # NOTE: generic, should not happen
             raise ValueError(msg)
             new_message = {"function_message": msg}
-
-        # add extra metadata
-        # if msg_obj is not None:
-        #     new_message["id"] = str(msg_obj.id)
-        #     assert is_utc_datetime(msg_obj.created_at), msg_obj.created_at
-        #     new_message["date"] = msg_obj.created_at.isoformat()
 
         self._push_to_buffer(new_message)
