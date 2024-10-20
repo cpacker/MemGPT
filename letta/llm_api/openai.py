@@ -9,7 +9,11 @@ from httpx_sse._exceptions import SSEError
 
 from letta.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from letta.errors import LLMError
-from letta.llm_api.helpers import add_inner_thoughts_to_functions, make_post_request
+from letta.llm_api.helpers import (
+    add_inner_thoughts_to_functions,
+    convert_to_structured_output,
+    make_post_request,
+)
 from letta.local_llm.constants import (
     INNER_THOUGHTS_KWARG,
     INNER_THOUGHTS_KWARG_DESCRIPTION,
@@ -154,8 +158,8 @@ def build_openai_chat_completions_request(
         )
         # https://platform.openai.com/docs/guides/text-generation/json-mode
         # only supported by gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
-        if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
-            data.response_format = {"type": "json_object"}
+        # if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
+        # data.response_format = {"type": "json_object"}
 
     if "inference.memgpt.ai" in llm_config.model_endpoint:
         # override user id for inference.memgpt.ai
@@ -450,6 +454,13 @@ def openai_chat_completions_request_stream(
     if "tools" in data and data["tools"] is None:
         data.pop("tools")
         data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
+
+    if "tools" in data:
+        for tool in data["tools"]:
+            # tool["strict"] = True
+            tool["function"] = convert_to_structured_output(tool["function"])
+
+    print(f"\n\n\n\nData[tools]: {json.dumps(data['tools'], indent=2)}")
 
     printd(f"Sending request to {url}")
     try:

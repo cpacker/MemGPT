@@ -140,6 +140,7 @@ def create(
             raise ValueError(f"OpenAI key is missing from letta config file")
 
         data = build_openai_chat_completions_request(llm_config, messages, user_id, functions, function_call, use_tool_naming, max_tokens)
+        print(f"Data.tools: {data.tools}")
 
         if stream:  # Client requested token streaming
             data.stream = True
