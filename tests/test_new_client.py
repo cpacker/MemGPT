@@ -36,8 +36,6 @@ def agent(client):
 
 
 def test_agent(client: Union[LocalClient, RESTClient]):
-    tools = client.list_tools()
-
     # create agent
     agent_state_test = client.create_agent(
         name="test_agent2",
@@ -51,6 +49,7 @@ def test_agent(client: Union[LocalClient, RESTClient]):
     assert agent_state_test.id in [a.id for a in agents]
 
     # get agent
+    tools = client.list_tools()
     print("TOOLS", [t.name for t in tools])
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
@@ -152,19 +151,24 @@ def test_agent_add_remove_tools(client: Union[LocalClient, RESTClient], agent):
     agent_state = client.add_tool_to_agent(agent_id=agent_state.id, tool_id=scrape_website_tool.id)
 
     # confirm that both tools are in the agent state
-    curr_tools = agent_state.tools
-    assert len(curr_tools) == curr_num_tools + 2
-    assert github_tool.name in curr_tools
-    assert scrape_website_tool.name in curr_tools
+    # we could access it like agent_state.tools, but will use the client function instead
+    # this is obviously redundant as it requires retrieving the agent again
+    # but allows us to test the `get_tools_from_agent` pathway as well
+    curr_tools = client.get_tools_from_agent(agent_state.id)
+    curr_tool_names = [t.name for t in curr_tools]
+    assert len(curr_tool_names) == curr_num_tools + 2
+    assert github_tool.name in curr_tool_names
+    assert scrape_website_tool.name in curr_tool_names
 
     # remove only the github tool
     agent_state = client.remove_tool_from_agent(agent_id=agent_state.id, tool_id=github_tool.id)
 
     # confirm that only one tool left
-    curr_tools = agent_state.tools
-    assert len(curr_tools) == curr_num_tools + 1
-    assert github_tool.name not in curr_tools
-    assert scrape_website_tool.name in curr_tools
+    curr_tools = client.get_tools_from_agent(agent_state.id)
+    curr_tool_names = [t.name for t in curr_tools]
+    assert len(curr_tool_names) == curr_num_tools + 1
+    assert github_tool.name not in curr_tool_names
+    assert scrape_website_tool.name in curr_tool_names
 
 
 def test_agent_with_shared_blocks(client: Union[LocalClient, RESTClient]):

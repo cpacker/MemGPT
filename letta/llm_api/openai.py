@@ -108,12 +108,11 @@ def build_openai_chat_completions_request(
     messages: List[_Message],
     user_id: Optional[str],
     functions: Optional[list],
-    function_call: str,
+    function_call: Optional[str],
     use_tool_naming: bool,
-    inner_thoughts_in_kwargs: bool,
     max_tokens: Optional[int],
 ) -> ChatCompletionRequest:
-    if functions and inner_thoughts_in_kwargs:
+    if functions and llm_config.put_inner_thoughts_in_kwargs:
         functions = add_inner_thoughts_to_functions(
             functions=functions,
             inner_thoughts_key=INNER_THOUGHTS_KWARG,
@@ -121,7 +120,7 @@ def build_openai_chat_completions_request(
         )
 
     openai_message_list = [
-        cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs)) for m in messages
+        cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=llm_config.put_inner_thoughts_in_kwargs)) for m in messages
     ]
     if llm_config.model:
         model = llm_config.model
@@ -130,7 +129,9 @@ def build_openai_chat_completions_request(
         model = None
 
     if use_tool_naming:
-        if function_call not in ["none", "auto", "required"]:
+        if function_call is None:
+            tool_choice = None
+        elif function_call not in ["none", "auto", "required"]:
             tool_choice = ToolFunctionChoice(type="function", function=ToolFunctionChoiceFunctionCall(name=function_call))
         else:
             tool_choice = function_call

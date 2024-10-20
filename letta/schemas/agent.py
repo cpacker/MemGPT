@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
@@ -29,9 +29,10 @@ class AgentType(str, Enum):
 
     memgpt_agent = "memgpt_agent"
     split_thread_agent = "split_thread_agent"
+    o1_agent = "o1_agent"
 
 
-class AgentState(BaseAgent):
+class AgentState(BaseAgent, validate_assignment=True):
     """
     Representation of an agent's state. This is the state of the agent at a given time, and is persisted in the DB backend. The state has all the information needed to recreate a persisted agent.
 
@@ -54,6 +55,7 @@ class AgentState(BaseAgent):
 
     # in-context memory
     message_ids: Optional[List[str]] = Field(default=None, description="The ids of the messages in the agent's in-context memory.")
+
     memory: Memory = Field(default_factory=Memory, description="The in-context memory of the agent.")
 
     # tools
@@ -68,6 +70,32 @@ class AgentState(BaseAgent):
     # llm information
     llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        self._internal_memory = self.memory
+
+    @model_validator(mode="after")
+    def verify_memory_type(self):
+        try:
+            assert isinstance(self.memory, Memory)
+        except Exception as e:
+            raise e
+        return self
+
+    @property
+    def memory(self) -> Memory:
+        return self._internal_memory
+
+    @memory.setter
+    def memory(self, value):
+        if not isinstance(value, Memory):
+            raise TypeError(f"Expected Memory, got {type(value).__name__}")
+        self._internal_memory = value
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = True
 
 
 class CreateAgent(BaseAgent):

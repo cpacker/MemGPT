@@ -96,6 +96,9 @@ class AbstractClient(object):
     ):
         raise NotImplementedError
 
+    def get_tools_from_agent(self, agent_id: str):
+        raise NotImplementedError
+
     def add_tool_to_agent(self, agent_id: str, tool_id: str):
         raise NotImplementedError
 
@@ -197,7 +200,7 @@ class AbstractClient(object):
     ) -> Tool:
         raise NotImplementedError
 
-    def list_tools(self) -> List[Tool]:
+    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         raise NotImplementedError
 
     def get_tool(self, id: str) -> Tool:
@@ -479,6 +482,21 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
         return AgentState(**response.json())
+
+    def get_tools_from_agent(self, agent_id: str) -> List[Tool]:
+        """
+        Get tools to an existing agent
+
+        Args:
+           agent_id (str): ID of the agent
+
+        Returns:
+           List[Tool]: A List of Tool objs
+        """
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/tools", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get tools from agents: {response.text}")
+        return [Tool(**tool) for tool in response.json()]
 
     def add_tool_to_agent(self, agent_id: str, tool_id: str):
         """
@@ -1364,14 +1382,19 @@ class RESTClient(AbstractClient):
     #        raise ValueError(f"Failed to create tool: {response.text}")
     #    return ToolModel(**response.json())
 
-    def list_tools(self) -> List[Tool]:
+    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """
         List available tools for the user.
 
         Returns:
             tools (List[Tool]): List of tools
         """
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/tools", headers=self.headers)
+        params = {}
+        if cursor:
+            params["cursor"] = str(cursor)
+        if limit:
+            params["limit"] = limit
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/tools", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
         return [Tool(**tool) for tool in response.json()]
@@ -1691,6 +1714,19 @@ class LocalClient(AbstractClient):
             user_id=self.user_id,
         )
         return agent_state
+
+    def get_tools_from_agent(self, agent_id: str) -> List[Tool]:
+        """
+        Get tools from an existing agent.
+
+        Args:
+            agent_id (str): ID of the agent
+
+        Returns:
+            List[Tool]: A list of Tool objs
+        """
+        self.interface.clear()
+        return self.server.get_tools_from_agent(agent_id=agent_id, user_id=self.user_id)
 
     def add_tool_to_agent(self, agent_id: str, tool_id: str):
         """
@@ -2250,15 +2286,14 @@ class LocalClient(AbstractClient):
             ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name), self.user_id
         )
 
-    def list_tools(self):
+    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """
         List available tools for the user.
 
         Returns:
             tools (List[Tool]): List of tools
         """
-        tools = self.server.list_tools(user_id=self.user_id)
-        return tools
+        return self.server.list_tools(cursor=cursor, limit=limit, user_id=self.user_id)
 
     def get_tool(self, id: str) -> Optional[Tool]:
         """

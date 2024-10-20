@@ -23,16 +23,19 @@ from letta.errors import LLMError
 from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
-from letta.local_llm.utils import num_tokens_from_messages
+from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
 from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.persistence_manager import LocalStateManager
 from letta.schemas.agent import AgentState, AgentStepResponse
 from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import MessageRole, OptionState
+from letta.schemas.enums import MessageRole
 from letta.schemas.memory import ContextWindowOverview, Memory
 from letta.schemas.message import Message, UpdateMessage
+from letta.schemas.openai.chat_completion_request import (
+    Tool as ChatCompletionRequestTool,
+)
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.schemas.openai.chat_completion_response import (
     Message as ChatCompletionMessage,
@@ -463,15 +466,14 @@ class Agent(BaseAgent):
         function_call: str = "auto",
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
     ) -> ChatCompletionResponse:
         """Get response from LLM API"""
         try:
             response = create(
                 # agent_state=self.agent_state,
                 llm_config=self.agent_state.llm_config,
-                user_id=self.agent_state.user_id,
                 messages=message_sequence,
+                user_id=self.agent_state.user_id,
                 functions=self.functions,
                 functions_python=self.functions_python,
                 function_call=function_call,
@@ -480,8 +482,6 @@ class Agent(BaseAgent):
                 # streaming
                 stream=stream,
                 stream_interface=self.interface,
-                # putting inner thoughts in func args or not
-                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             )
 
             if len(response.choices) == 0 or response.choices[0] is None:
@@ -822,7 +822,6 @@ class Agent(BaseAgent):
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
         stream: bool = False,  # TODO move to config?
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
         """Runs a single step in the agent loop (generates at most one LLM call)"""
@@ -861,10 +860,7 @@ class Agent(BaseAgent):
                 counter = 0
                 while True:
                     response = self._get_ai_reply(
-                        message_sequence=input_message_sequence,
-                        first_message=True,  # passed through to the prompt formatter
-                        stream=stream,
-                        inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
+                        message_sequence=input_message_sequence, first_message=True, stream=stream  # passed through to the prompt formatter
                     )
                     if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -877,7 +873,6 @@ class Agent(BaseAgent):
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                     stream=stream,
-                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                 )
 
             # Step 3: check if LLM wanted to call a function
@@ -954,7 +949,6 @@ class Agent(BaseAgent):
                     first_message_retry_limit=first_message_retry_limit,
                     skip_verify=skip_verify,
                     stream=stream,
-                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     ms=ms,
                 )
 
@@ -1467,6 +1461,24 @@ class Agent(BaseAgent):
         )
         num_tokens_external_memory_summary = count_tokens(external_memory_summary)
 
+        # tokens taken up by function definitions
+        if self.functions:
+            available_functions_definitions = [ChatCompletionRequestTool(type="function", function=f) for f in self.functions]
+            num_tokens_available_functions_definitions = num_tokens_from_functions(functions=self.functions, model=self.model)
+        else:
+            available_functions_definitions = []
+            num_tokens_available_functions_definitions = 0
+
+        num_tokens_used_total = (
+            num_tokens_system  # system prompt
+            + num_tokens_available_functions_definitions  # function definitions
+            + num_tokens_core_memory  # core memory
+            + num_tokens_external_memory_summary  # metadata (statistics) about recall/archival
+            + num_tokens_summary_memory  # summary of ongoing conversation
+            + num_tokens_messages  # tokens taken by messages
+        )
+        assert isinstance(num_tokens_used_total, int)
+
         return ContextWindowOverview(
             # context window breakdown (in messages)
             num_messages=len(self._messages),
@@ -1475,7 +1487,7 @@ class Agent(BaseAgent):
             num_tokens_external_memory_summary=num_tokens_external_memory_summary,
             # top-level information
             context_window_size_max=self.agent_state.llm_config.context_window,
-            context_window_size_current=num_tokens_system + num_tokens_core_memory + num_tokens_summary_memory + num_tokens_messages,
+            context_window_size_current=num_tokens_used_total,
             # context window breakdown (in tokens)
             num_tokens_system=num_tokens_system,
             system_prompt=system_prompt,
@@ -1485,6 +1497,9 @@ class Agent(BaseAgent):
             summary_memory=summary_memory,
             num_tokens_messages=num_tokens_messages,
             messages=self._messages,
+            # related to functions
+            num_tokens_functions_definitions=num_tokens_available_functions_definitions,
+            functions_definitions=available_functions_definitions,
         )
 
 

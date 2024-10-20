@@ -14,7 +14,9 @@ from sqlalchemy import (
     Integer,
     String,
     TypeDecorator,
+    asc,
     desc,
+    or_,
 )
 from sqlalchemy.sql import func
 
@@ -270,7 +272,7 @@ class AgentModel(Base):
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> AgentState:
-        return AgentState(
+        agent_state = AgentState(
             id=self.id,
             user_id=self.user_id,
             name=self.name,
@@ -285,6 +287,8 @@ class AgentModel(Base):
             embedding_config=self.embedding_config,
             metadata_=self.metadata_,
         )
+        assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
+        return agent_state
 
 
 class SourceModel(Base):
@@ -527,6 +531,7 @@ class MetadataStore:
                 raise ValueError(f"Agent with name {agent.name} already exists")
             fields = vars(agent)
             fields["memory"] = agent.memory.to_dict()
+            del fields["_internal_memory"]
             session.add(AgentModel(**fields))
             session.commit()
 
@@ -588,6 +593,7 @@ class MetadataStore:
             fields = vars(agent)
             if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
                 fields["memory"] = agent.memory.to_dict()
+            del fields["_internal_memory"]
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
 
@@ -703,12 +709,19 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    # def list_tools(self, user_id: str) -> List[ToolModel]: # TODO: add when users can creat tools
-    def list_tools(self, user_id: Optional[str] = None) -> List[ToolModel]:
+    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[ToolModel]:
         with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.user_id == None).all()
-            if user_id:
-                results += session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
+            # Query for public tools or user-specific tools
+            query = session.query(ToolModel).filter(or_(ToolModel.user_id == None, ToolModel.user_id == user_id))
+
+            # Apply cursor if provided (assuming cursor is an ID)
+            if cursor:
+                query = query.filter(ToolModel.id > cursor)
+
+            # Order by ID and apply limit
+            results = query.order_by(asc(ToolModel.id)).limit(limit).all()
+
+            # Convert to records
             res = [r.to_record() for r in results]
             return res
 

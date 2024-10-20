@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     pg_port: Optional[int] = None
     pg_uri: Optional[str] = None  # option to specifiy full uri
 
+    # tools configuration
+    load_default_external_tools: Optional[bool] = None
+
     @property
     def letta_pg_uri(self) -> str:
         if self.pg_uri:

@@ -53,7 +53,7 @@ def anthropic_get_model_list(url: str, api_key: Union[str, None]) -> dict:
     return MODEL_LIST
 
 
-def convert_tools_to_anthropic_format(tools: List[Tool], inner_thoughts_in_kwargs: Optional[bool] = True) -> List[dict]:
+def convert_tools_to_anthropic_format(tools: List[Tool]) -> List[dict]:
     """See: https://docs.anthropic.com/claude/docs/tool-use
 
     OpenAI style:

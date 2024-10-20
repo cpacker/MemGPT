@@ -20,7 +20,6 @@ from letta.cli.cli_load import app as load_app
 from letta.config import LettaConfig
 from letta.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, REQ_HEARTBEAT_MESSAGE
 from letta.metadata import MetadataStore
-from letta.schemas.enums import OptionState
 
 # from letta.interface import CLIInterface as interface  # for printing to terminal
 from letta.streaming_interface import AgentRefreshStreamingInterface
@@ -64,7 +63,6 @@ def run_agent_loop(
     no_verify: bool = False,
     strip_ui: bool = False,
     stream: bool = False,
-    inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
 ):
     if isinstance(letta_agent.interface, AgentRefreshStreamingInterface):
         # letta_agent.interface.toggle_streaming(on=stream)
@@ -369,7 +367,6 @@ def run_agent_loop(
                     first_message=False,
                     skip_verify=no_verify,
                     stream=stream,
-                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
                     ms=ms,
                 )
             else:
@@ -378,7 +375,6 @@ def run_agent_loop(
                     first_message=False,
                     skip_verify=no_verify,
                     stream=stream,
-                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
                     ms=ms,
                 )
             new_messages = step_response.messages
