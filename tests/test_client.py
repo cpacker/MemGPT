@@ -523,7 +523,6 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
 def test_organization(client: RESTClient):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_organization because LocalClient does not support organizations")
-    client.base_url
 
 
 def test_model_configs(client: Union[LocalClient, RESTClient]):

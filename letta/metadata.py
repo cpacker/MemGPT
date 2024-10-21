@@ -20,8 +20,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 
-from letta.base import Base
 from letta.config import LettaConfig
+from letta.orm.base import Base
 from letta.schemas.agent import AgentState
 from letta.schemas.api_key import APIKey
 from letta.schemas.block import Block, Human, Persona
@@ -34,7 +34,6 @@ from letta.schemas.memory import Memory
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
-from letta.schemas.organization import Organization
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool
 from letta.schemas.user import User
@@ -172,21 +171,6 @@ class UserModel(Base):
 
     def to_record(self) -> User:
         return User(id=self.id, name=self.name, created_at=self.created_at, org_id=self.org_id)
-
-
-class OrganizationModel(Base):
-    __tablename__ = "organizations"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True))
-
-    def __repr__(self) -> str:
-        return f"<Organization(id='{self.id}' name='{self.name}')>"
-
-    def to_record(self) -> Organization:
-        return Organization(id=self.id, name=self.name, created_at=self.created_at)
 
 
 # TODO: eventually store providers?
@@ -551,13 +535,13 @@ class MetadataStore:
             session.add(UserModel(**vars(user)))
             session.commit()
 
-    @enforce_types
-    def create_organization(self, organization: Organization):
-        with self.session_maker() as session:
-            if session.query(OrganizationModel).filter(OrganizationModel.id == organization.id).count() > 0:
-                raise ValueError(f"Organization with id {organization.id} already exists")
-            session.add(OrganizationModel(**vars(organization)))
-            session.commit()
+    # @enforce_types
+    # def create_organization(self, organization: Organization):
+    #     with self.session_maker() as session:
+    #         if session.query(Organization).filter(Organization.id == organization.id).count() > 0:
+    #             raise ValueError(f"Organization with id {organization.id} already exists")
+    #         session.add(Organization(**vars(organization)))
+    #         session.commit()
 
     @enforce_types
     def create_block(self, block: Block):
@@ -699,16 +683,6 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def delete_organization(self, org_id: str):
-        with self.session_maker() as session:
-            # delete from organizations table
-            session.query(OrganizationModel).filter(OrganizationModel.id == org_id).delete()
-
-            # TODO: delete associated data
-
-            session.commit()
-
-    @enforce_types
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[ToolModel]:
         with self.session_maker() as session:
             # Query for public tools or user-specific tools
@@ -762,29 +736,29 @@ class MetadataStore:
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
 
-    @enforce_types
-    def get_organization(self, org_id: str) -> Optional[Organization]:
-        with self.session_maker() as session:
-            results = session.query(OrganizationModel).filter(OrganizationModel.id == org_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def list_organizations(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
-        with self.session_maker() as session:
-            query = session.query(OrganizationModel).order_by(desc(OrganizationModel.id))
-            if cursor:
-                query = query.filter(OrganizationModel.id < cursor)
-            results = query.limit(limit).all()
-            if not results:
-                return None, []
-            organization_records = [r.to_record() for r in results]
-            next_cursor = organization_records[-1].id
-            assert isinstance(next_cursor, str)
-
-            return next_cursor, organization_records
+    # @enforce_types
+    # def get_organization(self, org_id: str) -> Optional[Organization]:
+    #     with self.session_maker() as session:
+    #         results = session.query(Organization).filter(Organization.id == org_id).all()
+    #         if len(results) == 0:
+    #             return None
+    #         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+    #         return results[0].to_record()
+    #
+    # @enforce_types
+    # def list_organizations(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
+    #     with self.session_maker() as session:
+    #         query = session.query(Organization).order_by(desc(Organization.id))
+    #         if cursor:
+    #             query = query.filter(Organization.id < cursor)
+    #         results = query.limit(limit).all()
+    #         if not results:
+    #             return None, []
+    #         organization_records = [r.to_record() for r in results]
+    #         next_cursor = organization_records[-1].id
+    #         assert isinstance(next_cursor, str)
+    #
+    #         return next_cursor, organization_records
 
     @enforce_types
     def get_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50):

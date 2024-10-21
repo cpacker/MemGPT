@@ -7,13 +7,13 @@ from letta.schemas.letta_base import LettaBase
 
 
 class OrganizationBase(LettaBase):
-    __id_prefix__ = "org"
+    __id_prefix__ = "organization"
 
 
 class Organization(OrganizationBase):
     id: str = OrganizationBase.generate_id_field()
     name: str = Field(..., description="The name of the organization.")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the user.")
+    created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the organization.")
 
 
 class OrganizationCreate(OrganizationBase):

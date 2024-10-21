@@ -5,7 +5,13 @@ import warnings
 import pytest
 
 import letta.utils as utils
-from letta.constants import BASE_TOOLS, DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
+from letta.constants import (
+    BASE_TOOLS,
+    DEFAULT_MESSAGE_TOOL,
+    DEFAULT_MESSAGE_TOOL_KWARG,
+    DEFAULT_ORG_ID,
+    DEFAULT_ORG_NAME,
+)
 from letta.schemas.enums import MessageRole
 
 utils.DEBUG = True
@@ -547,3 +553,20 @@ def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id:
         + overview.num_tokens_functions_definitions
         + overview.num_tokens_external_memory_summary
     )
+
+
+def test_list_organizations(server: SyncServer):
+    # Delete all orgs
+    orgs = server.organization_manager.list_organizations()
+    for org in orgs:
+        server.organization_manager.delete_organization(org.id)
+
+    # Check that the length of orgs is 0
+    assert len(server.organization_manager.list_organizations()) == 0
+
+    # Create a new org and confirm that it is created correctly
+    server.organization_manager.create_organization(name=DEFAULT_ORG_NAME, org_id=DEFAULT_ORG_ID)
+    # orgs = server.organization_manager.list_organizations()
+    # assert len(orgs) == 1
+    # assert orgs[0].id == DEFAULT_ORG_ID
+    # assert orgs[0].name == DEFAULT_ORG_NAME

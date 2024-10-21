@@ -5,7 +5,7 @@ LETTA_DIR = os.path.join(os.path.expanduser("~"), ".letta")
 
 # Defaults
 DEFAULT_USER_ID = "user-00000000"
-DEFAULT_ORG_ID = "org-00000000"
+DEFAULT_ORG_ID = "organization-00000000-0000-0000-0000-000000000001"
 DEFAULT_USER_NAME = "default"
 DEFAULT_ORG_NAME = "default"
 

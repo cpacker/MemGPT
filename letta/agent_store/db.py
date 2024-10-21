@@ -25,10 +25,10 @@ from sqlalchemy_json import MutableJson
 from tqdm import tqdm
 
 from letta.agent_store.storage import StorageConnector, TableType
-from letta.base import Base
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
 from letta.metadata import EmbeddingConfigColumn, FileMetadataModel, ToolCallColumn
+from letta.orm.base import Base
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.message import Message
