@@ -566,7 +566,8 @@ def test_list_organizations(server: SyncServer):
 
     # Create a new org and confirm that it is created correctly
     server.organization_manager.create_organization(name=DEFAULT_ORG_NAME, org_id=DEFAULT_ORG_ID)
-    # orgs = server.organization_manager.list_organizations()
-    # assert len(orgs) == 1
-    # assert orgs[0].id == DEFAULT_ORG_ID
-    # assert orgs[0].name == DEFAULT_ORG_NAME
+
+    orgs = server.organization_manager.list_organizations()
+    assert len(orgs) == 1
+    assert orgs[0].id == DEFAULT_ORG_ID
+    assert orgs[0].name == DEFAULT_ORG_NAME
