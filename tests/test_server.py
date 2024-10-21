@@ -556,14 +556,6 @@ def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id:
 
 
 def test_list_organizations(server: SyncServer):
-    # Delete all orgs
-    orgs = server.organization_manager.list_organizations()
-    for org in orgs:
-        server.organization_manager.delete_organization(org.id)
-
-    # Check that the length of orgs is 0
-    assert len(server.organization_manager.list_organizations()) == 0
-
     # Create a new org and confirm that it is created correctly
     server.organization_manager.create_organization(name=DEFAULT_ORG_NAME, org_id=DEFAULT_ORG_ID)
 
@@ -571,3 +563,22 @@ def test_list_organizations(server: SyncServer):
     assert len(orgs) == 1
     assert orgs[0].id == DEFAULT_ORG_ID
     assert orgs[0].name == DEFAULT_ORG_NAME
+
+    # Delete it after
+    server.organization_manager.delete_organization(DEFAULT_ORG_ID)
+    assert len(server.organization_manager.list_organizations()) == 0
+
+
+def test_list_organizations_pagination(server: SyncServer):
+    server.organization_manager.create_organization(name="a")
+    server.organization_manager.create_organization(name="b")
+
+    orgs_x = server.organization_manager.list_organizations(limit=1)
+    assert len(orgs_x) == 1
+
+    orgs_y = server.organization_manager.list_organizations(cursor=orgs_x[0].id, limit=1)
+    assert len(orgs_y) == 1
+    assert orgs_y[0].name != orgs_x[0].name
+
+    orgs = server.organization_manager.list_organizations(cursor=orgs_y[0].id, limit=1)
+    assert len(orgs) == 0

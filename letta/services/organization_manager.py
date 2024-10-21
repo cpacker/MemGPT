@@ -62,16 +62,5 @@ class OrganizationManager:
     def list_organizations(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[PydanticOrganization]:
         """List organizations with pagination based on cursor (org_id) and limit."""
         with self.session_maker() as session:
-            # query = select(Organization)
-            #
-            # # If a cursor (org_id) is provided, fetch organizations with IDs greater than the cursor
-            # if cursor:
-            #     query = query.where(Organization._id > Organization.to_uid(cursor))
-            #
-            # query = query.order_by(Organization._id).limit(limit)
-            #
-            # # Execute the query
-            # results = session.execute(query).scalars().all()
-            #
-            results = Organization.list(db_session=session)
+            results = Organization.list(db_session=session, cursor=cursor, limit=limit)
             return [org.to_pydantic() for org in results]

@@ -46,12 +46,27 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         self._id = UUID(id_)
 
     @classmethod
-    def list(cls, *, db_session: "Session", **kwargs) -> List[Type["SqlalchemyBase"]]:
+    def list(
+        cls, *, db_session: "Session", cursor: Optional[str] = None, limit: Optional[int] = 50, **kwargs
+    ) -> List[Type["SqlalchemyBase"]]:
+        """List records with optional cursor (for pagination) and limit."""
         with db_session as session:
+            # Start with the base query filtered by kwargs
             query = select(cls).filter_by(**kwargs)
+
+            # Add a cursor condition if provided
+            if cursor:
+                cursor_uuid = cls.to_uid(cursor)  # Assuming the cursor is an _id value
+                query = query.where(cls._id > cursor_uuid)
+
+            # Add a limit to the query if provided
+            query = query.order_by(cls._id).limit(limit)
+
+            # Handle soft deletes if the class has the 'is_deleted' attribute
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
 
+            # Execute the query and return the results as a list of model instances
             return list(session.execute(query).scalars())
 
     @classmethod
