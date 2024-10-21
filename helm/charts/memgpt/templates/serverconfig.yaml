@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "memgpt.fullname" . }}-server-config-cm
+  labels:
+    {{- include "memgpt.labels" . | nindent 4 }}
+data:
+  server_config.yaml: |
+    [defaults]
+    preset = memgpt_chat
+    persona = sam_pov
+    human = basic
+
+    [model]
+    model = memgpt-openai
+    model_endpoint = https://inference.memgpt.ai
+    model_endpoint_type = openai
+    model_wrapper = null
+    context_window = 8192
+
+
+    [embedding]
+    embedding_endpoint_type = hugging-face
+    embedding_endpoint = https://embeddings.memgpt.ai
+    embedding_model = BAAI/bge-large-en-v1.5
+    embedding_dim = 1024
+    embedding_chunk_size = 300
+
+    [archival_storage]
+    type = postgres
+    path = /root/.memgpt/chroma
+    uri = postgresql+pg8000://{{ .Values.vectordb.user }}:{{ .Values.vectordb.pwd }}@{{ include "memgpt.fullname" . }}-db-svc:5432/{{ .Values.vectordb.db }}
+
+    [recall_storage]
+    type = postgres
+    path = /root/.memgpt
+    uri = postgresql+pg8000://{{ .Values.vectordb.user }}:{{ .Values.vectordb.pwd }}@{{ include "memgpt.fullname" . }}-db-svc:5432/{{ .Values.vectordb.db }}
+
+    [metadata_storage]
+    type = postgres
+    path = /root/.memgpt
+    uri = postgresql+pg8000://{{ .Values.vectordb.user }}:{{ .Values.vectordb.pwd }}@{{ include "memgpt.fullname" . }}-db-svc:5432/{{ .Values.vectordb.db }}
+
+    [client]
+    anon_clientid = {{ uuidv4 }}
