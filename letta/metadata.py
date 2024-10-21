@@ -535,14 +535,6 @@ class MetadataStore:
             session.add(UserModel(**vars(user)))
             session.commit()
 
-    # @enforce_types
-    # def create_organization(self, organization: Organization):
-    #     with self.session_maker() as session:
-    #         if session.query(Organization).filter(Organization.id == organization.id).count() > 0:
-    #             raise ValueError(f"Organization with id {organization.id} already exists")
-    #         session.add(Organization(**vars(organization)))
-    #         session.commit()
-
     @enforce_types
     def create_block(self, block: Block):
         with self.session_maker() as session:
@@ -735,30 +727,6 @@ class MetadataStore:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
-
-    # @enforce_types
-    # def get_organization(self, org_id: str) -> Optional[Organization]:
-    #     with self.session_maker() as session:
-    #         results = session.query(Organization).filter(Organization.id == org_id).all()
-    #         if len(results) == 0:
-    #             return None
-    #         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-    #         return results[0].to_record()
-    #
-    # @enforce_types
-    # def list_organizations(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
-    #     with self.session_maker() as session:
-    #         query = session.query(Organization).order_by(desc(Organization.id))
-    #         if cursor:
-    #             query = query.filter(Organization.id < cursor)
-    #         results = query.limit(limit).all()
-    #         if not results:
-    #             return None, []
-    #         organization_records = [r.to_record() for r in results]
-    #         next_cursor = organization_records[-1].id
-    #         assert isinstance(next_cursor, str)
-    #
-    #         return next_cursor, organization_records
 
     @enforce_types
     def get_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50):

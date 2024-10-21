@@ -509,10 +509,12 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 
         self.session_maker = db_context
 
-        # import sqlite3
+        # Need this in order to allow UUIDs to be stored successfully in the sqlite database
+        import sqlite3
+        import uuid
 
-        # sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
-        # sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
+        sqlite3.register_adapter(uuid.UUID, lambda u: u.bytes_le)
+        sqlite3.register_converter("UUID", lambda b: uuid.UUID(bytes_le=b))
 
     def insert_many(self, records, exists_ok=True, show_progress=False):
         # TODO: this is terrible, should eventually be done the same way for all types (migrate to SQLModel)
