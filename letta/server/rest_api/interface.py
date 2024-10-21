@@ -31,6 +31,7 @@ from letta.streaming_utils import (
 from letta.utils import is_utc_datetime
 
 
+# TODO strip from code / deprecate
 class QueuingInterface(AgentInterface):
     """Messages are queued inside an internal buffer and manually flushed"""
 
@@ -421,6 +422,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         elif message_delta.tool_calls is not None and len(message_delta.tool_calls) > 0:
             tool_call = message_delta.tool_calls[0]
 
+            # TODO(charles) merge into logic for internal_monologue
             # special case for trapping `send_message`
             if self.use_assistant_message and tool_call.function:
                 if self.inner_thoughts_in_kwargs:
