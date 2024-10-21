@@ -462,7 +462,7 @@ def openai_chat_completions_request_stream(
             # tool["strict"] = True
             tool["function"] = convert_to_structured_output(tool["function"])
 
-    print(f"\n\n\n\nData[tools]: {json.dumps(data['tools'], indent=2)}")
+    # print(f"\n\n\n\nData[tools]: {json.dumps(data['tools'], indent=2)}")
 
     printd(f"Sending request to {url}")
     try:

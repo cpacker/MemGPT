@@ -2,8 +2,6 @@ import pytest
 
 from letta.streaming_utils import JSONInnerThoughtsExtractor
 
-# TODO make the wait_for_first_key automatically run both versions in pytest
-
 
 @pytest.mark.parametrize("wait_for_first_key", [True, False])
 def test_inner_thoughts_in_args(wait_for_first_key):
