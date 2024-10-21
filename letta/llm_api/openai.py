@@ -356,6 +356,8 @@ def openai_chat_completions_process_stream(
     chat_completion_response.usage.completion_tokens = n_chunks
     chat_completion_response.usage.total_tokens = prompt_tokens + n_chunks
 
+    assert len(chat_completion_response.choices) > 0, chat_completion_response
+
     # printd(chat_completion_response)
     return chat_completion_response
 

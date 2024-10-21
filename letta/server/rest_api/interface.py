@@ -307,9 +307,10 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self.inner_thoughts_in_kwargs = inner_thoughts_in_kwargs
         self.inner_thoughts_kwarg = inner_thoughts_kwarg
         # A buffer for accumulating function arguments (we want to buffer keys and run checks on each one)
-        self.function_args_buffer = ""
-        self.function_chunks_parsing_state = None
-        self.function_args_reader = JSONInnerThoughtsExtractor(inner_thoughts_key=inner_thoughts_kwarg)
+        self.function_args_reader = JSONInnerThoughtsExtractor(inner_thoughts_key=inner_thoughts_kwarg, wait_for_first_key=True)
+        # Two buffers used to make sure that the 'name' comes after the inner thoughts stream (if inner_thoughts_in_kwargs)
+        self.function_name_buffer = None
+        self.function_args_buffer = None
 
         # extra prints
         self.debug = False
@@ -481,35 +482,103 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                 if self.use_assistant_message:
                     raise NotImplementedError("inner_thoughts_in_kwargs with use_assistant_message not yet supported")
 
-                updates_main_json, updates_inner_thoughts = self.function_args_reader.process_fragment(tool_call.function.arguments)
+                processed_chunk = None
 
-                if updates_inner_thoughts:
-                    processed_chunk = InternalMonologue(
-                        id=message_id,
-                        date=message_date,
-                        internal_monologue=updates_inner_thoughts,
-                    )
+                if tool_call.function.name:
+                    # If we're waiting for the first key, then we should hold back the name
+                    # ie add it to a buffer instead of returning it as a chunk
+                    if self.function_name_buffer is None:
+                        self.function_name_buffer = tool_call.function.name
+                    else:
+                        self.function_name_buffer += tool_call.function.name
 
-                elif updates_main_json:
-                    tool_call_delta = {}
-                    if tool_call.id:
-                        tool_call_delta["id"] = tool_call.id
-                    if tool_call.function:
-                        if tool_call.function.arguments:
-                            # tool_call_delta["arguments"] = tool_call.function.arguments
-                            # NOTE: using the stripped one
-                            tool_call_delta["arguments"] = updates_main_json
-                        if tool_call.function.name:
-                            tool_call_delta["name"] = tool_call.function.name
+                if tool_call.function.arguments:
+                    updates_main_json, updates_inner_thoughts = self.function_args_reader.process_fragment(tool_call.function.arguments)
 
-                    processed_chunk = FunctionCallMessage(
-                        id=message_id,
-                        date=message_date,
-                        function_call=FunctionCallDelta(name=tool_call_delta.get("name"), arguments=tool_call_delta.get("arguments")),
-                    )
+                    # If we have inner thoughts, we should output them as a chunk
+                    if updates_inner_thoughts:
+                        processed_chunk = InternalMonologue(
+                            id=message_id,
+                            date=message_date,
+                            internal_monologue=updates_inner_thoughts,
+                        )
+                        # Additionally inner thoughts may stream back with a chunk of main JSON
+                        # In that case, since we can only return a chunk at a time, we should buffer it
+                        if updates_main_json:
+                            if self.function_args_buffer is None:
+                                self.function_args_buffer = updates_main_json
+                            else:
+                                self.function_args_buffer += updates_main_json
 
-                else:
-                    processed_chunk = None
+                    # If we have main_json, we should output a FunctionCallMessage
+                    elif updates_main_json:
+                        # If there's something in the function_name buffer, we should release it first
+                        # NOTE: we could output it as part of a chunk that has both name and args,
+                        #       however the frontend may expect name first, then args, so to be
+                        #       safe we'll output name first in a separate chunk
+                        if self.function_name_buffer:
+                            processed_chunk = FunctionCallMessage(
+                                id=message_id,
+                                date=message_date,
+                                function_call=FunctionCallDelta(name=self.function_name_buffer, arguments=None),
+                            )
+                            # Clear the buffer
+                            self.function_name_buffer = None
+                            # Since we're clearing the name buffer, we should store
+                            # any updates to the arguments inside a separate buffer
+                            if updates_main_json:
+                                # Add any main_json updates to the arguments buffer
+                                if self.function_args_buffer is None:
+                                    self.function_args_buffer = updates_main_json
+                                else:
+                                    self.function_args_buffer += updates_main_json
+
+                        # If there was nothing in the name buffer, we can proceed to
+                        # output the arguments chunk as a FunctionCallMessage
+                        else:
+                            # There may be a buffer from a previous chunk, for example
+                            # if the previous chunk had arguments but we needed to flush name
+                            if self.function_args_buffer:
+                                # In this case, we should release the buffer + new data at once
+                                combined_chunk = self.function_args_buffer + updates_main_json
+                                processed_chunk = FunctionCallMessage(
+                                    id=message_id,
+                                    date=message_date,
+                                    function_call=FunctionCallDelta(name=None, arguments=combined_chunk),
+                                )
+                                # clear buffer
+                                self.function_args_buffer = None
+                            else:
+                                # If there's no buffer to clear, just output a new chunk with new data
+                                processed_chunk = FunctionCallMessage(
+                                    id=message_id,
+                                    date=message_date,
+                                    function_call=FunctionCallDelta(name=None, arguments=updates_main_json),
+                                )
+
+                        # # If there's something in the main_json buffer, we should add if to the arguments and release it together
+                        # tool_call_delta = {}
+                        # if tool_call.id:
+                        #     tool_call_delta["id"] = tool_call.id
+                        # if tool_call.function:
+                        #     if tool_call.function.arguments:
+                        #         # tool_call_delta["arguments"] = tool_call.function.arguments
+                        #         # NOTE: using the stripped one
+                        #         tool_call_delta["arguments"] = updates_main_json
+                        #     # We use the buffered name
+                        #     if self.function_name_buffer:
+                        #         tool_call_delta["name"] = self.function_name_buffer
+                        #     # if tool_call.function.name:
+                        #     # tool_call_delta["name"] = tool_call.function.name
+
+                        # processed_chunk = FunctionCallMessage(
+                        #     id=message_id,
+                        #     date=message_date,
+                        #     function_call=FunctionCallDelta(name=tool_call_delta.get("name"), arguments=tool_call_delta.get("arguments")),
+                        # )
+
+                    else:
+                        processed_chunk = None
 
                 return processed_chunk
 
