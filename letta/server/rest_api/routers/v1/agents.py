@@ -430,9 +430,6 @@ async def send_message_to_agent(
         # Get the generator object off of the agent's streaming interface
         # This will be attached to the POST SSE request used under-the-hood
         letta_agent = server._get_or_load_agent(agent_id=agent_id)
-        streaming_interface = letta_agent.interface
-        if not isinstance(streaming_interface, StreamingServerInterface):
-            raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
 
         # Disable token streaming if not OpenAI
         # TODO: cleanup this logic
@@ -440,6 +437,12 @@ async def send_message_to_agent(
         if llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in llm_config.model_endpoint:
             print("Warning: token streaming is only supported for OpenAI models. Setting to False.")
             stream_tokens = False
+
+        # Create a new interface per request
+        letta_agent.interface = StreamingServerInterface()
+        streaming_interface = letta_agent.interface
+        if not isinstance(streaming_interface, StreamingServerInterface):
+            raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
 
         # Enable token-streaming within the request if desired
         streaming_interface.streaming_mode = stream_tokens
@@ -453,6 +456,11 @@ async def send_message_to_agent(
         streaming_interface.use_assistant_message = use_assistant_message
         streaming_interface.assistant_message_function_name = assistant_message_function_name
         streaming_interface.assistant_message_function_kwarg = assistant_message_function_kwarg
+
+        # Related to JSON buffer reader
+        streaming_interface.inner_thoughts_in_kwargs = (
+            llm_config.put_inner_thoughts_in_kwargs if llm_config.put_inner_thoughts_in_kwargs is not None else False
+        )
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
