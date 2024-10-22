@@ -2,8 +2,7 @@ from typing import TYPE_CHECKING, List, Literal, Optional, Type, Union
 from uuid import UUID, uuid4
 
 from humps import depascalize
-from sqlalchemy import UUID as SQLUUID
-from sqlalchemy import Boolean, select
+from sqlalchemy import Boolean, String, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from letta.log import get_logger
@@ -24,7 +23,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
     __order_by_default__ = "created_at"
 
-    _id: Mapped[UUID] = mapped_column(SQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    _id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: f"{uuid4()}")
 
     deleted: Mapped[bool] = mapped_column(Boolean, default=False, doc="Is this record deleted? Used for universal soft deletes.")
 
@@ -43,7 +42,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return
         prefix, id_ = value.split("-", 1)
         assert prefix == self.__prefix__(), f"{prefix} is not a valid id prefix for {self.__class__.__name__}"
-        self._id = UUID(id_)
+        self._id = id_
 
     @classmethod
     def list(
@@ -56,7 +55,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
             # Add a cursor condition if provided
             if cursor:
-                cursor_uuid = cls.to_uid(cursor)  # Assuming the cursor is an _id value
+                cursor_uuid = cls.get_uid_from_identifier(cursor)  # Assuming the cursor is an _id value
                 query = query.where(cls._id > cursor_uuid)
 
             # Add a limit to the query if provided
@@ -70,22 +69,29 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return list(session.execute(query).scalars())
 
     @classmethod
-    def to_uid(cls, identifier, indifferent: Optional[bool] = False) -> "UUID":
+    def get_uid_from_identifier(cls, identifier: str, indifferent: Optional[bool] = False) -> str:
         """converts the id into a uuid object
         Args:
+            identifier: the string identifier, such as `organization-xxxx-xx...`
             indifferent: if True, will not enforce the prefix check
         """
-
         try:
-            return UUID(identifier)
-        except AttributeError:
-            return identifier
-        except:
-            try:
-                uuid_string = identifier.split("-", 1)[1] if indifferent else identifier.replace(f"{cls.__prefix__()}-", "")
-                return UUID(uuid_string)
-            except ValueError as e:
-                raise ValueError(f"{identifier} is not a valid identifier for class {cls.__name__}") from e
+            uuid_string = identifier.split("-", 1)[1] if indifferent else identifier.replace(f"{cls.__prefix__()}-", "")
+            assert SqlalchemyBase.is_valid_uuid4(uuid_string)
+            return uuid_string
+        except ValueError as e:
+            raise ValueError(f"{identifier} is not a valid identifier for class {cls.__name__}") from e
+
+    @classmethod
+    def is_valid_uuid4(cls, uuid_string: str) -> bool:
+        try:
+            # Try to create a UUID object from the string
+            uuid_obj = UUID(uuid_string)
+            # Check if the UUID is version 4
+            return uuid_obj.version == 4
+        except ValueError:
+            # Raised if the string is not a valid UUID
+            return False
 
     @classmethod
     def read(
@@ -109,7 +115,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             NoResultFound: if the object is not found
         """
         del kwargs  # arity for more complex reads
-        identifier = cls.to_uid(identifier)
+        identifier = cls.get_uid_from_identifier(identifier)
         query = select(cls).where(cls._id == identifier)
         # if actor:
         #     query = cls.apply_access_predicate(query, actor, access)

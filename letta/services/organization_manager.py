@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from sqlalchemy.exc import NoResultFound
 
+from letta.constants import DEFAULT_ORG_ID, DEFAULT_ORG_NAME
 from letta.orm.organization import Organization
 from letta.schemas.organization import Organization as PydanticOrganization
 from letta.utils import create_random_username
@@ -28,20 +29,19 @@ class OrganizationManager:
             except NoResultFound:
                 raise ValueError(f"Organization with id {org_id} not found.")
 
-    def create_organization(self, name: Optional[str] = None, org_id: Optional[str] = None) -> PydanticOrganization:
-        """Create a new organization. If org_id is provided, it uses it, otherwise generates a new one."""
-        if not name:
-            name = create_random_username()
-
+    def create_organization(self, name: Optional[str] = None) -> PydanticOrganization:
+        """Create a new organization. If a name is provided, it is used, otherwise, a random one is generated."""
         with self.session_maker() as session:
-            # Create an organization, setting the ID if provided, otherwise generating a new one
-            org = Organization(name=name)
-
-            if org_id:
-                org.id = org_id  # This will trigger the setter logic for validating and assigning the id
-
+            org = Organization(name=name if name else create_random_username())
             org.create(session)
+            return org.to_pydantic()
 
+    def create_default_organization(self) -> PydanticOrganization:
+        """Create the default organization."""
+        with self.session_maker() as session:
+            org = Organization(name=DEFAULT_ORG_NAME)
+            org.id = DEFAULT_ORG_ID
+            org.create(session)
             return org.to_pydantic()
 
     def update_organization_name_using_id(self, org_id: str, name: Optional[str] = None) -> PydanticOrganization:

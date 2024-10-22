@@ -11,7 +11,7 @@ class OrganizationBase(LettaBase):
 
 
 class Organization(OrganizationBase):
-    id: str = OrganizationBase.generate_id_field()
+    id: str = Field(..., description="The id of the organization.")
     name: str = Field(..., description="The name of the organization.")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the organization.")
 

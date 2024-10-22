@@ -3,6 +3,7 @@ import uuid
 import warnings
 
 import pytest
+from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.constants import (
@@ -12,6 +13,7 @@ from letta.constants import (
     DEFAULT_ORG_ID,
     DEFAULT_ORG_NAME,
 )
+from letta.orm.organization import Organization
 from letta.schemas.enums import MessageRole
 
 utils.DEBUG = True
@@ -35,6 +37,14 @@ from letta.schemas.user import UserCreate
 from letta.server.server import SyncServer
 
 from .utils import DummyDataConnector
+
+
+@pytest.fixture(autouse=True)
+def clear_organization_table(server: SyncServer):
+    """Fixture to clear the organization table before each test."""
+    with server.organization_manager.session_maker() as session:
+        session.execute(delete(Organization))  # Clear all records from the organization table
+        session.commit()  # Commit the deletion
 
 
 @pytest.fixture(scope="module")
@@ -557,16 +567,31 @@ def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id:
 
 def test_list_organizations(server: SyncServer):
     # Create a new org and confirm that it is created correctly
-    server.organization_manager.create_organization(name=DEFAULT_ORG_NAME, org_id=DEFAULT_ORG_ID)
+    org_name = "test"
+    org = server.organization_manager.create_organization(name=org_name)
 
     orgs = server.organization_manager.list_organizations()
     assert len(orgs) == 1
-    assert orgs[0].id == DEFAULT_ORG_ID
-    assert orgs[0].name == DEFAULT_ORG_NAME
+    assert orgs[0].name == org_name
 
     # Delete it after
-    server.organization_manager.delete_organization(DEFAULT_ORG_ID)
+    server.organization_manager.delete_organization(org.id)
     assert len(server.organization_manager.list_organizations()) == 0
+
+
+def test_create_default_organization(server: SyncServer):
+    server.organization_manager.create_default_organization()
+    retrieved = server.organization_manager.get_organization_by_id(DEFAULT_ORG_ID)
+    assert retrieved.name == DEFAULT_ORG_NAME
+
+
+def test_update_organization_name(server: SyncServer):
+    org_name_a = "a"
+    org_name_b = "b"
+    org = server.organization_manager.create_organization(name=org_name_a)
+    assert org.name == org_name_a
+    org = server.organization_manager.update_organization_name_using_id(org_id=org.id, name=org_name_b)
+    assert org.name == org_name_b
 
 
 def test_list_organizations_pagination(server: SyncServer):

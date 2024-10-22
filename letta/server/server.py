@@ -2115,18 +2115,13 @@ class SyncServer(Server):
 
     def get_default_user(self) -> User:
 
-        from letta.constants import (
-            DEFAULT_ORG_ID,
-            DEFAULT_ORG_NAME,
-            DEFAULT_USER_ID,
-            DEFAULT_USER_NAME,
-        )
+        from letta.constants import DEFAULT_ORG_ID, DEFAULT_USER_ID, DEFAULT_USER_NAME
 
         # check if default org exists
         try:
             self.organization_manager.get_organization_by_id(DEFAULT_ORG_ID)
         except NoResultFound:
-            self.organization_manager.create_organization(name=DEFAULT_ORG_NAME, org_id=DEFAULT_ORG_ID)
+            self.organization_manager.create_default_organization()
 
         # check if default user exists
         try:
