@@ -29,7 +29,7 @@ class UserManager:
                 user = UserModel.read(db_session=session, identifier=DEFAULT_USER_ID)
             # If it doesn't exist, make it
             except NoResultFound:
-                user = UserModel(id=DEFAULT_USER_ID, name=DEFAULT_USER_NAME, org_id=DEFAULT_ORG_ID)
+                user = UserModel(id=DEFAULT_USER_ID, name=DEFAULT_USER_NAME, organization_id=DEFAULT_ORG_ID)
                 user.create(session)
 
             return user.to_pydantic()
