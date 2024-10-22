@@ -1,0 +1,7 @@
+{
+    "embedding_endpoint_type": "azure",
+    "embedding_endpoint": "https://letta.openai.azure.com/openai/deployments/text-embedding-ada-002/embeddings?api-version=2024-09-01-preview",
+    "embedding_model": "text-embedding-ada-002",
+    "embedding_dim": 768,
+    "embedding_chunk_size": 300
+}

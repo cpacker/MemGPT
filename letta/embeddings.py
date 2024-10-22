@@ -21,7 +21,6 @@ from letta.constants import (
     EMBEDDING_TO_TOKENIZER_MAP,
     MAX_EMBEDDING_DIM,
 )
-from letta.credentials import LettaCredentials
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.utils import is_valid_url, printd
 
@@ -138,6 +137,18 @@ class EmbeddingEndpoint:
         return self._call_api(text)
 
 
+class AzureOpenAIEmbedding:
+    def __init__(self, api_endpoint: str, api_key: str, api_version: str, model: str):
+        from openai import AzureOpenAI
+
+        self.client = AzureOpenAI(api_key=api_key, api_version=api_version, azure_endpoint=api_endpoint)
+        self.model = model
+
+    def get_text_embedding(self, text: str):
+        embeddings = self.client.embeddings.create(input=[text], model=self.model).data[0].embedding
+        return embeddings
+
+
 def default_embedding_model():
     # default to hugging face model running local
     # warning: this is a terrible model
@@ -161,8 +172,8 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
 
     endpoint_type = config.embedding_endpoint_type
 
-    # TODO refactor to pass credentials through args
-    credentials = LettaCredentials.load()
+    # TODO: refactor to pass in settings from server
+    from letta.settings import model_settings
 
     if endpoint_type == "openai":
         from llama_index.embeddings.openai import OpenAIEmbedding
@@ -170,7 +181,7 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
         additional_kwargs = {"user_id": user_id} if user_id else {}
         model = OpenAIEmbedding(
             api_base=config.embedding_endpoint,
-            api_key=credentials.openai_key,
+            api_key=model_settings.openai_api_key,
             additional_kwargs=additional_kwargs,
         )
         return model
@@ -178,22 +189,29 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
     elif endpoint_type == "azure":
         assert all(
             [
-                credentials.azure_key is not None,
-                credentials.azure_embedding_endpoint is not None,
-                credentials.azure_version is not None,
+                model_settings.azure_api_key is not None,
+                model_settings.azure_base_url is not None,
+                model_settings.azure_api_version is not None,
             ]
         )
-        from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
+        # from llama_index.embeddings.azure_openai import AzureOpenAIEmbedding
 
-        # https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
-        model = "text-embedding-ada-002"
-        deployment = credentials.azure_embedding_deployment if credentials.azure_embedding_deployment is not None else model
+        ## https://learn.microsoft.com/en-us/azure/ai-services/openai/reference#embeddings
+        # model = "text-embedding-ada-002"
+        # deployment = credentials.azure_embedding_deployment if credentials.azure_embedding_deployment is not None else model
+        # return AzureOpenAIEmbedding(
+        #    model=model,
+        #    deployment_name=deployment,
+        #    api_key=credentials.azure_key,
+        #    azure_endpoint=credentials.azure_endpoint,
+        #    api_version=credentials.azure_version,
+        # )
+
         return AzureOpenAIEmbedding(
-            model=model,
-            deployment_name=deployment,
-            api_key=credentials.azure_key,
-            azure_endpoint=credentials.azure_endpoint,
-            api_version=credentials.azure_version,
+            api_endpoint=model_settings.azure_base_url,
+            api_key=model_settings.azure_api_key,
+            api_version=model_settings.azure_api_version,
+            model=config.embedding_model,
         )
 
     elif endpoint_type == "hugging-face":
