@@ -5,7 +5,10 @@ LETTA_DIR = os.path.join(os.path.expanduser("~"), ".letta")
 
 # Defaults
 DEFAULT_USER_ID = "user-00000000"
-DEFAULT_ORG_ID = "org-00000000"
+# This UUID follows the UUID4 rules:
+# The 13th character (4) indicates it's version 4.
+# The first character of the third segment (8) ensures the variant is correctly set.
+DEFAULT_ORG_ID = "organization-00000000-0000-4000-8000-000000000000"
 DEFAULT_USER_NAME = "default"
 DEFAULT_ORG_NAME = "default"
 

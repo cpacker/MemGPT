@@ -314,11 +314,17 @@ def openai_chat_completions_process_stream(
                             for _ in range(len(tool_calls_delta))
                         ]
 
+                    # There may be many tool calls in a tool calls delta (e.g. parallel tool calls)
                     for tool_call_delta in tool_calls_delta:
                         if tool_call_delta.id is not None:
                             # TODO assert that we're not overwriting?
                             # TODO += instead of =?
-                            accum_message.tool_calls[tool_call_delta.index].id = tool_call_delta.id
+                            if tool_call_delta.index not in range(len(accum_message.tool_calls)):
+                                warnings.warn(
+                                    f"Tool call index out of range ({tool_call_delta.index})\ncurrent tool calls: {accum_message.tool_calls}\ncurrent delta: {tool_call_delta}"
+                                )
+                            else:
+                                accum_message.tool_calls[tool_call_delta.index].id = tool_call_delta.id
                         if tool_call_delta.function is not None:
                             if tool_call_delta.function.name is not None:
                                 # TODO assert that we're not overwriting?

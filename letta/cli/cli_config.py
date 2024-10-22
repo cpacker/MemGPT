@@ -105,7 +105,7 @@ def add_tool(
     """Add or update a tool from a Python file."""
     from letta.client.client import create_client
 
-    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+    client = create_client()
 
     # 1. Parse the Python file
     with open(filename, "r", encoding="utf-8") as file:
@@ -145,7 +145,7 @@ def list_tools():
     """List all available tools."""
     from letta.client.client import create_client
 
-    client = create_client(base_url=os.getenv("MEMGPT_BASE_URL"), token=os.getenv("MEMGPT_SERVER_PASS"))
+    client = create_client()
 
     tools = client.list_tools()
     for tool in tools:
