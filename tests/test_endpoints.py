@@ -151,6 +151,12 @@ def test_azure_gpt_4o_mini_edit_core_memory():
     print(f"Got successful response from client: \n\n{response}")
 
 
+def test_embedding_endpoint_azure():
+    # TODO: fix
+    filename = os.path.join(embedding_config_dir, "text-embedding-ada-002.json")
+    run_embedding_endpoint(filename)
+
+
 # ======================================================================================================================
 # LETTA HOSTED
 # ======================================================================================================================

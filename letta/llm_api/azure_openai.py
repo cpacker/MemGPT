@@ -54,6 +54,9 @@ def azure_openai_get_embeddings_model_list(base_url: str, api_key: str, api_vers
         return m.get("capabilities").get("embeddings") == True and valid_name
 
     model_list = azure_openai_get_model_list(base_url, api_key, api_version)
+    from pprint import pprint
+
+    pprint(model_list)
     # Extract models that support embeddings
 
     model_options = [m for m in model_list if valid_embedding_model(m)]
