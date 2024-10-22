@@ -526,7 +526,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                             processed_chunk = FunctionCallMessage(
                                 id=message_id,
                                 date=message_date,
-                                function_call=FunctionCallDelta(name=self.function_name_buffer, arguments=None),
+                                function_call=FunctionCallDelta(
+                                    name=self.function_name_buffer,
+                                    arguments=None,
+                                    function_call_id=tool_call.id,
+                                ),
                             )
                             # Clear the buffer
                             self.function_name_buffer = None
@@ -550,7 +554,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                                 processed_chunk = FunctionCallMessage(
                                     id=message_id,
                                     date=message_date,
-                                    function_call=FunctionCallDelta(name=None, arguments=combined_chunk),
+                                    function_call=FunctionCallDelta(
+                                        name=None,
+                                        arguments=combined_chunk,
+                                        function_call_id=tool_call.id,
+                                    ),
                                 )
                                 # clear buffer
                                 self.function_args_buffer = None
@@ -559,7 +567,11 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                                 processed_chunk = FunctionCallMessage(
                                     id=message_id,
                                     date=message_date,
-                                    function_call=FunctionCallDelta(name=None, arguments=updates_main_json),
+                                    function_call=FunctionCallDelta(
+                                        name=None,
+                                        arguments=updates_main_json,
+                                        function_call_id=tool_call.id,
+                                    ),
                                 )
 
                         # # If there's something in the main_json buffer, we should add if to the arguments and release it together
