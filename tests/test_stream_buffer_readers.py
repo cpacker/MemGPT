@@ -125,17 +125,23 @@ def test_inner_thoughts_in_args_trailing_quote(wait_for_first_key):
                 "inner_thoughts_update": "",
             },  # Fragment 4
             {
-                "main_json_update": '","',
+                # "main_json_update": '","',
+                "main_json_update": '",',
                 "inner_thoughts_update": "",
             },  # Fragment 5
             {
-                "main_json_update": 'request_heartbeat":"',
+                # "main_json_update": 'request_heartbeat":"',
+                "main_json_update": '"request_heartbeat":"',
                 "inner_thoughts_update": "",
             },  # Fragment 6
             {
                 "main_json_update": 'true"',
                 "inner_thoughts_update": "",
             },  # Fragment 7
+            {
+                "main_json_update": "}",
+                "inner_thoughts_update": "",
+            },  # Fragment 8
         ]
     else:
         pass
@@ -152,28 +158,42 @@ def test_inner_thoughts_in_args_trailing_quote(wait_for_first_key):
                 "inner_thoughts_update": "",
             },  # Fragment 4
             {
-                "main_json_update": '","',
+                # "main_json_update": '","',
+                "main_json_update": '",',
                 "inner_thoughts_update": "",
             },  # Fragment 5
             {
-                "main_json_update": 'request_heartbeat":"',
+                # "main_json_update": 'request_heartbeat":"',
+                "main_json_update": '"request_heartbeat":"',
                 "inner_thoughts_update": "",
             },  # Fragment 6
             {
                 "main_json_update": 'true"',
                 "inner_thoughts_update": "",
             },  # Fragment 7
+            {
+                "main_json_update": "}",
+                "inner_thoughts_update": "",
+            },  # Fragment 8
         ]
 
+    current_inner_thoughts = ""
+    current_main_json = ""
     for idx, (fragment, expected) in enumerate(zip(fragments1, expected_updates1)):
         updates_main_json, updates_inner_thoughts = handler1.process_fragment(fragment)
         # Assertions
         assert (
             updates_main_json == expected["main_json_update"]
-        ), f"Test Case 1, Fragment {idx+1}: Main JSON update mismatch.\nExpected: '{expected['main_json_update']}'\nGot: '{updates_main_json}'"
+        ), f"Test Case 1, Fragment {idx+1}: Main JSON update mismatch.\nFragment: '{fragment}'\nExpected: '{expected['main_json_update']}'\nGot: '{updates_main_json}'\nCurrent JSON: '{current_main_json}'\nCurrent Inner Thoughts: '{current_inner_thoughts}'"
         assert (
             updates_inner_thoughts == expected["inner_thoughts_update"]
-        ), f"Test Case 1, Fragment {idx+1}: Inner Thoughts update mismatch.\nExpected: '{expected['inner_thoughts_update']}'\nGot: '{updates_inner_thoughts}'"
+        ), f"Test Case 1, Fragment {idx+1}: Inner Thoughts update mismatch.\nExpected: '{expected['inner_thoughts_update']}'\nGot: '{updates_inner_thoughts}'\nCurrent JSON: '{current_main_json}'\nCurrent Inner Thoughts: '{current_inner_thoughts}'"
+        current_main_json += updates_main_json
+        current_inner_thoughts += updates_inner_thoughts
+
+    print(f"Final JSON: '{current_main_json}'")
+    print(f"Final Inner Thoughts: '{current_inner_thoughts}'")
+    _ = json.loads(current_main_json)
 
 
 def test_inner_thoughts_not_in_args():
