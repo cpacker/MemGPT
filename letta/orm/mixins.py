@@ -1,6 +1,10 @@
 from typing import Optional, Type
 from uuid import UUID
 
+from sqlalchemy import UUID as SQLUUID
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column
+
 from letta.orm.base import Base
 
 
@@ -38,3 +42,19 @@ def _relation_setter(instance: Type["Base"], prop: str, value: str) -> None:
         setattr(instance, formatted_prop, UUID(id_))
     except ValueError as e:
         raise MalformedIdError("Hash segment of {value} is not a valid UUID") from e
+
+
+class OrganizationMixin(Base):
+    """Mixin for models that belong to an organization."""
+
+    __abstract__ = True
+
+    _organization_id: Mapped[UUID] = mapped_column(SQLUUID(), ForeignKey("organization._id"))
+
+    @property
+    def organization_id(self) -> str:
+        return _relation_getter(self, "organization")
+
+    @organization_id.setter
+    def organization_id(self, value: str) -> None:
+        _relation_setter(self, "organization", value)

@@ -15,7 +15,6 @@ from sqlalchemy import (
     String,
     TypeDecorator,
     asc,
-    desc,
     or_,
 )
 from sqlalchemy.sql import func
@@ -152,25 +151,6 @@ class ToolCallColumn(TypeDecorator):
                 tools.append(ToolCall(function=tool_call_function, **tool_value))
             return tools
         return value
-
-
-class UserModel(Base):
-    __tablename__ = "users"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    org_id = Column(String)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True))
-
-    # TODO: what is this?
-    policies_accepted = Column(Boolean, nullable=False, default=False)
-
-    def __repr__(self) -> str:
-        return f"<User(id='{self.id}' name='{self.name}')>"
-
-    def to_record(self) -> User:
-        return User(id=self.id, name=self.name, created_at=self.created_at, org_id=self.org_id)
 
 
 # TODO: eventually store providers?
@@ -527,13 +507,13 @@ class MetadataStore:
             session.add(SourceModel(**vars(source)))
             session.commit()
 
-    @enforce_types
-    def create_user(self, user: User):
-        with self.session_maker() as session:
-            if session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
-                raise ValueError(f"User with id {user.id} already exists")
-            session.add(UserModel(**vars(user)))
-            session.commit()
+    # @enforce_types
+    # def create_user(self, user: User):
+    #     with self.session_maker() as session:
+    #         if session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
+    #             raise ValueError(f"User with id {user.id} already exists")
+    #         session.add(UserModel(**vars(user)))
+    #         session.commit()
 
     @enforce_types
     def create_block(self, block: Block):
@@ -573,11 +553,11 @@ class MetadataStore:
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
 
-    @enforce_types
-    def update_user(self, user: User):
-        with self.session_maker() as session:
-            session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
-            session.commit()
+    # @enforce_types
+    # def update_user(self, user: User):
+    #     with self.session_maker() as session:
+    #         session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
+    #         session.commit()
 
     @enforce_types
     def update_source(self, source: Source):
@@ -657,22 +637,22 @@ class MetadataStore:
 
             session.commit()
 
-    @enforce_types
-    def delete_user(self, user_id: str):
-        with self.session_maker() as session:
-            # delete from users table
-            session.query(UserModel).filter(UserModel.id == user_id).delete()
-
-            # delete associated agents
-            session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
-
-            # delete associated sources
-            session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
-
-            # delete associated mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
-
-            session.commit()
+    # @enforce_types
+    # def delete_user(self, user_id: str):
+    #     with self.session_maker() as session:
+    #         # delete from users table
+    #         session.query(UserModel).filter(UserModel.id == user_id).delete()
+    #
+    #         # delete associated agents
+    #         session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
+    #
+    #         # delete associated sources
+    #         session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
+    #
+    #         # delete associated mappings
+    #         session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
+    #
+    #         session.commit()
 
     @enforce_types
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[ToolModel]:
@@ -719,29 +699,29 @@ class MetadataStore:
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
             return results[0].to_record()
 
-    @enforce_types
-    def get_user(self, user_id: str) -> Optional[User]:
-        with self.session_maker() as session:
-            results = session.query(UserModel).filter(UserModel.id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
-        with self.session_maker() as session:
-            query = session.query(UserModel).order_by(desc(UserModel.id))
-            if cursor:
-                query = query.filter(UserModel.id < cursor)
-            results = query.limit(limit).all()
-            if not results:
-                return None, []
-            user_records = [r.to_record() for r in results]
-            next_cursor = user_records[-1].id
-            assert isinstance(next_cursor, str)
-
-            return next_cursor, user_records
+    # @enforce_types
+    # def get_user(self, user_id: str) -> Optional[User]:
+    #     with self.session_maker() as session:
+    #         results = session.query(UserModel).filter(UserModel.id == user_id).all()
+    #         if len(results) == 0:
+    #             return None
+    #         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+    #         return results[0].to_record()
+    #
+    # @enforce_types
+    # def get_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
+    #     with self.session_maker() as session:
+    #         query = session.query(UserModel).order_by(desc(UserModel.id))
+    #         if cursor:
+    #             query = query.filter(UserModel.id < cursor)
+    #         results = query.limit(limit).all()
+    #         if not results:
+    #             return None, []
+    #         user_records = [r.to_record() for r in results]
+    #         next_cursor = user_records[-1].id
+    #         assert isinstance(next_cursor, str)
+    #
+    #         return next_cursor, user_records
 
     @enforce_types
     def get_source(

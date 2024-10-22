@@ -21,13 +21,21 @@ class User(UserBase):
     """
 
     id: str = UserBase.generate_id_field()
-    org_id: Optional[str] = Field(
+    organization_id: Optional[str] = Field(
         ..., description="The organization id of the user"
     )  # TODO: dont make optional, and pass in default org ID
     name: str = Field(..., description="The name of the user.")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the user.")
+    updated_at: datetime = Field(default_factory=datetime.utcnow, description="The update date of the user.")
+    is_deleted: bool = Field(False, description="Whether this user is deleted or not.")
 
 
 class UserCreate(UserBase):
+    name: str = Field(..., description="The name of the user.")
+    org_id: str = Field(..., description="The organization id of the user.")
+
+
+class UserUpdate(UserBase):
+    id: str = Field(..., description="The id of the user.")
     name: Optional[str] = Field(None, description="The name of the user.")
     org_id: Optional[str] = Field(None, description="The organization id of the user.")
