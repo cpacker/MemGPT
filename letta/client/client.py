@@ -1777,6 +1777,19 @@ class LocalClient(AbstractClient):
         """
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
+    def get_agent_by_name(self, agent_name: str, user_id: str) -> AgentState:
+        """
+        Get an agent by its name
+
+        Args:
+            agent_name (str): Name of the agent
+
+        Returns:
+            agent_state (AgentState): State of the agent
+        """
+        self.interface.clear()
+        return self.server.get_agent(agent_name=agent_name, user_id=user_id, agent_id=None)
+
     def get_agent(self, agent_id: str) -> AgentState:
         """
         Get an agent's state by its ID.

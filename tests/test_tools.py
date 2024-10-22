@@ -7,7 +7,7 @@ from typing import Union
 import pytest
 from dotenv import load_dotenv
 
-from letta import Admin, create_client
+from letta import create_client
 from letta.agent import Agent
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
@@ -23,10 +23,6 @@ client = None
 
 test_agent_state_post_message = None
 test_user_id = uuid.uuid4()
-
-
-# admin credentials
-test_server_token = "test_server_token"
 
 
 def run_server():
@@ -60,26 +56,15 @@ def client(request):
             thread.start()
             time.sleep(5)
         print("Running client tests with server:", server_url)
-        # create user via admin client
-        admin = Admin(server_url, test_server_token)
-        user = admin.create_user()  # Adjust as per your client's method
-        api_key = admin.create_key(user.id)
-    else:
         # use local client (no server)
         assert False, "Local client not implemented"
         server_url = None
 
     assert server_url is not None
-    assert api_key.key is not None
-    client = create_client(base_url=server_url, token=api_key.key)  # This yields control back to the test function
+    client = create_client(base_url=server_url)  # This yields control back to the test function
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
-    try:
-        yield client
-    finally:
-        # cleanup user
-        if server_url:
-            admin.delete_user(user.id)
+    yield client
 
 
 # Fixture for test agent
@@ -125,37 +110,6 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
     # create agent with tool
     agent_state = client.create_agent(tools=[tool.name])
     response = client.user_message(agent_id=agent_state.id, message="hi")
-
-
-# TODO: add back once we fix admin client tool creation
-# def test_create_agent_tool_admin(admin_client):
-#    if admin_client is None:
-#        return
-#
-#    def print_tool(message: str):
-#        """
-#        Args:
-#            message (str): The message to print.
-#
-#        Returns:
-#            str: The message that was printed.
-#
-#        """
-#        print(message)
-#        return message
-#
-#    tools = admin_client.list_tools()
-#    print(f"Original tools {[t.name for t in tools]}")
-#
-#    tool = admin_client.create_tool(print_tool, tags=["extras"])
-#
-#    tools = admin_client.list_tools()
-#    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
-#    print(f"Updated tools {[t.name for t in tools]}")
-#
-#    # check tool id
-#    tool = admin_client.get_tool(tool.name)
-#    assert tool.user_id is None, f"Expected {tool.user_id} to be None"
 
 
 def test_create_agent_tool(client):
