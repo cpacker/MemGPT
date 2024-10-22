@@ -1,10 +1,12 @@
+import json
+
 import pytest
 
 from letta.streaming_utils import JSONInnerThoughtsExtractor
 
 
 @pytest.mark.parametrize("wait_for_first_key", [True, False])
-def test_inner_thoughts_in_args(wait_for_first_key):
+def test_inner_thoughts_in_args_simple(wait_for_first_key):
     """Test case where the function_delta.arguments contains inner_thoughts
 
     Correct output should be inner_thoughts VALUE (not KEY) being written to one buffer
@@ -17,7 +19,7 @@ def test_inner_thoughts_in_args(wait_for_first_key):
         """"inner_thoughts":"Chad's x2 tradition""",
         " is going strong! 😂 I love the enthusiasm!",
         " Time to delve into something imaginative:",
-        """ If you could swap lives with any fictional character for a day, who would it be?",""",
+        """ If you could swap lives with any fictional character for a day, who would it be?\"""",
         ",",
         """"message":"Here we are again, with 'x2'!""",
         " 🎉 Let's take this chance: If you could swap",
@@ -25,6 +27,9 @@ def test_inner_thoughts_in_args(wait_for_first_key):
         ''' who would it be?"''',
         "}",
     ]
+    print("Basic inner thoughts testcase:", fragments1, "".join(fragments1))
+    # Make sure the string is valid JSON
+    _ = json.loads("".join(fragments1))
 
     if wait_for_first_key:
         # If we're waiting for the first key, then the first opening brace should be buffered/held back
@@ -78,6 +83,119 @@ def test_inner_thoughts_in_args(wait_for_first_key):
         ), f"Test Case 1, Fragment {idx+1}: Inner Thoughts update mismatch.\nExpected: '{expected['inner_thoughts_update']}'\nGot: '{updates_inner_thoughts}'"
 
 
+@pytest.mark.parametrize("wait_for_first_key", [True, False])
+def test_inner_thoughts_in_args_trailing_quote(wait_for_first_key):
+    # Another test case where there's a function call that has a chunk that ends with a double quote
+    print("Running Test Case: chunk ends with double quote")
+    handler1 = JSONInnerThoughtsExtractor(inner_thoughts_key="inner_thoughts", wait_for_first_key=wait_for_first_key)
+    fragments1 = [
+        # 1
+        "{",
+        # 2
+        """\"inner_thoughts\":\"User wants to add 'banana' again for a fourth time; I'll track another addition.""",
+        # 3
+        '",',
+        # 4
+        """\"content\":\"banana""",
+        # 5
+        """\",\"""",
+        # 6
+        """request_heartbeat\":\"""",
+        # 7
+        """true\"""",
+        # 8
+        "}",
+    ]
+    print("Double quote test case:", fragments1, "".join(fragments1))
+    # Make sure the string is valid JSON
+    _ = json.loads("".join(fragments1))
+
+    if wait_for_first_key:
+        # If we're waiting for the first key, then the first opening brace should be buffered/held back
+        # until after the inner thoughts are finished
+        expected_updates1 = [
+            {"main_json_update": "", "inner_thoughts_update": ""},  # Fragment 1 (NOTE: different)
+            {
+                "main_json_update": "",
+                "inner_thoughts_update": "User wants to add 'banana' again for a fourth time; I'll track another addition.",
+            },  # Fragment 2
+            {"main_json_update": "", "inner_thoughts_update": ""},  # Fragment 3
+            {
+                "main_json_update": '{"content":"banana',
+                "inner_thoughts_update": "",
+            },  # Fragment 4
+            {
+                # "main_json_update": '","',
+                "main_json_update": '",',
+                "inner_thoughts_update": "",
+            },  # Fragment 5
+            {
+                # "main_json_update": 'request_heartbeat":"',
+                "main_json_update": '"request_heartbeat":"',
+                "inner_thoughts_update": "",
+            },  # Fragment 6
+            {
+                "main_json_update": 'true"',
+                "inner_thoughts_update": "",
+            },  # Fragment 7
+            {
+                "main_json_update": "}",
+                "inner_thoughts_update": "",
+            },  # Fragment 8
+        ]
+    else:
+        pass
+        # If we're not waiting for the first key, then the first opening brace should be written immediately
+        expected_updates1 = [
+            {"main_json_update": "{", "inner_thoughts_update": ""},  # Fragment 1 (NOTE: different)
+            {
+                "main_json_update": "",
+                "inner_thoughts_update": "User wants to add 'banana' again for a fourth time; I'll track another addition.",
+            },  # Fragment 2
+            {"main_json_update": "", "inner_thoughts_update": ""},  # Fragment 3
+            {
+                "main_json_update": '"content":"banana',
+                "inner_thoughts_update": "",
+            },  # Fragment 4
+            {
+                # "main_json_update": '","',
+                "main_json_update": '",',
+                "inner_thoughts_update": "",
+            },  # Fragment 5
+            {
+                # "main_json_update": 'request_heartbeat":"',
+                "main_json_update": '"request_heartbeat":"',
+                "inner_thoughts_update": "",
+            },  # Fragment 6
+            {
+                "main_json_update": 'true"',
+                "inner_thoughts_update": "",
+            },  # Fragment 7
+            {
+                "main_json_update": "}",
+                "inner_thoughts_update": "",
+            },  # Fragment 8
+        ]
+
+    current_inner_thoughts = ""
+    current_main_json = ""
+    for idx, (fragment, expected) in enumerate(zip(fragments1, expected_updates1)):
+        updates_main_json, updates_inner_thoughts = handler1.process_fragment(fragment)
+        # Assertions
+        assert (
+            updates_main_json == expected["main_json_update"]
+        ), f"Test Case 1, Fragment {idx+1}: Main JSON update mismatch.\nFragment: '{fragment}'\nExpected: '{expected['main_json_update']}'\nGot: '{updates_main_json}'\nCurrent JSON: '{current_main_json}'\nCurrent Inner Thoughts: '{current_inner_thoughts}'"
+        assert (
+            updates_inner_thoughts == expected["inner_thoughts_update"]
+        ), f"Test Case 1, Fragment {idx+1}: Inner Thoughts update mismatch.\nExpected: '{expected['inner_thoughts_update']}'\nGot: '{updates_inner_thoughts}'\nCurrent JSON: '{current_main_json}'\nCurrent Inner Thoughts: '{current_inner_thoughts}'"
+        current_main_json += updates_main_json
+        current_inner_thoughts += updates_inner_thoughts
+
+    print(f"Final JSON: '{current_main_json}'")
+    print(f"Final Inner Thoughts: '{current_inner_thoughts}'")
+    _ = json.loads(current_main_json)
+
+
 def test_inner_thoughts_not_in_args():
     """Test case where the function_delta.arguments does not contain inner_thoughts
 
@@ -93,6 +211,9 @@ def test_inner_thoughts_not_in_args():
         ''' who would it be?"''',
         "}",
     ]
+    print("Basic inner thoughts not in kwargs testcase:", fragments2, "".join(fragments2))
+    # Make sure the string is valid JSON
+    _ = json.loads("".join(fragments2))
 
     expected_updates2 = [
         {"main_json_update": "{", "inner_thoughts_update": ""},  # Fragment 1
