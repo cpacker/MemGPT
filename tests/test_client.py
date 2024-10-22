@@ -7,7 +7,7 @@ from typing import Union
 import pytest
 from dotenv import load_dotenv
 
-from letta import Admin, create_client
+from letta import create_client
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import AgentState
@@ -29,10 +29,6 @@ test_agent_state = None
 client = None
 
 test_agent_state_post_message = None
-
-
-# admin credentials
-test_server_token = "test_server_token"
 
 
 def run_server():
@@ -58,7 +54,6 @@ def client(request):
         server_url = os.getenv("LETTA_SERVER_URL")
         if server_url is None:
             # run server in thread
-            # NOTE: must set MEMGPT_SERVER_PASS enviornment variable
             server_url = "http://localhost:8283"
             print("Starting server thread")
             thread = threading.Thread(target=run_server, daemon=True)
@@ -66,10 +61,7 @@ def client(request):
             time.sleep(5)
         print("Running client tests with server:", server_url)
         # create user via admin client
-        admin = Admin(server_url, test_server_token)
-        user = admin.create_user()  # Adjust as per your client's method
-        api_key = admin.create_key(user.id)
-        client = create_client(base_url=server_url, token=api_key.key)  # This yields control back to the test function
+        client = create_client(base_url=server_url, token=None)  # This yields control back to the test function
     else:
         # use local client (no server)
         server_url = None
@@ -77,12 +69,7 @@ def client(request):
 
     client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
-    try:
-        yield client
-    finally:
-        # cleanup user
-        if server_url:
-            admin.delete_user(user.id)
+    yield client
 
 
 # Fixture for test agent
