@@ -42,6 +42,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return
         prefix, id_ = value.split("-", 1)
         assert prefix == self.__prefix__(), f"{prefix} is not a valid id prefix for {self.__class__.__name__}"
+        assert SqlalchemyBase.is_valid_uuid4(id_), f"{id_} is not a valid uuid4"
         self._id = id_
 
     @classmethod
