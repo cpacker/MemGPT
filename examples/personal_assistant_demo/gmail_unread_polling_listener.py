@@ -11,6 +11,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+# NOTE: THIS file it out of date for >=0.5.0
+
 # If modifying these scopes, delete the file token.json.
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 TOKEN_PATH = os.path.expanduser("~/.letta/gmail_token.json")
