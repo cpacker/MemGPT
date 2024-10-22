@@ -16,6 +16,7 @@ from letta.constants import (
     DEFAULT_USER_NAME,
 )
 from letta.orm.organization import Organization
+from letta.orm.user import User
 from letta.schemas.enums import MessageRole
 
 utils.DEBUG = True
@@ -42,9 +43,10 @@ from .utils import DummyDataConnector
 
 
 @pytest.fixture(autouse=True)
-def clear_organization_table(server: SyncServer):
+def clear_organization_and_user_table(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(User))  # Clear all records from the user table
         session.execute(delete(Organization))  # Clear all records from the organization table
         session.commit()  # Commit the deletion
 
