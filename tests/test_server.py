@@ -12,6 +12,8 @@ from letta.constants import (
     DEFAULT_MESSAGE_TOOL_KWARG,
     DEFAULT_ORG_ID,
     DEFAULT_ORG_NAME,
+    DEFAULT_USER_ID,
+    DEFAULT_USER_NAME,
 )
 from letta.orm.organization import Organization
 from letta.schemas.enums import MessageRole
@@ -33,7 +35,7 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.message import Message
 from letta.schemas.source import SourceCreate
-from letta.schemas.user import UserCreate
+from letta.schemas.user import UserCreate, UserUpdate
 from letta.server.server import SyncServer
 
 from .utils import DummyDataConnector
@@ -84,7 +86,7 @@ def user_id(server):
     yield user.id
 
     # cleanup
-    server.delete_user(user.id)
+    server.user_manager.delete_user_by_id(user.id)
 
 
 @pytest.fixture(scope="module")
@@ -565,6 +567,9 @@ def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id:
     )
 
 
+# ======================================================================================================================
+# Organization Manager Tests
+# ======================================================================================================================
 def test_list_organizations(server: SyncServer):
     # Create a new org and confirm that it is created correctly
     org_name = "test"
@@ -607,3 +612,51 @@ def test_list_organizations_pagination(server: SyncServer):
 
     orgs = server.organization_manager.list_organizations(cursor=orgs_y[0].id, limit=1)
     assert len(orgs) == 0
+
+
+# ======================================================================================================================
+# User Manager Tests
+# ======================================================================================================================
+def test_list_users(server: SyncServer):
+    # Create default organization
+    org = server.organization_manager.create_default_organization()
+
+    user_name = "user"
+    user = server.user_manager.create_user(UserCreate(name=user_name, organization_id=org.id))
+
+    users = server.user_manager.list_users()
+    assert len(users) == 1
+    assert users[0].name == user_name
+
+    # Delete it after
+    server.user_manager.delete_user_by_id(user.id)
+    assert len(server.user_manager.list_users()) == 0
+
+
+def test_create_default_user(server: SyncServer):
+    server.user_manager.create_default_user()
+    retrieved = server.user_manager.get_user_by_id(DEFAULT_USER_ID)
+    assert retrieved.name == DEFAULT_USER_NAME
+
+
+def test_update_user(server: SyncServer):
+    # Create default organization
+    default_org = server.organization_manager.create_default_organization()
+    test_org = server.organization_manager.create_organization(name="test_org")
+
+    user_name_a = "a"
+    user_name_b = "b"
+
+    # Assert it's been created
+    user = server.user_manager.create_user(UserCreate(name=user_name_a, organization_id=default_org.id))
+    assert user.name == user_name_a
+
+    # Adjust name
+    user = server.user_manager.update_user(UserUpdate(id=user.id, name=user_name_b))
+    assert user.name == user_name_b
+    assert user.organization_id == DEFAULT_ORG_ID
+
+    # Adjust org id
+    user = server.user_manager.update_user(UserUpdate(id=user.id, organization_id=test_org.id))
+    assert user.name == user_name_b
+    assert user.organization_id == test_org.id

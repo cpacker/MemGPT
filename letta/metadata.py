@@ -30,8 +30,6 @@ from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
-
-# from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool
@@ -478,15 +476,6 @@ class MetadataStore:
             return tokens
 
     @enforce_types
-    def get_user_from_api_key(self, api_key: str) -> Optional[User]:
-        """Get the user associated with a given API key"""
-        token = self.get_api_key(api_key=api_key)
-        if token is None:
-            raise ValueError(f"Provided token does not exist")
-        else:
-            return self.get_user(user_id=token.user_id)
-
-    @enforce_types
     def create_agent(self, agent: AgentState):
         # insert into agent table
         # make sure agent.name does not already exist for user user_id
@@ -506,14 +495,6 @@ class MetadataStore:
                 raise ValueError(f"Source with name {source.name} already exists for user {source.user_id}")
             session.add(SourceModel(**vars(source)))
             session.commit()
-
-    # @enforce_types
-    # def create_user(self, user: User):
-    #     with self.session_maker() as session:
-    #         if session.query(UserModel).filter(UserModel.id == user.id).count() > 0:
-    #             raise ValueError(f"User with id {user.id} already exists")
-    #         session.add(UserModel(**vars(user)))
-    #         session.commit()
 
     @enforce_types
     def create_block(self, block: Block):
@@ -552,12 +533,6 @@ class MetadataStore:
             del fields["_internal_memory"]
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
-
-    # @enforce_types
-    # def update_user(self, user: User):
-    #     with self.session_maker() as session:
-    #         session.query(UserModel).filter(UserModel.id == user.id).update(vars(user))
-    #         session.commit()
 
     @enforce_types
     def update_source(self, source: Source):
@@ -637,23 +612,6 @@ class MetadataStore:
 
             session.commit()
 
-    # @enforce_types
-    # def delete_user(self, user_id: str):
-    #     with self.session_maker() as session:
-    #         # delete from users table
-    #         session.query(UserModel).filter(UserModel.id == user_id).delete()
-    #
-    #         # delete associated agents
-    #         session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
-    #
-    #         # delete associated sources
-    #         session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
-    #
-    #         # delete associated mappings
-    #         session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
-    #
-    #         session.commit()
-
     @enforce_types
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[ToolModel]:
         with self.session_maker() as session:
@@ -698,30 +656,6 @@ class MetadataStore:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
             return results[0].to_record()
-
-    # @enforce_types
-    # def get_user(self, user_id: str) -> Optional[User]:
-    #     with self.session_maker() as session:
-    #         results = session.query(UserModel).filter(UserModel.id == user_id).all()
-    #         if len(results) == 0:
-    #             return None
-    #         assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-    #         return results[0].to_record()
-    #
-    # @enforce_types
-    # def get_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50):
-    #     with self.session_maker() as session:
-    #         query = session.query(UserModel).order_by(desc(UserModel.id))
-    #         if cursor:
-    #             query = query.filter(UserModel.id < cursor)
-    #         results = query.limit(limit).all()
-    #         if not results:
-    #             return None, []
-    #         user_records = [r.to_record() for r in results]
-    #         next_cursor = user_records[-1].id
-    #         assert isinstance(next_cursor, str)
-    #
-    #         return next_cursor, user_records
 
     @enforce_types
     def get_source(

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class Organization(SqlalchemyBase):
     """The highest level of the object tree. All Entities belong to one and only one Organization."""
 
-    __tablename__ = "organizations"
+    __tablename__ = "organization"
     __pydantic_model__ = PydanticOrganization
 
     name: Mapped[str] = mapped_column(doc="The display name of the organization.")

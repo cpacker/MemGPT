@@ -1,8 +1,10 @@
 from typing import List, Optional, Tuple
 
-from sqlalchemy.exc import NoResultFound
+from letta.constants import DEFAULT_ORG_ID, DEFAULT_USER_ID, DEFAULT_USER_NAME
 
+# TODO: Remove this once we translate all of these to the ORM
 from letta.metadata import AgentModel, AgentSourceMappingModel, SourceModel
+from letta.orm.errors import NoResultFound
 from letta.orm.user import User as UserModel
 from letta.schemas.user import User as PydanticUser
 from letta.schemas.user import UserCreate, UserUpdate
@@ -17,6 +19,20 @@ class UserManager:
         from letta.server.server import db_context
 
         self.session_maker = db_context
+
+    @enforce_types
+    def create_default_user(self) -> PydanticUser:
+        """Create the default user."""
+        with self.session_maker() as session:
+            # Try to get it first
+            try:
+                user = UserModel.read(db_session=session, identifier=DEFAULT_USER_ID)
+            # If it doesn't exist, make it
+            except NoResultFound:
+                user = UserModel(id=DEFAULT_USER_ID, name=DEFAULT_USER_NAME, org_id=DEFAULT_ORG_ID)
+                user.create(session)
+
+            return user.to_pydantic()
 
     @enforce_types
     def create_user(self, user_create: UserCreate) -> PydanticUser:
@@ -69,7 +85,7 @@ class UserManager:
                 raise ValueError(f"User with id {user_id} not found.")
 
     @enforce_types
-    def list_all_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Tuple[Optional[str], List[PydanticUser]]:
+    def list_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Tuple[Optional[str], List[PydanticUser]]:
         """List users with pagination using cursor (id) and limit."""
         with self.session_maker() as session:
             results = UserModel.list(db_session=session, cursor=cursor, limit=limit)

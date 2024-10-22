@@ -32,10 +32,10 @@ class User(UserBase):
 
 class UserCreate(UserBase):
     name: str = Field(..., description="The name of the user.")
-    org_id: str = Field(..., description="The organization id of the user.")
+    organization_id: str = Field(..., description="The organization id of the user.")
 
 
 class UserUpdate(UserBase):
-    id: str = Field(..., description="The id of the user.")
-    name: Optional[str] = Field(None, description="The name of the user.")
-    org_id: Optional[str] = Field(None, description="The organization id of the user.")
+    id: str = Field(..., description="The id of the user to update.")
+    name: Optional[str] = Field(None, description="The new name of the user.")
+    organization_id: Optional[str] = Field(None, description="The new organization id of the user.")
