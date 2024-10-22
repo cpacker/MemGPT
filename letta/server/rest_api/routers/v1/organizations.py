@@ -22,7 +22,7 @@ def get_all_orgs(
     Get a list of all orgs in the database
     """
     try:
-        next_cursor, orgs = server.ms.list_organizations(cursor=cursor, limit=limit)
+        next_cursor, orgs = server.organization_manager.list_organizations(cursor=cursor, limit=limit)
     except HTTPException:
         raise
     except Exception as e:
@@ -38,8 +38,7 @@ def create_org(
     """
     Create a new org in the database
     """
-
-    org = server.create_organization(request)
+    org = server.organization_manager.create_organization(request)
     return org
 
 
@@ -50,10 +49,10 @@ def delete_org(
 ):
     # TODO make a soft deletion, instead of a hard deletion
     try:
-        org = server.ms.get_organization(org_id=org_id)
+        org = server.organization_manager.get_organization_by_id(org_id=org_id)
         if org is None:
             raise HTTPException(status_code=404, detail=f"Organization does not exist")
-        server.ms.delete_organization(org_id=org_id)
+        server.organization_manager.delete_organization(org_id=org_id)
     except HTTPException:
         raise
     except Exception as e:

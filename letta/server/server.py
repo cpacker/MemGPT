@@ -44,6 +44,7 @@ from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import Base, MetadataStore
 from letta.o1_agent import O1Agent
+from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
@@ -80,12 +81,12 @@ from letta.schemas.memory import (
     RecallMemorySummary,
 )
 from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
-from letta.schemas.organization import Organization, OrganizationCreate
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User, UserCreate
+from letta.services.organization_manager import OrganizationManager
 from letta.utils import create_random_username, json_dumps, json_loads
 
 # from letta.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
@@ -244,6 +245,9 @@ class SyncServer(Server):
         config.save()
         self.config = config
         self.ms = MetadataStore(self.config)
+
+        # Managers that interface with data models
+        self.organization_manager = OrganizationManager()
 
         # TODO: this should be removed
         # add global default tools (for admin)
@@ -772,20 +776,6 @@ class SyncServer(Server):
         self.add_default_tools(module_name="base", user_id=user.id)
 
         return user
-
-    def create_organization(self, request: OrganizationCreate) -> Organization:
-        """Create a new org using a config"""
-        if not request.name:
-            # auto-generate a name
-            request.name = create_random_username()
-        org = Organization(name=request.name)
-        self.ms.create_organization(org)
-        logger.info(f"Created new org from config: {org}")
-
-        # add default for the org
-        # TODO: add default data
-
-        return org
 
     def create_agent(
         self,
@@ -2125,18 +2115,13 @@ class SyncServer(Server):
 
     def get_default_user(self) -> User:
 
-        from letta.constants import (
-            DEFAULT_ORG_ID,
-            DEFAULT_ORG_NAME,
-            DEFAULT_USER_ID,
-            DEFAULT_USER_NAME,
-        )
+        from letta.constants import DEFAULT_ORG_ID, DEFAULT_USER_ID, DEFAULT_USER_NAME
 
         # check if default org exists
-        default_org = self.ms.get_organization(DEFAULT_ORG_ID)
-        if not default_org:
-            org = Organization(name=DEFAULT_ORG_NAME, id=DEFAULT_ORG_ID)
-            self.ms.create_organization(org)
+        try:
+            self.organization_manager.get_organization_by_id(DEFAULT_ORG_ID)
+        except NoResultFound:
+            self.organization_manager.create_default_organization()
 
         # check if default user exists
         try:

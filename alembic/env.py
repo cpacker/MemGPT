@@ -4,8 +4,8 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-from letta.base import Base
 from letta.config import LettaConfig
+from letta.orm.base import Base
 from letta.settings import settings
 
 letta_config = LettaConfig.load()
