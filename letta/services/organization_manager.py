@@ -44,7 +44,7 @@ class OrganizationManager:
 
             return org.to_pydantic()
 
-    def update_organization(self, org_id: str, name: Optional[str] = None) -> PydanticOrganization:
+    def update_organization_name_using_id(self, org_id: str, name: Optional[str] = None) -> PydanticOrganization:
         """Update an organization."""
         with self.session_maker() as session:
             organization = Organization.read(db_session=session, identifier=org_id)
