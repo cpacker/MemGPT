@@ -317,6 +317,13 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self.debug = False
         self.timeout = 30
 
+    def _reset_inner_thoughts_json_reader(self):
+        # A buffer for accumulating function arguments (we want to buffer keys and run checks on each one)
+        self.function_args_reader = JSONInnerThoughtsExtractor(inner_thoughts_key=self.inner_thoughts_kwarg, wait_for_first_key=True)
+        # Two buffers used to make sure that the 'name' comes after the inner thoughts stream (if inner_thoughts_in_kwargs)
+        self.function_name_buffer = None
+        self.function_args_buffer = None
+
     async def _create_generator(self) -> AsyncGenerator[Union[LettaMessage, LegacyLettaMessage, MessageStreamStatus], None]:
         """An asynchronous generator that yields chunks as they become available."""
         while self._active:
@@ -376,6 +383,9 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         if not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
             self._push_to_buffer(self.multi_step_gen_indicator)
 
+        # Wipe the inner thoughts buffers
+        self._reset_inner_thoughts_json_reader()
+
     def step_complete(self):
         """Signal from the agent that one 'step' finished (step = LLM response + tool execution)"""
         if not self.multi_step:
@@ -385,6 +395,9 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         elif not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
             # signal that a new step has started in the stream
             self._push_to_buffer(self.multi_step_indicator)
+
+        # Wipe the inner thoughts buffers
+        self._reset_inner_thoughts_json_reader()
 
     def step_yield(self):
         """If multi_step, this is the true 'stream_end' function."""
