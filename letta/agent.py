@@ -503,7 +503,7 @@ class Agent(BaseAgent):
     def _handle_ai_response(
         self,
         response_message: ChatCompletionMessage,  # TODO should we eventually move the Message creation outside of this function?
-        override_tool_call_id: bool = True,
+        override_tool_call_id: bool = False,
         # If we are streaming, we needed to create a Message ID ahead of time,
         # and now we want to use it in the creation of the Message object
         # TODO figure out a cleaner way to do this
@@ -530,6 +530,7 @@ class Agent(BaseAgent):
 
             # generate UUID for tool call
             if override_tool_call_id or response_message.function_call:
+                warnings.warn("Overriding the tool call can result in inconsistent tool call IDs during streaming")
                 tool_call_id = get_tool_call_id()  # needs to be a string for JSON
                 response_message.tool_calls[0].id = tool_call_id
             else:
