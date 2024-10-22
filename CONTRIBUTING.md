@@ -65,6 +65,7 @@ $ . venv/bin/activate
 
 If you are having dependency issues using `pip`, we recommend you install the package using Poetry. Installing Letta from source using Poetry will ensure that you are using exact package versions that have been tested for the production build.
 
+
 #### (Optional) Installing pre-commit
 We recommend installing pre-commit to ensure proper formatting during development:
 ```
@@ -85,6 +86,21 @@ git checkout -b feature/your-feature
 ### ✏️ Make your Changes
 
 Now, the world is your oyster! Go ahead and craft your fabulous changes. 🎨
+
+
+#### Handling Database Migrations
+If you are running Letta for the first time, your database will be automatically be setup. If you are updating Letta, you may need to run migrations. To run migrations, use the following command:
+```shell
+poetry run alembic upgrade head
+```
+
+#### Creating a new Database Migration
+If you have made changes to the database models, you will need to create a new migration. To create a new migration, use the following command:
+```shell
+poetry run alembic revision --autogenerate -m "Your migration message here"
+```
+
+Visit the [Alembic documentation](https://alembic.sqlalchemy.org/en/latest/tutorial.html) for more information on creating and running migrations.
 
 ## 3. ✅ Testing
 

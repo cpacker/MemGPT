@@ -27,7 +27,7 @@ def load_function_set(module: ModuleType) -> dict:
             if attr_name in function_dict:
                 raise ValueError(f"Found a duplicate of function name '{attr_name}'")
 
-            generated_schema = generate_schema(attr)
+            generated_schema = generate_schema(attr, terminal=False)
             function_dict[attr_name] = {
                 "module": inspect.getsource(module),
                 "python_function": attr,

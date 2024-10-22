@@ -101,7 +101,7 @@ def test_openai_gpt_4_edit_core_memory():
 
 
 def test_embedding_endpoint_openai():
-    filename = os.path.join(embedding_config_dir, "text-embedding-ada-002.json")
+    filename = os.path.join(embedding_config_dir, "openai_embed.json")
     run_embedding_endpoint(filename)
 
 
@@ -149,6 +149,11 @@ def test_azure_gpt_4o_mini_edit_core_memory():
     response = check_agent_edit_core_memory(filename)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
+
+
+def test_azure_embedding_endpoint():
+    filename = os.path.join(embedding_config_dir, "azure_embed.json")
+    run_embedding_endpoint(filename)
 
 
 # ======================================================================================================================

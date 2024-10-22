@@ -11,23 +11,28 @@ from sqlalchemy import (
     Column,
     DateTime,
     Index,
+    Integer,
     String,
     TypeDecorator,
+    asc,
     desc,
-    func,
+    or_,
 )
-from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 
+from letta.base import Base
 from letta.config import LettaConfig
 from letta.schemas.agent import AgentState
 from letta.schemas.api_key import APIKey
 from letta.schemas.block import Block, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
+
+# from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from letta.schemas.organization import Organization
 from letta.schemas.source import Source
@@ -36,7 +41,40 @@ from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
 
-Base = declarative_base()
+
+class FileMetadataModel(Base):
+    __tablename__ = "files"
+    __table_args__ = {"extend_existing": True}
+
+    id = Column(String, primary_key=True, nullable=False)
+    user_id = Column(String, nullable=False)
+    # TODO: Investigate why this breaks during table creation due to FK
+    # source_id = Column(String, ForeignKey("sources.id"), nullable=False)
+    source_id = Column(String, nullable=False)
+    file_name = Column(String, nullable=True)
+    file_path = Column(String, nullable=True)
+    file_type = Column(String, nullable=True)
+    file_size = Column(Integer, nullable=True)
+    file_creation_date = Column(String, nullable=True)
+    file_last_modified_date = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<FileMetadata(id='{self.id}', source_id='{self.source_id}', file_name='{self.file_name}')>"
+
+    def to_record(self):
+        return FileMetadata(
+            id=self.id,
+            user_id=self.user_id,
+            source_id=self.source_id,
+            file_name=self.file_name,
+            file_path=self.file_path,
+            file_type=self.file_type,
+            file_size=self.file_size,
+            file_creation_date=self.file_creation_date,
+            file_last_modified_date=self.file_last_modified_date,
+            created_at=self.created_at,
+        )
 
 
 class LLMConfigColumn(TypeDecorator):
@@ -234,7 +272,7 @@ class AgentModel(Base):
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> AgentState:
-        return AgentState(
+        agent_state = AgentState(
             id=self.id,
             user_id=self.user_id,
             name=self.name,
@@ -249,6 +287,8 @@ class AgentModel(Base):
             embedding_config=self.embedding_config,
             metadata_=self.metadata_,
         )
+        assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
+        return agent_state
 
 
 class SourceModel(Base):
@@ -491,6 +531,7 @@ class MetadataStore:
                 raise ValueError(f"Agent with name {agent.name} already exists")
             fields = vars(agent)
             fields["memory"] = agent.memory.to_dict()
+            del fields["_internal_memory"]
             session.add(AgentModel(**fields))
             session.commit()
 
@@ -541,7 +582,7 @@ class MetadataStore:
     @enforce_types
     def create_tool(self, tool: Tool):
         with self.session_maker() as session:
-            if self.get_tool(tool_name=tool.name, user_id=tool.user_id) is not None:
+            if self.get_tool(tool_id=tool.id, tool_name=tool.name, user_id=tool.user_id) is not None:
                 raise ValueError(f"Tool with name {tool.name} already exists")
             session.add(ToolModel(**vars(tool)))
             session.commit()
@@ -552,6 +593,7 @@ class MetadataStore:
             fields = vars(agent)
             if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
                 fields["memory"] = agent.memory.to_dict()
+            del fields["_internal_memory"]
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
 
@@ -584,9 +626,9 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def update_tool(self, tool: Tool):
+    def update_tool(self, tool_id: str, tool: Tool):
         with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.id == tool.id).update(vars(tool))
+            session.query(ToolModel).filter(ToolModel.id == tool_id).update(vars(tool))
             session.commit()
 
     @enforce_types
@@ -594,6 +636,21 @@ class MetadataStore:
         with self.session_maker() as session:
             session.query(ToolModel).filter(ToolModel.id == tool_id).delete()
             session.commit()
+
+    @enforce_types
+    def delete_file_from_source(self, source_id: str, file_id: str, user_id: Optional[str]):
+        with self.session_maker() as session:
+            file_metadata = (
+                session.query(FileMetadataModel)
+                .filter(FileMetadataModel.source_id == source_id, FileMetadataModel.id == file_id, FileMetadataModel.user_id == user_id)
+                .first()
+            )
+
+            if file_metadata:
+                session.delete(file_metadata)
+                session.commit()
+
+            return file_metadata
 
     @enforce_types
     def delete_block(self, block_id: str):
@@ -652,12 +709,19 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    # def list_tools(self, user_id: str) -> List[ToolModel]: # TODO: add when users can creat tools
-    def list_tools(self, user_id: Optional[str] = None) -> List[ToolModel]:
+    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[ToolModel]:
         with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.user_id == None).all()
-            if user_id:
-                results += session.query(ToolModel).filter(ToolModel.user_id == user_id).all()
+            # Query for public tools or user-specific tools
+            query = session.query(ToolModel).filter(or_(ToolModel.user_id == None, ToolModel.user_id == user_id))
+
+            # Apply cursor if provided (assuming cursor is an ID)
+            if cursor:
+                query = query.filter(ToolModel.id > cursor)
+
+            # Order by ID and apply limit
+            results = query.order_by(asc(ToolModel.id)).limit(limit).all()
+
+            # Convert to records
             res = [r.to_record() for r in results]
             return res
 
@@ -766,6 +830,15 @@ class MetadataStore:
                     results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
             if len(results) == 0:
                 return None
+            # assert len(results) == 1, f"Expected 1 result, got {len(results)}"
+            return results[0].to_record()
+
+    @enforce_types
+    def get_tool_with_name_and_user_id(self, tool_name: Optional[str] = None, user_id: Optional[str] = None) -> Optional[ToolModel]:
+        with self.session_maker() as session:
+            results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
+            if len(results) == 0:
+                return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
 
@@ -865,6 +938,27 @@ class MetadataStore:
         with self.session_maker() as session:
             session.add(JobModel(**vars(job)))
             session.commit()
+
+    @enforce_types
+    def list_files_from_source(self, source_id: str, limit: int, cursor: Optional[str]):
+        with self.session_maker() as session:
+            # Start with the basic query filtered by source_id
+            query = session.query(FileMetadataModel).filter(FileMetadataModel.source_id == source_id)
+
+            if cursor:
+                # Assuming cursor is the ID of the last file in the previous page
+                query = query.filter(FileMetadataModel.id > cursor)
+
+            # Order by ID or other ordering criteria to ensure correct pagination
+            query = query.order_by(FileMetadataModel.id)
+
+            # Limit the number of results returned
+            results = query.limit(limit).all()
+
+            # Convert the results to the required FileMetadata objects
+            files = [r.to_record() for r in results]
+
+            return files
 
     def delete_job(self, job_id: str):
         with self.session_maker() as session:

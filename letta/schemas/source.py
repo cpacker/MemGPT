@@ -28,7 +28,7 @@ class SourceCreate(BaseSource):
 
 class Source(BaseSource):
     """
-    Representation of a source, which is a collection of documents and passages.
+    Representation of a source, which is a collection of files and passages.
 
     Parameters:
         id (str): The ID of the source
@@ -59,4 +59,4 @@ class UploadFileToSourceRequest(BaseModel):
 class UploadFileToSourceResponse(BaseModel):
     source: Source = Field(..., description="The source the file was uploaded to.")
     added_passages: int = Field(..., description="The number of passages added to the source.")
-    added_documents: int = Field(..., description="The number of documents added to the source.")
+    added_documents: int = Field(..., description="The number of files added to the source.")

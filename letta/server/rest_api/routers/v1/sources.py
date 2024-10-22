@@ -2,9 +2,17 @@ import os
 import tempfile
 from typing import List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 
-from letta.schemas.document import Document
+from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
@@ -186,19 +194,36 @@ def list_passages(
     return passages
 
 
-@router.get("/{source_id}/documents", response_model=List[Document], operation_id="list_source_documents")
-def list_documents(
+@router.get("/{source_id}/files", response_model=List[FileMetadata], operation_id="list_files_from_source")
+def list_files_from_source(
     source_id: str,
+    limit: int = Query(1000, description="Number of files to return"),
+    cursor: Optional[str] = Query(None, description="Pagination cursor to fetch the next set of results"),
+    server: "SyncServer" = Depends(get_letta_server),
+):
+    """
+    List paginated files associated with a data source.
+    """
+    return server.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
+
+
+# it's redundant to include /delete in the URL path. The HTTP verb DELETE already implies that action.
+# it's still good practice to return a status indicating the success or failure of the deletion
+@router.delete("/{source_id}/{file_id}", status_code=204, operation_id="delete_file_from_source")
+def delete_file_from_source(
+    source_id: str,
+    file_id: str,
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
-    List all documents associated with a data source.
+    Delete a data source.
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    documents = server.list_data_source_documents(user_id=actor.id, source_id=source_id)
-    return documents
+    deleted_file = server.delete_file_from_source(source_id=source_id, file_id=file_id, user_id=actor.id)
+    if deleted_file is None:
+        raise HTTPException(status_code=404, detail=f"File with id={file_id} not found.")
 
 
 def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):

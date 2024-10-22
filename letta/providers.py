@@ -14,14 +14,18 @@ from letta.schemas.llm_config import LLMConfig
 
 class Provider(BaseModel):
 
-    def list_llm_models(self):
+    def list_llm_models(self) -> List[LLMConfig]:
         return []
 
-    def list_embedding_models(self):
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
         return []
 
-    def get_model_context_window(self, model_name: str):
-        pass
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
+        raise NotImplementedError
+
+    def provider_tag(self) -> str:
+        """String representation of the provider for display purposes"""
+        raise NotImplementedError
 
 
 class LettaProvider(Provider):
@@ -53,17 +57,28 @@ class LettaProvider(Provider):
 class OpenAIProvider(Provider):
     name: str = "openai"
     api_key: str = Field(..., description="API key for the OpenAI API.")
-    base_url: str = "https://api.openai.com/v1"
+    base_url: str = Field(..., description="Base URL for the OpenAI API.")
 
     def list_llm_models(self) -> List[LLMConfig]:
         from letta.llm_api.openai import openai_get_model_list
 
-        response = openai_get_model_list(self.base_url, api_key=self.api_key)
-        model_options = [obj["id"] for obj in response["data"]]
+        # Some hardcoded support for OpenRouter (so that we only get models with tool calling support)...
+        # See: https://openrouter.ai/docs/requests
+        extra_params = {"supported_parameters": "tools"} if "openrouter.ai" in self.base_url else None
+        response = openai_get_model_list(self.base_url, api_key=self.api_key, extra_params=extra_params)
+
+        assert "data" in response, f"OpenAI model query response missing 'data' field: {response}"
 
         configs = []
-        for model_name in model_options:
-            context_window_size = self.get_model_context_window_size(model_name)
+        for model in response["data"]:
+            assert "id" in model, f"OpenAI model missing 'id' field: {model}"
+            model_name = model["id"]
+
+            if "context_length" in model:
+                # Context length is returned in OpenRouter as "context_length"
+                context_window_size = model["context_length"]
+            else:
+                context_window_size = self.get_model_context_window_size(model_name)
 
             if not context_window_size:
                 continue
@@ -124,10 +139,62 @@ class AnthropicProvider(Provider):
         return []
 
 
+class MistralProvider(Provider):
+    name: str = "mistral"
+    api_key: str = Field(..., description="API key for the Mistral API.")
+    base_url: str = "https://api.mistral.ai/v1"
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        from letta.llm_api.mistral import mistral_get_model_list
+
+        # Some hardcoded support for OpenRouter (so that we only get models with tool calling support)...
+        # See: https://openrouter.ai/docs/requests
+        response = mistral_get_model_list(self.base_url, api_key=self.api_key)
+
+        assert "data" in response, f"Mistral model query response missing 'data' field: {response}"
+
+        configs = []
+        for model in response["data"]:
+            # If model has chat completions and function calling enabled
+            if model["capabilities"]["completion_chat"] and model["capabilities"]["function_calling"]:
+                configs.append(
+                    LLMConfig(
+                        model=model["id"],
+                        model_endpoint_type="openai",
+                        model_endpoint=self.base_url,
+                        context_window=model["max_context_length"],
+                    )
+                )
+
+        return configs
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        # Not supported for mistral
+        return []
+
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
+        # Redoing this is fine because it's a pretty lightweight call
+        models = self.list_llm_models()
+
+        for m in models:
+            if model_name in m["id"]:
+                return int(m["max_context_length"])
+
+        return None
+
+
 class OllamaProvider(OpenAIProvider):
+    """Ollama provider that uses the native /api/generate endpoint
+
+    See: https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion
+    """
+
     name: str = "ollama"
     base_url: str = Field(..., description="Base URL for the Ollama API.")
     api_key: Optional[str] = Field(None, description="API key for the Ollama API (default: `None`).")
+    default_prompt_formatter: str = Field(
+        ..., description="Default prompt formatter (aka model wrapper) to use on a /completions style API."
+    )
 
     def list_llm_models(self) -> List[LLMConfig]:
         # https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
@@ -141,17 +208,21 @@ class OllamaProvider(OpenAIProvider):
         configs = []
         for model in response_json["models"]:
             context_window = self.get_model_context_window(model["name"])
+            if context_window is None:
+                print(f"Ollama model {model['name']} has no context window")
+                continue
             configs.append(
                 LLMConfig(
                     model=model["name"],
                     model_endpoint_type="ollama",
                     model_endpoint=self.base_url,
+                    model_wrapper=self.default_prompt_formatter,
                     context_window=context_window,
                 )
             )
         return configs
 
-    def get_model_context_window(self, model_name: str):
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
 
         import requests
 
@@ -177,6 +248,10 @@ class OllamaProvider(OpenAIProvider):
         # ]
         # max_position_embeddings
         # parse model cards: nous, dolphon, llama
+        if "model_info" not in response_json:
+            if "error" in response_json:
+                print(f"Ollama fetch model info error for {model_name}: {response_json['error']}")
+            return None
         for key, value in response_json["model_info"].items():
             if "context_length" in key:
                 return value
@@ -187,6 +262,10 @@ class OllamaProvider(OpenAIProvider):
 
         response = requests.post(f"{self.base_url}/api/show", json={"name": model_name, "verbose": True})
         response_json = response.json()
+        if "model_info" not in response_json:
+            if "error" in response_json:
+                print(f"Ollama fetch model info error for {model_name}: {response_json['error']}")
+            return None
         for key, value in response_json["model_info"].items():
             if "embedding_length" in key:
                 return value
@@ -205,6 +284,7 @@ class OllamaProvider(OpenAIProvider):
         for model in response_json["models"]:
             embedding_dim = self.get_model_embedding_dim(model["name"])
             if not embedding_dim:
+                print(f"Ollama model {model['name']} has no embedding dimension")
                 continue
             configs.append(
                 EmbeddingConfig(
@@ -299,7 +379,7 @@ class GoogleAIProvider(Provider):
             )
         return configs
 
-    def get_model_context_window(self, model_name: str):
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
         from letta.llm_api.google_ai import google_ai_get_model_context_window
 
         return google_ai_get_model_context_window(self.base_url, self.api_key, model_name)
@@ -360,16 +440,75 @@ class AzureProvider(Provider):
             )
         return configs
 
-    def get_model_context_window(self, model_name: str):
+    def get_model_context_window(self, model_name: str) -> Optional[int]:
         """
         This is hardcoded for now, since there is no API endpoints to retrieve metadata for a model.
         """
         return AZURE_MODEL_TO_CONTEXT_LENGTH.get(model_name, 4096)
 
 
-class VLLMProvider(OpenAIProvider):
+class VLLMChatCompletionsProvider(Provider):
+    """vLLM provider that treats vLLM as an OpenAI /chat/completions proxy"""
+
     # NOTE: vLLM only serves one model at a time (so could configure that through env variables)
-    pass
+    name: str = "vllm"
+    base_url: str = Field(..., description="Base URL for the vLLM API.")
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        # not supported with vLLM
+        from letta.llm_api.openai import openai_get_model_list
+
+        assert self.base_url, "base_url is required for vLLM provider"
+        response = openai_get_model_list(self.base_url, api_key=None)
+
+        configs = []
+        print(response)
+        for model in response["data"]:
+            configs.append(
+                LLMConfig(
+                    model=model["id"],
+                    model_endpoint_type="openai",
+                    model_endpoint=self.base_url,
+                    context_window=model["max_model_len"],
+                )
+            )
+        return configs
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        # not supported with vLLM
+        return []
+
+
+class VLLMCompletionsProvider(Provider):
+    """This uses /completions API as the backend, not /chat/completions, so we need to specify a model wrapper"""
+
+    # NOTE: vLLM only serves one model at a time (so could configure that through env variables)
+    name: str = "vllm"
+    base_url: str = Field(..., description="Base URL for the vLLM API.")
+    default_prompt_formatter: str = Field(..., description="Default prompt formatter (aka model wrapper) to use on vLLM /completions API.")
+
+    def list_llm_models(self) -> List[LLMConfig]:
+        # not supported with vLLM
+        from letta.llm_api.openai import openai_get_model_list
+
+        response = openai_get_model_list(self.base_url, api_key=None)
+
+        configs = []
+        for model in response["data"]:
+            configs.append(
+                LLMConfig(
+                    model=model["id"],
+                    model_endpoint_type="vllm",
+                    model_endpoint=self.base_url,
+                    model_wrapper=self.default_prompt_formatter,
+                    context_window=model["max_model_len"],
+                )
+            )
+        return configs
+
+    def list_embedding_models(self) -> List[EmbeddingConfig]:
+        # not supported with vLLM
+        return []
 
 
 class CohereProvider(OpenAIProvider):

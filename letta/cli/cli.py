@@ -51,7 +51,6 @@ def server(
     ade: Annotated[bool, typer.Option(help="Allows remote access")] = False,
 ):
     """Launch a Letta server process"""
-
     if type == ServerChoice.rest_api:
         pass
 
@@ -235,25 +234,32 @@ def run(
         # choose from list of llm_configs
         llm_configs = client.list_llm_configs()
         llm_options = [llm_config.model for llm_config in llm_configs]
+        llm_choices = [questionary.Choice(title=llm_config.pretty_print(), value=llm_config) for llm_config in llm_configs]
+
         # select model
         if len(llm_options) == 0:
             raise ValueError("No LLM models found. Please enable a provider.")
         elif len(llm_options) == 1:
             llm_model_name = llm_options[0]
         else:
-            llm_model_name = questionary.select("Select LLM model:", choices=llm_options).ask()
+            llm_model_name = questionary.select("Select LLM model:", choices=llm_choices).ask().model
         llm_config = [llm_config for llm_config in llm_configs if llm_config.model == llm_model_name][0]
 
         # choose form list of embedding configs
         embedding_configs = client.list_embedding_configs()
         embedding_options = [embedding_config.embedding_model for embedding_config in embedding_configs]
+
+        embedding_choices = [
+            questionary.Choice(title=embedding_config.pretty_print(), value=embedding_config) for embedding_config in embedding_configs
+        ]
+
         # select model
         if len(embedding_options) == 0:
             raise ValueError("No embedding models found. Please enable a provider.")
         elif len(embedding_options) == 1:
             embedding_model_name = embedding_options[0]
         else:
-            embedding_model_name = questionary.select("Select embedding model:", choices=embedding_options).ask()
+            embedding_model_name = questionary.select("Select embedding model:", choices=embedding_choices).ask().embedding_model
         embedding_config = [
             embedding_config for embedding_config in embedding_configs if embedding_config.embedding_model == embedding_model_name
         ][0]
@@ -327,7 +333,6 @@ def run(
         ms=ms,
         no_verify=no_verify,
         stream=stream,
-        inner_thoughts_in_kwargs=no_content,
     )  # TODO: add back no_verify
 
 

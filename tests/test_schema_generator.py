@@ -42,21 +42,21 @@ def test_schema_generator():
             "required": ["message"],
         },
     }
-    generated_schema = generate_schema(send_message)
+    generated_schema = generate_schema(send_message, terminal=True)
     print(f"\n\nreference_schema={correct_schema}")
     print(f"\n\ngenerated_schema={generated_schema}")
     assert correct_schema == generated_schema
 
     # Check that missing types results in an error
     try:
-        _ = generate_schema(send_message_missing_types)
+        _ = generate_schema(send_message_missing_types, terminal=True)
         assert False
     except:
         pass
 
     # Check that missing docstring results in an error
     try:
-        _ = generate_schema(send_message_missing_docstring)
+        _ = generate_schema(send_message_missing_docstring, terminal=True)
         assert False
     except:
         pass

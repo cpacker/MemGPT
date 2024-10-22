@@ -1,13 +1,16 @@
+import uuid
 from typing import Union
 
 import pytest
 
 from letta import create_client
 from letta.client.client import LocalClient, RESTClient
+from letta.schemas.agent import AgentState
 from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
+from letta.schemas.tool import Tool
 
 
 @pytest.fixture(scope="module")
@@ -15,12 +18,17 @@ def client():
     client = create_client()
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+
     yield client
 
 
 @pytest.fixture(scope="module")
 def agent(client):
-    agent_state = client.create_agent(name="test_agent")
+    # Generate uuid for agent name for this example
+    namespace = uuid.NAMESPACE_DNS
+    agent_uuid = str(uuid.uuid5(namespace, "test_new_client_test_agent"))
+
+    agent_state = client.create_agent(name=agent_uuid)
     yield agent_state
 
     client.delete_agent(agent_state.id)
@@ -28,8 +36,6 @@ def agent(client):
 
 
 def test_agent(client: Union[LocalClient, RESTClient]):
-    tools = client.list_tools()
-
     # create agent
     agent_state_test = client.create_agent(
         name="test_agent2",
@@ -43,6 +49,7 @@ def test_agent(client: Union[LocalClient, RESTClient]):
     assert agent_state_test.id in [a.id for a in agents]
 
     # get agent
+    tools = client.list_tools()
     print("TOOLS", [t.name for t in tools])
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
@@ -113,7 +120,58 @@ def test_agent(client: Union[LocalClient, RESTClient]):
     client.delete_agent(agent_state_test.id)
 
 
-def test_agent_with_shared_blocks(client):
+def test_agent_add_remove_tools(client: Union[LocalClient, RESTClient], agent):
+    # Create and add two tools to the client
+    # tool 1
+    from composio_langchain import Action
+
+    github_tool = Tool.get_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    client.add_tool(github_tool)
+    # tool 2
+    from crewai_tools import ScrapeWebsiteTool
+
+    scrape_website_tool = Tool.from_crewai(ScrapeWebsiteTool(website_url="https://www.example.com"))
+    client.add_tool(scrape_website_tool)
+
+    # assert both got added
+    tools = client.list_tools()
+    assert github_tool.id in [t.id for t in tools]
+    assert scrape_website_tool.id in [t.id for t in tools]
+
+    # Assert that all combinations of tool_names, tool_user_ids are unique
+    combinations = [(t.name, t.user_id) for t in tools]
+    assert len(combinations) == len(set(combinations))
+
+    # create agent
+    agent_state = agent
+    curr_num_tools = len(agent_state.tools)
+
+    # add both tools to agent in steps
+    agent_state = client.add_tool_to_agent(agent_id=agent_state.id, tool_id=github_tool.id)
+    agent_state = client.add_tool_to_agent(agent_id=agent_state.id, tool_id=scrape_website_tool.id)
+
+    # confirm that both tools are in the agent state
+    # we could access it like agent_state.tools, but will use the client function instead
+    # this is obviously redundant as it requires retrieving the agent again
+    # but allows us to test the `get_tools_from_agent` pathway as well
+    curr_tools = client.get_tools_from_agent(agent_state.id)
+    curr_tool_names = [t.name for t in curr_tools]
+    assert len(curr_tool_names) == curr_num_tools + 2
+    assert github_tool.name in curr_tool_names
+    assert scrape_website_tool.name in curr_tool_names
+
+    # remove only the github tool
+    agent_state = client.remove_tool_from_agent(agent_id=agent_state.id, tool_id=github_tool.id)
+
+    # confirm that only one tool left
+    curr_tools = client.get_tools_from_agent(agent_state.id)
+    curr_tool_names = [t.name for t in curr_tools]
+    assert len(curr_tool_names) == curr_num_tools + 1
+    assert github_tool.name not in curr_tool_names
+    assert scrape_website_tool.name in curr_tool_names
+
+
+def test_agent_with_shared_blocks(client: Union[LocalClient, RESTClient]):
     persona_block = Block(name="persona", value="Here to test things!", label="persona", user_id=client.user_id)
     human_block = Block(name="human", value="Me Human, I swear. Beep boop.", label="human", user_id=client.user_id)
     existing_non_template_blocks = [persona_block, human_block]
@@ -164,7 +222,7 @@ def test_agent_with_shared_blocks(client):
             client.delete_agent(second_agent_state_test.id)
 
 
-def test_memory(client, agent):
+def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     # get agent memory
     original_memory = client.get_in_context_memory(agent.id)
     assert original_memory is not None
@@ -177,7 +235,7 @@ def test_memory(client, agent):
     assert updated_memory.get_block("human").value != original_memory_value  # check if the memory has been updated
 
 
-def test_archival_memory(client, agent):
+def test_archival_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     """Test functions for interacting with archival memory store"""
 
     # add archival memory
@@ -192,12 +250,12 @@ def test_archival_memory(client, agent):
     client.delete_archival_memory(agent.id, passage.id)
 
 
-def test_recall_memory(client, agent):
+def test_recall_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     """Test functions for interacting with recall memory store"""
 
     # send message to the agent
     message_str = "Hello"
-    client.send_message(message_str, "user", agent.id)
+    client.send_message(message=message_str, role="user", agent_id=agent.id)
 
     # list messages
     messages = client.get_messages(agent.id)
@@ -216,7 +274,7 @@ def test_recall_memory(client, agent):
     assert exists
 
 
-def test_tools(client):
+def test_tools(client: Union[LocalClient, RESTClient]):
     def print_tool(message: str):
         """
         A tool to print a message
@@ -241,8 +299,7 @@ def test_tools(client):
         print(msg)
 
     # create tool
-    len(client.list_tools())
-    tool = client.create_tool(print_tool, tags=["extras"])
+    tool = client.create_tool(func=print_tool, tags=["extras"])
 
     # list tools
     tools = client.list_tools()
@@ -257,18 +314,12 @@ def test_tools(client):
     assert client.get_tool(tool.id).tags == extras2
 
     # update tool: source code
-    client.update_tool(tool.id, name="print_tool2", func=print_tool2)
+    client.update_tool(tool.id, func=print_tool2)
     assert client.get_tool(tool.id).name == "print_tool2"
 
-    ## delete tool
-    # client.delete_tool(tool.id)
-    # assert len(client.list_tools()) == orig_tool_length
 
-
-def test_tools_from_composio_basic(client):
+def test_tools_from_composio_basic(client: Union[LocalClient, RESTClient]):
     from composio_langchain import Action
-
-    from letta.schemas.tool import Tool
 
     # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
     client = create_client()
@@ -286,12 +337,10 @@ def test_tools_from_composio_basic(client):
     # The tool creation includes a compile safety check, so if this test doesn't error out, at least the code is compilable
 
 
-def test_tools_from_crewai(client):
+def test_tools_from_crewai(client: Union[LocalClient, RESTClient]):
     # create crewAI tool
 
     from crewai_tools import ScrapeWebsiteTool
-
-    from letta.schemas.tool import Tool
 
     crewai_tool = ScrapeWebsiteTool()
 
@@ -323,12 +372,10 @@ def test_tools_from_crewai(client):
     assert expected_content in func(website_url=simple_webpage_url)
 
 
-def test_tools_from_crewai_with_params(client):
+def test_tools_from_crewai_with_params(client: Union[LocalClient, RESTClient]):
     # create crewAI tool
 
     from crewai_tools import ScrapeWebsiteTool
-
-    from letta.schemas.tool import Tool
 
     crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
 
@@ -357,12 +404,10 @@ def test_tools_from_crewai_with_params(client):
     assert expected_content in func()
 
 
-def test_tools_from_langchain(client):
+def test_tools_from_langchain(client: Union[LocalClient, RESTClient]):
     # create langchain tool
     from langchain_community.tools import WikipediaQueryRun
     from langchain_community.utilities import WikipediaAPIWrapper
-
-    from letta.schemas.tool import Tool
 
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
     langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
@@ -391,12 +436,10 @@ def test_tools_from_langchain(client):
     assert expected_content in func(query="Albert Einstein")
 
 
-def test_tool_creation_langchain_missing_imports(client):
+def test_tool_creation_langchain_missing_imports(client: Union[LocalClient, RESTClient]):
     # create langchain tool
     from langchain_community.tools import WikipediaQueryRun
     from langchain_community.utilities import WikipediaAPIWrapper
-
-    from letta.schemas.tool import Tool
 
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
     langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
@@ -405,70 +448,3 @@ def test_tool_creation_langchain_missing_imports(client):
     # Intentionally missing {"langchain_community.utilities": "WikipediaAPIWrapper"}
     with pytest.raises(RuntimeError):
         Tool.from_langchain(langchain_tool)
-
-
-def test_sources(client, agent):
-    # list sources (empty)
-    sources = client.list_sources()
-    assert len(sources) == 0
-
-    # create a source
-    test_source_name = "test_source"
-    source = client.create_source(name=test_source_name)
-
-    # list sources
-    sources = client.list_sources()
-    assert len(sources) == 1
-    assert sources[0].metadata_["num_passages"] == 0
-    assert sources[0].metadata_["num_documents"] == 0
-
-    # update the source
-    original_id = source.id
-    original_name = source.name
-    new_name = original_name + "_new"
-    client.update_source(source_id=source.id, name=new_name)
-
-    # get the source name (check that it's been updated)
-    source = client.get_source(source_id=source.id)
-    assert source.name == new_name
-    assert source.id == original_id
-
-    # get the source id (make sure that it's the same)
-    assert str(original_id) == client.get_source_id(source_name=new_name)
-
-    # check agent archival memory size
-    archival_memories = client.get_archival_memory(agent_id=agent.id)
-    print(archival_memories)
-    assert len(archival_memories) == 0
-
-    # load a file into a source
-    filename = "CONTRIBUTING.md"
-    upload_job = client.load_file_into_source(filename=filename, source_id=source.id)
-    print("Upload job", upload_job, upload_job.status, upload_job.metadata_)
-
-    # TODO: make sure things run in the right order
-    archival_memories = client.get_archival_memory(agent_id=agent.id)
-    assert len(archival_memories) == 0
-
-    # attach a source
-    client.attach_source_to_agent(source_id=source.id, agent_id=agent.id)
-
-    # list archival memory
-    archival_memories = client.get_archival_memory(agent_id=agent.id)
-    # print(archival_memories)
-    assert len(archival_memories) == 20 or len(archival_memories) == 21
-
-    # check number of passages
-    sources = client.list_sources()
-
-    # TODO: do we want to add this metadata back?
-    # assert sources[0].metadata_["num_passages"] > 0
-    # assert sources[0].metadata_["num_documents"] == 0  # TODO: fix this once document store added
-    print(sources)
-
-    # detach the source
-    # TODO: add when implemented
-    # client.detach_source(source.name, agent.id)
-
-    # delete the source
-    client.delete_source(source.id)

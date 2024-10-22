@@ -3,5 +3,6 @@
     "model": "claude-3-opus-20240229",
     "model_endpoint_type": "anthropic",
     "model_endpoint": "https://api.anthropic.com/v1",
-    "model_wrapper": null
+    "model_wrapper": null,
+    "put_inner_thoughts_in_kwargs": true
 }

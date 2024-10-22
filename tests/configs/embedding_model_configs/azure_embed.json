@@ -1,0 +1,6 @@
+{
+    "embedding_endpoint_type": "azure",
+    "embedding_model": "text-embedding-ada-002",
+    "embedding_dim": 768,
+    "embedding_chunk_size": 300
+}

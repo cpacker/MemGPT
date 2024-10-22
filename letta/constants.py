@@ -39,7 +39,7 @@ DEFAULT_PRESET = "memgpt_chat"
 # Tools
 BASE_TOOLS = [
     "send_message",
-    "pause_heartbeats",
+    # "pause_heartbeats",
     "conversation_search",
     "conversation_search_date",
     "archival_memory_insert",
@@ -139,7 +139,7 @@ CORE_MEMORY_PERSONA_CHAR_LIMIT = 2000
 CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
 
 # Function return limits
-FUNCTION_RETURN_CHAR_LIMIT = 3000  # ~300 words
+FUNCTION_RETURN_CHAR_LIMIT = 6000  # ~300 words
 
 MAX_PAUSE_HEARTBEATS = 360  # in min
 

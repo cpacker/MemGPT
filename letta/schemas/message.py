@@ -2,7 +2,7 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import Field, field_validator
 
@@ -57,7 +57,11 @@ class BaseMessage(LettaBase):
 class MessageCreate(BaseMessage):
     """Request to create a message"""
 
-    role: MessageRole = Field(..., description="The role of the participant.")
+    # In the simplified format, only allow simple roles
+    role: Literal[
+        MessageRole.user,
+        MessageRole.system,
+    ] = Field(..., description="The role of the participant.")
     text: str = Field(..., description="The text of the message.")
     name: Optional[str] = Field(None, description="The name of the participant.")
 
@@ -174,6 +178,7 @@ class Message(BaseMessage):
                                 function_call=FunctionCall(
                                     name=tool_call.function.name,
                                     arguments=tool_call.function.arguments,
+                                    function_call_id=tool_call.id,
                                 ),
                             )
                         )
@@ -199,6 +204,7 @@ class Message(BaseMessage):
                     raise ValueError(f"Invalid status: {status}")
             except json.JSONDecodeError:
                 raise ValueError(f"Failed to decode function return: {self.text}")
+            assert self.tool_call_id is not None
             messages.append(
                 # TODO make sure this is what the API returns
                 # function_return may not match exactly...
@@ -207,6 +213,7 @@ class Message(BaseMessage):
                     date=self.created_at,
                     function_return=self.text,
                     status=status_enum,
+                    function_call_id=self.tool_call_id,
                 )
             )
         elif self.role == MessageRole.user:

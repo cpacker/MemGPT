@@ -2,7 +2,7 @@ import datetime
 import threading
 from typing import List, Optional, Tuple, Union
 
-from letta.agent import Agent, BaseAgent, save_agent
+from letta.agent import Agent, save_agent
 from letta.constants import FIRST_MESSAGE_ATTEMPTS
 from letta.functions.functions import parse_source_code
 from letta.functions.schema_generator import generate_schema
@@ -24,7 +24,7 @@ MEMORY_TOOLS = [
 ]
 
 
-class SplitThreadAgent(BaseAgent):
+class SplitThreadAgent(Agent):
     """
     SplitThreadAgent is an agent that splits the conversation and memory into two separate agents.
     The memory agent is run in a separate thread asynchronously to the conversation agent. The
@@ -43,10 +43,13 @@ class SplitThreadAgent(BaseAgent):
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
     ):
+        super().__init__(interface, agent_state, [])
         self.agent_state = agent_state
         self.memory = agent_state.memory
         self.system = agent_state.system
         self.interface = interface
+
+        # TODO: not sure if this is needed?
 
         # Placeholder agent that represents the split thread agent
         self.agent = Agent(
@@ -77,7 +80,7 @@ class SplitThreadAgent(BaseAgent):
             name="wait_for_memory_update",
             source_type="python",
             source_code=parse_source_code(self.wait_for_memory_update),
-            json_schema=generate_schema(self.wait_for_memory_update),
+            json_schema=generate_schema(self.wait_for_memory_update, terminal=False),
             description="",
             module="",
             user_id=conversation_agent_state.user_id,

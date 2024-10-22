@@ -488,6 +488,9 @@ def is_utc_datetime(dt: datetime) -> bool:
 
 
 def get_tool_call_id() -> str:
+    # TODO(sarah) make this a slug-style string?
+    # e.g. OpenAI: "call_xlIfzR1HqAW7xJPa3ExJSg3C"
+    # or similar to agents: "call-xlIfzR1HqAW7xJPa3ExJSg3C"
     return str(uuid.uuid4())[:TOOL_CALL_ID_MAX_LEN]
 
 

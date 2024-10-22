@@ -74,7 +74,7 @@ class ToolFunctionChoice(BaseModel):
     function: FunctionCall
 
 
-ToolChoice = Union[Literal["none", "auto"], ToolFunctionChoice]
+ToolChoice = Union[Literal["none", "auto", "required"], ToolFunctionChoice]
 
 
 ## tools ##
@@ -117,7 +117,7 @@ class ChatCompletionRequest(BaseModel):
 
     # function-calling related
     tools: Optional[List[Tool]] = None
-    tool_choice: Optional[ToolChoice] = "none"
+    tool_choice: Optional[ToolChoice] = None  # "none" means don't call a tool
     # deprecated scheme
     functions: Optional[List[FunctionSchema]] = None
     function_call: Optional[FunctionCallChoice] = None
