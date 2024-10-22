@@ -57,6 +57,7 @@ def client(request):
         print("Running client tests with server:", server_url)
         # use local client (no server)
         assert False, "Local client not implemented"
+    else:
         server_url = None
 
     assert server_url is not None
