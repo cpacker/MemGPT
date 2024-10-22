@@ -49,7 +49,6 @@ def client(request):
         server_url = os.getenv("MEMGPT_SERVER_URL")
         if server_url is None:
             # run server in thread
-            # NOTE: must set MEMGPT_SERVER_PASS enviornment variable
             server_url = "http://localhost:8283"
             print("Starting server thread")
             thread = threading.Thread(target=run_server, daemon=True)
