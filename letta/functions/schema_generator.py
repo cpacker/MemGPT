@@ -128,7 +128,6 @@ def generate_schema(function, terminal: Optional[bool], name: Optional[str] = No
 
     # append the heartbeat
     # TODO: don't hard-code
-    print("FUNCTION", function.__name__, terminal)
     if function.__name__ not in ["send_message", "pause_heartbeats"] and not terminal:
         schema["parameters"]["properties"]["request_heartbeat"] = {
             "type": "boolean",
