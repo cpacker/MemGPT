@@ -86,12 +86,12 @@ from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User, UserCreate
+from letta.services.organization_manager import OrganizationManager
 from letta.split_thread_agent import (
     SplitThreadAgent,
     create_split_thread_agent,
     save_split_thread_agent,
 )
-from letta.services.organization_manager import OrganizationManager
 from letta.utils import create_random_username, json_dumps, json_loads
 
 # from letta.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
@@ -849,10 +849,13 @@ class SyncServer(Server):
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
+        agent = None
         try:
             # model configuration
             llm_config = request.llm_config
+            assert llm_config is not None
             embedding_config = request.embedding_config
+            assert embedding_config is not None
 
             # get tools + make sure they exist
             tool_objs = []
@@ -903,6 +906,7 @@ class SyncServer(Server):
                 metadata_=request.metadata_,
             )
             if request.agent_type == AgentType.memgpt_agent:
+
                 agent = Agent(
                     interface=interface,
                     agent_state=agent_state,
@@ -918,6 +922,7 @@ class SyncServer(Server):
 
                 # save agent
                 save_agent(agent, self.ms)
+
             elif request.agent_type == AgentType.split_thread_agent:
                 agent, agent_state = create_split_thread_agent(
                     request=request,
@@ -928,6 +933,7 @@ class SyncServer(Server):
                     interface=interface,
                 )
                 save_split_thread_agent(agent, self.ms)
+
             elif request.agent_type == AgentType.o1_agent:
                 agent = O1Agent(
                     interface=interface,
@@ -936,6 +942,9 @@ class SyncServer(Server):
                     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
                     first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
                 )
+            else:
+                raise ValueError(f"Invalid agent type: {request.agent_type}")
+
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
             # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
