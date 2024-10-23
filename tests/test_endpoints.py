@@ -3,6 +3,7 @@ import os
 import time
 
 from tests.helpers.endpoints_helper import (
+    check_agent_archival_memory_insert,
     check_agent_archival_memory_retrieval,
     check_agent_edit_core_memory,
     check_agent_recall_chat_memory,
@@ -89,6 +90,13 @@ def test_openai_gpt_4_recall_chat_memory():
 def test_openai_gpt_4_archival_memory_retrieval():
     filename = os.path.join(llm_config_dir, "gpt-4.json")
     response = check_agent_archival_memory_retrieval(filename)
+    # Log out successful response
+    print(f"Got successful response from client: \n\n{response}")
+
+
+def test_openai_gpt_4_archival_memory_insert():
+    filename = os.path.join(llm_config_dir, "gpt-4.json")
+    response = check_agent_archival_memory_insert(filename)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
 

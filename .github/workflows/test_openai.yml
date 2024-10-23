@@ -10,9 +10,8 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  setup:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -24,89 +23,74 @@ jobs:
         poetry-version: "1.8.2"
         install-args: "-E dev -E external-tools"
 
+  test_first_message:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
     - name: Test first message contains expected function call and inner monologue
-      id: test_first_message
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_valid_first_message
-        echo "TEST_FIRST_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
-      continue-on-error: true
+      run: poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_valid_first_message
 
+  test_keyword_message:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
     - name: Test model sends message with keyword
-      id: test_keyword_message
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_keyword
-        echo "TEST_KEYWORD_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
-      continue-on-error: true
+      run: poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_keyword
 
+  test_external_tool:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
     - name: Test model uses external tool correctly
-      id: test_external_tool
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_uses_external_tool
-        echo "TEST_EXTERNAL_TOOL_EXIT_CODE=$?" >> $GITHUB_ENV
-      continue-on-error: true
+      run: poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_uses_external_tool
 
+  test_chat_memory:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
     - name: Test model recalls chat memory
-      id: test_chat_memory
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_recall_chat_memory
-        echo "TEST_CHAT_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
-      continue-on-error: true
+      run: poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_recall_chat_memory
 
+  test_archival_memory_search:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
     - name: Test model uses 'archival_memory_search' to find secret
-      id: test_archival_memory
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_archival_memory_retrieval
-        echo "TEST_ARCHIVAL_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
-      continue-on-error: true
+      run: poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_archival_memory_retrieval
 
+  test_archival_memory_insert:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+    - name: Test model uses 'archival_memory_insert' to insert archival memories
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_archival_memory_insert
+
+  test_core_memory:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
     - name: Test model can edit core memories
-      id: test_core_memory
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_edit_core_memory
-        echo "TEST_CORE_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
-      continue-on-error: true
+      run: poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_edit_core_memory
 
+  test_embedding_endpoint:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
     - name: Test embedding endpoint
-      id: test_embedding_endpoint
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_openai
-        echo "TEST_EMBEDDING_ENDPOINT_EXIT_CODE=$?" >> $GITHUB_ENV
-      continue-on-error: true
-
-    - name: Summarize test results
-      if: always()
-      run: |
-        echo "Test Results Summary:"
-        echo "Test first message: $([[ $TEST_FIRST_MESSAGE_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model sends message with keyword: $([[ $TEST_KEYWORD_MESSAGE_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model uses external tool: $([[ $TEST_EXTERNAL_TOOL_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model recalls chat memory: $([[ $TEST_CHAT_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model uses 'archival_memory_search' to find secret: $([[ $TEST_ARCHIVAL_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test model can edit core memories: $([[ $TEST_CORE_MEMORY_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-        echo "Test embedding endpoint: $([[ $TEST_EMBEDDING_ENDPOINT_EXIT_CODE -eq 0 ]] && echo ✅ || echo ❌)"
-
-        # Check if any test failed
-        if [[ $TEST_FIRST_MESSAGE_EXIT_CODE -ne 0 || \
-              $TEST_KEYWORD_MESSAGE_EXIT_CODE -ne 0 || \
-              $TEST_EXTERNAL_TOOL_EXIT_CODE -ne 0 || \
-              $TEST_CHAT_MEMORY_EXIT_CODE -ne 0 || \
-              $TEST_ARCHIVAL_MEMORY_EXIT_CODE -ne 0 || \
-              $TEST_CORE_MEMORY_EXIT_CODE -ne 0 || \
-              $TEST_EMBEDDING_ENDPOINT_EXIT_CODE -ne 0 ]]; then
-          echo "Some tests failed."
-          exit 78
-        fi
+      run: poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_openai
