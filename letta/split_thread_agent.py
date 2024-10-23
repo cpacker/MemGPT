@@ -149,7 +149,7 @@ class SplitThreadAgent(Agent):
             self.memory_condition.notify()
 
         with self.conversation_agent_lock:
-            conversation_step = self.conversation_agent.step(**kwargs)
+            conversation_step = self.conversation_agent.inner_step(**kwargs)
 
         last_message = conversation_step.messages[-1]
         waited = isinstance(last_message, Message) and last_message.name == "wait_for_memory_update"
@@ -166,7 +166,7 @@ class SplitThreadAgent(Agent):
                 self.memory_result = None
 
             with self.conversation_agent_lock:
-                next_conversation_step = self.conversation_agent.step(**kwargs)
+                next_conversation_step = self.conversation_agent.inner_step(**kwargs)
 
             conversation_step = self._combine_steps(conversation_step, next_conversation_step)
 
@@ -191,7 +191,7 @@ class SplitThreadAgent(Agent):
                     self.memory_condition.wait()
 
                 kwargs = self.memory_queue.pop(0)
-                memory_step = self.memory_agent.step(**kwargs)
+                memory_step = self.memory_agent.inner_step(**kwargs)
 
             with self.conversation_agent_lock:
                 self.conversation_agent.memory = self.memory_agent.memory
