@@ -103,28 +103,3 @@ class LettaUser(HttpUser):
     #    except Exception as e:
     #        with self.client.get("/", catch_response=True) as response:
     #            response.failure(str(e))
-
-
-# class AdminUser(HttpUser):
-#    wait_time = between(5, 10)
-#    token = None
-#
-#    def on_start(self):
-#        # Authenticate as admin
-#        self.client.headers = {"Authorization": "pasword"}
-#
-#    @task
-#    def create_user(self):
-#        user_data = {
-#            "name": f"User-{''.join(random.choices(string.ascii_lowercase + string.digits, k=8))}"
-#        }
-#        self.client.post("/admin/users", json=user_data)
-#
-#    @task
-#    def get_all_users(self):
-#        self.client.get("/admin/users")
-#
-#    @task
-#    def get_all_agents(self):
-#        self.client.get("/api/admin/agents")
-#

@@ -12,6 +12,8 @@ CORS(app)
 app = Flask(__name__)
 CORS(app)
 
+# NOTE: this is out of date for >=0.5.0
+
 MEMGPT_SERVER_URL = "http://127.0.0.1:8283"
 MEMGPT_TOKEN = os.getenv("MEMGPT_SERVER_PASS")
 assert MEMGPT_TOKEN, f"Missing env variable MEMGPT_SERVER_PASS"

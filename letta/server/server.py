@@ -168,7 +168,7 @@ from sqlalchemy.orm import sessionmaker
 from letta.config import LettaConfig
 
 # NOTE: hack to see if single session management works
-from letta.settings import model_settings, settings
+from letta.settings import model_settings, settings, tool_settings
 
 config = LettaConfig.load()
 
@@ -828,7 +828,8 @@ class SyncServer(Server):
                     # tool already added
                     continue
                 source_code = parse_source_code(func)
-                json_schema = generate_schema(func, func_name)
+                # memory functions are not terminal
+                json_schema = generate_schema(func, terminal=False, name=func_name)
                 source_type = "python"
                 tags = ["memory", "memgpt-base"]
                 tool = self.create_tool(
@@ -2009,7 +2010,10 @@ class SyncServer(Server):
     def add_default_external_tools(self, user_id: Optional[str] = None) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
         success = True
-        tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools() + Tool.load_default_composio_tools()
+        if tool_settings.composio_api_key:
+            tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools() + Tool.load_default_composio_tools()
+        else:
+            tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools()
         for tool in tools:
             try:
                 self.ms.create_tool(tool)
