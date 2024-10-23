@@ -8,6 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from letta.log import get_logger
 from letta.orm.base import Base, CommonSqlalchemyMetaMixins
 from letta.orm.errors import NoResultFound
+from letta.orm.mixins import is_valid_uuid4
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -42,7 +43,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return
         prefix, id_ = value.split("-", 1)
         assert prefix == self.__prefix__(), f"{prefix} is not a valid id prefix for {self.__class__.__name__}"
-        assert SqlalchemyBase.is_valid_uuid4(id_), f"{id_} is not a valid uuid4"
+        assert is_valid_uuid4(id_), f"{id_} is not a valid uuid4"
         self._id = id_
 
     @classmethod
@@ -78,21 +79,10 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         """
         try:
             uuid_string = identifier.split("-", 1)[1] if indifferent else identifier.replace(f"{cls.__prefix__()}-", "")
-            assert SqlalchemyBase.is_valid_uuid4(uuid_string)
+            assert is_valid_uuid4(uuid_string)
             return uuid_string
         except ValueError as e:
             raise ValueError(f"{identifier} is not a valid identifier for class {cls.__name__}") from e
-
-    @classmethod
-    def is_valid_uuid4(cls, uuid_string: str) -> bool:
-        try:
-            # Try to create a UUID object from the string
-            uuid_obj = UUID(uuid_string)
-            # Check if the UUID is version 4
-            return uuid_obj.version == 4
-        except ValueError:
-            # Raised if the string is not a valid UUID
-            return False
 
     @classmethod
     def read(

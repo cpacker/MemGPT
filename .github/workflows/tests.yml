@@ -48,6 +48,17 @@ jobs:
       run: |
         poetry run pytest -s -vv tests/test_server.py
 
+    - name: Run server manager tests
+      env:
+        LETTA_PG_PORT: 8888
+        LETTA_PG_USER: letta
+        LETTA_PG_PASSWORD: letta
+        LETTA_PG_DB: letta
+        LETTA_PG_HOST: localhost
+        LETTA_SERVER_PASS: test_server_token
+      run: |
+        poetry run pytest -s -vv tests/test_managers.py
+
     - name: Run tools tests
       env:
         LETTA_PG_PORT: 8888
