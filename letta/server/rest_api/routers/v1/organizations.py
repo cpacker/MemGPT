@@ -42,7 +42,7 @@ def create_org(
     return org
 
 
-@router.delete("/", tags=["admin"], response_model=Organization, operation_id="delete_organization")
+@router.delete("/", tags=["admin"], response_model=Organization, operation_id="delete_organization_by_id")
 def delete_org(
     org_id: str = Query(..., description="The org_id key to be deleted."),
     server: "SyncServer" = Depends(get_letta_server),
@@ -52,7 +52,7 @@ def delete_org(
         org = server.organization_manager.get_organization_by_id(org_id=org_id)
         if org is None:
             raise HTTPException(status_code=404, detail=f"Organization does not exist")
-        server.organization_manager.delete_organization(org_id=org_id)
+        server.organization_manager.delete_organization_by_id(org_id=org_id)
     except HTTPException:
         raise
     except Exception as e:

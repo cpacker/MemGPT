@@ -62,7 +62,7 @@ class OrganizationManager:
             return organization.to_pydantic()
 
     @enforce_types
-    def delete_organization(self, org_id: str):
+    def delete_organization_by_id(self, org_id: str):
         """Delete an organization by marking it as deleted."""
         with self.session_maker() as session:
             organization = Organization.read(db_session=session, identifier=org_id)
