@@ -636,7 +636,8 @@ def test_list_users(server: SyncServer):
 
 
 def test_create_default_user(server: SyncServer):
-    server.user_manager.create_default_user()
+    org = server.organization_manager.create_default_organization()
+    server.user_manager.create_default_user(org_id=org.id)
     retrieved = server.user_manager.get_user_by_id(DEFAULT_USER_ID)
     assert retrieved.name == DEFAULT_USER_NAME
 

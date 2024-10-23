@@ -5,6 +5,7 @@ from letta.constants import DEFAULT_ORG_ID, DEFAULT_USER_ID, DEFAULT_USER_NAME
 # TODO: Remove this once we translate all of these to the ORM
 from letta.metadata import AgentModel, AgentSourceMappingModel, SourceModel
 from letta.orm.errors import NoResultFound
+from letta.orm.organization import Organization as OrganizationModel
 from letta.orm.user import User as UserModel
 from letta.schemas.user import User as PydanticUser
 from letta.schemas.user import UserCreate, UserUpdate
@@ -21,15 +22,21 @@ class UserManager:
         self.session_maker = db_context
 
     @enforce_types
-    def create_default_user(self) -> PydanticUser:
+    def create_default_user(self, org_id: str = DEFAULT_ORG_ID) -> PydanticUser:
         """Create the default user."""
         with self.session_maker() as session:
-            # Try to get it first
+            # Make sure the org id exists
+            try:
+                OrganizationModel.read(db_session=session, identifier=org_id)
+            except NoResultFound:
+                raise ValueError(f"No organization with {org_id} exists in the organization table.")
+
+            # Try to retrieve the user
             try:
                 user = UserModel.read(db_session=session, identifier=DEFAULT_USER_ID)
-            # If it doesn't exist, make it
             except NoResultFound:
-                user = UserModel(id=DEFAULT_USER_ID, name=DEFAULT_USER_NAME, organization_id=DEFAULT_ORG_ID)
+                # If it doesn't exist, make it
+                user = UserModel(id=DEFAULT_USER_ID, name=DEFAULT_USER_NAME, organization_id=org_id)
                 user.create(session)
 
             return user.to_pydantic()
