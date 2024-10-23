@@ -1,4 +1,3 @@
-import datetime
 import threading
 from typing import List, Optional, Tuple, Union
 
@@ -11,7 +10,6 @@ from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentState, AgentStepResponse, AgentType, CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import OptionState
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import UsageStatistics
@@ -117,29 +115,21 @@ class SplitThreadAgent(Agent):
 
         self.update_state()
 
-    def step(
+    def inner_step(
         self,
-        messages: Union[Message, List[Message], str],  # TODO deprecate str inputs
+        messages: Union[Message, List[Message]],
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
-        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
-        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
-        timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
         kwargs = {
-            "user_message": messages,
+            "messages": messages,
             "first_message": first_message,
             "first_message_retry_limit": first_message_retry_limit,
             "skip_verify": skip_verify,
-            "return_dicts": return_dicts,
-            "recreate_message_timestamp": recreate_message_timestamp,
             "stream": stream,
-            "timestamp": timestamp,
-            "inner_thoughts_in_kwargs_option": inner_thoughts_in_kwargs_option,
             "ms": ms,
         }
 
@@ -231,13 +221,16 @@ class SplitThreadAgent(Agent):
         return combined_step
 
     def update_state(self) -> AgentState:
-        self.conversation_agent.update_state()
-        self.memory_agent.update_state()
-        self.agent.update_state()
+        # if hasattr(self, "conversation_agent"):
+        #     self.conversation_agent.update_state()
+        # if hasattr(self, "memory_agent"):
+        #     self.memory_agent.update_state()
 
-        self.agent_state = self.agent.agent_state
-        self.agent_state.memory = self.memory
-        self.agent_state.system = self.system
+        # if hasattr(self, "agent"):
+        #     self.agent.update_state()
+        #     self.agent_state = self.agent.agent_state
+        # self.agent_state.memory = self.memory
+        # self.agent_state.system = self.system
 
         return self.agent_state
 
