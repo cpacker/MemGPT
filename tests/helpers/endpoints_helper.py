@@ -229,6 +229,35 @@ def check_agent_recall_chat_memory(filename: str) -> LettaResponse:
     return response
 
 
+def check_agent_archival_memory_insert(filename: str) -> LettaResponse:
+    """
+    Checks that the LLM will execute an archival memory insert.
+
+    Note: This is acting on the Letta response, note the usage of `user_message`
+    """
+    # Set up client
+    client = create_client()
+    cleanup(client=client, agent_uuid=agent_uuid)
+    agent_state = setup_agent(client, filename)
+    secret_word = "banana"
+
+    response = client.user_message(
+        agent_id=agent_state.id,
+        message=f"Please insert the secret word '{secret_word}' into archival memory.",
+    )
+
+    # Basic checks
+    assert_sanity_checks(response)
+
+    # Make sure archival_memory_search was called
+    assert_invoked_function_call(response.messages, "archival_memory_insert")
+
+    # Make sure some inner monologue is present
+    assert_inner_monologue_is_present_and_valid(response.messages)
+
+    return response
+
+
 def check_agent_archival_memory_retrieval(filename: str) -> LettaResponse:
     """
     Checks that the LLM will execute an archival memory retrieval.
