@@ -38,9 +38,7 @@ class Tool(SqlalchemyBase, OrganizationMixin, UserMixin):
     description: Mapped[Optional[str]] = mapped_column(nullable=True, doc="The description of the tool.")
     tags: Mapped[List] = mapped_column(JSON, doc="Metadata tags used to filter tools.")
     source_type: Mapped[ToolSourceType] = mapped_column(String, doc="The type of the source code.", default=ToolSourceType.json)
-    source_code: Mapped[Optional[str]] = mapped_column(
-        String, doc="The source code of the function if provided.", default=None, nullable=True
-    )
+    source_code: Mapped[Optional[str]] = mapped_column(String, doc="The source code of the function.")
     json_schema: Mapped[dict] = mapped_column(JSON, default=lambda: {}, doc="The OAI compatable JSON schema of the function.")
     module: Mapped[Optional[str]] = mapped_column(
         String, nullable=True, doc="the module path from which this tool was derived in the codebase."

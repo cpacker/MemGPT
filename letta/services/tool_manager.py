@@ -50,7 +50,9 @@ class ToolManager:
             if update_data:
                 self.update_tool_by_id(tool.id, ToolUpdate(**update_data))
             else:
-                warnings.warn("`create_or_update_tool` was called, but found existing tool with nothing to update.")
+                warnings.warn(
+                    f"`create_or_update_tool` was called with user_id={tool_create.user_id}, organization_id={tool_create.organization_id}, name={tool_create.name}, but found existing tool with nothing to update."
+                )
         except NoResultFound:
             tool_create.json_schema = derived_json_schema
             tool_create.name = derived_name
@@ -147,7 +149,7 @@ class ToolManager:
             tool = ToolModel.read(db_session=session, identifier=tool_id)
 
             # Update tool attributes with only the fields that were explicitly set
-            update_data = tool_update.model_dump(exclude_unset=True)
+            update_data = tool_update.model_dump(exclude_unset=True, exclude_none=True)
             for key, value in update_data.items():
                 setattr(tool, key, value)
 
