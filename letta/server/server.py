@@ -973,12 +973,12 @@ class SyncServer(Server):
 
         # Get all the tool objects from the request
         tool_objs = []
-        tool_obj = self.tool_manager.get_tool_by_name_and_user_id(tool_id=tool_id, user_id=user_id)
+        tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool_id)
         assert tool_obj, f"Tool with id={tool_id} does not exist"
         tool_objs.append(tool_obj)
 
         for tool in letta_agent.tools:
-            tool_obj = self.tool_manager.get_tool_by_name_and_user_id(tool_id=tool.id, user_id=user_id)
+            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
             # If it's not the already added tool
@@ -1013,7 +1013,7 @@ class SyncServer(Server):
         # Get all the tool_objs
         tool_objs = []
         for tool in letta_agent.tools:
-            tool_obj = self.tool_manager.get_tool_by_name_and_user_id(tool_id=tool.id, user_id=user_id)
+            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
             # If it's not the tool we want to remove

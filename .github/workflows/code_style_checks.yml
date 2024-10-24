@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  validation-checks:
+  style-checks:
     runs-on: ubuntu-latest
     strategy:
       matrix:
