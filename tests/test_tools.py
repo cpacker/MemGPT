@@ -125,7 +125,7 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
 def test_create_agent_tool(client):
     """Test creation of a agent tool"""
 
-    def core_memory_clear(self: Agent):
+    def core_memory_clear(self: "Agent"):
         """
         Args:
             agent (Agent): The agent to delete from memory.
