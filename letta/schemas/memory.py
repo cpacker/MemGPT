@@ -190,7 +190,7 @@ class BasicBlockMemory(Memory):
             # assert block.name is not None and block.name != "", "each existing chat block must have a name"
             # self.link_block(name=block.name, block=block)
             assert block.label is not None and block.label != "", "each existing chat block must have a name"
-            self.link_block(label=block.label, block=block)
+            self.link_block(block=block)
 
     def core_memory_append(self: "Agent", label: str, content: str) -> Optional[str]:  # type: ignore
         """
