@@ -45,7 +45,7 @@ def test_letta_run_create_new_agent(swap_letta_config):
     # Optional: LLM model selection
     try:
         child.expect("Select LLM model:", timeout=10)
-        child.sendline("\033[B\033[B\033[B\033[B\033[B")
+        child.sendline("")
     except (pexpect.TIMEOUT, pexpect.EOF):
         print("[WARNING] LLM model selection step was skipped.")
 
