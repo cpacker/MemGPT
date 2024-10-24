@@ -5,7 +5,6 @@ from letta import create_client
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
-from letta.schemas.tool import Tool
 
 """
 This example show how you can add LangChain tools .
@@ -26,6 +25,12 @@ def main():
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=500)
     langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
 
+    # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
+    client = create_client()
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+
+    # create tool
     # Translate to memGPT Tool
     # Note the additional_imports_module_attr_map
     # We need to pass in a map of all the additional imports necessary to run this tool
@@ -33,18 +38,10 @@ def main():
     # We need to also import WikipediaAPIWrapper
     # The map is a mapping of the module name to the attribute name
     # langchain_community.utilities.WikipediaAPIWrapper
-    wikipedia_query_tool = Tool.from_langchain(
+    wikipedia_query_tool = client.add_langchain_tool(
         langchain_tool, additional_imports_module_attr_map={"langchain_community.utilities": "WikipediaAPIWrapper"}
     )
     tool_name = wikipedia_query_tool.name
-
-    # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
-    client = create_client()
-    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
-    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
-
-    # create tool
-    client.add_tool(wikipedia_query_tool)
 
     # Confirm that the tool is in
     tools = client.list_tools()
