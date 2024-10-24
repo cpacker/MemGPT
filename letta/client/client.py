@@ -1337,7 +1337,7 @@ class RESTClient(AbstractClient):
 
         source_type = "python"
 
-        request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name)
+        request = ToolUpdate(source_type=source_type, source_code=source_code, tags=tags, name=name)
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/tools/{id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
@@ -1535,21 +1535,15 @@ class LocalClient(AbstractClient):
         if org_id:
             self.org_id = org_id
         else:
-            org = self.server.organization_manager.create_default_organization()
-            self.org_id = org.id
+            self.org_id = self.server.organization_manager.DEFAULT_ORG_ID
         # save user_id that `LocalClient` is associated with
         if user_id:
             self.user_id = user_id
         else:
             # get default user
-            user = self.server.user_manager.create_default_user()
-            self.user_id = user.id
-            self.server.add_default_blocks(user.id)
-
-        self.server.add_default_tools(module_name="base", user_id=self.user_id, org_id=self.org_id)
+            self.user_id = self.server.user_manager.DEFAULT_USER_ID
 
     # agents
-
     def list_agents(self) -> List[AgentState]:
         self.interface.clear()
 
@@ -2215,7 +2209,6 @@ class LocalClient(AbstractClient):
             if update:
                 return self.server.tool_manager.update_tool(
                     ToolUpdate(
-                        id=tool.id,
                         description=tool.description,
                         source_type=tool.source_type,
                         source_code=tool.source_code,
@@ -2274,7 +2267,7 @@ class LocalClient(AbstractClient):
             tags = []
 
         # call server function
-        return self.server.tool_manager.create_tool(
+        return self.server.tool_manager.create_or_update_tool(
             ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags, terminal=terminal),
         )
 
@@ -2304,9 +2297,7 @@ class LocalClient(AbstractClient):
 
         source_type = "python"
 
-        return self.server.update_tool(
-            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name), self.user_id
-        )
+        return self.server.tool_manager.update_tool(id, ToolUpdate(source_type=source_type, source_code=source_code, tags=tags, name=name))
 
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """

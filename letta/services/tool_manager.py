@@ -1,6 +1,9 @@
+import importlib
+import inspect
+import warnings
 from typing import List, Optional
 
-from letta.functions.functions import derive_openai_json_schema
+from letta.functions.functions import derive_openai_json_schema, load_function_set
 
 # TODO: Remove this once we translate all of these to the ORM
 from letta.orm.errors import NoResultFound
@@ -22,29 +25,34 @@ class ToolManager:
         self.session_maker = db_context
 
     @enforce_types
-    def create_tool(self, tool_create: ToolCreate) -> PydanticTool:
+    def create_or_update_tool(self, tool_create: ToolCreate) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
         # Derive json_schema
-        json_schema = tool_create.json_schema
-        if not json_schema:
-            json_schema = derive_openai_json_schema(tool_create)
+        derived_json_schema = tool_create.json_schema or derive_openai_json_schema(tool_create)
+        derived_name = tool_create.name or derived_json_schema["name"]
 
-        # Make tool
+        try:
+            tool = self.get_tool_by_name_and_user_id(tool_name=derived_name, user_id=tool_create.user_id)
+            create_data = tool_create.model_dump(exclude={"user_id", "organization_id", "module", "terminal"})
+            self.update_tool_by_id(tool.id, ToolUpdate(**create_data))
+        except NoResultFound:
+            tool_create.json_schema = derived_json_schema
+            tool_create.name = derived_name
+            tool = self.create_tool(tool_create)
+
+        return tool
+
+    @enforce_types
+    def create_tool(self, tool_create: ToolCreate) -> PydanticTool:
+        """Create a new tool based on the ToolCreate schema."""
+        # Create the tool
         with self.session_maker() as session:
-            tool = ToolModel(
-                user_id=tool_create.user_id,
-                organization_id=tool_create.organization_id,
-                description=tool_create.description,
-                tags=tool_create.tags,
-                module=tool_create.module,
-                source_code=tool_create.source_code,
-                source_type=tool_create.source_type,
-                json_schema=json_schema,
-                name=json_schema["name"],
-            )
+            # Include all fields except 'terminal' (which is not part of ToolModel) at the moment
+            create_data = tool_create.model_dump(exclude={"terminal"})
+            tool = ToolModel(**create_data)  # Unpack everything directly into ToolModel
             tool.create(session)
 
-            return tool.to_pydantic()
+        return tool.to_pydantic()
 
     @enforce_types
     def get_tool_by_id(self, tool_id: str) -> PydanticTool:
@@ -123,7 +131,7 @@ class ToolManager:
             tool = ToolModel.read(db_session=session, identifier=tool_id)
 
             # Update tool attributes with only the fields that were explicitly set
-            update_data = tool_update.dict(exclude_unset=True)
+            update_data = tool_update.model_dump(exclude_unset=True)
             for key, value in update_data.items():
                 setattr(tool, key, value)
 
@@ -139,3 +147,43 @@ class ToolManager:
                 tool.delete(db_session=session)
             except NoResultFound:
                 raise ValueError(f"Tool with id {tool_id} not found.")
+
+    @enforce_types
+    def add_default_tools(self, user_id: str, org_id: str, module_name="base"):
+        """Add default tools in {module_name}.py"""
+        full_module_name = f"letta.functions.function_sets.{module_name}"
+        try:
+            module = importlib.import_module(full_module_name)
+        except Exception as e:
+            # Handle other general exceptions
+            raise e
+
+        functions_to_schema = []
+        try:
+            # Load the function set
+            functions_to_schema = load_function_set(module)
+        except ValueError as e:
+            err = f"Error loading function set '{module_name}': {e}"
+            warnings.warn(err)
+
+        # create tool in db
+        for name, schema in functions_to_schema.items():
+            # print([str(inspect.getsource(line)) for line in schema["imports"]])
+            source_code = inspect.getsource(schema["python_function"])
+            tags = [module_name]
+            if module_name == "base":
+                tags.append("letta-base")
+
+            # create to tool
+            self.create_or_update_tool(
+                ToolCreate(
+                    name=name,
+                    tags=tags,
+                    source_type="python",
+                    module=schema["module"],
+                    source_code=source_code,
+                    json_schema=schema["json_schema"],
+                    organization_id=org_id,
+                    user_id=user_id,
+                ),
+            )

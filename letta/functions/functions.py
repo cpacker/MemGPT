@@ -3,6 +3,7 @@ import inspect
 import os
 from textwrap import dedent  # remove indentation
 from types import ModuleType
+from typing import Optional
 
 from letta.constants import CLI_WARNING_PREFIX
 from letta.functions.schema_generator import generate_schema
@@ -11,9 +12,12 @@ from letta.schemas.tool import ToolCreate
 
 def derive_openai_json_schema(tool_create: ToolCreate) -> dict:
     # auto-generate openai schema
-
     try:
-        env = {}
+        # Define a custom environment with necessary imports
+        env = {
+            "Optional": Optional,  # Add any other required imports here
+        }
+
         env.update(globals())
         exec(tool_create.source_code, env)
 

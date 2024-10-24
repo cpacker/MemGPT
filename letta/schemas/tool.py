@@ -228,9 +228,10 @@ class ToolCreate(LettaBase):
 
 
 class ToolUpdate(LettaBase):
-    id: str = Field(..., description="The unique identifier of the tool that we want to update.")
     description: Optional[str] = Field(None, description="The description of the tool.")
     name: Optional[str] = Field(None, description="The name of the function.")
     tags: Optional[List[str]] = Field(None, description="Metadata tags.")
+    module: Optional[str] = Field(None, description="The source code of the function.")
     source_code: Optional[str] = Field(None, description="The source code of the function.")
     json_schema: Optional[Dict] = Field(None, description="The JSON schema of the function.")
+    source_type: Optional[str] = Field(None, description="The type of the source code.")

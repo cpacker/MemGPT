@@ -51,6 +51,10 @@ def tool_fixture(server: SyncServer):
     tool_create = ToolCreate(
         user_id=user.id, organization_id=org.id, description=description, tags=tags, source_code=source_code, source_type=source_type
     )
+    derived_json_schema = derive_openai_json_schema(tool_create)
+    derived_name = derived_json_schema["name"]
+    tool_create.json_schema = derived_json_schema
+    tool_create.name = derived_name
 
     tool = server.tool_manager.create_tool(tool_create)
 
@@ -249,7 +253,7 @@ def test_update_tool_by_id(server: SyncServer, tool_fixture):
     updated_description = "updated_description"
 
     # Create a ToolUpdate object to modify the tool's description
-    tool_update = ToolUpdate(id=tool.id, description=updated_description)
+    tool_update = ToolUpdate(description=updated_description)
 
     # Update the tool using the manager method
     server.tool_manager.update_tool_by_id(tool.id, tool_update)
