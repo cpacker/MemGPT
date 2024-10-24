@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  test-cli:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

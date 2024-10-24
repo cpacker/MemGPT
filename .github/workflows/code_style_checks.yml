@@ -1,18 +1,10 @@
 name: Code Style Checks
 
 on:
+  push:
+    branches: [ main ]
   pull_request:
-    paths:
-      - '**.py'
-  pull_request_target:
-    types:
-      - opened
-      - edited
-      - synchronize
-  workflow_dispatch:
-
-permissions:
-  pull-requests: read
+    branches: [ main ]
 
 jobs:
   validation-checks:
