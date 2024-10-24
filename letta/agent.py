@@ -5,6 +5,7 @@ import warnings
 from abc import ABC, abstractmethod
 from typing import List, Literal, Optional, Tuple, Union
 
+from e2b_code_interpreter import Sandbox
 from tqdm import tqdm
 
 from letta.agent_store.storage import StorageConnector
@@ -650,6 +651,48 @@ class Agent(BaseAgent):
                         function_args[name] = spec[name](**function_args[name])
 
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
+
+                # Execute tool in sandbox
+                if (function_name in ["print_hello_world", "print_message"]): # remove hardcode
+                    sbx = Sandbox(api_key="e2b_99c3fa2617e66233a57bf267e1e1f462745b0da5") # store api key in env var
+                    code = ""
+                    
+                    # 1. Import dependencies
+                    # package = ""
+                    # sbx.commands.run(f"pip3 install {package}")
+
+                    # 2. Set Params
+                    for param in function_args:
+                        if param != "self":
+                            code += param + ' = "' + function_args[param] + '"\n'
+
+                    # 3. Add function source code
+                    tool = [tool for tool in self.tools if tool.name == function_name][0]
+                    code += tool.source_code + "\n"
+
+                    # 4. Add function call
+                    code += function_name + "("
+
+                    # 5. Populate params for function call
+                    for param in function_args:
+                        if param != "self":
+                            code += param + ","
+                    
+                    code += ")"
+                    
+                    # 6. Execute code and extract result or throw
+                    execution = sbx.run_code(code)
+                    if execution.error is not None:
+                        raise execution.error
+                    elif len(execution.results) == 0:
+                        function_response = ""
+                    else:
+                        function_response = execution.results[0].text
+
+                    # 7. Kill sandbox
+                    sbx.kill()
+                else:
+                    function_response = function_to_call(**function_args)
 
                 function_response = function_to_call(**function_args)
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
