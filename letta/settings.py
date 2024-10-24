@@ -7,6 +7,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from letta.local_llm.constants import DEFAULT_WRAPPER_NAME
 
 
+class ToolSettings(BaseSettings):
+    composio_api_key: Optional[str] = None
+
+
 class ModelSettings(BaseSettings):
 
     # env_prefix='my_prefix_'
@@ -99,3 +103,4 @@ class TestSettings(Settings):
 settings = Settings(_env_parse_none_str="None")
 test_settings = TestSettings()
 model_settings = ModelSettings()
+tool_settings = ToolSettings()
