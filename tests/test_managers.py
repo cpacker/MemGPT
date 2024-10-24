@@ -68,7 +68,7 @@ def server():
 
     config.save()
 
-    server = SyncServer()
+    server = SyncServer(init_with_default_org_and_user=False)
     return server
 
 

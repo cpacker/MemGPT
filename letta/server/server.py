@@ -208,6 +208,7 @@ class SyncServer(Server):
         chaining: bool = True,
         max_chaining_steps: Optional[bool] = None,
         default_interface_factory: Callable[[], AgentInterface] = lambda: CLIInterface(),
+        init_with_default_org_and_user: bool = True,
         # default_interface: AgentInterface = CLIInterface(),
         # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
         # auth_mode: str = "none",  # "none, "jwt", "external"
@@ -246,10 +247,11 @@ class SyncServer(Server):
         self.tool_manager = ToolManager()
 
         # Make default user and org
-        self.default_org = self.organization_manager.create_default_organization()
-        self.default_user = self.user_manager.create_default_user()
-        self.add_default_blocks(self.default_user.id)
-        self.tool_manager.add_default_tools(module_name="base", user_id=self.default_user.id, org_id=self.default_org.id)
+        if init_with_default_org_and_user:
+            self.default_org = self.organization_manager.create_default_organization()
+            self.default_user = self.user_manager.create_default_user()
+            self.add_default_blocks(self.default_user.id)
+            self.tool_manager.add_default_tools(module_name="base", user_id=self.default_user.id, org_id=self.default_org.id)
 
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
