@@ -162,3 +162,68 @@ def test_create_agent_tool(client):
 
 def test_custom_import_tool(client):
     pass
+
+
+def test_run_basic_tool_in_sandbox(client: Union[LocalClient, RESTClient]):
+    """Test creation of a simple tool with no input params"""
+
+    def print_hello_world():
+        """
+        Returns:
+            str: A static string "Hello world".
+
+        """
+        print("hello world")
+        return "hello world"
+
+    tools = client.list_tools()
+    print(f"Original tools {[t.name for t in tools]}")
+
+    tool = client.create_tool(print_hello_world, name="print_hello_world", tags=["extras"])
+
+    tools = client.list_tools()
+    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
+    print(f"Updated tools {[t.name for t in tools]}")
+
+    # check tool id
+    tool = client.get_tool(tool.id)
+    assert tool is not None, "Expected tool to be created"
+    assert tool.id == tool.id, f"Expected {tool.id} to be {tool.id}"
+
+    # create agent with tool
+    agent_state = client.create_agent(tools=[tool.name])
+    response = client.user_message(agent_id=agent_state.id, message="hi please use the tool called print_hello_world")
+
+
+def test_run_tool_with_str_params_in_sandbox(client: Union[LocalClient, RESTClient]):
+    """Test creation of a simple tool that relies on a provided string param"""
+
+    def print_message(message: str):
+        """
+        Args:
+            message (str): The message to print.
+
+        Returns:
+            str: A static string "Hello world".
+
+        """
+        print(message)
+        return message
+
+    tools = client.list_tools()
+    print(f"Original tools {[t.name for t in tools]}")
+
+    tool = client.create_tool(print_message, name="print_message", tags=["extras"])
+
+    tools = client.list_tools()
+    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
+    print(f"Updated tools {[t.name for t in tools]}")
+
+    # check tool id
+    tool = client.get_tool(tool.id)
+    assert tool is not None, "Expected tool to be created"
+    assert tool.id == tool.id, f"Expected {tool.id} to be {tool.id}"
+
+    # create agent with tool
+    agent_state = client.create_agent(tools=[tool.name])
+    response = client.user_message(agent_id=agent_state.id, message="hi please use the tool called print_message")
