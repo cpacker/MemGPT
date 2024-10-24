@@ -1,0 +1,42 @@
+{{- if .Values.vectordb.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "memgpt.fullname" . }}-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "memgpt.fullname" . }}-db
+  template:
+    metadata:
+      labels:
+        app: {{ include "memgpt.fullname" . }}-db
+    spec:
+      containers:
+        - name: memgpt-db
+          image: ankane/pgvector:v0.5.1
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.vectordb.user }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.vectordb.pwd }}
+            - name: POSTGRES_DB
+              value: {{ .Values.vectordb.db }}
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: pgdata
+            - mountPath: /docker-entrypoint-initdb.d/init.sql
+              subPath: init.sql
+              name: pginit
+      volumes:
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: {{ include "memgpt.fullname" . }}-db-pvc
+        - name: pginit
+          configMap:
+            name: {{ include "memgpt.fullname" . }}-db-cm
+            items:
+              - key: init.sql
+                path: init.sql
+{{- end }}
