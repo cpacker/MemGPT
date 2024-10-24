@@ -4,6 +4,12 @@ import warnings
 from typing import List, Optional
 
 from letta.functions.functions import derive_openai_json_schema, load_function_set
+from letta.functions.helpers import (
+    generate_composio_tool_wrapper,
+    generate_crewai_tool_wrapper,
+    generate_langchain_tool_wrapper,
+)
+from letta.functions.schema_generator import generate_schema_from_args_schema
 
 # TODO: Remove this once we translate all of these to the ORM
 from letta.orm.errors import NoResultFound
@@ -32,9 +38,19 @@ class ToolManager:
         derived_name = tool_create.name or derived_json_schema["name"]
 
         try:
-            tool = self.get_tool_by_name_and_user_id(tool_name=derived_name, user_id=tool_create.user_id)
-            create_data = tool_create.model_dump(exclude={"user_id", "organization_id", "module", "terminal"})
-            self.update_tool_by_id(tool.id, ToolUpdate(**create_data))
+            # NOTE: We use the organization id here
+            # This is important, because even if it's a different user, adding the same tool to the org should not happen
+            tool = self.get_tool_by_name_and_org_id(tool_name=derived_name, organization_id=tool_create.organization_id)
+            # Put to dict and remove fields that should not be reset
+            update_data = tool_create.model_dump(exclude={"user_id", "organization_id", "module", "terminal"}, exclude_unset=True)
+            # Remove redundant update fields
+            update_data = {key: value for key, value in update_data.items() if getattr(tool, key) != value}
+
+            # If there's anything to update
+            if update_data:
+                self.update_tool_by_id(tool.id, ToolUpdate(**update_data))
+            else:
+                warnings.warn("`create_or_update_tool` was called, but found existing tool with nothing to update.")
         except NoResultFound:
             tool_create.json_schema = derived_json_schema
             tool_create.name = derived_name
@@ -187,3 +203,137 @@ class ToolManager:
                     user_id=user_id,
                 ),
             )
+
+    def add_langchain_tool(
+        self,
+        langchain_tool: "LangChainBaseTool",
+        user_id: str,
+        organization_id: str,
+        additional_imports_module_attr_map: dict[str, str] = None,
+    ) -> PydanticTool:
+        """
+        Class method to add a Langchain tool (must be from langchain_community.tools).
+
+        Args:
+            @param langchain_tool: An instance of a LangChain BaseTool (BaseTool from LangChain)
+            @param user_id:
+            @param organization_id:
+            @param additional_imports_module_attr_map: A mapping of module names to attribute name. This is used internally to import all the required classes for the langchain tool. For example, you would pass in `{"langchain_community.utilities": "WikipediaAPIWrapper"}` for `from langchain_community.tools import WikipediaQueryRun`. NOTE: You do NOT need to specify the tool import here, that is done automatically for you.
+
+        Returns:
+            Tool: A Letta Tool initialized with attributes derived from the provided LangChain BaseTool object.
+        """
+        description = langchain_tool.description
+        source_type = "python"
+        tags = ["langchain"]
+        # NOTE: langchain tools may come from different packages
+        wrapper_func_name, wrapper_function_str = generate_langchain_tool_wrapper(langchain_tool, additional_imports_module_attr_map)
+        json_schema = generate_schema_from_args_schema(langchain_tool.args_schema, name=wrapper_func_name, description=description)
+
+        # append heartbeat (necessary for triggering another reasoning step after this tool call)
+        json_schema["parameters"]["properties"]["request_heartbeat"] = {
+            "type": "boolean",
+            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
+        }
+        json_schema["parameters"]["required"].append("request_heartbeat")
+
+        create_tool = ToolCreate(
+            user_id=user_id,
+            organization_id=organization_id,
+            name=wrapper_func_name,
+            description=description,
+            tags=tags,
+            source_code=wrapper_function_str,
+            source_type=source_type,
+            json_schema=json_schema,
+        )
+
+        return self.create_or_update_tool(create_tool)
+
+    def add_crewai_tool(
+        self, crewai_tool: "CrewAIBaseTool", user_id: str, organization_id: str, additional_imports_module_attr_map: dict[str, str] = None
+    ) -> PydanticTool:
+        """
+        Class method to add a crewAI BaseTool object.
+
+        Args:
+            @param organization_id:
+            @param user_id:
+            @param crewai_tool: An instance of a crewAI BaseTool (BaseTool from crewai)
+            @param additional_imports_module_attr_map: A mapping of module names to attribute name. Reference LangChain tool import example.
+
+        Returns:
+            Tool: A Letta Tool initialized with attributes derived from the provided crewAI BaseTool object.
+        """
+        description = crewai_tool.description
+        source_type = "python"
+        tags = ["crew-ai"]
+        wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool, additional_imports_module_attr_map)
+        json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
+
+        # append heartbeat (necessary for triggering another reasoning step after this tool call)
+        json_schema["parameters"]["properties"]["request_heartbeat"] = {
+            "type": "boolean",
+            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
+        }
+        json_schema["parameters"]["required"].append("request_heartbeat")
+
+        create_tool = ToolCreate(
+            user_id=user_id,
+            organization_id=organization_id,
+            name=wrapper_func_name,
+            description=description,
+            tags=tags,
+            source_code=wrapper_function_str,
+            source_type=source_type,
+            json_schema=json_schema,
+        )
+
+        return self.create_or_update_tool(create_tool)
+
+    def add_composio_tool(self, action: "ActionType", user_id: str, organization_id: str) -> PydanticTool:
+        """
+        Class method to add an instance of Letta-compatible Composio Tool.
+        Check https://docs.composio.dev/introduction/intro/overview to look at options for add_composio_tool
+
+        This function will error if we find more than one tool, or 0 tools.
+
+        Args:
+            action ActionType: A action name to filter tools by.
+        Returns:
+            Tool: A Letta Tool initialized with attributes derived from the Composio tool.
+        """
+        from composio_langchain import ComposioToolSet
+
+        composio_toolset = ComposioToolSet()
+        composio_tools = composio_toolset.get_tools(actions=[action])
+
+        assert len(composio_tools) > 0, "User supplied parameters do not match any Composio tools"
+        assert len(composio_tools) == 1, f"User supplied parameters match too many Composio tools; {len(composio_tools)} > 1"
+
+        composio_tool = composio_tools[0]
+
+        description = composio_tool.description
+        source_type = "python"
+        tags = ["composio"]
+        wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(action)
+        json_schema = generate_schema_from_args_schema(composio_tool.args_schema, name=wrapper_func_name, description=description)
+
+        # append heartbeat (necessary for triggering another reasoning step after this tool call)
+        json_schema["parameters"]["properties"]["request_heartbeat"] = {
+            "type": "boolean",
+            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
+        }
+        json_schema["parameters"]["required"].append("request_heartbeat")
+
+        create_tool = ToolCreate(
+            user_id=user_id,
+            organization_id=organization_id,
+            name=wrapper_func_name,
+            description=description,
+            source_type=source_type,
+            tags=tags,
+            source_code=wrapper_function_str,
+            json_schema=json_schema,
+        )
+        return self.create_or_update_tool(create_tool)

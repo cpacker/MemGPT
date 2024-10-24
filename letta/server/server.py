@@ -1728,11 +1728,6 @@ class SyncServer(Server):
 
         return sources_with_metadata
 
-    def get_tool_id(self, name: str, user_id: str) -> str:
-        """Get tool ID from name and user_id."""
-        tool = self.tool_manager.get_tool_by_name_and_user_id(tool_name=name, user_id=user_id)
-        return tool.id
-
     def add_default_external_tools(self, user_id: Optional[str] = None) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
         success = True

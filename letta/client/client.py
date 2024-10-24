@@ -102,6 +102,15 @@ class AbstractClient(object):
     def add_tool_to_agent(self, agent_id: str, tool_id: str):
         raise NotImplementedError
 
+    def add_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        raise NotImplementedError
+
+    def add_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        raise NotImplementedError
+
+    def add_composio_tool(self, action: "ActionType") -> Tool:
+        raise NotImplementedError
+
     def remove_tool_from_agent(self, agent_id: str, tool_id: str):
         raise NotImplementedError
 
@@ -2236,6 +2245,25 @@ class LocalClient(AbstractClient):
                 update=update,
             )
 
+    def add_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        return self.server.tool_manager.add_langchain_tool(
+            langchain_tool=langchain_tool,
+            user_id=self.user_id,
+            organization_id=self.org_id,
+            additional_imports_module_attr_map=additional_imports_module_attr_map,
+        )
+
+    def add_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        return self.server.tool_manager.add_crewai_tool(
+            crewai_tool,
+            user_id=self.user_id,
+            organization_id=self.org_id,
+            additional_imports_module_attr_map=additional_imports_module_attr_map,
+        )
+
+    def add_composio_tool(self, action: "ActionType") -> Tool:
+        return self.server.tool_manager.add_composio_tool(action, user_id=self.user_id, organization_id=self.org_id)
+
     # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
         self,
@@ -2290,14 +2318,14 @@ class LocalClient(AbstractClient):
         Returns:
             tool (Tool): Updated tool
         """
-        if func:
-            source_code = parse_source_code(func)
-        else:
-            source_code = None
+        update_data = {
+            "source_type": "python",
+            **({"source_code": parse_source_code(func)} if func else {}),
+            **({"tags": tags} if tags else {}),
+            **({"name": name} if name else {}),
+        }
 
-        source_type = "python"
-
-        return self.server.tool_manager.update_tool(id, ToolUpdate(source_type=source_type, source_code=source_code, tags=tags, name=name))
+        return self.server.tool_manager.update_tool_by_id(id, ToolUpdate(**update_data))
 
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """
@@ -2310,7 +2338,7 @@ class LocalClient(AbstractClient):
 
     def get_tool(self, id: str) -> Optional[Tool]:
         """
-        Get a tool give its ID.
+        Get a tool given its ID.
 
         Args:
             id (str): ID of the tool
@@ -2318,7 +2346,7 @@ class LocalClient(AbstractClient):
         Returns:
             tool (Tool): Tool
         """
-        return self.server.get_tool(id)
+        return self.server.tool_manager.get_tool_by_id(id)
 
     def delete_tool(self, id: str):
         """
@@ -2327,11 +2355,11 @@ class LocalClient(AbstractClient):
         Args:
             id (str): ID of the tool
         """
-        return self.server.delete_tool(id)
+        return self.server.tool_manager.delete_tool_by_id(id)
 
     def get_tool_id(self, name: str) -> Optional[str]:
         """
-        Get the ID of a tool
+        Get the ID of a tool from its name. The client will use the org_id it is configured with.
 
         Args:
             name (str): Name of the tool
@@ -2339,7 +2367,8 @@ class LocalClient(AbstractClient):
         Returns:
             id (str): ID of the tool (`None` if not found)
         """
-        return self.server.get_tool_id(name, self.user_id)
+        tool = self.server.tool_manager.get_tool_by_name_and_org_id(tool_name=name, organization_id=self.org_id)
+        return tool.id
 
     def tool_with_name_and_user_id_exists(self, tool: Tool) -> bool:
         """
