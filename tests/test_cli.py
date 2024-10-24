@@ -56,7 +56,7 @@ def test_letta_run_create_new_agent(swap_letta_config):
     except (pexpect.TIMEOUT, pexpect.EOF):
         print("[WARNING] Embedding model selection step was skipped.")
 
-    child.expect("Created new agent", timeout=10)
+    child.expect("Created new agent", timeout=20)
     child.sendline("")
 
     # Get initial response

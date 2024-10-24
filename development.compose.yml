@@ -13,7 +13,6 @@ services:
     env_file:
       - .env
     environment:
-      - MEMGPT_SERVER_PASS=test_server_token
       - WATCHFILES_FORCE_POLLING=true
 
     volumes:

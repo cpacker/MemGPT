@@ -26,7 +26,7 @@ router = APIRouter(prefix="/users", tags=["users", "admin"])
 
 
 @router.get("/", tags=["admin"], response_model=List[User], operation_id="list_users")
-def get_all_users(
+def list_users(
     cursor: Optional[str] = Query(None),
     limit: Optional[int] = Query(50),
     server: "SyncServer" = Depends(get_letta_server),
@@ -35,8 +35,7 @@ def get_all_users(
     Get a list of all users in the database
     """
     try:
-        next_cursor, users = server.ms.get_all_users(cursor=cursor, limit=limit)
-        # processed_users = [{"user_id": user.id} for user in users]
+        next_cursor, users = server.user_manager.list_users(cursor=cursor, limit=limit)
     except HTTPException:
         raise
     except Exception as e:
@@ -53,7 +52,7 @@ def create_user(
     Create a new user in the database
     """
 
-    user = server.create_user(request)
+    user = server.user_manager.create_user(request)
     return user
 
 
@@ -64,10 +63,10 @@ def delete_user(
 ):
     # TODO make a soft deletion, instead of a hard deletion
     try:
-        user = server.ms.get_user(user_id=user_id)
+        user = server.user_manager.get_user_by_id(user_id=user_id)
         if user is None:
             raise HTTPException(status_code=404, detail=f"User does not exist")
-        server.ms.delete_user(user_id=user_id)
+        server.user_manager.delete_user_by_id(user_id=user_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -95,7 +94,7 @@ def get_api_keys(
     """
     Get a list of all API keys for a user
     """
-    if server.ms.get_user(user_id=user_id) is None:
+    if server.user_manager.get_user_by_id(user_id=user_id) is None:
         raise HTTPException(status_code=404, detail=f"User does not exist")
     api_keys = server.ms.get_all_api_keys_for_user(user_id=user_id)
     return api_keys

@@ -44,7 +44,6 @@ from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import Base, MetadataStore
 from letta.o1_agent import O1Agent
-from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
@@ -92,6 +91,7 @@ from letta.split_thread_agent import (
     create_split_thread_agent,
     save_split_thread_agent,
 )
+from letta.services.user_manager import UserManager
 from letta.utils import create_random_username, json_dumps, json_loads
 
 # from letta.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
@@ -173,7 +173,7 @@ from sqlalchemy.orm import sessionmaker
 from letta.config import LettaConfig
 
 # NOTE: hack to see if single session management works
-from letta.settings import model_settings, settings
+from letta.settings import model_settings, settings, tool_settings
 
 config = LettaConfig.load()
 
@@ -253,6 +253,7 @@ class SyncServer(Server):
 
         # Managers that interface with data models
         self.organization_manager = OrganizationManager()
+        self.user_manager = UserManager()
 
         # TODO: this should be removed
         # add global default tools (for admin)
@@ -609,7 +610,7 @@ class SyncServer(Server):
         timestamp: Optional[datetime] = None,
     ) -> LettaUsageStatistics:
         """Process an incoming user message and feed it through the Letta agent"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -658,7 +659,7 @@ class SyncServer(Server):
         timestamp: Optional[datetime] = None,
     ) -> LettaUsageStatistics:
         """Process an incoming system message and feed it through the Letta agent"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -727,7 +728,7 @@ class SyncServer(Server):
 
         Otherwise, we can pass them in directly.
         """
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -776,7 +777,7 @@ class SyncServer(Server):
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
         """Run a command on the agent"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -787,19 +788,12 @@ class SyncServer(Server):
                 command = command[1:]  # strip the prefix
         return self._command(user_id=user_id, agent_id=agent_id, command=command)
 
-    def list_users_paginated(self, cursor: str, limit: int) -> List[User]:
-        """List all users"""
-        # TODO: make this paginated
-        next_cursor, users = self.ms.get_all_users(cursor, limit)
-        return next_cursor, users
-
     def create_user(self, request: UserCreate) -> User:
         """Create a new user using a config"""
         if not request.name:
             # auto-generate a name
             request.name = create_random_username()
-        user = User(name=request.name, org_id=request.org_id)
-        self.ms.create_user(user)
+        user = self.user_manager.create_user(request)
         logger.debug(f"Created new user from config: {user}")
 
         # add default for the user
@@ -818,7 +812,7 @@ class SyncServer(Server):
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
         if interface is None:
@@ -845,7 +839,7 @@ class SyncServer(Server):
                 raise ValueError(f"Invalid agent type: {request.agent_type}")
 
         logger.debug(f"Attempting to find user: {user_id}")
-        user = self.ms.get_user(user_id=user_id)
+        user = self.user_manager.get_user_by_id(user_id=user_id)
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
@@ -873,7 +867,8 @@ class SyncServer(Server):
                     # tool already added
                     continue
                 source_code = parse_source_code(func)
-                json_schema = generate_schema(func, func_name)
+                # memory functions are not terminal
+                json_schema = generate_schema(func, terminal=False, name=func_name)
                 source_type = "python"
                 tags = ["memory", "memgpt-base"]
                 tool = self.create_tool(
@@ -973,7 +968,7 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Update the agents core memory block, return the new state"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=request.id) is None:
             raise ValueError(f"Agent agent_id={request.id} does not exist")
@@ -1035,7 +1030,7 @@ class SyncServer(Server):
 
     def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
         """Get tools from an existing agent"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1051,7 +1046,7 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Add tools from an existing agent"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1090,7 +1085,7 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Remove tools from an existing agent"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1136,7 +1131,7 @@ class SyncServer(Server):
         user_id: str,
     ) -> List[AgentState]:
         """List all available agents to a user"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
         agents_states = self.ms.list_agents(user_id=user_id)
@@ -1152,7 +1147,7 @@ class SyncServer(Server):
         if user_id is None:
             agents_states = self.ms.list_all_agents()
         else:
-            if self.ms.get_user(user_id=user_id) is None:
+            if self.user_manager.get_user_by_id(user_id=user_id) is None:
                 raise ValueError(f"User user_id={user_id} does not exist")
 
             agents_states = self.ms.list_agents(user_id=user_id)
@@ -1292,13 +1287,13 @@ class SyncServer(Server):
         """Get the agent state"""
         return self.ms.get_agent(agent_id=agent_id, user_id=user_id, agent_name=agent_name)
 
-    def get_user(self, user_id: str) -> User:
-        """Get the user"""
-        user = self.ms.get_user(user_id=user_id)
-        if user is None:
-            raise ValueError(f"User with user_id {user_id} does not exist")
-        else:
-            return user
+    # def get_user(self, user_id: str) -> User:
+    #     """Get the user"""
+    #     user = self.user_manager.get_user_by_id(user_id=user_id)
+    #     if user is None:
+    #         raise ValueError(f"User with user_id {user_id} does not exist")
+    #     else:
+    #         return user
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1389,7 +1384,7 @@ class SyncServer(Server):
 
     def get_agent_archival(self, user_id: str, agent_id: str, start: int, count: int) -> List[Passage]:
         """Paginated query of all messages in agent archival memory"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1414,7 +1409,7 @@ class SyncServer(Server):
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
     ) -> List[Passage]:
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1429,7 +1424,7 @@ class SyncServer(Server):
         return records
 
     def insert_archival_memory(self, user_id: str, agent_id: str, memory_contents: str) -> List[Passage]:
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1444,7 +1439,7 @@ class SyncServer(Server):
         return [letta_agent.persistence_manager.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
 
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1475,7 +1470,7 @@ class SyncServer(Server):
         assistant_message_function_name: str = constants.DEFAULT_MESSAGE_TOOL,
         assistant_message_function_kwarg: str = constants.DEFAULT_MESSAGE_TOOL_KWARG,
     ) -> Union[List[Message], List[LettaMessage]]:
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1517,7 +1512,7 @@ class SyncServer(Server):
 
     def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> Optional[AgentState]:
         """Return the config of an agent"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if agent_id:
             if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
@@ -1558,7 +1553,7 @@ class SyncServer(Server):
 
     def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> Memory:
         """Update the agents core memory block, return the new state"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1589,7 +1584,7 @@ class SyncServer(Server):
 
     def rename_agent(self, user_id: str, agent_id: str, new_agent_name: str) -> AgentState:
         """Update the name of the agent in the database"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1611,13 +1606,9 @@ class SyncServer(Server):
         assert isinstance(letta_agent.agent_state.id, str)
         return letta_agent.agent_state
 
-    def delete_user(self, user_id: str):
-        # TODO: delete user
-        pass
-
     def delete_agent(self, user_id: str, agent_id: str):
         """Delete an agent in the database"""
-        if self.ms.get_user(user_id=user_id) is None:
+        if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1646,7 +1637,8 @@ class SyncServer(Server):
 
     def api_key_to_user(self, api_key: str) -> str:
         """Decode an API key to a user"""
-        user = self.ms.get_user_from_api_key(api_key=api_key)
+        token = self.ms.get_api_key(api_key=api_key)
+        user = self.user_manager.get_user_by_id(token.user_id)
         if user is None:
             raise HTTPException(status_code=403, detail="Invalid credentials")
         else:
@@ -2079,7 +2071,10 @@ class SyncServer(Server):
     def add_default_external_tools(self, user_id: Optional[str] = None) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
         success = True
-        tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools() + Tool.load_default_composio_tools()
+        if tool_settings.composio_api_key:
+            tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools() + Tool.load_default_composio_tools()
+        else:
+            tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools()
         for tool in tools:
             try:
                 self.ms.create_tool(tool)
@@ -2174,29 +2169,15 @@ class SyncServer(Server):
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.retry_message()
 
+    # TODO: Move a lot of this default logic to the ORM
     def get_default_user(self) -> User:
+        self.organization_manager.create_default_organization()
+        user = self.user_manager.create_default_user()
 
-        from letta.constants import DEFAULT_ORG_ID, DEFAULT_USER_ID, DEFAULT_USER_NAME
+        self.add_default_blocks(user.id)
+        self.add_default_tools(module_name="base", user_id=user.id)
 
-        # check if default org exists
-        try:
-            self.organization_manager.get_organization_by_id(DEFAULT_ORG_ID)
-        except NoResultFound:
-            self.organization_manager.create_default_organization()
-
-        # check if default user exists
-        try:
-            self.get_user(DEFAULT_USER_ID)
-        except ValueError:
-            user = User(name=DEFAULT_USER_NAME, org_id=DEFAULT_ORG_ID, id=DEFAULT_USER_ID)
-            self.ms.create_user(user)
-
-            # add default data (TODO: move to org)
-            self.add_default_blocks(user.id)
-            self.add_default_tools(module_name="base", user_id=user.id)
-
-        # check if default org exists
-        return self.get_user(DEFAULT_USER_ID)
+        return user
 
     def get_user_or_default(self, user_id: Optional[str]) -> User:
         """Get the user object for user_id if it exists, otherwise return the default user object"""
@@ -2204,7 +2185,7 @@ class SyncServer(Server):
             return self.get_default_user()
         else:
             try:
-                return self.get_user(user_id=user_id)
+                return self.user_manager.get_user_by_id(user_id=user_id)
             except ValueError:
                 raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
 
