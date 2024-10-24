@@ -32,25 +32,8 @@ from .utils import DummyDataConnector
 
 @pytest.fixture(scope="module")
 def server():
-    # if os.getenv("OPENAI_API_KEY"):
-    #    create_config("openai")
-    #    credentials = LettaCredentials(
-    #        openai_key=os.getenv("OPENAI_API_KEY"),
-    #    )
-    # else:  # hosted
-    #    create_config("letta_hosted")
-    #    credentials = LettaCredentials()
-
     config = LettaConfig.load()
     print("CONFIG PATH", config.config_path)
-
-    ## set to use postgres
-    # config.archival_storage_uri = db_url
-    # config.recall_storage_uri = db_url
-    # config.metadata_storage_uri = db_url
-    # config.archival_storage_type = "postgres"
-    # config.recall_storage_type = "postgres"
-    # config.metadata_storage_type = "postgres"
 
     config.save()
 
