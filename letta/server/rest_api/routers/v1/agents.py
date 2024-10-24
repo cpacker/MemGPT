@@ -458,9 +458,11 @@ async def send_message_to_agent(
         streaming_interface.assistant_message_function_kwarg = assistant_message_function_kwarg
 
         # Related to JSON buffer reader
-        streaming_interface.inner_thoughts_in_kwargs = (
-            llm_config.put_inner_thoughts_in_kwargs if llm_config.put_inner_thoughts_in_kwargs is not None else False
-        )
+        # streaming_interface.inner_thoughts_in_kwargs = (
+        # llm_config.put_inner_thoughts_in_kwargs if llm_config.put_inner_thoughts_in_kwargs is not None else False
+        # )
+        # Disable until we have a more bug-proof implementation
+        streaming_interface.inner_thoughts_in_kwargs = False
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
