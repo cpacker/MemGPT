@@ -1,0 +1,46 @@
+name: Run CLI tests
+
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      qdrant:
+        image: qdrant/qdrant
+        ports:
+          - 6333:6333
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Build and run container
+      run: bash db/run_postgres.sh
+
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@main
+      with:
+        python-version: "3.12"
+        poetry-version: "1.8.2"
+        install-args: "-E dev -E postgres -E tests"
+
+    - name: Test `letta run` up until first message
+      env:
+        LETTA_PG_PORT: 8888
+        LETTA_PG_USER: letta
+        LETTA_PG_PASSWORD: letta
+        LETTA_PG_DB: letta
+        LETTA_PG_HOST: localhost
+        LETTA_SERVER_PASS: test_server_token
+      run: |
+        poetry run pytest -s -vv tests/test_cli.py::test_letta_run_create_new_agent

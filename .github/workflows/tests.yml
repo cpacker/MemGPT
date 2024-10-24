@@ -70,17 +70,6 @@ jobs:
       run: |
         poetry run pytest -s -vv tests/test_tools.py
 
-    - name: Run CLI tests
-      env:
-        LETTA_PG_PORT: 8888
-        LETTA_PG_USER: letta
-        LETTA_PG_PASSWORD: letta
-        LETTA_PG_DB: letta
-        LETTA_PG_HOST: localhost
-        LETTA_SERVER_PASS: test_server_token
-      run: |
-        poetry run pytest -s -vv tests/test_cli.py
-
     - name: Run RESTClient tests
       env:
         LETTA_PG_PORT: 8888
@@ -102,4 +91,4 @@ jobs:
         LETTA_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
-        poetry run pytest -s -vv -k "not test_cli.py and not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client" tests
+        poetry run pytest -s -vv -k "not test_cli.py and not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client.py" tests
