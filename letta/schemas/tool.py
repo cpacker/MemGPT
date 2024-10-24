@@ -54,38 +54,6 @@ class Tool(BaseTool):
             )
         )
 
-    @classmethod
-    def load_default_langchain_tools(cls) -> List["Tool"]:
-        # For now, we only support wikipedia tool
-        from langchain_community.tools import WikipediaQueryRun
-        from langchain_community.utilities import WikipediaAPIWrapper
-
-        wikipedia_tool = Tool.from_langchain(
-            WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper()), {"langchain_community.utilities": "WikipediaAPIWrapper"}
-        )
-
-        return [wikipedia_tool]
-
-    @classmethod
-    def load_default_crewai_tools(cls) -> List["Tool"]:
-        # For now, we only support scrape website tool
-        from crewai_tools import ScrapeWebsiteTool
-
-        web_scrape_tool = Tool.from_crewai(ScrapeWebsiteTool())
-
-        return [web_scrape_tool]
-
-    @classmethod
-    def load_default_composio_tools(cls) -> List["Tool"]:
-        from composio_langchain import Action
-
-        calculator = Tool.get_composio_tool(action=Action.MATHEMATICAL_CALCULATOR)
-        serp_news = Tool.get_composio_tool(action=Action.SERPAPI_NEWS_SEARCH)
-        serp_google_search = Tool.get_composio_tool(action=Action.SERPAPI_SEARCH)
-        serp_google_maps = Tool.get_composio_tool(action=Action.SERPAPI_GOOGLE_MAPS_SEARCH)
-
-        return [calculator, serp_news, serp_google_search, serp_google_maps]
-
 
 class ToolCreate(LettaBase):
     user_id: str = Field(UserManager.DEFAULT_USER_ID, description="The user that this tool belongs to. Defaults to the default user ID.")

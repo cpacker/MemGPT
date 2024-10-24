@@ -232,13 +232,6 @@ class ToolManager:
         wrapper_func_name, wrapper_function_str = generate_langchain_tool_wrapper(langchain_tool, additional_imports_module_attr_map)
         json_schema = generate_schema_from_args_schema(langchain_tool.args_schema, name=wrapper_func_name, description=description)
 
-        # append heartbeat (necessary for triggering another reasoning step after this tool call)
-        json_schema["parameters"]["properties"]["request_heartbeat"] = {
-            "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
-        }
-        json_schema["parameters"]["required"].append("request_heartbeat")
-
         create_tool = ToolCreate(
             user_id=user_id,
             organization_id=organization_id,
@@ -251,6 +244,21 @@ class ToolManager:
         )
 
         return self.create_or_update_tool(create_tool)
+
+    @enforce_types
+    def add_default_langchain_tools(self, user_id: str, organization_id: str) -> List[PydanticTool]:
+        # For now, we only support wikipedia tool
+        from langchain_community.tools import WikipediaQueryRun
+        from langchain_community.utilities import WikipediaAPIWrapper
+
+        wikipedia_tool = self.add_langchain_tool(
+            WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper()),
+            user_id,
+            organization_id,
+            {"langchain_community.utilities": "WikipediaAPIWrapper"},
+        )
+
+        return [wikipedia_tool]
 
     def add_crewai_tool(
         self, crewai_tool: "CrewAIBaseTool", user_id: str, organization_id: str, additional_imports_module_attr_map: dict[str, str] = None
@@ -273,13 +281,6 @@ class ToolManager:
         wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool, additional_imports_module_attr_map)
         json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
 
-        # append heartbeat (necessary for triggering another reasoning step after this tool call)
-        json_schema["parameters"]["properties"]["request_heartbeat"] = {
-            "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
-        }
-        json_schema["parameters"]["required"].append("request_heartbeat")
-
         create_tool = ToolCreate(
             user_id=user_id,
             organization_id=organization_id,
@@ -292,6 +293,15 @@ class ToolManager:
         )
 
         return self.create_or_update_tool(create_tool)
+
+    @enforce_types
+    def add_default_crewai_tools(self, user_id: str, organization_id: str) -> List[PydanticTool]:
+        # For now, we only support scrape website tool
+        from crewai_tools import ScrapeWebsiteTool
+
+        web_scrape_tool = self.add_crewai_tool(ScrapeWebsiteTool(), user_id, organization_id)
+
+        return [web_scrape_tool]
 
     def add_composio_tool(self, action: "ActionType", user_id: str, organization_id: str) -> PydanticTool:
         """
@@ -310,8 +320,8 @@ class ToolManager:
         composio_toolset = ComposioToolSet()
         composio_tools = composio_toolset.get_tools(actions=[action])
 
-        assert len(composio_tools) > 0, "User supplied parameters do not match any Composio tools"
-        assert len(composio_tools) == 1, f"User supplied parameters match too many Composio tools; {len(composio_tools)} > 1"
+        if len(composio_tools) == 0:
+            raise ValueError("User supplied parameters do not match any Composio tools")
 
         composio_tool = composio_tools[0]
 
@@ -320,13 +330,6 @@ class ToolManager:
         tags = ["composio"]
         wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(action)
         json_schema = generate_schema_from_args_schema(composio_tool.args_schema, name=wrapper_func_name, description=description)
-
-        # append heartbeat (necessary for triggering another reasoning step after this tool call)
-        json_schema["parameters"]["properties"]["request_heartbeat"] = {
-            "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
-        }
-        json_schema["parameters"]["required"].append("request_heartbeat")
 
         create_tool = ToolCreate(
             user_id=user_id,
@@ -339,3 +342,16 @@ class ToolManager:
             json_schema=json_schema,
         )
         return self.create_or_update_tool(create_tool)
+
+    @enforce_types
+    def add_default_composio_tools(self, user_id: str, organization_id: str) -> List[PydanticTool]:
+        from composio_langchain import Action
+
+        calculator = self.add_composio_tool(action=Action.MATHEMATICAL_CALCULATOR, user_id=user_id, organization_id=organization_id)
+        serp_news = self.add_composio_tool(action=Action.SERPAPI_NEWS_SEARCH, user_id=user_id, organization_id=organization_id)
+        serp_google_search = self.add_composio_tool(action=Action.SERPAPI_SEARCH, user_id=user_id, organization_id=organization_id)
+        serp_google_maps = self.add_composio_tool(
+            action=Action.SERPAPI_GOOGLE_MAPS_SEARCH, user_id=user_id, organization_id=organization_id
+        )
+
+        return [calculator, serp_news, serp_google_search, serp_google_maps]
