@@ -3,7 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Body, HTTPException, Query
 
 from letta.schemas.api_key import APIKey, APIKeyCreate
-from letta.schemas.user import User, UserCreate
+from letta.schemas.user import User
 from letta.server.rest_api.interface import QueuingInterface
 from letta.server.server import SyncServer
 
@@ -25,18 +25,18 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
             raise HTTPException(status_code=500, detail=f"{e}")
         return users
 
-    @router.post("/users", tags=["admin"], response_model=User)
-    def create_user(request: UserCreate = Body(...)):
-        """
-        Create a new user in the database
-        """
-        try:
-            user = server.create_user(request)
-        except HTTPException:
-            raise
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"{e}")
-        return user
+    # @router.post("/users", tags=["admin"], response_model=User)
+    # def create_user(request: UserCreate = Body(...)):
+    #     """
+    #     Create a new user in the database
+    #     """
+    #     try:
+    #         user = server.create_user(request)
+    #     except HTTPException:
+    #         raise
+    #     except Exception as e:
+    #         raise HTTPException(status_code=500, detail=f"{e}")
+    #     return user
 
     @router.delete("/users", tags=["admin"], response_model=User)
     def delete_user(

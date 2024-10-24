@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple
 
-from letta.constants import DEFAULT_ORG_ID, DEFAULT_USER_ID, DEFAULT_USER_NAME
+from letta.constants import DEFAULT_USER_ID, DEFAULT_USER_NAME
 
 # TODO: Remove this once we translate all of these to the ORM
 from letta.metadata import AgentModel, AgentSourceMappingModel, SourceModel
@@ -9,11 +9,15 @@ from letta.orm.organization import Organization as OrganizationModel
 from letta.orm.user import User as UserModel
 from letta.schemas.user import User as PydanticUser
 from letta.schemas.user import UserCreate, UserUpdate
+from letta.services.organization_manager import OrganizationManager
 from letta.utils import enforce_types
 
 
 class UserManager:
     """Manager class to handle business logic related to Users."""
+
+    DEFAULT_USER_NAME = "default_user"
+    DEFAULT_USER_ID = "user-00000000-0000-4000-8000-000000000000"
 
     def __init__(self):
         # Fetching the db_context similarly as in OrganizationManager
@@ -22,7 +26,7 @@ class UserManager:
         self.session_maker = db_context
 
     @enforce_types
-    def create_default_user(self, org_id: str = DEFAULT_ORG_ID) -> PydanticUser:
+    def create_default_user(self, org_id: str = OrganizationManager.DEFAULT_ORG_ID) -> PydanticUser:
         """Create the default user."""
         with self.session_maker() as session:
             # Make sure the org id exists

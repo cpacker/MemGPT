@@ -74,7 +74,7 @@ def pydantic_model_to_open_ai(model):
     }
 
 
-def generate_schema(function, terminal: Optional[bool], name: Optional[str] = None, description: Optional[str] = None):
+def generate_schema(function, terminal: Optional[bool], name: Optional[str] = None, description: Optional[str] = None) -> dict:
     # Get the signature of the function
     sig = inspect.signature(function)
 

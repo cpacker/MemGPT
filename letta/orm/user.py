@@ -1,9 +1,14 @@
+from typing import TYPE_CHECKING, List
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.mixins import OrganizationMixin
-from letta.orm.organization import Organization
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.user import User as PydanticUser
+
+if TYPE_CHECKING:
+    from letta.orm.organization import Organization
+    from letta.orm.tool import Tool
 
 
 class User(SqlalchemyBase, OrganizationMixin):
@@ -16,6 +21,7 @@ class User(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="users")
+    tools: Mapped[List["Tool"]] = relationship("Tool", back_populates="user", cascade="all, delete-orphan")
 
     # TODO: Add this back later potentially
     # agents: Mapped[List["Agent"]] = relationship(

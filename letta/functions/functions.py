@@ -6,6 +6,25 @@ from types import ModuleType
 
 from letta.constants import CLI_WARNING_PREFIX
 from letta.functions.schema_generator import generate_schema
+from letta.schemas.tool import ToolCreate
+
+
+def derive_openai_json_schema(tool_create: ToolCreate) -> dict:
+    # auto-generate openai schema
+    try:
+        env = {}
+        env.update(globals())
+        exec(tool_create.source_code, env)
+
+        # get available functions
+        functions = [f for f in env if callable(env[f])]
+
+        # TODO: not sure if this always works
+        func = env[functions[-1]]
+        json_schema = generate_schema(func, terminal=tool_create.terminal, name=tool_create.name)
+        return json_schema
+    except Exception as e:
+        raise RuntimeError(f"Failed to execute source code: {e}")
 
 
 def parse_source_code(func) -> str:

@@ -74,7 +74,7 @@ def org_id(server):
 @pytest.fixture(scope="module")
 def user_id(server, org_id):
     # create user
-    user = server.create_user(UserCreate(name="test_user", organization_id=org_id))
+    user = server.user_manager.create_user(UserCreate(name="test_user", organization_id=org_id))
     print(f"Created user\n{user.id}")
 
     yield user.id

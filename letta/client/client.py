@@ -1534,7 +1534,9 @@ class LocalClient(AbstractClient):
             self.user_id = user_id
         else:
             # get default user
-            self.user_id = self.server.get_default_user().id
+            user, org = self.server.get_default_user_and_org()
+            self.user_id = user.id
+            self.org_id = org.id
 
     # agents
 
@@ -2201,7 +2203,7 @@ class LocalClient(AbstractClient):
         """
         if self.tool_with_name_and_user_id_exists(tool):
             if update:
-                return self.server.update_tool(
+                return self.server.tool_manager.update_tool(
                     ToolUpdate(
                         id=tool.id,
                         description=tool.description,
@@ -2306,7 +2308,7 @@ class LocalClient(AbstractClient):
         Returns:
             tools (List[Tool]): List of tools
         """
-        return self.server.list_tools(cursor=cursor, limit=limit, user_id=self.user_id)
+        return self.server.tool_manager.list_tools_for_org(cursor=cursor, limit=limit, organization_id=self.org_id)
 
     def get_tool(self, id: str) -> Optional[Tool]:
         """
@@ -2351,7 +2353,7 @@ class LocalClient(AbstractClient):
         Returns:
             (bool): True if the id exists, False otherwise.
         """
-        return self.server.tool_with_name_and_user_id_exists(tool, self.user_id)
+        return self.server.tool_manager.tool_with_name_and_user_id_exists(tool, self.user_id)
 
     def load_data(self, connector: DataConnector, source_name: str):
         """
