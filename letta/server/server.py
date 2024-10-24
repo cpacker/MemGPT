@@ -805,20 +805,18 @@ class SyncServer(Server):
                     # tool already added
                     continue
                 source_code = parse_source_code(func)
-                json_schema = generate_schema(func, func_name)
+                json_schema = generate_schema(function=func, terminal=None, name=func_name)
                 source_type = "python"
                 tags = ["memory", "memgpt-base"]
-                tool = self.create_tool(
-                    request=ToolCreate(
+                tool = self.tool_manager.create_or_update_tool(
+                    ToolCreate(
                         source_code=source_code,
                         source_type=source_type,
                         tags=tags,
                         json_schema=json_schema,
                         user_id=user_id,
                         organization_id=user.organization_id,
-                    ),
-                    update=True,
-                    user_id=user_id,
+                    )
                 )
                 tool_objs.append(tool)
                 if not request.tools:
