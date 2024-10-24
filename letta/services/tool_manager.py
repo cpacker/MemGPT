@@ -36,6 +36,7 @@ class ToolManager:
                 organization_id=tool_create.organization_id,
                 description=tool_create.description,
                 tags=tool_create.tags,
+                module=tool_create.module,
                 source_code=tool_create.source_code,
                 source_type=tool_create.source_type,
                 json_schema=json_schema,

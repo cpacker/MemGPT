@@ -90,7 +90,7 @@ def create_tool(
 
     # Send request to create the tool
     return server.tool_manager.create_tool(
-        request=request,
+        tool_create=request,
     )
 
 

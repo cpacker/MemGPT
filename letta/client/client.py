@@ -1394,6 +1394,7 @@ class RESTClient(AbstractClient):
             params["cursor"] = str(cursor)
         if limit:
             params["limit"] = limit
+
         response = requests.get(f"{self.base_url}/{self.api_prefix}/tools", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
@@ -1503,6 +1504,7 @@ class LocalClient(AbstractClient):
         self,
         auto_save: bool = False,
         user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
         debug: bool = False,
         default_llm_config: Optional[LLMConfig] = None,
         default_embedding_config: Optional[EmbeddingConfig] = None,
@@ -1529,14 +1531,22 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
+        # save org_id that `LocalClient` is associated with
+        if org_id:
+            self.org_id = org_id
+        else:
+            org = self.server.organization_manager.create_default_organization()
+            self.org_id = org.id
         # save user_id that `LocalClient` is associated with
         if user_id:
             self.user_id = user_id
         else:
             # get default user
-            user, org = self.server.get_default_user_and_org()
+            user = self.server.user_manager.create_default_user()
             self.user_id = user.id
-            self.org_id = org.id
+            self.server.add_default_blocks(user.id)
+
+        self.server.add_default_tools(module_name="base", user_id=self.user_id, org_id=self.org_id)
 
     # agents
 
@@ -2264,11 +2274,8 @@ class LocalClient(AbstractClient):
             tags = []
 
         # call server function
-        return self.server.create_tool(
-            # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
+        return self.server.tool_manager.create_tool(
             ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags, terminal=terminal),
-            user_id=self.user_id,
-            update=update,
         )
 
     def update_tool(

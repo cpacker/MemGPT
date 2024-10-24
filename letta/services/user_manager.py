@@ -96,6 +96,11 @@ class UserManager:
                 raise ValueError(f"User with id {user_id} not found.")
 
     @enforce_types
+    def get_default_user(self) -> PydanticUser:
+        """Fetch the default user."""
+        return self.get_user_by_id(UserManager.DEFAULT_USER_ID)
+
+    @enforce_types
     def list_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Tuple[Optional[str], List[PydanticUser]]:
         """List users with pagination using cursor (id) and limit."""
         with self.session_maker() as session:

@@ -93,7 +93,7 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
         return message
 
     tools = client.list_tools()
-    print(f"Original tools {[t.name for t in tools]}")
+    # assert sorted([t.name for t in tools]) == sorted(['archival_memory_search', 'send_message', 'pause_heartbeats', 'conversation_search', 'conversation_search_date', 'archival_memory_insert'])
 
     tool = client.create_tool(print_tool, name="my_name", tags=["extras"])
 

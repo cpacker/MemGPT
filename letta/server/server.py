@@ -256,8 +256,8 @@ class SyncServer(Server):
         # add global default tools (for admin)
         # self.add_default_tools(module_name="base")
 
-        if settings.load_default_external_tools:
-            self.add_default_external_tools()
+        # if settings.load_default_external_tools:
+        #     self.add_default_external_tools()
 
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
@@ -803,7 +803,6 @@ class SyncServer(Server):
             if request.tools:
                 for tool_name in request.tools:
                     tool_obj = self.tool_manager.get_tool_by_name_and_user_id(tool_name=tool_name, user_id=user_id)
-                    assert tool_obj, f"Tool {tool_name} does not exist"
                     tool_objs.append(tool_obj)
 
             assert request.memory is not None
@@ -1947,24 +1946,28 @@ class SyncServer(Server):
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.retry_message()
 
-    def get_default_user_and_org(self) -> Tuple[User, Organization]:
+    def create_default_user_and_org(self) -> Tuple[User, Organization]:
         org = self.organization_manager.create_default_organization()
         user = self.user_manager.create_default_user()
 
-        self.add_default_blocks(user.id)
-        self.add_default_tools(module_name="base", user_id=user.id, org_id=org.id)
-
         return user, org
 
+    # TODO: I really dislike this pattern here
+    # We should be enforcing users to be passed in
+    # This is heinously bad, we are creating the tools/stuff on the fly. it's really really bad.
     def get_user_or_default(self, user_id: Optional[str]) -> User:
         """Get the user object for user_id if it exists, otherwise return the default user object"""
         if user_id is None:
-            user, _ = self.get_default_user_and_org()
-            return user
-        else:
-            try:
-                return self.user_manager.get_user_by_id(user_id=user_id)
-            except ValueError:
+            user_id = self.user_manager.DEFAULT_USER_ID
+
+        try:
+            return self.user_manager.get_user_by_id(user_id=user_id)
+        except ValueError:
+            if user_id == self.user_manager.DEFAULT_USER_ID:
+                self.organization_manager.create_default_organization()
+                user = self.user_manager.create_default_user()
+                return user
+            else:
                 raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
 
     def list_llm_models(self) -> List[LLMConfig]:

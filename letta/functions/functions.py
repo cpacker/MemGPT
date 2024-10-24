@@ -11,6 +11,7 @@ from letta.schemas.tool import ToolCreate
 
 def derive_openai_json_schema(tool_create: ToolCreate) -> dict:
     # auto-generate openai schema
+
     try:
         env = {}
         env.update(globals())
@@ -24,6 +25,9 @@ def derive_openai_json_schema(tool_create: ToolCreate) -> dict:
         json_schema = generate_schema(func, terminal=tool_create.terminal, name=tool_create.name)
         return json_schema
     except Exception as e:
+        import ipdb
+
+        ipdb.set_trace()
         raise RuntimeError(f"Failed to execute source code: {e}")
 
 
