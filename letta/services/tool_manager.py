@@ -79,14 +79,6 @@ class ToolManager:
                 raise ValueError(f"Tool with id {tool_id} not found.")
 
     @enforce_types
-    def tool_with_name_and_user_id_exists(self, tool_name: str, user_id: str) -> bool:
-        try:
-            self.get_tool_by_name_and_user_id(tool_name, user_id)
-            return True
-        except NoResultFound:
-            return False
-
-    @enforce_types
     def get_tool_by_name_and_user_id(self, tool_name: str, user_id: str) -> PydanticTool:
         """Retrieve a tool by its name and organization_id."""
         with self.session_maker() as session:

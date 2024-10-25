@@ -182,6 +182,15 @@ class AbstractClient(object):
     def delete_human(self, id: str):
         raise NotImplementedError
 
+    def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        raise NotImplementedError
+
+    def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        raise NotImplementedError
+
+    def load_composio_tool(self, action: "ActionType") -> Tool:
+        raise NotImplementedError
+
     def create_tool(
         self,
         func,
@@ -2186,9 +2195,26 @@ class LocalClient(AbstractClient):
         self.server.delete_block(id)
 
     # tools
+    def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        tool_create = ToolCreate.from_langchain(
+            langchain_tool=langchain_tool,
+            user_id=self.user_id,
+            organization_id=self.org_id,
+            additional_imports_module_attr_map=additional_imports_module_attr_map,
+        )
+        return self.server.tool_manager.create_or_update_tool(tool_create)
 
-    # TODO: merge this into create_tool
-    def create_or_update_tool(self, tool_create: ToolCreate) -> Tool:
+    def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        tool_create = ToolCreate.from_crewai(
+            crewai_tool=crewai_tool,
+            additional_imports_module_attr_map=additional_imports_module_attr_map,
+            user_id=self.user_id,
+            organization_id=self.org_id,
+        )
+        return self.server.tool_manager.create_or_update_tool(tool_create)
+
+    def load_composio_tool(self, action: "ActionType") -> Tool:
+        tool_create = ToolCreate.from_composio(action=action, user_id=self.user_id, organization_id=self.org_id)
         return self.server.tool_manager.create_or_update_tool(tool_create)
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic
@@ -2304,18 +2330,6 @@ class LocalClient(AbstractClient):
         """
         tool = self.server.tool_manager.get_tool_by_name_and_org_id(tool_name=name, organization_id=self.org_id)
         return tool.id
-
-    def tool_with_name_and_user_id_exists(self, tool: Tool) -> bool:
-        """
-        Check if the tool with name and user_id exists
-
-        Args:
-            tool (Tool): the tool
-
-        Returns:
-            (bool): True if the id exists, False otherwise.
-        """
-        return self.server.tool_manager.tool_with_name_and_user_id_exists(tool, self.user_id)
 
     def load_data(self, connector: DataConnector, source_name: str):
         """

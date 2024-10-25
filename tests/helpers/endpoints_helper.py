@@ -4,7 +4,6 @@ import uuid
 from typing import Callable, List, Optional, Union
 
 from letta.llm_api.helpers import unpack_inner_thoughts_from_kwargs
-from letta.schemas.tool import ToolCreate
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -167,13 +166,12 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
     from crewai_tools import ScrapeWebsiteTool
 
     crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
-    tool = ToolCreate.from_crewai(crewai_tool)
-    tool_name = tool.name
 
     # Set up client
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
-    client.create_or_update_tool(tool)
+    tool = client.load_crewai_tool(crewai_tool=crewai_tool)
+    tool_name = tool.name
 
     # Set up persona for tool usage
     persona = f"""
