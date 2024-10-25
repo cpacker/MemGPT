@@ -9,7 +9,7 @@ from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
-from letta.schemas.tool import Tool
+from letta.schemas.tool import ToolCreate
 
 
 @pytest.fixture(scope="module")
@@ -124,11 +124,13 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
     # tool 1
     from composio_langchain import Action
 
-    github_tool = client.add_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    github_tool_create = ToolCreate.from_composio(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    github_tool = client.create_or_update_tool(github_tool_create)
     # tool 2
     from crewai_tools import ScrapeWebsiteTool
 
-    scrape_website_tool = client.add_crewai_tool(ScrapeWebsiteTool(website_url="https://www.example.com"))
+    scrape_website_tool_create = ToolCreate.from_crewai(ScrapeWebsiteTool(website_url="https://www.example.com"))
+    scrape_website_tool = client.create_or_update_tool(scrape_website_tool_create)
 
     # assert both got added
     tools = client.list_tools()
@@ -321,10 +323,10 @@ def test_tools_from_composio_basic(client: LocalClient):
     # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
     client = create_client()
 
-    tool = Tool.get_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    tool = ToolCreate.from_composio(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
 
     # create tool
-    client.add_tool(tool)
+    client.create_or_update_tool(tool)
 
     # list tools
     tools = client.list_tools()
@@ -342,10 +344,10 @@ def test_tools_from_crewai(client: LocalClient):
     crewai_tool = ScrapeWebsiteTool()
 
     # Translate to memGPT Tool
-    tool = Tool.from_crewai(crewai_tool)
+    tool = ToolCreate.from_crewai(crewai_tool)
 
     # Add the tool
-    client.add_tool(tool)
+    client.create_or_update_tool(tool)
 
     # list tools
     tools = client.list_tools()
@@ -377,10 +379,10 @@ def test_tools_from_crewai_with_params(client: LocalClient):
     crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
 
     # Translate to memGPT Tool
-    tool = Tool.from_crewai(crewai_tool)
+    tool = ToolCreate.from_crewai(crewai_tool)
 
     # Add the tool
-    client.add_tool(tool)
+    client.create_or_update_tool(tool)
 
     # list tools
     tools = client.list_tools()
@@ -410,10 +412,12 @@ def test_tools_from_langchain(client: LocalClient):
     langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
 
     # Translate to memGPT Tool
-    tool = Tool.from_langchain(langchain_tool, additional_imports_module_attr_map={"langchain_community.utilities": "WikipediaAPIWrapper"})
+    tool = ToolCreate.from_langchain(
+        langchain_tool, additional_imports_module_attr_map={"langchain_community.utilities": "WikipediaAPIWrapper"}
+    )
 
     # Add the tool
-    client.add_tool(tool)
+    client.create_or_update_tool(tool)
 
     # list tools
     tools = client.list_tools()
@@ -444,4 +448,4 @@ def test_tool_creation_langchain_missing_imports(client: LocalClient):
     # Translate to memGPT Tool
     # Intentionally missing {"langchain_community.utilities": "WikipediaAPIWrapper"}
     with pytest.raises(RuntimeError):
-        Tool.from_langchain(langchain_tool)
+        ToolCreate.from_langchain(langchain_tool)

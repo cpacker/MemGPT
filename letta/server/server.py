@@ -1736,14 +1736,14 @@ class SyncServer(Server):
     def add_default_external_tools(self, user_id: str, org_id: str) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
         success = True
-        tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools()
+        tool_creates = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools()
         if tool_settings.composio_api_key:
-            tools += Tool.load_default_composio_tools()
-        for tool in tools:
+            tool_creates += Tool.load_default_composio_tools()
+        for tool_create in tool_creates:
             try:
-                self.tool_manager.create_tool(tool.convert_to_tool_create())
+                self.tool_manager.create_tool(tool_create)
             except Exception as e:
-                warnings.warn(f"An error occurred while creating tool {tool}: {e}")
+                warnings.warn(f"An error occurred while creating tool {tool_create}: {e}")
                 warnings.warn(traceback.format_exc())
                 success = False
 

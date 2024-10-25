@@ -5,7 +5,7 @@ from letta import create_client
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
-from letta.schemas.tool import Tool
+from letta.schemas.tool import ToolCreate
 
 """
 This example show how you can add CrewAI tools .
@@ -23,7 +23,7 @@ def main():
 
     crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
 
-    example_website_scrape_tool = Tool.from_crewai(crewai_tool)
+    example_website_scrape_tool = ToolCreate.from_crewai(crewai_tool)
     tool_name = example_website_scrape_tool.name
 
     # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
@@ -32,7 +32,7 @@ def main():
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
     # create tool
-    client.add_tool(example_website_scrape_tool)
+    client.create_or_update_tool(example_website_scrape_tool)
 
     # Confirm that the tool is in
     tools = client.list_tools()

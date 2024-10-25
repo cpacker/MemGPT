@@ -2188,47 +2188,8 @@ class LocalClient(AbstractClient):
     # tools
 
     # TODO: merge this into create_tool
-    def add_tool(self, tool: Tool, update: Optional[bool] = True) -> Tool:
-        """
-        Adds a tool directly.
-
-        Args:
-            tool (Tool): The tool to add.
-            update (bool, optional): Update the tool if it already exists. Defaults to True.
-
-        Returns:
-            None
-        """
-        if self.tool_with_name_and_user_id_exists(tool):
-            if update:
-                return self.server.tool_manager.update_tool(
-                    ToolUpdate(
-                        description=tool.description,
-                        source_type=tool.source_type,
-                        source_code=tool.source_code,
-                        tags=tool.tags,
-                        json_schema=tool.json_schema,
-                        name=tool.name,
-                    ),
-                    self.user_id,
-                )
-            else:
-                raise ValueError(f"Tool with id={tool.id} and name={tool.name}already exists")
-        else:
-            # call server function
-            return self.server.create_tool(
-                ToolCreate(
-                    id=tool.id,
-                    description=tool.description,
-                    source_type=tool.source_type,
-                    source_code=tool.source_code,
-                    name=tool.name,
-                    json_schema=tool.json_schema,
-                    tags=tool.tags,
-                ),
-                user_id=self.user_id,
-                update=update,
-            )
+    def create_or_update_tool(self, tool_create: ToolCreate) -> Tool:
+        return self.server.tool_manager.create_or_update_tool(tool_create)
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(

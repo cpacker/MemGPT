@@ -5,7 +5,7 @@ from letta import create_client
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
-from letta.schemas.tool import Tool
+from letta.schemas.tool import ToolCreate
 
 """
 Setup here.
@@ -49,10 +49,10 @@ def main():
     from composio_langchain import Action
 
     # Add the composio tool
-    tool = Tool.get_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    tool = ToolCreate.from_composio(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
 
     # create tool
-    client.add_tool(tool)
+    client.create_or_update_tool(tool)
 
     persona = f"""
     My name is Letta.

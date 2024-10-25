@@ -56,16 +56,31 @@ class Tool(BaseTool):
             )
         )
 
-    def convert_to_tool_create(self) -> "ToolCreate":
-        return ToolCreate(**self.model_dump(exclude={"id"}))
+
+class ToolCreate(LettaBase):
+    user_id: str = Field(UserManager.DEFAULT_USER_ID, description="The user that this tool belongs to. Defaults to the default user ID.")
+    organization_id: str = Field(
+        OrganizationManager.DEFAULT_ORG_ID,
+        description="The organization that this tool belongs to. Defaults to the default organization ID.",
+    )
+    name: Optional[str] = Field(None, description="The name of the function (auto-generated from source_code if not provided).")
+    description: Optional[str] = Field(None, description="The description of the tool.")
+    tags: List[str] = Field([], description="Metadata tags.")
+    module: Optional[str] = Field(None, description="The source code of the function.")
+    source_code: str = Field(..., description="The source code of the function.")
+    source_type: str = Field(..., description="The source type of the function.")
+    json_schema: Optional[Dict] = Field(
+        None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
+    )
+    terminal: Optional[bool] = Field(None, description="Whether the tool is a terminal tool (allow requesting heartbeats).")
 
     @classmethod
-    def get_composio_tool(
+    def from_composio(
         cls, action: "ActionType", user_id: str = UserManager.DEFAULT_USER_ID, organization_id: str = OrganizationManager.DEFAULT_ORG_ID
-    ) -> "Tool":
+    ) -> "ToolCreate":
         """
         Class method to create an instance of Letta-compatible Composio Tool.
-        Check https://docs.composio.dev/introduction/intro/overview to look at options for get_composio_tool
+        Check https://docs.composio.dev/introduction/intro/overview to look at options for from_composio
 
         This function will error if we find more than one tool, or 0 tools.
 
@@ -108,7 +123,7 @@ class Tool(BaseTool):
         additional_imports_module_attr_map: dict[str, str] = None,
         user_id: str = UserManager.DEFAULT_USER_ID,
         organization_id: str = OrganizationManager.DEFAULT_ORG_ID,
-    ) -> "Tool":
+    ) -> "ToolCreate":
         """
         Class method to create an instance of Tool from a Langchain tool (must be from langchain_community.tools).
 
@@ -144,7 +159,7 @@ class Tool(BaseTool):
         additional_imports_module_attr_map: dict[str, str] = None,
         user_id: str = UserManager.DEFAULT_USER_ID,
         organization_id: str = OrganizationManager.DEFAULT_ORG_ID,
-    ) -> "Tool":
+    ) -> "ToolCreate":
         """
         Class method to create an instance of Tool from a crewAI BaseTool object.
 
@@ -172,54 +187,36 @@ class Tool(BaseTool):
         )
 
     @classmethod
-    def load_default_langchain_tools(cls) -> List["Tool"]:
+    def load_default_langchain_tools(cls) -> List["ToolCreate"]:
         # For now, we only support wikipedia tool
         from langchain_community.tools import WikipediaQueryRun
         from langchain_community.utilities import WikipediaAPIWrapper
 
-        wikipedia_tool = Tool.from_langchain(
+        wikipedia_tool = ToolCreate.from_langchain(
             WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper()), {"langchain_community.utilities": "WikipediaAPIWrapper"}
         )
 
         return [wikipedia_tool]
 
     @classmethod
-    def load_default_crewai_tools(cls) -> List["Tool"]:
+    def load_default_crewai_tools(cls) -> List["ToolCreate"]:
         # For now, we only support scrape website tool
         from crewai_tools import ScrapeWebsiteTool
 
-        web_scrape_tool = Tool.from_crewai(ScrapeWebsiteTool())
+        web_scrape_tool = ToolCreate.from_crewai(ScrapeWebsiteTool())
 
         return [web_scrape_tool]
 
     @classmethod
-    def load_default_composio_tools(cls) -> List["Tool"]:
+    def load_default_composio_tools(cls) -> List["ToolCreate"]:
         from composio_langchain import Action
 
-        calculator = Tool.get_composio_tool(action=Action.MATHEMATICAL_CALCULATOR)
-        serp_news = Tool.get_composio_tool(action=Action.SERPAPI_NEWS_SEARCH)
-        serp_google_search = Tool.get_composio_tool(action=Action.SERPAPI_SEARCH)
-        serp_google_maps = Tool.get_composio_tool(action=Action.SERPAPI_GOOGLE_MAPS_SEARCH)
+        calculator = ToolCreate.from_composio(action=Action.MATHEMATICAL_CALCULATOR)
+        serp_news = ToolCreate.from_composio(action=Action.SERPAPI_NEWS_SEARCH)
+        serp_google_search = ToolCreate.from_composio(action=Action.SERPAPI_SEARCH)
+        serp_google_maps = ToolCreate.from_composio(action=Action.SERPAPI_GOOGLE_MAPS_SEARCH)
 
         return [calculator, serp_news, serp_google_search, serp_google_maps]
-
-
-class ToolCreate(LettaBase):
-    user_id: str = Field(UserManager.DEFAULT_USER_ID, description="The user that this tool belongs to. Defaults to the default user ID.")
-    organization_id: str = Field(
-        OrganizationManager.DEFAULT_ORG_ID,
-        description="The organization that this tool belongs to. Defaults to the default organization ID.",
-    )
-    name: Optional[str] = Field(None, description="The name of the function (auto-generated from source_code if not provided).")
-    description: Optional[str] = Field(None, description="The description of the tool.")
-    tags: List[str] = Field([], description="Metadata tags.")
-    module: Optional[str] = Field(None, description="The source code of the function.")
-    source_code: str = Field(..., description="The source code of the function.")
-    source_type: str = Field(..., description="The source type of the function.")
-    json_schema: Optional[Dict] = Field(
-        None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
-    )
-    terminal: Optional[bool] = Field(None, description="Whether the tool is a terminal tool (allow requesting heartbeats).")
 
 
 class ToolUpdate(LettaBase):
