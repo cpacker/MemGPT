@@ -57,8 +57,10 @@ from letta.system import (
 from letta.utils import (
     count_tokens,
     get_local_time,
+    get_source_code_for_execution,
     get_tool_call_id,
     get_utc_time,
+    is_foreign_tool,
     is_utc_datetime,
     json_dumps,
     json_loads,
@@ -652,35 +654,17 @@ class Agent(BaseAgent):
 
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
 
+                matching_tools = [tool for tool in self.tools if tool.name == function_name]
+                tool = matching_tools[0] if matching_tools else None
                 # Execute tool in sandbox
-                if (function_name in ["print_hello_world", "print_message"]): # remove hardcode
-                    sbx = Sandbox(api_key="e2b_99c3fa2617e66233a57bf267e1e1f462745b0da5") # store api key in env var
-                    code = ""
-                    
-                    # 1. Import dependencies
-                    # package = ""
+                if tool and is_foreign_tool(tool):
+                    sbx = Sandbox()
+
+                    # TODO: install dependencies
                     # sbx.commands.run(f"pip3 install {package}")
 
-                    # 2. Set Params
-                    for param in function_args:
-                        if param != "self":
-                            code += param + ' = "' + function_args[param] + '"\n'
+                    code = get_source_code_for_execution(function_name, function_args, tool)
 
-                    # 3. Add function source code
-                    tool = [tool for tool in self.tools if tool.name == function_name][0]
-                    code += tool.source_code + "\n"
-
-                    # 4. Add function call
-                    code += function_name + "("
-
-                    # 5. Populate params for function call
-                    for param in function_args:
-                        if param != "self":
-                            code += param + ","
-                    
-                    code += ")"
-                    
-                    # 6. Execute code and extract result or throw
                     execution = sbx.run_code(code)
                     if execution.error is not None:
                         raise execution.error
@@ -689,7 +673,6 @@ class Agent(BaseAgent):
                     else:
                         function_response = execution.results[0].text
 
-                    # 7. Kill sandbox
                     sbx.kill()
                 else:
                     function_response = function_to_call(**function_args)

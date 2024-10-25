@@ -179,7 +179,7 @@ def test_run_basic_tool_in_sandbox(client: Union[LocalClient, RESTClient]):
     tools = client.list_tools()
     print(f"Original tools {[t.name for t in tools]}")
 
-    tool = client.create_tool(print_hello_world, name="print_hello_world", tags=["extras"])
+    tool = client.create_tool(print_hello_world, name="print_hello_world", tags=["extras", "foreign"])
 
     tools = client.list_tools()
     assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
@@ -213,7 +213,7 @@ def test_run_tool_with_str_params_in_sandbox(client: Union[LocalClient, RESTClie
     tools = client.list_tools()
     print(f"Original tools {[t.name for t in tools]}")
 
-    tool = client.create_tool(print_message, name="print_message", tags=["extras"])
+    tool = client.create_tool(print_message, name="print_message", tags=["extras", "foreign"])
 
     tools = client.list_tools()
     assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"

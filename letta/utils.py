@@ -20,6 +20,7 @@ from urllib.parse import urljoin, urlparse
 
 import demjson3 as demjson
 import pytz
+from letta.schemas.tool import Tool
 import tiktoken
 
 import letta
@@ -1071,3 +1072,30 @@ def json_dumps(data, indent=2):
 
 def json_loads(data):
     return json.loads(data, strict=False)
+
+
+def is_foreign_tool(tool: Tool):
+    return "foreign" in tool.tags
+
+
+def get_source_code_for_execution(function_name: str, function_args: dict, tool: Tool) -> str:
+    code = ""
+    # 1. Set params
+    for param in function_args:
+        if param != "self":
+            code += param + ' = "' + function_args[param] + '"\n'
+
+    # 2. Add function source code
+    code += tool.source_code + "\n"
+
+    # 3. Add function call
+    code += function_name + "("
+
+    # 4. Populate params for function call
+    for param in function_args:
+        if param != "self":
+            code += param + ","
+    code += ")"
+
+    # 5. Admire result
+    return code
