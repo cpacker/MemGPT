@@ -13,13 +13,13 @@ from letta.constants import (
     DEFAULT_HUMAN,
     DEFAULT_PERSONA,
     DEFAULT_PRESET,
-    DEFAULT_USER_ID,
     LETTA_DIR,
 )
 from letta.log import get_logger
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
+from letta.services.user_manager import UserManager
 
 logger = get_logger(__name__)
 
@@ -45,7 +45,7 @@ def set_field(config, section, field, value):
 @dataclass
 class LettaConfig:
     config_path: str = os.getenv("MEMGPT_CONFIG_PATH") or os.path.join(LETTA_DIR, "config")
-    anon_clientid: str = DEFAULT_USER_ID
+    anon_clientid: str = UserManager.DEFAULT_USER_ID
 
     # preset
     preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
