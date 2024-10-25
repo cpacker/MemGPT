@@ -1,4 +1,4 @@
-name: Run All pytest Tests
+name: Unit Tests
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -13,7 +13,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -36,6 +36,28 @@ jobs:
         python-version: "3.12"
         poetry-version: "1.8.2"
         install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"
+
+    - name: Run LocalClient tests
+      env:
+        LETTA_PG_PORT: 8888
+        LETTA_PG_USER: letta
+        LETTA_PG_PASSWORD: letta
+        LETTA_PG_DB: letta
+        LETTA_PG_HOST: localhost
+        LETTA_SERVER_PASS: test_server_token
+      run: |
+        poetry run pytest -s -vv tests/test_local_client.py
+
+    - name: Run RESTClient tests
+      env:
+        LETTA_PG_PORT: 8888
+        LETTA_PG_USER: letta
+        LETTA_PG_PASSWORD: letta
+        LETTA_PG_DB: letta
+        LETTA_PG_HOST: localhost
+        LETTA_SERVER_PASS: test_server_token
+      run: |
+        poetry run pytest -s -vv tests/test_client.py
 
     - name: Run server tests
       env:
@@ -70,6 +92,17 @@ jobs:
       run: |
         poetry run pytest -s -vv tests/test_tools.py
 
+    - name: Run o1 agent tests
+      env:
+        LETTA_PG_PORT: 8888
+        LETTA_PG_USER: letta
+        LETTA_PG_PASSWORD: letta
+        LETTA_PG_DB: letta
+        LETTA_PG_HOST: localhost
+        LETTA_SERVER_PASS: test_server_token
+      run: |
+        poetry run pytest -s -vv tests/test_o1_agent.py
+
     - name: Run tests with pytest
       env:
         LETTA_PG_PORT: 8888
@@ -80,4 +113,4 @@ jobs:
         LETTA_SERVER_PASS: test_server_token
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |
-        poetry run pytest -s -vv -k "not test_cli.py and not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client and not test_providers" tests
+        poetry run pytest -s -vv -k "not test_local_client.py and not test_o1_agent.py and not test_cli.py and not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client.py" tests

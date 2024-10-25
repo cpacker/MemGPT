@@ -5,7 +5,7 @@ from letta import create_client
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
-from letta.schemas.tool import Tool
+from letta.schemas.tool import ToolCreate
 
 """
 This example show how you can add LangChain tools .
@@ -33,7 +33,7 @@ def main():
     # We need to also import WikipediaAPIWrapper
     # The map is a mapping of the module name to the attribute name
     # langchain_community.utilities.WikipediaAPIWrapper
-    wikipedia_query_tool = Tool.from_langchain(
+    wikipedia_query_tool = ToolCreate.from_langchain(
         langchain_tool, additional_imports_module_attr_map={"langchain_community.utilities": "WikipediaAPIWrapper"}
     )
     tool_name = wikipedia_query_tool.name
@@ -44,7 +44,7 @@ def main():
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
     # create tool
-    client.add_tool(wikipedia_query_tool)
+    client.create_or_update_tool(wikipedia_query_tool)
 
     # Confirm that the tool is in
     tools = client.list_tools()

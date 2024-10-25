@@ -10,7 +10,7 @@ from letta.schemas.tool import Tool
 from letta.schemas.usage import LettaUsageStatistics
 
 
-def send_thinking_message(self: Agent, message: str) -> Optional[str]:
+def send_thinking_message(self: "Agent", message: str) -> Optional[str]:
     """
     Sends a thinking message so that the model can reason out loud before responding.
 
@@ -24,7 +24,7 @@ def send_thinking_message(self: Agent, message: str) -> Optional[str]:
     return None
 
 
-def send_final_message(self: Agent, message: str) -> Optional[str]:
+def send_final_message(self: "Agent", message: str) -> Optional[str]:
     """
     Sends a final message to the human user after thinking for a while.
 

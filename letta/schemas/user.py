@@ -3,8 +3,8 @@ from typing import Optional
 
 from pydantic import Field
 
-from letta.constants import DEFAULT_ORG_ID
 from letta.schemas.letta_base import LettaBase
+from letta.services.organization_manager import OrganizationManager
 
 
 class UserBase(LettaBase):
@@ -22,7 +22,7 @@ class User(UserBase):
     """
 
     id: str = Field(..., description="The id of the user.")
-    organization_id: Optional[str] = Field(DEFAULT_ORG_ID, description="The organization id of the user")
+    organization_id: Optional[str] = Field(OrganizationManager.DEFAULT_ORG_ID, description="The organization id of the user")
     name: str = Field(..., description="The name of the user.")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the user.")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="The update date of the user.")

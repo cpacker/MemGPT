@@ -56,13 +56,13 @@ def client(request):
             time.sleep(5)
         print("Running client tests with server:", server_url)
     else:
-        server_url = None
         assert False, "Local client not implemented"
 
     assert server_url is not None
     client = create_client(base_url=server_url)  # This yields control back to the test function
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+    # Clear all records from the Tool table
     yield client
 
 
@@ -93,7 +93,16 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
         return message
 
     tools = client.list_tools()
-    print(f"Original tools {[t.name for t in tools]}")
+    assert sorted([t.name for t in tools]) == sorted(
+        [
+            "archival_memory_search",
+            "send_message",
+            "pause_heartbeats",
+            "conversation_search",
+            "conversation_search_date",
+            "archival_memory_insert",
+        ]
+    )
 
     tool = client.create_tool(print_tool, name="my_name", tags=["extras"])
 
@@ -108,13 +117,15 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
 
     # create agent with tool
     agent_state = client.create_agent(tools=[tool.name])
-    response = client.user_message(agent_id=agent_state.id, message="hi")
+
+    # Send message without error
+    client.user_message(agent_id=agent_state.id, message="hi")
 
 
 def test_create_agent_tool(client):
     """Test creation of a agent tool"""
 
-    def core_memory_clear(self: Agent):
+    def core_memory_clear(self: "Agent"):
         """
         Args:
             agent (Agent): The agent to delete from memory.

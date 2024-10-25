@@ -14,8 +14,6 @@ from sqlalchemy import (
     Integer,
     String,
     TypeDecorator,
-    asc,
-    or_,
 )
 from sqlalchemy.sql import func
 
@@ -32,7 +30,6 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from letta.schemas.source import Source
-from letta.schemas.tool import Tool
 from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
@@ -359,37 +356,6 @@ class BlockModel(Base):
             )
 
 
-class ToolModel(Base):
-    __tablename__ = "tools"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    user_id = Column(String)
-    description = Column(String)
-    source_type = Column(String)
-    source_code = Column(String)
-    json_schema = Column(JSON)
-    module = Column(String)
-    tags = Column(JSON)
-
-    def __repr__(self) -> str:
-        return f"<Tool(id='{self.id}', name='{self.name}')>"
-
-    def to_record(self) -> Tool:
-        return Tool(
-            id=self.id,
-            name=self.name,
-            user_id=self.user_id,
-            description=self.description,
-            source_type=self.source_type,
-            source_code=self.source_code,
-            json_schema=self.json_schema,
-            module=self.module,
-            tags=self.tags,
-        )
-
-
 class JobModel(Base):
     __tablename__ = "jobs"
     __table_args__ = {"extend_existing": True}
@@ -517,14 +483,6 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def create_tool(self, tool: Tool):
-        with self.session_maker() as session:
-            if self.get_tool(tool_id=tool.id, tool_name=tool.name, user_id=tool.user_id) is not None:
-                raise ValueError(f"Tool with name {tool.name} already exists")
-            session.add(ToolModel(**vars(tool)))
-            session.commit()
-
-    @enforce_types
     def update_agent(self, agent: AgentState):
         with self.session_maker() as session:
             fields = vars(agent)
@@ -554,18 +512,6 @@ class MetadataStore:
                 session.query(BlockModel).filter(BlockModel.id == block.id).update(vars(block))
             else:
                 session.add(BlockModel(**vars(block)))
-            session.commit()
-
-    @enforce_types
-    def update_tool(self, tool_id: str, tool: Tool):
-        with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.id == tool_id).update(vars(tool))
-            session.commit()
-
-    @enforce_types
-    def delete_tool(self, tool_id: str):
-        with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.id == tool_id).delete()
             session.commit()
 
     @enforce_types
@@ -613,23 +559,6 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[ToolModel]:
-        with self.session_maker() as session:
-            # Query for public tools or user-specific tools
-            query = session.query(ToolModel).filter(or_(ToolModel.user_id == None, ToolModel.user_id == user_id))
-
-            # Apply cursor if provided (assuming cursor is an ID)
-            if cursor:
-                query = query.filter(ToolModel.id > cursor)
-
-            # Order by ID and apply limit
-            results = query.order_by(asc(ToolModel.id)).limit(limit).all()
-
-            # Convert to records
-            res = [r.to_record() for r in results]
-            return res
-
-    @enforce_types
     def list_agents(self, user_id: str) -> List[AgentState]:
         with self.session_maker() as session:
             results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
@@ -667,32 +596,6 @@ class MetadataStore:
             else:
                 assert user_id is not None and source_name is not None
                 results = session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_tool(
-        self, tool_name: Optional[str] = None, tool_id: Optional[str] = None, user_id: Optional[str] = None
-    ) -> Optional[ToolModel]:
-        with self.session_maker() as session:
-            if tool_id:
-                results = session.query(ToolModel).filter(ToolModel.id == tool_id).all()
-            else:
-                assert tool_name is not None
-                results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
-                if user_id:
-                    results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            # assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_tool_with_name_and_user_id(self, tool_name: Optional[str] = None, user_id: Optional[str] = None) -> Optional[ToolModel]:
-        with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"

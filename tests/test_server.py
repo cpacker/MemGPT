@@ -25,7 +25,6 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.message import Message
 from letta.schemas.source import SourceCreate
-from letta.schemas.user import UserCreate
 from letta.server.server import SyncServer
 
 from .utils import DummyDataConnector
@@ -33,25 +32,8 @@ from .utils import DummyDataConnector
 
 @pytest.fixture(scope="module")
 def server():
-    # if os.getenv("OPENAI_API_KEY"):
-    #    create_config("openai")
-    #    credentials = LettaCredentials(
-    #        openai_key=os.getenv("OPENAI_API_KEY"),
-    #    )
-    # else:  # hosted
-    #    create_config("letta_hosted")
-    #    credentials = LettaCredentials()
-
     config = LettaConfig.load()
     print("CONFIG PATH", config.config_path)
-
-    ## set to use postgres
-    # config.archival_storage_uri = db_url
-    # config.recall_storage_uri = db_url
-    # config.metadata_storage_uri = db_url
-    # config.archival_storage_type = "postgres"
-    # config.recall_storage_type = "postgres"
-    # config.metadata_storage_type = "postgres"
 
     config.save()
 
@@ -62,7 +44,7 @@ def server():
 @pytest.fixture(scope="module")
 def org_id(server):
     # create org
-    org = server.organization_manager.create_organization(name="test_org")
+    org = server.organization_manager.create_default_organization()
     print(f"Created org\n{org.id}")
 
     yield org.id
@@ -74,7 +56,7 @@ def org_id(server):
 @pytest.fixture(scope="module")
 def user_id(server, org_id):
     # create user
-    user = server.create_user(UserCreate(name="test_user", organization_id=org_id))
+    user = server.user_manager.create_default_user()
     print(f"Created user\n{user.id}")
 
     yield user.id

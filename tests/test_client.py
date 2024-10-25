@@ -262,15 +262,6 @@ def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentSta
     assert human.value == "Human text", "Creating human failed"
 
 
-# def test_tools(client, agent):
-#    tools_response = client.list_tools()
-#    print("TOOLS", tools_response)
-#
-#    tool_name = "TestTool"
-#    tool_response = client.create_tool(name=tool_name, source_code="print('Hello World')", source_type="python")
-#    assert tool_response, "Creating tool failed"
-
-
 def test_config(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
