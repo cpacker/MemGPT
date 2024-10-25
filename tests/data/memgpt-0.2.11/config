@@ -31,6 +31,3 @@ path = /Users/sarahwooders/.letta
 [version]
 letta_version = 0.2.12
 
-[client]
-anon_clientid = 00000000000000000000d67f40108c5c
-
