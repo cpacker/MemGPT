@@ -55,7 +55,7 @@ def get_tool_id(
         raise HTTPException(status_code=404, detail=f"Tool with name {tool_name} and organization id {actor.organization_id} not found.")
 
 
-@router.get("/", response_model=List[Tool], operation_id="list_tools_for_org")
+@router.get("/", response_model=List[Tool], operation_id="list_tools")
 def list_tools_for_org(
     cursor: Optional[str] = None,
     limit: Optional[int] = 50,
