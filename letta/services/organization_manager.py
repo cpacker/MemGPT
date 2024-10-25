@@ -1,6 +1,5 @@
 from typing import List, Optional
 
-from letta.constants import DEFAULT_ORG_NAME
 from letta.orm.errors import NoResultFound
 from letta.orm.organization import Organization as OrganizationModel
 from letta.schemas.organization import Organization as PydanticOrganization
@@ -25,7 +24,7 @@ class OrganizationManager:
     @enforce_types
     def get_default_organization(self) -> PydanticOrganization:
         """Fetch the default organization."""
-        return self.get_organization_by_id(OrganizationManager.DEFAULT_ORG_ID)
+        return self.get_organization_by_id(self.DEFAULT_ORG_ID)
 
     @enforce_types
     def get_organization_by_id(self, org_id: str) -> PydanticOrganization:
@@ -51,10 +50,10 @@ class OrganizationManager:
         with self.session_maker() as session:
             # Try to get it first
             try:
-                org = OrganizationModel.read(db_session=session, identifier=OrganizationManager.DEFAULT_ORG_ID)
+                org = OrganizationModel.read(db_session=session, identifier=self.DEFAULT_ORG_ID)
             # If it doesn't exist, make it
             except NoResultFound:
-                org = OrganizationModel(name=DEFAULT_ORG_NAME, id=OrganizationManager.DEFAULT_ORG_ID)
+                org = OrganizationModel(name=self.DEFAULT_ORG_NAME, id=self.DEFAULT_ORG_ID)
                 org.create(session)
 
             return org.to_pydantic()

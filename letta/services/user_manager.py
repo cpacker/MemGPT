@@ -96,7 +96,7 @@ class UserManager:
     @enforce_types
     def get_default_user(self) -> PydanticUser:
         """Fetch the default user."""
-        return self.get_user_by_id(UserManager.DEFAULT_USER_ID)
+        return self.get_user_by_id(self.DEFAULT_USER_ID)
 
     @enforce_types
     def list_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Tuple[Optional[str], List[PydanticUser]]:
