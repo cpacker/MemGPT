@@ -1,7 +1,5 @@
 from typing import List, Optional, Tuple
 
-from letta.constants import DEFAULT_USER_ID, DEFAULT_USER_NAME
-
 # TODO: Remove this once we translate all of these to the ORM
 from letta.metadata import AgentModel, AgentSourceMappingModel, SourceModel
 from letta.orm.errors import NoResultFound
@@ -37,10 +35,10 @@ class UserManager:
 
             # Try to retrieve the user
             try:
-                user = UserModel.read(db_session=session, identifier=DEFAULT_USER_ID)
+                user = UserModel.read(db_session=session, identifier=self.DEFAULT_USER_ID)
             except NoResultFound:
                 # If it doesn't exist, make it
-                user = UserModel(id=DEFAULT_USER_ID, name=DEFAULT_USER_NAME, organization_id=org_id)
+                user = UserModel(id=self.DEFAULT_USER_ID, name=self.DEFAULT_USER_NAME, organization_id=org_id)
                 user.create(session)
 
             return user.to_pydantic()

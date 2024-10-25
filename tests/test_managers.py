@@ -2,7 +2,6 @@ import pytest
 from sqlalchemy import delete
 
 import letta.utils as utils
-from letta.constants import DEFAULT_ORG_NAME, DEFAULT_USER_ID, DEFAULT_USER_NAME
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
 from letta.orm.organization import Organization
 from letta.orm.tool import Tool
@@ -92,7 +91,7 @@ def test_list_organizations(server: SyncServer):
 def test_create_default_organization(server: SyncServer):
     server.organization_manager.create_default_organization()
     retrieved = server.organization_manager.get_default_organization()
-    assert retrieved.name == DEFAULT_ORG_NAME
+    assert retrieved.name == server.organization_manager.DEFAULT_ORG_NAME
 
 
 def test_update_organization_name(server: SyncServer):
@@ -141,8 +140,8 @@ def test_list_users(server: SyncServer):
 def test_create_default_user(server: SyncServer):
     org = server.organization_manager.create_default_organization()
     server.user_manager.create_default_user(org_id=org.id)
-    retrieved = server.user_manager.get_user_by_id(DEFAULT_USER_ID)
-    assert retrieved.name == DEFAULT_USER_NAME
+    retrieved = server.user_manager.get_default_user()
+    assert retrieved.name == server.user_manager.DEFAULT_USER_NAME
 
 
 def test_update_user(server: SyncServer):
