@@ -165,16 +165,13 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
     """
     from crewai_tools import ScrapeWebsiteTool
 
-    from letta.schemas.tool import Tool
-
     crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
-    tool = Tool.from_crewai(crewai_tool)
-    tool_name = tool.name
 
     # Set up client
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
-    client.add_tool(tool)
+    tool = client.load_crewai_tool(crewai_tool=crewai_tool)
+    tool_name = tool.name
 
     # Set up persona for tool usage
     persona = f"""

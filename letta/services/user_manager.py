@@ -1,19 +1,19 @@
 from typing import List, Optional, Tuple
 
-from letta.constants import DEFAULT_ORG_ID, DEFAULT_USER_ID, DEFAULT_USER_NAME
-
-# TODO: Remove this once we translate all of these to the ORM
-from letta.metadata import AgentModel, AgentSourceMappingModel, SourceModel
 from letta.orm.errors import NoResultFound
 from letta.orm.organization import Organization as OrganizationModel
 from letta.orm.user import User as UserModel
 from letta.schemas.user import User as PydanticUser
 from letta.schemas.user import UserCreate, UserUpdate
+from letta.services.organization_manager import OrganizationManager
 from letta.utils import enforce_types
 
 
 class UserManager:
     """Manager class to handle business logic related to Users."""
+
+    DEFAULT_USER_NAME = "default_user"
+    DEFAULT_USER_ID = "user-00000000-0000-4000-8000-000000000000"
 
     def __init__(self):
         # Fetching the db_context similarly as in OrganizationManager
@@ -22,7 +22,7 @@ class UserManager:
         self.session_maker = db_context
 
     @enforce_types
-    def create_default_user(self, org_id: str = DEFAULT_ORG_ID) -> PydanticUser:
+    def create_default_user(self, org_id: str = OrganizationManager.DEFAULT_ORG_ID) -> PydanticUser:
         """Create the default user."""
         with self.session_maker() as session:
             # Make sure the org id exists
@@ -33,10 +33,10 @@ class UserManager:
 
             # Try to retrieve the user
             try:
-                user = UserModel.read(db_session=session, identifier=DEFAULT_USER_ID)
+                user = UserModel.read(db_session=session, identifier=self.DEFAULT_USER_ID)
             except NoResultFound:
                 # If it doesn't exist, make it
-                user = UserModel(id=DEFAULT_USER_ID, name=DEFAULT_USER_NAME, organization_id=org_id)
+                user = UserModel(id=self.DEFAULT_USER_ID, name=self.DEFAULT_USER_NAME, organization_id=org_id)
                 user.create(session)
 
             return user.to_pydantic()
@@ -73,11 +73,11 @@ class UserManager:
             user = UserModel.read(db_session=session, identifier=user_id)
             user.delete(session)
 
-            # TODO: Remove this once we have ORM models for the Agent, Source, and AgentSourceMapping
+            # TODO: Integrate this via the ORM models for the Agent, Source, and AgentSourceMapping
             # Cascade delete for related models: Agent, Source, AgentSourceMapping
-            session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
-            session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
+            # session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
+            # session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
+            # session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
 
             session.commit()
 
@@ -90,6 +90,11 @@ class UserManager:
                 return user.to_pydantic()
             except NoResultFound:
                 raise ValueError(f"User with id {user_id} not found.")
+
+    @enforce_types
+    def get_default_user(self) -> PydanticUser:
+        """Fetch the default user."""
+        return self.get_user_by_id(self.DEFAULT_USER_ID)
 
     @enforce_types
     def list_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Tuple[Optional[str], List[PydanticUser]]:

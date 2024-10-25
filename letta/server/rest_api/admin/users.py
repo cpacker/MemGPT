@@ -31,7 +31,7 @@ def setup_admin_router(server: SyncServer, interface: QueuingInterface):
         Create a new user in the database
         """
         try:
-            user = server.create_user(request)
+            user = server.user_manager.create_user(request)
         except HTTPException:
             raise
         except Exception as e:

@@ -182,6 +182,15 @@ class AbstractClient(object):
     def delete_human(self, id: str):
         raise NotImplementedError
 
+    def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        raise NotImplementedError
+
+    def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        raise NotImplementedError
+
+    def load_composio_tool(self, action: "ActionType") -> Tool:
+        raise NotImplementedError
+
     def create_tool(
         self,
         func,
@@ -1298,12 +1307,6 @@ class RESTClient(AbstractClient):
         source_code = parse_source_code(func)
         source_type = "python"
 
-        # TODO: Check if tool already exists
-        # if name:
-        #     tool_id = self.get_tool_id(tool_name=name)
-        #     if tool_id:
-        #         raise ValueError(f"Tool with name {name} (id={tool_id}) already exists")
-
         # call server function
         request = ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/tools", json=request.model_dump(), headers=self.headers)
@@ -1337,7 +1340,7 @@ class RESTClient(AbstractClient):
 
         source_type = "python"
 
-        request = ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name)
+        request = ToolUpdate(source_type=source_type, source_code=source_code, tags=tags, name=name)
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/tools/{id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
@@ -1394,6 +1397,7 @@ class RESTClient(AbstractClient):
             params["cursor"] = str(cursor)
         if limit:
             params["limit"] = limit
+
         response = requests.get(f"{self.base_url}/{self.api_prefix}/tools", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to list tools: {response.text}")
@@ -1503,6 +1507,7 @@ class LocalClient(AbstractClient):
         self,
         auto_save: bool = False,
         user_id: Optional[str] = None,
+        org_id: Optional[str] = None,
         debug: bool = False,
         default_llm_config: Optional[LLMConfig] = None,
         default_embedding_config: Optional[EmbeddingConfig] = None,
@@ -1529,15 +1534,19 @@ class LocalClient(AbstractClient):
         self.interface = QueuingInterface(debug=debug)
         self.server = SyncServer(default_interface_factory=lambda: self.interface)
 
+        # save org_id that `LocalClient` is associated with
+        if org_id:
+            self.org_id = org_id
+        else:
+            self.org_id = self.server.organization_manager.DEFAULT_ORG_ID
         # save user_id that `LocalClient` is associated with
         if user_id:
             self.user_id = user_id
         else:
             # get default user
-            self.user_id = self.server.get_default_user().id
+            self.user_id = self.server.user_manager.DEFAULT_USER_ID
 
     # agents
-
     def list_agents(self) -> List[AgentState]:
         self.interface.clear()
 
@@ -2186,50 +2195,27 @@ class LocalClient(AbstractClient):
         self.server.delete_block(id)
 
     # tools
+    def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        tool_create = ToolCreate.from_langchain(
+            langchain_tool=langchain_tool,
+            user_id=self.user_id,
+            organization_id=self.org_id,
+            additional_imports_module_attr_map=additional_imports_module_attr_map,
+        )
+        return self.server.tool_manager.create_or_update_tool(tool_create)
 
-    # TODO: merge this into create_tool
-    def add_tool(self, tool: Tool, update: Optional[bool] = True) -> Tool:
-        """
-        Adds a tool directly.
+    def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
+        tool_create = ToolCreate.from_crewai(
+            crewai_tool=crewai_tool,
+            additional_imports_module_attr_map=additional_imports_module_attr_map,
+            user_id=self.user_id,
+            organization_id=self.org_id,
+        )
+        return self.server.tool_manager.create_or_update_tool(tool_create)
 
-        Args:
-            tool (Tool): The tool to add.
-            update (bool, optional): Update the tool if it already exists. Defaults to True.
-
-        Returns:
-            None
-        """
-        if self.tool_with_name_and_user_id_exists(tool):
-            if update:
-                return self.server.update_tool(
-                    ToolUpdate(
-                        id=tool.id,
-                        description=tool.description,
-                        source_type=tool.source_type,
-                        source_code=tool.source_code,
-                        tags=tool.tags,
-                        json_schema=tool.json_schema,
-                        name=tool.name,
-                    ),
-                    self.user_id,
-                )
-            else:
-                raise ValueError(f"Tool with id={tool.id} and name={tool.name}already exists")
-        else:
-            # call server function
-            return self.server.create_tool(
-                ToolCreate(
-                    id=tool.id,
-                    description=tool.description,
-                    source_type=tool.source_type,
-                    source_code=tool.source_code,
-                    name=tool.name,
-                    json_schema=tool.json_schema,
-                    tags=tool.tags,
-                ),
-                user_id=self.user_id,
-                update=update,
-            )
+    def load_composio_tool(self, action: "ActionType") -> Tool:
+        tool_create = ToolCreate.from_composio(action=action, user_id=self.user_id, organization_id=self.org_id)
+        return self.server.tool_manager.create_or_update_tool(tool_create)
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
@@ -2262,11 +2248,16 @@ class LocalClient(AbstractClient):
             tags = []
 
         # call server function
-        return self.server.create_tool(
-            # ToolCreate(source_type=source_type, source_code=source_code, name=tool_name, json_schema=json_schema, tags=tags),
-            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags, terminal=terminal),
-            user_id=self.user_id,
-            update=update,
+        return self.server.tool_manager.create_or_update_tool(
+            ToolCreate(
+                user_id=self.user_id,
+                organization_id=self.org_id,
+                source_type=source_type,
+                source_code=source_code,
+                name=name,
+                tags=tags,
+                terminal=terminal,
+            ),
         )
 
     def update_tool(
@@ -2288,16 +2279,17 @@ class LocalClient(AbstractClient):
         Returns:
             tool (Tool): Updated tool
         """
-        if func:
-            source_code = parse_source_code(func)
-        else:
-            source_code = None
+        update_data = {
+            "source_type": "python",  # Always include source_type
+            "source_code": parse_source_code(func) if func else None,
+            "tags": tags,
+            "name": name,
+        }
 
-        source_type = "python"
+        # Filter out any None values from the dictionary
+        update_data = {key: value for key, value in update_data.items() if value is not None}
 
-        return self.server.update_tool(
-            ToolUpdate(id=id, source_type=source_type, source_code=source_code, tags=tags, name=name), self.user_id
-        )
+        return self.server.tool_manager.update_tool_by_id(id, ToolUpdate(**update_data))
 
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """
@@ -2306,11 +2298,11 @@ class LocalClient(AbstractClient):
         Returns:
             tools (List[Tool]): List of tools
         """
-        return self.server.list_tools(cursor=cursor, limit=limit, user_id=self.user_id)
+        return self.server.tool_manager.list_tools_for_org(cursor=cursor, limit=limit, organization_id=self.org_id)
 
     def get_tool(self, id: str) -> Optional[Tool]:
         """
-        Get a tool give its ID.
+        Get a tool given its ID.
 
         Args:
             id (str): ID of the tool
@@ -2318,7 +2310,7 @@ class LocalClient(AbstractClient):
         Returns:
             tool (Tool): Tool
         """
-        return self.server.get_tool(id)
+        return self.server.tool_manager.get_tool_by_id(id)
 
     def delete_tool(self, id: str):
         """
@@ -2327,11 +2319,11 @@ class LocalClient(AbstractClient):
         Args:
             id (str): ID of the tool
         """
-        return self.server.delete_tool(id)
+        return self.server.tool_manager.delete_tool_by_id(id)
 
     def get_tool_id(self, name: str) -> Optional[str]:
         """
-        Get the ID of a tool
+        Get the ID of a tool from its name. The client will use the org_id it is configured with.
 
         Args:
             name (str): Name of the tool
@@ -2339,19 +2331,8 @@ class LocalClient(AbstractClient):
         Returns:
             id (str): ID of the tool (`None` if not found)
         """
-        return self.server.get_tool_id(name, self.user_id)
-
-    def tool_with_name_and_user_id_exists(self, tool: Tool) -> bool:
-        """
-        Check if the tool with name and user_id exists
-
-        Args:
-            tool (Tool): the tool
-
-        Returns:
-            (bool): True if the id exists, False otherwise.
-        """
-        return self.server.tool_with_name_and_user_id_exists(tool, self.user_id)
+        tool = self.server.tool_manager.get_tool_by_name_and_org_id(tool_name=name, organization_id=self.org_id)
+        return tool.id
 
     def load_data(self, connector: DataConnector, source_name: str):
         """
