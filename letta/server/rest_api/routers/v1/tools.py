@@ -56,7 +56,7 @@ def get_tool_id(
 
 
 @router.get("/", response_model=List[Tool], operation_id="list_tools")
-def list_tools_for_org(
+def list_tools(
     cursor: Optional[str] = None,
     limit: Optional[int] = 50,
     server: SyncServer = Depends(get_letta_server),
