@@ -42,12 +42,6 @@ class BaseBlock(LettaBase, validate_assignment=True):
             raise e
         return self
 
-    # @model_validator(mode="after")
-    # def ensure_label(self) -> Self:
-    #    if not self.label:
-    #        self.label = self.name
-    #    return self
-
     def __len__(self):
         return len(self.value)
 
