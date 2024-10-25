@@ -25,7 +25,6 @@ def get_experiment_config(postgres_uri, endpoint_type="openai", model="gpt-4"):
     config.archival_storage_uri = postgres_uri
 
     config = LettaConfig(
-        anon_clientid=config.anon_clientid,
         archival_storage_type="postgres",
         archival_storage_uri=postgres_uri,
         recall_storage_type="postgres",

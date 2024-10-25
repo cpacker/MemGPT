@@ -19,7 +19,6 @@ from letta.log import get_logger
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
-from letta.services.user_manager import UserManager
 
 logger = get_logger(__name__)
 
@@ -45,7 +44,6 @@ def set_field(config, section, field, value):
 @dataclass
 class LettaConfig:
     config_path: str = os.getenv("MEMGPT_CONFIG_PATH") or os.path.join(LETTA_DIR, "config")
-    anon_clientid: str = UserManager.DEFAULT_USER_ID
 
     # preset
     preset: str = DEFAULT_PRESET  # TODO: rename to system prompt
@@ -182,7 +180,6 @@ class LettaConfig:
                 "metadata_storage_path": get_field(config, "metadata_storage", "path"),
                 "metadata_storage_uri": get_field(config, "metadata_storage", "uri"),
                 # Misc
-                "anon_clientid": get_field(config, "client", "anon_clientid"),
                 "config_path": config_path,
                 "letta_version": get_field(config, "version", "letta_version"),
             }
@@ -277,9 +274,6 @@ class LettaConfig:
 
         # set version
         set_field(config, "version", "letta_version", letta.__version__)
-
-        # client
-        set_field(config, "client", "anon_clientid", self.anon_clientid)
 
         # always make sure all directories are present
         self.create_config_dir()
