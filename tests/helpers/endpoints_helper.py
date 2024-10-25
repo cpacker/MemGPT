@@ -173,7 +173,7 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
     # Set up client
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
-    client.add_tool(tool)
+    client.create_or_update_tool(tool)
 
     # Set up persona for tool usage
     persona = f"""
