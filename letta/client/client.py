@@ -102,15 +102,6 @@ class AbstractClient(object):
     def add_tool_to_agent(self, agent_id: str, tool_id: str):
         raise NotImplementedError
 
-    def add_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
-        raise NotImplementedError
-
-    def add_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
-        raise NotImplementedError
-
-    def add_composio_tool(self, action: "ActionType") -> Tool:
-        raise NotImplementedError
-
     def remove_tool_from_agent(self, agent_id: str, tool_id: str):
         raise NotImplementedError
 
@@ -1307,12 +1298,6 @@ class RESTClient(AbstractClient):
         source_code = parse_source_code(func)
         source_type = "python"
 
-        # TODO: Check if tool already exists
-        # if name:
-        #     tool_id = self.get_tool_id(tool_name=name)
-        #     if tool_id:
-        #         raise ValueError(f"Tool with name {name} (id={tool_id}) already exists")
-
         # call server function
         request = ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/tools", json=request.model_dump(), headers=self.headers)
@@ -2245,25 +2230,6 @@ class LocalClient(AbstractClient):
                 update=update,
             )
 
-    def add_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
-        return self.server.tool_manager.add_langchain_tool(
-            langchain_tool=langchain_tool,
-            user_id=self.user_id,
-            organization_id=self.org_id,
-            additional_imports_module_attr_map=additional_imports_module_attr_map,
-        )
-
-    def add_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
-        return self.server.tool_manager.add_crewai_tool(
-            crewai_tool,
-            user_id=self.user_id,
-            organization_id=self.org_id,
-            additional_imports_module_attr_map=additional_imports_module_attr_map,
-        )
-
-    def add_composio_tool(self, action: "ActionType") -> Tool:
-        return self.server.tool_manager.add_composio_tool(action, user_id=self.user_id, organization_id=self.org_id)
-
     # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
         self,
@@ -2296,7 +2262,15 @@ class LocalClient(AbstractClient):
 
         # call server function
         return self.server.tool_manager.create_or_update_tool(
-            ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags, terminal=terminal),
+            ToolCreate(
+                user_id=self.user_id,
+                organization_id=self.org_id,
+                source_type=source_type,
+                source_code=source_code,
+                name=name,
+                tags=tags,
+                terminal=terminal,
+            ),
         )
 
     def update_tool(

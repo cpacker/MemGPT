@@ -256,11 +256,7 @@ class SyncServer(Server):
             # If there is a default org/user
             # This logic may have to change in the future
             if settings.load_default_external_tools:
-                self.tool_manager.add_default_crewai_tools(user_id=self.default_user.id, organization_id=self.default_org.id)
-                self.tool_manager.add_default_langchain_tools(user_id=self.default_user.id, organization_id=self.default_org.id)
-                # Only add this if composio key exists
-                if tool_settings.composio_api_key:
-                    self.tool_manager.add_default_composio_tools(user_id=self.default_user.id, organization_id=self.default_org.id)
+                self.add_default_external_tools(user_id=self.default_user.id, org_id=self.default_org.id)
 
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
@@ -1736,6 +1732,22 @@ class SyncServer(Server):
             sources_with_metadata.append(source)
 
         return sources_with_metadata
+
+    def add_default_external_tools(self, user_id: str, org_id: str) -> bool:
+        """Add default langchain tools. Return true if successful, false otherwise."""
+        success = True
+        tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools()
+        if tool_settings.composio_api_key:
+            tools += Tool.load_default_composio_tools()
+        for tool in tools:
+            try:
+                self.tool_manager.create_tool(tool.convert_to_tool_create())
+            except Exception as e:
+                warnings.warn(f"An error occurred while creating tool {tool}: {e}")
+                warnings.warn(traceback.format_exc())
+                success = False
+
+        return success
 
     def add_default_blocks(self, user_id: str):
         from letta.utils import list_human_files, list_persona_files
