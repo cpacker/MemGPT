@@ -1,4 +1,4 @@
-name: Run CLI tests
+name: Test CLI
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  test-cli:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 

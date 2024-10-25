@@ -133,6 +133,7 @@ def run(
     # read user id from config
     ms = MetadataStore(config)
     client = create_client()
+    server = client.server
 
     # determine agent to use, if not provided
     if not yes and not agent:
@@ -217,7 +218,9 @@ def run(
         )
 
         # create agent
-        tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
+        tools = [
+            server.tool_manager.get_tool_by_name_and_user_id(tool_name=tool_name, user_id=client.user_id) for tool_name in agent_state.tools
+        ]
         letta_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
 
     else:  # create new agent
@@ -297,7 +300,7 @@ def run(
         )
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
         typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-        tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
+        tools = [server.tool_manager.get_tool_by_name_and_user_id(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
 
         letta_agent = Agent(
             interface=interface(),
@@ -325,13 +328,12 @@ def run(
 
 def delete_agent(
     agent_name: Annotated[str, typer.Option(help="Specify agent to delete")],
-    user_id: Annotated[Optional[str], typer.Option(help="User ID to associate with the agent.")] = None,
 ):
     """Delete an agent from the database"""
     # use client ID is no user_id provided
     config = LettaConfig.load()
     MetadataStore(config)
-    client = create_client(user_id=user_id)
+    client = create_client()
     agent = client.get_agent_by_name(agent_name)
     if not agent:
         typer.secho(f"Couldn't find agent named '{agent_name}' to delete", fg=typer.colors.RED)
