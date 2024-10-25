@@ -325,13 +325,12 @@ def run(
 
 def delete_agent(
     agent_name: Annotated[str, typer.Option(help="Specify agent to delete")],
-    user_id: Annotated[Optional[str], typer.Option(help="User ID to associate with the agent.")] = None,
 ):
     """Delete an agent from the database"""
     # use client ID is no user_id provided
     config = LettaConfig.load()
     MetadataStore(config)
-    client = create_client(user_id=user_id)
+    client = create_client()
     agent = client.get_agent_by_name(agent_name)
     if not agent:
         typer.secho(f"Couldn't find agent named '{agent_name}' to delete", fg=typer.colors.RED)

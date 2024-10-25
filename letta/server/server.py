@@ -1222,9 +1222,9 @@ class SyncServer(Server):
             raise ValueError("Source does not exist")
         return existing_source.id
 
-    def get_agent(self, user_id: str, agent_id: str, agent_name: Optional[str] = None):
+    def get_agent(self, user_id: str, agent_id: Optional[str] = None, agent_name: Optional[str] = None):
         """Get the agent state"""
-        return self.ms.get_agent(agent_id=agent_id, user_id=user_id)
+        return self.ms.get_agent(agent_id=agent_id, agent_name=agent_name, user_id=user_id)
 
     # def get_user(self, user_id: str) -> User:
     #     """Get the user"""
