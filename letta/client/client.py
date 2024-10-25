@@ -2280,11 +2280,14 @@ class LocalClient(AbstractClient):
             tool (Tool): Updated tool
         """
         update_data = {
-            "source_type": "python",
-            **({"source_code": parse_source_code(func)} if func else {}),
-            **({"tags": tags} if tags else {}),
-            **({"name": name} if name else {}),
+            "source_type": "python",  # Always include source_type
+            "source_code": parse_source_code(func) if func else None,
+            "tags": tags,
+            "name": name,
         }
+
+        # Filter out any None values from the dictionary
+        update_data = {key: value for key, value in update_data.items() if value is not None}
 
         return self.server.tool_manager.update_tool_by_id(id, ToolUpdate(**update_data))
 
