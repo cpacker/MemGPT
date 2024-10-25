@@ -1191,11 +1191,15 @@ class SyncServer(Server):
 
     def update_block(self, request: UpdateBlock) -> Block:
         block = self.get_block(request.id)
+        print("current block", block)
+        print("request", request)
         block.limit = request.limit if request.limit is not None else block.limit
         block.value = request.value if request.value is not None else block.value
         block.name = request.name if request.name is not None else block.name
+        print("updated block", block.value)
         self.ms.update_block(block=block)
-        return block
+        print("FINAL", self.ms.get_block(block_id=request.id).value)
+        return self.ms.get_block(block_id=request.id)
 
     def delete_block(self, block_id: str):
         block = self.get_block(block_id)

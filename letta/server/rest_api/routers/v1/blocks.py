@@ -50,6 +50,7 @@ def update_block(
     # actor = server.get_current_user()
 
     updated_block.id = block_id
+    print("GOT REQUEST", updated_block.value)
     return server.update_block(request=updated_block)
 
 
