@@ -1,7 +1,5 @@
 from typing import List, Optional, Tuple
 
-# TODO: Remove this once we translate all of these to the ORM
-from letta.metadata import AgentModel, AgentSourceMappingModel, SourceModel
 from letta.orm.errors import NoResultFound
 from letta.orm.organization import Organization as OrganizationModel
 from letta.orm.user import User as UserModel
@@ -75,11 +73,11 @@ class UserManager:
             user = UserModel.read(db_session=session, identifier=user_id)
             user.delete(session)
 
-            # TODO: Remove this once we have ORM models for the Agent, Source, and AgentSourceMapping
+            # TODO: Integrate this via the ORM models for the Agent, Source, and AgentSourceMapping
             # Cascade delete for related models: Agent, Source, AgentSourceMapping
-            session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
-            session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
+            # session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
+            # session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
+            # session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
 
             session.commit()
 
