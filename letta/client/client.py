@@ -2198,7 +2198,6 @@ class LocalClient(AbstractClient):
     def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         tool_create = ToolCreate.from_langchain(
             langchain_tool=langchain_tool,
-            user_id=self.user_id,
             organization_id=self.org_id,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
         )
@@ -2208,13 +2207,12 @@ class LocalClient(AbstractClient):
         tool_create = ToolCreate.from_crewai(
             crewai_tool=crewai_tool,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
-            user_id=self.user_id,
             organization_id=self.org_id,
         )
         return self.server.tool_manager.create_or_update_tool(tool_create)
 
     def load_composio_tool(self, action: "ActionType") -> Tool:
-        tool_create = ToolCreate.from_composio(action=action, user_id=self.user_id, organization_id=self.org_id)
+        tool_create = ToolCreate.from_composio(action=action, organization_id=self.org_id)
         return self.server.tool_manager.create_or_update_tool(tool_create)
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic

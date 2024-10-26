@@ -140,15 +140,6 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             session.refresh(self)
             return self
 
-    @classmethod
-    def read_or_create(cls, *, db_session: "Session", **kwargs) -> Type["SqlalchemyBase"]:
-        """get an instance by search criteria or create it if it doesn't exist"""
-        try:
-            return cls.read(db_session=db_session, identifier=kwargs.get("id", None))
-        except NoResultFound:
-            clean_kwargs = {k: v for k, v in kwargs.items() if k in cls.__table__.columns}
-            return cls(**clean_kwargs).create(db_session=db_session)
-
     # TODO: Add back later when access predicates are actually important
     # The idea behind this is that you can add a WHERE clause restricting the actions you can take, e.g. R/W
     # @classmethod
