@@ -306,9 +306,9 @@ class BlockModel(Base):
     id = Column(String, primary_key=True, nullable=False)
     value = Column(String, nullable=False)
     limit = Column(BIGINT)
-    name = Column(String, nullable=False)
+    name = Column(String)
     template = Column(Boolean, default=False)  # True: listed as possible human/persona
-    label = Column(String)
+    label = Column(String, nullable=False)
     metadata_ = Column(JSON)
     description = Column(String)
     user_id = Column(String)

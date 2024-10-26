@@ -134,8 +134,8 @@ def test_create_agent_tool(client):
             str: The agent that was deleted.
 
         """
-        self.memory.update_block_value(name="human", value="")
-        self.memory.update_block_value(name="persona", value="")
+        self.memory.update_block_value(label="human", value="")
+        self.memory.update_block_value(label="persona", value="")
         print("UPDATED MEMORY", self.memory.memory)
         return None
 

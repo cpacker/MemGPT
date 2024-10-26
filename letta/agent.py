@@ -1153,7 +1153,7 @@ class Agent(BaseAgent):
                     printd(f"skipping block update, unexpected value: {block_id=}")
                     continue
                 # TODO: we may want to update which columns we're updating from shared memory e.g. the limit
-                self.memory.update_block_value(name=block.get("label", ""), value=db_block.value)
+                self.memory.update_block_value(label=block.get("label", ""), value=db_block.value)
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False

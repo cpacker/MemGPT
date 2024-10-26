@@ -17,11 +17,14 @@ class BaseBlock(LettaBase, validate_assignment=True):
     value: Optional[str] = Field(None, description="Value of the block.")
     limit: int = Field(2000, description="Character limit of the block.")
 
-    name: Optional[str] = Field(None, description="Name of the block.")
+    # template data (optional)
+    name: Optional[str] = Field(None, description="Name of the block if it is a template.")
     template: bool = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
-    label: Optional[str] = Field(None, description="Label of the block (e.g. 'human', 'persona').")
 
-    # metadat
+    # context window label
+    label: str = Field(None, description="Label of the block (e.g. 'human', 'persona') in the context window.")
+
+    # metadata
     description: Optional[str] = Field(None, description="Description of the block.")
     metadata_: Optional[dict] = Field({}, description="Metadata of the block.")
 
@@ -37,12 +40,6 @@ class BaseBlock(LettaBase, validate_assignment=True):
             raise ValueError(error_msg)
         except Exception as e:
             raise e
-        return self
-
-    @model_validator(mode="after")
-    def ensure_label(self) -> Self:
-        if not self.label:
-            self.label = self.name
         return self
 
     def __len__(self):

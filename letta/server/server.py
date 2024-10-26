@@ -1098,7 +1098,7 @@ class SyncServer(Server):
         block.value = request.value if request.value is not None else block.value
         block.name = request.name if request.name is not None else block.name
         self.ms.update_block(block=block)
-        return block
+        return self.ms.get_block(block_id=request.id)
 
     def delete_block(self, block_id: str):
         block = self.get_block(block_id)
@@ -1413,7 +1413,7 @@ class SyncServer(Server):
             if value is None:
                 continue
             if letta_agent.memory.get_block(key) != value:
-                letta_agent.memory.update_block_value(name=key, value=value)  # update agent memory
+                letta_agent.memory.update_block_value(label=key, value=value)  # update agent memory
                 modified = True
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message

@@ -838,8 +838,8 @@ class RESTClient(AbstractClient):
         else:
             return [Block(**block) for block in response.json()]
 
-    def create_block(self, label: str, name: str, text: str) -> Block:  #
-        request = CreateBlock(label=label, name=name, value=text)
+    def create_block(self, label: str, text: str, name: Optional[str] = None, template: bool = False) -> Block:  #
+        request = CreateBlock(label=label, value=text, template=template, name=name)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
@@ -899,13 +899,13 @@ class RESTClient(AbstractClient):
         Create a human block template (saved human string to pre-fill `ChatMemory`)
 
         Args:
-            name (str): Name of the human block
-            text (str): Text of the human block
+            name (str): Name of the human block template
+            text (str): Text of the human block template
 
         Returns:
             human (Human): Human block
         """
-        return self.create_block(label="human", name=name, text=text)
+        return self.create_block(label="human", name=name, text=text, template=True)
 
     def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
         """
@@ -945,7 +945,7 @@ class RESTClient(AbstractClient):
         Returns:
             persona (Persona): Persona block
         """
-        return self.create_block(label="persona", name=name, text=text)
+        return self.create_block(label="persona", name=name, text=text, template=True)
 
     def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
         """
@@ -2603,7 +2603,7 @@ class LocalClient(AbstractClient):
         """
         return self.server.get_blocks(label=label, template=templates_only)
 
-    def create_block(self, name: str, text: str, label: Optional[str] = None) -> Block:  #
+    def create_block(self, label: str, text: str, name: Optional[str] = None, template: bool = False) -> Block:  #
         """
         Create a block
 
@@ -2615,7 +2615,9 @@ class LocalClient(AbstractClient):
         Returns:
             block (Block): Created block
         """
-        return self.server.create_block(CreateBlock(label=label, name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+        return self.server.create_block(
+            CreateBlock(label=label, name=name, value=text, user_id=self.user_id, template=template), user_id=self.user_id
+        )
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
         """
