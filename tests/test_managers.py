@@ -288,9 +288,10 @@ def test_update_tool_multi_user(server: SyncServer, tool_fixture):
 def test_delete_tool_by_id(server: SyncServer, tool_fixture):
     tool = tool_fixture["tool"]
     org = tool_fixture["organization"]
+    user = tool_fixture["user"]
 
     # Delete the tool using the manager method
-    server.tool_manager.delete_tool_by_id(tool.id)
+    server.tool_manager.delete_tool_by_id(tool.id, user.id)
 
     tools = server.tool_manager.list_tools_for_org(organization_id=org.id)
     assert len(tools) == 0

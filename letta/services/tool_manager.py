@@ -131,12 +131,12 @@ class ToolManager:
             tool.update(db_session=session, actor_id=user_id)
 
     @enforce_types
-    def delete_tool_by_id(self, tool_id: str) -> None:
+    def delete_tool_by_id(self, tool_id: str, user_id: str) -> None:
         """Delete a tool by its ID."""
         with self.session_maker() as session:
             try:
                 tool = ToolModel.read(db_session=session, identifier=tool_id)
-                tool.delete(db_session=session)
+                tool.delete(db_session=session, actor_id=user_id)
             except NoResultFound:
                 raise ValueError(f"Tool with id {tool_id} not found.")
 

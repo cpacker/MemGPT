@@ -2317,7 +2317,7 @@ class LocalClient(AbstractClient):
         Args:
             id (str): ID of the tool
         """
-        return self.server.tool_manager.delete_tool_by_id(id)
+        return self.server.tool_manager.delete_tool_by_id(id, user_id=self.user_id)
 
     def get_tool_id(self, name: str) -> Optional[str]:
         """

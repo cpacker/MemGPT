@@ -126,7 +126,10 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             session.refresh(self)
             return self
 
-    def delete(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+    def delete(self, db_session: "Session", actor_id: Optional[str] = None) -> Type["SqlalchemyBase"]:
+        if actor_id:
+            self._set_created_and_updated_by_fields(actor_id)
+
         self.is_deleted = True
         return self.update(db_session)
 
