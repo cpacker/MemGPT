@@ -19,6 +19,7 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 from tests.helpers.client_helper import upload_file_using_client
+from tests.helpers.utils import set_default_configs
 
 # from tests.utils import create_config
 
@@ -48,7 +49,7 @@ def run_server():
     params=[{"server": True}],  # whether to use REST API server
     scope="module",
 )
-def client(request):
+def client(request, mock_llm_client):
     if request.param["server"]:
         # get URL from enviornment
         server_url = os.getenv("LETTA_SERVER_URL")
@@ -67,8 +68,7 @@ def client(request):
         server_url = None
         client = create_client()
 
-    client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
-    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+    set_default_configs(client, mock_llm_client)
     yield client
 
 
