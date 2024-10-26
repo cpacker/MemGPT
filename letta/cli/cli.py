@@ -219,7 +219,8 @@ def run(
 
         # create agent
         tools = [
-            server.tool_manager.get_tool_by_name_and_org_id(tool_name=tool_name, org_id=client.org_id) for tool_name in agent_state.tools
+            server.tool_manager.get_tool_by_name_and_org_id(tool_name=tool_name, organization_id=client.org_id)
+            for tool_name in agent_state.tools
         ]
         letta_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
 
@@ -300,7 +301,9 @@ def run(
         )
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
         typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-        tools = [server.tool_manager.get_tool_by_name_and_org_id(tool_name, org_id=client.org_id) for tool_name in agent_state.tools]
+        tools = [
+            server.tool_manager.get_tool_by_name_and_org_id(tool_name, organization_id=client.org_id) for tool_name in agent_state.tools
+        ]
 
         letta_agent = Agent(
             interface=interface(),
