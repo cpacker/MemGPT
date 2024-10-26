@@ -14,6 +14,7 @@ def cleanup(client: Union[LocalClient, RESTClient], agent_uuid: str):
             client.delete_agent(agent_id=agent_state.id)
             print(f"Deleted agent: {agent_state.name} with ID {str(agent_state.id)}")
 
+
 def set_default_configs(letta_client: Union[LocalClient, RESTClient], mock_llm_client: Optional[TestClient] = None):
     # Conditionally set configs based on provided llm api option
     configs_response = mock_llm_client.get("/configs") if mock_llm_client else None
@@ -24,6 +25,6 @@ def set_default_configs(letta_client: Union[LocalClient, RESTClient], mock_llm_c
     else:
         llm_config = LLMConfig.default_config("gpt-4")
         embedding_config = EmbeddingConfig.default_config(provider="openai")
-    
+
     letta_client.set_default_llm_config(llm_config)
     letta_client.set_default_embedding_config(embedding_config)

@@ -7434,6 +7434,21 @@ trio = ">=0.11"
 wsproto = ">=0.14"
 
 [[package]]
+name = "trustme"
+version = "1.2.0"
+description = "#1 quality TLS certs while you wait, for the discerning tester"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "trustme-1.2.0-py3-none-any.whl", hash = "sha256:32bf1fe9f63804e4243ae01dcab7765163abae4376aed5726a1560d21dfb3abc"},
+    {file = "trustme-1.2.0.tar.gz", hash = "sha256:ed2264fb46c35459e6de9e454ed4bab73be44b6a2a26ad417f9b6854aebb644a"},
+]
+
+[package.dependencies]
+cryptography = ">=3.1"
+idna = ">=2.0"
+
+[[package]]
 name = "typer"
 version = "0.9.4"
 description = "Typer, build great CLIs. Easy to code. Based on Python type hints."
@@ -8372,4 +8387,4 @@ tests = ["wikipedia"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "5c05bb8ee0f17e149be1482f6295fb2dcac41d8a23a27b890a81d2e9fa30b4e8"
+content-hash = "5d0afd3279fb3088f95a5c183b32002df76162ecf77a7deb7e4e6eab30c85641"
