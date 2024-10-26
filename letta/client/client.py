@@ -2250,7 +2250,6 @@ class LocalClient(AbstractClient):
         # call server function
         return self.server.tool_manager.create_or_update_tool(
             ToolCreate(
-                user_id=self.user_id,
                 organization_id=self.org_id,
                 source_type=source_type,
                 source_code=source_code,
@@ -2258,6 +2257,7 @@ class LocalClient(AbstractClient):
                 tags=tags,
                 terminal=terminal,
             ),
+            user_id=self.user_id,
         )
 
     def update_tool(
@@ -2289,7 +2289,7 @@ class LocalClient(AbstractClient):
         # Filter out any None values from the dictionary
         update_data = {key: value for key, value in update_data.items() if value is not None}
 
-        return self.server.tool_manager.update_tool_by_id(id, ToolUpdate(**update_data))
+        return self.server.tool_manager.update_tool_by_id(id, self.user_id, ToolUpdate(**update_data))
 
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """

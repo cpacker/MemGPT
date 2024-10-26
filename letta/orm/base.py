@@ -1,9 +1,7 @@
 from datetime import datetime
 from typing import Optional
-from uuid import UUID
 
-from sqlalchemy import UUID as SQLUUID
-from sqlalchemy import Boolean, DateTime, func, text
+from sqlalchemy import Boolean, DateTime, String, func, text
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -25,6 +23,13 @@ class CommonSqlalchemyMetaMixins(Base):
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), server_default=func.now(), server_onupdate=func.now())
     is_deleted: Mapped[bool] = mapped_column(Boolean, server_default=text("FALSE"))
 
+    def _set_created_and_updated_by_fields(self, actor_id: str) -> None:
+        """Populate created_by_id and last_updated_by_id based on actor."""
+        if not self.created_by_id:
+            self.created_by_id = actor_id
+        # Always set the last_updated_by_id when updating
+        self.last_updated_by_id = actor_id
+
     @declared_attr
     def _created_by_id(cls):
         return cls._user_by_id()
@@ -38,7 +43,7 @@ class CommonSqlalchemyMetaMixins(Base):
         """a flexible non-constrained record of a user.
         This way users can get added, deleted etc without history freaking out
         """
-        return mapped_column(SQLUUID(), nullable=True)
+        return mapped_column(String, nullable=True)
 
     @property
     def last_updated_by_id(self) -> Optional[str]:
@@ -72,4 +77,4 @@ class CommonSqlalchemyMetaMixins(Base):
             return
         prefix, id_ = value.split("-", 1)
         assert prefix == "user", f"{prefix} is not a valid id prefix for a user id"
-        setattr(self, full_prop, UUID(id_))
+        setattr(self, full_prop, id_)

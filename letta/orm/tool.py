@@ -5,18 +5,15 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # TODO everything in functions should live in this model
 from letta.orm.enums import ToolSourceType
-from letta.orm.mixins import OrganizationMixin, UserMixin
+from letta.orm.mixins import OrganizationMixin
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.tool import Tool as PydanticTool
 
 if TYPE_CHECKING:
-    pass
-
     from letta.orm.organization import Organization
-    from letta.orm.user import User
 
 
-class Tool(SqlalchemyBase, OrganizationMixin, UserMixin):
+class Tool(SqlalchemyBase, OrganizationMixin):
     """Represents an available tool that the LLM can invoke.
 
     NOTE: polymorphic inheritance makes more sense here as a TODO. We want a superset of tools
@@ -29,10 +26,7 @@ class Tool(SqlalchemyBase, OrganizationMixin, UserMixin):
 
     # Add unique constraint on (name, _organization_id)
     # An organization should not have multiple tools with the same name
-    __table_args__ = (
-        UniqueConstraint("name", "_organization_id", name="uix_name_organization"),
-        UniqueConstraint("name", "_user_id", name="uix_name_user"),
-    )
+    __table_args__ = (UniqueConstraint("name", "_organization_id", name="uix_name_organization"),)
 
     name: Mapped[str] = mapped_column(doc="The display name of the tool.")
     description: Mapped[Optional[str]] = mapped_column(nullable=True, doc="The description of the tool.")
@@ -48,7 +42,4 @@ class Tool(SqlalchemyBase, OrganizationMixin, UserMixin):
     # This was an intentional decision by Sarah
 
     # relationships
-    # TODO: Possibly add in user in the future
-    # This will require some more thought and justification to add this in.
-    user: Mapped["User"] = relationship("User", back_populates="tools", lazy="selectin")
     organization: Mapped["Organization"] = relationship("Organization", back_populates="tools", lazy="selectin")

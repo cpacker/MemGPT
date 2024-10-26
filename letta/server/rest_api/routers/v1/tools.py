@@ -86,12 +86,9 @@ def create_tool(
     # Derive user and org id from actor
     actor = server.get_user_or_default(user_id=user_id)
     request.organization_id = actor.organization_id
-    request.user_id = actor.id
 
     # Send request to create the tool
-    return server.tool_manager.create_or_update_tool(
-        tool_create=request,
-    )
+    return server.tool_manager.create_or_update_tool(tool_create=request, user_id=actor.id)
 
 
 @router.patch("/{tool_id}", response_model=Tool, operation_id="update_tool")
@@ -104,4 +101,5 @@ def update_tool(
     """
     Update an existing tool
     """
-    return server.tool_manager.update_tool_by_id(tool_id, request)
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.tool_manager.update_tool_by_id(tool_id, actor.id, request)

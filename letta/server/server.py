@@ -822,9 +822,9 @@ class SyncServer(Server):
                         source_type=source_type,
                         tags=tags,
                         json_schema=json_schema,
-                        user_id=user_id,
                         organization_id=user.organization_id,
-                    )
+                    ),
+                    user_id=user_id,
                 )
                 tool_objs.append(tool)
                 if not request.tools:

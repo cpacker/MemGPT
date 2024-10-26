@@ -25,7 +25,7 @@ class ToolManager:
         self.session_maker = db_context
 
     @enforce_types
-    def create_or_update_tool(self, tool_create: ToolCreate) -> PydanticTool:
+    def create_or_update_tool(self, tool_create: ToolCreate, user_id: str) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
         # Derive json_schema
         derived_json_schema = tool_create.json_schema or derive_openai_json_schema(tool_create)
@@ -36,33 +36,33 @@ class ToolManager:
             # This is important, because even if it's a different user, adding the same tool to the org should not happen
             tool = self.get_tool_by_name_and_org_id(tool_name=derived_name, organization_id=tool_create.organization_id)
             # Put to dict and remove fields that should not be reset
-            update_data = tool_create.model_dump(exclude={"user_id", "organization_id", "module", "terminal"}, exclude_unset=True)
+            update_data = tool_create.model_dump(exclude={"organization_id", "module", "terminal"}, exclude_unset=True)
             # Remove redundant update fields
             update_data = {key: value for key, value in update_data.items() if getattr(tool, key) != value}
 
             # If there's anything to update
             if update_data:
-                self.update_tool_by_id(tool.id, ToolUpdate(**update_data))
+                self.update_tool_by_id(tool.id, user_id, ToolUpdate(**update_data))
             else:
                 warnings.warn(
-                    f"`create_or_update_tool` was called with user_id={tool_create.user_id}, organization_id={tool_create.organization_id}, name={tool_create.name}, but found existing tool with nothing to update."
+                    f"`create_or_update_tool` was called with user_id={user_id}, organization_id={tool_create.organization_id}, name={tool_create.name}, but found existing tool with nothing to update."
                 )
         except NoResultFound:
             tool_create.json_schema = derived_json_schema
             tool_create.name = derived_name
-            tool = self.create_tool(tool_create)
+            tool = self.create_tool(tool_create, user_id=user_id)
 
         return tool
 
     @enforce_types
-    def create_tool(self, tool_create: ToolCreate) -> PydanticTool:
+    def create_tool(self, tool_create: ToolCreate, user_id: str) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
         # Create the tool
         with self.session_maker() as session:
-            # Include all fields except 'terminal' (which is not part of ToolModel) at the moment
+            # Include all fields except `terminal` (which is not part of ToolModel) at the moment
             create_data = tool_create.model_dump(exclude={"terminal"})
             tool = ToolModel(**create_data)  # Unpack everything directly into ToolModel
-            tool.create(session)
+            tool.create(session, actor_id=user_id)
 
         return tool.to_pydantic()
 
@@ -80,22 +80,10 @@ class ToolManager:
 
     @enforce_types
     def get_tool_by_name_and_user_id(self, tool_name: str, user_id: str) -> PydanticTool:
-        """Retrieve a tool by its name and organization_id."""
+        """Retrieve a tool by its name and a user_id. We derive the organization from the user, and retrieve that tool."""
         with self.session_maker() as session:
-            # Use the list method to apply filters
-            results = ToolModel.list(db_session=session, name=tool_name, _user_id=UserModel.get_uid_from_identifier(user_id))
-
-            # Ensure only one result is returned (since there is a unique constraint)
-            if not results:
-                raise NoResultFound(f"Tool with name {tool_name} and user_id {user_id} not found.")
-
-            if len(results) > 1:
-                raise RuntimeError(
-                    f"Multiple tools with name {tool_name} and user_id {user_id} were found. This is a serious error, and means that our table does not have uniqueness constraints properly set up. Please reach out to the letta development team if you see this error."
-                )
-
-            # Return the single result
-            return results[0]
+            user = UserModel.read(db_session=session, identifier=user_id).to_pydantic()
+            return self.get_tool_by_name_and_org_id(tool_name, user.organization_id)
 
     @enforce_types
     def get_tool_by_name_and_org_id(self, tool_name: str, organization_id: str) -> PydanticTool:
@@ -128,7 +116,7 @@ class ToolManager:
             return [tool.to_pydantic() for tool in tools]
 
     @enforce_types
-    def update_tool_by_id(self, tool_id: str, tool_update: ToolUpdate) -> None:
+    def update_tool_by_id(self, tool_id: str, user_id: str, tool_update: ToolUpdate) -> None:
         """Update a tool by its ID with the given ToolUpdate object."""
         with self.session_maker() as session:
             # Fetch the tool by ID
@@ -140,7 +128,7 @@ class ToolManager:
                 setattr(tool, key, value)
 
             # Save the updated tool to the database
-            tool.update(db_session=session)
+            tool.update(db_session=session, actor_id=user_id)
 
     @enforce_types
     def delete_tool_by_id(self, tool_id: str) -> None:
@@ -188,6 +176,6 @@ class ToolManager:
                     source_code=source_code,
                     json_schema=schema["json_schema"],
                     organization_id=org_id,
-                    user_id=user_id,
                 ),
+                user_id=user_id,
             )
