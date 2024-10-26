@@ -79,7 +79,7 @@ def agent_id(server, user_id):
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        user_id=user_id,
+        actor=server.get_user_or_default(user_id),
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id

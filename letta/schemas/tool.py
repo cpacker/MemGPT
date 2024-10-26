@@ -60,10 +60,6 @@ class Tool(BaseTool):
 
 
 class ToolCreate(LettaBase):
-    organization_id: str = Field(
-        OrganizationManager.DEFAULT_ORG_ID,
-        description="The organization that this tool belongs to. Defaults to the default organization ID.",
-    )
     name: Optional[str] = Field(None, description="The name of the function (auto-generated from source_code if not provided).")
     description: Optional[str] = Field(None, description="The description of the tool.")
     tags: List[str] = Field([], description="Metadata tags.")

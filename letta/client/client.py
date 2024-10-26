@@ -1546,6 +1546,9 @@ class LocalClient(AbstractClient):
             # get default user
             self.user_id = self.server.user_manager.DEFAULT_USER_ID
 
+        self.user = self.server.get_user_or_default(self.user_id)
+        self.organization = self.server.get_organization_or_default(self.org_id)
+
     # agents
     def list_agents(self) -> List[AgentState]:
         self.interface.clear()
@@ -1648,7 +1651,7 @@ class LocalClient(AbstractClient):
                 llm_config=llm_config if llm_config else self._default_llm_config,
                 embedding_config=embedding_config if embedding_config else self._default_embedding_config,
             ),
-            user_id=self.user_id,
+            actor=self.user,
         )
         return agent_state
 
@@ -1720,7 +1723,7 @@ class LocalClient(AbstractClient):
                 message_ids=message_ids,
                 memory=memory,
             ),
-            user_id=self.user_id,
+            actor=self.user,
         )
         return agent_state
 
@@ -2248,7 +2251,6 @@ class LocalClient(AbstractClient):
         # call server function
         return self.server.tool_manager.create_or_update_tool(
             ToolCreate(
-                organization_id=self.org_id,
                 source_type=source_type,
                 source_code=source_code,
                 name=name,
@@ -2296,7 +2298,7 @@ class LocalClient(AbstractClient):
         Returns:
             tools (List[Tool]): List of tools
         """
-        return self.server.tool_manager.list_tools_for_org(cursor=cursor, limit=limit, organization_id=self.org_id)
+        return self.server.tool_manager.list_tools(cursor=cursor, limit=limit, actor=self.user)
 
     def get_tool(self, id: str) -> Optional[Tool]:
         """
@@ -2329,7 +2331,7 @@ class LocalClient(AbstractClient):
         Returns:
             id (str): ID of the tool (`None` if not found)
         """
-        tool = self.server.tool_manager.get_tool_by_name_and_org_id(tool_name=name, organization_id=self.org_id)
+        tool = self.server.tool_manager.get_tool_by_name(tool_name=name, actor=self.user)
         return tool.id
 
     def load_data(self, connector: DataConnector, source_name: str):

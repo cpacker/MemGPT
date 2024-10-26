@@ -49,7 +49,7 @@ def get_tool_id(
     actor = server.get_user_or_default(user_id=user_id)
 
     try:
-        tool = server.tool_manager.get_tool_by_name_and_org_id(tool_name=tool_name, organization_id=actor.organization_id)
+        tool = server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
         return tool.id
     except NoResultFound:
         raise HTTPException(status_code=404, detail=f"Tool with name {tool_name} and organization id {actor.organization_id} not found.")
@@ -67,7 +67,7 @@ def list_tools(
     """
     try:
         actor = server.get_user_or_default(user_id=user_id)
-        return server.tool_manager.list_tools_for_org(organization_id=actor.organization_id, cursor=cursor, limit=limit)
+        return server.tool_manager.list_tools(actor=actor, cursor=cursor, limit=limit)
     except Exception as e:
         # Log or print the full exception here for debugging
         print(f"Error occurred: {e}")

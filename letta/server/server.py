@@ -73,6 +73,7 @@ from letta.schemas.memory import (
     RecallMemorySummary,
 )
 from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
+from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate
@@ -345,10 +346,10 @@ class SyncServer(Server):
             }
         )
 
-    def _load_agent(self, user_id: str, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
+    def _load_agent(self, agent_id: str, actor: User, interface: Union[AgentInterface, None] = None) -> Agent:
         """Loads a saved agent into memory (if it doesn't exist, throw an error)"""
-        assert isinstance(user_id, str), user_id
         assert isinstance(agent_id, str), agent_id
+        user_id = actor.id
 
         # If an interface isn't specified, use the default
         if interface is None:
@@ -365,7 +366,7 @@ class SyncServer(Server):
             logger.debug(f"Creating an agent object")
             tool_objs = []
             for name in agent_state.tools:
-                tool_obj = self.tool_manager.get_tool_by_name_and_user_id(tool_name=name, user_id=user_id)
+                tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
                 if not tool_obj:
                     logger.exception(f"Tool {name} does not exist for user {user_id}")
                     raise ValueError(f"Tool {name} does not exist for user {user_id}")
@@ -396,13 +397,14 @@ class SyncServer(Server):
         if not agent_state:
             raise ValueError(f"Agent does not exist")
         user_id = agent_state.user_id
+        actor = self.user_manager.get_user_by_id(user_id)
 
         logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
         # TODO: consider disabling loading cached agents due to potential concurrency issues
         letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
         if not letta_agent:
             logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
-            letta_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
+            letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
         return letta_agent
 
     def _step(
@@ -759,11 +761,12 @@ class SyncServer(Server):
     def create_agent(
         self,
         request: CreateAgent,
-        user_id: str,
+        actor: User,
         # interface
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
+        user_id = actor.id
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -801,7 +804,7 @@ class SyncServer(Server):
             tool_objs = []
             if request.tools:
                 for tool_name in request.tools:
-                    tool_obj = self.tool_manager.get_tool_by_name_and_user_id(tool_name=tool_name, user_id=user_id)
+                    tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
                     tool_objs.append(tool_obj)
 
             assert request.memory is not None
@@ -887,11 +890,14 @@ class SyncServer(Server):
     def update_agent(
         self,
         request: UpdateAgentState,
-        user_id: str,
+        actor: User,
     ):
         """Update the agents core memory block, return the new state"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        try:
+            user = self.user_manager.get_user_by_id(user_id=actor.id)
+        except Exception:
+            raise ValueError(f"User user_id={actor.id} does not exist")
+
         if self.ms.get_agent(agent_id=request.id) is None:
             raise ValueError(f"Agent agent_id={request.id} does not exist")
 
@@ -902,7 +908,7 @@ class SyncServer(Server):
         if request.memory:
             assert isinstance(request.memory, Memory), type(request.memory)
             new_memory_contents = request.memory.to_flat_dict()
-            _ = self.update_agent_core_memory(user_id=user_id, agent_id=request.id, new_memory_contents=new_memory_contents)
+            _ = self.update_agent_core_memory(user_id=actor.user_id, agent_id=request.id, new_memory_contents=new_memory_contents)
 
         # update the system prompt
         if request.system:
@@ -922,7 +928,7 @@ class SyncServer(Server):
             # (1) get tools + make sure they exist
             tool_objs = []
             for tool_name in request.tools:
-                tool_obj = self.tool_manager.get_tool_by_name_and_user_id(tool_name=tool_name, user_id=user_id)
+                tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
                 assert tool_obj, f"Tool {tool_name} does not exist"
                 tool_objs.append(tool_obj)
 
@@ -1842,6 +1848,16 @@ class SyncServer(Server):
             return self.user_manager.get_user_by_id(user_id=user_id)
         except ValueError:
             raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
+
+    def get_organization_or_default(self, org_id: Optional[str]) -> Organization:
+        """Get the organization object for org_id if it exists, otherwise return the default organization object"""
+        if org_id is None:
+            org_id = self.organization_manager.DEFAULT_ORG_ID
+
+        try:
+            return self.organization_manager.get_organization_by_id(org_id=org_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail=f"Organization with id {org_id} not found")
 
     def list_llm_models(self) -> List[LLMConfig]:
         """List available models"""
