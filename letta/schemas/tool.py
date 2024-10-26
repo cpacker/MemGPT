@@ -58,6 +58,16 @@ class Tool(BaseTool):
             )
         )
 
+    def is_trusted(self) -> bool:
+        """
+        Informs whether the tool is considered trusted by Letta
+
+        Returns:
+            bool: Whether source code is trusted to run on Letta server.
+        """
+        # NOTE: This logic is a temporary placeholder that is not secure
+        return "foreign" not in self.tags
+
     @classmethod
     def get_composio_tool(
         cls,
