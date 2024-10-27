@@ -1,4 +1,5 @@
-from typing import Optional
+import ast
+from typing import Any, Optional
 
 from e2b_code_interpreter import Sandbox
 
@@ -12,18 +13,20 @@ class SecureExecutionEnvironment:
         self.tool = tool
         self.args = args
 
-    def run(self) -> Optional[str]:
+    def run(self) -> Optional[Any]:
         code = self.generate_execution_script()
 
         sbx = Sandbox()
         execution = sbx.run_code(code)
-
         if execution.error is not None:
-            raise execution.error
+            raise Exception(execution.error)
         elif len(execution.results) == 0:
             function_response = None
         else:
-            function_response = execution.results[0].text
+            try:
+                function_response = ast.literal_eval(execution.results[0].text)
+            except SyntaxError:
+                function_response = execution.results[0].text
 
         sbx.kill()
         return function_response
@@ -46,16 +49,19 @@ class SecureExecutionEnvironment:
         if spec is None:
             # ignore extra params (like 'self') for now
             return ""
-
-        param_type = spec["type"]
+        
+        param_type = spec.get("type")
+        if param_type is None and spec.get("parameters"):
+            param_type = spec["parameters"].get("type")
+        
         if param_type == "string":
             value = '"' + raw_value + '"'
         elif param_type == "integer" or param_type == "boolean":
             value = raw_value
         else:
-            raise TypeError(f"Unsupported type: {param_type}.")
+            raise TypeError(f"unsupported type: {param_type}")
 
-        return name + " = " + value + "\n"
+        return name + " = " + str(value) + "\n"
 
     def invoke_function_call(self) -> str:
         kwargs = []
@@ -65,7 +71,8 @@ class SecureExecutionEnvironment:
 
         params = ", ".join([f"{arg}={arg}" for arg in kwargs])
         return self.tool.name + "(" + params + ")"
-
+               
+                
     @staticmethod
     def assert_required_args(tool: Tool, args: dict):
         required_args = tool.json_schema["parameters"]["required"]

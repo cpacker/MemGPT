@@ -20,7 +20,6 @@ from urllib.parse import urljoin, urlparse
 
 import demjson3 as demjson
 import pytz
-from letta.schemas.tool import Tool
 import tiktoken
 
 import letta
