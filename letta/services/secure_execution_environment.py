@@ -1,4 +1,5 @@
 import ast
+import os
 from typing import Any, Optional
 
 from e2b_code_interpreter import Sandbox
@@ -15,9 +16,10 @@ class SecureExecutionEnvironment:
 
     def run(self) -> Optional[Any]:
         code = self.generate_execution_script()
+        envs = self.get_envs()
 
         sbx = Sandbox()
-        execution = sbx.run_code(code)
+        execution = sbx.run_code(code, envs=envs)
         if execution.error is not None:
             raise Exception(execution.error)
         elif len(execution.results) == 0:
@@ -49,7 +51,7 @@ class SecureExecutionEnvironment:
         if spec is None:
             # ignore extra params (like 'self') for now
             return ""
-        
+            
         param_type = spec.get("type")
         if param_type is None and spec.get("parameters"):
             param_type = spec["parameters"].get("type")
@@ -71,8 +73,24 @@ class SecureExecutionEnvironment:
 
         params = ", ".join([f"{arg}={arg}" for arg in kwargs])
         return self.tool.name + "(" + params + ")"
-               
+
+    def get_envs(self) -> dict:
+        envs = {}
+        
+        # hardcode for now. need more info on ux to formalize this
+        settings_dict = {
+            'composio': ['COMPOSIO_API_KEY'],
+            'langchain': [],
+            'crew-ai': [],
+        }
+        for tag in self.tool.tags:
+            settings = settings_dict.get(tag, [])
+            for setting in settings:
+                envs[setting] = os.environ.get(setting)
+        
+        return envs
                 
+
     @staticmethod
     def assert_required_args(tool: Tool, args: dict):
         required_args = tool.json_schema["parameters"]["required"]
