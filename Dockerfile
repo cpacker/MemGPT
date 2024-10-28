@@ -32,7 +32,7 @@ COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
 COPY ./letta /letta
 
-EXPOSE 8083
+EXPOSE 8283
 
 CMD ./letta/server/startup.sh
 
