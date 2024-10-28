@@ -47,18 +47,17 @@ def tool_fixture(server: SyncServer):
 
     org = server.organization_manager.create_default_organization()
     user = server.user_manager.create_default_user()
-    tool_create = ToolCreate(
-        user_id=user.id, organization_id=org.id, description=description, tags=tags, source_code=source_code, source_type=source_type
-    )
+    other_user = server.user_manager.create_user(UserCreate(name="other", organization_id=org.id))
+    tool_create = ToolCreate(description=description, tags=tags, source_code=source_code, source_type=source_type)
     derived_json_schema = derive_openai_json_schema(tool_create)
     derived_name = derived_json_schema["name"]
     tool_create.json_schema = derived_json_schema
     tool_create.name = derived_name
 
-    tool = server.tool_manager.create_tool(tool_create)
+    tool = server.tool_manager.create_tool(tool_create, actor=user)
 
     # Yield the created tool, organization, and user for use in tests
-    yield {"tool": tool, "organization": org, "user": user, "tool_create": tool_create}
+    yield {"tool": tool, "organization": org, "user": user, "other_user": other_user, "tool_create": tool_create}
 
 
 @pytest.fixture(scope="module")
@@ -177,7 +176,7 @@ def test_create_tool(server: SyncServer, tool_fixture):
     org = tool_fixture["organization"]
 
     # Assertions to ensure the created tool matches the expected values
-    assert tool.user_id == user.id
+    assert tool.created_by_id == user.id
     assert tool.organization_id == org.id
     assert tool.description == tool_create.description
     assert tool.tags == tool_create.tags
@@ -188,9 +187,10 @@ def test_create_tool(server: SyncServer, tool_fixture):
 
 def test_get_tool_by_id(server: SyncServer, tool_fixture):
     tool = tool_fixture["tool"]
+    user = tool_fixture["user"]
 
     # Fetch the tool by ID using the manager method
-    fetched_tool = server.tool_manager.get_tool_by_id(tool.id)
+    fetched_tool = server.tool_manager.get_tool_by_id(tool.id, actor=user)
 
     # Assertions to check if the fetched tool matches the created tool
     assert fetched_tool.id == tool.id
@@ -201,34 +201,17 @@ def test_get_tool_by_id(server: SyncServer, tool_fixture):
     assert fetched_tool.source_type == tool.source_type
 
 
-def test_get_tool_by_name_and_org_id(server: SyncServer, tool_fixture):
-    tool = tool_fixture["tool"]
-    org = tool_fixture["organization"]
-
-    # Fetch the tool by name and organization ID
-    fetched_tool = server.tool_manager.get_tool_by_name_and_org_id(tool.name, org.id)
-
-    # Assertions to check if the fetched tool matches the created tool
-    assert fetched_tool.id == tool.id
-    assert fetched_tool.name == tool.name
-    assert fetched_tool.organization_id == org.id
-    assert fetched_tool.description == tool.description
-    assert fetched_tool.tags == tool.tags
-    assert fetched_tool.source_code == tool.source_code
-    assert fetched_tool.source_type == tool.source_type
-
-
-def test_get_tool_by_name_and_user_id(server: SyncServer, tool_fixture):
+def test_get_tool_with_actor(server: SyncServer, tool_fixture):
     tool = tool_fixture["tool"]
     user = tool_fixture["user"]
 
     # Fetch the tool by name and organization ID
-    fetched_tool = server.tool_manager.get_tool_by_name_and_user_id(tool.name, user.id)
+    fetched_tool = server.tool_manager.get_tool_by_name(tool.name, actor=user)
 
     # Assertions to check if the fetched tool matches the created tool
     assert fetched_tool.id == tool.id
     assert fetched_tool.name == tool.name
-    assert fetched_tool.user_id == user.id
+    assert fetched_tool.created_by_id == user.id
     assert fetched_tool.description == tool.description
     assert fetched_tool.tags == tool.tags
     assert fetched_tool.source_code == tool.source_code
@@ -237,10 +220,11 @@ def test_get_tool_by_name_and_user_id(server: SyncServer, tool_fixture):
 
 def test_list_tools(server: SyncServer, tool_fixture):
     tool = tool_fixture["tool"]
-    org = tool_fixture["organization"]
+    tool_fixture["organization"]
+    user = tool_fixture["user"]
 
     # List tools (should include the one created by the fixture)
-    tools = server.tool_manager.list_tools_for_org(organization_id=org.id)
+    tools = server.tool_manager.list_tools(actor=user)
 
     # Assertions to check that the created tool is listed
     assert len(tools) == 1
@@ -249,27 +233,50 @@ def test_list_tools(server: SyncServer, tool_fixture):
 
 def test_update_tool_by_id(server: SyncServer, tool_fixture):
     tool = tool_fixture["tool"]
+    user = tool_fixture["user"]
     updated_description = "updated_description"
 
     # Create a ToolUpdate object to modify the tool's description
     tool_update = ToolUpdate(description=updated_description)
 
     # Update the tool using the manager method
-    server.tool_manager.update_tool_by_id(tool.id, tool_update)
+    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=user)
 
     # Fetch the updated tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id)
+    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=user)
 
     # Assertions to check if the update was successful
     assert updated_tool.description == updated_description
 
 
+def test_update_tool_multi_user(server: SyncServer, tool_fixture):
+    tool = tool_fixture["tool"]
+    user = tool_fixture["user"]
+    other_user = tool_fixture["other_user"]
+    updated_description = "updated_description"
+
+    # Create a ToolUpdate object to modify the tool's description
+    tool_update = ToolUpdate(description=updated_description)
+
+    # Update the tool using the manager method, but WITH THE OTHER USER'S ID!
+    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=other_user)
+
+    # Check that the created_by and last_updated_by fields are correct
+
+    # Fetch the updated tool to verify the changes
+    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=user)
+
+    assert updated_tool.last_updated_by_id == other_user.id
+    assert updated_tool.created_by_id == user.id
+
+
 def test_delete_tool_by_id(server: SyncServer, tool_fixture):
     tool = tool_fixture["tool"]
-    org = tool_fixture["organization"]
+    tool_fixture["organization"]
+    user = tool_fixture["user"]
 
     # Delete the tool using the manager method
-    server.tool_manager.delete_tool_by_id(tool.id)
+    server.tool_manager.delete_tool_by_id(tool.id, actor=user)
 
-    tools = server.tool_manager.list_tools_for_org(organization_id=org.id)
+    tools = server.tool_manager.list_tools(actor=user)
     assert len(tools) == 0

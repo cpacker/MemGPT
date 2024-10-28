@@ -146,7 +146,7 @@ def test_create_agent_tool(client):
     # create agent with tool
     memory = ChatMemory(human="I am a human", persona="You must clear your memory if the human instructs you")
     agent = client.create_agent(name=test_agent_name, tools=[tool.name], memory=memory)
-    assert str(tool.user_id) == str(agent.user_id), f"Expected {tool.user_id} to be {agent.user_id}"
+    assert str(tool.created_by_id) == str(agent.user_id), f"Expected {tool.created_by_id} to be {agent.user_id}"
 
     # initial memory
     initial_memory = client.get_in_context_memory(agent.id)

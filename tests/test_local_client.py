@@ -135,8 +135,8 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
     assert github_tool.id in [t.id for t in tools]
     assert scrape_website_tool.id in [t.id for t in tools]
 
-    # Assert that all combinations of tool_names, tool_user_ids are unique
-    combinations = [(t.name, t.user_id) for t in tools]
+    # Assert that all combinations of tool_names, organization id are unique
+    combinations = [(t.name, t.organization_id) for t in tools]
     assert len(combinations) == len(set(combinations))
 
     # create agent

@@ -1,5 +1,5 @@
-from typing import TYPE_CHECKING, List, Literal, Optional, Type, Union
-from uuid import UUID, uuid4
+from typing import TYPE_CHECKING, List, Literal, Optional, Type
+from uuid import uuid4
 
 from humps import depascalize
 from sqlalchemy import Boolean, String, select
@@ -88,7 +88,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     def read(
         cls,
         db_session: "Session",
-        identifier: Union[str, UUID],
+        identifier: Optional[str] = None,
         actor: Optional["User"] = None,
         access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
         **kwargs,
@@ -105,19 +105,29 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         Raises:
             NoResultFound: if the object is not found
         """
-        del kwargs  # arity for more complex reads
-        identifier = cls.get_uid_from_identifier(identifier)
-        query = select(cls).where(cls._id == identifier)
-        # if actor:
-        #     query = cls.apply_access_predicate(query, actor, access)
+        # Start the query
+        query = select(cls)
+
+        # If an identifier is provided, add it to the query conditions
+        if identifier is not None:
+            identifier = cls.get_uid_from_identifier(identifier)
+            query = query.where(cls._id == identifier)
+
+        if kwargs:
+            query = query.filter_by(**kwargs)
+
+        if actor:
+            query = cls.apply_access_predicate(query, actor, access)
+
         if hasattr(cls, "is_deleted"):
             query = query.where(cls.is_deleted == False)
         if found := db_session.execute(query).scalar():
             return found
         raise NoResultFound(f"{cls.__name__} with id {identifier} not found")
 
-    def create(self, db_session: "Session") -> Type["SqlalchemyBase"]:
-        # self._infer_organization(db_session)
+    def create(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+        if actor:
+            self._set_created_and_updated_by_fields(actor.id)
 
         with db_session as session:
             session.add(self)
@@ -125,11 +135,17 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             session.refresh(self)
             return self
 
-    def delete(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+    def delete(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+        if actor:
+            self._set_created_and_updated_by_fields(actor.id)
+
         self.is_deleted = True
         return self.update(db_session)
 
-    def update(self, db_session: "Session") -> Type["SqlalchemyBase"]:
+    def update(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+        if actor:
+            self._set_created_and_updated_by_fields(actor.id)
+
         with db_session as session:
             session.add(self)
             session.commit()
@@ -137,39 +153,28 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return self
 
     @classmethod
-    def read_or_create(cls, *, db_session: "Session", **kwargs) -> Type["SqlalchemyBase"]:
-        """get an instance by search criteria or create it if it doesn't exist"""
-        try:
-            return cls.read(db_session=db_session, identifier=kwargs.get("id", None))
-        except NoResultFound:
-            clean_kwargs = {k: v for k, v in kwargs.items() if k in cls.__table__.columns}
-            return cls(**clean_kwargs).create(db_session=db_session)
-
-    # TODO: Add back later when access predicates are actually important
-    # The idea behind this is that you can add a WHERE clause restricting the actions you can take, e.g. R/W
-    # @classmethod
-    # def apply_access_predicate(
-    #     cls,
-    #     query: "Select",
-    #     actor: "User",
-    #     access: List[Literal["read", "write", "admin"]],
-    # ) -> "Select":
-    #     """applies a WHERE clause restricting results to the given actor and access level
-    #     Args:
-    #         query: The initial sqlalchemy select statement
-    #         actor: The user acting on the query. **Note**: this is called 'actor' to identify the
-    #                person or system acting. Users can act on users, making naming very sticky otherwise.
-    #         access:
-    #             what mode of access should the query restrict to? This will be used with granular permissions,
-    #             but because of how it will impact every query we want to be explicitly calling access ahead of time.
-    #     Returns:
-    #         the sqlalchemy select statement restricted to the given access.
-    #     """
-    #     del access  # entrypoint for row-level permissions. Defaults to "same org as the actor, all permissions" at the moment
-    #     org_uid = getattr(actor, "_organization_id", getattr(actor.organization, "_id", None))
-    #     if not org_uid:
-    #         raise ValueError("object %s has no organization accessor", actor)
-    #     return query.where(cls._organization_id == org_uid, cls.is_deleted == False)
+    def apply_access_predicate(
+        cls,
+        query: "Select",
+        actor: "User",
+        access: List[Literal["read", "write", "admin"]],
+    ) -> "Select":
+        """applies a WHERE clause restricting results to the given actor and access level
+        Args:
+            query: The initial sqlalchemy select statement
+            actor: The user acting on the query. **Note**: this is called 'actor' to identify the
+                   person or system acting. Users can act on users, making naming very sticky otherwise.
+            access:
+                what mode of access should the query restrict to? This will be used with granular permissions,
+                but because of how it will impact every query we want to be explicitly calling access ahead of time.
+        Returns:
+            the sqlalchemy select statement restricted to the given access.
+        """
+        del access  # entrypoint for row-level permissions. Defaults to "same org as the actor, all permissions" at the moment
+        org_id = getattr(actor, "organization_id", None)
+        if not org_id:
+            raise ValueError(f"object {actor} has no organization accessor")
+        return query.where(cls._organization_id == cls.get_uid_from_identifier(org_id, indifferent=True), cls.is_deleted == False)
 
     @property
     def __pydantic_model__(self) -> Type["BaseModel"]:
@@ -183,21 +188,3 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         """Deprecated accessor for to_pydantic"""
         logger.warning("to_record is deprecated, use to_pydantic instead.")
         return self.to_pydantic()
-
-    def _infer_organization(self, db_session: "Session") -> None:
-        """🪄 MAGIC ALERT! 🪄
-        Because so much of the original API is centered around user scopes,
-        this allows us to continue with that scope and then infer the org from the creating user.
-
-        IF a created_by_id is set, we will use that to infer the organization and magic set it at create time!
-        If not do nothing to the object. Mutates in place.
-        """
-        if self.created_by_id and hasattr(self, "_organization_id"):
-            try:
-                from letta.orm.user import User  # to avoid circular import
-
-                created_by = User.read(db_session, self.created_by_id)
-            except NoResultFound:
-                logger.warning(f"User {self.created_by_id} not found, unable to infer organization.")
-                return
-            self._organization_id = created_by._organization_id

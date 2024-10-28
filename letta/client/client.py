@@ -1546,6 +1546,9 @@ class LocalClient(AbstractClient):
             # get default user
             self.user_id = self.server.user_manager.DEFAULT_USER_ID
 
+        self.user = self.server.get_user_or_default(self.user_id)
+        self.organization = self.server.get_organization_or_default(self.org_id)
+
     # agents
     def list_agents(self) -> List[AgentState]:
         self.interface.clear()
@@ -1648,7 +1651,7 @@ class LocalClient(AbstractClient):
                 llm_config=llm_config if llm_config else self._default_llm_config,
                 embedding_config=embedding_config if embedding_config else self._default_embedding_config,
             ),
-            user_id=self.user_id,
+            actor=self.user,
         )
         return agent_state
 
@@ -1720,7 +1723,7 @@ class LocalClient(AbstractClient):
                 message_ids=message_ids,
                 memory=memory,
             ),
-            user_id=self.user_id,
+            actor=self.user,
         )
         return agent_state
 
@@ -2198,24 +2201,22 @@ class LocalClient(AbstractClient):
     def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         tool_create = ToolCreate.from_langchain(
             langchain_tool=langchain_tool,
-            user_id=self.user_id,
             organization_id=self.org_id,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
         )
-        return self.server.tool_manager.create_or_update_tool(tool_create)
+        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
 
     def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         tool_create = ToolCreate.from_crewai(
             crewai_tool=crewai_tool,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
-            user_id=self.user_id,
             organization_id=self.org_id,
         )
-        return self.server.tool_manager.create_or_update_tool(tool_create)
+        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
 
     def load_composio_tool(self, action: "ActionType") -> Tool:
-        tool_create = ToolCreate.from_composio(action=action, user_id=self.user_id, organization_id=self.org_id)
-        return self.server.tool_manager.create_or_update_tool(tool_create)
+        tool_create = ToolCreate.from_composio(action=action, organization_id=self.org_id)
+        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
@@ -2250,14 +2251,13 @@ class LocalClient(AbstractClient):
         # call server function
         return self.server.tool_manager.create_or_update_tool(
             ToolCreate(
-                user_id=self.user_id,
-                organization_id=self.org_id,
                 source_type=source_type,
                 source_code=source_code,
                 name=name,
                 tags=tags,
                 terminal=terminal,
             ),
+            actor=self.user,
         )
 
     def update_tool(
@@ -2289,7 +2289,7 @@ class LocalClient(AbstractClient):
         # Filter out any None values from the dictionary
         update_data = {key: value for key, value in update_data.items() if value is not None}
 
-        return self.server.tool_manager.update_tool_by_id(id, ToolUpdate(**update_data))
+        return self.server.tool_manager.update_tool_by_id(tool_id=id, tool_update=ToolUpdate(**update_data), actor=self.user)
 
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """
@@ -2298,7 +2298,7 @@ class LocalClient(AbstractClient):
         Returns:
             tools (List[Tool]): List of tools
         """
-        return self.server.tool_manager.list_tools_for_org(cursor=cursor, limit=limit, organization_id=self.org_id)
+        return self.server.tool_manager.list_tools(cursor=cursor, limit=limit, actor=self.user)
 
     def get_tool(self, id: str) -> Optional[Tool]:
         """
@@ -2310,7 +2310,7 @@ class LocalClient(AbstractClient):
         Returns:
             tool (Tool): Tool
         """
-        return self.server.tool_manager.get_tool_by_id(id)
+        return self.server.tool_manager.get_tool_by_id(id, actor=self.user)
 
     def delete_tool(self, id: str):
         """
@@ -2319,7 +2319,7 @@ class LocalClient(AbstractClient):
         Args:
             id (str): ID of the tool
         """
-        return self.server.tool_manager.delete_tool_by_id(id)
+        return self.server.tool_manager.delete_tool_by_id(id, user_id=self.user_id)
 
     def get_tool_id(self, name: str) -> Optional[str]:
         """
@@ -2331,7 +2331,7 @@ class LocalClient(AbstractClient):
         Returns:
             id (str): ID of the tool (`None` if not found)
         """
-        tool = self.server.tool_manager.get_tool_by_name_and_org_id(tool_name=name, organization_id=self.org_id)
+        tool = self.server.tool_manager.get_tool_by_name(tool_name=name, actor=self.user)
         return tool.id
 
     def load_data(self, connector: DataConnector, source_name: str):

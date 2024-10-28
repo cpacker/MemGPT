@@ -26,11 +26,13 @@ def delete_tool(
 def get_tool(
     tool_id: str,
     server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Get a tool by ID
     """
-    tool = server.tool_manager.get_tool_by_id(tool_id=tool_id)
+    actor = server.get_user_or_default(user_id=user_id)
+    tool = server.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor)
     if tool is None:
         # return 404 error
         raise HTTPException(status_code=404, detail=f"Tool with id {tool_id} not found.")
@@ -49,7 +51,7 @@ def get_tool_id(
     actor = server.get_user_or_default(user_id=user_id)
 
     try:
-        tool = server.tool_manager.get_tool_by_name_and_org_id(tool_name=tool_name, organization_id=actor.organization_id)
+        tool = server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
         return tool.id
     except NoResultFound:
         raise HTTPException(status_code=404, detail=f"Tool with name {tool_name} and organization id {actor.organization_id} not found.")
@@ -67,7 +69,7 @@ def list_tools(
     """
     try:
         actor = server.get_user_or_default(user_id=user_id)
-        return server.tool_manager.list_tools_for_org(organization_id=actor.organization_id, cursor=cursor, limit=limit)
+        return server.tool_manager.list_tools(actor=actor, cursor=cursor, limit=limit)
     except Exception as e:
         # Log or print the full exception here for debugging
         print(f"Error occurred: {e}")
@@ -85,13 +87,9 @@ def create_tool(
     """
     # Derive user and org id from actor
     actor = server.get_user_or_default(user_id=user_id)
-    request.organization_id = actor.organization_id
-    request.user_id = actor.id
 
     # Send request to create the tool
-    return server.tool_manager.create_or_update_tool(
-        tool_create=request,
-    )
+    return server.tool_manager.create_or_update_tool(tool_create=request, actor=actor)
 
 
 @router.patch("/{tool_id}", response_model=Tool, operation_id="update_tool")
@@ -104,4 +102,5 @@ def update_tool(
     """
     Update an existing tool
     """
-    return server.tool_manager.update_tool_by_id(tool_id, request)
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.tool_manager.update_tool_by_id(tool_id, actor.id, request)

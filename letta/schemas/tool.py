@@ -11,7 +11,6 @@ from letta.functions.schema_generator import generate_schema_from_args_schema
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.openai.chat_completions import ToolCall
 from letta.services.organization_manager import OrganizationManager
-from letta.services.user_manager import UserManager
 
 
 class BaseTool(LettaBase):
@@ -35,7 +34,6 @@ class Tool(BaseTool):
     description: Optional[str] = Field(None, description="The description of the tool.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     module: Optional[str] = Field(None, description="The module of the function.")
-    user_id: str = Field(..., description="The unique identifier of the user associated with the tool.")
     organization_id: str = Field(..., description="The unique identifier of the organization associated with the tool.")
     name: str = Field(..., description="The name of the function.")
     tags: List[str] = Field(..., description="Metadata tags.")
@@ -43,6 +41,10 @@ class Tool(BaseTool):
     # code
     source_code: str = Field(..., description="The source code of the function.")
     json_schema: Dict = Field(default_factory=dict, description="The JSON schema of the function.")
+
+    # metadata fields
+    created_by_id: str = Field(..., description="The id of the user that made this Tool.")
+    last_updated_by_id: str = Field(..., description="The id of the user that made this Tool.")
 
     def to_dict(self):
         """
@@ -58,11 +60,6 @@ class Tool(BaseTool):
 
 
 class ToolCreate(LettaBase):
-    user_id: str = Field(UserManager.DEFAULT_USER_ID, description="The user that this tool belongs to. Defaults to the default user ID.")
-    organization_id: str = Field(
-        OrganizationManager.DEFAULT_ORG_ID,
-        description="The organization that this tool belongs to. Defaults to the default organization ID.",
-    )
     name: Optional[str] = Field(None, description="The name of the function (auto-generated from source_code if not provided).")
     description: Optional[str] = Field(None, description="The description of the tool.")
     tags: List[str] = Field([], description="Metadata tags.")
@@ -75,9 +72,7 @@ class ToolCreate(LettaBase):
     terminal: Optional[bool] = Field(None, description="Whether the tool is a terminal tool (allow requesting heartbeats).")
 
     @classmethod
-    def from_composio(
-        cls, action: "ActionType", user_id: str = UserManager.DEFAULT_USER_ID, organization_id: str = OrganizationManager.DEFAULT_ORG_ID
-    ) -> "ToolCreate":
+    def from_composio(cls, action: "ActionType", organization_id: str = OrganizationManager.DEFAULT_ORG_ID) -> "ToolCreate":
         """
         Class method to create an instance of Letta-compatible Composio Tool.
         Check https://docs.composio.dev/introduction/intro/overview to look at options for from_composio
@@ -106,8 +101,6 @@ class ToolCreate(LettaBase):
         json_schema = generate_schema_from_args_schema(composio_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
-            user_id=user_id,
-            organization_id=organization_id,
             name=wrapper_func_name,
             description=description,
             source_type=source_type,
@@ -121,7 +114,6 @@ class ToolCreate(LettaBase):
         cls,
         langchain_tool: "LangChainBaseTool",
         additional_imports_module_attr_map: dict[str, str] = None,
-        user_id: str = UserManager.DEFAULT_USER_ID,
         organization_id: str = OrganizationManager.DEFAULT_ORG_ID,
     ) -> "ToolCreate":
         """
@@ -142,8 +134,6 @@ class ToolCreate(LettaBase):
         json_schema = generate_schema_from_args_schema(langchain_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
-            user_id=user_id,
-            organization_id=organization_id,
             name=wrapper_func_name,
             description=description,
             source_type=source_type,
@@ -157,7 +147,6 @@ class ToolCreate(LettaBase):
         cls,
         crewai_tool: "CrewAIBaseTool",
         additional_imports_module_attr_map: dict[str, str] = None,
-        user_id: str = UserManager.DEFAULT_USER_ID,
         organization_id: str = OrganizationManager.DEFAULT_ORG_ID,
     ) -> "ToolCreate":
         """
@@ -176,8 +165,6 @@ class ToolCreate(LettaBase):
         json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
-            user_id=user_id,
-            organization_id=organization_id,
             name=wrapper_func_name,
             description=description,
             source_type=source_type,
