@@ -43,6 +43,7 @@ from letta.providers import (
     AnthropicProvider,
     AzureProvider,
     GoogleAIProvider,
+    GroqProvider,
     LettaProvider,
     OllamaProvider,
     OpenAIProvider,
@@ -298,6 +299,8 @@ class SyncServer(Server):
                     api_version=model_settings.azure_api_version,
                 )
             )
+        if model_settings.groq_api_key:
+            self._enabled_providers.append(GroqProvider(api_key=model_settings.groq_api_key))
         if model_settings.vllm_api_base:
             # vLLM exposes both a /chat/completions and a /completions endpoint
             self._enabled_providers.append(

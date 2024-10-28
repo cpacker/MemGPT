@@ -2572,24 +2572,6 @@ class LocalClient(AbstractClient):
             return_message_object=True,
         )
 
-    def list_models(self) -> List[LLMConfig]:
-        """
-        List available LLM models
-
-        Returns:
-            models (List[LLMConfig]): List of LLM models
-        """
-        return self.server.list_models()
-
-    def list_embedding_models(self) -> List[EmbeddingConfig]:
-        """
-        List available embedding models
-
-        Returns:
-            models (List[EmbeddingConfig]): List of embedding models
-        """
-        return [self.server.server_embedding_config]
-
     def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
         """
         List available blocks

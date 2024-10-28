@@ -262,21 +262,6 @@ def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentSta
     assert human.value == "Human text", "Creating human failed"
 
 
-def test_config(client: Union[LocalClient, RESTClient], agent: AgentState):
-    # _reset_config()
-
-    models_response = client.list_models()
-    print("MODELS", models_response)
-
-    embeddings_response = client.list_embedding_models()
-    print("EMBEDDINGS", embeddings_response)
-
-    # TODO: add back
-    # config_response = client.get_config()
-    # TODO: ensure config is the same as the one in the server
-    # print("CONFIG", config_response)
-
-
 def test_list_tools_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
     tools = client.list_tools()
     visited_ids = {t.id: False for t in tools}
@@ -501,13 +486,3 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
 def test_organization(client: RESTClient):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_organization because LocalClient does not support organizations")
-
-
-def test_model_configs(client: Union[LocalClient, RESTClient]):
-    # _reset_config()
-
-    model_configs = client.list_models()
-    print("MODEL CONFIGS", model_configs)
-
-    embedding_configs = client.list_embedding_models()
-    print("EMBEDDING CONFIGS", embedding_configs)
