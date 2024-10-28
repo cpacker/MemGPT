@@ -41,7 +41,7 @@ jobs:
     #    install-args: "--all-extras"
 
     - name: Wait for service
-      run: bash scripts/wait_for_service.sh http://localhost:8083 -- echo "Service is ready"
+      run: bash scripts/wait_for_service.sh http://localhost:8283 -- echo "Service is ready"
 
     - name: Run tests with pytest
       env:
