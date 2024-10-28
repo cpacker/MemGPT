@@ -8,6 +8,7 @@ from letta.schemas.tool import Tool
 
 
 class SecureExecutionEnvironment:
+    DIR = "/home/user/"
 
     def __init__(self, tool: Tool, args: dict):
         self.assert_required_args(tool, args)
@@ -16,10 +17,16 @@ class SecureExecutionEnvironment:
 
     def run(self) -> Optional[Any]:
         code = self.generate_execution_script()
-        envs = self.get_envs()
 
         sbx = Sandbox()
-        execution = sbx.run_code(code, envs=envs)
+        sbx.files.write(f"{SecureExecutionEnvironment.DIR}source.py", code)
+        sbx.commands.run(
+            f"pip install pipreqs && "
+            f"pipreqs {SecureExecutionEnvironment.DIR} && "
+            f"pip install -r {SecureExecutionEnvironment.DIR}requirements.txt"
+        )
+
+        execution = sbx.run_code(code, envs=self.get_envs())
         if execution.error is not None:
             raise Exception(execution.error)
         elif len(execution.results) == 0:
@@ -51,11 +58,11 @@ class SecureExecutionEnvironment:
         if spec is None:
             # ignore extra params (like 'self') for now
             return ""
-            
+
         param_type = spec.get("type")
         if param_type is None and spec.get("parameters"):
             param_type = spec["parameters"].get("type")
-        
+
         if param_type == "string":
             value = '"' + raw_value + '"'
         elif param_type == "integer" or param_type == "boolean":
@@ -76,20 +83,20 @@ class SecureExecutionEnvironment:
 
     def get_envs(self) -> dict:
         envs = {}
-        
+
         # hardcode for now. need more info on ux to formalize this
         settings_dict = {
-            'composio': ['COMPOSIO_API_KEY'],
-            'langchain': [],
-            'crew-ai': [],
+            "composio": ["COMPOSIO_API_KEY"],
+            "langchain": [],
+            "crew-ai": [],
         }
+
         for tag in self.tool.tags:
             settings = settings_dict.get(tag, [])
             for setting in settings:
                 envs[setting] = os.environ.get(setting)
-        
+
         return envs
-                
 
     @staticmethod
     def assert_required_args(tool: Tool, args: dict):

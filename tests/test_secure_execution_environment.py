@@ -30,7 +30,7 @@ def test_function_with_no_rv():
 
     def print_hello_world():
         """Simple function that prints hello world"""
-        
+
         print("hello world")
 
     tool = create_tool_from_func(print_hello_world)
@@ -44,7 +44,7 @@ def test_function_with_list_rv():
 
     def create_list():
         """Simple function that returns a list"""
-        
+
         return [1] * 5
 
     tool = create_tool_from_func(create_list)
@@ -85,7 +85,6 @@ def test_function_with_exception():
         """
         raise Exception(message)
 
-
     tool = create_tool_from_func(throw_exception)
     args = {"message": "major silliness"}
 
@@ -112,6 +111,7 @@ def test_function_with_missing_param():
 
     with pytest.raises(TypeError, match="missing 1 required positional argument: 'message'"):
         SecureExecutionEnvironment(tool, args).run()
+
 
 def test_function_with_extra_param():
 
@@ -187,6 +187,17 @@ def test_function_with_object_param():
 
     with pytest.raises(TypeError, match="unsupported type: object"):
         SecureExecutionEnvironment(tool, args).run()
+
+
+def test_composio_function():
+    from composio_langchain import Action
+
+    tool = Tool.get_composio_tool(action=Action.SERPAPI_NEWS_SEARCH)
+    args = {"query": "letta"}
+
+    response = SecureExecutionEnvironment(tool, args).run()
+    assert response["results"]["search_metadata"]["status"] == "Success"
+    assert len(response["results"]["news_results"]) > 0
 
 
 def create_tool_from_func(func: callable):
