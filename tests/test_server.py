@@ -1,14 +1,12 @@
 import json
 import uuid
 import warnings
-from typing import List
 
 import pytest
 
 import letta.utils as utils
 from letta.constants import BASE_TOOLS, DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.enums import MessageRole
-from letta.settings import model_settings
 
 utils.DEBUG = True
 from letta.config import LettaConfig
@@ -543,22 +541,3 @@ def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id:
         + overview.num_tokens_functions_definitions
         + overview.num_tokens_external_memory_summary
     )
-
-
-def test_list_llm_models(server: SyncServer):
-    """Test that if the user's env has the right api keys set, at least one model appears in the model list"""
-
-    def has_model_endpoint_type(models: List["LLMConfig"], target_type: str) -> bool:
-        return any(model.model_endpoint_type == target_type for model in models)
-
-    models = server.list_llm_models()
-    if model_settings.groq_api_key:
-        assert has_model_endpoint_type(models, "groq")
-    if model_settings.azure_api_key:
-        assert has_model_endpoint_type(models, "azure")
-    if model_settings.openai_api_key:
-        assert has_model_endpoint_type(models, "openai")
-    if model_settings.gemini_api_key:
-        assert has_model_endpoint_type(models, "google_ai")
-    if model_settings.anthropic_api_key:
-        assert has_model_endpoint_type(models, "anthropic")

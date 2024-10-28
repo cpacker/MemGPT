@@ -2,7 +2,7 @@ import os
 import threading
 import time
 import uuid
-from typing import Union
+from typing import List, Union
 
 import pytest
 from dotenv import load_dotenv
@@ -18,6 +18,7 @@ from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
+from letta.settings import model_settings
 from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
@@ -486,3 +487,22 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
 def test_organization(client: RESTClient):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_organization because LocalClient does not support organizations")
+
+
+def test_list_llm_models(client: RESTClient):
+    """Test that if the user's env has the right api keys set, at least one model appears in the model list"""
+
+    def has_model_endpoint_type(models: List["LLMConfig"], target_type: str) -> bool:
+        return any(model.model_endpoint_type == target_type for model in models)
+
+    models = client.list_llm_configs()
+    if model_settings.groq_api_key:
+        assert has_model_endpoint_type(models, "groq")
+    if model_settings.azure_api_key:
+        assert has_model_endpoint_type(models, "azure")
+    if model_settings.openai_api_key:
+        assert has_model_endpoint_type(models, "openai")
+    if model_settings.gemini_api_key:
+        assert has_model_endpoint_type(models, "google_ai")
+    if model_settings.anthropic_api_key:
+        assert has_model_endpoint_type(models, "anthropic")
