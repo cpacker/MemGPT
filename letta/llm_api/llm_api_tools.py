@@ -313,7 +313,6 @@ def create(
             stream_interface.stream_start()
         try:
             # groq uses the openai chat completions API, so this component should be reusable
-            assert model_settings.groq_api_key is not None, "Groq key is missing"
             response = openai_chat_completions_request(
                 url=llm_config.model_endpoint,
                 api_key=model_settings.groq_api_key,

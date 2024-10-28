@@ -4,6 +4,7 @@ from letta.providers import (
     AnthropicProvider,
     AzureProvider,
     GoogleAIProvider,
+    GroqProvider,
     MistralProvider,
     OllamaProvider,
     OpenAIProvider,
@@ -27,12 +28,10 @@ def test_anthropic():
     print(models)
 
 
-# def test_groq():
-#    provider = GroqProvider(api_key=os.getenv("GROQ_API_KEY"))
-#    models = provider.list_llm_models()
-#    print(models)
-#
-#
+def test_groq():
+    provider = GroqProvider(api_key=os.getenv("GROQ_API_KEY"))
+    models = provider.list_llm_models()
+    print(models)
 
 
 def test_azure():

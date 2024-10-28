@@ -276,10 +276,10 @@ class AbstractClient(object):
     ) -> List[Message]:
         raise NotImplementedError
 
-    def list_models(self) -> List[LLMConfig]:
+    def list_model_configs(self) -> List[LLMConfig]:
         raise NotImplementedError
 
-    def list_embedding_models(self) -> List[EmbeddingConfig]:
+    def list_embedding_configs(self) -> List[EmbeddingConfig]:
         raise NotImplementedError
 
 
@@ -1233,32 +1233,6 @@ class RESTClient(AbstractClient):
         response = requests.post(f"{self.base_url}/{self.api_prefix}/sources/{source_id}/detach", params=params, headers=self.headers)
         assert response.status_code == 200, f"Failed to detach source from agent: {response.text}"
         return Source(**response.json())
-
-    # server configuration commands
-
-    def list_models(self):
-        """
-        List available LLM models
-
-        Returns:
-            models (List[LLMConfig]): List of LLM models
-        """
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/models", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to list models: {response.text}")
-        return [LLMConfig(**model) for model in response.json()]
-
-    def list_embedding_models(self):
-        """
-        List available embedding models
-
-        Returns:
-            models (List[EmbeddingConfig]): List of embedding models
-        """
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/models/embedding", headers=self.headers)
-        if response.status_code != 200:
-            raise ValueError(f"Failed to list embedding models: {response.text}")
-        return [EmbeddingConfig(**model) for model in response.json()]
 
     # tools
 
@@ -2571,24 +2545,6 @@ class LocalClient(AbstractClient):
             reverse=True,
             return_message_object=True,
         )
-
-    def list_models(self) -> List[LLMConfig]:
-        """
-        List available LLM models
-
-        Returns:
-            models (List[LLMConfig]): List of LLM models
-        """
-        return self.server.list_models()
-
-    def list_embedding_models(self) -> List[EmbeddingConfig]:
-        """
-        List available embedding models
-
-        Returns:
-            models (List[EmbeddingConfig]): List of embedding models
-        """
-        return [self.server.server_embedding_config]
 
     def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:
         """
