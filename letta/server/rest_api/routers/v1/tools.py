@@ -26,11 +26,13 @@ def delete_tool(
 def get_tool(
     tool_id: str,
     server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Get a tool by ID
     """
-    tool = server.tool_manager.get_tool_by_id(tool_id=tool_id)
+    actor = server.get_user_or_default(user_id=user_id)
+    tool = server.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor)
     if tool is None:
         # return 404 error
         raise HTTPException(status_code=404, detail=f"Tool with id {tool_id} not found.")
@@ -85,10 +87,9 @@ def create_tool(
     """
     # Derive user and org id from actor
     actor = server.get_user_or_default(user_id=user_id)
-    request.organization_id = actor.organization_id
 
     # Send request to create the tool
-    return server.tool_manager.create_or_update_tool(tool_create=request, user_id=actor.id)
+    return server.tool_manager.create_or_update_tool(tool_create=request, actor=actor)
 
 
 @router.patch("/{tool_id}", response_model=Tool, operation_id="update_tool")

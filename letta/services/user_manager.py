@@ -85,11 +85,8 @@ class UserManager:
     def get_user_by_id(self, user_id: str) -> PydanticUser:
         """Fetch a user by ID."""
         with self.session_maker() as session:
-            try:
-                user = UserModel.read(db_session=session, identifier=user_id)
-                return user.to_pydantic()
-            except NoResultFound:
-                raise ValueError(f"User with id {user_id} not found.")
+            user = UserModel.read(db_session=session, identifier=user_id)
+            return user.to_pydantic()
 
     @enforce_types
     def get_default_user(self) -> PydanticUser:

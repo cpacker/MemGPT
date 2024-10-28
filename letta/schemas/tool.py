@@ -101,7 +101,6 @@ class ToolCreate(LettaBase):
         json_schema = generate_schema_from_args_schema(composio_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
-            organization_id=organization_id,
             name=wrapper_func_name,
             description=description,
             source_type=source_type,
@@ -135,7 +134,6 @@ class ToolCreate(LettaBase):
         json_schema = generate_schema_from_args_schema(langchain_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
-            organization_id=organization_id,
             name=wrapper_func_name,
             description=description,
             source_type=source_type,
@@ -167,7 +165,6 @@ class ToolCreate(LettaBase):
         json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
-            organization_id=organization_id,
             name=wrapper_func_name,
             description=description,
             source_type=source_type,

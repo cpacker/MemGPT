@@ -70,24 +70,17 @@ class ToolManager:
     def get_tool_by_id(self, tool_id: str, actor: PydanticUser) -> PydanticTool:
         """Fetch a tool by its ID."""
         with self.session_maker() as session:
-            try:
-                # Retrieve tool by id using the Tool model's read method
-                tool = ToolModel.read(db_session=session, identifier=tool_id, actor=actor)
-                # Convert the SQLAlchemy Tool object to PydanticTool
-                return tool.to_pydantic()
-            except NoResultFound:
-                raise ValueError(f"Tool with id {tool_id} not found.")
+            # Retrieve tool by id using the Tool model's read method
+            tool = ToolModel.read(db_session=session, identifier=tool_id, actor=actor)
+            # Convert the SQLAlchemy Tool object to PydanticTool
+            return tool.to_pydantic()
 
     @enforce_types
     def get_tool_by_name(self, tool_name: str, actor: PydanticUser):
         """Retrieve a tool by its name and a user. We derive the organization from the user, and retrieve that tool."""
         with self.session_maker() as session:
-            try:
-                # Retrieve tool by id using the Tool model's read method
-                tool = ToolModel.read(db_session=session, name=tool_name, actor=actor)
-                return tool.to_pydantic()
-            except NoResultFound:
-                raise ValueError(f"Tool with name {tool_name} not found for user with id {actor.id}.")
+            tool = ToolModel.read(db_session=session, name=tool_name, actor=actor)
+            return tool.to_pydantic()
 
     @enforce_types
     def list_tools(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[PydanticTool]:

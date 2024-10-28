@@ -37,6 +37,7 @@ from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import Base, MetadataStore
 from letta.o1_agent import O1Agent
+from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
@@ -252,12 +253,12 @@ class SyncServer(Server):
             self.default_org = self.organization_manager.create_default_organization()
             self.default_user = self.user_manager.create_default_user()
             self.add_default_blocks(self.default_user.id)
-            self.tool_manager.add_default_tools(module_name="base", user_id=self.default_user.id, org_id=self.default_org.id)
+            self.tool_manager.add_default_tools(module_name="base", actor=self.default_user)
 
             # If there is a default org/user
             # This logic may have to change in the future
             if settings.load_default_external_tools:
-                self.add_default_external_tools(user_id=self.default_user.id, org_id=self.default_org.id)
+                self.add_default_external_tools(actor=self.default_user)
 
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
@@ -825,9 +826,8 @@ class SyncServer(Server):
                         source_type=source_type,
                         tags=tags,
                         json_schema=json_schema,
-                        organization_id=user.organization_id,
                     ),
-                    user_id=user_id,
+                    actor=actor,
                 )
                 tool_objs.append(tool)
                 if not request.tools:
@@ -894,7 +894,7 @@ class SyncServer(Server):
     ):
         """Update the agents core memory block, return the new state"""
         try:
-            user = self.user_manager.get_user_by_id(user_id=actor.id)
+            self.user_manager.get_user_by_id(user_id=actor.id)
         except Exception:
             raise ValueError(f"User user_id={actor.id} does not exist")
 
@@ -908,7 +908,7 @@ class SyncServer(Server):
         if request.memory:
             assert isinstance(request.memory, Memory), type(request.memory)
             new_memory_contents = request.memory.to_flat_dict()
-            _ = self.update_agent_core_memory(user_id=actor.user_id, agent_id=request.id, new_memory_contents=new_memory_contents)
+            _ = self.update_agent_core_memory(user_id=actor.id, agent_id=request.id, new_memory_contents=new_memory_contents)
 
         # update the system prompt
         if request.system:
@@ -974,8 +974,11 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Add tools from an existing agent"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
+        try:
+            user = self.user_manager.get_user_by_id(user_id=user_id)
+        except NoResultFound:
             raise ValueError(f"User user_id={user_id} does not exist")
+
         if self.ms.get_agent(agent_id=agent_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
@@ -984,12 +987,12 @@ class SyncServer(Server):
 
         # Get all the tool objects from the request
         tool_objs = []
-        tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool_id)
+        tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=user)
         assert tool_obj, f"Tool with id={tool_id} does not exist"
         tool_objs.append(tool_obj)
 
         for tool in letta_agent.tools:
-            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id)
+            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=user)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
             # If it's not the already added tool
@@ -1013,8 +1016,11 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Remove tools from an existing agent"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
+        try:
+            user = self.user_manager.get_user_by_id(user_id=user_id)
+        except NoResultFound:
             raise ValueError(f"User user_id={user_id} does not exist")
+
         if self.ms.get_agent(agent_id=agent_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
@@ -1024,7 +1030,7 @@ class SyncServer(Server):
         # Get all the tool_objs
         tool_objs = []
         for tool in letta_agent.tools:
-            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id)
+            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=user)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
             # If it's not the tool we want to remove
@@ -1739,7 +1745,7 @@ class SyncServer(Server):
 
         return sources_with_metadata
 
-    def add_default_external_tools(self, user_id: str, org_id: str) -> bool:
+    def add_default_external_tools(self, actor: User) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
         success = True
         tool_creates = ToolCreate.load_default_langchain_tools() + ToolCreate.load_default_crewai_tools()
@@ -1747,7 +1753,7 @@ class SyncServer(Server):
             tool_creates += ToolCreate.load_default_composio_tools()
         for tool_create in tool_creates:
             try:
-                self.tool_manager.create_or_update_tool(tool_create)
+                self.tool_manager.create_or_update_tool(tool_create, actor=actor)
             except Exception as e:
                 warnings.warn(f"An error occurred while creating tool {tool_create}: {e}")
                 warnings.warn(traceback.format_exc())

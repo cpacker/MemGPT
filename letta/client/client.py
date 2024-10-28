@@ -2204,7 +2204,7 @@ class LocalClient(AbstractClient):
             organization_id=self.org_id,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
         )
-        return self.server.tool_manager.create_or_update_tool(tool_create, user_id=self.user_id)
+        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
 
     def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         tool_create = ToolCreate.from_crewai(
@@ -2212,11 +2212,11 @@ class LocalClient(AbstractClient):
             additional_imports_module_attr_map=additional_imports_module_attr_map,
             organization_id=self.org_id,
         )
-        return self.server.tool_manager.create_or_update_tool(tool_create, user_id=self.user_id)
+        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
 
     def load_composio_tool(self, action: "ActionType") -> Tool:
         tool_create = ToolCreate.from_composio(action=action, organization_id=self.org_id)
-        return self.server.tool_manager.create_or_update_tool(tool_create, user_id=self.user_id)
+        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
@@ -2257,7 +2257,7 @@ class LocalClient(AbstractClient):
                 tags=tags,
                 terminal=terminal,
             ),
-            user_id=self.user_id,
+            actor=self.user,
         )
 
     def update_tool(
@@ -2289,7 +2289,7 @@ class LocalClient(AbstractClient):
         # Filter out any None values from the dictionary
         update_data = {key: value for key, value in update_data.items() if value is not None}
 
-        return self.server.tool_manager.update_tool_by_id(id, self.user_id, ToolUpdate(**update_data))
+        return self.server.tool_manager.update_tool_by_id(tool_id=id, tool_update=ToolUpdate(**update_data), actor=self.user)
 
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """
@@ -2310,7 +2310,7 @@ class LocalClient(AbstractClient):
         Returns:
             tool (Tool): Tool
         """
-        return self.server.tool_manager.get_tool_by_id(id)
+        return self.server.tool_manager.get_tool_by_id(id, actor=self.user)
 
     def delete_tool(self, id: str):
         """
