@@ -306,7 +306,7 @@ class BlockModel(Base):
     id = Column(String, primary_key=True, nullable=False)
     value = Column(String, nullable=False)
     limit = Column(BIGINT)
-    name = Column(String)
+    template_name = Column(String, nullable=True, default=None)
     template = Column(Boolean, default=False)  # True: listed as possible human/persona
     label = Column(String, nullable=False)
     metadata_ = Column(JSON)
@@ -315,7 +315,9 @@ class BlockModel(Base):
     Index(__tablename__ + "_idx_user", user_id),
 
     def __repr__(self) -> str:
-        return f"<Block(id='{self.id}', name='{self.name}', template='{self.template}', label='{self.label}', user_id='{self.user_id}')>"
+        return (
+            f"<Block(id='{self.id}', name='{self.name}', template='{self.template_name}', label='{self.label}', user_id='{self.user_id}')>"
+        )
 
     def to_record(self) -> Block:
         if self.label == "persona":
@@ -323,7 +325,7 @@ class BlockModel(Base):
                 id=self.id,
                 value=self.value,
                 limit=self.limit,
-                name=self.name,
+                template_name=self.template_name,
                 template=self.template,
                 label=self.label,
                 metadata_=self.metadata_,
@@ -335,7 +337,7 @@ class BlockModel(Base):
                 id=self.id,
                 value=self.value,
                 limit=self.limit,
-                name=self.name,
+                template_name=self.template_name,
                 template=self.template,
                 label=self.label,
                 metadata_=self.metadata_,
@@ -347,7 +349,7 @@ class BlockModel(Base):
                 id=self.id,
                 value=self.value,
                 limit=self.limit,
-                name=self.name,
+                template_name=self.template_name,
                 template=self.template,
                 label=self.label,
                 metadata_=self.metadata_,
@@ -470,7 +472,7 @@ class MetadataStore:
             # with a given name doesn't exist.
             if (
                 session.query(BlockModel)
-                .filter(BlockModel.name == block.name)
+                .filter(BlockModel.template_name == block.template_name)
                 .filter(BlockModel.user_id == block.user_id)
                 .filter(BlockModel.template == True)
                 .filter(BlockModel.label == block.label)
@@ -478,7 +480,7 @@ class MetadataStore:
                 > 0
             ):
 
-                raise ValueError(f"Block with name {block.name} already exists")
+                raise ValueError(f"Block with name {block.template_name} already exists")
             session.add(BlockModel(**vars(block)))
             session.commit()
 
@@ -630,7 +632,7 @@ class MetadataStore:
                 query = query.filter(BlockModel.label == label)
 
             if name:
-                query = query.filter(BlockModel.name == name)
+                query = query.filter(BlockModel.template_name == name)
 
             if id:
                 query = query.filter(BlockModel.id == id)
