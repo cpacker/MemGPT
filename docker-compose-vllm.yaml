@@ -4,7 +4,7 @@ services:
   letta:
     image: lettaai/letta:latest
     ports:
-      - "8083:8083"
+      - "8283:8283"
     environment:
       - LETTA_LLM_ENDPOINT=http://vllm:8000
       - LETTA_LLM_ENDPOINT_TYPE=vllm
