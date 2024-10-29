@@ -20,6 +20,7 @@ from letta.constants import (
     REQ_HEARTBEAT_MESSAGE,
 )
 from letta.errors import LLMError
+from letta.helpers import ToolRulesSolver
 from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
@@ -241,6 +242,9 @@ class Agent(BaseAgent):
 
         # link tools
         self.link_tools(tools)
+
+        # initialize a tool rules solver
+        self.tool_rules_solver = ToolRulesSolver(tool_rules=agent_state.tool_rules)
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
@@ -467,13 +471,21 @@ class Agent(BaseAgent):
         stream: bool = False,  # TODO move to config?
     ) -> ChatCompletionResponse:
         """Get response from LLM API"""
+        # Get the allowed tools based on the ToolRulesSolver state
+        allowed_tool_names = self.tool_rules_solver.get_allowed_tool_names()
+
+        if not allowed_tool_names:
+            # if it's empty, any available tools are fair game
+            allowed_functions = self.functions
+        else:
+            allowed_functions = [func for func in self.functions if func["name"] in allowed_tool_names]
         try:
             response = create(
                 # agent_state=self.agent_state,
                 llm_config=self.agent_state.llm_config,
                 messages=message_sequence,
                 user_id=self.agent_state.user_id,
-                functions=self.functions,
+                functions=allowed_functions,
                 functions_python=self.functions_python,
                 function_call=function_call,
                 # hint
@@ -515,6 +527,7 @@ class Agent(BaseAgent):
             assert response_message_id.startswith("message-"), response_message_id
 
         messages = []  # append these to the history when done
+        function_name = None
 
         # Step 2: check if LLM wanted to call a function
         if response_message.function_call or (response_message.tool_calls is not None and len(response_message.tool_calls) > 0):
@@ -723,6 +736,15 @@ class Agent(BaseAgent):
         # rebuild memory
         # TODO: @charles please check this
         self.rebuild_memory()
+
+        # Update ToolRulesSolver state with last called function
+        self.tool_rules_solver.update_tool_usage(function_name)
+
+        # Update heartbeat request according to provided tool rules
+        if self.tool_rules_solver.has_children_tools(function_name):
+            heartbeat_request = True
+        elif self.tool_rules_solver.is_terminal_tool(function_name):
+            heartbeat_request = False
 
         return messages, heartbeat_request, function_failed
 

@@ -42,6 +42,7 @@ from letta.schemas.openai.chat_completions import ToolCall
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
+from letta.schemas.tool_rule import BaseToolRule
 from letta.server.rest_api.interface import QueuingInterface
 from letta.server.server import SyncServer
 from letta.utils import get_human_text, get_persona_text
@@ -195,7 +196,6 @@ class AbstractClient(object):
         self,
         func,
         name: Optional[str] = None,
-        update: Optional[bool] = True,
         tags: Optional[List[str]] = None,
     ) -> Tool:
         raise NotImplementedError
@@ -394,7 +394,7 @@ class RESTClient(AbstractClient):
         # add memory tools
         memory_functions = get_memory_functions(memory)
         for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"], update=True)
+            tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
             tool_names.append(tool.name)
 
         # check if default configs are provided
@@ -1257,7 +1257,6 @@ class RESTClient(AbstractClient):
         self,
         func: Callable,
         name: Optional[str] = None,
-        update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
     ) -> Tool:
         """
@@ -1267,7 +1266,6 @@ class RESTClient(AbstractClient):
             func (callable): The function to create a tool for.
             name: (str): Name of the tool (must be unique per-user.)
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
-            update (bool, optional): Update the tool if it already exists. Defaults to True.
 
         Returns:
             tool (Tool): The created tool.
@@ -1568,6 +1566,7 @@ class LocalClient(AbstractClient):
         system: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
+        tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
@@ -1582,6 +1581,7 @@ class LocalClient(AbstractClient):
             memory (Memory): Memory configuration
             system (str): System configuration
             tools (List[str]): List of tools
+            tool_rules (Optional[List[BaseToolRule]]): List of tool rules
             include_base_tools (bool): Include base tools
             metadata (Dict): Metadata
             description (str): Description
@@ -1603,7 +1603,7 @@ class LocalClient(AbstractClient):
         # add memory tools
         memory_functions = get_memory_functions(memory)
         for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"], update=True)
+            tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
             tool_names.append(tool.name)
 
         self.interface.clear()
@@ -1620,6 +1620,7 @@ class LocalClient(AbstractClient):
                 metadata_=metadata,
                 memory=memory,
                 tools=tool_names,
+                tool_rules=tool_rules,
                 system=system,
                 agent_type=agent_type,
                 llm_config=llm_config if llm_config else self._default_llm_config,
@@ -2197,8 +2198,8 @@ class LocalClient(AbstractClient):
         self,
         func,
         name: Optional[str] = None,
-        update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
+        description: Optional[str] = None,
         terminal: Optional[bool] = False,
     ) -> Tool:
         """
@@ -2208,7 +2209,7 @@ class LocalClient(AbstractClient):
             func (callable): The function to create a tool for.
             name: (str): Name of the tool (must be unique per-user.)
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
-            update (bool, optional): Update the tool if it already exists. Defaults to True.
+            description (str, optional): The description.
             terminal (bool, optional): Whether the tool is a terminal tool (no more agent steps). Defaults to False.
 
         Returns:
@@ -2229,6 +2230,7 @@ class LocalClient(AbstractClient):
                 source_code=source_code,
                 name=name,
                 tags=tags,
+                description=description,
                 terminal=terminal,
             ),
             actor=self.user,
