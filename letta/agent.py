@@ -479,6 +479,7 @@ class Agent(BaseAgent):
             allowed_functions = self.functions
         else:
             allowed_functions = [func for func in self.functions if func["name"] in allowed_tool_names]
+
         try:
             response = create(
                 # agent_state=self.agent_state,

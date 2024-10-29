@@ -127,3 +127,4 @@ def test_single_path_agent_tool_call_graph():
     assert_invoked_send_message_with_keyword(response.messages, "banana")
 
     print(f"Got successful response from client: \n\n{response}")
+    cleanup(client=client, agent_uuid=agent_uuid)

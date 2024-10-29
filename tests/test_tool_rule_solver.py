@@ -3,6 +3,7 @@ import warnings
 import pytest
 
 from letta.helpers import ToolRulesSolver
+from letta.helpers.tool_rule_solver import ToolRuleValidationError
 from letta.schemas.tool_rule import InitToolRule, TerminalToolRule, ToolRule
 
 # Constants for tool names used in the tests
@@ -102,3 +103,26 @@ def test_update_tool_usage_and_get_allowed_tool_names_combined():
 
     # Step 4: 'final_tool' should be terminal
     assert solver.is_terminal_tool(FINAL_TOOL) is True, "Should recognize 'final_tool' as terminal"
+
+
+def test_tool_rules_with_cycle_detection():
+    # Setup: Define tool rules with both connected, disconnected nodes and a cycle
+    init_rule = InitToolRule(tool_name=START_TOOL)
+    rule_1 = ToolRule(tool_name=START_TOOL, children=[NEXT_TOOL])
+    rule_2 = ToolRule(tool_name=NEXT_TOOL, children=[HELPER_TOOL])
+    rule_3 = ToolRule(tool_name=HELPER_TOOL, children=[START_TOOL])  # This creates a cycle: start -> next -> helper -> start
+    rule_4 = ToolRule(tool_name=FINAL_TOOL, children=[END_TOOL])  # Disconnected rule, no cycle here
+    terminal_rule = TerminalToolRule(tool_name=END_TOOL)
+
+    # Action & Assert: Attempt to create the ToolRulesSolver with a cycle should raise ValidationError
+    with pytest.raises(ToolRuleValidationError, match="Tool rules contain cycles"):
+        ToolRulesSolver(tool_rules=[init_rule, rule_1, rule_2, rule_3, rule_4, terminal_rule])
+
+    # Extra setup: Define tool rules without a cycle but with hanging nodes
+    rule_5 = ToolRule(tool_name=PREP_TOOL, children=[FINAL_TOOL])  # Hanging node with no connection to start_tool
+
+    # Assert that a configuration without cycles does not raise an error
+    try:
+        ToolRulesSolver(tool_rules=[init_rule, rule_1, rule_2, rule_4, rule_5, terminal_rule])
+    except ToolRuleValidationError:
+        pytest.fail("ToolRulesSolver raised ValidationError unexpectedly on a valid DAG with hanging nodes")
