@@ -505,7 +505,7 @@ class Agent(BaseAgent):
                 else:
                     # Decrement retry limit and try again
                     warnings.warn(empty_api_err_message)
-                    self._get_ai_reply(
+                    return self._get_ai_reply(
                         message_sequence, function_call, first_message, stream, fail_on_empty_response, empty_response_retry_limit - 1
                     )
 
