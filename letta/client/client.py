@@ -140,6 +140,8 @@ class AbstractClient(object):
         agent_id: Optional[str] = None,
         name: Optional[str] = None,
         stream: Optional[bool] = False,
+        stream_steps: bool = False,
+        stream_tokens: bool = False,
         include_full_message: Optional[bool] = False,
     ) -> LettaResponse:
         raise NotImplementedError

@@ -16,9 +16,11 @@ def convert_to_structured_output(openai_function: dict) -> dict:
 
     See: https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
     """
+    description = openai_function["description"] if "description" in openai_function else ""
+
     structured_output = {
         "name": openai_function["name"],
-        "description": openai_function["description"],
+        "description": description,
         "strict": True,
         "parameters": {"type": "object", "properties": {}, "additionalProperties": False, "required": []},
     }
