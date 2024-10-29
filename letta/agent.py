@@ -469,6 +469,8 @@ class Agent(BaseAgent):
         function_call: str = "auto",
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
+        fail_on_empty_response: bool = False,
+        empty_response_retry_limit: int = 3,
     ) -> ChatCompletionResponse:
         """Get response from LLM API"""
         # Get the allowed tools based on the ToolRulesSolver state
@@ -497,7 +499,15 @@ class Agent(BaseAgent):
             )
 
             if len(response.choices) == 0 or response.choices[0] is None:
-                raise Exception(f"API call didn't return a message: {response}")
+                empty_api_err_message = f"API call didn't return a message: {response}"
+                if fail_on_empty_response or empty_response_retry_limit == 0:
+                    raise Exception(empty_api_err_message)
+                else:
+                    # Decrement retry limit and try again
+                    warnings.warn(empty_api_err_message)
+                    self._get_ai_reply(
+                        message_sequence, function_call, first_message, stream, fail_on_empty_response, empty_response_retry_limit - 1
+                    )
 
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
