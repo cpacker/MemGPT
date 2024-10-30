@@ -63,7 +63,7 @@ class AgentState(BaseAgent, validate_assignment=True):
     tools: List[str] = Field(..., description="The tools used by the agent.")
 
     # tool rules
-    tool_rules: List[BaseToolRule] = Field([], description="The list of tool rules.")
+    tool_rules: List[BaseToolRule] = Field(..., description="The list of tool rules.")
 
     # system prompt
     system: str = Field(..., description="The system prompt used by the agent.")

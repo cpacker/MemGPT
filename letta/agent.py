@@ -44,6 +44,7 @@ from letta.schemas.openai.chat_completion_response import (
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.passage import Passage
 from letta.schemas.tool import Tool
+from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
 from letta.system import (
     get_heartbeat,
@@ -244,6 +245,11 @@ class Agent(BaseAgent):
         self.link_tools(tools)
 
         # initialize a tool rules solver
+        if agent_state.tool_rules:
+            # if there are tool rules, print out a warning
+            warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
+        # add default rule for having send_message be a terminal tool
+        agent_state.tool_rule.append([TerminalToolRule(tool_name="send_message")])
         self.tool_rules_solver = ToolRulesSolver(tool_rules=agent_state.tool_rules)
 
         # gpt-4, gpt-3.5-turbo, ...
