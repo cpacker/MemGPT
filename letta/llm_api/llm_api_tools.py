@@ -106,7 +106,7 @@ def create(
     messages: List[Message],
     user_id: Optional[str] = None,  # option UUID to associate request with
     functions: Optional[list] = None,
-    functions_python: Optional[list] = None,
+    functions_python: Optional[dict] = None,
     function_call: str = "auto",
     # hint
     first_message: bool = False,
@@ -140,7 +140,6 @@ def create(
             raise ValueError(f"OpenAI key is missing from letta config file")
 
         data = build_openai_chat_completions_request(llm_config, messages, user_id, functions, function_call, use_tool_naming, max_tokens)
-
         if stream:  # Client requested token streaming
             data.stream = True
             assert isinstance(stream_interface, AgentChunkStreamingInterface) or isinstance(

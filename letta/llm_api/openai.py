@@ -530,7 +530,12 @@ def openai_chat_completions_request(
         data.pop("tools")
         data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
 
+    if "tools" in data:
+        for tool in data["tools"]:
+            tool["function"] = convert_to_structured_output(tool["function"])
+
     response_json = make_post_request(url, headers, data)
+
     return ChatCompletionResponse(**response_json)
 
 
