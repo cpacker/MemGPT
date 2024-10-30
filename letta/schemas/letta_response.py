@@ -36,4 +36,4 @@ class LettaResponse(BaseModel):
 
 
 # The streaming response is either [DONE], [DONE_STEP], [DONE], an error, or a LettaMessage
-LettaStreamingResponse = Union[LettaMessage, MessageStreamStatus]
+LettaStreamingResponse = Union[LettaMessage, MessageStreamStatus, LettaUsageStatistics]
