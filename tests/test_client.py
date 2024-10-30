@@ -488,6 +488,21 @@ def test_organization(client: RESTClient):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_organization because LocalClient does not support organizations")
 
+    # create an organization
+    org_name = "test-org"
+    org = client.create_org(org_name)
+
+    # assert the id appears
+    orgs = client.list_orgs()
+    assert org.id in [o.id for o in orgs]
+
+    org = client.delete_org(org.id)
+    assert org.name == org_name
+
+    # assert the id is gone
+    orgs = client.list_orgs()
+    assert not (org.id in [o.id for o in orgs])
+
 
 def test_list_llm_models(client: RESTClient):
     """Test that if the user's env has the right api keys set, at least one model appears in the model list"""
