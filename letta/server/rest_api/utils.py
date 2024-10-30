@@ -7,6 +7,7 @@ from typing import AsyncGenerator, Optional, Union
 
 from pydantic import BaseModel
 
+from letta.schemas.usage import LettaUsageStatistics
 from letta.server.rest_api.interface import StreamingServerInterface
 from letta.server.server import SyncServer
 
@@ -55,11 +56,10 @@ async def sse_async_generator(
         if usage_task is not None:
             try:
                 usage = await usage_task
-                if isinstance(usage, BaseModel):
-                    usage_data = usage.model_dump()
-                else:
-                    usage_data = usage
-                yield sse_formatter({"usage": usage_data})
+                # Double-check the type
+                if not isinstance(usage, LettaUsageStatistics):
+                    raise ValueError(f"Expected LettaUsageStatistics, got {type(usage)}")
+                yield sse_formatter({"usage": usage.model_dump()})
             except Exception as e:
                 warnings.warn(f"Error getting usage data: {e}")
                 yield sse_formatter({"error": "Failed to get usage data"})
