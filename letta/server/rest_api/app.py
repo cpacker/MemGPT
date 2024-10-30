@@ -173,6 +173,10 @@ def start_server(
         # Add the handler to the logger
         server_logger.addHandler(stream_handler)
 
+    # Set Uvicorn log level to WARNING to suppress INFO logs
+    logging.getLogger("uvicorn").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+
     print(f"Running: uvicorn server:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
     uvicorn.run(
         app,
