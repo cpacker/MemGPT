@@ -249,7 +249,7 @@ class Agent(BaseAgent):
             # if there are tool rules, print out a warning
             warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
         # add default rule for having send_message be a terminal tool
-        agent_state.tool_rule.append([TerminalToolRule(tool_name="send_message")])
+        agent_state.tool_rules.append(TerminalToolRule(tool_name="send_message"))
         self.tool_rules_solver = ToolRulesSolver(tool_rules=agent_state.tool_rules)
 
         # gpt-4, gpt-3.5-turbo, ...
