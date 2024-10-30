@@ -209,3 +209,6 @@ class ToolUpdate(LettaBase):
     module: Optional[str] = Field(None, description="The source code of the function.")
     source_code: Optional[str] = Field(None, description="The source code of the function.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
+    json_schema: Optional[Dict] = Field(
+        None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
+    )

@@ -107,9 +107,9 @@ class ToolManager:
             for key, value in update_data.items():
                 setattr(tool, key, value)
 
-            # If source code is changed, we want to auto-refresh the name and schema
+            # If source code is changed and a new json_schema is not provided, we want to auto-refresh the name and schema
             # CAUTION: This will override any name/schema values the user passed in
-            if "source_code" in update_data.keys():
+            if "source_code" in update_data.keys() and "json_schema" not in update_data.keys():
                 pydantic_tool = tool.to_pydantic()
 
                 # Decide whether or not to reset name
