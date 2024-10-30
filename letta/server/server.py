@@ -820,7 +820,7 @@ class SyncServer(Server):
                     continue
                 source_code = parse_source_code(func)
                 # memory functions are not terminal
-                json_schema = generate_schema(func, terminal=False, name=func_name)
+                json_schema = generate_schema(func, name=func_name)
                 source_type = "python"
                 tags = ["memory", "memgpt-base"]
                 tool = self.tool_manager.create_or_update_tool(

@@ -205,6 +205,7 @@ class AbstractClient(object):
         self,
         id: str,
         name: Optional[str] = None,
+        description: Optional[str] = None,
         func: Optional[Callable] = None,
         tags: Optional[List[str]] = None,
     ) -> Tool:
@@ -1302,6 +1303,7 @@ class RESTClient(AbstractClient):
         self,
         id: str,
         name: Optional[str] = None,
+        description: Optional[str] = None,
         func: Optional[Callable] = None,
         tags: Optional[List[str]] = None,
     ) -> Tool:
@@ -1324,7 +1326,7 @@ class RESTClient(AbstractClient):
 
         source_type = "python"
 
-        request = ToolUpdate(source_type=source_type, source_code=source_code, tags=tags, name=name)
+        request = ToolUpdate(description=description, source_type=source_type, source_code=source_code, tags=tags, name=name)
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/tools/{id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
@@ -2233,7 +2235,6 @@ class LocalClient(AbstractClient):
     def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         tool_create = ToolCreate.from_langchain(
             langchain_tool=langchain_tool,
-            organization_id=self.org_id,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
         )
         return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
@@ -2242,12 +2243,11 @@ class LocalClient(AbstractClient):
         tool_create = ToolCreate.from_crewai(
             crewai_tool=crewai_tool,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
-            organization_id=self.org_id,
         )
         return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
 
     def load_composio_tool(self, action: "ActionType") -> Tool:
-        tool_create = ToolCreate.from_composio(action=action, organization_id=self.org_id)
+        tool_create = ToolCreate.from_composio(action=action)
         return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic
@@ -2257,7 +2257,6 @@ class LocalClient(AbstractClient):
         name: Optional[str] = None,
         update: Optional[bool] = True,  # TODO: actually use this
         tags: Optional[List[str]] = None,
-        terminal: Optional[bool] = False,
     ) -> Tool:
         """
         Create a tool. This stores the source code of function on the server, so that the server can execute the function and generate an OpenAI JSON schemas for it when using with an agent.
@@ -2267,7 +2266,6 @@ class LocalClient(AbstractClient):
             name: (str): Name of the tool (must be unique per-user.)
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
             update (bool, optional): Update the tool if it already exists. Defaults to True.
-            terminal (bool, optional): Whether the tool is a terminal tool (no more agent steps). Defaults to False.
 
         Returns:
             tool (Tool): The created tool.
@@ -2287,7 +2285,6 @@ class LocalClient(AbstractClient):
                 source_code=source_code,
                 name=name,
                 tags=tags,
-                terminal=terminal,
             ),
             actor=self.user,
         )
@@ -2296,6 +2293,7 @@ class LocalClient(AbstractClient):
         self,
         id: str,
         name: Optional[str] = None,
+        description: Optional[str] = None,
         func: Optional[callable] = None,
         tags: Optional[List[str]] = None,
     ) -> Tool:
@@ -2316,6 +2314,7 @@ class LocalClient(AbstractClient):
             "source_code": parse_source_code(func) if func else None,
             "tags": tags,
             "name": name,
+            "description": description,
         }
 
         # Filter out any None values from the dictionary
