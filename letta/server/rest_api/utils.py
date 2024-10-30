@@ -1,7 +1,9 @@
+import asyncio
 import json
 import traceback
+import warnings
 from enum import Enum
-from typing import AsyncGenerator, Union
+from typing import AsyncGenerator, Optional, Union
 
 from pydantic import BaseModel
 
@@ -24,7 +26,11 @@ def sse_formatter(data: Union[dict, str]) -> str:
     return f"data: {data_str}\n\n"
 
 
-async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
+async def sse_async_generator(
+    generator: AsyncGenerator,
+    usage_task: Optional[asyncio.Task] = None,
+    finish_message=True,
+):
     """
     Wraps a generator for use in Server-Sent Events (SSE), handling errors and ensuring a completion message.
 
@@ -44,6 +50,19 @@ async def sse_async_generator(generator: AsyncGenerator, finish_message=True):
             elif not isinstance(chunk, dict):
                 chunk = str(chunk)
             yield sse_formatter(chunk)
+
+        # If we have a usage task, wait for it and send its result
+        if usage_task is not None:
+            try:
+                usage = await usage_task
+                if isinstance(usage, BaseModel):
+                    usage_data = usage.model_dump()
+                else:
+                    usage_data = usage
+                yield sse_formatter({"usage": usage_data})
+            except Exception as e:
+                warnings.warn(f"Error getting usage data: {e}")
+                yield sse_formatter({"error": "Failed to get usage data"})
 
     except Exception as e:
         print("stream decoder hit error:", e)
