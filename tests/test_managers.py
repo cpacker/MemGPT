@@ -49,7 +49,7 @@ def tool_fixture(server: SyncServer):
     user = server.user_manager.create_default_user()
     other_user = server.user_manager.create_user(UserCreate(name="other", organization_id=org.id))
     tool_create = ToolCreate(description=description, tags=tags, source_code=source_code, source_type=source_type)
-    derived_json_schema = derive_openai_json_schema(tool_create)
+    derived_json_schema = derive_openai_json_schema(source_code=tool_create.source_code, name=tool_create.name)
     derived_name = derived_json_schema["name"]
     tool_create.json_schema = derived_json_schema
     tool_create.name = derived_name
@@ -182,7 +182,7 @@ def test_create_tool(server: SyncServer, tool_fixture):
     assert tool.tags == tool_create.tags
     assert tool.source_code == tool_create.source_code
     assert tool.source_type == tool_create.source_type
-    assert tool.json_schema == derive_openai_json_schema(tool_create)
+    assert tool.json_schema == derive_openai_json_schema(source_code=tool_create.source_code, name=tool_create.name)
 
 
 def test_get_tool_by_id(server: SyncServer, tool_fixture):
@@ -220,7 +220,6 @@ def test_get_tool_with_actor(server: SyncServer, tool_fixture):
 
 def test_list_tools(server: SyncServer, tool_fixture):
     tool = tool_fixture["tool"]
-    tool_fixture["organization"]
     user = tool_fixture["user"]
 
     # List tools (should include the one created by the fixture)
@@ -249,6 +248,85 @@ def test_update_tool_by_id(server: SyncServer, tool_fixture):
     assert updated_tool.description == updated_description
 
 
+def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, tool_fixture):
+    def counter_tool(counter: int):
+        """
+        Args:
+            counter (int): The counter to count to.
+
+        Returns:
+            bool: If it successfully counted to the counter.
+        """
+        for c in range(counter):
+            print(c)
+
+        return True
+
+    # Test begins
+    tool = tool_fixture["tool"]
+    user = tool_fixture["user"]
+    og_json_schema = tool_fixture["tool_create"].json_schema
+
+    source_code = parse_source_code(counter_tool)
+
+    # Create a ToolUpdate object to modify the tool's source_code
+    tool_update = ToolUpdate(source_code=source_code)
+
+    # Update the tool using the manager method
+    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=user)
+
+    # Fetch the updated tool to verify the changes
+    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=user)
+
+    # Assertions to check if the update was successful, and json_schema is updated as well
+    assert updated_tool.source_code == source_code
+    assert updated_tool.json_schema != og_json_schema
+
+    new_schema = derive_openai_json_schema(source_code=updated_tool.source_code, name=updated_tool.name)
+    assert updated_tool.json_schema == new_schema
+    assert updated_tool.name == new_schema["name"]
+
+
+def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_fixture):
+    def counter_tool(counter: int):
+        """
+        Args:
+            counter (int): The counter to count to.
+
+        Returns:
+            bool: If it successfully counted to the counter.
+        """
+        for c in range(counter):
+            print(c)
+
+        return True
+
+    # Test begins
+    tool = tool_fixture["tool"]
+    user = tool_fixture["user"]
+    og_json_schema = tool_fixture["tool_create"].json_schema
+
+    source_code = parse_source_code(counter_tool)
+    name = "test_function_name_explicit"
+
+    # Create a ToolUpdate object to modify the tool's source_code
+    tool_update = ToolUpdate(name=name, source_code=source_code)
+
+    # Update the tool using the manager method
+    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=user)
+
+    # Fetch the updated tool to verify the changes
+    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=user)
+
+    # Assertions to check if the update was successful, and json_schema is updated as well
+    assert updated_tool.source_code == source_code
+    assert updated_tool.json_schema != og_json_schema
+
+    new_schema = derive_openai_json_schema(source_code=updated_tool.source_code, name=updated_tool.name)
+    assert updated_tool.json_schema == new_schema
+    assert updated_tool.name == name
+
+
 def test_update_tool_multi_user(server: SyncServer, tool_fixture):
     tool = tool_fixture["tool"]
     user = tool_fixture["user"]
@@ -272,7 +350,6 @@ def test_update_tool_multi_user(server: SyncServer, tool_fixture):
 
 def test_delete_tool_by_id(server: SyncServer, tool_fixture):
     tool = tool_fixture["tool"]
-    tool_fixture["organization"]
     user = tool_fixture["user"]
 
     # Delete the tool using the manager method

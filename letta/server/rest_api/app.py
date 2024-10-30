@@ -8,6 +8,7 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from letta.constants import ADMIN_PREFIX, API_PREFIX, OPENAI_API_PREFIX
 from letta.server.constants import REST_DEFAULT_PORT
 
 # NOTE(charles): these are extra routes that are not part of v1 but we still need to mount to pass tests
@@ -52,11 +53,6 @@ password = None
 #    # Autogenerate a password for this session and dump it to stdout
 #    password = secrets.token_urlsafe(16)
 #    #typer.secho(f"Generated admin server password for this session: {password}", fg=typer.colors.GREEN)
-
-
-ADMIN_PREFIX = "/v1/admin"
-API_PREFIX = "/v1"
-OPENAI_API_PREFIX = "/openai"
 
 
 def create_application() -> "FastAPI":
