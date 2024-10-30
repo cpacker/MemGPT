@@ -229,6 +229,12 @@ def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: A
             elif chunk == MessageStreamStatus.done_generation:
                 assert not done_gen, "Message stream already done generation"
                 done_gen = True
+        if isinstance(chunk, LettaUsageStatistics):
+            # Some rough metrics for a reasonable usage pattern
+            assert chunk.step_count == 1
+            assert chunk.completion_tokens > 10
+            assert chunk.prompt_tokens > 1000
+            assert chunk.total_tokens > 1000
 
     assert inner_thoughts_exist, "No inner thoughts found"
     assert send_message_ran, "send_message function call not found"
