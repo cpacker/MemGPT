@@ -229,6 +229,12 @@ def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: A
             elif chunk == MessageStreamStatus.done_generation:
                 assert not done_gen, "Message stream already done generation"
                 done_gen = True
+        if isinstance(chunk, LettaUsageStatistics):
+            # Some rough metrics for a reasonable usage pattern
+            assert chunk.step_count == 1
+            assert chunk.completion_tokens > 10
+            assert chunk.prompt_tokens > 1000
+            assert chunk.total_tokens > 1000
 
     assert inner_thoughts_exist, "No inner thoughts found"
     assert send_message_ran, "send_message function call not found"
@@ -487,6 +493,21 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
 def test_organization(client: RESTClient):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_organization because LocalClient does not support organizations")
+
+    # create an organization
+    org_name = "test-org"
+    org = client.create_org(org_name)
+
+    # assert the id appears
+    orgs = client.list_orgs()
+    assert org.id in [o.id for o in orgs]
+
+    org = client.delete_org(org.id)
+    assert org.name == org_name
+
+    # assert the id is gone
+    orgs = client.list_orgs()
+    assert not (org.id in [o.id for o in orgs])
 
 
 def test_list_llm_models(client: RESTClient):
