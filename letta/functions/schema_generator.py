@@ -74,7 +74,7 @@ def pydantic_model_to_open_ai(model):
     }
 
 
-def generate_schema(function, terminal: Optional[bool], name: Optional[str] = None, description: Optional[str] = None) -> dict:
+def generate_schema(function, name: Optional[str] = None, description: Optional[str] = None) -> dict:
     # Get the signature of the function
     sig = inspect.signature(function)
 
@@ -128,7 +128,7 @@ def generate_schema(function, terminal: Optional[bool], name: Optional[str] = No
 
     # append the heartbeat
     # TODO: don't hard-code
-    if function.__name__ not in ["send_message", "pause_heartbeats"] and not terminal:
+    if function.__name__ not in ["send_message", "pause_heartbeats"]:
         schema["parameters"]["properties"]["request_heartbeat"] = {
             "type": "boolean",
             "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
