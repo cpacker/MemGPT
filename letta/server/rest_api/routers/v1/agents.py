@@ -375,7 +375,6 @@ async def send_message(
 
     # TODO(charles): support sending multiple messages
     assert len(request.messages) == 1, f"Multiple messages not supported: {request.messages}"
-    request.messages[0]
 
     return await send_message_to_agent(
         server=server,

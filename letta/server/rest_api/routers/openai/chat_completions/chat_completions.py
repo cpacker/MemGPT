@@ -61,8 +61,7 @@ async def create_chat_completion(
             server=server,
             agent_id=agent_id,
             user_id=actor.id,
-            role=MessageRole(input_message.role),
-            message=input_message.content,
+            messages=completion_request.messages,
             # Turn streaming ON
             stream_steps=True,
             stream_tokens=True,
