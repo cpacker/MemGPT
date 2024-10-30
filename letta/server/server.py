@@ -713,7 +713,7 @@ class SyncServer(Server):
             for message in messages:
                 assert isinstance(message, MessageCreate)
 
-                # If wrapping is eanbled, wrap with metadata before placing content inside the Message object
+                # If wrapping is enabled, wrap with metadata before placing content inside the Message object
                 if message.role == MessageRole.user and wrap_user_message:
                     message.text = system.package_user_message(user_message=message.text)
                 elif message.role == MessageRole.system and wrap_system_message:

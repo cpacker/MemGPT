@@ -28,7 +28,7 @@ from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
-from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
+from letta.schemas.openai.chat_completion_request import ToolCall, ToolCallFunction
 from letta.schemas.source import Source
 from letta.schemas.user import User
 from letta.settings import settings

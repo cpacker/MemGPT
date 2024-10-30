@@ -3,13 +3,12 @@ from typing import TYPE_CHECKING, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
-from letta.schemas.enums import MessageRole
 from letta.schemas.letta_message import FunctionCall, LettaMessage
+from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_request import ChatCompletionRequest
 from letta.schemas.openai.chat_completion_response import (
     ChatCompletionResponse,
     Choice,
-    Message,
     UsageStatistics,
 )
 
@@ -50,18 +49,18 @@ async def create_chat_completion(
     if messages[0].role != "user":
         raise HTTPException(status_code=400, detail="'messages[0].role' must be a 'user'")
 
-    input_message = completion_request.messages[0]
+    # Translate to Message objects
+    messages = [Message.from_chat_completions_message(m) for m in messages]
+
     if completion_request.stream:
         print("Starting streaming OpenAI proxy response")
 
         # TODO(charles) support multimodal parts
-        assert isinstance(input_message.content, str)
-
         return await send_message_to_agent(
             server=server,
             agent_id=agent_id,
             user_id=actor.id,
-            messages=completion_request.messages,
+            messages=messages,
             # Turn streaming ON
             stream_steps=True,
             stream_tokens=True,
@@ -74,14 +73,11 @@ async def create_chat_completion(
         print("Starting non-streaming OpenAI proxy response")
 
         # TODO(charles) support multimodal parts
-        assert isinstance(input_message.content, str)
-
         response_messages = await send_message_to_agent(
             server=server,
             agent_id=agent_id,
             user_id=actor.id,
-            role=MessageRole(input_message.role),
-            message=input_message.content,
+            messages=messages,
             # Turn streaming OFF
             stream_steps=False,
             stream_tokens=False,

@@ -9,7 +9,7 @@ from letta.functions.helpers import (
 )
 from letta.functions.schema_generator import generate_schema_from_args_schema
 from letta.schemas.letta_base import LettaBase
-from letta.schemas.openai.chat_completions import ToolCall
+from letta.schemas.openai.chat_completion_request import ToolCall
 
 
 class BaseTool(LettaBase):

@@ -2,7 +2,7 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
 from pydantic import Field, field_validator
 
@@ -14,17 +14,24 @@ from letta.constants import (
 from letta.local_llm.constants import INNER_THOUGHTS_KWARG
 from letta.schemas.enums import MessageRole
 from letta.schemas.letta_base import LettaBase
+from letta.schemas.letta_message import AssistantMessage as LettaAssistantMessage
 from letta.schemas.letta_message import (
-    AssistantMessage,
     FunctionCall,
     FunctionCallMessage,
     FunctionReturn,
     InternalMonologue,
     LettaMessage,
+)
+from letta.schemas.letta_message import SystemMessage as LettaSystemMessage
+from letta.schemas.letta_message import UserMessage as LettaUserMessage
+from letta.schemas.openai.chat_completion_request import (
+    AssistantMessage,
     SystemMessage,
+    ToolCall,
+    ToolCallFunction,
+    ToolMessage,
     UserMessage,
 )
-from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from letta.utils import get_utc_time, is_utc_datetime, json_dumps
 
 
@@ -120,6 +127,34 @@ class Message(BaseMessage):
         assert v in roles, f"Role must be one of {roles}"
         return v
 
+    @classmethod
+    def from_chat_completions_message(
+        cls, chat_completions_msg: Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]
+    ) -> "Message":
+        if isinstance(chat_completions_msg, SystemMessage):
+            return Message(role=MessageRole.system, text=chat_completions_msg.content, name=chat_completions_msg.name)
+        elif isinstance(chat_completions_msg, UserMessage):
+            return Message(
+                role=MessageRole.user,
+                text=(
+                    chat_completions_msg.content
+                    if isinstance(chat_completions_msg.content, str)
+                    else "\n".join(chat_completions_msg.content)
+                ),
+                name=chat_completions_msg.name,
+            )
+        elif isinstance(chat_completions_msg, AssistantMessage):
+            return Message(
+                role=MessageRole.assistant,
+                text=chat_completions_msg.content,
+                name=chat_completions_msg.name,
+                tool_calls=chat_completions_msg.tool_calls,
+            )
+        elif isinstance(chat_completions_msg, ToolMessage):
+            return Message(role=MessageRole.tool, text=chat_completions_msg.content, tool_call_id=chat_completions_msg.tool_call_id)
+        else:
+            raise ValueError(f"Unsupported message type: {type(chat_completions_msg)}")
+
     def to_json(self):
         json_message = vars(self)
         if json_message["tool_calls"] is not None:
@@ -164,7 +199,7 @@ class Message(BaseMessage):
                         except KeyError:
                             raise ValueError(f"Function call {tool_call.function.name} missing {DEFAULT_MESSAGE_TOOL_KWARG} argument")
                         messages.append(
-                            AssistantMessage(
+                            LettaAssistantMessage(
                                 id=self.id,
                                 date=self.created_at,
                                 assistant_message=message_string,
@@ -217,20 +252,20 @@ class Message(BaseMessage):
                 )
             )
         elif self.role == MessageRole.user:
-            # This is type UserMessage
+            # This is type LettaUserMessage
             assert self.text is not None, self
             messages.append(
-                UserMessage(
+                LettaUserMessage(
                     id=self.id,
                     date=self.created_at,
                     message=self.text,
                 )
             )
         elif self.role == MessageRole.system:
-            # This is type SystemMessage
+            # This is type LettaSystemMessage
             assert self.text is not None, self
             messages.append(
-                SystemMessage(
+                LettaSystemMessage(
                     id=self.id,
                     date=self.created_at,
                     message=self.text,

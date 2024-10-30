@@ -32,7 +32,7 @@ from letta.orm.base import Base
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
 from letta.schemas.message import Message
-from letta.schemas.openai.chat_completions import ToolCall
+from letta.schemas.openai.chat_completion_request import ToolCall
 from letta.schemas.passage import Passage
 from letta.settings import settings
 
