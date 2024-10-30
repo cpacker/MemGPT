@@ -38,7 +38,7 @@ def create_org(
     """
     Create a new org in the database
     """
-    org = server.organization_manager.create_organization(request)
+    org = server.organization_manager.create_organization(name=request.name)
     return org
 
 
