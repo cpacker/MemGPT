@@ -54,6 +54,12 @@ password = None
 #    password = secrets.token_urlsafe(16)
 #    #typer.secho(f"Generated admin server password for this session: {password}", fg=typer.colors.GREEN)
 
+import logging
+
+from fastapi import FastAPI
+
+log = logging.getLogger("uvicorn")
+
 
 def create_application() -> "FastAPI":
     """the application start routine"""
