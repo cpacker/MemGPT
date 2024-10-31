@@ -359,7 +359,7 @@ def update_message(
     return server.update_agent_message(agent_id=agent_id, request=request)
 
 
-@router.post("/{agent_id}/messages", response_model=None, operation_id="create_agent_message")
+@router.post("/{agent_id}/messages", response_model=LettaResponse, operation_id="create_agent_message")
 async def send_message(
     agent_id: str,
     server: SyncServer = Depends(get_letta_server),
@@ -373,7 +373,7 @@ async def send_message(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    return await send_message_to_agent(
+    result = await send_message_to_agent(
         server=server,
         agent_id=agent_id,
         user_id=actor.id,
@@ -386,6 +386,7 @@ async def send_message(
         assistant_message_function_name=request.assistant_message_function_name,
         assistant_message_function_kwarg=request.assistant_message_function_kwarg,
     )
+    return result
 
 
 # TODO: move this into server.py?
