@@ -87,13 +87,23 @@ jobs:
         image: qdrant/qdrant
         ports:
           - 6333:6333
+      postgres:
+        image: pgvector/pgvector:pg17
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Build and run container
-        run: bash db/run_postgres.sh
 
       - name: Setup Python, Poetry, and Dependencies
         uses: packetcoders/action-setup-cache-python-poetry@main
