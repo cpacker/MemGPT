@@ -186,8 +186,6 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 attach_base()
 
-# Base.metadata.create_all(bind=engine)
-
 
 # Dependency
 def get_db():
