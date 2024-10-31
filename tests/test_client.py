@@ -2,22 +2,24 @@ import os
 import threading
 import time
 import uuid
-from typing import Union
+from typing import List, Union
 
 import pytest
 from dotenv import load_dotenv
 
-from letta import Admin, create_client
+from letta import create_client
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import JobStatus, MessageStreamStatus
+from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import FunctionCallMessage, InternalMonologue
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
+from letta.settings import model_settings
+from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
 
@@ -28,10 +30,6 @@ test_agent_state = None
 client = None
 
 test_agent_state_post_message = None
-
-
-# admin credentials
-test_server_token = "test_server_token"
 
 
 def run_server():
@@ -57,7 +55,6 @@ def client(request):
         server_url = os.getenv("LETTA_SERVER_URL")
         if server_url is None:
             # run server in thread
-            # NOTE: must set MEMGPT_SERVER_PASS enviornment variable
             server_url = "http://localhost:8283"
             print("Starting server thread")
             thread = threading.Thread(target=run_server, daemon=True)
@@ -65,10 +62,7 @@ def client(request):
             time.sleep(5)
         print("Running client tests with server:", server_url)
         # create user via admin client
-        admin = Admin(server_url, test_server_token)
-        user = admin.create_user()  # Adjust as per your client's method
-        api_key = admin.create_key(user.id)
-        client = create_client(base_url=server_url, token=api_key.key)  # This yields control back to the test function
+        client = create_client(base_url=server_url, token=None)  # This yields control back to the test function
     else:
         # use local client (no server)
         server_url = None
@@ -76,12 +70,7 @@ def client(request):
 
     client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
-    try:
-        yield client
-    finally:
-        # cleanup user
-        if server_url:
-            admin.delete_user(user.id)
+    yield client
 
 
 # Fixture for test agent
@@ -240,6 +229,12 @@ def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: A
             elif chunk == MessageStreamStatus.done_generation:
                 assert not done_gen, "Message stream already done generation"
                 done_gen = True
+        if isinstance(chunk, LettaUsageStatistics):
+            # Some rough metrics for a reasonable usage pattern
+            assert chunk.step_count == 1
+            assert chunk.completion_tokens > 10
+            assert chunk.prompt_tokens > 1000
+            assert chunk.total_tokens > 1000
 
     assert inner_thoughts_exist, "No inner thoughts found"
     assert send_message_ran, "send_message function call not found"
@@ -274,28 +269,119 @@ def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentSta
     assert human.value == "Human text", "Creating human failed"
 
 
-# def test_tools(client, agent):
-#    tools_response = client.list_tools()
-#    print("TOOLS", tools_response)
-#
-#    tool_name = "TestTool"
-#    tool_response = client.create_tool(name=tool_name, source_code="print('Hello World')", source_type="python")
-#    assert tool_response, "Creating tool failed"
+def test_list_tools_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
+    tools = client.list_tools()
+    visited_ids = {t.id: False for t in tools}
+
+    cursor = None
+    # Choose 3 for uneven buckets (only 7 default tools)
+    num_tools = 3
+    # Construct a complete pagination test to see if we can return all the tools eventually
+    for _ in range(0, len(tools), num_tools):
+        curr_tools = client.list_tools(cursor, num_tools)
+        assert len(curr_tools) <= num_tools
+
+        for curr_tool in curr_tools:
+            assert curr_tool.id in visited_ids
+            visited_ids[curr_tool.id] = True
+
+        cursor = curr_tools[-1].id
+
+    # Assert that everything has been visited
+    assert all(visited_ids.values())
 
 
-def test_config(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
+    # clear sources
+    for source in client.list_sources():
+        client.delete_source(source.id)
+
+    # clear jobs
+    for job in client.list_jobs():
+        client.delete_job(job.id)
+
+    # create a source
+    source = client.create_source(name="test_source")
+
+    # load files into sources
+    file_a = "tests/data/memgpt_paper.pdf"
+    file_b = "tests/data/test.txt"
+    upload_file_using_client(client, source, file_a)
+    upload_file_using_client(client, source, file_b)
+
+    # Get the first file
+    files_a = client.list_files_from_source(source.id, limit=1)
+    assert len(files_a) == 1
+    assert files_a[0].source_id == source.id
+
+    # Use the cursor from response_a to get the remaining file
+    files_b = client.list_files_from_source(source.id, limit=1, cursor=files_a[-1].id)
+    assert len(files_b) == 1
+    assert files_b[0].source_id == source.id
+
+    # Check files are different to ensure the cursor works
+    assert files_a[0].file_name != files_b[0].file_name
+
+    # Use the cursor from response_b to list files, should be empty
+    files = client.list_files_from_source(source.id, limit=1, cursor=files_b[-1].id)
+    assert len(files) == 0  # Should be empty
+
+
+def test_delete_file_from_source(client: Union[LocalClient, RESTClient], agent: AgentState):
+    # clear sources
+    for source in client.list_sources():
+        client.delete_source(source.id)
+
+    # clear jobs
+    for job in client.list_jobs():
+        client.delete_job(job.id)
+
+    # create a source
+    source = client.create_source(name="test_source")
+
+    # load files into sources
+    file_a = "tests/data/test.txt"
+    upload_file_using_client(client, source, file_a)
+
+    # Get the first file
+    files_a = client.list_files_from_source(source.id, limit=1)
+    assert len(files_a) == 1
+    assert files_a[0].source_id == source.id
+
+    # Delete the file
+    client.delete_file_from_source(source.id, files_a[0].id)
+
+    # Check that no files are attached to the source
+    empty_files = client.list_files_from_source(source.id, limit=1)
+    assert len(empty_files) == 0
+
+
+def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
-    models_response = client.list_models()
-    print("MODELS", models_response)
+    # clear sources
+    for source in client.list_sources():
+        client.delete_source(source.id)
 
-    embeddings_response = client.list_embedding_models()
-    print("EMBEDDINGS", embeddings_response)
+    # clear jobs
+    for job in client.list_jobs():
+        client.delete_job(job.id)
 
-    # TODO: add back
-    # config_response = client.get_config()
-    # TODO: ensure config is the same as the one in the server
-    # print("CONFIG", config_response)
+    # create a source
+    source = client.create_source(name="test_source")
+
+    # load a file into a source (non-blocking job)
+    filename = "tests/data/memgpt_paper.pdf"
+    upload_file_using_client(client, source, filename)
+
+    # Get the files
+    files = client.list_files_from_source(source.id)
+    assert len(files) == 1  # Should be condensed to one document
+
+    # Get the memgpt paper
+    file = files[0]
+    assert file.file_name == "memgpt_paper.pdf"
+    assert file.source_id == source.id
 
 
 def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
@@ -304,6 +390,10 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     # clear sources
     for source in client.list_sources():
         client.delete_source(source.id)
+
+    # clear jobs
+    for job in client.list_jobs():
+        client.delete_job(job.id)
 
     # list sources
     sources = client.list_sources()
@@ -343,28 +433,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # load a file into a source (non-blocking job)
     filename = "tests/data/memgpt_paper.pdf"
-    upload_job = client.load_file_into_source(filename=filename, source_id=source.id, blocking=False)
-    print("Upload job", upload_job, upload_job.status, upload_job.metadata_)
-
-    # view active jobs
-    active_jobs = client.list_active_jobs()
-    jobs = client.list_jobs()
-    print(jobs)
-    assert upload_job.id in [j.id for j in jobs]
-    assert len(active_jobs) == 1
-    assert active_jobs[0].metadata_["source_id"] == source.id
-
-    # wait for job to finish (with timeout)
-    timeout = 120
-    start_time = time.time()
-    while True:
-        status = client.get_job(upload_job.id).status
-        print(status)
-        if status == JobStatus.completed:
-            break
-        time.sleep(1)
-        if time.time() - start_time > timeout:
-            raise ValueError("Job did not finish in time")
+    upload_job = upload_file_using_client(client, source, filename)
     job = client.get_job(upload_job.id)
     created_passages = job.metadata_["num_passages"]
 
@@ -424,14 +493,37 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
 def test_organization(client: RESTClient):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_organization because LocalClient does not support organizations")
-    client.base_url
+
+    # create an organization
+    org_name = "test-org"
+    org = client.create_org(org_name)
+
+    # assert the id appears
+    orgs = client.list_orgs()
+    assert org.id in [o.id for o in orgs]
+
+    org = client.delete_org(org.id)
+    assert org.name == org_name
+
+    # assert the id is gone
+    orgs = client.list_orgs()
+    assert not (org.id in [o.id for o in orgs])
 
 
-def test_model_configs(client: Union[LocalClient, RESTClient]):
-    # _reset_config()
+def test_list_llm_models(client: RESTClient):
+    """Test that if the user's env has the right api keys set, at least one model appears in the model list"""
 
-    model_configs = client.list_models()
-    print("MODEL CONFIGS", model_configs)
+    def has_model_endpoint_type(models: List["LLMConfig"], target_type: str) -> bool:
+        return any(model.model_endpoint_type == target_type for model in models)
 
-    embedding_configs = client.list_embedding_models()
-    print("EMBEDDING CONFIGS", embedding_configs)
+    models = client.list_llm_configs()
+    if model_settings.groq_api_key:
+        assert has_model_endpoint_type(models, "groq")
+    if model_settings.azure_api_key:
+        assert has_model_endpoint_type(models, "azure")
+    if model_settings.openai_api_key:
+        assert has_model_endpoint_type(models, "openai")
+    if model_settings.gemini_api_key:
+        assert has_model_endpoint_type(models, "google_ai")
+    if model_settings.anthropic_api_key:
+        assert has_model_endpoint_type(models, "anthropic")

@@ -1,14 +1,38 @@
 import copy
 import json
 import warnings
+from collections import OrderedDict
 from typing import Any, List, Union
 
 import requests
 
 from letta.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
-from letta.schemas.enums import OptionState
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse, Choice
 from letta.utils import json_dumps, printd
+
+
+def convert_to_structured_output(openai_function: dict) -> dict:
+    """Convert function call objects to structured output objects
+
+    See: https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
+    """
+    structured_output = {
+        "name": openai_function["name"],
+        "description": openai_function["description"],
+        "strict": True,
+        "parameters": {"type": "object", "properties": {}, "additionalProperties": False, "required": []},
+    }
+
+    for param, details in openai_function["parameters"]["properties"].items():
+        structured_output["parameters"]["properties"][param] = {"type": details["type"], "description": details["description"]}
+
+        if "enum" in details:
+            structured_output["parameters"]["properties"][param]["enum"] = details["enum"]
+
+    # Add all properties to required list
+    structured_output["parameters"]["required"] = list(structured_output["parameters"]["properties"].keys())
+
+    return structured_output
 
 
 def make_post_request(url: str, headers: dict[str, str], data: dict[str, Any]) -> dict[str, Any]:
@@ -79,33 +103,34 @@ def add_inner_thoughts_to_functions(
     inner_thoughts_key: str,
     inner_thoughts_description: str,
     inner_thoughts_required: bool = True,
-    # inner_thoughts_to_front: bool = True,  TODO support sorting somewhere, probably in the to_dict?
 ) -> List[dict]:
-    """Add an inner_thoughts kwarg to every function in the provided list"""
-    # return copies
+    """Add an inner_thoughts kwarg to every function in the provided list, ensuring it's the first parameter"""
     new_functions = []
-
-    # functions is a list of dicts in the OpenAI schema (https://platform.openai.com/docs/api-reference/chat/create)
     for function_object in functions:
-        function_params = function_object["parameters"]["properties"]
-        required_params = list(function_object["parameters"]["required"])
-
-        # if the inner thoughts arg doesn't exist, add it
-        if inner_thoughts_key not in function_params:
-            function_params[inner_thoughts_key] = {
-                "type": "string",
-                "description": inner_thoughts_description,
-            }
-
-        # make sure it's tagged as required
         new_function_object = copy.deepcopy(function_object)
-        if inner_thoughts_required and inner_thoughts_key not in required_params:
-            required_params.append(inner_thoughts_key)
-            new_function_object["parameters"]["required"] = required_params
+
+        # Create a new OrderedDict with inner_thoughts as the first item
+        new_properties = OrderedDict()
+        new_properties[inner_thoughts_key] = {
+            "type": "string",
+            "description": inner_thoughts_description,
+        }
+
+        # Add the rest of the properties
+        new_properties.update(function_object["parameters"]["properties"])
+
+        # Cast OrderedDict back to a regular dict
+        new_function_object["parameters"]["properties"] = dict(new_properties)
+
+        # Update required parameters if necessary
+        if inner_thoughts_required:
+            required_params = new_function_object["parameters"].get("required", [])
+            if inner_thoughts_key not in required_params:
+                required_params.insert(0, inner_thoughts_key)
+                new_function_object["parameters"]["required"] = required_params
 
         new_functions.append(new_function_object)
 
-    # return a list of copies
     return new_functions
 
 
@@ -200,17 +225,3 @@ def is_context_overflow_error(exception: Union[requests.exceptions.RequestExcept
     # Generic fail
     else:
         return False
-
-
-def derive_inner_thoughts_in_kwargs(inner_thoughts_in_kwargs_option: OptionState, model: str):
-    if inner_thoughts_in_kwargs_option == OptionState.DEFAULT:
-        # model that are known to not use `content` fields on tool calls
-        inner_thoughts_in_kwargs = "gpt-4o" in model or "gpt-4-turbo" in model or "gpt-3.5-turbo" in model
-    else:
-        inner_thoughts_in_kwargs = True if inner_thoughts_in_kwargs_option == OptionState.YES else False
-
-    if not isinstance(inner_thoughts_in_kwargs, bool):
-        warnings.warn(f"Bad type detected: {type(inner_thoughts_in_kwargs)}")
-        inner_thoughts_in_kwargs = bool(inner_thoughts_in_kwargs)
-
-    return inner_thoughts_in_kwargs

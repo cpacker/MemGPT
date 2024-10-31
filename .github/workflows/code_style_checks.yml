@@ -1,0 +1,49 @@
+name: Code Style Checks
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  style-checks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]  # Adjust Python version matrix if needed
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref }}  # Checkout the PR branch
+        fetch-depth: 0  # Fetch all history for all branches and tags
+
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@main
+      with:
+        python-version: ${{ matrix.python-version }}
+        poetry-version: "1.8.2"
+        install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"  # Adjust as necessary
+
+    - name: Validate PR Title
+      uses: amannn/action-semantic-pull-request@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Run Pyright
+      uses: jakebailey/pyright-action@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+        level: "error"
+      continue-on-error: true
+
+    - name: Run isort
+      run: poetry run isort --profile black --check-only --diff .
+
+    - name: Run Black
+      run: poetry run black --check .
+
+    - name: Run Autoflake
+      run: poetry run autoflake --remove-all-unused-imports --remove-unused-variables --in-place --recursive --ignore-init-module-imports .

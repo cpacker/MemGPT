@@ -8,6 +8,7 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from letta.constants import ADMIN_PREFIX, API_PREFIX, OPENAI_API_PREFIX
 from letta.server.constants import REST_DEFAULT_PORT
 
 # NOTE(charles): these are extra routes that are not part of v1 but we still need to mount to pass tests
@@ -54,11 +55,6 @@ password = None
 #    #typer.secho(f"Generated admin server password for this session: {password}", fg=typer.colors.GREEN)
 
 
-ADMIN_PREFIX = "/v1/admin"
-API_PREFIX = "/v1"
-OPENAI_API_PREFIX = "/openai"
-
-
 def create_application() -> "FastAPI":
     """the application start routine"""
     # global server
@@ -70,6 +66,7 @@ def create_application() -> "FastAPI":
         title="Letta",
         summary="Create LLM agents with long-term memory and custom tools 📚🦙",
         version="1.0.0",  # TODO wire this up to the version in the package
+        debug=True,
     )
 
     if "--ade" in sys.argv:

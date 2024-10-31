@@ -24,7 +24,7 @@ def get_db_model(table_name: str, table_type: TableType):
             id: uuid.UUID
             user_id: str
             text: str
-            doc_id: str
+            file_id: str
             agent_id: str
             data_source: str
             embedding: Vector(config.default_embedding_config.embedding_dim)
@@ -37,7 +37,7 @@ def get_db_model(table_name: str, table_type: TableType):
                 return Passage(
                     text=self.text,
                     embedding=self.embedding,
-                    doc_id=self.doc_id,
+                    file_id=self.file_id,
                     user_id=self.user_id,
                     id=self.id,
                     data_source=self.data_source,

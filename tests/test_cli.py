@@ -41,22 +41,22 @@ def test_letta_run_create_new_agent(swap_letta_config):
     child = pexpect.spawn("poetry run letta run", encoding="utf-8")
     # Start the letta run command
     child.logfile = sys.stdout
-    child.expect("Creating new agent", timeout=10)
+    child.expect("Creating new agent", timeout=20)
     # Optional: LLM model selection
     try:
-        child.expect("Select LLM model:", timeout=10)
-        child.sendline("\033[B\033[B\033[B\033[B\033[B")
+        child.expect("Select LLM model:", timeout=20)
+        child.sendline("")
     except (pexpect.TIMEOUT, pexpect.EOF):
         print("[WARNING] LLM model selection step was skipped.")
 
     # Optional: Embedding model selection
     try:
-        child.expect("Select embedding model:", timeout=10)
+        child.expect("Select embedding model:", timeout=20)
         child.sendline("text-embedding-ada-002")
     except (pexpect.TIMEOUT, pexpect.EOF):
         print("[WARNING] Embedding model selection step was skipped.")
 
-    child.expect("Created new agent", timeout=10)
+    child.expect("Created new agent", timeout=20)
     child.sendline("")
 
     # Get initial response

@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple, Type, Union
 from pydantic import BaseModel
 
 from letta.config import LettaConfig
-from letta.schemas.document import Document
+from letta.schemas.file import FileMetadata
 from letta.schemas.message import Message
 from letta.schemas.passage import Passage
 from letta.utils import printd
@@ -22,7 +22,7 @@ class TableType:
     ARCHIVAL_MEMORY = "archival_memory"  # recall memory table: letta_agent_{agent_id}
     RECALL_MEMORY = "recall_memory"  # archival memory table: letta_agent_recall_{agent_id}
     PASSAGES = "passages"  # TODO
-    DOCUMENTS = "documents"  # TODO
+    FILES = "files"
 
 
 # table names used by Letta
@@ -33,17 +33,17 @@ ARCHIVAL_TABLE_NAME = "letta_archival_memory_agent"  # agent memory
 
 # external data source tables
 PASSAGE_TABLE_NAME = "letta_passages"  # chunked/embedded passages (from source)
-DOCUMENT_TABLE_NAME = "letta_documents"  # original documents (from source)
+FILE_TABLE_NAME = "letta_files"  # original files (from source)
 
 
 class StorageConnector:
-    """Defines a DB connection that is user-specific to access data: Documents, Passages, Archival/Recall Memory"""
+    """Defines a DB connection that is user-specific to access data: files, Passages, Archival/Recall Memory"""
 
     type: Type[BaseModel]
 
     def __init__(
         self,
-        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
+        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.FILES],
         config: LettaConfig,
         user_id,
         agent_id=None,
@@ -59,9 +59,9 @@ class StorageConnector:
         elif table_type == TableType.RECALL_MEMORY:
             self.type = Message
             self.table_name = RECALL_TABLE_NAME
-        elif table_type == TableType.DOCUMENTS:
-            self.type = Document
-            self.table_name == DOCUMENT_TABLE_NAME
+        elif table_type == TableType.FILES:
+            self.type = FileMetadata
+            self.table_name = FILE_TABLE_NAME
         elif table_type == TableType.PASSAGES:
             self.type = Passage
             self.table_name = PASSAGE_TABLE_NAME
@@ -74,7 +74,7 @@ class StorageConnector:
             # agent-specific table
             assert agent_id is not None, "Agent ID must be provided for agent-specific tables"
             self.filters = {"user_id": self.user_id, "agent_id": self.agent_id}
-        elif self.table_type == TableType.PASSAGES or self.table_type == TableType.DOCUMENTS:
+        elif self.table_type == TableType.PASSAGES or self.table_type == TableType.FILES:
             # setup base filters for user-specific tables
             assert agent_id is None, "Agent ID must not be provided for user-specific tables"
             self.filters = {"user_id": self.user_id}
@@ -83,7 +83,7 @@ class StorageConnector:
 
     @staticmethod
     def get_storage_connector(
-        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.DOCUMENTS],
+        table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.FILES],
         config: LettaConfig,
         user_id,
         agent_id=None,
@@ -92,6 +92,8 @@ class StorageConnector:
             storage_type = config.archival_storage_type
         elif table_type == TableType.RECALL_MEMORY:
             storage_type = config.recall_storage_type
+        elif table_type == TableType.FILES:
+            storage_type = config.metadata_storage_type
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 

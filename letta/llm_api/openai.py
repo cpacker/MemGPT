@@ -9,7 +9,11 @@ from httpx_sse._exceptions import SSEError
 
 from letta.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from letta.errors import LLMError
-from letta.llm_api.helpers import add_inner_thoughts_to_functions, make_post_request
+from letta.llm_api.helpers import (
+    add_inner_thoughts_to_functions,
+    convert_to_structured_output,
+    make_post_request,
+)
 from letta.local_llm.constants import (
     INNER_THOUGHTS_KWARG,
     INNER_THOUGHTS_KWARG_DESCRIPTION,
@@ -18,8 +22,13 @@ from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_mes
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message as _Message
 from letta.schemas.message import MessageRole as _MessageRole
+from letta.schemas.openai.chat_completion_request import ChatCompletionRequest
 from letta.schemas.openai.chat_completion_request import (
-    ChatCompletionRequest,
+    FunctionCall as ToolFunctionChoiceFunctionCall,
+)
+from letta.schemas.openai.chat_completion_request import (
+    Tool,
+    ToolFunctionChoice,
     cast_message_to_subtype,
 )
 from letta.schemas.openai.chat_completion_response import (
@@ -36,7 +45,7 @@ from letta.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
 )
-from letta.utils import smart_urljoin
+from letta.utils import get_tool_call_id, smart_urljoin
 
 OPENAI_SSE_DONE = "[DONE]"
 
@@ -100,15 +109,14 @@ def openai_get_model_list(
 
 def build_openai_chat_completions_request(
     llm_config: LLMConfig,
-    messages: List[Message],
+    messages: List[_Message],
     user_id: Optional[str],
     functions: Optional[list],
-    function_call: str,
+    function_call: Optional[str],
     use_tool_naming: bool,
-    inner_thoughts_in_kwargs: bool,
     max_tokens: Optional[int],
 ) -> ChatCompletionRequest:
-    if inner_thoughts_in_kwargs:
+    if functions and llm_config.put_inner_thoughts_in_kwargs:
         functions = add_inner_thoughts_to_functions(
             functions=functions,
             inner_thoughts_key=INNER_THOUGHTS_KWARG,
@@ -116,7 +124,7 @@ def build_openai_chat_completions_request(
         )
 
     openai_message_list = [
-        cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=inner_thoughts_in_kwargs)) for m in messages
+        cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=llm_config.put_inner_thoughts_in_kwargs)) for m in messages
     ]
     if llm_config.model:
         model = llm_config.model
@@ -125,11 +133,17 @@ def build_openai_chat_completions_request(
         model = None
 
     if use_tool_naming:
+        if function_call is None:
+            tool_choice = None
+        elif function_call not in ["none", "auto", "required"]:
+            tool_choice = ToolFunctionChoice(type="function", function=ToolFunctionChoiceFunctionCall(name=function_call))
+        else:
+            tool_choice = function_call
         data = ChatCompletionRequest(
             model=model,
             messages=openai_message_list,
-            tools=[{"type": "function", "function": f} for f in functions] if functions else None,
-            tool_choice=function_call,
+            tools=[Tool(type="function", function=f) for f in functions] if functions else None,
+            tool_choice=tool_choice,
             user=str(user_id),
             max_tokens=max_tokens,
         )
@@ -144,8 +158,8 @@ def build_openai_chat_completions_request(
         )
         # https://platform.openai.com/docs/guides/text-generation/json-mode
         # only supported by gpt-4o, gpt-4-turbo, or gpt-3.5-turbo
-        if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
-            data.response_format = {"type": "json_object"}
+        # if "gpt-4o" in llm_config.model or "gpt-4-turbo" in llm_config.model or "gpt-3.5-turbo" in llm_config.model:
+        # data.response_format = {"type": "json_object"}
 
     if "inference.memgpt.ai" in llm_config.model_endpoint:
         # override user id for inference.memgpt.ai
@@ -164,6 +178,7 @@ def openai_chat_completions_process_stream(
     stream_interface: Optional[Union[AgentChunkStreamingInterface, AgentRefreshStreamingInterface]] = None,
     create_message_id: bool = True,
     create_message_datetime: bool = True,
+    override_tool_call_id: bool = True,
 ) -> ChatCompletionResponse:
     """Process a streaming completion response, and return a ChatCompletionRequest at the end.
 
@@ -234,6 +249,14 @@ def openai_chat_completions_process_stream(
         ):
             assert isinstance(chat_completion_chunk, ChatCompletionChunkResponse), type(chat_completion_chunk)
 
+            # NOTE: this assumes that the tool call ID will only appear in one of the chunks during the stream
+            if override_tool_call_id:
+                for choice in chat_completion_chunk.choices:
+                    if choice.delta.tool_calls and len(choice.delta.tool_calls) > 0:
+                        for tool_call in choice.delta.tool_calls:
+                            if tool_call.id is not None:
+                                tool_call.id = get_tool_call_id()
+
             if stream_interface:
                 if isinstance(stream_interface, AgentChunkStreamingInterface):
                     stream_interface.process_chunk(
@@ -280,6 +303,7 @@ def openai_chat_completions_process_stream(
                     else:
                         accum_message.content += content_delta
 
+                # TODO(charles) make sure this works for parallel tool calling?
                 if message_delta.tool_calls is not None:
                     tool_calls_delta = message_delta.tool_calls
 
@@ -290,11 +314,17 @@ def openai_chat_completions_process_stream(
                             for _ in range(len(tool_calls_delta))
                         ]
 
+                    # There may be many tool calls in a tool calls delta (e.g. parallel tool calls)
                     for tool_call_delta in tool_calls_delta:
                         if tool_call_delta.id is not None:
                             # TODO assert that we're not overwriting?
                             # TODO += instead of =?
-                            accum_message.tool_calls[tool_call_delta.index].id = tool_call_delta.id
+                            if tool_call_delta.index not in range(len(accum_message.tool_calls)):
+                                warnings.warn(
+                                    f"Tool call index out of range ({tool_call_delta.index})\ncurrent tool calls: {accum_message.tool_calls}\ncurrent delta: {tool_call_delta}"
+                                )
+                            else:
+                                accum_message.tool_calls[tool_call_delta.index].id = tool_call_delta.id
                         if tool_call_delta.function is not None:
                             if tool_call_delta.function.name is not None:
                                 # TODO assert that we're not overwriting?
@@ -330,7 +360,7 @@ def openai_chat_completions_process_stream(
     assert all([c.finish_reason != TEMP_STREAM_FINISH_REASON for c in chat_completion_response.choices])
     assert all(
         [
-            all([tc != TEMP_STREAM_TOOL_CALL_ID for tc in c.message.tool_calls]) if c.message.tool_calls else True
+            all([tc.id != TEMP_STREAM_TOOL_CALL_ID for tc in c.message.tool_calls]) if c.message.tool_calls else True
             for c in chat_completion_response.choices
         ]
     )
@@ -341,6 +371,8 @@ def openai_chat_completions_process_stream(
     # TODO try actually computing the #tokens instead of assuming the chunks is the same
     chat_completion_response.usage.completion_tokens = n_chunks
     chat_completion_response.usage.total_tokens = prompt_tokens + n_chunks
+
+    assert len(chat_completion_response.choices) > 0, chat_completion_response
 
     # printd(chat_completion_response)
     return chat_completion_response
@@ -440,6 +472,13 @@ def openai_chat_completions_request_stream(
     if "tools" in data and data["tools"] is None:
         data.pop("tools")
         data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
+
+    if "tools" in data:
+        for tool in data["tools"]:
+            # tool["strict"] = True
+            tool["function"] = convert_to_structured_output(tool["function"])
+
+    # print(f"\n\n\n\nData[tools]: {json.dumps(data['tools'], indent=2)}")
 
     printd(f"Sending request to {url}")
     try:

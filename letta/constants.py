@@ -3,12 +3,9 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
 
 LETTA_DIR = os.path.join(os.path.expanduser("~"), ".letta")
 
-# Defaults
-DEFAULT_USER_ID = "user-00000000"
-DEFAULT_ORG_ID = "org-00000000"
-DEFAULT_USER_NAME = "default"
-DEFAULT_ORG_NAME = "default"
-
+ADMIN_PREFIX = "/v1/admin"
+API_PREFIX = "/v1"
+OPENAI_API_PREFIX = "/openai"
 
 # String in the error message for when the context window is too large
 # Example full message:
@@ -39,7 +36,7 @@ DEFAULT_PRESET = "memgpt_chat"
 # Tools
 BASE_TOOLS = [
     "send_message",
-    "pause_heartbeats",
+    # "pause_heartbeats",
     "conversation_search",
     "conversation_search_date",
     "archival_memory_insert",
@@ -139,7 +136,7 @@ CORE_MEMORY_PERSONA_CHAR_LIMIT = 2000
 CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
 
 # Function return limits
-FUNCTION_RETURN_CHAR_LIMIT = 3000  # ~300 words
+FUNCTION_RETURN_CHAR_LIMIT = 6000  # ~300 words
 
 MAX_PAUSE_HEARTBEATS = 360  # in min
 

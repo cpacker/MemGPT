@@ -183,7 +183,7 @@ class ConfigurableJSONWrapper(LLMChatCompletionWrapper):
         try:
             # indent the function replies
             function_return_dict = json_loads(message["content"])
-            function_return_str = json_dumps(function_return_dict, indent=self.json_indent)
+            function_return_str = json_dumps(function_return_dict, indent=0)
         except:
             function_return_str = message["content"]
 

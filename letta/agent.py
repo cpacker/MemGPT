@@ -11,34 +11,47 @@ from letta.agent_store.storage import StorageConnector
 from letta.constants import (
     CLI_WARNING_PREFIX,
     FIRST_MESSAGE_ATTEMPTS,
+    FUNC_FAILED_HEARTBEAT_MESSAGE,
     IN_CONTEXT_MEMORY_KEYWORD,
     LLM_MAX_TOKENS,
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
+    REQ_HEARTBEAT_MESSAGE,
 )
+from letta.errors import LLMError
 from letta.interface import AgentInterface
+from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
+from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
 from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.persistence_manager import LocalStateManager
 from letta.schemas.agent import AgentState, AgentStepResponse
 from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import MessageRole, OptionState
-from letta.schemas.memory import Memory
+from letta.schemas.enums import MessageRole
+from letta.schemas.memory import ContextWindowOverview, Memory
 from letta.schemas.message import Message, UpdateMessage
+from letta.schemas.openai.chat_completion_request import (
+    Tool as ChatCompletionRequestTool,
+)
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.schemas.openai.chat_completion_response import (
     Message as ChatCompletionMessage,
 )
+from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.passage import Passage
 from letta.schemas.tool import Tool
+from letta.schemas.usage import LettaUsageStatistics
 from letta.system import (
+    get_heartbeat,
     get_initial_boot_messages,
     get_login_event,
+    get_token_limit_warning,
     package_function_response,
     package_summarize_message,
+    package_user_message,
 )
 from letta.utils import (
     count_tokens,
@@ -54,9 +67,6 @@ from letta.utils import (
     validate_function_response,
     verify_first_message_correctness,
 )
-
-from .errors import LLMError
-from .llm_api.helpers import is_context_overflow_error
 
 
 def compile_memory_metadata_block(
@@ -200,17 +210,8 @@ class BaseAgent(ABC):
     @abstractmethod
     def step(
         self,
-        messages: Union[Message, List[Message], str],  # TODO deprecate str inputs
-        first_message: bool = False,
-        first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
-        skip_verify: bool = False,
-        return_dicts: bool = True,  # if True, return dicts, if False, return Message objects
-        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
-        stream: bool = False,  # TODO move to config?
-        timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
-        ms: Optional[MetadataStore] = None,
-    ) -> AgentStepResponse:
+        messages: Union[Message, List[Message]],
+    ) -> LettaUsageStatistics:
         """
         Top-level event message handler for the agent.
         """
@@ -239,7 +240,6 @@ class Agent(BaseAgent):
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
 
         # link tools
-        self.tools = tools
         self.link_tools(tools)
 
         # gpt-4, gpt-3.5-turbo, ...
@@ -465,15 +465,14 @@ class Agent(BaseAgent):
         function_call: str = "auto",
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
     ) -> ChatCompletionResponse:
         """Get response from LLM API"""
         try:
             response = create(
                 # agent_state=self.agent_state,
                 llm_config=self.agent_state.llm_config,
-                user_id=self.agent_state.user_id,
                 messages=message_sequence,
+                user_id=self.agent_state.user_id,
                 functions=self.functions,
                 functions_python=self.functions_python,
                 function_call=function_call,
@@ -482,8 +481,6 @@ class Agent(BaseAgent):
                 # streaming
                 stream=stream,
                 stream_interface=self.interface,
-                # putting inner thoughts in func args or not
-                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
             )
 
             if len(response.choices) == 0 or response.choices[0] is None:
@@ -505,7 +502,7 @@ class Agent(BaseAgent):
     def _handle_ai_response(
         self,
         response_message: ChatCompletionMessage,  # TODO should we eventually move the Message creation outside of this function?
-        override_tool_call_id: bool = True,
+        override_tool_call_id: bool = False,
         # If we are streaming, we needed to create a Message ID ahead of time,
         # and now we want to use it in the creation of the Message object
         # TODO figure out a cleaner way to do this
@@ -532,6 +529,7 @@ class Agent(BaseAgent):
 
             # generate UUID for tool call
             if override_tool_call_id or response_message.function_call:
+                warnings.warn("Overriding the tool call can result in inconsistent tool call IDs during streaming")
                 tool_call_id = get_tool_call_id()  # needs to be a string for JSON
                 response_message.tool_calls[0].id = tool_call_id
             else:
@@ -730,18 +728,103 @@ class Agent(BaseAgent):
 
     def step(
         self,
-        user_message: Union[Message, None, str],  # NOTE: should be json.dump(dict)
+        messages: Union[Message, List[Message]],
+        # additional args
+        chaining: bool = True,
+        max_chaining_steps: Optional[int] = None,
+        ms: Optional[MetadataStore] = None,
+        **kwargs,
+    ) -> LettaUsageStatistics:
+        """Run Agent.step in a loop, handling chaining via heartbeat requests and function failures"""
+        # assert ms is not None, "MetadataStore is required"
+
+        next_input_message = messages if isinstance(messages, list) else [messages]
+        counter = 0
+        total_usage = UsageStatistics()
+        step_count = 0
+        while True:
+            kwargs["ms"] = ms
+            kwargs["first_message"] = False
+            step_response = self.inner_step(
+                messages=next_input_message,
+                **kwargs,
+            )
+            step_response.messages
+            heartbeat_request = step_response.heartbeat_request
+            function_failed = step_response.function_failed
+            token_warning = step_response.in_context_memory_warning
+            usage = step_response.usage
+
+            step_count += 1
+            total_usage += usage
+            counter += 1
+            self.interface.step_complete()
+
+            # logger.debug("Saving agent state")
+            # save updated state
+            if ms:
+                save_agent(self, ms)
+
+            # Chain stops
+            if not chaining:
+                printd("No chaining, stopping after one step")
+                break
+            elif max_chaining_steps is not None and counter > max_chaining_steps:
+                printd(f"Hit max chaining steps, stopping after {counter} steps")
+                break
+            # Chain handlers
+            elif token_warning:
+                assert self.agent_state.user_id is not None
+                next_input_message = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict={
+                        "role": "user",  # TODO: change to system?
+                        "content": get_token_limit_warning(),
+                    },
+                )
+                continue  # always chain
+            elif function_failed:
+                assert self.agent_state.user_id is not None
+                next_input_message = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict={
+                        "role": "user",  # TODO: change to system?
+                        "content": get_heartbeat(FUNC_FAILED_HEARTBEAT_MESSAGE),
+                    },
+                )
+                continue  # always chain
+            elif heartbeat_request:
+                assert self.agent_state.user_id is not None
+                next_input_message = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict={
+                        "role": "user",  # TODO: change to system?
+                        "content": get_heartbeat(REQ_HEARTBEAT_MESSAGE),
+                    },
+                )
+                continue  # always chain
+            # Letta no-op / yield
+            else:
+                break
+
+        return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)
+
+    def inner_step(
+        self,
+        messages: Union[Message, List[Message]],
         first_message: bool = False,
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
-        return_dicts: bool = True,
-        recreate_message_timestamp: bool = True,  # if True, when input is a Message type, recreated the 'created_at' field
         stream: bool = False,  # TODO move to config?
-        timestamp: Optional[datetime.datetime] = None,
-        inner_thoughts_in_kwargs_option: OptionState = OptionState.DEFAULT,
         ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
-        """Top-level event message handler for the Letta agent"""
+        """Runs a single step in the agent loop (generates at most one LLM call)"""
 
         try:
 
@@ -760,50 +843,13 @@ class Agent(BaseAgent):
                     self.rebuild_memory(force=True, ms=ms)
 
             # Step 1: add user message
-            if user_message is not None:
-                if isinstance(user_message, Message):
-                    assert user_message.text is not None
+            if isinstance(messages, Message):
+                messages = [messages]
 
-                    # Validate JSON via save/load
-                    user_message_text = validate_json(user_message.text)
-                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message_text)
+            if not all(isinstance(m, Message) for m in messages):
+                raise ValueError(f"messages should be a Message or a list of Message, got {type(messages)}")
 
-                    if name is not None:
-                        # Update Message object
-                        user_message.text = cleaned_user_message_text
-                        user_message.name = name
-
-                    # Recreate timestamp
-                    if recreate_message_timestamp:
-                        user_message.created_at = get_utc_time()
-
-                elif isinstance(user_message, str):
-                    # Validate JSON via save/load
-                    user_message = validate_json(user_message)
-                    cleaned_user_message_text, name = strip_name_field_from_user_message(user_message)
-
-                    # If user_message['name'] is not None, it will be handled properly by dict_to_message
-                    # So no need to run strip_name_field_from_user_message
-
-                    # Create the associated Message object (in the database)
-                    user_message = Message.dict_to_message(
-                        agent_id=self.agent_state.id,
-                        user_id=self.agent_state.user_id,
-                        model=self.model,
-                        openai_message_dict={"role": "user", "content": cleaned_user_message_text, "name": name},
-                        created_at=timestamp,
-                    )
-
-                else:
-                    raise ValueError(f"Bad type for user_message: {type(user_message)}")
-
-                self.interface.user_message(user_message.text, msg_obj=user_message)
-
-                input_message_sequence = self._messages + [user_message]
-
-            # Alternatively, the requestor can send an empty user message
-            else:
-                input_message_sequence = self._messages
+            input_message_sequence = self._messages + messages
 
             if len(input_message_sequence) > 1 and input_message_sequence[-1].role != "user":
                 printd(f"{CLI_WARNING_PREFIX}Attempting to run ChatCompletion without user as the last message in the queue")
@@ -814,10 +860,7 @@ class Agent(BaseAgent):
                 counter = 0
                 while True:
                     response = self._get_ai_reply(
-                        message_sequence=input_message_sequence,
-                        first_message=True,  # passed through to the prompt formatter
-                        stream=stream,
-                        inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
+                        message_sequence=input_message_sequence, first_message=True, stream=stream  # passed through to the prompt formatter
                     )
                     if verify_first_message_correctness(response, require_monologue=self.first_message_verify_mono):
                         break
@@ -830,7 +873,6 @@ class Agent(BaseAgent):
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
                     stream=stream,
-                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                 )
 
             # Step 3: check if LLM wanted to call a function
@@ -846,11 +888,8 @@ class Agent(BaseAgent):
             )
 
             # Step 6: extend the message history
-            if user_message is not None:
-                if isinstance(user_message, Message):
-                    all_new_messages = [user_message] + all_response_messages
-                else:
-                    raise ValueError(type(user_message))
+            if len(messages) > 0:
+                all_new_messages = messages + all_response_messages
             else:
                 all_new_messages = all_response_messages
 
@@ -883,13 +922,12 @@ class Agent(BaseAgent):
                 )
 
             self._append_to_messages(all_new_messages)
-            messages_to_return = [msg.to_openai_dict() for msg in all_new_messages] if return_dicts else all_new_messages
 
             # update state after each step
             self.update_state()
 
             return AgentStepResponse(
-                messages=messages_to_return,
+                messages=all_new_messages,
                 heartbeat_request=heartbeat_request,
                 function_failed=function_failed,
                 in_context_memory_warning=active_memory_warning,
@@ -897,7 +935,7 @@ class Agent(BaseAgent):
             )
 
         except Exception as e:
-            printd(f"step() failed\nuser_message = {user_message}\nerror = {e}")
+            printd(f"step() failed\nmessages = {messages}\nerror = {e}")
 
             # If we got a context alert, try trimming the messages length, then try again
             if is_context_overflow_error(e):
@@ -905,22 +943,52 @@ class Agent(BaseAgent):
                 self.summarize_messages_inplace()
 
                 # Try step again
-                return self.step(
-                    user_message,
+                return self.inner_step(
+                    messages=messages,
                     first_message=first_message,
                     first_message_retry_limit=first_message_retry_limit,
                     skip_verify=skip_verify,
-                    return_dicts=return_dicts,
-                    recreate_message_timestamp=recreate_message_timestamp,
                     stream=stream,
-                    timestamp=timestamp,
-                    inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs_option,
                     ms=ms,
                 )
 
             else:
                 printd(f"step() failed with an unrecognized exception: '{str(e)}'")
                 raise e
+
+    def step_user_message(self, user_message_str: str, **kwargs) -> AgentStepResponse:
+        """Takes a basic user message string, turns it into a stringified JSON with extra metadata, then sends it to the agent
+
+        Example:
+        -> user_message_str = 'hi'
+        -> {'message': 'hi', 'type': 'user_message', ...}
+        -> json.dumps(...)
+        -> agent.step(messages=[Message(role='user', text=...)])
+        """
+        # Wrap with metadata, dumps to JSON
+        assert user_message_str and isinstance(
+            user_message_str, str
+        ), f"user_message_str should be a non-empty string, got {type(user_message_str)}"
+        user_message_json_str = package_user_message(user_message_str)
+
+        # Validate JSON via save/load
+        user_message = validate_json(user_message_json_str)
+        cleaned_user_message_text, name = strip_name_field_from_user_message(user_message)
+
+        # Turn into a dict
+        openai_message_dict = {"role": "user", "content": cleaned_user_message_text, "name": name}
+
+        # Create the associated Message object (in the database)
+        assert self.agent_state.user_id is not None, "User ID is not set"
+        user_message = Message.dict_to_message(
+            agent_id=self.agent_state.id,
+            user_id=self.agent_state.user_id,
+            model=self.model,
+            openai_message_dict=openai_message_dict,
+            # created_at=timestamp,
+        )
+
+        return self.inner_step(messages=[user_message], **kwargs)
 
     def summarize_messages_inplace(self, cutoff=None, preserve_last_N_messages=True, disallow_tool_as_first=True):
         assert self.messages[0]["role"] == "system", f"self.messages[0] should be system (instead got {self.messages[0]})"
@@ -1085,7 +1153,7 @@ class Agent(BaseAgent):
                     printd(f"skipping block update, unexpected value: {block_id=}")
                     continue
                 # TODO: we may want to update which columns we're updating from shared memory e.g. the limit
-                self.memory.update_block_value(name=block.get("label", ""), value=db_block.value)
+                self.memory.update_block_value(label=block.get("label", ""), value=db_block.value)
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False
@@ -1340,12 +1408,99 @@ class Agent(BaseAgent):
 
         self.pop_until_user()
         user_message = self.pop_message(count=1)[0]
-        step_response = self.step(user_message=user_message.text, return_dicts=False)
+        assert user_message.text is not None, "User message text is None"
+        step_response = self.step_user_message(user_message_str=user_message.text)
         messages = step_response.messages
 
         assert messages is not None
         assert all(isinstance(msg, Message) for msg in messages), "step() returned non-Message objects"
         return messages
+
+    def get_context_window(self) -> ContextWindowOverview:
+        """Get the context window of the agent"""
+
+        system_prompt = self.agent_state.system  # TODO is this the current system or the initial system?
+        num_tokens_system = count_tokens(system_prompt)
+        core_memory = self.memory.compile()
+        num_tokens_core_memory = count_tokens(core_memory)
+
+        # conversion of messages to OpenAI dict format, which is passed to the token counter
+        messages_openai_format = self.messages
+
+        # Check if there's a summary message in the message queue
+        if (
+            len(self._messages) > 1
+            and self._messages[1].role == MessageRole.user
+            and isinstance(self._messages[1].text, str)
+            # TODO remove hardcoding
+            and "The following is a summary of the previous " in self._messages[1].text
+        ):
+            # Summary message exists
+            assert self._messages[1].text is not None
+            summary_memory = self._messages[1].text
+            num_tokens_summary_memory = count_tokens(self._messages[1].text)
+            # with a summary message, the real messages start at index 2
+            num_tokens_messages = (
+                num_tokens_from_messages(messages=messages_openai_format[2:], model=self.model) if len(messages_openai_format) > 2 else 0
+            )
+
+        else:
+            summary_memory = None
+            num_tokens_summary_memory = 0
+            # with no summary message, the real messages start at index 1
+            num_tokens_messages = (
+                num_tokens_from_messages(messages=messages_openai_format[1:], model=self.model) if len(messages_openai_format) > 1 else 0
+            )
+
+        num_archival_memory = self.persistence_manager.archival_memory.storage.size()
+        num_recall_memory = self.persistence_manager.recall_memory.storage.size()
+        external_memory_summary = compile_memory_metadata_block(
+            memory_edit_timestamp=get_utc_time(),  # dummy timestamp
+            archival_memory=self.persistence_manager.archival_memory,
+            recall_memory=self.persistence_manager.recall_memory,
+        )
+        num_tokens_external_memory_summary = count_tokens(external_memory_summary)
+
+        # tokens taken up by function definitions
+        if self.functions:
+            available_functions_definitions = [ChatCompletionRequestTool(type="function", function=f) for f in self.functions]
+            num_tokens_available_functions_definitions = num_tokens_from_functions(functions=self.functions, model=self.model)
+        else:
+            available_functions_definitions = []
+            num_tokens_available_functions_definitions = 0
+
+        num_tokens_used_total = (
+            num_tokens_system  # system prompt
+            + num_tokens_available_functions_definitions  # function definitions
+            + num_tokens_core_memory  # core memory
+            + num_tokens_external_memory_summary  # metadata (statistics) about recall/archival
+            + num_tokens_summary_memory  # summary of ongoing conversation
+            + num_tokens_messages  # tokens taken by messages
+        )
+        assert isinstance(num_tokens_used_total, int)
+
+        return ContextWindowOverview(
+            # context window breakdown (in messages)
+            num_messages=len(self._messages),
+            num_archival_memory=num_archival_memory,
+            num_recall_memory=num_recall_memory,
+            num_tokens_external_memory_summary=num_tokens_external_memory_summary,
+            # top-level information
+            context_window_size_max=self.agent_state.llm_config.context_window,
+            context_window_size_current=num_tokens_used_total,
+            # context window breakdown (in tokens)
+            num_tokens_system=num_tokens_system,
+            system_prompt=system_prompt,
+            num_tokens_core_memory=num_tokens_core_memory,
+            core_memory=core_memory,
+            num_tokens_summary_memory=num_tokens_summary_memory,
+            summary_memory=summary_memory,
+            num_tokens_messages=num_tokens_messages,
+            messages=self._messages,
+            # related to functions
+            num_tokens_functions_definitions=num_tokens_available_functions_definitions,
+            functions_definitions=available_functions_definitions,
+        )
 
 
 def save_agent(agent: Agent, ms: MetadataStore):
@@ -1364,10 +1519,6 @@ def save_agent(agent: Agent, ms: MetadataStore):
         ms.update_agent(agent_state)
     else:
         ms.create_agent(agent_state)
-
-    for tool in agent.tools:
-        if ms.get_tool(tool_name=tool.name, user_id=tool.user_id) is None:
-            ms.create_tool(tool)
 
     agent.agent_state = ms.get_agent(agent_id=agent_id)
     assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"

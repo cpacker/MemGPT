@@ -15,14 +15,6 @@ from letta.schemas.openai.chat_completions import ToolCall
 class BaseTool(LettaBase):
     __id_prefix__ = "tool"
 
-    # optional fields
-    description: Optional[str] = Field(None, description="The description of the tool.")
-    source_type: Optional[str] = Field(None, description="The type of the source code.")
-    module: Optional[str] = Field(None, description="The module of the function.")
-
-    # optional: user_id (user-specific tools)
-    user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the function.")
-
 
 class Tool(BaseTool):
     """
@@ -37,14 +29,21 @@ class Tool(BaseTool):
 
     """
 
-    id: str = BaseTool.generate_id_field()
-
+    id: str = Field(..., description="The id of the tool.")
+    description: Optional[str] = Field(None, description="The description of the tool.")
+    source_type: Optional[str] = Field(None, description="The type of the source code.")
+    module: Optional[str] = Field(None, description="The module of the function.")
+    organization_id: str = Field(..., description="The unique identifier of the organization associated with the tool.")
     name: str = Field(..., description="The name of the function.")
     tags: List[str] = Field(..., description="Metadata tags.")
 
     # code
     source_code: str = Field(..., description="The source code of the function.")
     json_schema: Dict = Field(default_factory=dict, description="The JSON schema of the function.")
+
+    # metadata fields
+    created_by_id: str = Field(..., description="The id of the user that made this Tool.")
+    last_updated_by_id: str = Field(..., description="The id of the user that made this Tool.")
 
     def to_dict(self):
         """
@@ -58,14 +57,23 @@ class Tool(BaseTool):
             )
         )
 
+
+class ToolCreate(LettaBase):
+    name: Optional[str] = Field(None, description="The name of the function (auto-generated from source_code if not provided).")
+    description: Optional[str] = Field(None, description="The description of the tool.")
+    tags: List[str] = Field([], description="Metadata tags.")
+    module: Optional[str] = Field(None, description="The source code of the function.")
+    source_code: str = Field(..., description="The source code of the function.")
+    source_type: str = Field(..., description="The source type of the function.")
+    json_schema: Optional[Dict] = Field(
+        None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
+    )
+
     @classmethod
-    def get_composio_tool(
-        cls,
-        action: "ActionType",
-    ) -> "Tool":
+    def from_composio(cls, action: "ActionType") -> "ToolCreate":
         """
         Class method to create an instance of Letta-compatible Composio Tool.
-        Check https://docs.composio.dev/introduction/intro/overview to look at options for get_composio_tool
+        Check https://docs.composio.dev/introduction/intro/overview to look at options for from_composio
 
         This function will error if we find more than one tool, or 0 tools.
 
@@ -90,13 +98,6 @@ class Tool(BaseTool):
         wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(action)
         json_schema = generate_schema_from_args_schema(composio_tool.args_schema, name=wrapper_func_name, description=description)
 
-        # append heartbeat (necessary for triggering another reasoning step after this tool call)
-        json_schema["parameters"]["properties"]["request_heartbeat"] = {
-            "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
-        }
-        json_schema["parameters"]["required"].append("request_heartbeat")
-
         return cls(
             name=wrapper_func_name,
             description=description,
@@ -107,16 +108,20 @@ class Tool(BaseTool):
         )
 
     @classmethod
-    def from_langchain(cls, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> "Tool":
+    def from_langchain(
+        cls,
+        langchain_tool: "LangChainBaseTool",
+        additional_imports_module_attr_map: dict[str, str] = None,
+    ) -> "ToolCreate":
         """
         Class method to create an instance of Tool from a Langchain tool (must be from langchain_community.tools).
 
         Args:
-            langchain_tool (LangChainBaseTool): An instance of a crewAI BaseTool (BaseTool from crewai)
+            langchain_tool (LangChainBaseTool): An instance of a LangChain BaseTool (BaseTool from LangChain)
             additional_imports_module_attr_map (dict[str, str]): A mapping of module names to attribute name. This is used internally to import all the required classes for the langchain tool. For example, you would pass in `{"langchain_community.utilities": "WikipediaAPIWrapper"}` for `from langchain_community.tools import WikipediaQueryRun`. NOTE: You do NOT need to specify the tool import here, that is done automatically for you.
 
         Returns:
-            Tool: A Letta Tool initialized with attributes derived from the provided crewAI BaseTool object.
+            Tool: A Letta Tool initialized with attributes derived from the provided LangChain BaseTool object.
         """
         description = langchain_tool.description
         source_type = "python"
@@ -125,13 +130,6 @@ class Tool(BaseTool):
         wrapper_func_name, wrapper_function_str = generate_langchain_tool_wrapper(langchain_tool, additional_imports_module_attr_map)
         json_schema = generate_schema_from_args_schema(langchain_tool.args_schema, name=wrapper_func_name, description=description)
 
-        # append heartbeat (necessary for triggering another reasoning step after this tool call)
-        json_schema["parameters"]["properties"]["request_heartbeat"] = {
-            "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
-        }
-        json_schema["parameters"]["required"].append("request_heartbeat")
-
         return cls(
             name=wrapper_func_name,
             description=description,
@@ -142,7 +140,11 @@ class Tool(BaseTool):
         )
 
     @classmethod
-    def from_crewai(cls, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> "Tool":
+    def from_crewai(
+        cls,
+        crewai_tool: "CrewAIBaseTool",
+        additional_imports_module_attr_map: dict[str, str] = None,
+    ) -> "ToolCreate":
         """
         Class method to create an instance of Tool from a crewAI BaseTool object.
 
@@ -158,13 +160,6 @@ class Tool(BaseTool):
         wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool, additional_imports_module_attr_map)
         json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
 
-        # append heartbeat (necessary for triggering another reasoning step after this tool call)
-        json_schema["parameters"]["properties"]["request_heartbeat"] = {
-            "type": "boolean",
-            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
-        }
-        json_schema["parameters"]["required"].append("request_heartbeat")
-
         return cls(
             name=wrapper_func_name,
             description=description,
@@ -174,19 +169,46 @@ class Tool(BaseTool):
             json_schema=json_schema,
         )
 
+    @classmethod
+    def load_default_langchain_tools(cls) -> List["ToolCreate"]:
+        # For now, we only support wikipedia tool
+        from langchain_community.tools import WikipediaQueryRun
+        from langchain_community.utilities import WikipediaAPIWrapper
 
-class ToolCreate(BaseTool):
-    name: Optional[str] = Field(None, description="The name of the function (auto-generated from source_code if not provided).")
-    tags: List[str] = Field([], description="Metadata tags.")
-    source_code: str = Field(..., description="The source code of the function.")
+        wikipedia_tool = ToolCreate.from_langchain(
+            WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper()), {"langchain_community.utilities": "WikipediaAPIWrapper"}
+        )
+
+        return [wikipedia_tool]
+
+    @classmethod
+    def load_default_crewai_tools(cls) -> List["ToolCreate"]:
+        # For now, we only support scrape website tool
+        from crewai_tools import ScrapeWebsiteTool
+
+        web_scrape_tool = ToolCreate.from_crewai(ScrapeWebsiteTool())
+
+        return [web_scrape_tool]
+
+    @classmethod
+    def load_default_composio_tools(cls) -> List["ToolCreate"]:
+        from composio_langchain import Action
+
+        calculator = ToolCreate.from_composio(action=Action.MATHEMATICAL_CALCULATOR)
+        serp_news = ToolCreate.from_composio(action=Action.SERPAPI_NEWS_SEARCH)
+        serp_google_search = ToolCreate.from_composio(action=Action.SERPAPI_SEARCH)
+        serp_google_maps = ToolCreate.from_composio(action=Action.SERPAPI_GOOGLE_MAPS_SEARCH)
+
+        return [calculator, serp_news, serp_google_search, serp_google_maps]
+
+
+class ToolUpdate(LettaBase):
+    description: Optional[str] = Field(None, description="The description of the tool.")
+    name: Optional[str] = Field(None, description="The name of the function.")
+    tags: Optional[List[str]] = Field(None, description="Metadata tags.")
+    module: Optional[str] = Field(None, description="The source code of the function.")
+    source_code: Optional[str] = Field(None, description="The source code of the function.")
+    source_type: Optional[str] = Field(None, description="The type of the source code.")
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
-
-
-class ToolUpdate(ToolCreate):
-    id: str = Field(..., description="The unique identifier of the tool.")
-    name: Optional[str] = Field(None, description="The name of the function.")
-    tags: Optional[List[str]] = Field(None, description="Metadata tags.")
-    source_code: Optional[str] = Field(None, description="The source code of the function.")
-    json_schema: Optional[Dict] = Field(None, description="The JSON schema of the function.")

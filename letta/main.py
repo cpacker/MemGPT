@@ -20,7 +20,6 @@ from letta.cli.cli_load import app as load_app
 from letta.config import LettaConfig
 from letta.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, REQ_HEARTBEAT_MESSAGE
 from letta.metadata import MetadataStore
-from letta.schemas.enums import OptionState
 
 # from letta.interface import CLIInterface as interface  # for printing to terminal
 from letta.streaming_interface import AgentRefreshStreamingInterface
@@ -64,7 +63,6 @@ def run_agent_loop(
     no_verify: bool = False,
     strip_ui: bool = False,
     stream: bool = False,
-    inner_thoughts_in_kwargs: OptionState = OptionState.DEFAULT,
 ):
     if isinstance(letta_agent.interface, AgentRefreshStreamingInterface):
         # letta_agent.interface.toggle_streaming(on=stream)
@@ -356,19 +354,29 @@ def run_agent_loop(
             else:
                 # If message did not begin with command prefix, pass inputs to Letta
                 # Handle user message and append to messages
-                user_message = system.package_user_message(user_input)
+                user_message = str(user_input)
 
         skip_next_user_input = False
 
         def process_agent_step(user_message, no_verify):
-            step_response = letta_agent.step(
-                user_message,
-                first_message=False,
-                skip_verify=no_verify,
-                stream=stream,
-                inner_thoughts_in_kwargs_option=inner_thoughts_in_kwargs,
-                ms=ms,
-            )
+            # TODO(charles): update to use agent.step() instead of inner_step()
+
+            if user_message is None:
+                step_response = letta_agent.inner_step(
+                    messages=[],
+                    first_message=False,
+                    skip_verify=no_verify,
+                    stream=stream,
+                    ms=ms,
+                )
+            else:
+                step_response = letta_agent.step_user_message(
+                    user_message_str=user_message,
+                    first_message=False,
+                    skip_verify=no_verify,
+                    stream=stream,
+                    ms=ms,
+                )
             new_messages = step_response.messages
             heartbeat_request = step_response.heartbeat_request
             function_failed = step_response.function_failed
@@ -392,15 +400,15 @@ def run_agent_loop(
         while True:
             try:
                 if strip_ui:
-                    new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                    _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
                 else:
                     if stream:
                         # Don't display the "Thinking..." if streaming
-                        new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                        _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     else:
                         with console.status("[bold cyan]Thinking...") as status:
-                            new_messages, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
+                            _, user_message, skip_next_user_input = process_agent_step(user_message, no_verify)
                     break
             except KeyboardInterrupt:
                 print("User interrupt occurred.")

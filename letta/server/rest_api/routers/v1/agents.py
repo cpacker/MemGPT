@@ -8,7 +8,7 @@ from starlette.responses import StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from letta.schemas.enums import MessageRole, MessageStreamStatus
+from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
     LettaMessage,
@@ -19,13 +19,15 @@ from letta.schemas.letta_response import LettaResponse
 from letta.schemas.memory import (
     ArchivalMemorySummary,
     BasicBlockMemory,
+    ContextWindowOverview,
     CreateArchivalMemory,
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, UpdateMessage
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
+from letta.schemas.tool import Tool
 from letta.server.rest_api.interface import StreamingServerInterface
 from letta.server.rest_api.utils import get_letta_server, sse_async_generator
 from letta.server.server import SyncServer
@@ -51,6 +53,20 @@ def list_agents(
     return server.list_agents(user_id=actor.id)
 
 
+@router.get("/{agent_id}/context", response_model=ContextWindowOverview, operation_id="get_agent_context_window")
+def get_agent_context_window(
+    agent_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Retrieve the context window of a specific agent.
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+
+    return server.get_agent_context_window(user_id=actor.id, agent_id=agent_id)
+
+
 @router.post("/", response_model=AgentState, operation_id="create_agent")
 def create_agent(
     agent: CreateAgent = Body(...),
@@ -68,7 +84,7 @@ def create_agent(
     blocks = agent.memory.get_blocks()
     agent.memory = BasicBlockMemory(blocks=blocks)
 
-    return server.create_agent(agent, user_id=actor.id)
+    return server.create_agent(agent, actor=actor)
 
 
 @router.patch("/{agent_id}", response_model=AgentState, operation_id="update_agent")
@@ -80,9 +96,42 @@ def update_agent(
 ):
     """Update an exsiting agent"""
     actor = server.get_user_or_default(user_id=user_id)
+    return server.update_agent(update_agent, actor=actor)
 
-    update_agent.id = agent_id
-    return server.update_agent(update_agent, user_id=actor.id)
+
+@router.get("/{agent_id}/tools", response_model=List[Tool], operation_id="get_tools_from_agent")
+def get_tools_from_agent(
+    agent_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """Get tools from an existing agent"""
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.get_tools_from_agent(agent_id=agent_id, user_id=actor.id)
+
+
+@router.patch("/{agent_id}/add-tool/{tool_id}", response_model=AgentState, operation_id="add_tool_to_agent")
+def add_tool_to_agent(
+    agent_id: str,
+    tool_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """Add tools to an existing agent"""
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
+
+
+@router.patch("/{agent_id}/remove-tool/{tool_id}", response_model=AgentState, operation_id="remove_tool_from_agent")
+def remove_tool_from_agent(
+    agent_id: str,
+    tool_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """Add tools to an existing agent"""
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
 
 @router.get("/{agent_id}", response_model=AgentState, operation_id="get_agent")
@@ -310,7 +359,7 @@ def update_message(
     return server.update_agent_message(agent_id=agent_id, request=request)
 
 
-@router.post("/{agent_id}/messages", response_model=LettaResponse, operation_id="create_agent_message")
+@router.post("/{agent_id}/messages", response_model=None, operation_id="create_agent_message")
 async def send_message(
     agent_id: str,
     server: SyncServer = Depends(get_letta_server),
@@ -324,16 +373,11 @@ async def send_message(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    # TODO(charles): support sending multiple messages
-    assert len(request.messages) == 1, f"Multiple messages not supported: {request.messages}"
-    message = request.messages[0]
-
     return await send_message_to_agent(
         server=server,
         agent_id=agent_id,
         user_id=actor.id,
-        role=message.role,
-        message=message.text,
+        messages=request.messages,
         stream_steps=request.stream_steps,
         stream_tokens=request.stream_tokens,
         return_message_object=request.return_message_object,
@@ -349,8 +393,8 @@ async def send_message_to_agent(
     server: SyncServer,
     agent_id: str,
     user_id: str,
-    role: MessageRole,
-    message: str,
+    # role: MessageRole,
+    messages: Union[List[Message], List[MessageCreate]],
     stream_steps: bool,
     stream_tokens: bool,
     # related to whether or not we return `LettaMessage`s or `Message`s
@@ -367,14 +411,6 @@ async def send_message_to_agent(
     # TODO: @charles is this the correct way to handle?
     include_final_message = True
 
-    # determine role
-    if role == MessageRole.user:
-        message_func = server.user_message
-    elif role == MessageRole.system:
-        message_func = server.system_message
-    else:
-        raise HTTPException(status_code=500, detail=f"Bad role {role}")
-
     if not stream_steps and stream_tokens:
         raise HTTPException(status_code=400, detail="stream_steps must be 'true' if stream_tokens is 'true'")
 
@@ -386,9 +422,6 @@ async def send_message_to_agent(
         # Get the generator object off of the agent's streaming interface
         # This will be attached to the POST SSE request used under-the-hood
         letta_agent = server._get_or_load_agent(agent_id=agent_id)
-        streaming_interface = letta_agent.interface
-        if not isinstance(streaming_interface, StreamingServerInterface):
-            raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
 
         # Disable token streaming if not OpenAI
         # TODO: cleanup this logic
@@ -396,6 +429,12 @@ async def send_message_to_agent(
         if llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in llm_config.model_endpoint:
             print("Warning: token streaming is only supported for OpenAI models. Setting to False.")
             stream_tokens = False
+
+        # Create a new interface per request
+        letta_agent.interface = StreamingServerInterface()
+        streaming_interface = letta_agent.interface
+        if not isinstance(streaming_interface, StreamingServerInterface):
+            raise ValueError(f"Agent has wrong type of interface: {type(streaming_interface)}")
 
         # Enable token-streaming within the request if desired
         streaming_interface.streaming_mode = stream_tokens
@@ -410,10 +449,20 @@ async def send_message_to_agent(
         streaming_interface.assistant_message_function_name = assistant_message_function_name
         streaming_interface.assistant_message_function_kwarg = assistant_message_function_kwarg
 
+        # Related to JSON buffer reader
+        streaming_interface.inner_thoughts_in_kwargs = (
+            llm_config.put_inner_thoughts_in_kwargs if llm_config.put_inner_thoughts_in_kwargs is not None else False
+        )
+
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
         task = asyncio.create_task(
-            asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=message, timestamp=timestamp)
+            asyncio.to_thread(
+                server.send_messages,
+                user_id=user_id,
+                agent_id=agent_id,
+                messages=messages,
+            )
         )
 
         if stream_steps:
@@ -423,7 +472,11 @@ async def send_message_to_agent(
 
             # return a stream
             return StreamingResponse(
-                sse_async_generator(streaming_interface.get_generator(), finish_message=include_final_message),
+                sse_async_generator(
+                    streaming_interface.get_generator(),
+                    usage_task=task,
+                    finish_message=include_final_message,
+                ),
                 media_type="text/event-stream",
             )
 

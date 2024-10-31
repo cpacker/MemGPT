@@ -2,5 +2,6 @@
     "context_window": 8192,
     "model_endpoint_type": "ollama",
     "model_endpoint": "http://127.0.0.1:11434",
-    "model": "dolphin2.2-mistral:7b-q6_K"
+    "model": "thewindmom/hermes-3-llama-3.1-8b",
+    "put_inner_thoughts_in_kwargs": true
 }

@@ -1,14 +1,15 @@
 from typing import Any, Optional, Union
 
+import humps
 from pydantic import BaseModel
 
 
 def generate_composio_tool_wrapper(action: "ActionType") -> tuple[str, str]:
     # Instantiate the object
-    tool_instantiation_str = f"composio_toolset.get_tools(actions=[Action.{action.name}])[0]"
+    tool_instantiation_str = f"composio_toolset.get_tools(actions=[Action.{str(action)}])[0]"
 
     # Generate func name
-    func_name = f"run_{action.name}"
+    func_name = action.name.lower()
 
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
@@ -19,7 +20,7 @@ def {func_name}(**kwargs):
 
     composio_toolset = ComposioToolSet()
     tool = {tool_instantiation_str}
-    tool.func(**kwargs)
+    return tool.func(**kwargs)['data']
     """
 
     # Compile safety check
@@ -40,7 +41,7 @@ def generate_langchain_tool_wrapper(
 
     tool_instantiation = f"tool = {generate_imported_tool_instantiation_call_str(tool)}"
     run_call = f"return tool._run(**kwargs)"
-    func_name = f"run_{tool_name.lower()}"
+    func_name = humps.decamelize(tool_name)
 
     # Combine all parts into the wrapper function
     wrapper_function_str = f"""
@@ -70,7 +71,7 @@ def generate_crewai_tool_wrapper(tool: "CrewAIBaseTool", additional_imports_modu
 
     tool_instantiation = f"tool = {generate_imported_tool_instantiation_call_str(tool)}"
     run_call = f"return tool._run(**kwargs)"
-    func_name = f"run_{tool_name.lower()}"
+    func_name = humps.decamelize(tool_name)
 
     # Combine all parts into the wrapper function
     wrapper_function_str = f"""

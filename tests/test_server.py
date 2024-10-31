@@ -25,7 +25,6 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.message import Message
 from letta.schemas.source import SourceCreate
-from letta.schemas.user import UserCreate
 from letta.server.server import SyncServer
 
 from .utils import DummyDataConnector
@@ -33,25 +32,8 @@ from .utils import DummyDataConnector
 
 @pytest.fixture(scope="module")
 def server():
-    # if os.getenv("OPENAI_API_KEY"):
-    #    create_config("openai")
-    #    credentials = LettaCredentials(
-    #        openai_key=os.getenv("OPENAI_API_KEY"),
-    #    )
-    # else:  # hosted
-    #    create_config("letta_hosted")
-    #    credentials = LettaCredentials()
-
     config = LettaConfig.load()
     print("CONFIG PATH", config.config_path)
-
-    ## set to use postgres
-    # config.archival_storage_uri = db_url
-    # config.recall_storage_uri = db_url
-    # config.metadata_storage_uri = db_url
-    # config.archival_storage_type = "postgres"
-    # config.recall_storage_type = "postgres"
-    # config.metadata_storage_type = "postgres"
 
     config.save()
 
@@ -60,15 +42,27 @@ def server():
 
 
 @pytest.fixture(scope="module")
-def user_id(server):
+def org_id(server):
+    # create org
+    org = server.organization_manager.create_default_organization()
+    print(f"Created org\n{org.id}")
+
+    yield org.id
+
+    # cleanup
+    server.organization_manager.delete_organization_by_id(org.id)
+
+
+@pytest.fixture(scope="module")
+def user_id(server, org_id):
     # create user
-    user = server.create_user(UserCreate(name="test_user"))
+    user = server.user_manager.create_default_user()
     print(f"Created user\n{user.id}")
 
     yield user.id
 
     # cleanup
-    server.delete_user(user.id)
+    server.user_manager.delete_user_by_id(user.id)
 
 
 @pytest.fixture(scope="module")
@@ -85,7 +79,7 @@ def agent_id(server, user_id):
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        user_id=user_id,
+        actor=server.get_user_or_default(user_id),
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
@@ -167,7 +161,7 @@ def test_user_message(server, user_id, agent_id):
 
 
 @pytest.mark.order(5)
-def test_get_recall_memory(server, user_id, agent_id):
+def test_get_recall_memory(server, org_id, user_id, agent_id):
     # test recall memory cursor pagination
     messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=2)
     cursor1 = messages_1[-1].id
@@ -507,3 +501,43 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     args_json = json.loads(last_agent_message.tool_calls[0].function.arguments)
     print(args_json)
     assert "message" in args_json and args_json["message"] is not None and args_json["message"] != new_text
+
+
+def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id: str):
+    """Test that the context window overview fetch works"""
+
+    overview = server.get_agent_context_window(user_id=user_id, agent_id=agent_id)
+    assert overview is not None
+
+    # Run some basic checks
+    assert overview.context_window_size_max is not None
+    assert overview.context_window_size_current is not None
+    assert overview.num_archival_memory is not None
+    assert overview.num_recall_memory is not None
+    assert overview.num_tokens_external_memory_summary is not None
+    assert overview.num_tokens_system is not None
+    assert overview.system_prompt is not None
+    assert overview.num_tokens_core_memory is not None
+    assert overview.core_memory is not None
+    assert overview.num_tokens_summary_memory is not None
+    if overview.num_tokens_summary_memory > 0:
+        assert overview.summary_memory is not None
+    else:
+        assert overview.summary_memory is None
+    assert overview.num_tokens_functions_definitions is not None
+    if overview.num_tokens_functions_definitions > 0:
+        assert overview.functions_definitions is not None
+    else:
+        assert overview.functions_definitions is None
+    assert overview.num_tokens_messages is not None
+    assert overview.messages is not None
+
+    assert overview.context_window_size_max >= overview.context_window_size_current
+    assert overview.context_window_size_current == (
+        overview.num_tokens_system
+        + overview.num_tokens_core_memory
+        + overview.num_tokens_summary_memory
+        + overview.num_tokens_messages
+        + overview.num_tokens_functions_definitions
+        + overview.num_tokens_external_memory_summary
+    )
