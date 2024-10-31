@@ -36,7 +36,7 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-
+    - run: psql -h localhost -U postgres -d postgres -c 'CREATE EXTENSION vector'
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
       with:
@@ -44,14 +44,13 @@ jobs:
         poetry-version: "1.8.2"
         install-args: "-E dev -E postgres -E tests"
 
-    - name: Migrate database
+    - name: Test alembic migration
       env:
         LETTA_PG_PORT: 5432
         LETTA_PG_USER: postgres
         LETTA_PG_DB: postgres
         LETTA_PG_HOST: localhost
       run: |
-        psql -h localhost -U postgres -d postgres -c 'CREATE EXTENSION vector'
         poetry run alembic upgrade head
 
     - name: Test `letta run` up until first message
