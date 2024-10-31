@@ -1,3 +1,4 @@
+import warnings
 from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -10,6 +11,7 @@ from letta.llm_api.azure_openai import (
 from letta.llm_api.azure_openai_constants import AZURE_MODEL_TO_CONTEXT_LENGTH
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
+from letta.utils import smart_urljoin
 
 
 class Provider(BaseModel):
@@ -529,102 +531,61 @@ class LMStudioCompletionsProvider(Provider):
     )
 
     def list_llm_models(self) -> List[LLMConfig]:
-        # https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
-        import requests
+        # not supported with vLLM
+        from letta.llm_api.openai import openai_get_model_list
 
-        response = requests.get(f"{self.base_url}/api/tags")
-        if response.status_code != 200:
-            raise Exception(f"Failed to list Ollama models: {response.text}")
-        response_json = response.json()
+        model_path = smart_urljoin(self.base_url, "api/v0/")
+        response = openai_get_model_list(model_path, api_key=None)
+
+        if "data" not in response:
+            warnings.warn(f"LMStudio returned an unexpected response: {response}")
+            return []
 
         configs = []
-        for model in response_json["models"]:
-            context_window = self.get_model_context_window(model["name"])
-            if context_window is None:
-                print(f"Ollama model {model['name']} has no context window")
-                continue
-            configs.append(
-                LLMConfig(
-                    model=model["name"],
-                    model_endpoint_type="ollama",
-                    model_endpoint=self.base_url,
-                    model_wrapper=self.default_prompt_formatter,
-                    context_window=context_window,
+        for model in response["data"]:
+            # LMStudio's backend has a type field which can be "llm" or "embedding"
+            if "type" in model and model["type"] == "llm":
+                if "max_model_len" not in model:
+                    warnings.warn(f"LMStudio model is missing max_model_len field: {model}")
+                if "id" not in model:
+                    warnings.warn(f"LMStudio model is missing id field: {model}")
+                configs.append(
+                    LLMConfig(
+                        model=model["id"],
+                        model_endpoint_type="lmstudio",
+                        model_endpoint=self.base_url,
+                        model_wrapper=self.default_prompt_formatter,
+                        context_window=model["max_context_length"],
+                    )
                 )
-            )
         return configs
 
-    def get_model_context_window(self, model_name: str) -> Optional[int]:
-
-        import requests
-
-        response = requests.post(f"{self.base_url}/api/show", json={"name": model_name, "verbose": True})
-        response_json = response.json()
-
-        ## thank you vLLM: https://github.com/vllm-project/vllm/blob/main/vllm/config.py#L1675
-        # possible_keys = [
-        #    # OPT
-        #    "max_position_embeddings",
-        #    # GPT-2
-        #    "n_positions",
-        #    # MPT
-        #    "max_seq_len",
-        #    # ChatGLM2
-        #    "seq_length",
-        #    # Command-R
-        #    "model_max_length",
-        #    # Others
-        #    "max_sequence_length",
-        #    "max_seq_length",
-        #    "seq_len",
-        # ]
-        # max_position_embeddings
-        # parse model cards: nous, dolphon, llama
-        if "model_info" not in response_json:
-            if "error" in response_json:
-                print(f"Ollama fetch model info error for {model_name}: {response_json['error']}")
-            return None
-        for key, value in response_json["model_info"].items():
-            if "context_length" in key:
-                return value
-        return None
-
-    def get_model_embedding_dim(self, model_name: str):
-        import requests
-
-        response = requests.post(f"{self.base_url}/api/show", json={"name": model_name, "verbose": True})
-        response_json = response.json()
-        if "model_info" not in response_json:
-            if "error" in response_json:
-                print(f"Ollama fetch model info error for {model_name}: {response_json['error']}")
-            return None
-        for key, value in response_json["model_info"].items():
-            if "embedding_length" in key:
-                return value
-        return None
-
     def list_embedding_models(self) -> List[EmbeddingConfig]:
-        # https://github.com/ollama/ollama/blob/main/docs/api.md#list-local-models
-        import requests
+        from letta.llm_api.openai import openai_get_model_list
 
-        response = requests.get(f"{self.base_url}/api/tags")
-        if response.status_code != 200:
-            raise Exception(f"Failed to list Ollama models: {response.text}")
-        response_json = response.json()
+        model_path = smart_urljoin(self.base_url, "api/v0/")
+        response = openai_get_model_list(model_path, api_key=None)
+
+        if "data" not in response:
+            warnings.warn(f"LMStudio returned an unexpected response: {response}")
+            return []
 
         configs = []
-        for model in response_json["models"]:
-            embedding_dim = self.get_model_embedding_dim(model["name"])
-            if not embedding_dim:
-                print(f"Ollama model {model['name']} has no embedding dimension")
-                continue
-            configs.append(
-                EmbeddingConfig(
-                    embedding_model=model["name"],
-                    embedding_endpoint_type="ollama",
-                    embedding_endpoint=self.base_url,
-                    embedding_dim=embedding_dim,
-                    embedding_chunk_size=300,
+        for model in response["data"]:
+            # LMStudio's backend has a type field which can be "llm" or "embedding"
+            if "type" in model and model["type"] == "embeddings":
+                if "max_context_length" not in model:
+                    warnings.warn(f"LMStudio model is missing max_model_len field: {model}")
+                if "id" not in model:
+                    warnings.warn(f"LMStudio model is missing id field: {model}")
+                configs.append(
+                    EmbeddingConfig(
+                        embedding_model=model["id"],
+                        embedding_endpoint_type="openai",
+                        embedding_endpoint=self.base_url,
+                        embedding_dim=model["max_context_length"],
+                        embedding_chunk_size=300,
+                    )
                 )
-            )
+
         return configs
