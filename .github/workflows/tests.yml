@@ -104,10 +104,10 @@ jobs:
 
       - name: Run misc unit tests
         env:
-          LETTA_PG_PORT: 8888
-          LETTA_PG_USER: letta
-          LETTA_PG_PASSWORD: letta
-          LETTA_PG_DB: letta
+          LETTA_PG_PORT: 5432
+          LETTA_PG_USER: postgres
+          LETTA_PG_PASSWORD: postgres
+          LETTA_PG_DB: postgres
           LETTA_PG_HOST: localhost
           LETTA_SERVER_PASS: test_server_token
           PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
