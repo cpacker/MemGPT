@@ -36,6 +36,7 @@ jobs:
         env:
           LETTA_PG_PORT: 5432
           LETTA_PG_USER: postgres
+          LETTA_PG_PASSWORD: postgres
           LETTA_PG_DB: postgres
           LETTA_PG_HOST: localhost
         run: |
