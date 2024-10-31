@@ -13,7 +13,15 @@ from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageStreamStatus
-from letta.schemas.letta_message import FunctionCallMessage, InternalMonologue
+from letta.schemas.letta_message import (
+    AssistantMessage,
+    FunctionCallMessage,
+    FunctionReturn,
+    InternalMonologue,
+    LettaMessage,
+    SystemMessage,
+    UserMessage,
+)
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
@@ -121,6 +129,9 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
     message = "Hello, agent!"
     print("Sending message", message)
     response = client.user_message(agent_id=agent.id, message=message, include_full_message=True)
+    # Check the types coming back
+    assert all([isinstance(m, Message) for m in response.messages]), "All messages should be Message"
+
     print("Response", response)
     assert isinstance(response.usage, LettaUsageStatistics)
     assert response.usage.step_count == 1
@@ -128,6 +139,25 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
     assert response.usage.completion_tokens > 0
     assert isinstance(response.messages[0], Message)
     print(response.messages)
+
+    # test that it also works with LettaMessage
+    message = "Hello again, agent!"
+    print("Sending message", message)
+    response = client.user_message(agent_id=agent.id, message=message, include_full_message=False)
+    assert all([isinstance(m, LettaMessage) for m in response.messages]), "All messages should be LettaMessages"
+
+    # We should also check that the types were cast properly
+    print("RESPONSE MESSAGES, client type:", type(client))
+    print(response.messages)
+    for letta_message in response.messages:
+        assert type(letta_message) in [
+            SystemMessage,
+            UserMessage,
+            InternalMonologue,
+            FunctionCallMessage,
+            FunctionReturn,
+            AssistantMessage,
+        ], f"Unexpected message type: {type(letta_message)}"
 
     # TODO: add streaming tests
 
