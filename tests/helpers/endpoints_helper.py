@@ -4,6 +4,7 @@ import uuid
 from typing import Callable, List, Optional, Union
 
 from letta.llm_api.helpers import unpack_inner_thoughts_from_kwargs
+from letta.schemas.tool_rule import BaseToolRule
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -61,6 +62,8 @@ def setup_agent(
     memory_human_str: str = get_human_text(DEFAULT_HUMAN),
     memory_persona_str: str = get_persona_text(DEFAULT_PERSONA),
     tools: Optional[List[str]] = None,
+    tool_rules: Optional[List[BaseToolRule]] = None,
+    agent_uuid: str = agent_uuid,
 ) -> AgentState:
     config_data = json.load(open(filename, "r"))
     llm_config = LLMConfig(**config_data)
@@ -73,7 +76,9 @@ def setup_agent(
     config.save()
 
     memory = ChatMemory(human=memory_human_str, persona=memory_persona_str)
-    agent_state = client.create_agent(name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config, memory=memory, tools=tools)
+    agent_state = client.create_agent(
+        name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config, memory=memory, tools=tools, tool_rules=tool_rules
+    )
 
     return agent_state
 

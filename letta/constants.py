@@ -3,6 +3,9 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
 
 LETTA_DIR = os.path.join(os.path.expanduser("~"), ".letta")
 
+ADMIN_PREFIX = "/v1/admin"
+API_PREFIX = "/v1"
+OPENAI_API_PREFIX = "/openai"
 
 # String in the error message for when the context window is too large
 # Example full message:

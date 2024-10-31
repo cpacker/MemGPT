@@ -359,7 +359,7 @@ def update_message(
     return server.update_agent_message(agent_id=agent_id, request=request)
 
 
-@router.post("/{agent_id}/messages", response_model=LettaResponse, operation_id="create_agent_message")
+@router.post("/{agent_id}/messages", response_model=None, operation_id="create_agent_message")
 async def send_message(
     agent_id: str,
     server: SyncServer = Depends(get_letta_server),
@@ -373,16 +373,10 @@ async def send_message(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    # TODO(charles): support sending multiple messages
-    assert len(request.messages) == 1, f"Multiple messages not supported: {request.messages}"
-    request.messages[0]
-
     return await send_message_to_agent(
         server=server,
         agent_id=agent_id,
         user_id=actor.id,
-        # role=message.role,
-        # message=message.text,
         messages=request.messages,
         stream_steps=request.stream_steps,
         stream_tokens=request.stream_tokens,
@@ -463,8 +457,12 @@ async def send_message_to_agent(
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
         task = asyncio.create_task(
-            # asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=message, timestamp=timestamp)
-            asyncio.to_thread(server.send_messages, user_id=user_id, agent_id=agent_id, messages=messages)
+            asyncio.to_thread(
+                server.send_messages,
+                user_id=user_id,
+                agent_id=agent_id,
+                messages=messages,
+            )
         )
 
         if stream_steps:
@@ -474,7 +472,11 @@ async def send_message_to_agent(
 
             # return a stream
             return StreamingResponse(
-                sse_async_generator(streaming_interface.get_generator(), finish_message=include_final_message),
+                sse_async_generator(
+                    streaming_interface.get_generator(),
+                    usage_task=task,
+                    finish_message=include_final_message,
+                ),
                 media_type="text/event-stream",
             )
 

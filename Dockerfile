@@ -31,6 +31,8 @@ ENV VIRTUAL_ENV=/app/.venv \
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
 COPY ./letta /letta
+COPY ./alembic.ini /alembic.ini
+COPY ./alembic /alembic
 
 EXPOSE 8283
 
@@ -46,6 +48,8 @@ ENV PYTHONPATH=/
 WORKDIR /
 COPY ./tests /tests
 COPY ./letta /letta
+COPY ./alembic.ini /alembic.ini
+COPY ./alembic /alembic
 #COPY ./configs/server_config.yaml /root/.letta/config
 EXPOSE 8083
 

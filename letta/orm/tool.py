@@ -38,8 +38,5 @@ class Tool(SqlalchemyBase, OrganizationMixin):
         String, nullable=True, doc="the module path from which this tool was derived in the codebase."
     )
 
-    # TODO: add terminal here eventually
-    # This was an intentional decision by Sarah
-
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="tools", lazy="selectin")

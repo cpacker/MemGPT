@@ -48,8 +48,8 @@ swarm.client.set_default_embedding_config(EmbeddingConfig.default_config(provide
 swarm.client.set_default_llm_config(LLMConfig.default_config(model_name="gpt-4"))
 
 # create tools
-transfer_a = swarm.client.create_tool(transfer_agent_a, terminal=True)
-transfer_b = swarm.client.create_tool(transfer_agent_b, terminal=True)
+transfer_a = swarm.client.create_tool(transfer_agent_a)
+transfer_b = swarm.client.create_tool(transfer_agent_b)
 
 # create agents
 if swarm.client.get_agent_id("agentb"):
