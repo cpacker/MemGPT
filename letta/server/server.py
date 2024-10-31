@@ -37,6 +37,7 @@ from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import MetadataStore
 from letta.o1_agent import O1Agent
+from letta.orm import Base
 from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
 from letta.providers import (
@@ -169,6 +170,8 @@ from letta.settings import model_settings, settings, tool_settings
 
 config = LettaConfig.load()
 
+attach_base()
+
 if settings.letta_pg_uri_no_default:
     config.recall_storage_type = "postgres"
     config.recall_storage_uri = settings.letta_pg_uri_no_default
@@ -181,10 +184,9 @@ else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
 
+    Base.metadata.create_all(bind=engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-attach_base()
 
 
 # Dependency

@@ -55,28 +55,10 @@ password = None
 #    #typer.secho(f"Generated admin server password for this session: {password}", fg=typer.colors.GREEN)
 
 import logging
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from alembic import command
-from alembic.config import Config
-
 log = logging.getLogger("uvicorn")
-
-
-def run_migrations():
-    alembic_cfg = Config("alembic.ini")
-    command.upgrade(alembic_cfg, "head")
-
-
-@asynccontextmanager
-async def lifespan(app_: FastAPI):
-    log.info("Starting up...")
-    log.info("run alembic upgrade head...")
-    run_migrations()
-    yield
-    log.info("Shutting down...")
 
 
 def create_application() -> "FastAPI":
@@ -91,7 +73,6 @@ def create_application() -> "FastAPI":
         summary="Create LLM agents with long-term memory and custom tools 📚🦙",
         version="1.0.0",  # TODO wire this up to the version in the package
         debug=True,
-        lifespan=lifespan,
     )
 
     if "--ade" in sys.argv:
