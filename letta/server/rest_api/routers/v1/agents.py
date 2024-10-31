@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from starlette.responses import StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
@@ -359,7 +358,20 @@ def update_message(
     return server.update_agent_message(agent_id=agent_id, request=request)
 
 
-@router.post("/{agent_id}/messages", response_model=LettaResponse, operation_id="create_agent_message")
+@router.post(
+    "/{agent_id}/messages",
+    response_model=None,
+    operation_id="create_agent_message",
+    responses={
+        200: {
+            "description": "Successful response",
+            "content": {
+                "application/json": {"schema": LettaResponse.model_json_schema()},  # Use model_json_schema() instead of model directly
+                "text/event-stream": {"description": "Server-Sent Events stream"},
+            },
+        }
+    },
+)
 async def send_message(
     agent_id: str,
     server: SyncServer = Depends(get_letta_server),
