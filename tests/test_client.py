@@ -518,7 +518,7 @@ def test_list_llm_models(client: RESTClient):
 
     embedding_configs = client.list_embedding_models()
     print("EMBEDDING CONFIGS", embedding_configs)
-    
+
     models = client.list_llm_configs()
     if model_settings.groq_api_key:
         assert has_model_endpoint_type(models, "groq")
@@ -530,6 +530,7 @@ def test_list_llm_models(client: RESTClient):
         assert has_model_endpoint_type(models, "google_ai")
     if model_settings.anthropic_api_key:
         assert has_model_endpoint_type(models, "anthropic")
+
 
 def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
