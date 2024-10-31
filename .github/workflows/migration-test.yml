@@ -15,7 +15,6 @@ jobs:
           - 5432:5432
         env:
           POSTGRES_DB: postgres
-          POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
         options: >-
           --health-cmd pg_isready
@@ -25,7 +24,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
+      - run: psql -h localhost -U postgres -c 'CREATE EXTENSION vector'
       - name: "Setup Python, Poetry and Dependencies"
         uses: packetcoders/action-setup-cache-python-poetry@main
         with:

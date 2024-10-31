@@ -34,13 +34,21 @@ jobs:
         image: qdrant/qdrant
         ports:
           - 6333:6333
-
+      postgres:
+        image: pgvector/pgvector:pg17
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Build and run container
-        run: bash db/run_postgres.sh
 
       - name: Setup Python, Poetry, and Dependencies
         uses: packetcoders/action-setup-cache-python-poetry@main
@@ -48,6 +56,11 @@ jobs:
           python-version: "3.12"
           poetry-version: "1.8.2"
           install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"
+
+      - name: Migrate database
+        run: |
+          psql -h localhost -U postgres -c 'CREATE EXTENSION vector'
+          poetry run alembic migrate head
 
       - name: Run core unit tests
         env:
