@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, Type, Union, get_args, get_origin
 
 from docstring_parser import parse
 from pydantic import BaseModel
+from pydantic.v1 import BaseModel as V1BaseModel
 
 
 def is_optional(annotation):
@@ -139,7 +140,7 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
 
 
 def generate_schema_from_args_schema(
-    args_schema: Type[BaseModel], name: Optional[str] = None, description: Optional[str] = None, append_heartbeat: bool = True
+    args_schema: Type[V1BaseModel], name: Optional[str] = None, description: Optional[str] = None, append_heartbeat: bool = True
 ) -> Dict[str, Any]:
     properties = {}
     required = []

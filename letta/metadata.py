@@ -30,6 +30,12 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
 from letta.schemas.openai.chat_completion_request import ToolCall, ToolCallFunction
 from letta.schemas.source import Source
+from letta.schemas.tool_rule import (
+    BaseToolRule,
+    InitToolRule,
+    TerminalToolRule,
+    ToolRule,
+)
 from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
@@ -196,6 +202,41 @@ def generate_api_key(prefix="sk-", length=51) -> str:
     return new_key
 
 
+class ToolRulesColumn(TypeDecorator):
+    """Custom type for storing a list of ToolRules as JSON"""
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value: List[BaseToolRule], dialect):
+        """Convert a list of ToolRules to JSON-serializable format."""
+        if value:
+            return [rule.model_dump() for rule in value]
+        return value
+
+    def process_result_value(self, value, dialect) -> List[BaseToolRule]:
+        """Convert JSON back to a list of ToolRules."""
+        if value:
+            return [self.deserialize_tool_rule(rule_data) for rule_data in value]
+        return value
+
+    @staticmethod
+    def deserialize_tool_rule(data: dict) -> BaseToolRule:
+        """Deserialize a dictionary to the appropriate ToolRule subclass based on the 'type'."""
+        rule_type = data.get("type")  # Remove 'type' field if it exists since it is a class var
+        if rule_type == "InitToolRule":
+            return InitToolRule(**data)
+        elif rule_type == "TerminalToolRule":
+            return TerminalToolRule(**data)
+        elif rule_type == "ToolRule":
+            return ToolRule(**data)
+        else:
+            raise ValueError(f"Unknown tool rule type: {rule_type}")
+
+
 class AgentModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
@@ -212,7 +253,6 @@ class AgentModel(Base):
     message_ids = Column(JSON)
     memory = Column(JSON)
     system = Column(String)
-    tools = Column(JSON)
 
     # configs
     agent_type = Column(String)
@@ -224,6 +264,7 @@ class AgentModel(Base):
 
     # tools
     tools = Column(JSON)
+    tool_rules = Column(ToolRulesColumn)
 
     Index(__tablename__ + "_idx_user", user_id),
 
@@ -241,6 +282,7 @@ class AgentModel(Base):
             memory=Memory.load(self.memory),  # load dictionary
             system=self.system,
             tools=self.tools,
+            tool_rules=self.tool_rules,
             agent_type=self.agent_type,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,

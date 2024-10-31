@@ -140,7 +140,7 @@ def test_create_agent_tool(client):
         return None
 
     # TODO: test attaching and using function on agent
-    tool = client.create_tool(core_memory_clear, tags=["extras"], update=True)
+    tool = client.create_tool(core_memory_clear, tags=["extras"])
     print(f"Created tool", tool.name)
 
     # create agent with tool
