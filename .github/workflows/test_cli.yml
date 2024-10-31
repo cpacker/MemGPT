@@ -42,7 +42,7 @@ jobs:
       with:
         python-version: "3.12"
         poetry-version: "1.8.2"
-        install-args: "-E dev -E postgres -E tests"
+        install-args: "--all-extras"
 
     - name: Test alembic migration
       env:
