@@ -107,23 +107,32 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         """
         # Start the query
         query = select(cls)
+        # Collect query conditions for better error reporting
+        query_conditions = []
 
         # If an identifier is provided, add it to the query conditions
         if identifier is not None:
             identifier = cls.get_uid_from_identifier(identifier)
             query = query.where(cls._id == identifier)
+            query_conditions.append(f"id='{identifier}'")
 
         if kwargs:
             query = query.filter_by(**kwargs)
+            query_conditions.append(", ".join(f"{key}='{value}'" for key, value in kwargs.items()))
 
         if actor:
             query = cls.apply_access_predicate(query, actor, access)
+            query_conditions.append(f"access level in {access} for actor='{actor}'")
 
         if hasattr(cls, "is_deleted"):
             query = query.where(cls.is_deleted == False)
+            query_conditions.append("is_deleted=False")
         if found := db_session.execute(query).scalar():
             return found
-        raise NoResultFound(f"{cls.__name__} with id {identifier} not found")
+
+        # Construct a detailed error message based on query conditions
+        conditions_str = ", ".join(query_conditions) if query_conditions else "no specific conditions"
+        raise NoResultFound(f"{cls.__name__} not found with {conditions_str}")
 
     def create(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
         if actor:

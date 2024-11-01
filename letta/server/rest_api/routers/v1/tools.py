@@ -104,3 +104,15 @@ def update_tool(
     """
     actor = server.get_user_or_default(user_id=user_id)
     return server.tool_manager.update_tool_by_id(tool_id, actor.id, request)
+
+
+@router.post("/add-base-tools", response_model=List[Tool], operation_id="add_base_tools")
+def add_base_tools(
+    server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Add base tools
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.tool_manager.add_base_tools(actor=actor)
