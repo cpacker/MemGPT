@@ -475,3 +475,11 @@ def test_get_agents_by_tag(server: SyncServer, sarah_agent, charles_agent, defau
     assert sarah_agent.id in agent_ids
     assert charles_agent.id in agent_ids
     assert len(agent_ids) == 2
+
+    # Delete tags from only sarah agent
+    server.agents_tags_manager.delete_all_tags_from_agent(agent_id=sarah_agent.id, actor=default_user)
+    agent_ids = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
+    # Assert that both agents are returned for the tag
+    assert sarah_agent.id not in agent_ids
+    assert charles_agent.id in agent_ids
+    assert len(agent_ids) == 1

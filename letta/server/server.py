@@ -1468,8 +1468,8 @@ class SyncServer(Server):
 
     def delete_agent(self, user_id: str, agent_id: str):
         """Delete an agent in the database"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        actor = self.user_manager.get_user_by_id(user_id=user_id)
+
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
@@ -1494,6 +1494,10 @@ class SyncServer(Server):
         except Exception as e:
             logger.exception(f"Failed to delete agent {agent_id} via ID with:\n{str(e)}")
             raise ValueError(f"Failed to delete agent {agent_id} in database")
+
+        # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM MODEL
+        # TODO: EVENTUALLY WE GET AUTO-DELETES WHEN WE SPECIFY RELATIONSHIPS IN THE ORM
+        self.agents_tags_manager.delete_all_tags_from_agent(agent_id=agent_id, actor=actor)
 
     def api_key_to_user(self, api_key: str) -> str:
         """Decode an API key to a user"""

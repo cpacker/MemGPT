@@ -36,6 +36,19 @@ class AgentsTagsManager:
                 return new_tag.to_pydantic()
 
     @enforce_types
+    def delete_all_tags_from_agent(self, agent_id: str, actor: PydanticUser):
+        """Delete a tag from an agent."""
+        tags = self.get_tags_for_agent(agent_id=agent_id, actor=actor)
+        with self.session_maker() as session:
+            try:
+                for tag in tags:
+                    # Retrieve and delete the tag association
+                    tag_association = TagsAgentsModel.read(db_session=session, agent_id=agent_id, tag=tag, actor=actor)
+                    tag_association.delete(session, actor=actor)
+            except NoResultFound:
+                raise ValueError(f"Tag '{tag}' not found for agent '{agent_id}'.")
+
+    @enforce_types
     def delete_tag_from_agent(self, agent_id: str, tag: str, actor: PydanticUser):
         """Delete a tag from an agent."""
         with self.session_maker() as session:
