@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
@@ -6,26 +7,21 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from letta.schemas.letta_message import FunctionCall, LettaMessage
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_request import ChatCompletionRequest
-from letta.schemas.openai.chat_completion_response import (
-    ChatCompletionResponse,
-    Choice,
-    UsageStatistics,
-)
+from letta.schemas.openai.chat_completion_response import ChatCompletionResponse, Choice
+from letta.schemas.openai.chat_completion_response import Message as CompletionMessage
+from letta.schemas.openai.chat_completion_response import UsageStatistics
 
 # TODO this belongs in a controller!
 from letta.server.rest_api.routers.v1.agents import send_message_to_agent
 from letta.server.rest_api.utils import get_letta_server
 
 if TYPE_CHECKING:
-    pass
-
     from letta.server.server import SyncServer
-    from letta.utils import get_utc_time
 
 router = APIRouter(prefix="/v1/chat/completions", tags=["chat_completions"])
 
 
-@router.post("/", response_model=ChatCompletionResponse)
+@router.post("", response_model=ChatCompletionResponse)
 async def create_chat_completion(
     completion_request: ChatCompletionRequest = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
@@ -35,6 +31,12 @@ async def create_chat_completion(
     The bearer token will be used to identify the user.
     The 'user' field in the completion_request should be set to the agent ID.
     """
+    print(f"GOT REQUEST: {completion_request.model_dump(exclude_none=True)}")
+    # TODO: REMOVE THESE OVERRIDES -> THEY ARE FOR TESTING
+    completion_request.model = "gpt-4o-2024-08-06"
+    completion_request.user = "agent-e213fab4-77c6-484c-bc4c-1d7a16fefdfd"
+    # TODO: REMOVE
+
     actor = server.get_user_or_default(user_id=user_id)
 
     agent_id = completion_request.user
@@ -42,6 +44,7 @@ async def create_chat_completion(
         raise HTTPException(status_code=400, detail="Must pass agent_id in the 'user' field")
 
     messages = completion_request.messages
+    messages = [messages[-1]]
     if messages is None:
         raise HTTPException(status_code=400, detail="'messages' field must not be empty")
     if len(messages) > 1:
@@ -50,7 +53,7 @@ async def create_chat_completion(
         raise HTTPException(status_code=400, detail="'messages[0].role' must be a 'user'")
 
     # Translate to Message objects
-    messages = [Message.from_chat_completions_message(m) for m in messages]
+    messages = [Message.from_chat_completions_message(m, completion_request, actor.id) for m in messages]
 
     if completion_request.stream:
         print("Starting streaming OpenAI proxy response")
@@ -67,8 +70,8 @@ async def create_chat_completion(
             # Turn on ChatCompletion mode (eg remaps send_message to content)
             chat_completion_mode=True,
             return_message_object=False,
+            include_final_message=False,
         )
-
     else:
         print("Starting non-streaming OpenAI proxy response")
 
@@ -107,12 +110,12 @@ async def create_chat_completion(
 
         response = ChatCompletionResponse(
             id=id,
-            created=created_at if created_at else get_utc_time(),
+            created=created_at if created_at else datetime.now(timezone.utc),
             choices=[
                 Choice(
                     finish_reason="stop",
                     index=0,
-                    message=Message(
+                    message=CompletionMessage(
                         role="assistant",
                         content=visible_message_str,
                     ),

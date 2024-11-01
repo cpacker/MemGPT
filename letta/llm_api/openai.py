@@ -414,6 +414,7 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[ChatCompletionCh
                         chunk_data = json.loads(sse.data)
                         # print("chunk_data::", chunk_data)
                         chunk_object = ChatCompletionChunkResponse(**chunk_data)
+                        chunk_object.created = chunk_object.created.timestamp()
                         # print("chunk_object::", chunk_object)
                         # id=chunk_data["id"],
                         # choices=[ChunkChoice],

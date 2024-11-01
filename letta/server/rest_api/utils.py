@@ -24,6 +24,8 @@ def sse_formatter(data: Union[dict, str]) -> str:
     """Prefix with 'data: ', and always include double newlines"""
     assert type(data) in [dict, str], f"Expected type dict or str, got type {type(data)}"
     data_str = json.dumps(data, separators=(",", ":")) if isinstance(data, dict) else data
+
+    print(data_str)
     return f"data: {data_str}\n\n"
 
 

@@ -26,6 +26,7 @@ from letta.schemas.letta_message import SystemMessage as LettaSystemMessage
 from letta.schemas.letta_message import UserMessage as LettaUserMessage
 from letta.schemas.openai.chat_completion_request import (
     AssistantMessage,
+    ChatCompletionRequest,
     SystemMessage,
     ToolCall,
     ToolCallFunction,
@@ -129,12 +130,16 @@ class Message(BaseMessage):
 
     @classmethod
     def from_chat_completions_message(
-        cls, chat_completions_msg: Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]
+        cls,
+        chat_completions_msg: Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage],
+        completion_request: ChatCompletionRequest,
+        user_id: str,
     ) -> "Message":
+        message = None
         if isinstance(chat_completions_msg, SystemMessage):
-            return Message(role=MessageRole.system, text=chat_completions_msg.content, name=chat_completions_msg.name)
+            message = Message(role=MessageRole.system, text=chat_completions_msg.content, name=chat_completions_msg.name)
         elif isinstance(chat_completions_msg, UserMessage):
-            return Message(
+            message = Message(
                 role=MessageRole.user,
                 text=(
                     chat_completions_msg.content
@@ -144,16 +149,21 @@ class Message(BaseMessage):
                 name=chat_completions_msg.name,
             )
         elif isinstance(chat_completions_msg, AssistantMessage):
-            return Message(
+            message = Message(
                 role=MessageRole.assistant,
                 text=chat_completions_msg.content,
                 name=chat_completions_msg.name,
                 tool_calls=chat_completions_msg.tool_calls,
             )
         elif isinstance(chat_completions_msg, ToolMessage):
-            return Message(role=MessageRole.tool, text=chat_completions_msg.content, tool_call_id=chat_completions_msg.tool_call_id)
+            message = Message(role=MessageRole.tool, text=chat_completions_msg.content, tool_call_id=chat_completions_msg.tool_call_id)
         else:
             raise ValueError(f"Unsupported message type: {type(chat_completions_msg)}")
+
+        message.user_id = user_id
+        message.agent_id = completion_request.user
+        message.model = completion_request.model
+        return message
 
     def to_json(self):
         json_message = vars(self)

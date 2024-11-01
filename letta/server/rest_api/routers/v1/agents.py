@@ -411,11 +411,9 @@ async def send_message_to_agent(
     use_assistant_message: bool = False,
     assistant_message_function_name: str = DEFAULT_MESSAGE_TOOL,
     assistant_message_function_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
+    include_final_message: bool = True,
 ) -> Union[StreamingResponse, LettaResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
-
-    # TODO: @charles is this the correct way to handle?
-    include_final_message = True
 
     if not stream_steps and stream_tokens:
         raise HTTPException(status_code=400, detail="stream_steps must be 'true' if stream_tokens is 'true'")
@@ -456,9 +454,7 @@ async def send_message_to_agent(
         streaming_interface.assistant_message_function_kwarg = assistant_message_function_kwarg
 
         # Related to JSON buffer reader
-        streaming_interface.inner_thoughts_in_kwargs = (
-            llm_config.put_inner_thoughts_in_kwargs if llm_config.put_inner_thoughts_in_kwargs is not None else False
-        )
+        streaming_interface.inner_thoughts_in_kwargs = bool(llm_config.put_inner_thoughts_in_kwargs)
 
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
@@ -473,10 +469,11 @@ async def send_message_to_agent(
                 raise NotImplementedError
 
             # return a stream
-            return StreamingResponse(
+            response = StreamingResponse(
                 sse_async_generator(streaming_interface.get_generator(), finish_message=include_final_message),
                 media_type="text/event-stream",
             )
+            return response
 
         else:
             # buffer the stream, then return the list

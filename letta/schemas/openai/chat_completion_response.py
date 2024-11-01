@@ -117,6 +117,8 @@ class MessageDelta(BaseModel):
     tool_calls: Optional[List[ToolCallDelta]] = None
     # role: Optional[str] = None
     function_call: Optional[FunctionCallDelta] = None  # Deprecated
+    refusal: None = None  # Appears in OpenAI spec
+    role: Optional[str] = "assistant"
 
 
 class ChunkChoice(BaseModel):
@@ -131,9 +133,13 @@ class ChatCompletionChunkResponse(BaseModel):
 
     id: str
     choices: List[ChunkChoice]
-    created: datetime.datetime
+    created: Union[datetime.datetime, str]
     model: str
     # system_fingerprint: str  # docs say this is mandatory, but in reality API returns None
     system_fingerprint: Optional[str] = None
     # object: str = Field(default="chat.completion")
     object: Literal["chat.completion.chunk"] = "chat.completion.chunk"
+
+    # There's some extra fields in an actual response that are not included here
+    # Example:
+    # {"id":"chatcmpl-AOWlu4jOLWzmZ9JdfSuahcHETAkoQ","choices":[{"delta":{"content":" I","function_call":null,"refusal":null,"role":null,"tool_calls":null},"finish_reason":null,"index":0,"logprobs":null}],"created":1730409210,"model":"gpt-4-0613","object":"chat.completion.chunk","service_tier":null,"system_fingerprint":null,"usage":null}
