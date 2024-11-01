@@ -26,6 +26,7 @@ from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
+from letta.services.tool_manager import ToolManager
 from letta.settings import model_settings
 from tests.helpers.client_helper import upload_file_using_client
 
@@ -299,7 +300,7 @@ def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentSta
     assert human.value == "Human text", "Creating human failed"
 
 
-def test_list_tools_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_list_tools_pagination(client: Union[LocalClient, RESTClient]):
     tools = client.list_tools()
     visited_ids = {t.id: False for t in tools}
 
@@ -319,6 +320,13 @@ def test_list_tools_pagination(client: Union[LocalClient, RESTClient], agent: Ag
 
     # Assert that everything has been visited
     assert all(visited_ids.values())
+
+
+def test_list_tools(client: Union[LocalClient, RESTClient]):
+    tools = client.add_base_tools()
+    tool_names = [t.name for t in tools]
+    expected = ToolManager.BASE_TOOL_NAMES
+    assert sorted(tool_names) == sorted(expected)
 
 
 def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
