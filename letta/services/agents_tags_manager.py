@@ -1,9 +1,9 @@
 from typing import List
 
+from letta.orm.agents_tags import AgentsTags as TagsAgentsModel
 from letta.orm.errors import NoResultFound
 from letta.orm.organization import Organization as OrganizationModel
-from letta.orm.tags_agents import AgentsTags as TagsAgentsModel
-from letta.schemas.tag import AgentsTags as PydanticAgentsTags
+from letta.schemas.agents_tags import AgentsTags as PydanticAgentsTags
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types
 

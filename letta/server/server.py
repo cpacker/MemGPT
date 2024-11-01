@@ -82,7 +82,7 @@ from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
-from letta.services.agent_tag_manager import AgentsTagsManager
+from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
