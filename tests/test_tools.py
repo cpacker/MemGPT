@@ -97,7 +97,6 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
         [
             "archival_memory_search",
             "send_message",
-            "pause_heartbeats",
             "conversation_search",
             "conversation_search_date",
             "archival_memory_insert",
