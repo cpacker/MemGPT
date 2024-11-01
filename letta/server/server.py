@@ -82,6 +82,7 @@ from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
+from letta.services.agent_tag_manager import AgentsTagsManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -248,6 +249,7 @@ class SyncServer(Server):
         self.organization_manager = OrganizationManager()
         self.user_manager = UserManager()
         self.tool_manager = ToolManager()
+        self.agents_tags_manager = AgentsTagsManager()
 
         # Make default user and org
         if init_with_default_org_and_user:
