@@ -254,7 +254,7 @@ class SyncServer(Server):
             self.default_org = self.organization_manager.create_default_organization()
             self.default_user = self.user_manager.create_default_user()
             self.add_default_blocks(self.default_user.id)
-            self.tool_manager.add_default_tools(module_name="base", actor=self.default_user)
+            self.tool_manager.add_base_tools(actor=self.default_user)
 
             # If there is a default org/user
             # This logic may have to change in the future
