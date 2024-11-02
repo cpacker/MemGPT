@@ -27,7 +27,6 @@ def upgrade() -> None:
     op.rename_table("users", "user")
 
     op.add_column("organization", sa.Column("deleted", sa.Boolean(), nullable=False))
-    op.add_column("organization", sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("organization", sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("organization", sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("FALSE"), nullable=False))
     op.add_column("organization", sa.Column("_created_by_id", sa.String(), nullable=True))
@@ -40,7 +39,6 @@ def upgrade() -> None:
     op.add_column("tool", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
     op.add_column("tool", sa.Column("_organization_id", sa.String(), nullable=False))
     op.add_column("user", sa.Column("deleted", sa.Boolean(), nullable=False))
-    op.add_column("user", sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("user", sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("user", sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("FALSE"), nullable=False))
     op.add_column("user", sa.Column("_created_by_id", sa.String(), nullable=True))
