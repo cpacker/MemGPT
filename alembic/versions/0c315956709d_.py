@@ -13,29 +13,29 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Rename tables
+    # Rename tables first
     op.rename_table("organizations", "organization")
     op.rename_table("tools", "tool")
     op.rename_table("users", "user")
 
-    # Add new primary key columns
+    # Add new primary key columns (_id) and set them as primary keys
     op.add_column("organization", sa.Column("_id", sa.String(), primary_key=True, nullable=False, default=sa.func.uuid_generate_v4()))
     op.add_column("tool", sa.Column("_id", sa.String(), primary_key=True, nullable=False, default=sa.func.uuid_generate_v4()))
     op.add_column("user", sa.Column("_id", sa.String(), primary_key=True, nullable=False, default=sa.func.uuid_generate_v4()))
 
-    # Drop old primary key columns
+    # Drop old primary key columns (id) after setting new ones
     op.drop_column("organization", "id")
     op.drop_column("tool", "id")
     op.drop_column("user", "id")
 
-    # Add and modify columns for `organization` table
+    # Now add additional columns for `organization` table
     op.add_column("organization", sa.Column("deleted", sa.Boolean(), nullable=False))
     op.add_column("organization", sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("organization", sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("FALSE"), nullable=False))
     op.add_column("organization", sa.Column("_created_by_id", sa.String(), nullable=True))
     op.add_column("organization", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
 
-    # Add and modify columns for `tool` table
+    # Add additional columns for `tool` table
     op.add_column("tool", sa.Column("deleted", sa.Boolean(), nullable=False))
     op.add_column("tool", sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("tool", sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
@@ -49,7 +49,7 @@ def upgrade() -> None:
     op.alter_column("tool", "source_type", nullable=True)
     op.alter_column("tool", "json_schema", nullable=True)
 
-    # Add and modify columns for `user` table
+    # Add additional columns for `user` table
     op.add_column("user", sa.Column("deleted", sa.Boolean(), nullable=False))
     op.add_column("user", sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("user", sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("FALSE"), nullable=False))
@@ -57,7 +57,7 @@ def upgrade() -> None:
     op.add_column("user", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
     op.add_column("user", sa.Column("_organization_id", sa.String(), nullable=False))
 
-    # Add foreign key constraints
+    # Now add foreign key constraints after primary keys are set
     op.create_foreign_key("tool_organization", "tool", "organization", ["_organization_id"], ["_id"])
     op.create_foreign_key("user_organization", "user", "organization", ["_organization_id"], ["_id"])
 
