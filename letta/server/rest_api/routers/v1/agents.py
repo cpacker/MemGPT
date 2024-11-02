@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agents_tags import AgentsTags, AgentsTagsCreate
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
@@ -38,6 +39,58 @@ from letta.utils import deduplicate
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
+@router.post("/{agent_id}/tags", response_model=AgentsTags, operation_id="add_tag_to_agent")
+def add_tag_to_agent(
+    agent_id: str,
+    request: AgentsTagsCreate = Body(...),
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.agents_tags_manager.add_tag_to_agent(agent_id=agent_id, tag=request.tag, actor=actor)
+
+
+@router.delete("/{agent_id}/tags", response_model=None, operation_id="delete_all_tags_from_agent")
+def delete_all_tags_from_agent(
+    agent_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.agents_tags_manager.delete_all_tags_from_agent(agent_id=agent_id, actor=actor)
+
+
+@router.delete("/{agent_id}/tags/{tag}", response_model=None, operation_id="delete_tag_from_agent")
+def delete_tag_from_agent(
+    agent_id: str,
+    tag: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.agents_tags_manager.delete_tag_from_agent(agent_id=agent_id, tag=tag, actor=actor)
+
+
+@router.get("/tags/{tag}", response_model=List[str], operation_id="get_agents_by_tag")
+def get_agents_by_tag(
+    tag: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.agents_tags_manager.get_agents_by_tag(tag=tag, actor=actor)
+
+
+@router.get("/{agent_id}/tags", response_model=List[str], operation_id="get_tags_for_agent")
+def get_tags_for_agent(
+    agent_id: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=actor)
+
+
 @router.get("/", response_model=List[AgentState], operation_id="list_agents")
 def list_agents(
     server: "SyncServer" = Depends(get_letta_server),
@@ -48,7 +101,6 @@ def list_agents(
     This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
     """
     actor = server.get_user_or_default(user_id=user_id)
-
     return server.list_agents(user_id=actor.id)
 
 
@@ -529,124 +581,3 @@ async def send_message_to_agent(
 
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"{e}")
-
-
-##### MISSING #######
-
-# @router.post("/{agent_id}/command")
-# def run_command(
-# agent_id: "UUID",
-# command: "AgentCommandRequest",
-#
-# server: "SyncServer" = Depends(get_letta_server),
-# ):
-# """
-# Execute a command on a specified agent.
-
-# This endpoint receives a command to be executed on an agent. It uses the user and agent identifiers to authenticate and route the command appropriately.
-
-# Raises an HTTPException for any processing errors.
-# """
-# actor = server.get_current_user()
-#
-# response = server.run_command(user_id=actor.id,
-# agent_id=agent_id,
-# command=command.command)
-
-# return AgentCommandResponse(response=response)
-
-# @router.get("/{agent_id}/config")
-# def get_agent_config(
-# agent_id: "UUID",
-#
-# server: "SyncServer" = Depends(get_letta_server),
-# ):
-# """
-# Retrieve the configuration for a specific agent.
-
-# This endpoint fetches the configuration details for a given agent, identified by the user and agent IDs.
-# """
-# actor = server.get_current_user()
-#
-# if not server.ms.get_agent(user_id=actor.id, agent_id=agent_id):
-## agent does not exist
-# raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
-
-# agent_state = server.get_agent_config(user_id=actor.id, agent_id=agent_id)
-## get sources
-# attached_sources = server.list_attached_sources(agent_id=agent_id)
-
-## configs
-# llm_config = LLMConfig(**vars(agent_state.llm_config))
-# embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
-
-# return GetAgentResponse(
-# agent_state=AgentState(
-# id=agent_state.id,
-# name=agent_state.name,
-# user_id=agent_state.user_id,
-# llm_config=llm_config,
-# embedding_config=embedding_config,
-# state=agent_state.state,
-# created_at=int(agent_state.created_at.timestamp()),
-# tools=agent_state.tools,
-# system=agent_state.system,
-# metadata=agent_state._metadata,
-# ),
-# last_run_at=None,  # TODO
-# sources=attached_sources,
-# )
-
-# @router.patch("/{agent_id}/rename", response_model=GetAgentResponse)
-# def update_agent_name(
-# agent_id: "UUID",
-# agent_rename: AgentRenameRequest,
-#
-# server: "SyncServer" = Depends(get_letta_server),
-# ):
-# """
-# Updates the name of a specific agent.
-
-# This changes the name of the agent in the database but does NOT edit the agent's persona.
-# """
-# valid_name = agent_rename.agent_name
-# actor = server.get_current_user()
-#
-# agent_state = server.rename_agent(user_id=actor.id, agent_id=agent_id, new_agent_name=valid_name)
-## get sources
-# attached_sources = server.list_attached_sources(agent_id=agent_id)
-# llm_config = LLMConfig(**vars(agent_state.llm_config))
-# embedding_config = EmbeddingConfig(**vars(agent_state.embedding_config))
-
-# return GetAgentResponse(
-# agent_state=AgentState(
-# id=agent_state.id,
-# name=agent_state.name,
-# user_id=agent_state.user_id,
-# llm_config=llm_config,
-# embedding_config=embedding_config,
-# state=agent_state.state,
-# created_at=int(agent_state.created_at.timestamp()),
-# tools=agent_state.tools,
-# system=agent_state.system,
-# ),
-# last_run_at=None,  # TODO
-# sources=attached_sources,
-# )
-
-
-# @router.get("/{agent_id}/archival/all", response_model=GetAgentArchivalMemoryResponse)
-# def get_agent_archival_memory_all(
-# agent_id: "UUID",
-#
-# server: "SyncServer" = Depends(get_letta_server),
-# ):
-# """
-# Retrieve the memories in an agent's archival memory store (non-paginated, returns all entries at once).
-# """
-# actor = server.get_current_user()
-#
-# archival_memories = server.get_all_archival_memories(user_id=actor.id, agent_id=agent_id)
-# print("archival_memories:", archival_memories)
-# archival_memory_objects = [ArchivalMemoryObject(id=passage["id"], contents=passage["contents"]) for passage in archival_memories]
-# return GetAgentArchivalMemoryResponse(archival_memory=archival_memory_objects)

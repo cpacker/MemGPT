@@ -9,7 +9,9 @@ from letta.constants import ADMIN_PREFIX, BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PER
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
+from letta.orm.agents_tags import AgentsTags
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
+from letta.schemas.agents_tags import AgentsTagsCreate
 from letta.schemas.block import (
     Block,
     CreateBlock,
@@ -296,6 +298,21 @@ class AbstractClient(object):
         raise NotImplementedError
 
     def delete_org(self, org_id: str) -> Organization:
+        raise NotImplementedError
+
+    def add_tag_to_agent(self, agent_id: str, tag: str) -> AgentsTags:
+        raise NotImplementedError
+
+    def delete_all_tags_from_agent(self, agent_id: str) -> None:
+        raise NotImplementedError
+
+    def delete_tag_from_agent(self, agent_id: str, tag: str) -> None:
+        raise NotImplementedError
+
+    def get_agents_by_tag(self, tag: str) -> List[str]:
+        raise NotImplementedError
+
+    def get_tags_for_agent(self, agent_id: str) -> List[str]:
         raise NotImplementedError
 
 
@@ -1539,6 +1556,90 @@ class RESTClient(AbstractClient):
         # Parse and return the deleted organization
         return Organization(**response.json())
 
+    def add_tag_to_agent(self, agent_id: str, tag: str) -> AgentsTags:
+        """
+        Adds a tag to a specified agent.
+
+        @param agent_id: the ID of the agent to tag
+        @param tag: the tag to be added to the agent
+        @return: the AgentsTags object representing the new tag association
+        """
+        # Define the request payload
+        payload = AgentsTagsCreate(tag=tag).model_dump()
+
+        # Make the POST request to add the tag
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/tags", headers=self.headers, json=payload)
+
+        # Handle errors
+        if response.status_code != 200:
+            raise ValueError(f"Failed to add tag to agent: {response.text}")
+
+        # Parse and return the response
+        return AgentsTags(**response.json())
+
+    def delete_all_tags_from_agent(self, agent_id: str) -> None:
+        """
+        Deletes all tags from a specified agent.
+
+        @param agent_id: the ID of the agent whose tags will be deleted
+        """
+        # Make the DELETE request to remove all tags
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/tags", headers=self.headers)
+
+        # Handle errors
+        if response.status_code != 200:
+            raise ValueError(f"Failed to delete all tags from agent: {response.text}")
+
+    def delete_tag_from_agent(self, agent_id: str, tag: str) -> None:
+        """
+        Deletes a specific tag from a specified agent.
+
+        @param agent_id: the ID of the agent
+        @param tag: the tag to be removed from the agent
+        """
+        # Make the DELETE request to remove the specific tag
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/tags/{tag}", headers=self.headers)
+
+        # Handle errors
+        if response.status_code == 404:
+            raise ValueError(f"Tag '{tag}' not found for agent '{agent_id}'")
+        elif response.status_code != 200:
+            raise ValueError(f"Failed to delete tag from agent: {response.text}")
+
+    def get_agents_by_tag(self, tag: str) -> List[str]:
+        """
+        Retrieves all agent IDs associated with a specific tag.
+
+        @param tag: the tag to search agents by
+        @return: a list of agent IDs associated with the tag
+        """
+        # Make the GET request to retrieve agents by tag
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/tags/{tag}", headers=self.headers)
+
+        # Handle errors
+        if response.status_code != 200:
+            raise ValueError(f"Failed to retrieve agents by tag: {response.text}")
+
+        # Parse and return the response
+        return response.json()
+
+    def get_tags_for_agent(self, agent_id: str) -> List[str]:
+        """
+        Retrieves all tags associated with a specified agent.
+
+        @param agent_id: the ID of the agent to retrieve tags for
+        @return: a list of tags associated with the agent
+        """
+        # Make the GET request to retrieve tags for the agent
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/tags", headers=self.headers)
+
+        # Handle errors
+        if response.status_code != 200:
+            raise ValueError(f"Failed to retrieve tags for agent: {response.text}")
+
+        # Parse and return the response
+        return response.json()
+
 
 class LocalClient(AbstractClient):
     """
@@ -2733,3 +2834,18 @@ class LocalClient(AbstractClient):
 
     def delete_org(self, org_id: str) -> Organization:
         return self.server.organization_manager.delete_organization_by_id(org_id=org_id)
+
+    def add_tag_to_agent(self, agent_id: str, tag: str) -> AgentsTags:
+        return self.server.agents_tags_manager.add_tag_to_agent(agent_id=agent_id, tag=tag, actor=self.user)
+
+    def delete_all_tags_from_agent(self, agent_id: str) -> None:
+        return self.server.agents_tags_manager.delete_all_tags_from_agent(agent_id=agent_id, actor=self.user)
+
+    def delete_tag_from_agent(self, agent_id: str, tag: str) -> None:
+        return self.server.agents_tags_manager.delete_tag_from_agent(agent_id=agent_id, tag=tag, actor=self.user)
+
+    def get_agents_by_tag(self, tag: str) -> List[str]:
+        return self.server.agents_tags_manager.get_agents_by_tag(tag=tag, actor=self.user)
+
+    def get_tags_for_agent(self, agent_id: str) -> List[str]:
+        return self.server.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=self.user)
