@@ -55,7 +55,7 @@ def run_server():
 # Fixture to create clients with different configurations
 @pytest.fixture(
     # params=[{"server": True}, {"server": False}],  # whether to use REST API server
-    params=[{"server": False}],  # whether to use REST API server
+    params=[{"server": True}],  # whether to use REST API server
     scope="module",
 )
 def client(request):
@@ -553,9 +553,6 @@ def test_list_llm_models(client: RESTClient):
 
     def has_model_endpoint_type(models: List["LLMConfig"], target_type: str) -> bool:
         return any(model.model_endpoint_type == target_type for model in models)
-
-    embedding_configs = client.list_embedding_models()
-    print("EMBEDDING CONFIGS", embedding_configs)
 
     models = client.list_llm_configs()
     if model_settings.groq_api_key:
