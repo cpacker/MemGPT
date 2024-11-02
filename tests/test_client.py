@@ -13,11 +13,20 @@ from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageStreamStatus
-from letta.schemas.letta_message import FunctionCallMessage, InternalMonologue
+from letta.schemas.letta_message import (
+    AssistantMessage,
+    FunctionCallMessage,
+    FunctionReturn,
+    InternalMonologue,
+    LettaMessage,
+    SystemMessage,
+    UserMessage,
+)
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
+from letta.services.tool_manager import ToolManager
 from letta.settings import model_settings
 from tests.helpers.client_helper import upload_file_using_client
 
@@ -121,6 +130,9 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
     message = "Hello, agent!"
     print("Sending message", message)
     response = client.user_message(agent_id=agent.id, message=message, include_full_message=True)
+    # Check the types coming back
+    assert all([isinstance(m, Message) for m in response.messages]), "All messages should be Message"
+
     print("Response", response)
     assert isinstance(response.usage, LettaUsageStatistics)
     assert response.usage.step_count == 1
@@ -128,6 +140,25 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
     assert response.usage.completion_tokens > 0
     assert isinstance(response.messages[0], Message)
     print(response.messages)
+
+    # test that it also works with LettaMessage
+    message = "Hello again, agent!"
+    print("Sending message", message)
+    response = client.user_message(agent_id=agent.id, message=message, include_full_message=False)
+    assert all([isinstance(m, LettaMessage) for m in response.messages]), "All messages should be LettaMessages"
+
+    # We should also check that the types were cast properly
+    print("RESPONSE MESSAGES, client type:", type(client))
+    print(response.messages)
+    for letta_message in response.messages:
+        assert type(letta_message) in [
+            SystemMessage,
+            UserMessage,
+            InternalMonologue,
+            FunctionCallMessage,
+            FunctionReturn,
+            AssistantMessage,
+        ], f"Unexpected message type: {type(letta_message)}"
 
     # TODO: add streaming tests
 
@@ -269,7 +300,7 @@ def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentSta
     assert human.value == "Human text", "Creating human failed"
 
 
-def test_list_tools_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_list_tools_pagination(client: Union[LocalClient, RESTClient]):
     tools = client.list_tools()
     visited_ids = {t.id: False for t in tools}
 
@@ -289,6 +320,13 @@ def test_list_tools_pagination(client: Union[LocalClient, RESTClient], agent: Ag
 
     # Assert that everything has been visited
     assert all(visited_ids.values())
+
+
+def test_list_tools(client: Union[LocalClient, RESTClient]):
+    tools = client.add_base_tools()
+    tool_names = [t.name for t in tools]
+    expected = ToolManager.BASE_TOOL_NAMES
+    assert sorted(tool_names) == sorted(expected)
 
 
 def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):

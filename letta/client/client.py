@@ -225,6 +225,9 @@ class AbstractClient(object):
     def get_tool_id(self, name: str) -> Optional[str]:
         raise NotImplementedError
 
+    def add_base_tools(self) -> List[Tool]:
+        raise NotImplementedError
+
     def load_data(self, connector: DataConnector, source_name: str):
         raise NotImplementedError
 
@@ -791,7 +794,7 @@ class RESTClient(AbstractClient):
         name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
-        include_full_message: Optional[bool] = False,
+        include_full_message: bool = False,
     ) -> Union[LettaResponse, Generator[LettaStreamingResponse, None, None]]:
         """
         Send a message to an agent
@@ -812,7 +815,12 @@ class RESTClient(AbstractClient):
         # TODO: figure out how to handle stream_steps and stream_tokens
 
         # When streaming steps is True, stream_tokens must be False
-        request = LettaRequest(messages=messages, stream_steps=stream_steps, stream_tokens=stream_tokens, return_message_object=True)
+        request = LettaRequest(
+            messages=messages,
+            stream_steps=stream_steps,
+            stream_tokens=stream_tokens,
+            return_message_object=include_full_message,
+        )
         if stream_tokens or stream_steps:
             from letta.client.streaming import _sse_post
 
@@ -827,12 +835,12 @@ class RESTClient(AbstractClient):
             response = LettaResponse(**response.json())
 
             # simplify messages
-            if not include_full_message:
-                messages = []
-                for m in response.messages:
-                    assert isinstance(m, Message)
-                    messages += m.to_letta_message()
-                response.messages = messages
+            # if not include_full_message:
+            #     messages = []
+            #     for m in response.messages:
+            #         assert isinstance(m, Message)
+            #         messages += m.to_letta_message()
+            #     response.messages = messages
 
             return response
 
@@ -1265,6 +1273,13 @@ class RESTClient(AbstractClient):
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
         return response.json()
+
+    def add_base_tools(self) -> List[Tool]:
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/tools/add-base-tools/", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to add base tools: {response.text}")
+
+        return [Tool(**tool) for tool in response.json()]
 
     def create_tool(
         self,

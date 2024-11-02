@@ -18,6 +18,14 @@ from letta.utils import enforce_types
 class ToolManager:
     """Manager class to handle business logic related to Tools."""
 
+    BASE_TOOL_NAMES = [
+        "send_message",
+        "conversation_search",
+        "conversation_search_date",
+        "archival_memory_insert",
+        "archival_memory_search",
+    ]
+
     def __init__(self):
         # Fetching the db_context similarly as in OrganizationManager
         from letta.server.server import db_context
@@ -137,8 +145,9 @@ class ToolManager:
                 raise ValueError(f"Tool with id {tool_id} not found.")
 
     @enforce_types
-    def add_default_tools(self, actor: PydanticUser, module_name="base"):
-        """Add default tools in {module_name}.py"""
+    def add_base_tools(self, actor: PydanticUser) -> List[PydanticTool]:
+        """Add default tools in base.py"""
+        module_name = "base"
         full_module_name = f"letta.functions.function_sets.{module_name}"
         try:
             module = importlib.import_module(full_module_name)
@@ -155,22 +164,28 @@ class ToolManager:
             warnings.warn(err)
 
         # create tool in db
+        tools = []
         for name, schema in functions_to_schema.items():
-            # print([str(inspect.getsource(line)) for line in schema["imports"]])
-            source_code = inspect.getsource(schema["python_function"])
-            tags = [module_name]
-            if module_name == "base":
-                tags.append("letta-base")
+            if name in self.BASE_TOOL_NAMES:
+                # print([str(inspect.getsource(line)) for line in schema["imports"]])
+                source_code = inspect.getsource(schema["python_function"])
+                tags = [module_name]
+                if module_name == "base":
+                    tags.append("letta-base")
 
-            # create to tool
-            self.create_or_update_tool(
-                ToolCreate(
-                    name=name,
-                    tags=tags,
-                    source_type="python",
-                    module=schema["module"],
-                    source_code=source_code,
-                    json_schema=schema["json_schema"],
-                ),
-                actor=actor,
-            )
+                # create to tool
+                tools.append(
+                    self.create_or_update_tool(
+                        ToolCreate(
+                            name=name,
+                            tags=tags,
+                            source_type="python",
+                            module=schema["module"],
+                            source_code=source_code,
+                            json_schema=schema["json_schema"],
+                        ),
+                        actor=actor,
+                    )
+                )
+
+        return tools

@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from starlette.responses import StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
@@ -359,7 +358,20 @@ def update_message(
     return server.update_agent_message(agent_id=agent_id, request=request)
 
 
-@router.post("/{agent_id}/messages", response_model=None, operation_id="create_agent_message")
+@router.post(
+    "/{agent_id}/messages",
+    response_model=None,
+    operation_id="create_agent_message",
+    responses={
+        200: {
+            "description": "Successful response",
+            "content": {
+                "application/json": {"$ref": "#/components/schemas/LettaResponse"},  # Use model_json_schema() instead of model directly
+                "text/event-stream": {"description": "Server-Sent Events stream"},
+            },
+        }
+    },
+)
 async def send_message(
     agent_id: str,
     server: SyncServer = Depends(get_letta_server),
@@ -373,7 +385,7 @@ async def send_message(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    return await send_message_to_agent(
+    result = await send_message_to_agent(
         server=server,
         agent_id=agent_id,
         user_id=actor.id,
@@ -386,6 +398,7 @@ async def send_message(
         assistant_message_function_name=request.assistant_message_function_name,
         assistant_message_function_kwarg=request.assistant_message_function_kwarg,
     )
+    return result
 
 
 # TODO: move this into server.py?
