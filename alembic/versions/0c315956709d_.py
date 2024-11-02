@@ -22,12 +22,16 @@ def upgrade() -> None:
     op.alter_column("tool", "id", new_column_name="_id", existing_type=sa.String, nullable=False)
     op.alter_column("user", "id", new_column_name="_id", existing_type=sa.String, nullable=False)
 
-    # Step 3: Modify nullable constraints on `tool` columns
+    # Step 3: Add `_organization_id` to `tool` table
+    # This is required for the unique constraint below
+    op.add_column("tool", sa.Column("_organization_id", sa.String, nullable=True))
+
+    # Step 4: Modify nullable constraints on `tool` columns
     op.alter_column("tool", "tags", existing_type=sa.JSON, nullable=True)
     op.alter_column("tool", "source_type", existing_type=sa.String, nullable=True)
     op.alter_column("tool", "json_schema", existing_type=sa.JSON, nullable=True)
 
-    # Step 4: Add unique constraint on `name` and `_organization_id` in `tool` table
+    # Step 5: Add unique constraint on `name` and `_organization_id` in `tool` table
     op.create_unique_constraint("uq_tool_name_organization", "tool", ["name", "_organization_id"])
 
 
@@ -39,6 +43,9 @@ def downgrade() -> None:
     op.alter_column("tool", "tags", existing_type=sa.JSON, nullable=False)
     op.alter_column("tool", "source_type", existing_type=sa.String, nullable=False)
     op.alter_column("tool", "json_schema", existing_type=sa.JSON, nullable=False)
+
+    # Remove `_organization_id` column from `tool` table
+    op.drop_column("tool", "_organization_id")
 
     # Reverse the column renaming from `_id` back to `id`
     op.alter_column("organization", "_id", new_column_name="id", existing_type=sa.String, nullable=False)
