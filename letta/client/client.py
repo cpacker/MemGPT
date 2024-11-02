@@ -859,8 +859,8 @@ class RESTClient(AbstractClient):
         else:
             return [Block(**block) for block in response.json()]
 
-    def create_block(self, label: str, text: str, name: Optional[str] = None, template: bool = False) -> Block:  #
-        request = CreateBlock(label=label, value=text, template=template, template_name=name)
+    def create_block(self, label: str, text: str, template_name: Optional[str] = None, template: bool = False) -> Block:  #
+        request = CreateBlock(label=label, value=text, template=template, template_name=template_name)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
@@ -2635,7 +2635,7 @@ class LocalClient(AbstractClient):
         """
         return self.server.get_blocks(label=label, template=templates_only)
 
-    def create_block(self, label: str, text: str, name: Optional[str] = None, template: bool = False) -> Block:  #
+    def create_block(self, label: str, text: str, template_name: Optional[str] = None, template: bool = False) -> Block:  #
         """
         Create a block
 
@@ -2648,7 +2648,7 @@ class LocalClient(AbstractClient):
             block (Block): Created block
         """
         return self.server.create_block(
-            CreateBlock(label=label, template_name=name, value=text, user_id=self.user_id, template=template), user_id=self.user_id
+            CreateBlock(label=label, template_name=template_name, value=text, user_id=self.user_id, template=template), user_id=self.user_id
         )
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
