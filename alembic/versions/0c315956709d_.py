@@ -44,8 +44,8 @@ def upgrade() -> None:
     op.add_column("user", sa.Column("_created_by_id", sa.String(), nullable=True))
     op.add_column("user", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
     op.add_column("user", sa.Column("_organization_id", sa.String(), nullable=False))
-    op.create_foreign_key(None, "tool", "organization", ["_organization_id"], ["id"])
-    op.create_foreign_key(None, "user", "organization", ["_organization_id"], ["id"])
+    op.create_foreign_key("tool_organization", "tool", "organization", ["_organization_id"], ["id"])
+    op.create_foreign_key("user_organization", "user", "organization", ["_organization_id"], ["id"])
 
     op.add_column("agents", sa.Column("tool_rules", letta.metadata.ToolRulesColumn(), nullable=True))
     op.alter_column("block", "name", existing_type=sa.VARCHAR(), nullable=True)
@@ -81,4 +81,6 @@ def downgrade() -> None:
     op.rename_table("user", "users")
     op.rename_table("tool", "tools")
     op.rename_table("organization", "organizations")
+    op.drop_constraint("tool_organization", "tool", type_="foreignkey")
+    op.drop_constraint("user_organization", "user", type_="foreignkey")
     # ### end Alembic commands ###
