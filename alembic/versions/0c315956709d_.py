@@ -18,24 +18,28 @@ def upgrade() -> None:
     op.rename_table("tools", "tool")
     op.rename_table("users", "user")
 
-    # Add new primary key columns (_id) and set them as primary keys
-    op.add_column("organization", sa.Column("_id", sa.String(), primary_key=True, nullable=False, default=sa.func.uuid_generate_v4()))
-    op.add_column("tool", sa.Column("_id", sa.String(), primary_key=True, nullable=False, default=sa.func.uuid_generate_v4()))
-    op.add_column("user", sa.Column("_id", sa.String(), primary_key=True, nullable=False, default=sa.func.uuid_generate_v4()))
+    # Step 1: Add new `_id` columns without setting them as primary keys yet
+    op.add_column("organization", sa.Column("_id", sa.String(), nullable=False, default=sa.func.uuid_generate_v4()))
+    op.add_column("tool", sa.Column("_id", sa.String(), nullable=False, default=sa.func.uuid_generate_v4()))
+    op.add_column("user", sa.Column("_id", sa.String(), nullable=False, default=sa.func.uuid_generate_v4()))
 
-    # Drop old primary key columns (id) after setting new ones
+    # Step 2: Drop old `id` columns
     op.drop_column("organization", "id")
     op.drop_column("tool", "id")
     op.drop_column("user", "id")
 
-    # Now add additional columns for `organization` table
+    # Step 3: Set `_id` as primary keys explicitly
+    op.create_primary_key("pk_organization", "organization", ["_id"])
+    op.create_primary_key("pk_tool", "tool", ["_id"])
+    op.create_primary_key("pk_user", "user", ["_id"])
+
+    # Step 4: Add remaining columns for `organization`, `tool`, and `user` tables
     op.add_column("organization", sa.Column("deleted", sa.Boolean(), nullable=False))
     op.add_column("organization", sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("organization", sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("FALSE"), nullable=False))
     op.add_column("organization", sa.Column("_created_by_id", sa.String(), nullable=True))
     op.add_column("organization", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
 
-    # Add additional columns for `tool` table
     op.add_column("tool", sa.Column("deleted", sa.Boolean(), nullable=False))
     op.add_column("tool", sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("tool", sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
@@ -44,12 +48,6 @@ def upgrade() -> None:
     op.add_column("tool", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
     op.add_column("tool", sa.Column("_organization_id", sa.String(), nullable=False))
 
-    # Modify nullable constraints on tool columns
-    op.alter_column("tool", "tags", nullable=True)
-    op.alter_column("tool", "source_type", nullable=True)
-    op.alter_column("tool", "json_schema", nullable=True)
-
-    # Add additional columns for `user` table
     op.add_column("user", sa.Column("deleted", sa.Boolean(), nullable=False))
     op.add_column("user", sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True))
     op.add_column("user", sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("FALSE"), nullable=False))
@@ -57,7 +55,12 @@ def upgrade() -> None:
     op.add_column("user", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
     op.add_column("user", sa.Column("_organization_id", sa.String(), nullable=False))
 
-    # Now add foreign key constraints after primary keys are set
+    # Step 5: Modify nullable constraints on tool columns
+    op.alter_column("tool", "tags", nullable=True)
+    op.alter_column("tool", "source_type", nullable=True)
+    op.alter_column("tool", "json_schema", nullable=True)
+
+    # Step 6: Add foreign key constraints after primary keys are established
     op.create_foreign_key("tool_organization", "tool", "organization", ["_organization_id"], ["_id"])
     op.create_foreign_key("user_organization", "user", "organization", ["_organization_id"], ["_id"])
 
@@ -75,10 +78,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Revert the above operations
+    # Revert the above operations in reverse order
     op.alter_column("block", "label", existing_type=sa.VARCHAR(), nullable=True)
     op.alter_column("block", "name", existing_type=sa.VARCHAR(), nullable=False)
     op.drop_column("agents", "tool_rules")
+    op.drop_constraint("user_organization", "user", type_="foreignkey")
+    op.drop_constraint("tool_organization", "tool", type_="foreignkey")
+
+    # Drop additional columns in reverse order
     op.drop_column("user", "_organization_id")
     op.drop_column("user", "_last_updated_by_id")
     op.drop_column("user", "_created_by_id")
@@ -86,6 +93,7 @@ def downgrade() -> None:
     op.drop_column("user", "updated_at")
     op.drop_column("user", "created_at")
     op.drop_column("user", "deleted")
+
     op.drop_column("tool", "_organization_id")
     op.drop_column("tool", "_last_updated_by_id")
     op.drop_column("tool", "_created_by_id")
@@ -93,22 +101,27 @@ def downgrade() -> None:
     op.drop_column("tool", "updated_at")
     op.drop_column("tool", "created_at")
     op.drop_column("tool", "deleted")
+
     op.drop_column("organization", "_last_updated_by_id")
     op.drop_column("organization", "_created_by_id")
     op.drop_column("organization", "is_deleted")
     op.drop_column("organization", "updated_at")
     op.drop_column("organization", "created_at")
     op.drop_column("organization", "deleted")
-    op.rename_table("user", "users")
-    op.rename_table("tool", "tools")
-    op.rename_table("organization", "organizations")
-    op.drop_constraint("tool_organization", "tool", type_="foreignkey")
-    op.drop_constraint("user_organization", "user", type_="foreignkey")
 
     # Revert primary key changes
+    op.drop_constraint("pk_user", "user", type_="primary")
+    op.drop_constraint("pk_tool", "tool", type_="primary")
+    op.drop_constraint("pk_organization", "organization", type_="primary")
+
     op.add_column("organization", sa.Column("id", sa.String(), primary_key=True))
     op.add_column("tool", sa.Column("id", sa.String(), primary_key=True))
     op.add_column("user", sa.Column("id", sa.String(), primary_key=True))
+
     op.drop_column("organization", "_id")
     op.drop_column("tool", "_id")
     op.drop_column("user", "_id")
+
+    op.rename_table("user", "users")
+    op.rename_table("tool", "tools")
+    op.rename_table("organization", "organizations")
