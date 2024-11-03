@@ -56,9 +56,6 @@ class OrganizationManager:
                 org = OrganizationModel(name=self.DEFAULT_ORG_NAME, id=self.DEFAULT_ORG_ID)
                 org.create(session)
 
-            print("AAAA", org)
-            print("BBBB", org.created_at)
-
             return org.to_pydantic()
 
     @enforce_types
