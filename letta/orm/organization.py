@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.organization import Organization as PydanticOrganization
+from letta.utils import get_utc_time
 
 if TYPE_CHECKING:
 
@@ -18,6 +19,8 @@ class Organization(SqlalchemyBase):
     __pydantic_model__ = PydanticOrganization
 
     name: Mapped[str] = mapped_column(doc="The display name of the organization.")
+
+    created_at = mapped_column(doc="The creation date of the organization.", default=get_utc_time)
 
     users: Mapped[List["User"]] = relationship("User", back_populates="organization", cascade="all, delete-orphan")
     tools: Mapped[List["Tool"]] = relationship("Tool", back_populates="organization", cascade="all, delete-orphan")
