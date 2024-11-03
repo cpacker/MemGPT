@@ -14,7 +14,7 @@ class OrganizationBase(LettaBase):
 class Organization(OrganizationBase):
     id: str = Field(..., description="The id of the organization.")
     name: str = Field(..., description="The name of the organization.")
-    created_at: datetime = Field(default_factory=get_utc_time, description="The creation date of the organization.")
+    created_at: Optional[datetime] = Field(default_factory=get_utc_time, description="The creation date of the organization.")
 
 
 class OrganizationCreate(OrganizationBase):
