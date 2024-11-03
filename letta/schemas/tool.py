@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 
+from composio import LogLevel
 from pydantic import Field
 
 from letta.functions.helpers import (
@@ -84,7 +85,7 @@ class ToolCreate(LettaBase):
         """
         from composio_langchain import ComposioToolSet
 
-        composio_toolset = ComposioToolSet()
+        composio_toolset = ComposioToolSet(logging_level=LogLevel.ERROR)
         composio_tools = composio_toolset.get_tools(actions=[action])
 
         assert len(composio_tools) > 0, "User supplied parameters do not match any Composio tools"

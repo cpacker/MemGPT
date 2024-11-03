@@ -12,7 +12,7 @@ from letta.orm.tool import Tool as ToolModel
 from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolCreate, ToolUpdate
 from letta.schemas.user import User as PydanticUser
-from letta.utils import enforce_types
+from letta.utils import enforce_types, printd
 
 
 class ToolManager:
@@ -54,7 +54,7 @@ class ToolManager:
             if update_data:
                 self.update_tool_by_id(tool.id, ToolUpdate(**update_data), actor)
             else:
-                warnings.warn(
+                printd(
                     f"`create_or_update_tool` was called with user_id={actor.id}, organization_id={actor.organization_id}, name={tool_create.name}, but found existing tool with nothing to update."
                 )
         except NoResultFound:
