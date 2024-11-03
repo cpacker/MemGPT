@@ -24,8 +24,8 @@ class User(UserBase):
     id: str = Field(..., description="The id of the user.")
     organization_id: Optional[str] = Field(OrganizationManager.DEFAULT_ORG_ID, description="The organization id of the user")
     name: str = Field(..., description="The name of the user.")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the user.")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="The update date of the user.")
+    created_at: Optional[datetime] = Field(default_factory=datetime.utcnow, description="The creation date of the user.")
+    updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow, description="The update date of the user.")
     is_deleted: bool = Field(False, description="Whether this user is deleted or not.")
 
 
