@@ -42,6 +42,8 @@ class OrganizationManager:
         with self.session_maker() as session:
             org = OrganizationModel(name=name if name else create_random_username())
             org.create(session)
+            print("AAAA", org)
+            print("BBBB", org.created_at)
             return org.to_pydantic()
 
     @enforce_types
