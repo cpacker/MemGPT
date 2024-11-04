@@ -81,7 +81,6 @@ pyhumps = "^3.8.0"
 psycopg2 = "^2.9.10"
 psycopg2-binary = "^2.9.10"
 
-
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]
 postgres = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2"]
