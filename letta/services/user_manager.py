@@ -45,7 +45,8 @@ class UserManager:
     def create_user(self, user_create: UserCreate) -> PydanticUser:
         """Create a new user if it doesn't already exist."""
         with self.session_maker() as session:
-            new_user = UserModel(**user_create.model_dump())
+            user_model = user_create.model_dump()
+            new_user = UserModel(**user_model, _organization_id=user_create.organization_id)
             new_user.create(session)
             return new_user.to_pydantic()
 

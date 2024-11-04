@@ -43,3 +43,10 @@ for org in orgs:
             tool_create,
             actor=fake_user,
         )
+
+        tool_create.name = "pause_heartbeats"
+
+        ToolManager().create_or_update_tool(
+            tool_create,
+            actor=fake_user,
+        )

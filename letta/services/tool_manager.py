@@ -24,7 +24,6 @@ class ToolManager:
         "conversation_search_date",
         "archival_memory_insert",
         "archival_memory_search",
-        "pause_heartbeats",
     ]
 
     def __init__(self):
