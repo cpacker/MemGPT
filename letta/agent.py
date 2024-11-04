@@ -295,6 +295,7 @@ class Agent(BaseAgent):
 
         else:
             printd(f"Agent.__init__ :: creating, state={agent_state.message_ids}")
+            assert self.agent_state.id is not None and self.agent_state.user_id is not None
 
             # Generate a sequence of initial messages to put in the buffer
             init_messages = initialize_message_sequence(
@@ -308,7 +309,16 @@ class Agent(BaseAgent):
             )
 
             if initial_message_sequence is not None:
-                init_messages = initial_message_sequence
+                # We always need the system prompt up front
+                system_message_obj = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=init_messages[0],
+                )
+                # Don't use anything else in the pregen sequence, instead use the provided sequence
+                init_messages = [system_message_obj] + initial_message_sequence
+
             else:
                 # Basic "more human than human" initial message sequence
                 init_messages = initialize_message_sequence(
@@ -321,7 +331,6 @@ class Agent(BaseAgent):
                     include_initial_boot_message=True,
                 )
                 # Cast to Message objects
-                assert self.agent_state.id is not None and self.agent_state.user_id is not None
                 init_messages = [
                     Message.dict_to_message(
                         agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=msg

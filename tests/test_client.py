@@ -602,24 +602,25 @@ def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState
     client.delete_agent(agent_state2.id)
 
 
-def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState):
+@pytest.fixture
+def cleanup_agents():
+    created_agents = []
+    yield created_agents
+    # Cleanup will run even if test fails
+    for agent_id in created_agents:
+        try:
+            client.delete_agent(agent_id)
+        except Exception as e:
+            print(f"Failed to delete agent {agent_id}: {e}")
+
+
+def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState, cleanup_agents: List[str]):
     """Test that we can set an initial message sequence
 
     If we pass in None, we should get a "default" message sequence
     If we pass in a non-empty list, we should get that sequence
     If we pass in an empty list, we should get an empty sequence
     """
-
-    @pytest.fixture
-    def cleanup_agents():
-        created_agents = []
-        yield created_agents
-        # Cleanup will run even if test fails
-        for agent_id in created_agents:
-            try:
-                client.delete_agent(agent_id)
-            except Exception as e:
-                print(f"Failed to delete agent {agent_id}: {e}")
 
     # The reference initial message sequence:
     reference_init_messages = initialize_message_sequence(
@@ -632,9 +633,9 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
         include_initial_boot_message=True,
     )
 
-    # system, login message, send_message test
+    # system, login message, send_message test, send_message receipt
     assert len(reference_init_messages) > 0
-    assert len(reference_init_messages) == 3, f"Expected 3 messages, got {len(reference_init_messages)}"
+    assert len(reference_init_messages) == 4, f"Expected 4 messages, got {len(reference_init_messages)}"
 
     # Test with default sequence
     default_agent_state = client.create_agent(name="test-default-message-sequence", initial_message_sequence=None)
@@ -649,7 +650,7 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
     cleanup_agents.append(empty_agent_state.id)
     assert empty_agent_state.message_ids is not None
-    assert len(empty_agent_state.message_ids) == 0, f"Expected 0 messages, got {len(empty_agent_state.message_ids)}"
+    assert len(empty_agent_state.message_ids) == 1, f"Expected 1 message, got {len(empty_agent_state.message_ids)}"
 
     # Test with custom sequence
     custom_sequence = [
