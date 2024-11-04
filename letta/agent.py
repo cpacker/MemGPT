@@ -27,9 +27,10 @@ from letta.llm_api.llm_api_tools import create
 from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
 from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
+from letta.orm import User
 from letta.persistence_manager import LocalStateManager
 from letta.schemas.agent import AgentState, AgentStepResponse
-from letta.schemas.block import Block
+from letta.schemas.block import Block, BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole
 from letta.schemas.memory import ContextWindowOverview, Memory
@@ -46,6 +47,7 @@ from letta.schemas.passage import Passage
 from letta.schemas.tool import Tool
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
+from letta.services.block_manager import BlockManager
 from letta.system import (
     get_heartbeat,
     get_initial_boot_messages,
@@ -231,6 +233,7 @@ class Agent(BaseAgent):
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[Tool],
+        user: User,
         # memory: Memory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
@@ -240,6 +243,8 @@ class Agent(BaseAgent):
         # Hold a copy of the state that was used to init the agent
         self.agent_state = agent_state
         assert isinstance(self.agent_state.memory, Memory), f"Memory object is not of type Memory: {type(self.agent_state.memory)}"
+
+        self.user = user
 
         # link tools
         self.link_tools(tools)
@@ -1180,7 +1185,9 @@ class Agent(BaseAgent):
                     # future if we expect templates to change often.
                     continue
                 block_id = block.get("id")
-                db_block = ms.get_block(block_id=block_id)
+
+                # TODO: This is really hacky and we should probably figure out how to
+                db_block = BlockManager().get_block_by_id(block_id=block_id, actor=self.user)
                 if db_block is None:
                     # this case covers if someone has deleted a shared block by interacting
                     # with some other agent.
@@ -1552,7 +1559,7 @@ def save_agent(agent: Agent, ms: MetadataStore):
 
     # NOTE: we're saving agent memory before persisting the agent to ensure
     # that allocated block_ids for each memory block are present in the agent model
-    save_agent_memory(agent=agent, ms=ms)
+    save_agent_memory(agent=agent)
 
     if ms.get_agent(agent_id=agent.agent_state.id):
         ms.update_agent(agent_state)
@@ -1563,7 +1570,7 @@ def save_agent(agent: Agent, ms: MetadataStore):
     assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
 
 
-def save_agent_memory(agent: Agent, ms: MetadataStore):
+def save_agent_memory(agent: Agent):
     """
     Save agent memory to metadata store. Memory is a collection of blocks and each block is persisted to the block table.
 
@@ -1572,14 +1579,22 @@ def save_agent_memory(agent: Agent, ms: MetadataStore):
 
     for block_dict in agent.memory.to_dict()["memory"].values():
         # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
-        if block_dict.get("user_id", None) is None:
-            block_dict["user_id"] = agent.agent_state.user_id
+        # if block_dict.get("user_id", None) is None:
+        #     block_dict["user_id"] = agent.agent_state.user_id
+        # block = Block(**block_dict)
+        # # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
+        # # the case in some tests, if so we should relax the DB constraint.
+        # if block.value is None:
+        #     block.value = ""
+
         block = Block(**block_dict)
-        # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
-        # the case in some tests, if so we should relax the DB constraint.
-        if block.value is None:
-            block.value = ""
-        ms.update_or_create_block(block)
+        block_update = BlockUpdate(
+            **block.model_dump(
+                exclude_unset=True, exclude_none=True, exclude={"id", "created_by_id", "last_updated_by_id", "organization_id"}
+            )
+        )
+
+        BlockManager().update_block(block_id=block.id, block_update=block_update, actor=agent.user)
 
 
 def strip_name_field_from_user_message(user_message_text: str) -> Tuple[str, Optional[str]]:

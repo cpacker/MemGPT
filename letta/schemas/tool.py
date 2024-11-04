@@ -47,7 +47,7 @@ class Tool(BaseTool):
 
     # metadata fields
     created_by_id: str = Field(..., description="The id of the user that made this Tool.")
-    last_updated_by_id: str = Field(..., description="The id of the user that made this Tool.")
+    last_updated_by_id: str = Field(..., description="The id of the user that last updated this Tool.")
 
     def to_dict(self):
         """

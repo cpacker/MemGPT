@@ -3,10 +3,10 @@ from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
-from letta.orm.organization import Organization
-from letta.orm.tool import Tool
-from letta.orm.user import User
+from letta.orm import Block, Organization, Tool, User
+from letta.schemas.block import BlockCreate, BlockUpdate
 from letta.schemas.tool import ToolCreate, ToolUpdate
+from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
 
 utils.DEBUG = True
@@ -19,6 +19,7 @@ from letta.server.server import SyncServer
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(Block))
         session.execute(delete(Tool))  # Clear all records from the Tool table
         session.execute(delete(User))  # Clear all records from the user table
         session.execute(delete(Organization))  # Clear all records from the organization table
@@ -357,3 +358,85 @@ def test_delete_tool_by_id(server: SyncServer, tool_fixture):
 
     tools = server.tool_manager.list_tools(actor=user)
     assert len(tools) == 0
+
+
+# ======================================================================================================================
+# Block Manager Tests
+# ======================================================================================================================
+
+
+def test_create_block(server: SyncServer, tool_fixture):
+    user = tool_fixture["user"]
+    block_manager = BlockManager()
+    block_create = BlockCreate(
+        label="human",
+        is_template=True,
+        value="Sample content",
+        template_name="sample_template",
+        description="A test block",
+        limit=1000,
+        metadata_={"example": "data"},
+    )
+
+    block = block_manager.create_block(block_create, actor=user)
+
+    # Assertions to ensure the created block matches the expected values
+    assert block.label == block_create.label
+    assert block.is_template == block_create.is_template
+    assert block.value == block_create.value
+    assert block.template_name == block_create.template_name
+    assert block.description == block_create.description
+    assert block.limit == block_create.limit
+    assert block.metadata_ == block_create.metadata_
+    assert block.organization_id == user.organization_id
+
+
+def test_get_blocks(server, tool_fixture):
+    user = tool_fixture["user"]
+    block_manager = BlockManager()
+
+    # Create blocks to retrieve later
+    block_manager.create_block(BlockCreate(label="human", value="Block 1"), actor=user)
+    block_manager.create_block(BlockCreate(label="persona", value="Block 2"), actor=user)
+
+    # Retrieve blocks by different filters
+    all_blocks = block_manager.get_blocks(actor=user)
+    assert len(all_blocks) == 2
+
+    human_blocks = block_manager.get_blocks(actor=user, label="human")
+    assert len(human_blocks) == 1
+    assert human_blocks[0].label == "human"
+
+    persona_blocks = block_manager.get_blocks(actor=user, label="persona")
+    assert len(persona_blocks) == 1
+    assert persona_blocks[0].label == "persona"
+
+
+def test_update_block(server: SyncServer, tool_fixture):
+    user = tool_fixture["user"]
+    block_manager = BlockManager()
+    block = block_manager.create_block(BlockCreate(label="persona", value="Original Content"), actor=user)
+
+    # Update block's content
+    update_data = BlockUpdate(value="Updated Content", description="Updated description")
+    block_manager.update_block(block_id=block.id, block_update=update_data, actor=user)
+
+    # Retrieve the updated block
+    updated_block = block_manager.get_blocks(actor=user, id=block.id)[0]
+
+    # Assertions to verify the update
+    assert updated_block.value == "Updated Content"
+    assert updated_block.description == "Updated description"
+
+
+def test_delete_block(server: SyncServer, tool_fixture):
+    user = tool_fixture["user"]
+    block_manager = BlockManager()
+
+    # Create and delete a block
+    block = block_manager.create_block(BlockCreate(label="human", value="Sample content"), actor=user)
+    block_manager.delete_block(block_id=block.id, actor=user)
+
+    # Verify that the block was deleted
+    blocks = block_manager.get_blocks(actor=user)
+    assert len(blocks) == 0

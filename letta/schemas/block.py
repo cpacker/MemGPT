@@ -19,7 +19,7 @@ class BaseBlock(LettaBase, validate_assignment=True):
 
     # template data (optional)
     template_name: Optional[str] = Field(None, description="Name of the block if it is a template.")
-    template: bool = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
+    is_template: bool = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
 
     # context window label
     label: str = Field(None, description="Label of the block (e.g. 'human', 'persona') in the context window.")
@@ -27,9 +27,6 @@ class BaseBlock(LettaBase, validate_assignment=True):
     # metadata
     description: Optional[str] = Field(None, description="Description of the block.")
     metadata_: Optional[dict] = Field({}, description="Metadata of the block.")
-
-    # associated user/agent
-    user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the block.")
 
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
@@ -61,15 +58,22 @@ class Block(BaseBlock):
         name (str): The name of the block.
         value (str): The value of the block. This is the string that is represented in the context window.
         limit (int): The character limit of the block.
-        template (bool): Whether the block is a template (e.g. saved human/persona options). Non-template blocks are not stored in the database and are ephemeral, while templated blocks are stored in the database.
+        is_template (bool): Whether the block is a template (e.g. saved human/persona options). Non-template blocks are not stored in the database and are ephemeral, while templated blocks are stored in the database.
         label (str): The label of the block (e.g. 'human', 'persona'). This defines a category for the block.
         description (str): Description of the block.
         metadata_ (Dict): Metadata of the block.
         user_id (str): The unique identifier of the user associated with the block.
     """
 
-    id: str = BaseBlock.generate_id_field()
+    id: str = Field(..., description="The id of the block.")
     value: str = Field(..., description="Value of the block.")
+
+    # associated user/agent
+    organization_id: str = Field(..., description="The unique identifier of the organization associated with the block.")
+
+    # default orm fields
+    created_by_id: str = Field(..., description="The id of the user that made this Block.")
+    last_updated_by_id: str = Field(..., description="The id of the user that last updated this Block.")
 
 
 class Human(Block):
@@ -84,41 +88,38 @@ class Persona(Block):
     label: str = "persona"
 
 
-class CreateBlock(BaseBlock):
+class BlockCreate(BaseBlock):
     """Create a block"""
 
-    template: bool = True
+    is_template: bool = True
     label: str = Field(..., description="Label of the block.")
 
 
-class CreatePersona(BaseBlock):
+class CreatePersona(BlockCreate):
     """Create a persona block"""
 
-    template: bool = True
     label: str = "persona"
 
 
-class CreateHuman(BaseBlock):
+class CreateHuman(BlockCreate):
     """Create a human block"""
 
-    template: bool = True
     label: str = "human"
 
 
-class UpdateBlock(BaseBlock):
+class BlockUpdate(BaseBlock):
     """Update a block"""
 
-    id: str = Field(..., description="The unique identifier of the block.")
     limit: Optional[int] = Field(2000, description="Character limit of the block.")
 
 
-class UpdatePersona(UpdateBlock):
+class UpdatePersona(BlockUpdate):
     """Update a persona block"""
 
     label: str = "persona"
 
 
-class UpdateHuman(UpdateBlock):
+class UpdateHuman(BlockUpdate):
     """Update a human block"""
 
     label: str = "human"

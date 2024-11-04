@@ -5,7 +5,6 @@ import pytest
 from letta import create_client
 from letta.client.client import LocalClient
 from letta.schemas.agent import AgentState
-from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
@@ -53,7 +52,7 @@ def test_agent(client: LocalClient):
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
     for block in agent_state.memory.to_dict()["memory"].values():
-        db_block = client.server.ms.get_block(block.get("id"))
+        db_block = client.server.block_manager.get_block_by_id(block.get("id"), actor=client.user)
         assert db_block is not None, "memory block not persisted on agent create"
         assert db_block.value == block.get("value"), "persisted block data does not match in-memory data"
 
@@ -169,12 +168,9 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
 
 
 def test_agent_with_shared_blocks(client: LocalClient):
-    persona_block = Block(template_name="persona", value="Here to test things!", label="persona", user_id=client.user_id)
-    human_block = Block(template_name="human", value="Me Human, I swear. Beep boop.", label="human", user_id=client.user_id)
+    persona_block = client.create_block(template_name="persona", value="Here to test things!", label="persona")
+    human_block = client.create_block(template_name="human", value="Me Human, I swear. Beep boop.", label="human")
     existing_non_template_blocks = [persona_block, human_block]
-    for block in existing_non_template_blocks:
-        # ensure that previous chat blocks are persisted, as if another agent already produced them.
-        client.server.ms.create_block(block)
 
     existing_non_template_blocks_no_values = []
     for block in existing_non_template_blocks:
