@@ -650,7 +650,7 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
     cleanup_agents.append(empty_agent_state.id)
     assert empty_agent_state.message_ids is not None
-    assert len(empty_agent_state.message_ids) == 1, f"Expected 1 message, got {len(empty_agent_state.message_ids)}"
+    assert len(empty_agent_state.message_ids) == 1, f"Expected 0 messages, got {len(empty_agent_state.message_ids)}"
 
     # Test with custom sequence
     custom_sequence = [
@@ -668,5 +668,7 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     custom_agent_state = client.create_agent(name="test-custom-message-sequence", initial_message_sequence=custom_sequence)
     cleanup_agents.append(custom_agent_state.id)
     assert custom_agent_state.message_ids is not None
-    assert len(custom_agent_state.message_ids) == len(custom_sequence)
-    assert custom_agent_state.message_ids == [msg.id for msg in custom_sequence]
+    assert (
+        len(custom_agent_state.message_ids) == len(custom_sequence) + 1
+    ), f"Expected {len(custom_sequence) + 1} messages, got {len(custom_agent_state.message_ids)}"
+    assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]

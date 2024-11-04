@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
@@ -105,7 +104,7 @@ class AgentState(BaseAgent, validate_assignment=True):
 class CreateAgent(BaseAgent):
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
-    message_ids: Optional[List[uuid.UUID]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
+    message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
     memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     tool_rules: Optional[List[BaseToolRule]] = Field(None, description="The tool rules governing the agent.")
