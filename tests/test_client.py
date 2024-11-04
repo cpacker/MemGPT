@@ -8,11 +8,12 @@ import pytest
 from dotenv import load_dotenv
 
 from letta import create_client
+from letta.agent import initialize_message_sequence
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import MessageStreamStatus
+from letta.schemas.enums import MessageRole, MessageStreamStatus
 from letta.schemas.letta_message import (
     AssistantMessage,
     FunctionCallMessage,
@@ -28,6 +29,7 @@ from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.tool_manager import ToolManager
 from letta.settings import model_settings
+from letta.utils import get_utc_time
 from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
@@ -598,3 +600,72 @@ def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState
     # cleanup
     client.delete_agent(agent_state1.id)
     client.delete_agent(agent_state2.id)
+
+
+def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can set an initial message sequence
+
+    If we pass in None, we should get a "default" message sequence
+    If we pass in a non-empty list, we should get that sequence
+    If we pass in an empty list, we should get an empty sequence
+    """
+
+    @pytest.fixture
+    def cleanup_agents():
+        created_agents = []
+        yield created_agents
+        # Cleanup will run even if test fails
+        for agent_id in created_agents:
+            try:
+                client.delete_agent(agent_id)
+            except Exception as e:
+                print(f"Failed to delete agent {agent_id}: {e}")
+
+    # The reference initial message sequence:
+    reference_init_messages = initialize_message_sequence(
+        model=agent.llm_config.model,
+        system=agent.system,
+        memory=agent.memory,
+        archival_memory=None,
+        recall_memory=None,
+        memory_edit_timestamp=get_utc_time(),
+        include_initial_boot_message=True,
+    )
+
+    # system, login message, send_message test
+    assert len(reference_init_messages) > 0
+    assert len(reference_init_messages) == 3, f"Expected 3 messages, got {len(reference_init_messages)}"
+
+    # Test with default sequence
+    default_agent_state = client.create_agent(name="test-default-message-sequence", initial_message_sequence=None)
+    cleanup_agents.append(default_agent_state.id)
+    assert default_agent_state.message_ids is not None
+    assert len(default_agent_state.message_ids) > 0
+    assert len(default_agent_state.message_ids) == len(
+        reference_init_messages
+    ), f"Expected {len(reference_init_messages)} messages, got {len(default_agent_state.message_ids)}"
+
+    # Test with empty sequence
+    empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
+    cleanup_agents.append(empty_agent_state.id)
+    assert empty_agent_state.message_ids is not None
+    assert len(empty_agent_state.message_ids) == 0, f"Expected 0 messages, got {len(empty_agent_state.message_ids)}"
+
+    # Test with custom sequence
+    custom_sequence = [
+        Message(
+            role=MessageRole.user,
+            text="Hello, how are you?",
+            user_id=agent.user_id,
+            agent_id=agent.id,
+            model=agent.llm_config.model,
+            name=None,
+            tool_calls=None,
+            tool_call_id=None,
+        ),
+    ]
+    custom_agent_state = client.create_agent(name="test-custom-message-sequence", initial_message_sequence=custom_sequence)
+    cleanup_agents.append(custom_agent_state.id)
+    assert custom_agent_state.message_ids is not None
+    assert len(custom_agent_state.message_ids) == len(custom_sequence)
+    assert custom_agent_state.message_ids == [msg.id for msg in custom_sequence]

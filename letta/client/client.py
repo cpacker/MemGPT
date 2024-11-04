@@ -376,6 +376,7 @@ class RESTClient(AbstractClient):
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
+        initial_message_sequence: Optional[List[Message]] = None,
     ) -> AgentState:
         """Create an agent
 
@@ -428,6 +429,7 @@ class RESTClient(AbstractClient):
             agent_type=agent_type,
             llm_config=llm_config if llm_config else self._default_llm_config,
             embedding_config=embedding_config if embedding_config else self._default_embedding_config,
+            initial_message_sequence=initial_message_sequence,
         )
 
         response = requests.post(f"{self.base_url}/{self.api_prefix}/agents", json=request.model_dump(), headers=self.headers)
@@ -1648,6 +1650,7 @@ class LocalClient(AbstractClient):
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
+        initial_message_sequence: Optional[List[Message]] = None,
     ) -> AgentState:
         """Create an agent
 
@@ -1702,6 +1705,7 @@ class LocalClient(AbstractClient):
                 agent_type=agent_type,
                 llm_config=llm_config if llm_config else self._default_llm_config,
                 embedding_config=embedding_config if embedding_config else self._default_embedding_config,
+                initial_message_sequence=initial_message_sequence,
             ),
             actor=self.user,
         )
