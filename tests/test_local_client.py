@@ -169,8 +169,8 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
 
 
 def test_agent_with_shared_blocks(client: LocalClient):
-    persona_block = Block(name="persona", value="Here to test things!", label="persona", user_id=client.user_id)
-    human_block = Block(name="human", value="Me Human, I swear. Beep boop.", label="human", user_id=client.user_id)
+    persona_block = Block(template_name="persona", value="Here to test things!", label="persona", user_id=client.user_id)
+    human_block = Block(template_name="human", value="Me Human, I swear. Beep boop.", label="human", user_id=client.user_id)
     existing_non_template_blocks = [persona_block, human_block]
     for block in existing_non_template_blocks:
         # ensure that previous chat blocks are persisted, as if another agent already produced them.

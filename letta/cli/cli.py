@@ -282,10 +282,10 @@ def run(
         system_prompt = system if system else None
 
         memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
-        metadata = {"human": human_obj.name, "persona": persona_obj.name}
+        metadata = {"human": human_obj.template_name, "persona": persona_obj.template_name}
 
-        typer.secho(f"->  {ASSISTANT_MESSAGE_CLI_SYMBOL} Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
-        typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  {ASSISTANT_MESSAGE_CLI_SYMBOL} Using persona profile: '{persona_obj.template_name}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🧑 Using human profile: '{human_obj.template_name}'", fg=typer.colors.WHITE)
 
         # add tools
         agent_state = client.create_agent(

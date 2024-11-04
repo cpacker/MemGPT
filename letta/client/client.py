@@ -859,8 +859,8 @@ class RESTClient(AbstractClient):
         else:
             return [Block(**block) for block in response.json()]
 
-    def create_block(self, label: str, text: str, name: Optional[str] = None, template: bool = False) -> Block:  #
-        request = CreateBlock(label=label, value=text, template=template, name=name)
+    def create_block(self, label: str, text: str, template_name: Optional[str] = None, template: bool = False) -> Block:  #
+        request = CreateBlock(label=label, value=text, template=template, template_name=template_name)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
@@ -872,7 +872,7 @@ class RESTClient(AbstractClient):
             return Block(**response.json())
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
-        request = UpdateBlock(id=block_id, name=name, value=text)
+        request = UpdateBlock(id=block_id, template_name=name, value=text)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update block: {response.text}")
@@ -926,7 +926,7 @@ class RESTClient(AbstractClient):
         Returns:
             human (Human): Human block
         """
-        return self.create_block(label="human", name=name, text=text, template=True)
+        return self.create_block(label="human", template_name=name, text=text, template=True)
 
     def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
         """
@@ -939,7 +939,7 @@ class RESTClient(AbstractClient):
         Returns:
             human (Human): Updated human block
         """
-        request = UpdateHuman(id=human_id, name=name, value=text)
+        request = UpdateHuman(id=human_id, template_name=name, value=text)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{human_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update human: {response.text}")
@@ -966,7 +966,7 @@ class RESTClient(AbstractClient):
         Returns:
             persona (Persona): Persona block
         """
-        return self.create_block(label="persona", name=name, text=text, template=True)
+        return self.create_block(label="persona", template_name=name, text=text, template=True)
 
     def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
         """
@@ -979,7 +979,7 @@ class RESTClient(AbstractClient):
         Returns:
             persona (Persona): Updated persona block
         """
-        request = UpdatePersona(id=persona_id, name=name, value=text)
+        request = UpdatePersona(id=persona_id, template_name=name, value=text)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{persona_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update persona: {response.text}")
@@ -2116,7 +2116,7 @@ class LocalClient(AbstractClient):
         Returns:
             human (Human): Human block
         """
-        return self.server.create_block(CreateHuman(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+        return self.server.create_block(CreateHuman(template_name=name, value=text, user_id=self.user_id), user_id=self.user_id)
 
     def create_persona(self, name: str, text: str):
         """
@@ -2129,7 +2129,7 @@ class LocalClient(AbstractClient):
         Returns:
             persona (Persona): Persona block
         """
-        return self.server.create_block(CreatePersona(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+        return self.server.create_block(CreatePersona(template_name=name, value=text, user_id=self.user_id), user_id=self.user_id)
 
     def list_humans(self):
         """
@@ -2635,7 +2635,7 @@ class LocalClient(AbstractClient):
         """
         return self.server.get_blocks(label=label, template=templates_only)
 
-    def create_block(self, label: str, text: str, name: Optional[str] = None, template: bool = False) -> Block:  #
+    def create_block(self, label: str, text: str, template_name: Optional[str] = None, template: bool = False) -> Block:  #
         """
         Create a block
 
@@ -2648,7 +2648,7 @@ class LocalClient(AbstractClient):
             block (Block): Created block
         """
         return self.server.create_block(
-            CreateBlock(label=label, name=name, value=text, user_id=self.user_id, template=template), user_id=self.user_id
+            CreateBlock(label=label, template_name=template_name, value=text, user_id=self.user_id, template=template), user_id=self.user_id
         )
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
@@ -2663,7 +2663,7 @@ class LocalClient(AbstractClient):
         Returns:
             block (Block): Updated block
         """
-        return self.server.update_block(UpdateBlock(id=block_id, name=name, value=text))
+        return self.server.update_block(UpdateBlock(id=block_id, template_name=name, value=text))
 
     def get_block(self, block_id: str) -> Block:
         """

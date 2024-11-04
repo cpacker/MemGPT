@@ -139,32 +139,73 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
     return schema
 
 
-def generate_schema_from_args_schema(
+def generate_schema_from_args_schema_v1(
     args_schema: Type[V1BaseModel], name: Optional[str] = None, description: Optional[str] = None, append_heartbeat: bool = True
 ) -> Dict[str, Any]:
     properties = {}
     required = []
     for field_name, field in args_schema.__fields__.items():
-        if field.type_.__name__ == "str":
+        if field.type_ == str:
             field_type = "string"
-        elif field.type_.__name__ == "int":
+        elif field.type_ == int:
             field_type = "integer"
-        elif field.type_.__name__ == "bool":
+        elif field.type_ == bool:
             field_type = "boolean"
         else:
             field_type = field.type_.__name__
-        properties[field_name] = {"type": field_type, "description": field.field_info.description}
+
+        properties[field_name] = {
+            "type": field_type,
+            "description": field.field_info.description,
+        }
         if field.required:
             required.append(field_name)
 
-    # Construct the OpenAI function call JSON object
     function_call_json = {
         "name": name,
         "description": description,
         "parameters": {"type": "object", "properties": properties, "required": required},
     }
 
-    # append heartbeat (necessary for triggering another reasoning step after this tool call)
+    if append_heartbeat:
+        function_call_json["parameters"]["properties"]["request_heartbeat"] = {
+            "type": "boolean",
+            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
+        }
+        function_call_json["parameters"]["required"].append("request_heartbeat")
+
+    return function_call_json
+
+
+def generate_schema_from_args_schema_v2(
+    args_schema: Type[BaseModel], name: Optional[str] = None, description: Optional[str] = None, append_heartbeat: bool = True
+) -> Dict[str, Any]:
+    properties = {}
+    required = []
+    for field_name, field in args_schema.model_fields.items():
+        field_type_annotation = field.annotation
+        if field_type_annotation == str:
+            field_type = "string"
+        elif field_type_annotation == int:
+            field_type = "integer"
+        elif field_type_annotation == bool:
+            field_type = "boolean"
+        else:
+            field_type = field_type_annotation.__name__
+
+        properties[field_name] = {
+            "type": field_type,
+            "description": field.description,
+        }
+        if field.is_required():
+            required.append(field_name)
+
+    function_call_json = {
+        "name": name,
+        "description": description,
+        "parameters": {"type": "object", "properties": properties, "required": required},
+    }
+
     if append_heartbeat:
         function_call_json["parameters"]["properties"]["request_heartbeat"] = {
             "type": "boolean",

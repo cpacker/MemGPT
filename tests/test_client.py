@@ -288,7 +288,7 @@ def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentSta
     if persona_id:
         client.delete_persona(persona_id)
     persona = client.create_persona(name=persona_name, text="Persona text")
-    assert persona.name == persona_name
+    assert persona.template_name == persona_name
     assert persona.value == "Persona text", "Creating persona failed"
 
     human_name = "TestHuman"
@@ -296,7 +296,7 @@ def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentSta
     if human_id:
         client.delete_human(human_id)
     human = client.create_human(name=human_name, text="Human text")
-    assert human.name == human_name
+    assert human.template_name == human_name
     assert human.value == "Human text", "Creating human failed"
 
 
@@ -565,3 +565,36 @@ def test_list_llm_models(client: RESTClient):
         assert has_model_endpoint_type(models, "google_ai")
     if model_settings.anthropic_api_key:
         assert has_model_endpoint_type(models, "anthropic")
+
+
+def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState):
+    # _reset_config()
+
+    # create a block
+    block = client.create_block(label="human", text="username: sarah")
+
+    # create agents with shared block
+    from letta.schemas.memory import BasicBlockMemory
+
+    persona1_block = client.create_block(label="persona", text="you are agent 1")
+    persona2_block = client.create_block(label="persona", text="you are agent 2")
+
+    # create agnets
+    agent_state1 = client.create_agent(name="agent1", memory=BasicBlockMemory(blocks=[block, persona1_block]))
+    agent_state2 = client.create_agent(name="agent2", memory=BasicBlockMemory(blocks=[block, persona2_block]))
+
+    # update memory
+    response = client.user_message(agent_id=agent_state1.id, message="my name is actually charles")
+
+    # check agent 2 memory
+    assert "charles" in client.get_block(block.id).value.lower(), f"Shared block update failed {client.get_block(block.id).value}"
+
+    response = client.user_message(agent_id=agent_state2.id, message="whats my name?")
+    assert (
+        "charles" in client.get_core_memory(agent_state2.id).get_block("human").value.lower()
+    ), f"Shared block update failed {client.get_core_memory(agent_state2.id).get_block('human').value}"
+    # assert "charles" in response.messages[1].text.lower(), f"Shared block update failed {response.messages[0].text}"
+
+    # cleanup
+    client.delete_agent(agent_state1.id)
+    client.delete_agent(agent_state2.id)

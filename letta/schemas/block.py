@@ -18,7 +18,7 @@ class BaseBlock(LettaBase, validate_assignment=True):
     limit: int = Field(2000, description="Character limit of the block.")
 
     # template data (optional)
-    name: Optional[str] = Field(None, description="Name of the block if it is a template.")
+    template_name: Optional[str] = Field(None, description="Name of the block if it is a template.")
     template: bool = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
 
     # context window label

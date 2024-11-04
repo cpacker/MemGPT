@@ -59,13 +59,13 @@ def list(arg: Annotated[ListChoice, typer.Argument]):
         """List all humans"""
         table.field_names = ["Name", "Text"]
         for human in client.list_humans():
-            table.add_row([human.name, human.value.replace("\n", "")[:100]])
+            table.add_row([human.template_name, human.value.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.personas:
         """List all personas"""
         table.field_names = ["Name", "Text"]
         for persona in client.list_personas():
-            table.add_row([persona.name, persona.value.replace("\n", "")[:100]])
+            table.add_row([persona.template_name, persona.value.replace("\n", "")[:100]])
         print(table)
     elif arg == ListChoice.sources:
         """List all data sources"""

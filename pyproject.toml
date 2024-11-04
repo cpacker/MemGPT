@@ -83,7 +83,7 @@ psycopg2-binary = "^2.9.10"
 
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]
-postgres = ["pgvector", "pg8000", "psycopg2-binary"]
+postgres = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2"]
 milvus = ["pymilvus"]
 dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort"]
 server = ["websockets", "fastapi", "uvicorn"]
