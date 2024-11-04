@@ -97,7 +97,7 @@ class ToolCreate(LettaBase):
         source_type = "python"
         tags = ["composio"]
         wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(action)
-        json_schema = generate_schema_from_args_schema_v1(composio_tool.args_schema, name=wrapper_func_name, description=description)
+        json_schema = generate_schema_from_args_schema_v2(composio_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
             name=wrapper_func_name,

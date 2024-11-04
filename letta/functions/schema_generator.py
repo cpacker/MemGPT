@@ -175,3 +175,42 @@ def generate_schema_from_args_schema_v1(
         function_call_json["parameters"]["required"].append("request_heartbeat")
 
     return function_call_json
+
+
+def generate_schema_from_args_schema_v2(
+    args_schema: Type[BaseModel], name: Optional[str] = None, description: Optional[str] = None, append_heartbeat: bool = True
+) -> Dict[str, Any]:
+    properties = {}
+    required = []
+    for field_name, field in args_schema.model_fields.items():
+        field_type_annotation = field.annotation
+        if field_type_annotation == str:
+            field_type = "string"
+        elif field_type_annotation == int:
+            field_type = "integer"
+        elif field_type_annotation == bool:
+            field_type = "boolean"
+        else:
+            field_type = field_type_annotation.__name__
+
+        properties[field_name] = {
+            "type": field_type,
+            "description": field.description,
+        }
+        if field.is_required():
+            required.append(field_name)
+
+    function_call_json = {
+        "name": name,
+        "description": description,
+        "parameters": {"type": "object", "properties": properties, "required": required},
+    }
+
+    if append_heartbeat:
+        function_call_json["parameters"]["properties"]["request_heartbeat"] = {
+            "type": "boolean",
+            "description": "Request an immediate heartbeat after function execution. Set to `True` if you want to send a follow-up message or run a follow-up function.",
+        }
+        function_call_json["parameters"]["required"].append("request_heartbeat")
+
+    return function_call_json
