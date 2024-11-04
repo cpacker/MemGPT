@@ -17,6 +17,7 @@ class Organization(SqlalchemyBase):
     __tablename__ = "organization"
     __pydantic_model__ = PydanticOrganization
 
+    # we are overriding the __prefix__ method here because the original ids of organizations are prefixed with "org"
     @classmethod
     def __prefix__(cls) -> str:
         return "org"
