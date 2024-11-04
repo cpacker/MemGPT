@@ -23,7 +23,6 @@ class LettaUser(HttpUser):
         user_data = {"name": f"User-{''.join(random.choices(string.ascii_lowercase + string.digits, k=8))}"}
         response = self.client.post("/v1/admin/users", json=user_data)
         response_json = response.json()
-        print(response_json)
         self.user_id = response_json["id"]
 
         # create a token

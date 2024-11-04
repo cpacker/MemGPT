@@ -24,6 +24,7 @@ class ToolManager:
         "conversation_search_date",
         "archival_memory_insert",
         "archival_memory_search",
+        "pause_heartbeats",
     ]
 
     def __init__(self):
@@ -70,7 +71,7 @@ class ToolManager:
         # Create the tool
         with self.session_maker() as session:
             create_data = tool_create.model_dump()
-            tool = ToolModel(**create_data, organization_id=actor.organization_id)  # Unpack everything directly into ToolModel
+            tool = ToolModel(**create_data, _organization_id=actor.organization_id)  # Unpack everything directly into ToolModel
             tool.create(session, actor=actor)
 
         return tool.to_pydantic()

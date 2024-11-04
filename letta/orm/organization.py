@@ -17,6 +17,10 @@ class Organization(SqlalchemyBase):
     __tablename__ = "organization"
     __pydantic_model__ = PydanticOrganization
 
+    @classmethod
+    def __prefix__(cls) -> str:
+        return "org"
+
     name: Mapped[str] = mapped_column(doc="The display name of the organization.")
 
     users: Mapped[List["User"]] = relationship("User", back_populates="organization", cascade="all, delete-orphan")

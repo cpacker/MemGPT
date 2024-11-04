@@ -19,11 +19,11 @@ def is_valid_uuid4(uuid_string: str) -> bool:
 
 def _relation_getter(instance: "Base", prop: str) -> Optional[str]:
     """Get relation and return id with prefix as a string."""
-    prefix = prop.replace("_", "")
+    prop.replace("_", "")
     formatted_prop = f"_{prop}_id"
     try:
         id_ = getattr(instance, formatted_prop)  # Get the string id directly
-        return f"{prefix}-{id_}"
+        return id_
     except AttributeError:
         return None
 
@@ -63,7 +63,7 @@ class OrganizationMixin(Base):
 
     @organization_id.setter
     def organization_id(self, value: str) -> None:
-        _relation_setter(self, "organization", value)
+        _relation_setter(self, "org", value)
 
 
 class UserMixin(Base):

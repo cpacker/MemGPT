@@ -9,7 +9,7 @@ from letta.utils import create_random_username, enforce_types
 class OrganizationManager:
     """Manager class to handle business logic related to Organizations."""
 
-    DEFAULT_ORG_ID = "organization-00000000-0000-4000-8000-000000000000"
+    DEFAULT_ORG_ID = "org-00000000-0000-4000-8000-000000000000"
     DEFAULT_ORG_NAME = "default_org"
 
     def __init__(self):

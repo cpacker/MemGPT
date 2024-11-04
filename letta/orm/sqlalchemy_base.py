@@ -35,7 +35,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     @property
     def id(self) -> Optional[str]:
         if self._id:
-            return f"{self.__prefix__()}-{self._id}"
+            return self._id
 
     @id.setter
     def id(self, value: str) -> None:
@@ -44,7 +44,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         prefix, id_ = value.split("-", 1)
         assert prefix == self.__prefix__(), f"{prefix} is not a valid id prefix for {self.__class__.__name__}"
         assert is_valid_uuid4(id_), f"{id_} is not a valid uuid4"
-        self._id = id_
+        self._id = value
 
     @classmethod
     def list(
@@ -78,9 +78,10 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             indifferent: if True, will not enforce the prefix check
         """
         try:
-            uuid_string = identifier.split("-", 1)[1] if indifferent else identifier.replace(f"{cls.__prefix__()}-", "")
+            # uuid_string = identifier.split("-", 1)[1] if indifferent else identifier.replace(f"{cls.__prefix__()}-", "")
             # assert is_valid_uuid4(uuid_string)
-            return uuid_string
+            print(identifier)
+            return identifier
         except ValueError as e:
             raise ValueError(f"{identifier} is not a valid identifier for class {cls.__name__}") from e
 
