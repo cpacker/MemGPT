@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from humps import depascalize
 from sqlalchemy import Boolean, String, select
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
 from letta.log import get_logger
 from letta.orm.base import Base, CommonSqlalchemyMetaMixins
@@ -24,7 +24,9 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
     __order_by_default__ = "created_at"
 
-    _id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda self: f"{self.__prefix__()}-{uuid4()}")
+    @declared_attr
+    def _id(cls):
+        return mapped_column(String, primary_key=True, default=lambda self: f"{self.__prefix__()}-{uuid4()}")
 
     deleted: Mapped[bool] = mapped_column(Boolean, default=False, doc="Is this record deleted? Used for universal soft deletes.")
 
