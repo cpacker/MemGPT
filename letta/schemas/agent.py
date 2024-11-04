@@ -113,6 +113,11 @@ class CreateAgent(BaseAgent):
     agent_type: Optional[AgentType] = Field(None, description="The type of agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
+    # Note: if this is None, then we'll populate with the standard "more human than human" initial message sequence
+    # If the client wants to make this empty, then the client can set the arg to an empty list
+    initial_message_sequence: Optional[List[Message]] = Field(
+        None, description="The initial set of messages to put in the agent's in-context memory."
+    )
 
     @field_validator("name")
     @classmethod
