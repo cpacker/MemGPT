@@ -1084,7 +1084,7 @@ class SyncServer(Server):
         id: Optional[str] = None,
     ) -> Optional[List[Block]]:
 
-        return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+        return self.ms.get_blocks(user_id=user_id, label=label, template=template, template_name=name, id=id)
 
     def get_block(self, block_id: str):
 
@@ -1096,7 +1096,9 @@ class SyncServer(Server):
         return blocks[0]
 
     def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_blocks = self.ms.get_blocks(name=request.template_name, user_id=user_id, template=request.template, label=request.label)
+        existing_blocks = self.ms.get_blocks(
+            template_name=request.template_name, user_id=user_id, template=request.template, label=request.label
+        )
 
         # for templates, update existing block template if exists
         if existing_blocks is not None and request.template:

@@ -357,9 +357,7 @@ class BlockModel(Base):
     Index(__tablename__ + "_idx_user", user_id),
 
     def __repr__(self) -> str:
-        return (
-            f"<Block(id='{self.id}', name='{self.name}', template='{self.template_name}', label='{self.label}', user_id='{self.user_id}')>"
-        )
+        return f"<Block(id='{self.id}', template_name='{self.template_name}', template='{self.template_name}', label='{self.label}', user_id='{self.user_id}')>"
 
     def to_record(self) -> Block:
         if self.label == "persona":
@@ -660,7 +658,7 @@ class MetadataStore:
         user_id: Optional[str],
         label: Optional[str] = None,
         template: Optional[bool] = None,
-        name: Optional[str] = None,
+        template_name: Optional[str] = None,
         id: Optional[str] = None,
     ) -> Optional[List[Block]]:
         """List available blocks"""
@@ -673,8 +671,8 @@ class MetadataStore:
             if label:
                 query = query.filter(BlockModel.label == label)
 
-            if name:
-                query = query.filter(BlockModel.template_name == name)
+            if template_name:
+                query = query.filter(BlockModel.template_name == template_name)
 
             if id:
                 query = query.filter(BlockModel.id == id)
