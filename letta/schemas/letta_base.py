@@ -1,5 +1,4 @@
 import uuid
-from datetime import datetime, timezone
 from logging import getLogger
 from typing import Optional
 from uuid import UUID
@@ -23,7 +22,7 @@ class LettaBase(BaseModel):
         # throw errors if attributes are given that don't belong
         extra="forbid",
         # handle datetime serialization consistently across all models
-        json_encoders={datetime: lambda dt: (dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt).isoformat()},
+        # json_encoders={datetime: lambda dt: (dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt).isoformat()},
     )
 
     # def __id_prefix__(self):
