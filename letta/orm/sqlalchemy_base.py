@@ -24,7 +24,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
     __order_by_default__ = "created_at"
 
-    _id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: f"{uuid4()}")
+    _id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda self: f"{self.__prefix__()}-{uuid4()}")
 
     deleted: Mapped[bool] = mapped_column(Boolean, default=False, doc="Is this record deleted? Used for universal soft deletes.")
 
