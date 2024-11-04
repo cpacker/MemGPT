@@ -43,9 +43,9 @@ def _relation_setter(instance: "Base", prop: str, value: str) -> None:
     # Ensure prefix matches
     assert found_prefix == prefix, f"{found_prefix} is not a valid id prefix, expecting {prefix}"
 
-    # Validate that the id is a valid UUID4 string
-    if not is_valid_uuid4(id_):
-        raise MalformedIdError(f"Hash segment of {value} is not a valid UUID4")
+    # # Validate that the id is a valid UUID4 string
+    # if not is_valid_uuid4(id_):
+    #     raise MalformedIdError(f"Hash segment of {value} is not a valid UUID4")
 
     setattr(instance, formatted_prop, id_)  # Store id as a string
 

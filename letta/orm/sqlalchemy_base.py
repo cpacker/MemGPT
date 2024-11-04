@@ -79,7 +79,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         """
         try:
             uuid_string = identifier.split("-", 1)[1] if indifferent else identifier.replace(f"{cls.__prefix__()}-", "")
-            assert is_valid_uuid4(uuid_string)
+            # assert is_valid_uuid4(uuid_string)
             return uuid_string
         except ValueError as e:
             raise ValueError(f"{identifier} is not a valid identifier for class {cls.__name__}") from e

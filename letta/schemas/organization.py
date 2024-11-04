@@ -8,7 +8,7 @@ from letta.utils import get_utc_time
 
 
 class OrganizationBase(LettaBase):
-    __id_prefix__ = "organization"
+    __id_prefix__ = "org"
 
 
 class Organization(OrganizationBase):
