@@ -1563,7 +1563,7 @@ class SyncServer(Server):
 
         source = self.source_manager.get_source_by_id(source_id=source_id)
         connector = DirectoryConnector(input_files=[file_path])
-        num_passages, num_documents = self.load_data(user_id=source.user_id, source_name=source.name, connector=connector)
+        num_passages, num_documents = self.load_data(user_id=source.created_by_id, source_name=source.name, connector=connector)
         # except Exception as e:
         #    # job failed with error
         #    error = str(e)
@@ -1668,7 +1668,9 @@ class SyncServer(Server):
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         # list all attached sources to an agent
-        return self.ms.list_attached_sources(agent_id)
+        source_ids = self.ms.list_attached_source_ids(agent_id)
+
+        return [self.source_manager.get_source_by_id(source_id=id) for id in source_ids]
 
     def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
         # list all attached sources to an agent

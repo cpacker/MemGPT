@@ -29,7 +29,6 @@ from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
-from letta.schemas.source import Source
 from letta.schemas.tool_rule import (
     BaseToolRule,
     InitToolRule,
@@ -618,19 +617,10 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def list_attached_sources(self, agent_id: str) -> List[Source]:
+    def list_attached_source_ids(self, agent_id: str) -> List[str]:
         with self.session_maker() as session:
             results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
-
-            sources = []
-            # make sure source exists
-            for r in results:
-                source = self.get_source(source_id=r.source_id)
-                if source:
-                    sources.append(source)
-                else:
-                    printd(f"Warning: source {r.source_id} does not exist but exists in mapping database. This should never happen.")
-            return sources
+            return [r.source_id for r in results]
 
     @enforce_types
     def list_attached_agents(self, source_id: str) -> List[str]:

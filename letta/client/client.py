@@ -1229,7 +1229,7 @@ class RESTClient(AbstractClient):
         Returns:
             source (Source): Updated source
         """
-        request = SourceUpdate(id=source_id, name=name)
+        request = SourceUpdate(name=name)
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/sources/{source_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update source: {response.text}")

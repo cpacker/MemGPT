@@ -36,7 +36,7 @@ def get_source(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    return server.source(source_id=source_id, user_id=actor.id)
+    return server.source_manager.get_source_by_id(source_id=source_id, actor=actor)
 
 
 @router.get("/name/{source_name}", response_model=str, operation_id="get_source_id_by_name")
