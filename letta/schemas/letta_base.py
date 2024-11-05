@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from logging import getLogger
 from typing import Optional
 from uuid import UUID
@@ -13,6 +14,9 @@ logger = getLogger(__name__)
 
 class LettaBase(BaseModel):
     """Base schema for Letta schemas (does not include model provider schemas, e.g. OpenAI)"""
+
+    created_at: Optional[datetime] = Field(None, description="The timestamp when the source was created.")
+    updated_at: Optional[datetime] = Field(None, description="The timestamp when the source was last updated.")
 
     model_config = ConfigDict(
         # allows you to use the snake or camelcase names in your code (ie user_id or userId)

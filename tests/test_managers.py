@@ -3,9 +3,8 @@ from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
-from letta.orm.organization import Organization
-from letta.orm.tool import Tool
-from letta.orm.user import User
+from letta.orm import Organization, Source, Tool, User
+from letta.schemas.source import SourceCreate
 from letta.schemas.tool import ToolCreate, ToolUpdate
 from letta.services.organization_manager import OrganizationManager
 
@@ -19,6 +18,7 @@ from letta.server.server import SyncServer
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(Source))
         session.execute(delete(Tool))  # Clear all records from the Tool table
         session.execute(delete(User))  # Clear all records from the user table
         session.execute(delete(Organization))  # Clear all records from the organization table
@@ -357,3 +357,124 @@ def test_delete_tool_by_id(server: SyncServer, tool_fixture):
 
     tools = server.tool_manager.list_tools(actor=user)
     assert len(tools) == 0
+
+
+# ======================================================================================================================
+# Source Manager Tests
+# ======================================================================================================================
+
+
+def test_create_source(server: SyncServer, actor):
+    """Test creating a new source."""
+    source_create = SourceCreate(
+        name="Test Source", description="This is a test source.", metadata_={"type": "test"}, embedding_config=None
+    )
+    source = server.source_manager.create_source(source_create=source_create, actor=actor)
+
+    # Assertions to check the created source
+    assert source.name == source_create.name
+    assert source.description == source_create.description
+    assert source.metadata_ == source_create.metadata_
+    assert source.organization_id == actor.organization_id
+
+
+# def test_update_source(source_manager, actor):
+#     """Test updating an existing source."""
+#     source_create = SourceCreate(name="Original Source", description="Original description")
+#     source = source_manager.create_source(source_create=source_create, actor=actor)
+#
+#     # Update the source
+#     update_data = SourceUpdate(
+#         name="Updated Source",
+#         description="Updated description",
+#         metadata_={"type": "updated"}
+#     )
+#     updated_source = source_manager.update_source(source_id=source.id, source_update=update_data, actor=actor)
+#
+#     # Assertions to verify update
+#     assert updated_source.name == update_data.name
+#     assert updated_source.description == update_data.description
+#     assert updated_source.metadata_ == update_data.metadata_
+#
+#
+# def test_delete_source(source_manager, actor):
+#     """Test deleting a source."""
+#     source_create = SourceCreate(name="To Delete", description="This source will be deleted.")
+#     source = source_manager.create_source(source_create=source_create, actor=actor)
+#
+#     # Delete the source
+#     deleted_source = source_manager.delete_source(source_id=source.id, actor=actor)
+#
+#     # Assertions to verify deletion
+#     assert deleted_source.id == source.id
+#     assert deleted_source.is_deleted
+#
+#     # Verify that the source no longer appears in list_sources
+#     sources = source_manager.list_sources(actor=actor)
+#     assert len(sources) == 0
+#
+#
+# def test_list_sources(source_manager, actor):
+#     """Test listing sources with pagination."""
+#     # Create multiple sources
+#     source_manager.create_source(SourceCreate(name="Source 1"), actor=actor)
+#     source_manager.create_source(SourceCreate(name="Source 2"), actor=actor)
+#
+#     # List sources without pagination
+#     sources = source_manager.list_sources(actor=actor)
+#     assert len(sources) == 2
+#
+#     # List sources with pagination
+#     paginated_sources = source_manager.list_sources(actor=actor, limit=1)
+#     assert len(paginated_sources) == 1
+#
+#     # Ensure cursor-based pagination works
+#     next_page = source_manager.list_sources(actor=actor, cursor=paginated_sources[-1].id, limit=1)
+#     assert len(next_page) == 1
+#     assert next_page[0].name != paginated_sources[0].name
+#
+#
+# def test_get_source_by_id(source_manager, actor):
+#     """Test retrieving a source by ID."""
+#     source_create = SourceCreate(name="Retrieve by ID", description="Test source for ID retrieval")
+#     source = source_manager.create_source(source_create=source_create, actor=actor)
+#
+#     # Retrieve the source by ID
+#     retrieved_source = source_manager.get_source_by_id(source_id=source.id, actor=actor)
+#
+#     # Assertions to verify the retrieved source matches the created one
+#     assert retrieved_source.id == source.id
+#     assert retrieved_source.name == source.name
+#     assert retrieved_source.description == source.description
+#
+#
+# def test_get_source_by_name(source_manager, actor):
+#     """Test retrieving a source by name."""
+#     source_create = SourceCreate(name="Unique Source", description="Test source for name retrieval")
+#     source = source_manager.create_source(source_create=source_create, actor=actor)
+#
+#     # Retrieve the source by name
+#     retrieved_source = source_manager.get_source_by_name(source_name=source.name, actor=actor)
+#
+#     # Assertions to verify the retrieved source matches the created one
+#     assert retrieved_source.name == source.name
+#     assert retrieved_source.description == source.description
+#
+#
+# def test_update_source_no_changes(source_manager, actor):
+#     """Test update_source with no actual changes to verify logging and response."""
+#     source_create = SourceCreate(name="No Change Source", description="No changes")
+#     source = source_manager.create_source(source_create=source_create, actor=actor)
+#
+#     # Attempt to update the source with identical data
+#     update_data = SourceUpdate(
+#         id=source.id,
+#         name="No Change Source",
+#         description="No changes"
+#     )
+#     updated_source = source_manager.update_source(source_id=source.id, source_update=update_data, actor=actor)
+#
+#     # Assertions to ensure the update returned the source but made no modifications
+#     assert updated_source.id == source.id
+#     assert updated_source.name == source.name
+#     assert updated_source.description == source.description

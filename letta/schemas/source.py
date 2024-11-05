@@ -1,12 +1,9 @@
-from datetime import datetime
 from typing import Optional
 
-from fastapi import UploadFile
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
-from letta.utils import get_utc_time
 
 
 class BaseSource(LettaBase):
@@ -15,15 +12,6 @@ class BaseSource(LettaBase):
     """
 
     __id_prefix__ = "source"
-    description: Optional[str] = Field(None, description="The description of the source.")
-    embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the passage.")
-    # NOTE: .metadata is a reserved attribute on SQLModel
-    metadata_: Optional[dict] = Field(None, description="Metadata associated with the source.")
-
-
-class SourceCreate(BaseSource):
-    name: str = Field(..., description="The name of the source.")
-    description: Optional[str] = Field(None, description="The description of the source.")
 
 
 class Source(BaseSource):
@@ -34,29 +22,41 @@ class Source(BaseSource):
         id (str): The ID of the source
         name (str): The name of the source.
         embedding_config (EmbeddingConfig): The embedding configuration used by the source.
-        created_at (datetime): The creation date of the source.
         user_id (str): The ID of the user that created the source.
         metadata_ (dict): Metadata associated with the source.
         description (str): The description of the source.
     """
 
-    id: str = BaseSource.generate_id_field()
+    id: str = Field(..., description="The id of the source.")
     name: str = Field(..., description="The name of the source.")
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the source.")
-    created_at: datetime = Field(default_factory=get_utc_time, description="The creation date of the source.")
-    user_id: str = Field(..., description="The ID of the user that created the source.")
+    organization_id: str = Field(..., description="The ID of the organization that created the source.")
+
+    # metadata fields
+    created_by_id: str = Field(..., description="The id of the user that made this Tool.")
+    last_updated_by_id: str = Field(..., description="The id of the user that made this Tool.")
+
+
+class SourceCreate(BaseSource):
+    """
+    Schema for creating a new Source.
+    """
+
+    # required
+    name: str = Field(..., description="The name of the source.")
+    embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the source.")
+
+    # optional
+    description: Optional[str] = Field(None, description="The description of the source.")
+    metadata_: Optional[dict] = Field(None, description="Metadata associated with the source.")
 
 
 class SourceUpdate(BaseSource):
-    id: str = Field(..., description="The ID of the source.")
+    """
+    Schema for updating an existing Source.
+    """
+
     name: Optional[str] = Field(None, description="The name of the source.")
-
-
-class UploadFileToSourceRequest(BaseModel):
-    file: UploadFile = Field(..., description="The file to upload.")
-
-
-class UploadFileToSourceResponse(BaseModel):
-    source: Source = Field(..., description="The source the file was uploaded to.")
-    added_passages: int = Field(..., description="The number of passages added to the source.")
-    added_documents: int = Field(..., description="The number of files added to the source.")
+    description: Optional[str] = Field(None, description="The description of the source.")
+    metadata_: Optional[dict] = Field(None, description="Metadata associated with the source.")
+    embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the source.")
