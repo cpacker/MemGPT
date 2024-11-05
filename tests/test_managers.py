@@ -4,15 +4,26 @@ from sqlalchemy import delete
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
 from letta.orm import Organization, Source, Tool, User
+from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.source import SourceCreate, SourceUpdate
 from letta.schemas.tool import ToolCreate, ToolUpdate
 from letta.services.organization_manager import OrganizationManager
-from letta.services.source_manager import SourceManager
 
 utils.DEBUG = True
 from letta.config import LettaConfig
 from letta.schemas.user import UserCreate, UserUpdate
 from letta.server.server import SyncServer
+
+DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
+    embedding_endpoint_type="hugging-face",
+    embedding_endpoint="https://embeddings.memgpt.ai",
+    embedding_model="letta-free",
+    embedding_dim=1024,
+    embedding_chunk_size=300,
+    azure_endpoint=None,
+    azure_version=None,
+    azure_deployment=None,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -379,7 +390,7 @@ def test_create_source(server: SyncServer, default_user):
         name="Test Source",
         description="This is a test source.",
         metadata_={"type": "test"},
-        embedding_config=SourceManager.DEFAULT_EMBEDDING_CONFIG,
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
     )
     source = server.source_manager.create_source(source_create=source_create, actor=default_user)
 
@@ -392,9 +403,7 @@ def test_create_source(server: SyncServer, default_user):
 
 def test_update_source(server: SyncServer, default_user):
     """Test updating an existing source."""
-    source_create = SourceCreate(
-        name="Original Source", description="Original description", embedding_config=SourceManager.DEFAULT_EMBEDDING_CONFIG
-    )
+    source_create = SourceCreate(name="Original Source", description="Original description", embedding_config=DEFAULT_EMBEDDING_CONFIG)
     source = server.source_manager.create_source(source_create=source_create, actor=default_user)
 
     # Update the source
@@ -409,9 +418,7 @@ def test_update_source(server: SyncServer, default_user):
 
 def test_delete_source(server: SyncServer, default_user):
     """Test deleting a source."""
-    source_create = SourceCreate(
-        name="To Delete", description="This source will be deleted.", embedding_config=SourceManager.DEFAULT_EMBEDDING_CONFIG
-    )
+    source_create = SourceCreate(name="To Delete", description="This source will be deleted.", embedding_config=DEFAULT_EMBEDDING_CONFIG)
     source = server.source_manager.create_source(source_create=source_create, actor=default_user)
 
     # Delete the source
@@ -428,12 +435,8 @@ def test_delete_source(server: SyncServer, default_user):
 def test_list_sources(server: SyncServer, default_user):
     """Test listing sources with pagination."""
     # Create multiple sources
-    server.source_manager.create_source(
-        SourceCreate(name="Source 1", embedding_config=SourceManager.DEFAULT_EMBEDDING_CONFIG), actor=default_user
-    )
-    server.source_manager.create_source(
-        SourceCreate(name="Source 2", embedding_config=SourceManager.DEFAULT_EMBEDDING_CONFIG), actor=default_user
-    )
+    server.source_manager.create_source(SourceCreate(name="Source 1", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
+    server.source_manager.create_source(SourceCreate(name="Source 2", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
 
     # List sources without pagination
     sources = server.source_manager.list_sources(actor=default_user)
@@ -452,7 +455,7 @@ def test_list_sources(server: SyncServer, default_user):
 def test_get_source_by_id(server: SyncServer, default_user):
     """Test retrieving a source by ID."""
     source_create = SourceCreate(
-        name="Retrieve by ID", description="Test source for ID retrieval", embedding_config=SourceManager.DEFAULT_EMBEDDING_CONFIG
+        name="Retrieve by ID", description="Test source for ID retrieval", embedding_config=DEFAULT_EMBEDDING_CONFIG
     )
     source = server.source_manager.create_source(source_create=source_create, actor=default_user)
 
@@ -468,7 +471,7 @@ def test_get_source_by_id(server: SyncServer, default_user):
 def test_get_source_by_name(server: SyncServer, default_user):
     """Test retrieving a source by name."""
     source_create = SourceCreate(
-        name="Unique Source", description="Test source for name retrieval", embedding_config=SourceManager.DEFAULT_EMBEDDING_CONFIG
+        name="Unique Source", description="Test source for name retrieval", embedding_config=DEFAULT_EMBEDDING_CONFIG
     )
     source = server.source_manager.create_source(source_create=source_create, actor=default_user)
 
@@ -482,7 +485,7 @@ def test_get_source_by_name(server: SyncServer, default_user):
 
 def test_update_source_no_changes(server: SyncServer, default_user):
     """Test update_source with no actual changes to verify logging and response."""
-    source_create = SourceCreate(name="No Change Source", description="No changes", embedding_config=SourceManager.DEFAULT_EMBEDDING_CONFIG)
+    source_create = SourceCreate(name="No Change Source", description="No changes", embedding_config=DEFAULT_EMBEDDING_CONFIG)
     source = server.source_manager.create_source(source_create=source_create, actor=default_user)
 
     # Attempt to update the source with identical data

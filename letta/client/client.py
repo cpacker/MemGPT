@@ -2428,7 +2428,7 @@ class LocalClient(AbstractClient):
     def list_active_jobs(self):
         return self.server.list_active_jobs(user_id=self.user_id)
 
-    def create_source(self, name: str) -> Source:
+    def create_source(self, name: str, embedding_config: Optional[EmbeddingConfig] = None) -> Source:
         """
         Create a source
 
@@ -2438,8 +2438,8 @@ class LocalClient(AbstractClient):
         Returns:
             source (Source): Created source
         """
-        request = SourceCreate(name=name)
-        return self.server.source_manager.create_source(request=request, actor=actor)
+        request = SourceCreate(name=name, embedding_config=embedding_config or self._default_embedding_config)
+        return self.server.source_manager.create_source(request=request, actor=self.user)
 
     def delete_source(self, source_id: str):
         """

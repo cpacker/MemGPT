@@ -3,7 +3,6 @@ from typing import List, Optional
 from letta.orm.errors import NoResultFound
 from letta.orm.organization import Organization as OrganizationModel
 from letta.orm.source import Source as SourceModel
-from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.source import Source as PydanticSource
 from letta.schemas.source import SourceCreate, SourceUpdate
 from letta.schemas.user import User as PydanticUser
@@ -12,18 +11,6 @@ from letta.utils import enforce_types, printd
 
 class SourceManager:
     """Manager class to handle business logic related to Sources."""
-
-    # This is used when no embedding config is provided
-    DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
-        embedding_endpoint_type="hugging-face",
-        embedding_endpoint="https://embeddings.memgpt.ai",
-        embedding_model="letta-free",
-        embedding_dim=1024,
-        embedding_chunk_size=300,
-        azure_endpoint=None,
-        azure_version=None,
-        azure_deployment=None,
-    )
 
     def __init__(self):
         from letta.server.server import db_context
@@ -35,9 +22,6 @@ class SourceManager:
         """Create a new source based on the SourceCreate schema."""
         with self.session_maker() as session:
             # Provide default embedding config if not given
-            if not source_create.embedding_config:
-                source_create.embedding_config = self.DEFAULT_EMBEDDING_CONFIG
-
             create_data = source_create.model_dump()
             source = SourceModel(**create_data, organization_id=actor.organization_id)
             source.create(session, actor=actor)
