@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 class User(SqlalchemyBase, OrganizationMixin):
     """User ORM class"""
 
-    __tablename__ = "user"
+    __tablename__ = "users"
     __pydantic_model__ = PydanticUser
 
     id: Mapped[str] = mapped_column(String, primary_key=True)

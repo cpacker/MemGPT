@@ -21,7 +21,7 @@ class Tool(SqlalchemyBase, OrganizationMixin):
     more granular permissions.
     """
 
-    __tablename__ = "tool"
+    __tablename__ = "tools"
     __pydantic_model__ = PydanticTool
 
     # Add unique constraint on (name, _organization_id)

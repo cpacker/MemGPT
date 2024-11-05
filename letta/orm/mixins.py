@@ -20,7 +20,7 @@ class OrganizationMixin(Base):
 
     __abstract__ = True
 
-    organization_id: Mapped[str] = mapped_column(String, ForeignKey("organization.id"))
+    organization_id: Mapped[str] = mapped_column(String, ForeignKey("organizations.id"))
 
 
 class UserMixin(Base):
@@ -28,4 +28,4 @@ class UserMixin(Base):
 
     __abstract__ = True
 
-    user_id: Mapped[str] = mapped_column(String, ForeignKey("user.id"))
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
