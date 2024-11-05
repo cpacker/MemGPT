@@ -109,6 +109,10 @@ def test_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
     client.delete_agent(agent_id=delete_agent.id)
     assert client.agent_exists(agent_id=delete_agent.id) == False, "Agent deletion failed"
 
+    # get agent id
+    agent_id = client.get_agent_id(agent_name=test_agent_name)
+    assert agent_id == agent.id, "Agent ID retrieval failed"
+
 
 def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
