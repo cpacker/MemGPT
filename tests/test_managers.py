@@ -6,12 +6,15 @@ from letta.functions.functions import derive_openai_json_schema, parse_source_co
 from letta.orm.organization import Organization
 from letta.orm.tool import Tool
 from letta.orm.user import User
-from letta.schemas.tool import ToolCreate, ToolUpdate
+from letta.schemas.organization import Organization as PydanticOrganization
+from letta.schemas.tool import Tool as PydanticTool
+from letta.schemas.tool import ToolUpdate
 from letta.services.organization_manager import OrganizationManager
 
 utils.DEBUG = True
 from letta.config import LettaConfig
-from letta.schemas.user import UserCreate, UserUpdate
+from letta.schemas.user import User as PydanticUser
+from letta.schemas.user import UserUpdate
 from letta.server.server import SyncServer
 
 
@@ -47,17 +50,17 @@ def tool_fixture(server: SyncServer):
 
     org = server.organization_manager.create_default_organization()
     user = server.user_manager.create_default_user()
-    other_user = server.user_manager.create_user(UserCreate(name="other", organization_id=org.id))
-    tool_create = ToolCreate(description=description, tags=tags, source_code=source_code, source_type=source_type)
-    derived_json_schema = derive_openai_json_schema(source_code=tool_create.source_code, name=tool_create.name)
+    other_user = server.user_manager.create_user(PydanticUser(name="other", organization_id=org.id))
+    tool = PydanticTool(description=description, tags=tags, source_code=source_code, source_type=source_type)
+    derived_json_schema = derive_openai_json_schema(source_code=tool.source_code, name=tool.name)
     derived_name = derived_json_schema["name"]
-    tool_create.json_schema = derived_json_schema
-    tool_create.name = derived_name
+    tool.json_schema = derived_json_schema
+    tool.name = derived_name
 
-    tool = server.tool_manager.create_tool(tool_create, actor=user)
+    tool = server.tool_manager.create_tool(tool, actor=user)
 
     # Yield the created tool, organization, and user for use in tests
-    yield {"tool": tool, "organization": org, "user": user, "other_user": other_user, "tool_create": tool_create}
+    yield {"tool": tool, "organization": org, "user": user, "other_user": other_user, "tool_create": tool}
 
 
 @pytest.fixture(scope="module")
@@ -76,7 +79,7 @@ def server():
 def test_list_organizations(server: SyncServer):
     # Create a new org and confirm that it is created correctly
     org_name = "test"
-    org = server.organization_manager.create_organization(name=org_name)
+    org = server.organization_manager.create_organization(pydantic_org=PydanticOrganization(name=org_name))
 
     orgs = server.organization_manager.list_organizations()
     assert len(orgs) == 1
@@ -96,15 +99,15 @@ def test_create_default_organization(server: SyncServer):
 def test_update_organization_name(server: SyncServer):
     org_name_a = "a"
     org_name_b = "b"
-    org = server.organization_manager.create_organization(name=org_name_a)
+    org = server.organization_manager.create_organization(pydantic_org=PydanticOrganization(name=org_name_a))
     assert org.name == org_name_a
     org = server.organization_manager.update_organization_name_using_id(org_id=org.id, name=org_name_b)
     assert org.name == org_name_b
 
 
 def test_list_organizations_pagination(server: SyncServer):
-    server.organization_manager.create_organization(name="a")
-    server.organization_manager.create_organization(name="b")
+    server.organization_manager.create_organization(pydantic_org=PydanticOrganization(name="a"))
+    server.organization_manager.create_organization(pydantic_org=PydanticOrganization(name="b"))
 
     orgs_x = server.organization_manager.list_organizations(limit=1)
     assert len(orgs_x) == 1
@@ -125,7 +128,7 @@ def test_list_users(server: SyncServer):
     org = server.organization_manager.create_default_organization()
 
     user_name = "user"
-    user = server.user_manager.create_user(UserCreate(name=user_name, organization_id=org.id))
+    user = server.user_manager.create_user(PydanticUser(name=user_name, organization_id=org.id))
 
     users = server.user_manager.list_users()
     assert len(users) == 1
@@ -146,13 +149,13 @@ def test_create_default_user(server: SyncServer):
 def test_update_user(server: SyncServer):
     # Create default organization
     default_org = server.organization_manager.create_default_organization()
-    test_org = server.organization_manager.create_organization(name="test_org")
+    test_org = server.organization_manager.create_organization(PydanticOrganization(name="test_org"))
 
     user_name_a = "a"
     user_name_b = "b"
 
     # Assert it's been created
-    user = server.user_manager.create_user(UserCreate(name=user_name_a, organization_id=default_org.id))
+    user = server.user_manager.create_user(PydanticUser(name=user_name_a, organization_id=default_org.id))
     assert user.name == user_name_a
 
     # Adjust name
@@ -340,7 +343,6 @@ def test_update_tool_multi_user(server: SyncServer, tool_fixture):
     server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=other_user)
 
     # Check that the created_by and last_updated_by fields are correct
-
     # Fetch the updated tool to verify the changes
     updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=user)
 

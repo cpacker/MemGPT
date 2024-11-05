@@ -4,7 +4,7 @@ from letta.orm.errors import NoResultFound
 from letta.orm.organization import Organization as OrganizationModel
 from letta.orm.user import User as UserModel
 from letta.schemas.user import User as PydanticUser
-from letta.schemas.user import UserCreate, UserUpdate
+from letta.schemas.user import UserUpdate
 from letta.services.organization_manager import OrganizationManager
 from letta.utils import enforce_types
 
@@ -42,10 +42,10 @@ class UserManager:
             return user.to_pydantic()
 
     @enforce_types
-    def create_user(self, user_create: UserCreate) -> PydanticUser:
+    def create_user(self, pydantic_user: PydanticUser) -> PydanticUser:
         """Create a new user if it doesn't already exist."""
         with self.session_maker() as session:
-            new_user = UserModel(**user_create.model_dump())
+            new_user = UserModel(**pydantic_user.model_dump())
             new_user.create(session)
             return new_user.to_pydantic()
 

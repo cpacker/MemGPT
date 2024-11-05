@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,7 +17,7 @@ class User(SqlalchemyBase, OrganizationMixin):
     __tablename__ = "user"
     __pydantic_model__ = PydanticUser
 
-    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: f"user-{uuid4()}")
+    id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False, doc="The display name of the user.")
 
     # relationships

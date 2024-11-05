@@ -824,7 +824,7 @@ class SyncServer(Server):
                 source_type = "python"
                 tags = ["memory", "memgpt-base"]
                 tool = self.tool_manager.create_or_update_tool(
-                    ToolCreate(
+                    Tool(
                         source_code=source_code,
                         source_type=source_type,
                         tags=tags,
@@ -1766,7 +1766,7 @@ class SyncServer(Server):
             tool_creates += ToolCreate.load_default_composio_tools()
         for tool_create in tool_creates:
             try:
-                self.tool_manager.create_or_update_tool(tool_create, actor=actor)
+                self.tool_manager.create_or_update_tool(Tool(**tool_create.model_dump()), actor=actor)
             except Exception as e:
                 warnings.warn(f"An error occurred while creating tool {tool_create}: {e}")
                 warnings.warn(traceback.format_exc())

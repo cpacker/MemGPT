@@ -2267,18 +2267,18 @@ class LocalClient(AbstractClient):
             langchain_tool=langchain_tool,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
         )
-        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
+        return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         tool_create = ToolCreate.from_crewai(
             crewai_tool=crewai_tool,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
         )
-        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
+        return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     def load_composio_tool(self, action: "ActionType") -> Tool:
         tool_create = ToolCreate.from_composio(action=action)
-        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
+        return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
@@ -2310,7 +2310,7 @@ class LocalClient(AbstractClient):
 
         # call server function
         return self.server.tool_manager.create_or_update_tool(
-            ToolCreate(
+            Tool(
                 source_type=source_type,
                 source_code=source_code,
                 name=name,
@@ -2738,7 +2738,7 @@ class LocalClient(AbstractClient):
         return self.server.list_embedding_models()
 
     def create_org(self, name: Optional[str] = None) -> Organization:
-        return self.server.organization_manager.create_organization(name=name)
+        return self.server.organization_manager.create_organization(pydantic_org=Organization(name=name))
 
     def list_orgs(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Organization]:
         return self.server.organization_manager.list_organizations(cursor=cursor, limit=limit)

@@ -33,12 +33,12 @@ class Tool(BaseTool):
 
     """
 
-    id: str = Field(..., description="The id of the tool.")
+    id: str = BaseTool.generate_id_field()
     description: Optional[str] = Field(None, description="The description of the tool.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     module: Optional[str] = Field(None, description="The module of the function.")
-    organization_id: str = Field(..., description="The unique identifier of the organization associated with the tool.")
-    name: str = Field(..., description="The name of the function.")
+    organization_id: Optional[str] = Field(None, description="The unique identifier of the organization associated with the tool.")
+    name: Optional[str] = Field(None, description="The name of the function.")
     tags: List[str] = Field(..., description="Metadata tags.")
 
     # code
@@ -46,8 +46,8 @@ class Tool(BaseTool):
     json_schema: Dict = Field(default_factory=dict, description="The JSON schema of the function.")
 
     # metadata fields
-    created_by_id: str = Field(..., description="The id of the user that made this Tool.")
-    last_updated_by_id: str = Field(..., description="The id of the user that made this Tool.")
+    created_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
+    last_updated_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
 
     def to_dict(self):
         """
