@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List, Literal, Optional, Type
 
-from sqlalchemy import Boolean, String, select
+from sqlalchemy import String, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from letta.log import get_logger
@@ -22,8 +22,6 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     __order_by_default__ = "created_at"
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-
-    deleted: Mapped[bool] = mapped_column(Boolean, default=False, doc="Is this record deleted? Used for universal soft deletes.")
 
     @classmethod
     def list(
