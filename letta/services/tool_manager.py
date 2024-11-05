@@ -177,7 +177,7 @@ class ToolManager:
                 # create to tool
                 tools.append(
                     self.create_or_update_tool(
-                        ToolCreate(
+                        PydanticTool(
                             name=name,
                             tags=tags,
                             source_type="python",
