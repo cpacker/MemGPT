@@ -22,7 +22,7 @@ def get_all_orgs(
     Get a list of all orgs in the database
     """
     try:
-        next_cursor, orgs = server.organization_manager.list_organizations(cursor=cursor, limit=limit)
+        orgs = server.organization_manager.list_organizations(cursor=cursor, limit=limit)
     except HTTPException:
         raise
     except Exception as e:
@@ -38,7 +38,7 @@ def create_org(
     """
     Create a new org in the database
     """
-    org = server.organization_manager.create_organization(request)
+    org = server.organization_manager.create_organization(name=request.name)
     return org
 
 

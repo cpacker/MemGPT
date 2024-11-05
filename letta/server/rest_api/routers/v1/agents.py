@@ -4,7 +4,6 @@ from typing import Dict, List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from starlette.responses import StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
@@ -359,7 +358,20 @@ def update_message(
     return server.update_agent_message(agent_id=agent_id, request=request)
 
 
-@router.post("/{agent_id}/messages", response_model=LettaResponse, operation_id="create_agent_message")
+@router.post(
+    "/{agent_id}/messages",
+    response_model=None,
+    operation_id="create_agent_message",
+    responses={
+        200: {
+            "description": "Successful response",
+            "content": {
+                "application/json": {"$ref": "#/components/schemas/LettaResponse"},  # Use model_json_schema() instead of model directly
+                "text/event-stream": {"description": "Server-Sent Events stream"},
+            },
+        }
+    },
+)
 async def send_message(
     agent_id: str,
     server: SyncServer = Depends(get_letta_server),
@@ -373,16 +385,10 @@ async def send_message(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    # TODO(charles): support sending multiple messages
-    assert len(request.messages) == 1, f"Multiple messages not supported: {request.messages}"
-    request.messages[0]
-
-    return await send_message_to_agent(
+    result = await send_message_to_agent(
         server=server,
         agent_id=agent_id,
         user_id=actor.id,
-        # role=message.role,
-        # message=message.text,
         messages=request.messages,
         stream_steps=request.stream_steps,
         stream_tokens=request.stream_tokens,
@@ -392,6 +398,7 @@ async def send_message(
         assistant_message_function_name=request.assistant_message_function_name,
         assistant_message_function_kwarg=request.assistant_message_function_kwarg,
     )
+    return result
 
 
 # TODO: move this into server.py?
@@ -463,8 +470,12 @@ async def send_message_to_agent(
         # Offload the synchronous message_func to a separate thread
         streaming_interface.stream_start()
         task = asyncio.create_task(
-            # asyncio.to_thread(message_func, user_id=user_id, agent_id=agent_id, message=message, timestamp=timestamp)
-            asyncio.to_thread(server.send_messages, user_id=user_id, agent_id=agent_id, messages=messages)
+            asyncio.to_thread(
+                server.send_messages,
+                user_id=user_id,
+                agent_id=agent_id,
+                messages=messages,
+            )
         )
 
         if stream_steps:
@@ -474,7 +485,11 @@ async def send_message_to_agent(
 
             # return a stream
             return StreamingResponse(
-                sse_async_generator(streaming_interface.get_generator(), finish_message=include_final_message),
+                sse_async_generator(
+                    streaming_interface.get_generator(),
+                    usage_task=task,
+                    finish_message=include_final_message,
+                ),
                 media_type="text/event-stream",
             )
 

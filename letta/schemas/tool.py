@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 
+from composio import LogLevel
 from pydantic import Field
 
 from letta.functions.helpers import (
@@ -7,10 +8,12 @@ from letta.functions.helpers import (
     generate_crewai_tool_wrapper,
     generate_langchain_tool_wrapper,
 )
-from letta.functions.schema_generator import generate_schema_from_args_schema
+from letta.functions.schema_generator import (
+    generate_schema_from_args_schema_v1,
+    generate_schema_from_args_schema_v2,
+)
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.openai.chat_completions import ToolCall
-from letta.services.organization_manager import OrganizationManager
 
 
 class BaseTool(LettaBase):
@@ -69,10 +72,9 @@ class ToolCreate(LettaBase):
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
-    terminal: Optional[bool] = Field(None, description="Whether the tool is a terminal tool (allow requesting heartbeats).")
 
     @classmethod
-    def from_composio(cls, action: "ActionType", organization_id: str = OrganizationManager.DEFAULT_ORG_ID) -> "ToolCreate":
+    def from_composio(cls, action: "ActionType") -> "ToolCreate":
         """
         Class method to create an instance of Letta-compatible Composio Tool.
         Check https://docs.composio.dev/introduction/intro/overview to look at options for from_composio
@@ -86,7 +88,7 @@ class ToolCreate(LettaBase):
         """
         from composio_langchain import ComposioToolSet
 
-        composio_toolset = ComposioToolSet()
+        composio_toolset = ComposioToolSet(logging_level=LogLevel.ERROR)
         composio_tools = composio_toolset.get_tools(actions=[action])
 
         assert len(composio_tools) > 0, "User supplied parameters do not match any Composio tools"
@@ -98,7 +100,7 @@ class ToolCreate(LettaBase):
         source_type = "python"
         tags = ["composio"]
         wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(action)
-        json_schema = generate_schema_from_args_schema(composio_tool.args_schema, name=wrapper_func_name, description=description)
+        json_schema = generate_schema_from_args_schema_v2(composio_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
             name=wrapper_func_name,
@@ -114,7 +116,6 @@ class ToolCreate(LettaBase):
         cls,
         langchain_tool: "LangChainBaseTool",
         additional_imports_module_attr_map: dict[str, str] = None,
-        organization_id: str = OrganizationManager.DEFAULT_ORG_ID,
     ) -> "ToolCreate":
         """
         Class method to create an instance of Tool from a Langchain tool (must be from langchain_community.tools).
@@ -131,7 +132,7 @@ class ToolCreate(LettaBase):
         tags = ["langchain"]
         # NOTE: langchain tools may come from different packages
         wrapper_func_name, wrapper_function_str = generate_langchain_tool_wrapper(langchain_tool, additional_imports_module_attr_map)
-        json_schema = generate_schema_from_args_schema(langchain_tool.args_schema, name=wrapper_func_name, description=description)
+        json_schema = generate_schema_from_args_schema_v1(langchain_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
             name=wrapper_func_name,
@@ -147,7 +148,6 @@ class ToolCreate(LettaBase):
         cls,
         crewai_tool: "CrewAIBaseTool",
         additional_imports_module_attr_map: dict[str, str] = None,
-        organization_id: str = OrganizationManager.DEFAULT_ORG_ID,
     ) -> "ToolCreate":
         """
         Class method to create an instance of Tool from a crewAI BaseTool object.
@@ -162,7 +162,7 @@ class ToolCreate(LettaBase):
         source_type = "python"
         tags = ["crew-ai"]
         wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool, additional_imports_module_attr_map)
-        json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
+        json_schema = generate_schema_from_args_schema_v1(crewai_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
             name=wrapper_func_name,
@@ -212,5 +212,7 @@ class ToolUpdate(LettaBase):
     tags: Optional[List[str]] = Field(None, description="Metadata tags.")
     module: Optional[str] = Field(None, description="The source code of the function.")
     source_code: Optional[str] = Field(None, description="The source code of the function.")
-    json_schema: Optional[Dict] = Field(None, description="The JSON schema of the function.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
+    json_schema: Optional[Dict] = Field(
+        None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
+    )

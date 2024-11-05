@@ -30,6 +30,12 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from letta.schemas.source import Source
+from letta.schemas.tool_rule import (
+    BaseToolRule,
+    InitToolRule,
+    TerminalToolRule,
+    ToolRule,
+)
 from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
@@ -196,6 +202,41 @@ def generate_api_key(prefix="sk-", length=51) -> str:
     return new_key
 
 
+class ToolRulesColumn(TypeDecorator):
+    """Custom type for storing a list of ToolRules as JSON"""
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value: List[BaseToolRule], dialect):
+        """Convert a list of ToolRules to JSON-serializable format."""
+        if value:
+            return [rule.model_dump() for rule in value]
+        return value
+
+    def process_result_value(self, value, dialect) -> List[BaseToolRule]:
+        """Convert JSON back to a list of ToolRules."""
+        if value:
+            return [self.deserialize_tool_rule(rule_data) for rule_data in value]
+        return value
+
+    @staticmethod
+    def deserialize_tool_rule(data: dict) -> BaseToolRule:
+        """Deserialize a dictionary to the appropriate ToolRule subclass based on the 'type'."""
+        rule_type = data.get("type")  # Remove 'type' field if it exists since it is a class var
+        if rule_type == "InitToolRule":
+            return InitToolRule(**data)
+        elif rule_type == "TerminalToolRule":
+            return TerminalToolRule(**data)
+        elif rule_type == "ToolRule":
+            return ToolRule(**data)
+        else:
+            raise ValueError(f"Unknown tool rule type: {rule_type}")
+
+
 class AgentModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
@@ -212,7 +253,6 @@ class AgentModel(Base):
     message_ids = Column(JSON)
     memory = Column(JSON)
     system = Column(String)
-    tools = Column(JSON)
 
     # configs
     agent_type = Column(String)
@@ -224,6 +264,7 @@ class AgentModel(Base):
 
     # tools
     tools = Column(JSON)
+    tool_rules = Column(ToolRulesColumn)
 
     Index(__tablename__ + "_idx_user", user_id),
 
@@ -241,6 +282,7 @@ class AgentModel(Base):
             memory=Memory.load(self.memory),  # load dictionary
             system=self.system,
             tools=self.tools,
+            tool_rules=self.tool_rules,
             agent_type=self.agent_type,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
@@ -306,7 +348,7 @@ class BlockModel(Base):
     id = Column(String, primary_key=True, nullable=False)
     value = Column(String, nullable=False)
     limit = Column(BIGINT)
-    name = Column(String)
+    template_name = Column(String, nullable=True, default=None)
     template = Column(Boolean, default=False)  # True: listed as possible human/persona
     label = Column(String, nullable=False)
     metadata_ = Column(JSON)
@@ -315,7 +357,7 @@ class BlockModel(Base):
     Index(__tablename__ + "_idx_user", user_id),
 
     def __repr__(self) -> str:
-        return f"<Block(id='{self.id}', name='{self.name}', template='{self.template}', label='{self.label}', user_id='{self.user_id}')>"
+        return f"<Block(id='{self.id}', template_name='{self.template_name}', template='{self.template_name}', label='{self.label}', user_id='{self.user_id}')>"
 
     def to_record(self) -> Block:
         if self.label == "persona":
@@ -323,7 +365,7 @@ class BlockModel(Base):
                 id=self.id,
                 value=self.value,
                 limit=self.limit,
-                name=self.name,
+                template_name=self.template_name,
                 template=self.template,
                 label=self.label,
                 metadata_=self.metadata_,
@@ -335,7 +377,7 @@ class BlockModel(Base):
                 id=self.id,
                 value=self.value,
                 limit=self.limit,
-                name=self.name,
+                template_name=self.template_name,
                 template=self.template,
                 label=self.label,
                 metadata_=self.metadata_,
@@ -347,7 +389,7 @@ class BlockModel(Base):
                 id=self.id,
                 value=self.value,
                 limit=self.limit,
-                name=self.name,
+                template_name=self.template_name,
                 template=self.template,
                 label=self.label,
                 metadata_=self.metadata_,
@@ -470,7 +512,7 @@ class MetadataStore:
             # with a given name doesn't exist.
             if (
                 session.query(BlockModel)
-                .filter(BlockModel.name == block.name)
+                .filter(BlockModel.template_name == block.template_name)
                 .filter(BlockModel.user_id == block.user_id)
                 .filter(BlockModel.template == True)
                 .filter(BlockModel.label == block.label)
@@ -478,7 +520,7 @@ class MetadataStore:
                 > 0
             ):
 
-                raise ValueError(f"Block with name {block.name} already exists")
+                raise ValueError(f"Block with name {block.template_name} already exists")
             session.add(BlockModel(**vars(block)))
             session.commit()
 
@@ -616,7 +658,7 @@ class MetadataStore:
         user_id: Optional[str],
         label: Optional[str] = None,
         template: Optional[bool] = None,
-        name: Optional[str] = None,
+        template_name: Optional[str] = None,
         id: Optional[str] = None,
     ) -> Optional[List[Block]]:
         """List available blocks"""
@@ -629,8 +671,8 @@ class MetadataStore:
             if label:
                 query = query.filter(BlockModel.label == label)
 
-            if name:
-                query = query.filter(BlockModel.name == name)
+            if template_name:
+                query = query.filter(BlockModel.template_name == template_name)
 
             if id:
                 query = query.filter(BlockModel.id == id)

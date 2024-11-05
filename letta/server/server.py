@@ -35,8 +35,9 @@ from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
-from letta.metadata import Base, MetadataStore
+from letta.metadata import MetadataStore
 from letta.o1_agent import O1Agent
+from letta.orm import Base
 from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
 from letta.providers import (
@@ -169,6 +170,8 @@ from letta.settings import model_settings, settings, tool_settings
 
 config = LettaConfig.load()
 
+attach_base()
+
 if settings.letta_pg_uri_no_default:
     config.recall_storage_type = "postgres"
     config.recall_storage_uri = settings.letta_pg_uri_no_default
@@ -181,12 +184,9 @@ else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
 
+    Base.metadata.create_all(bind=engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-attach_base()
-
-Base.metadata.create_all(bind=engine)
 
 
 # Dependency
@@ -254,7 +254,7 @@ class SyncServer(Server):
             self.default_org = self.organization_manager.create_default_organization()
             self.default_user = self.user_manager.create_default_user()
             self.add_default_blocks(self.default_user.id)
-            self.tool_manager.add_default_tools(module_name="base", actor=self.default_user)
+            self.tool_manager.add_base_tools(actor=self.default_user)
 
             # If there is a default org/user
             # This logic may have to change in the future
@@ -820,7 +820,7 @@ class SyncServer(Server):
                     continue
                 source_code = parse_source_code(func)
                 # memory functions are not terminal
-                json_schema = generate_schema(func, terminal=False, name=func_name)
+                json_schema = generate_schema(func, name=func_name)
                 source_type = "python"
                 tags = ["memory", "memgpt-base"]
                 tool = self.tool_manager.create_or_update_tool(
@@ -842,6 +842,7 @@ class SyncServer(Server):
                 name=request.name,
                 user_id=user_id,
                 tools=request.tools if request.tools else [],
+                tool_rules=request.tool_rules if request.tool_rules else [],
                 agent_type=request.agent_type or AgentType.memgpt_agent,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
@@ -856,7 +857,10 @@ class SyncServer(Server):
                     agent_state=agent_state,
                     tools=tool_objs,
                     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                    first_message_verify_mono=(
+                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+                    ),
+                    initial_message_sequence=request.initial_message_sequence,
                 )
             elif request.agent_type == AgentType.o1_agent:
                 agent = O1Agent(
@@ -864,7 +868,9 @@ class SyncServer(Server):
                     agent_state=agent_state,
                     tools=tool_objs,
                     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                    first_message_verify_mono=(
+                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+                    ),
                 )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
@@ -1083,7 +1089,7 @@ class SyncServer(Server):
         id: Optional[str] = None,
     ) -> Optional[List[Block]]:
 
-        return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+        return self.ms.get_blocks(user_id=user_id, label=label, template=template, template_name=name, id=id)
 
     def get_block(self, block_id: str):
 
@@ -1095,14 +1101,18 @@ class SyncServer(Server):
         return blocks[0]
 
     def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_blocks = self.ms.get_blocks(name=request.name, user_id=user_id, template=request.template, label=request.label)
-        if existing_blocks is not None:
+        existing_blocks = self.ms.get_blocks(
+            template_name=request.template_name, user_id=user_id, template=request.template, label=request.label
+        )
+
+        # for templates, update existing block template if exists
+        if existing_blocks is not None and request.template:
             existing_block = existing_blocks[0]
             assert len(existing_blocks) == 1
             if update:
                 return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
             else:
-                raise ValueError(f"Block with name {request.name} already exists")
+                raise ValueError(f"Block with name {request.template_name} already exists")
         block = Block(**vars(request))
         self.ms.create_block(block)
         return block
@@ -1111,7 +1121,7 @@ class SyncServer(Server):
         block = self.get_block(request.id)
         block.limit = request.limit if request.limit is not None else block.limit
         block.value = request.value if request.value is not None else block.value
-        block.name = request.name if request.name is not None else block.name
+        block.template_name = request.template_name if request.template_name is not None else block.template_name
         self.ms.update_block(block=block)
         return self.ms.get_block(block_id=request.id)
 
@@ -1772,12 +1782,12 @@ class SyncServer(Server):
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_block(CreatePersona(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            self.create_block(CreatePersona(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            self.create_block(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            self.create_block(CreateHuman(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
 
     def get_agent_message(self, agent_id: str, message_id: str) -> Optional[Message]:
         """Get a single message from the agent's memory"""
@@ -1792,43 +1802,6 @@ class SyncServer(Server):
         # Get the current message
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.update_message(request=request)
-
-        # TODO decide whether this should be done in the server.py or agent.py
-        # Reason to put it in agent.py:
-        # - we use the agent object's persistence_manager to update the message
-        # - it makes it easy to do things like `retry`, `rethink`, etc.
-        # Reason to put it in server.py:
-        # - fundamentally, we should be able to edit a message (without agent id)
-        #   in the server by directly accessing the DB / message store
-        """
-        message = letta_agent.persistence_manager.recall_memory.storage.get(id=request.id)
-        if message is None:
-            raise ValueError(f"Message with id {request.id} not found")
-
-        # Override fields
-        # NOTE: we try to do some sanity checking here (see asserts), but it's not foolproof
-        if request.role:
-            message.role = request.role
-        if request.text:
-            message.text = request.text
-        if request.name:
-            message.name = request.name
-        if request.tool_calls:
-            assert message.role == MessageRole.assistant, "Tool calls can only be added to assistant messages"
-            message.tool_calls = request.tool_calls
-        if request.tool_call_id:
-            assert message.role == MessageRole.tool, "tool_call_id can only be added to tool messages"
-            message.tool_call_id = request.tool_call_id
-
-        # Save the updated message
-        letta_agent.persistence_manager.recall_memory.storage.update(record=message)
-
-        # Return the updated message
-        updated_message = letta_agent.persistence_manager.recall_memory.storage.get(id=message.id)
-        if updated_message is None:
-            raise ValueError(f"Error persisting message - message with id {request.id} not found")
-        return updated_message
-        """
 
     def rewrite_agent_message(self, agent_id: str, new_text: str) -> Message:
 

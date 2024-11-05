@@ -8,17 +8,28 @@ import pytest
 from dotenv import load_dotenv
 
 from letta import create_client
+from letta.agent import initialize_message_sequence
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import MessageStreamStatus
-from letta.schemas.letta_message import FunctionCallMessage, InternalMonologue
+from letta.schemas.enums import MessageRole, MessageStreamStatus
+from letta.schemas.letta_message import (
+    AssistantMessage,
+    FunctionCallMessage,
+    FunctionReturn,
+    InternalMonologue,
+    LettaMessage,
+    SystemMessage,
+    UserMessage,
+)
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
+from letta.services.tool_manager import ToolManager
 from letta.settings import model_settings
+from letta.utils import get_utc_time
 from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
@@ -121,6 +132,9 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
     message = "Hello, agent!"
     print("Sending message", message)
     response = client.user_message(agent_id=agent.id, message=message, include_full_message=True)
+    # Check the types coming back
+    assert all([isinstance(m, Message) for m in response.messages]), "All messages should be Message"
+
     print("Response", response)
     assert isinstance(response.usage, LettaUsageStatistics)
     assert response.usage.step_count == 1
@@ -128,6 +142,25 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
     assert response.usage.completion_tokens > 0
     assert isinstance(response.messages[0], Message)
     print(response.messages)
+
+    # test that it also works with LettaMessage
+    message = "Hello again, agent!"
+    print("Sending message", message)
+    response = client.user_message(agent_id=agent.id, message=message, include_full_message=False)
+    assert all([isinstance(m, LettaMessage) for m in response.messages]), "All messages should be LettaMessages"
+
+    # We should also check that the types were cast properly
+    print("RESPONSE MESSAGES, client type:", type(client))
+    print(response.messages)
+    for letta_message in response.messages:
+        assert type(letta_message) in [
+            SystemMessage,
+            UserMessage,
+            InternalMonologue,
+            FunctionCallMessage,
+            FunctionReturn,
+            AssistantMessage,
+        ], f"Unexpected message type: {type(letta_message)}"
 
     # TODO: add streaming tests
 
@@ -229,6 +262,12 @@ def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: A
             elif chunk == MessageStreamStatus.done_generation:
                 assert not done_gen, "Message stream already done generation"
                 done_gen = True
+        if isinstance(chunk, LettaUsageStatistics):
+            # Some rough metrics for a reasonable usage pattern
+            assert chunk.step_count == 1
+            assert chunk.completion_tokens > 10
+            assert chunk.prompt_tokens > 1000
+            assert chunk.total_tokens > 1000
 
     assert inner_thoughts_exist, "No inner thoughts found"
     assert send_message_ran, "send_message function call not found"
@@ -251,7 +290,7 @@ def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentSta
     if persona_id:
         client.delete_persona(persona_id)
     persona = client.create_persona(name=persona_name, text="Persona text")
-    assert persona.name == persona_name
+    assert persona.template_name == persona_name
     assert persona.value == "Persona text", "Creating persona failed"
 
     human_name = "TestHuman"
@@ -259,11 +298,11 @@ def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentSta
     if human_id:
         client.delete_human(human_id)
     human = client.create_human(name=human_name, text="Human text")
-    assert human.name == human_name
+    assert human.template_name == human_name
     assert human.value == "Human text", "Creating human failed"
 
 
-def test_list_tools_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_list_tools_pagination(client: Union[LocalClient, RESTClient]):
     tools = client.list_tools()
     visited_ids = {t.id: False for t in tools}
 
@@ -283,6 +322,13 @@ def test_list_tools_pagination(client: Union[LocalClient, RESTClient], agent: Ag
 
     # Assert that everything has been visited
     assert all(visited_ids.values())
+
+
+def test_list_tools(client: Union[LocalClient, RESTClient]):
+    tools = client.add_base_tools()
+    tool_names = [t.name for t in tools]
+    expected = ToolManager.BASE_TOOL_NAMES
+    assert sorted(tool_names) == sorted(expected)
 
 
 def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
@@ -488,6 +534,21 @@ def test_organization(client: RESTClient):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_organization because LocalClient does not support organizations")
 
+    # create an organization
+    org_name = "test-org"
+    org = client.create_org(org_name)
+
+    # assert the id appears
+    orgs = client.list_orgs()
+    assert org.id in [o.id for o in orgs]
+
+    org = client.delete_org(org.id)
+    assert org.name == org_name
+
+    # assert the id is gone
+    orgs = client.list_orgs()
+    assert not (org.id in [o.id for o in orgs])
+
 
 def test_list_llm_models(client: RESTClient):
     """Test that if the user's env has the right api keys set, at least one model appears in the model list"""
@@ -506,3 +567,108 @@ def test_list_llm_models(client: RESTClient):
         assert has_model_endpoint_type(models, "google_ai")
     if model_settings.anthropic_api_key:
         assert has_model_endpoint_type(models, "anthropic")
+
+
+def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState):
+    # _reset_config()
+
+    # create a block
+    block = client.create_block(label="human", text="username: sarah")
+
+    # create agents with shared block
+    from letta.schemas.memory import BasicBlockMemory
+
+    persona1_block = client.create_block(label="persona", text="you are agent 1")
+    persona2_block = client.create_block(label="persona", text="you are agent 2")
+
+    # create agnets
+    agent_state1 = client.create_agent(name="agent1", memory=BasicBlockMemory(blocks=[block, persona1_block]))
+    agent_state2 = client.create_agent(name="agent2", memory=BasicBlockMemory(blocks=[block, persona2_block]))
+
+    # update memory
+    response = client.user_message(agent_id=agent_state1.id, message="my name is actually charles")
+
+    # check agent 2 memory
+    assert "charles" in client.get_block(block.id).value.lower(), f"Shared block update failed {client.get_block(block.id).value}"
+
+    response = client.user_message(agent_id=agent_state2.id, message="whats my name?")
+    assert (
+        "charles" in client.get_core_memory(agent_state2.id).get_block("human").value.lower()
+    ), f"Shared block update failed {client.get_core_memory(agent_state2.id).get_block('human').value}"
+    # assert "charles" in response.messages[1].text.lower(), f"Shared block update failed {response.messages[0].text}"
+
+    # cleanup
+    client.delete_agent(agent_state1.id)
+    client.delete_agent(agent_state2.id)
+
+
+@pytest.fixture
+def cleanup_agents():
+    created_agents = []
+    yield created_agents
+    # Cleanup will run even if test fails
+    for agent_id in created_agents:
+        try:
+            client.delete_agent(agent_id)
+        except Exception as e:
+            print(f"Failed to delete agent {agent_id}: {e}")
+
+
+def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState, cleanup_agents: List[str]):
+    """Test that we can set an initial message sequence
+
+    If we pass in None, we should get a "default" message sequence
+    If we pass in a non-empty list, we should get that sequence
+    If we pass in an empty list, we should get an empty sequence
+    """
+
+    # The reference initial message sequence:
+    reference_init_messages = initialize_message_sequence(
+        model=agent.llm_config.model,
+        system=agent.system,
+        memory=agent.memory,
+        archival_memory=None,
+        recall_memory=None,
+        memory_edit_timestamp=get_utc_time(),
+        include_initial_boot_message=True,
+    )
+
+    # system, login message, send_message test, send_message receipt
+    assert len(reference_init_messages) > 0
+    assert len(reference_init_messages) == 4, f"Expected 4 messages, got {len(reference_init_messages)}"
+
+    # Test with default sequence
+    default_agent_state = client.create_agent(name="test-default-message-sequence", initial_message_sequence=None)
+    cleanup_agents.append(default_agent_state.id)
+    assert default_agent_state.message_ids is not None
+    assert len(default_agent_state.message_ids) > 0
+    assert len(default_agent_state.message_ids) == len(
+        reference_init_messages
+    ), f"Expected {len(reference_init_messages)} messages, got {len(default_agent_state.message_ids)}"
+
+    # Test with empty sequence
+    empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
+    cleanup_agents.append(empty_agent_state.id)
+    assert empty_agent_state.message_ids is not None
+    assert len(empty_agent_state.message_ids) == 1, f"Expected 0 messages, got {len(empty_agent_state.message_ids)}"
+
+    # Test with custom sequence
+    custom_sequence = [
+        Message(
+            role=MessageRole.user,
+            text="Hello, how are you?",
+            user_id=agent.user_id,
+            agent_id=agent.id,
+            model=agent.llm_config.model,
+            name=None,
+            tool_calls=None,
+            tool_call_id=None,
+        ),
+    ]
+    custom_agent_state = client.create_agent(name="test-custom-message-sequence", initial_message_sequence=custom_sequence)
+    cleanup_agents.append(custom_agent_state.id)
+    assert custom_agent_state.message_ids is not None
+    assert (
+        len(custom_agent_state.message_ids) == len(custom_sequence) + 1
+    ), f"Expected {len(custom_sequence) + 1} messages, got {len(custom_agent_state.message_ids)}"
+    assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]

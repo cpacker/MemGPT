@@ -97,7 +97,6 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
         [
             "archival_memory_search",
             "send_message",
-            "pause_heartbeats",
             "conversation_search",
             "conversation_search_date",
             "archival_memory_insert",
@@ -140,7 +139,7 @@ def test_create_agent_tool(client):
         return None
 
     # TODO: test attaching and using function on agent
-    tool = client.create_tool(core_memory_clear, tags=["extras"], update=True)
+    tool = client.create_tool(core_memory_clear, tags=["extras"])
     print(f"Created tool", tool.name)
 
     # create agent with tool

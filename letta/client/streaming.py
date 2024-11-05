@@ -13,6 +13,7 @@ from letta.schemas.letta_message import (
     InternalMonologue,
 )
 from letta.schemas.letta_response import LettaStreamingResponse
+from letta.schemas.usage import LettaUsageStatistics
 
 
 def _sse_post(url: str, data: dict, headers: dict) -> Generator[LettaStreamingResponse, None, None]:
@@ -58,6 +59,8 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[LettaStreamingRe
                             yield FunctionCallMessage(**chunk_data)
                         elif "function_return" in chunk_data:
                             yield FunctionReturn(**chunk_data)
+                        elif "usage" in chunk_data:
+                            yield LettaUsageStatistics(**chunk_data["usage"])
                         else:
                             raise ValueError(f"Unknown message type in chunk_data: {chunk_data}")
 

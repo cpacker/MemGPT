@@ -20,6 +20,7 @@ from letta.constants import (
     REQ_HEARTBEAT_MESSAGE,
 )
 from letta.errors import LLMError
+from letta.helpers import ToolRulesSolver
 from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
@@ -43,6 +44,7 @@ from letta.schemas.openai.chat_completion_response import (
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.passage import Passage
 from letta.schemas.tool import Tool
+from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
 from letta.system import (
     get_heartbeat,
@@ -233,6 +235,7 @@ class Agent(BaseAgent):
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
+        initial_message_sequence: Optional[List[Message]] = None,
     ):
         assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
         # Hold a copy of the state that was used to init the agent
@@ -241,6 +244,14 @@ class Agent(BaseAgent):
 
         # link tools
         self.link_tools(tools)
+
+        # initialize a tool rules solver
+        if agent_state.tool_rules:
+            # if there are tool rules, print out a warning
+            warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
+        # add default rule for having send_message be a terminal tool
+        agent_state.tool_rules.append(TerminalToolRule(tool_name="send_message"))
+        self.tool_rules_solver = ToolRulesSolver(tool_rules=agent_state.tool_rules)
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
@@ -284,6 +295,7 @@ class Agent(BaseAgent):
 
         else:
             printd(f"Agent.__init__ :: creating, state={agent_state.message_ids}")
+            assert self.agent_state.id is not None and self.agent_state.user_id is not None
 
             # Generate a sequence of initial messages to put in the buffer
             init_messages = initialize_message_sequence(
@@ -296,14 +308,40 @@ class Agent(BaseAgent):
                 include_initial_boot_message=True,
             )
 
-            # Cast the messages to actual Message objects to be synced to the DB
-            init_messages_objs = []
-            for msg in init_messages:
-                init_messages_objs.append(
+            if initial_message_sequence is not None:
+                # We always need the system prompt up front
+                system_message_obj = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=init_messages[0],
+                )
+                # Don't use anything else in the pregen sequence, instead use the provided sequence
+                init_messages = [system_message_obj] + initial_message_sequence
+
+            else:
+                # Basic "more human than human" initial message sequence
+                init_messages = initialize_message_sequence(
+                    model=self.model,
+                    system=self.system,
+                    memory=self.memory,
+                    archival_memory=None,
+                    recall_memory=None,
+                    memory_edit_timestamp=get_utc_time(),
+                    include_initial_boot_message=True,
+                )
+                # Cast to Message objects
+                init_messages = [
                     Message.dict_to_message(
                         agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=msg
                     )
-                )
+                    for msg in init_messages
+                ]
+
+            # Cast the messages to actual Message objects to be synced to the DB
+            init_messages_objs = []
+            for msg in init_messages:
+                init_messages_objs.append(msg)
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
 
             # Put the messages inside the message buffer
@@ -465,15 +503,26 @@ class Agent(BaseAgent):
         function_call: str = "auto",
         first_message: bool = False,  # hint
         stream: bool = False,  # TODO move to config?
+        fail_on_empty_response: bool = False,
+        empty_response_retry_limit: int = 3,
     ) -> ChatCompletionResponse:
         """Get response from LLM API"""
+        # Get the allowed tools based on the ToolRulesSolver state
+        allowed_tool_names = self.tool_rules_solver.get_allowed_tool_names()
+
+        if not allowed_tool_names:
+            # if it's empty, any available tools are fair game
+            allowed_functions = self.functions
+        else:
+            allowed_functions = [func for func in self.functions if func["name"] in allowed_tool_names]
+
         try:
             response = create(
                 # agent_state=self.agent_state,
                 llm_config=self.agent_state.llm_config,
                 messages=message_sequence,
                 user_id=self.agent_state.user_id,
-                functions=self.functions,
+                functions=allowed_functions,
                 functions_python=self.functions_python,
                 function_call=function_call,
                 # hint
@@ -484,7 +533,15 @@ class Agent(BaseAgent):
             )
 
             if len(response.choices) == 0 or response.choices[0] is None:
-                raise Exception(f"API call didn't return a message: {response}")
+                empty_api_err_message = f"API call didn't return a message: {response}"
+                if fail_on_empty_response or empty_response_retry_limit == 0:
+                    raise Exception(empty_api_err_message)
+                else:
+                    # Decrement retry limit and try again
+                    warnings.warn(empty_api_err_message)
+                    return self._get_ai_reply(
+                        message_sequence, function_call, first_message, stream, fail_on_empty_response, empty_response_retry_limit - 1
+                    )
 
             # special case for 'length'
             if response.choices[0].finish_reason == "length":
@@ -515,6 +572,7 @@ class Agent(BaseAgent):
             assert response_message_id.startswith("message-"), response_message_id
 
         messages = []  # append these to the history when done
+        function_name = None
 
         # Step 2: check if LLM wanted to call a function
         if response_message.function_call or (response_message.tool_calls is not None and len(response_message.tool_calls) > 0):
@@ -723,6 +781,15 @@ class Agent(BaseAgent):
         # rebuild memory
         # TODO: @charles please check this
         self.rebuild_memory()
+
+        # Update ToolRulesSolver state with last called function
+        self.tool_rules_solver.update_tool_usage(function_name)
+
+        # Update heartbeat request according to provided tool rules
+        if self.tool_rules_solver.has_children_tools(function_name):
+            heartbeat_request = True
+        elif self.tool_rules_solver.is_terminal_tool(function_name):
+            heartbeat_request = False
 
         return messages, heartbeat_request, function_failed
 
