@@ -612,7 +612,12 @@ class RESTClient(AbstractClient):
             agent_id (str): ID of the agent
         """
         # TODO: implement this
-        raise NotImplementedError
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers, params={"name": agent_name})
+        agents = [AgentState(**agent) for agent in response.json()]
+        if len(agents) == 0:
+            return None
+        assert len(agents) == 1, f"Multiple agents with the same name: {agents}"
+        return agents[0].id
 
     # memory
     def get_in_context_memory(self, agent_id: str) -> Memory:
