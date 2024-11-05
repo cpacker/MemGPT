@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING, List
+from uuid import uuid4
 
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.sqlalchemy_base import SqlalchemyBase
@@ -17,6 +19,7 @@ class Organization(SqlalchemyBase):
     __tablename__ = "organization"
     __pydantic_model__ = PydanticOrganization
 
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: f"org-{uuid4()}")
     name: Mapped[str] = mapped_column(doc="The display name of the organization.")
 
     users: Mapped[List["User"]] = relationship("User", back_populates="organization", cascade="all, delete-orphan")

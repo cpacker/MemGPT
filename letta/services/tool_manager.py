@@ -7,7 +7,6 @@ from letta.functions.functions import derive_openai_json_schema, load_function_s
 
 # TODO: Remove this once we translate all of these to the ORM
 from letta.orm.errors import NoResultFound
-from letta.orm.organization import Organization as OrganizationModel
 from letta.orm.tool import Tool as ToolModel
 from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolCreate, ToolUpdate
@@ -99,7 +98,7 @@ class ToolManager:
                 db_session=session,
                 cursor=cursor,
                 limit=limit,
-                _organization_id=OrganizationModel.get_uid_from_identifier(actor.organization_id),
+                organization_id=actor.organization_id,
             )
             return [tool.to_pydantic() for tool in tools]
 

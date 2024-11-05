@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, List, Optional
+from uuid import uuid4
 
 from sqlalchemy import JSON, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,8 +27,9 @@ class Tool(SqlalchemyBase, OrganizationMixin):
 
     # Add unique constraint on (name, _organization_id)
     # An organization should not have multiple tools with the same name
-    __table_args__ = (UniqueConstraint("name", "_organization_id", name="uix_name_organization"),)
+    __table_args__ = (UniqueConstraint("name", "organization_id", name="uix_name_organization"),)
 
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: f"tool-{uuid4()}")
     name: Mapped[str] = mapped_column(doc="The display name of the tool.")
     description: Mapped[Optional[str]] = mapped_column(nullable=True, doc="The description of the tool.")
     tags: Mapped[List] = mapped_column(JSON, doc="Metadata tags used to filter tools.")
