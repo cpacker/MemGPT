@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import Field
@@ -37,6 +38,8 @@ class Source(BaseSource):
     # metadata fields
     created_by_id: str = Field(..., description="The id of the user that made this Tool.")
     last_updated_by_id: str = Field(..., description="The id of the user that made this Tool.")
+    created_at: Optional[datetime] = Field(None, description="The timestamp when the source was created.")
+    updated_at: Optional[datetime] = Field(None, description="The timestamp when the source was last updated.")
 
 
 class SourceCreate(BaseSource):
@@ -46,7 +49,7 @@ class SourceCreate(BaseSource):
 
     # required
     name: str = Field(..., description="The name of the source.")
-    embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the source.")
+    embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the source.")
 
     # optional
     description: Optional[str] = Field(None, description="The description of the source.")

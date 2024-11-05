@@ -47,7 +47,7 @@ def load_data(
     passage_store: StorageConnector,
     file_metadata_store: StorageConnector,
 ):
-    """Load data from a connector (generates file and passages) into a specified source_id, associatedw with a user_id."""
+    """Load data from a connector (generates file and passages) into a specified source_id, associated with a user_id."""
     embedding_config = source.embedding_config
 
     # embedding model

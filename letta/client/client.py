@@ -2439,7 +2439,7 @@ class LocalClient(AbstractClient):
             source (Source): Created source
         """
         request = SourceCreate(name=name)
-        return self.server.create_source(request=request, user_id=self.user_id)
+        return self.server.source_manager.create_source(request=request, actor=actor)
 
     def delete_source(self, source_id: str):
         """
@@ -2450,7 +2450,7 @@ class LocalClient(AbstractClient):
         """
 
         # TODO: delete source data
-        self.server.delete_source(source_id=source_id, user_id=self.user_id)
+        self.server.delete_source(source_id=source_id, actor=self.user)
 
     def get_source(self, source_id: str) -> Source:
         """
@@ -2462,7 +2462,7 @@ class LocalClient(AbstractClient):
         Returns:
             source (Source): Source
         """
-        return self.server.get_source(source_id=source_id, user_id=self.user_id)
+        return self.server.source_manager.get_source_by_id(source_id=source_id, actor=self.user)
 
     def get_source_id(self, source_name: str) -> str:
         """
@@ -2474,7 +2474,7 @@ class LocalClient(AbstractClient):
         Returns:
             source_id (str): ID of the source
         """
-        return self.server.get_source_id(source_name=source_name, user_id=self.user_id)
+        return self.server.source_manager.get_source_by_name(source_name=source_name, actor=self.user).id
 
     def attach_source_to_agent(self, agent_id: str, source_id: Optional[str] = None, source_name: Optional[str] = None):
         """
@@ -2507,7 +2507,7 @@ class LocalClient(AbstractClient):
             sources (List[Source]): List of sources
         """
 
-        return self.server.list_all_sources(user_id=self.user_id)
+        return self.server.list_all_sources(actor=self.user)
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         """
@@ -2547,8 +2547,8 @@ class LocalClient(AbstractClient):
             source (Source): Updated source
         """
         # TODO should the arg here just be "source_update: Source"?
-        request = SourceUpdate(id=source_id, name=name)
-        return self.server.update_source(request=request, user_id=self.user_id)
+        request = SourceUpdate(name=name)
+        return self.server.source_manager.update_source(source_id=source_id, source_update=request, actor=self.user)
 
     # archival memory
 

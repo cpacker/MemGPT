@@ -117,7 +117,7 @@ def test_user_message_memory(server, user_id, agent_id):
 @pytest.mark.order(3)
 def test_load_data(server, user_id, agent_id):
     # create source
-    source = server.create_source(SourceCreate(name="test_source"), user_id=user_id)
+    source = server.source_manager.create_source(SourceCreate(name="test_source"), actor=server.default_user)
 
     # load data
     archival_memories = [
