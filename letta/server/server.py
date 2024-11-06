@@ -935,32 +935,26 @@ class SyncServer(Server):
             # Replace tools and also re-link
 
             # (1) get tools + make sure they exist
-            print("UPDATED TOOL LIST", request.tools)
-            added_tools = []
-            removed_tools = []
-            for tool_name in request.tools:
-                if tool_name in letta_agent.agent_state.tools:
-                    continue
-                tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
-                assert tool_obj, f"Tool {tool_name} does not exist"
-                added_tools.append(tool_obj)
+            # Current and target tools as sets of tool names
+            current_tools = set(letta_agent.agent_state.tools)
+            target_tools = set(request.tools)
 
-            for tool_name in letta_agent.agent_state.tools:
-                if tool_name in request.tools:
-                    continue
-                tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
-                assert tool_obj, f"Tool {tool_name} does not exist"
-                removed_tools.append(tool_obj)
+            # Calculate tools to add and remove
+            tools_to_add = target_tools - current_tools
+            tools_to_remove = current_tools - target_tools
+
+            # Fetch tool objects for those to add and remove
+            tools_to_add = [self.tool_manager.get_tool_by_name(tool_name=tool, actor=actor) for tool in tools_to_add]
+            tools_to_remove = [self.tool_manager.get_tool_by_name(tool_name=tool, actor=actor) for tool in tools_to_remove]
 
             # update agent tool list
-            for tool in removed_tools:
+            for tool in tools_to_remove:
                 self.remove_tool_from_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
-            for tool in added_tools:
+            for tool in tools_to_add:
                 self.add_tool_to_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
 
             # reload agent
             letta_agent = self._get_or_load_agent(agent_id=request.id)
-            print("CURRENT TOOLS", letta_agent.agent_state.tools)
 
         # configs
         if request.llm_config:

@@ -216,3 +216,6 @@ class ToolUpdate(LettaBase):
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
+
+    class Config:
+        extra = "ignore"  # Allows extra fields without validation errors, good for back-compat, horrible for stability

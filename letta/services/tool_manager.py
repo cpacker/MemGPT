@@ -105,7 +105,7 @@ class ToolManager:
             return [tool.to_pydantic() for tool in tools]
 
     @enforce_types
-    def update_tool_by_id(self, tool_id: str, tool_update: ToolUpdate, actor: PydanticUser) -> None:
+    def update_tool_by_id(self, tool_id: str, tool_update: ToolUpdate, actor: PydanticUser) -> PydanticTool:
         """Update a tool by its ID with the given ToolUpdate object."""
         with self.session_maker() as session:
             # Fetch the tool by ID
@@ -133,7 +133,7 @@ class ToolManager:
                 tool.json_schema = new_schema
 
             # Save the updated tool to the database
-            tool.update(db_session=session, actor=actor)
+            return tool.update(db_session=session, actor=actor)
 
     @enforce_types
     def delete_tool_by_id(self, tool_id: str, actor: PydanticUser) -> None:
