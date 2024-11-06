@@ -2,15 +2,13 @@ name: "Letta Web Compatibilty Checker"
 
 on:
   push:
-      branches:
-        - main
+    branches: [ main ]
   pull_request:
-      branches:
-        - main
+    branches: [ main ]
 
 jobs:
   call-workflow-passing-data:
-    uses: letta-ai/letta-web/.github/workflows/cypress.yml
+    uses: letta-ai/letta-web/.github/workflows/cypress.yml@main
     secrets:
       PULLER_TOKEN: ${{ secrets.PULLER_TOKEN }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
