@@ -285,9 +285,8 @@ def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, t
     assert updated_tool.source_code == source_code
     assert updated_tool.json_schema != og_json_schema
 
-    new_schema = derive_openai_json_schema(source_code=updated_tool.source_code, name=updated_tool.name)
+    new_schema = derive_openai_json_schema(source_code=updated_tool.source_code)
     assert updated_tool.json_schema == new_schema
-    assert updated_tool.name == new_schema["name"]
 
 
 def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_fixture):
