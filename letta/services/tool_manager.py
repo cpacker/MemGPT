@@ -7,10 +7,9 @@ from letta.functions.functions import derive_openai_json_schema, load_function_s
 
 # TODO: Remove this once we translate all of these to the ORM
 from letta.orm.errors import NoResultFound
-from letta.orm.organization import Organization as OrganizationModel
 from letta.orm.tool import Tool as ToolModel
 from letta.schemas.tool import Tool as PydanticTool
-from letta.schemas.tool import ToolCreate, ToolUpdate
+from letta.schemas.tool import ToolUpdate
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types, printd
 
@@ -33,20 +32,20 @@ class ToolManager:
         self.session_maker = db_context
 
     @enforce_types
-    def create_or_update_tool(self, tool_create: ToolCreate, actor: PydanticUser) -> PydanticTool:
+    def create_or_update_tool(self, pydantic_tool: PydanticTool, actor: PydanticUser) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
         # Derive json_schema
-        derived_json_schema = tool_create.json_schema or derive_openai_json_schema(
-            source_code=tool_create.source_code, name=tool_create.name
+        derived_json_schema = pydantic_tool.json_schema or derive_openai_json_schema(
+            source_code=pydantic_tool.source_code, name=pydantic_tool.name
         )
-        derived_name = tool_create.name or derived_json_schema["name"]
+        derived_name = pydantic_tool.name or derived_json_schema["name"]
 
         try:
             # NOTE: We use the organization id here
             # This is important, because even if it's a different user, adding the same tool to the org should not happen
             tool = self.get_tool_by_name(tool_name=derived_name, actor=actor)
             # Put to dict and remove fields that should not be reset
-            update_data = tool_create.model_dump(exclude={"module"}, exclude_unset=True)
+            update_data = pydantic_tool.model_dump(exclude={"module"}, exclude_unset=True, exclude_none=True)
             # Remove redundant update fields
             update_data = {key: value for key, value in update_data.items() if getattr(tool, key) != value}
 
@@ -55,22 +54,24 @@ class ToolManager:
                 self.update_tool_by_id(tool.id, ToolUpdate(**update_data), actor)
             else:
                 printd(
-                    f"`create_or_update_tool` was called with user_id={actor.id}, organization_id={actor.organization_id}, name={tool_create.name}, but found existing tool with nothing to update."
+                    f"`create_or_update_tool` was called with user_id={actor.id}, organization_id={actor.organization_id}, name={pydantic_tool.name}, but found existing tool with nothing to update."
                 )
         except NoResultFound:
-            tool_create.json_schema = derived_json_schema
-            tool_create.name = derived_name
-            tool = self.create_tool(tool_create, actor=actor)
+            pydantic_tool.json_schema = derived_json_schema
+            pydantic_tool.name = derived_name
+            tool = self.create_tool(pydantic_tool, actor=actor)
 
         return tool
 
     @enforce_types
-    def create_tool(self, tool_create: ToolCreate, actor: PydanticUser) -> PydanticTool:
+    def create_tool(self, pydantic_tool: PydanticTool, actor: PydanticUser) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
         # Create the tool
         with self.session_maker() as session:
-            create_data = tool_create.model_dump()
-            tool = ToolModel(**create_data, organization_id=actor.organization_id)  # Unpack everything directly into ToolModel
+            # Set the organization id at the ORM layer
+            pydantic_tool.organization_id = actor.organization_id
+            tool_data = pydantic_tool.model_dump()
+            tool = ToolModel(**tool_data)
             tool.create(session, actor=actor)
 
         return tool.to_pydantic()
@@ -99,7 +100,7 @@ class ToolManager:
                 db_session=session,
                 cursor=cursor,
                 limit=limit,
-                _organization_id=OrganizationModel.get_uid_from_identifier(actor.organization_id),
+                organization_id=actor.organization_id,
             )
             return [tool.to_pydantic() for tool in tools]
 
@@ -176,7 +177,7 @@ class ToolManager:
                 # create to tool
                 tools.append(
                     self.create_or_update_tool(
-                        ToolCreate(
+                        PydanticTool(
                             name=name,
                             tags=tags,
                             source_type="python",

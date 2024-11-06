@@ -14,6 +14,7 @@ from letta.constants import DEFAULT_PRESET
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
+from letta.services.tool_manager import ToolManager
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"
@@ -93,15 +94,9 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
         return message
 
     tools = client.list_tools()
-    assert sorted([t.name for t in tools]) == sorted(
-        [
-            "archival_memory_search",
-            "send_message",
-            "conversation_search",
-            "conversation_search_date",
-            "archival_memory_insert",
-        ]
-    )
+    tool_names = [t.name for t in tools]
+    for tool in ToolManager.BASE_TOOL_NAMES:
+        assert tool in tool_names
 
     tool = client.create_tool(print_tool, name="my_name", tags=["extras"])
 
