@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  call-workflow-passing-data:
-    uses: letta-ai/letta-web/.github/workflows/cypress.yml@main
+  check-letta-web-compatibility:
+    uses: letta-ai/letta-agents/.github/workflows/cypress.yml@main
     secrets:
       PULLER_TOKEN: ${{ secrets.PULLER_TOKEN }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
