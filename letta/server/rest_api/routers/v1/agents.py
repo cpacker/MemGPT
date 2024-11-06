@@ -7,7 +7,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from letta.schemas.agents_tags import AgentsTags, AgentsTagsCreate
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
@@ -39,61 +38,10 @@ from letta.utils import deduplicate
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-@router.post("/{agent_id}/tags", response_model=AgentsTags, operation_id="add_tag_to_agent")
-def add_tag_to_agent(
-    agent_id: str,
-    request: AgentsTagsCreate = Body(...),
-    server: "SyncServer" = Depends(get_letta_server),
-    user_id: Optional[str] = Header(None, alias="user_id"),
-):
-    actor = server.get_user_or_default(user_id=user_id)
-    return server.agents_tags_manager.add_tag_to_agent(agent_id=agent_id, tag=request.tag, actor=actor)
-
-
-@router.delete("/{agent_id}/tags", response_model=None, operation_id="delete_all_tags_from_agent")
-def delete_all_tags_from_agent(
-    agent_id: str,
-    server: "SyncServer" = Depends(get_letta_server),
-    user_id: Optional[str] = Header(None, alias="user_id"),
-):
-    actor = server.get_user_or_default(user_id=user_id)
-    return server.agents_tags_manager.delete_all_tags_from_agent(agent_id=agent_id, actor=actor)
-
-
-@router.delete("/{agent_id}/tags/{tag}", response_model=None, operation_id="delete_tag_from_agent")
-def delete_tag_from_agent(
-    agent_id: str,
-    tag: str,
-    server: "SyncServer" = Depends(get_letta_server),
-    user_id: Optional[str] = Header(None, alias="user_id"),
-):
-    actor = server.get_user_or_default(user_id=user_id)
-    return server.agents_tags_manager.delete_tag_from_agent(agent_id=agent_id, tag=tag, actor=actor)
-
-
-@router.get("/tags/{tag}", response_model=List[str], operation_id="get_agents_by_tag")
-def get_agents_by_tag(
-    tag: str,
-    server: "SyncServer" = Depends(get_letta_server),
-    user_id: Optional[str] = Header(None, alias="user_id"),
-):
-    actor = server.get_user_or_default(user_id=user_id)
-    return server.agents_tags_manager.get_agents_by_tag(tag=tag, actor=actor)
-
-
-@router.get("/{agent_id}/tags", response_model=List[str], operation_id="get_tags_for_agent")
-def get_tags_for_agent(
-    agent_id: str,
-    server: "SyncServer" = Depends(get_letta_server),
-    user_id: Optional[str] = Header(None, alias="user_id"),
-):
-    actor = server.get_user_or_default(user_id=user_id)
-    return server.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=actor)
-
-
 @router.get("/", response_model=List[AgentState], operation_id="list_agents")
 def list_agents(
     name: Optional[str] = Query(None, description="Name of the agent"),
+    tags: Optional[List[str]] = Query(None, description="List of tags to filter agents by"),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -103,7 +51,7 @@ def list_agents(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    agents = server.list_agents(user_id=actor.id)
+    agents = server.list_agents(user_id=actor.id, tags=tags)
     # TODO: move this logic to the ORM
     if name:
         agents = [a for a in agents if a.name == name]
