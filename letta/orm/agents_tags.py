@@ -1,9 +1,14 @@
+from typing import TYPE_CHECKING
+
 from sqlalchemy import ForeignKey, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.agents_tags import AgentsTags as PydanticAgentsTags
+
+if TYPE_CHECKING:
+    from letta.orm.organization import Organization
 
 
 class AgentsTags(SqlalchemyBase, OrganizationMixin):
@@ -18,3 +23,6 @@ class AgentsTags(SqlalchemyBase, OrganizationMixin):
 
     # The name of the tag
     tag: Mapped[str] = mapped_column(String, nullable=False, doc="The name of the tag associated with the agent.")
+
+    # relationships
+    organization: Mapped["Organization"] = relationship("Organization", back_populates="agents_tags")

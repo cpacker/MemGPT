@@ -31,7 +31,7 @@ class AgentsTagsManager:
 
     @enforce_types
     def delete_all_tags_from_agent(self, agent_id: str, actor: PydanticUser):
-        """Delete a tag from an agent."""
+        """Delete a tag from an agent. This is a permanent hard delete."""
         tags = self.get_tags_for_agent(agent_id=agent_id, actor=actor)
         for tag in tags:
             self.delete_tag_from_agent(agent_id=agent_id, tag=tag, actor=actor)
@@ -43,7 +43,7 @@ class AgentsTagsManager:
             try:
                 # Retrieve and delete the tag association
                 tag_association = AgentsTagsModel.read(db_session=session, agent_id=agent_id, tag=tag, actor=actor)
-                tag_association.delete(session, actor=actor)
+                tag_association.hard_delete(session, actor=actor)
             except NoResultFound:
                 raise ValueError(f"Tag '{tag}' not found for agent '{agent_id}'.")
 
