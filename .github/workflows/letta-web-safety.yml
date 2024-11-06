@@ -1,0 +1,17 @@
+name: "Letta Web Saftey Checker"
+
+on:
+  push:
+      branches:
+      - main
+  pull_request:
+      branches:
+      - main
+
+jobs:
+  call-workflow-passing-data:
+    uses: letta-ai/letta-web/.github/workflows/cypress.yml
+    secrets:
+      PULLER_TOKEN: ${{ secrets.PULLER_TOKEN }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
