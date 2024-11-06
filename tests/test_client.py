@@ -103,6 +103,10 @@ def test_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
     renamed_agent = client.get_agent(agent_id=agent.id)
     assert renamed_agent.name == new_name, "Agent renaming failed"
 
+    # get agent id
+    agent_id = client.get_agent_id(agent_name=new_name)
+    assert agent_id == agent.id, "Agent ID retrieval failed"
+
     # test client.delete_agent and client.agent_exists
     delete_agent = client.create_agent(name="DeleteTestAgent")
     assert client.agent_exists(agent_id=delete_agent.id), "Agent creation failed"
