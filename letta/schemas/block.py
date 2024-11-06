@@ -65,15 +65,15 @@ class Block(BaseBlock):
         user_id (str): The unique identifier of the user associated with the block.
     """
 
-    id: str = Field(..., description="The id of the block.")
+    id: str = BaseBlock.generate_id_field()
     value: str = Field(..., description="Value of the block.")
 
     # associated user/agent
-    organization_id: str = Field(..., description="The unique identifier of the organization associated with the block.")
+    organization_id: Optional[str] = Field(None, description="The unique identifier of the organization associated with the block.")
 
     # default orm fields
-    created_by_id: str = Field(..., description="The id of the user that made this Block.")
-    last_updated_by_id: str = Field(..., description="The id of the user that last updated this Block.")
+    created_by_id: Optional[str] = Field(None, description="The id of the user that made this Block.")
+    last_updated_by_id: Optional[str] = Field(None, description="The id of the user that last updated this Block.")
 
 
 class Human(Block):
