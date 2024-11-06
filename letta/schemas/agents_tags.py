@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import Field
 
@@ -20,11 +21,11 @@ class AgentsTags(AgentsTagsBase):
         created_at (datetime): The date this relationship was created.
     """
 
-    id: str = Field(..., description="The internal id.")
+    id: str = AgentsTagsBase.generate_id_field()
     agent_id: str = Field(..., description="The ID of the associated agent.")
     tag: str = Field(..., description="The name of the tag.")
-    created_at: datetime = Field(default_factory=datetime.utcnow, description="The creation date of the association.")
-    updated_at: datetime = Field(default_factory=datetime.utcnow, description="The update date of the tag.")
+    created_at: Optional[datetime] = Field(None, description="The creation date of the association.")
+    updated_at: Optional[datetime] = Field(None, description="The update date of the tag.")
     is_deleted: bool = Field(False, description="Whether this tag is deleted or not.")
 
 

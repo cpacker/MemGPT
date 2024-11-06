@@ -49,7 +49,7 @@ def default_user(server: SyncServer, default_organization):
 @pytest.fixture
 def other_user(server: SyncServer, default_organization):
     """Fixture to create and return the default user within the default organization."""
-    user = server.user_manager.create_user(User(name="other", organization_id=default_organization.id))
+    user = server.user_manager.create_user(PydanticUser(name="other", organization_id=default_organization.id))
     yield user
 
 

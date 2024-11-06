@@ -2,7 +2,6 @@ from typing import List
 
 from letta.orm.agents_tags import AgentsTags as AgentsTagsModel
 from letta.orm.errors import NoResultFound
-from letta.orm.organization import Organization as OrganizationModel
 from letta.schemas.agents_tags import AgentsTags as PydanticAgentsTags
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types
@@ -25,7 +24,8 @@ class AgentsTagsManager:
                 agents_tags_model = AgentsTagsModel.read(db_session=session, agent_id=agent_id, tag=tag, actor=actor)
                 return agents_tags_model.to_pydantic()
             except NoResultFound:
-                new_tag = AgentsTagsModel(agent_id=agent_id, tag=tag, organization_id=actor.organization_id)
+                agents_tags = PydanticAgentsTags(agent_id=agent_id, tag=tag).model_dump(exclude_none=True)
+                new_tag = AgentsTagsModel(**agents_tags, organization_id=actor.organization_id)
                 new_tag.create(session, actor=actor)
                 return new_tag.to_pydantic()
 
@@ -52,9 +52,7 @@ class AgentsTagsManager:
         """Retrieve all agent IDs associated with a specific tag."""
         with self.session_maker() as session:
             # Query for all agents with the given tag
-            agents_with_tag = AgentsTagsModel.list(
-                db_session=session, tag=tag, _organization_id=OrganizationModel.get_uid_from_identifier(actor.organization_id)
-            )
+            agents_with_tag = AgentsTagsModel.list(db_session=session, tag=tag, organization_id=actor.organization_id)
             return [record.agent_id for record in agents_with_tag]
 
     @enforce_types
@@ -62,7 +60,5 @@ class AgentsTagsManager:
         """Retrieve all tags associated with a specific agent."""
         with self.session_maker() as session:
             # Query for all tags associated with the given agent
-            tags_for_agent = AgentsTagsModel.list(
-                db_session=session, agent_id=agent_id, _organization_id=OrganizationModel.get_uid_from_identifier(actor.organization_id)
-            )
+            tags_for_agent = AgentsTagsModel.list(db_session=session, agent_id=agent_id, organization_id=actor.organization_id)
             return [record.tag for record in tags_for_agent]
