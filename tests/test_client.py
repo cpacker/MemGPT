@@ -676,7 +676,7 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]
 
 
-def test_add_and_manage_tags_for_agent(client, agent):
+def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
     """
     Comprehensive happy path test for adding, retrieving, and managing tags on an agent.
     """
