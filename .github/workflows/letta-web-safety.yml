@@ -8,7 +8,7 @@ on:
 
 jobs:
   check-letta-web-compatibility:
-    uses: letta-ai/letta-agents/.github/workflows/cypress.yml@main
+    uses: letta-ai/letta-compatibility-workflows/.github/workflows/letta-web-compatibility-tester.yml@main
     secrets:
       PULLER_TOKEN: ${{ secrets.PULLER_TOKEN }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
