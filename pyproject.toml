@@ -67,7 +67,7 @@ tiktoken = "^0.7.0"
 nltk = "^3.8.1"
 jinja2 = "^3.1.4"
 locust = "^2.31.5"
-llama-index = "^0.11.9"
+llama-index = "^0.11.22"
 llama-index-embeddings-openai = "^0.2.5"
 llama-index-embeddings-ollama = "^0.3.1"
 #llama-index-embeddings-huggingface = {version = "^0.2.0", optional = true}
