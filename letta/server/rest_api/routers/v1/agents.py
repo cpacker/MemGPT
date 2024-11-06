@@ -93,6 +93,7 @@ def get_tags_for_agent(
 
 @router.get("/", response_model=List[AgentState], operation_id="list_agents")
 def list_agents(
+    name: Optional[str] = Query(None, description="Name of the agent"),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -101,7 +102,12 @@ def list_agents(
     This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
     """
     actor = server.get_user_or_default(user_id=user_id)
-    return server.list_agents(user_id=actor.id)
+
+    agents = server.list_agents(user_id=actor.id)
+    # TODO: move this logic to the ORM
+    if name:
+        agents = [a for a in agents if a.name == name]
+    return agents
 
 
 @router.get("/{agent_id}/context", response_model=ContextWindowOverview, operation_id="get_agent_context_window")
