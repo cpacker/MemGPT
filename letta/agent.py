@@ -3,6 +3,7 @@ import inspect
 import traceback
 import warnings
 from abc import ABC, abstractmethod
+from lib2to3.fixer_util import is_list
 from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
@@ -250,6 +251,9 @@ class Agent(BaseAgent):
             # if there are tool rules, print out a warning
             warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
         # add default rule for having send_message be a terminal tool
+
+        if not is_list(agent_state.tool_rules):
+            agent_state.tool_rules = []
         agent_state.tool_rules.append(TerminalToolRule(tool_name="send_message"))
         self.tool_rules_solver = ToolRulesSolver(tool_rules=agent_state.tool_rules)
 

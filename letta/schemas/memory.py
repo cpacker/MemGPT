@@ -106,6 +106,10 @@ class Memory(BaseModel, validate_assignment=True):
             # New format
             obj.prompt_template = state["prompt_template"]
             for key, value in state["memory"].items():
+                # TODO: This is migration code, please take a look at a later time to get rid of this
+                if "name" in value:
+                    value["template_name"] = value["name"]
+                    value.pop("name")
                 obj.memory[key] = Block(**value)
         else:
             # Old format (pre-template)
