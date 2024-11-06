@@ -1,4 +1,4 @@
-name: "Letta Web Compatibilty Checker"
+name: "Letta Web Compatibility Checker"
 
 on:
   push:
