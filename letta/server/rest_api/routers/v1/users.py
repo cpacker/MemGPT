@@ -51,8 +51,8 @@ def create_user(
     """
     Create a new user in the database
     """
-
-    user = server.user_manager.create_user(request)
+    user = User(**request.model_dump())
+    user = server.user_manager.create_user(user)
     return user
 
 

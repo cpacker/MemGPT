@@ -1,14 +1,11 @@
 from typing import TYPE_CHECKING, List, Literal, Optional, Type
-from uuid import uuid4
 
-from humps import depascalize
-from sqlalchemy import Boolean, String, select
+from sqlalchemy import String, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from letta.log import get_logger
 from letta.orm.base import Base, CommonSqlalchemyMetaMixins
 from letta.orm.errors import NoResultFound
-from letta.orm.mixins import is_valid_uuid4
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -24,27 +21,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
     __order_by_default__ = "created_at"
 
-    _id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: f"{uuid4()}")
-
-    deleted: Mapped[bool] = mapped_column(Boolean, default=False, doc="Is this record deleted? Used for universal soft deletes.")
-
-    @classmethod
-    def __prefix__(cls) -> str:
-        return depascalize(cls.__name__)
-
-    @property
-    def id(self) -> Optional[str]:
-        if self._id:
-            return f"{self.__prefix__()}-{self._id}"
-
-    @id.setter
-    def id(self, value: str) -> None:
-        if not value:
-            return
-        prefix, id_ = value.split("-", 1)
-        assert prefix == self.__prefix__(), f"{prefix} is not a valid id prefix for {self.__class__.__name__}"
-        assert is_valid_uuid4(id_), f"{id_} is not a valid uuid4"
-        self._id = id_
+    id: Mapped[str] = mapped_column(String, primary_key=True)
 
     @classmethod
     def list(
@@ -57,11 +34,10 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
             # Add a cursor condition if provided
             if cursor:
-                cursor_uuid = cls.get_uid_from_identifier(cursor)  # Assuming the cursor is an _id value
-                query = query.where(cls._id > cursor_uuid)
+                query = query.where(cls.id > cursor)
 
             # Add a limit to the query if provided
-            query = query.order_by(cls._id).limit(limit)
+            query = query.order_by(cls.id).limit(limit)
 
             # Handle soft deletes if the class has the 'is_deleted' attribute
             if hasattr(cls, "is_deleted"):
@@ -69,20 +45,6 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
             # Execute the query and return the results as a list of model instances
             return list(session.execute(query).scalars())
-
-    @classmethod
-    def get_uid_from_identifier(cls, identifier: str, indifferent: Optional[bool] = False) -> str:
-        """converts the id into a uuid object
-        Args:
-            identifier: the string identifier, such as `organization-xxxx-xx...`
-            indifferent: if True, will not enforce the prefix check
-        """
-        try:
-            uuid_string = identifier.split("-", 1)[1] if indifferent else identifier.replace(f"{cls.__prefix__()}-", "")
-            assert is_valid_uuid4(uuid_string)
-            return uuid_string
-        except ValueError as e:
-            raise ValueError(f"{identifier} is not a valid identifier for class {cls.__name__}") from e
 
     @classmethod
     def read(
@@ -112,8 +74,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
         # If an identifier is provided, add it to the query conditions
         if identifier is not None:
-            identifier = cls.get_uid_from_identifier(identifier)
-            query = query.where(cls._id == identifier)
+            query = query.where(cls.id == identifier)
             query_conditions.append(f"id='{identifier}'")
 
         if kwargs:
@@ -183,7 +144,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         org_id = getattr(actor, "organization_id", None)
         if not org_id:
             raise ValueError(f"object {actor} has no organization accessor")
-        return query.where(cls._organization_id == cls.get_uid_from_identifier(org_id, indifferent=True), cls.is_deleted == False)
+        return query.where(cls.organization_id == org_id, cls.is_deleted == False)
 
     @property
     def __pydantic_model__(self) -> Type["BaseModel"]:

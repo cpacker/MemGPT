@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, List
 
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.sqlalchemy_base import SqlalchemyBase
@@ -14,9 +15,10 @@ if TYPE_CHECKING:
 class Organization(SqlalchemyBase):
     """The highest level of the object tree. All Entities belong to one and only one Organization."""
 
-    __tablename__ = "organization"
+    __tablename__ = "organizations"
     __pydantic_model__ = PydanticOrganization
 
+    id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(doc="The display name of the organization.")
 
     users: Mapped[List["User"]] = relationship("User", back_populates="organization", cascade="all, delete-orphan")

@@ -21,7 +21,7 @@ class User(UserBase):
         created_at (datetime): The creation date of the user.
     """
 
-    id: str = Field(..., description="The id of the user.")
+    id: str = UserBase.generate_id_field()
     organization_id: Optional[str] = Field(OrganizationManager.DEFAULT_ORG_ID, description="The organization id of the user")
     name: str = Field(..., description="The name of the user.")
     created_at: Optional[datetime] = Field(default_factory=datetime.utcnow, description="The creation date of the user.")
