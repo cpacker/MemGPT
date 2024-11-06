@@ -3,6 +3,7 @@ import inspect
 import traceback
 import warnings
 from abc import ABC, abstractmethod
+from lib2to3.fixer_util import is_list
 from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
@@ -235,6 +236,7 @@ class Agent(BaseAgent):
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
+        initial_message_sequence: Optional[List[Message]] = None,
     ):
         assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
         # Hold a copy of the state that was used to init the agent
@@ -249,6 +251,9 @@ class Agent(BaseAgent):
             # if there are tool rules, print out a warning
             warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
         # add default rule for having send_message be a terminal tool
+
+        if not is_list(agent_state.tool_rules):
+            agent_state.tool_rules = []
         agent_state.tool_rules.append(TerminalToolRule(tool_name="send_message"))
         self.tool_rules_solver = ToolRulesSolver(tool_rules=agent_state.tool_rules)
 
@@ -294,6 +299,7 @@ class Agent(BaseAgent):
 
         else:
             printd(f"Agent.__init__ :: creating, state={agent_state.message_ids}")
+            assert self.agent_state.id is not None and self.agent_state.user_id is not None
 
             # Generate a sequence of initial messages to put in the buffer
             init_messages = initialize_message_sequence(
@@ -306,14 +312,40 @@ class Agent(BaseAgent):
                 include_initial_boot_message=True,
             )
 
-            # Cast the messages to actual Message objects to be synced to the DB
-            init_messages_objs = []
-            for msg in init_messages:
-                init_messages_objs.append(
+            if initial_message_sequence is not None:
+                # We always need the system prompt up front
+                system_message_obj = Message.dict_to_message(
+                    agent_id=self.agent_state.id,
+                    user_id=self.agent_state.user_id,
+                    model=self.model,
+                    openai_message_dict=init_messages[0],
+                )
+                # Don't use anything else in the pregen sequence, instead use the provided sequence
+                init_messages = [system_message_obj] + initial_message_sequence
+
+            else:
+                # Basic "more human than human" initial message sequence
+                init_messages = initialize_message_sequence(
+                    model=self.model,
+                    system=self.system,
+                    memory=self.memory,
+                    archival_memory=None,
+                    recall_memory=None,
+                    memory_edit_timestamp=get_utc_time(),
+                    include_initial_boot_message=True,
+                )
+                # Cast to Message objects
+                init_messages = [
                     Message.dict_to_message(
                         agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=msg
                     )
-                )
+                    for msg in init_messages
+                ]
+
+            # Cast the messages to actual Message objects to be synced to the DB
+            init_messages_objs = []
+            for msg in init_messages:
+                init_messages_objs.append(msg)
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
 
             # Put the messages inside the message buffer

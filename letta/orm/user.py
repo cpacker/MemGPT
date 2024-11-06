@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.mixins import OrganizationMixin
@@ -13,9 +14,10 @@ if TYPE_CHECKING:
 class User(SqlalchemyBase, OrganizationMixin):
     """User ORM class"""
 
-    __tablename__ = "user"
+    __tablename__ = "users"
     __pydantic_model__ = PydanticUser
 
+    id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(nullable=False, doc="The display name of the user.")
 
     # relationships

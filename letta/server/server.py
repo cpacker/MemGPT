@@ -826,7 +826,7 @@ class SyncServer(Server):
                 source_type = "python"
                 tags = ["memory", "memgpt-base"]
                 tool = self.tool_manager.create_or_update_tool(
-                    ToolCreate(
+                    Tool(
                         source_code=source_code,
                         source_type=source_type,
                         tags=tags,
@@ -859,7 +859,10 @@ class SyncServer(Server):
                     agent_state=agent_state,
                     tools=tool_objs,
                     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                    first_message_verify_mono=(
+                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+                    ),
+                    initial_message_sequence=request.initial_message_sequence,
                 )
             elif request.agent_type == AgentType.o1_agent:
                 agent = O1Agent(
@@ -867,7 +870,9 @@ class SyncServer(Server):
                     agent_state=agent_state,
                     tools=tool_objs,
                     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                    first_message_verify_mono=(
+                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+                    ),
                 )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
@@ -1086,7 +1091,7 @@ class SyncServer(Server):
         id: Optional[str] = None,
     ) -> Optional[List[Block]]:
 
-        return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+        return self.ms.get_blocks(user_id=user_id, label=label, template=template, template_name=name, id=id)
 
     def get_block(self, block_id: str):
 
@@ -1098,14 +1103,18 @@ class SyncServer(Server):
         return blocks[0]
 
     def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_blocks = self.ms.get_blocks(name=request.name, user_id=user_id, template=request.template, label=request.label)
-        if existing_blocks is not None:
+        existing_blocks = self.ms.get_blocks(
+            template_name=request.template_name, user_id=user_id, template=request.template, label=request.label
+        )
+
+        # for templates, update existing block template if exists
+        if existing_blocks is not None and request.template:
             existing_block = existing_blocks[0]
             assert len(existing_blocks) == 1
             if update:
                 return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
             else:
-                raise ValueError(f"Block with name {request.name} already exists")
+                raise ValueError(f"Block with name {request.template_name} already exists")
         block = Block(**vars(request))
         self.ms.create_block(block)
         return block
@@ -1114,7 +1123,7 @@ class SyncServer(Server):
         block = self.get_block(request.id)
         block.limit = request.limit if request.limit is not None else block.limit
         block.value = request.value if request.value is not None else block.value
-        block.name = request.name if request.name is not None else block.name
+        block.template_name = request.template_name if request.template_name is not None else block.template_name
         self.ms.update_block(block=block)
         return self.ms.get_block(block_id=request.id)
 
@@ -1763,7 +1772,7 @@ class SyncServer(Server):
             tool_creates += ToolCreate.load_default_composio_tools()
         for tool_create in tool_creates:
             try:
-                self.tool_manager.create_or_update_tool(tool_create, actor=actor)
+                self.tool_manager.create_or_update_tool(Tool(**tool_create.model_dump()), actor=actor)
             except Exception as e:
                 warnings.warn(f"An error occurred while creating tool {tool_create}: {e}")
                 warnings.warn(traceback.format_exc())
@@ -1779,12 +1788,12 @@ class SyncServer(Server):
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_block(CreatePersona(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            self.create_block(CreatePersona(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            self.create_block(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            self.create_block(CreateHuman(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
 
     def get_agent_message(self, agent_id: str, message_id: str) -> Optional[Message]:
         """Get a single message from the agent's memory"""
