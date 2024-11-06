@@ -2,7 +2,7 @@ import os
 import threading
 import time
 import uuid
-from typing import Union
+from typing import List, Union
 
 import pytest
 from dotenv import load_dotenv
