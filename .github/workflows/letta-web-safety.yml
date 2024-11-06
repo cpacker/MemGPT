@@ -10,4 +10,3 @@ jobs:
   check-letta-web-compatibility:
     uses: letta-ai/letta-compatibility-workflows/.github/workflows/letta-web-compatibility-tester.yml@main
     secrets: inherit
-
