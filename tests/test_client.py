@@ -674,3 +674,41 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
         len(custom_agent_state.message_ids) == len(custom_sequence) + 1
     ), f"Expected {len(custom_sequence) + 1} messages, got {len(custom_agent_state.message_ids)}"
     assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]
+
+
+def test_add_and_manage_tags_for_agent(client, agent):
+    """
+    Comprehensive happy path test for adding, retrieving, and managing tags on an agent.
+    """
+
+    # Step 1: Add multiple tags to the agent
+    tags_to_add = ["test_tag_1", "test_tag_2", "test_tag_3"]
+    for tag in tags_to_add:
+        tag_association = client.add_tag_to_agent(agent_id=agent.id, tag=tag)
+        assert tag_association.agent_id == agent.id
+        assert tag_association.tag == tag
+
+    # Step 2: Retrieve tags for the agent and verify they match the added tags
+    retrieved_tags = client.get_tags_for_agent(agent_id=agent.id)
+    assert set(retrieved_tags) == set(tags_to_add), f"Expected tags {tags_to_add}, but got {retrieved_tags}"
+
+    # Step 3: Retrieve agents by each tag to ensure the agent is associated correctly
+    for tag in tags_to_add:
+        agents_with_tag = client.get_agents_by_tag(tag=tag)
+        assert agent.id in agents_with_tag, f"Expected agent {agent.id} to be associated with tag '{tag}'"
+
+    # Step 4: Delete a specific tag from the agent and verify its removal
+    tag_to_delete = tags_to_add[0]
+    client.delete_tag_from_agent(agent_id=agent.id, tag=tag_to_delete)
+
+    # Verify the tag is removed from the agent's tags
+    remaining_tags = client.get_tags_for_agent(agent_id=agent.id)
+    assert tag_to_delete not in remaining_tags, f"Tag '{tag_to_delete}' was not removed as expected"
+    assert set(remaining_tags) == set(tags_to_add[1:]), f"Expected remaining tags to be {tags_to_add[1:]}, but got {remaining_tags}"
+
+    # Step 5: Delete all remaining tags from the agent
+    client.delete_all_tags_from_agent(agent_id=agent.id)
+
+    # Verify all tags are removed
+    final_tags = client.get_tags_for_agent(agent_id=agent.id)
+    assert len(final_tags) == 0, f"Expected no tags, but found {final_tags}"

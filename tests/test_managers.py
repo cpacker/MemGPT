@@ -441,7 +441,7 @@ def test_add_duplicate_tag_to_agent(server: SyncServer, sarah_agent, default_use
     assert first_tag.agent_id == duplicate_tag.agent_id
     assert first_tag.tag == duplicate_tag.tag
 
-    # Get all teh tags belonging to the agent
+    # Get all the tags belonging to the agent
     tags = server.agents_tags_manager.get_tags_for_agent(agent_id=sarah_agent.id, actor=default_user)
     assert len(tags) == 1
     assert tags[0] == first_tag.tag
@@ -463,6 +463,14 @@ def test_delete_nonexistent_tag_from_agent(server: SyncServer, sarah_agent, defa
     tag_name = "nonexistent_tag"
     with pytest.raises(ValueError, match=f"Tag '{tag_name}' not found for agent '{sarah_agent.id}'"):
         server.agents_tags_manager.delete_tag_from_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
+
+
+def test_delete_tag_from_nonexistent_agent(server: SyncServer, default_user):
+    # Attempt to delete a tag that doesn't exist
+    tag_name = "nonexistent_tag"
+    agent_id = "abc"
+    with pytest.raises(ValueError, match=f"Tag '{tag_name}' not found for agent '{agent_id}'"):
+        server.agents_tags_manager.delete_tag_from_agent(agent_id=agent_id, tag=tag_name, actor=default_user)
 
 
 def test_get_agents_by_tag(server: SyncServer, sarah_agent, charles_agent, default_user, default_organization):
