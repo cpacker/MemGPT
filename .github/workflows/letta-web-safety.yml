@@ -1,12 +1,12 @@
-name: "Letta Web Saftey Checker"
+name: "Letta Web Compatibilty Checker"
 
 on:
   push:
       branches:
-      - main
+        - main
   pull_request:
       branches:
-      - main
+        - main
 
 jobs:
   call-workflow-passing-data:
