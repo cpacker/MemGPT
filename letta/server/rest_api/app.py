@@ -78,6 +78,7 @@ def create_application() -> "FastAPI":
 
     if "--ade" in sys.argv:
         settings.cors_origins.append("https://app.letta.com")
+        log.info("ADE enabled, view at https://app.letta.com/local-project/agents")
 
     app.add_middleware(
         CORSMiddleware,
