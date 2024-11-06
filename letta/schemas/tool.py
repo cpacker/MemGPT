@@ -218,4 +218,5 @@ class ToolUpdate(LettaBase):
     )
 
     class Config:
-        extra = "ignore"  # Allows extra fields without validation errors, good for back-compat, horrible for stability
+        extra = "ignore"  # Allows extra fields without validation errors
+        # TODO: Remove this, and clean usage of ToolUpdate everywhere else
