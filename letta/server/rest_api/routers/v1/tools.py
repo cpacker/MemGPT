@@ -104,7 +104,7 @@ def update_tool(
     Update an existing tool
     """
     actor = server.get_user_or_default(user_id=user_id)
-    return server.tool_manager.update_tool_by_id(tool_id, actor.id, request)
+    return server.tool_manager.update_tool_by_id(tool_id=tool_id, tool_update=request, actor=actor)
 
 
 @router.post("/add-base-tools", response_model=List[Tool], operation_id="add_base_tools")

@@ -894,6 +894,7 @@ class SyncServer(Server):
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
         # return AgentState
+
         return agent.agent_state
 
     def update_agent(
@@ -935,17 +936,26 @@ class SyncServer(Server):
             # Replace tools and also re-link
 
             # (1) get tools + make sure they exist
-            tool_objs = []
-            for tool_name in request.tools:
-                tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
-                assert tool_obj, f"Tool {tool_name} does not exist"
-                tool_objs.append(tool_obj)
+            # Current and target tools as sets of tool names
+            current_tools = set(letta_agent.agent_state.tools)
+            target_tools = set(request.tools)
 
-            # (2) replace the list of tool names ("ids") inside the agent state
-            letta_agent.agent_state.tools = request.tools
+            # Calculate tools to add and remove
+            tools_to_add = target_tools - current_tools
+            tools_to_remove = current_tools - target_tools
 
-            # (3) then attempt to link the tools modules
-            letta_agent.link_tools(tool_objs)
+            # Fetch tool objects for those to add and remove
+            tools_to_add = [self.tool_manager.get_tool_by_name(tool_name=tool, actor=actor) for tool in tools_to_add]
+            tools_to_remove = [self.tool_manager.get_tool_by_name(tool_name=tool, actor=actor) for tool in tools_to_remove]
+
+            # update agent tool list
+            for tool in tools_to_remove:
+                self.remove_tool_from_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
+            for tool in tools_to_add:
+                self.add_tool_to_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
+
+            # reload agent
+            letta_agent = self._get_or_load_agent(agent_id=request.id)
 
         # configs
         if request.llm_config:

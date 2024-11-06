@@ -77,6 +77,7 @@ class AbstractClient(object):
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
+        tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
@@ -372,6 +373,7 @@ class RESTClient(AbstractClient):
         system: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
+        tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
@@ -425,6 +427,7 @@ class RESTClient(AbstractClient):
             metadata_=metadata,
             memory=memory,
             tools=tool_names,
+            tool_rules=tool_rules,
             system=system,
             agent_type=agent_type,
             llm_config=llm_config if llm_config else self._default_llm_config,
