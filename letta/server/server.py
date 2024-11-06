@@ -894,6 +894,7 @@ class SyncServer(Server):
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
         # return AgentState
+
         return agent.agent_state
 
     def update_agent(
