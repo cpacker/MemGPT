@@ -935,17 +935,32 @@ class SyncServer(Server):
             # Replace tools and also re-link
 
             # (1) get tools + make sure they exist
-            tool_objs = []
+            print("UPDATED TOOL LIST", request.tools)
+            added_tools = []
+            removed_tools = []
             for tool_name in request.tools:
+                if tool_name in letta_agent.agent_state.tools:
+                    continue
                 tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
                 assert tool_obj, f"Tool {tool_name} does not exist"
-                tool_objs.append(tool_obj)
+                added_tools.append(tool_obj)
 
-            # (2) replace the list of tool names ("ids") inside the agent state
-            letta_agent.agent_state.tools = request.tools
+            for tool_name in letta_agent.agent_state.tools:
+                if tool_name in request.tools:
+                    continue
+                tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+                assert tool_obj, f"Tool {tool_name} does not exist"
+                removed_tools.append(tool_obj)
 
-            # (3) then attempt to link the tools modules
-            letta_agent.link_tools(tool_objs)
+            # update agent tool list
+            for tool in removed_tools:
+                self.remove_tool_from_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
+            for tool in added_tools:
+                self.add_tool_to_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
+
+            # reload agent
+            letta_agent = self._get_or_load_agent(agent_id=request.id)
+            print("CURRENT TOOLS", letta_agent.agent_state.tools)
 
         # configs
         if request.llm_config:

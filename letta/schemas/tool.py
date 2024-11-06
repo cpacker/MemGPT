@@ -68,7 +68,7 @@ class ToolCreate(LettaBase):
     tags: List[str] = Field([], description="Metadata tags.")
     module: Optional[str] = Field(None, description="The source code of the function.")
     source_code: str = Field(..., description="The source code of the function.")
-    source_type: str = Field(..., description="The source type of the function.")
+    source_type: str = Field("python", description="The source type of the function.")
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
