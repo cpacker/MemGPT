@@ -3,13 +3,13 @@ from typing import List, Optional
 from letta.orm.errors import NoResultFound
 from letta.orm.organization import Organization as OrganizationModel
 from letta.schemas.organization import Organization as PydanticOrganization
-from letta.utils import create_random_username, enforce_types
+from letta.utils import enforce_types
 
 
 class OrganizationManager:
     """Manager class to handle business logic related to Organizations."""
 
-    DEFAULT_ORG_ID = "organization-00000000-0000-4000-8000-000000000000"
+    DEFAULT_ORG_ID = "org-00000000-0000-4000-8000-000000000000"
     DEFAULT_ORG_NAME = "default_org"
 
     def __init__(self):
@@ -37,10 +37,10 @@ class OrganizationManager:
                 raise ValueError(f"Organization with id {org_id} not found.")
 
     @enforce_types
-    def create_organization(self, name: Optional[str] = None) -> PydanticOrganization:
+    def create_organization(self, pydantic_org: PydanticOrganization) -> PydanticOrganization:
         """Create a new organization. If a name is provided, it is used, otherwise, a random one is generated."""
         with self.session_maker() as session:
-            org = OrganizationModel(name=name if name else create_random_username())
+            org = OrganizationModel(**pydantic_org.model_dump())
             org.create(session)
             return org.to_pydantic()
 

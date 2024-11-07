@@ -250,7 +250,17 @@ class Agent(BaseAgent):
             # if there are tool rules, print out a warning
             warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
         # add default rule for having send_message be a terminal tool
-        agent_state.tool_rules.append(TerminalToolRule(tool_name="send_message"))
+
+        if agent_state.tool_rules is None:
+            agent_state.tool_rules = []
+        # Define the rule to add
+        send_message_terminal_rule = TerminalToolRule(tool_name="send_message")
+        # Check if an equivalent rule is already present
+        if not any(
+            isinstance(rule, TerminalToolRule) and rule.tool_name == send_message_terminal_rule.tool_name for rule in agent_state.tool_rules
+        ):
+            agent_state.tool_rules.append(send_message_terminal_rule)
+
         self.tool_rules_solver = ToolRulesSolver(tool_rules=agent_state.tool_rules)
 
         # gpt-4, gpt-3.5-turbo, ...
@@ -392,7 +402,6 @@ class Agent(BaseAgent):
                     exec(tool.module, env)
                 else:
                     exec(tool.source_code, env)
-
                 self.functions_python[tool.json_schema["name"]] = env[tool.json_schema["name"]]
                 self.functions.append(tool.json_schema)
             except Exception as e:
@@ -784,7 +793,6 @@ class Agent(BaseAgent):
 
         # Update ToolRulesSolver state with last called function
         self.tool_rules_solver.update_tool_usage(function_name)
-
         # Update heartbeat request according to provided tool rules
         if self.tool_rules_solver.has_children_tools(function_name):
             heartbeat_request = True

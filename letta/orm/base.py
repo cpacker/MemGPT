@@ -67,7 +67,7 @@ class CommonSqlalchemyMetaMixins(Base):
         prop_value = getattr(self, full_prop, None)
         if not prop_value:
             return
-        return f"user-{prop_value}"
+        return prop_value
 
     def _user_id_setter(self, prop: str, value: str) -> None:
         """returns the user id for the specified property"""
@@ -75,6 +75,9 @@ class CommonSqlalchemyMetaMixins(Base):
         if not value:
             setattr(self, full_prop, None)
             return
+        # Safety check
         prefix, id_ = value.split("-", 1)
         assert prefix == "user", f"{prefix} is not a valid id prefix for a user id"
-        setattr(self, full_prop, id_)
+
+        # Set the full value
+        setattr(self, full_prop, value)
