@@ -1,27 +1,14 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-type: article
 authors:
-- family-names: "Packer"
-  given-names: "Charles"
-- family-names: "Wooders"
-  given-names: "Sarah"
-- family-names: "Lin"
-  given-names: "Kevin"
-- family-names: "Fang"
-  given-names: "Vivian"
-- family-names: "Patil"
-  given-names: "Shishir G"
-- family-names: "Stoica"
-  given-names: "Ion"
-- family-names: "Gonzalez"
-  given-names: "Joseph E"
-title: "MemGPT: Towards LLMs as Operating Systems"
-journal: "arXiv preprint arXiv:2310.08560"
-year: 2023
-month: 10
-identifiers:
-  - type: arxiv
-    value: "2310.08560"
-abstract: "Towards LLMs as Operating Systems"
-url: https://arxiv.org/abs/2310.08560
+- family-names: "Lisa"
+  given-names: "Mona"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Bot"
+  given-names: "Hew"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+title: "My Research Software"
+version: 2.0.4
+doi: 10.5281/zenodo.1234
+date-released: 2017-12-18
+url: "https://github.com/github-linguist/linguist"
