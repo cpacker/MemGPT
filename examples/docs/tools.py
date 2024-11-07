@@ -2,18 +2,8 @@ from letta import EmbeddingConfig, LLMConfig, create_client
 
 client = create_client()
 # set automatic defaults for LLM/embedding config
-client.set_default_llm_config(
-    LLMConfig(model="gpt-4", model_endpoint_type="openai", model_endpoint="https://api.openai.com/v1", context_window=8000)
-)
-client.set_default_embedding_config(
-    EmbeddingConfig(
-        embedding_endpoint_type="openai",
-        embedding_endpoint="https://api.openai.com/v1",
-        embedding_model="text-embedding-ada-002",
-        embedding_dim=1536,
-        embedding_chunk_size=300,
-    )
-)
+client.set_default_llm_config(LLMConfig.default_config(model_name="gpt-4"))
+client.set_default_embedding_config(EmbeddingConfig.default_config(model_name="text-embedding-ada-002"))
 
 
 # define a function with a docstring
