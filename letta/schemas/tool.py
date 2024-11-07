@@ -1,6 +1,5 @@
 from typing import Dict, List, Optional
 
-from composio import LogLevel
 from pydantic import Field
 
 from letta.functions.helpers import (
@@ -86,6 +85,7 @@ class ToolCreate(LettaBase):
         Returns:
             Tool: A Letta Tool initialized with attributes derived from the Composio tool.
         """
+        from composio import LogLevel
         from composio_langchain import ComposioToolSet
 
         composio_toolset = ComposioToolSet(logging_level=LogLevel.ERROR)
