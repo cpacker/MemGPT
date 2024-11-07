@@ -367,7 +367,7 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_
     og_json_schema = tool_fixture["tool_create"].json_schema
 
     source_code = parse_source_code(counter_tool)
-    name = "test_function_name_explicit"
+    name = "counter_tool"
 
     # Create a ToolUpdate object to modify the tool's source_code
     tool_update = ToolUpdate(name=name, source_code=source_code)
