@@ -13,7 +13,7 @@ class LLMConfig(BaseModel):
         model_endpoint (str): The endpoint for the model.
         model_wrapper (str): The wrapper for the model. This is used to wrap additional text around the input/output of the model. This is useful for text-to-text completions, such as the Completions API in OpenAI.
         context_window (int): The context window size for the model.
-        put_inner_thoughts_in_kwargs (bool): Puts 'inner_thoughts' as a kwarg in the function call if this is set to True. This helps with function calling performance and also the generation of inner thoughts.
+        put_inner_thoughts_in_kwargs (bool): Puts `inner_thoughts` as a kwarg in the function call if this is set to True. This helps with function calling performance and also the generation of inner thoughts.
     """
 
     # TODO: 🤮 don't default to a vendor! bug city!
@@ -67,6 +67,12 @@ class LLMConfig(BaseModel):
 
     @classmethod
     def default_config(cls, model_name: str):
+        """
+        Convinience function to generate a default `LLMConfig` from a model name. Only some models are supported in this function.
+
+        Args:
+            model_name (str): The name of the model (gpt-4, gpt-4o-mini, letta).
+        """
         if model_name == "gpt-4":
             return cls(
                 model="gpt-4",
