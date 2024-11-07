@@ -51,7 +51,7 @@ def test_letta_run_create_new_agent(swap_letta_config):
 
     # Optional: Context window selection
     try:
-        child.expect("Select context window limit (hit enter for default):", timeout=20)
+        child.expect("Select LLM context window limit", timeout=20)
         child.sendline("")
     except (pexpect.TIMEOUT, pexpect.EOF):
         print("[WARNING] Context window selection step was skipped.")
