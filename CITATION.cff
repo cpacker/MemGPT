@@ -1,12 +1,20 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
-- family-names: "Lisa"
-  given-names: "Mona"
-  orcid: "https://orcid.org/0000-0000-0000-0000"
-- family-names: "Bot"
-  given-names: "Hew"
-  orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Packer"
+  given-names: "Charles"
+- family-names: "Wooders"
+  given-names: "Sarah"
+- family-names: "Lin"
+  given-names: "Kevin"
+- family-names: "Fang"
+  given-names: "Vivian"
+- family-names: "Patil"
+  given-names: "Shishir G"
+- family-names: "Stoica"
+  given-names: "Ion"
+- family-names: "Gonzalez"
+  given-names: "Joseph E"
 title: "My Research Software"
 version: 2.0.4
 doi: 10.5281/zenodo.1234
