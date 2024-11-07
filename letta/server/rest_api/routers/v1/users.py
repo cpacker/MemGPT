@@ -56,6 +56,18 @@ def create_user(
     return user
 
 
+@router.put("/", tags=["admin"], response_model=User, operation_id="update_user")
+def update_user(
+    user: User = Body(...),
+    server: "SyncServer" = Depends(get_letta_server),
+):
+    """
+    Update a user in the database
+    """
+    user = server.user_manager.update_user(user)
+    return user
+
+
 @router.delete("/", tags=["admin"], response_model=User, operation_id="delete_user")
 def delete_user(
     user_id: str = Query(..., description="The user_id key to be deleted."),
