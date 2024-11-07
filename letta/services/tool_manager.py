@@ -133,7 +133,7 @@ class ToolManager:
         """Delete a tool by its ID."""
         with self.session_maker() as session:
             try:
-                tool = ToolModel.read(db_session=session, identifier=tool_id)
+                tool = ToolModel.read(db_session=session, identifier=tool_id, actor=actor)
                 tool.delete(db_session=session, actor=actor)
             except NoResultFound:
                 raise ValueError(f"Tool with id {tool_id} not found.")

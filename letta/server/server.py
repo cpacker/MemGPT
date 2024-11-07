@@ -82,6 +82,7 @@ from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
+from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -248,6 +249,7 @@ class SyncServer(Server):
         self.organization_manager = OrganizationManager()
         self.user_manager = UserManager()
         self.tool_manager = ToolManager()
+        self.agents_tags_manager = AgentsTagsManager()
 
         # Make default user and org
         if init_with_default_org_and_user:
@@ -969,6 +971,19 @@ class SyncServer(Server):
         if request.metadata_:
             letta_agent.agent_state.metadata_ = request.metadata_
 
+        # Manage tag state
+        if request.tags is not None:
+            current_tags = set(self.agents_tags_manager.get_tags_for_agent(agent_id=letta_agent.agent_state.id, actor=actor))
+            target_tags = set(request.tags)
+
+            tags_to_add = target_tags - current_tags
+            tags_to_remove = current_tags - target_tags
+
+            for tag in tags_to_add:
+                self.agents_tags_manager.add_tag_to_agent(agent_id=letta_agent.agent_state.id, tag=tag, actor=actor)
+            for tag in tags_to_remove:
+                self.agents_tags_manager.delete_tag_from_agent(agent_id=letta_agent.agent_state.id, tag=tag, actor=actor)
+
         # save the agent
         assert isinstance(letta_agent.memory, Memory)
         save_agent(letta_agent, self.ms)
@@ -1079,16 +1094,19 @@ class SyncServer(Server):
         }
         return agent_config
 
-    def list_agents(
-        self,
-        user_id: str,
-    ) -> List[AgentState]:
+    def list_agents(self, user_id: str, tags: Optional[List[str]] = None) -> List[AgentState]:
         """List all available agents to a user"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        user = self.user_manager.get_user_by_id(user_id=user_id)
 
-        agents_states = self.ms.list_agents(user_id=user_id)
-        return agents_states
+        if tags is None:
+            agents_states = self.ms.list_agents(user_id=user_id)
+            return agents_states
+        else:
+            agent_ids = []
+            for tag in tags:
+                agent_ids += self.agents_tags_manager.get_agents_by_tag(tag=tag, actor=user)
+
+            return [self.get_agent_state(user_id=user.id, agent_id=agent_id) for agent_id in agent_ids]
 
     def get_blocks(
         self,
@@ -1159,18 +1177,6 @@ class SyncServer(Server):
         if not existing_source:
             raise ValueError("Source does not exist")
         return existing_source.id
-
-    def get_agent(self, user_id: str, agent_id: Optional[str] = None, agent_name: Optional[str] = None):
-        """Get the agent state"""
-        return self.ms.get_agent(agent_id=agent_id, agent_name=agent_name, user_id=user_id)
-
-    # def get_user(self, user_id: str) -> User:
-    #     """Get the user"""
-    #     user = self.user_manager.get_user_by_id(user_id=user_id)
-    #     if user is None:
-    #         raise ValueError(f"User with user_id {user_id} does not exist")
-    #     else:
-    #         return user
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1389,8 +1395,7 @@ class SyncServer(Server):
 
     def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> Optional[AgentState]:
         """Return the config of an agent"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        user = self.user_manager.get_user_by_id(user_id=user_id)
         if agent_id:
             if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
                 return None
@@ -1403,7 +1408,11 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         assert isinstance(letta_agent.memory, Memory)
-        return letta_agent.agent_state.model_copy(deep=True)
+        agent_state = letta_agent.agent_state.model_copy(deep=True)
+
+        # Load the tags in for the agent_state
+        agent_state.tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=user)
+        return agent_state
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
@@ -1485,8 +1494,11 @@ class SyncServer(Server):
 
     def delete_agent(self, user_id: str, agent_id: str):
         """Delete an agent in the database"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        actor = self.user_manager.get_user_by_id(user_id=user_id)
+        # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM MODEL
+        # TODO: EVENTUALLY WE GET AUTO-DELETES WHEN WE SPECIFY RELATIONSHIPS IN THE ORM
+        self.agents_tags_manager.delete_all_tags_from_agent(agent_id=agent_id, actor=actor)
+
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 

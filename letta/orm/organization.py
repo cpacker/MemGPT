@@ -23,6 +23,7 @@ class Organization(SqlalchemyBase):
 
     users: Mapped[List["User"]] = relationship("User", back_populates="organization", cascade="all, delete-orphan")
     tools: Mapped[List["Tool"]] = relationship("Tool", back_populates="organization", cascade="all, delete-orphan")
+    agents_tags: Mapped[List["AgentsTags"]] = relationship("AgentsTags", back_populates="organization", cascade="all, delete-orphan")
 
     # TODO: Map these relationships later when we actually make these models
     # below is just a suggestion
