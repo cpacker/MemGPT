@@ -18,6 +18,9 @@ IN_CONTEXT_MEMORY_KEYWORD = "CORE_MEMORY"
 # OpenAI error message: Invalid 'messages[1].tool_calls[0].id': string too long. Expected a string with maximum length 29, but got a string with length 36 instead.
 TOOL_CALL_ID_MAX_LEN = 29
 
+# minimum context window size
+MIN_CONTEXT_WINDOW = 4000
+
 # embeddings
 MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or else DBs will need to be reset
 

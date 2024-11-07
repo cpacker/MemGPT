@@ -112,6 +112,22 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         self.is_deleted = True
         return self.update(db_session)
 
+    def hard_delete(self, db_session: "Session", actor: Optional["User"] = None) -> None:
+        """Permanently removes the record from the database."""
+        if actor:
+            logger.info(f"User {actor.id} requested hard deletion of {self.__class__.__name__} with ID {self.id}")
+
+        with db_session as session:
+            try:
+                session.delete(self)
+                session.commit()
+            except Exception as e:
+                session.rollback()
+                logger.exception(f"Failed to hard delete {self.__class__.__name__} with ID {self.id}")
+                raise ValueError(f"Failed to hard delete {self.__class__.__name__} with ID {self.id}: {e}")
+            else:
+                logger.info(f"{self.__class__.__name__} with ID {self.id} successfully hard deleted")
+
     def update(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
         if actor:
             self._set_created_and_updated_by_fields(actor.id)

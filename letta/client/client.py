@@ -334,8 +334,12 @@ class RESTClient(AbstractClient):
         self._default_llm_config = default_llm_config
         self._default_embedding_config = default_embedding_config
 
-    def list_agents(self) -> List[AgentState]:
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers)
+    def list_agents(self, tags: Optional[List[str]] = None) -> List[AgentState]:
+        params = {}
+        if tags:
+            params["tags"] = tags
+
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers, params=params)
         return [AgentState(**agent) for agent in response.json()]
 
     def agent_exists(self, agent_id: str) -> bool:
@@ -480,6 +484,7 @@ class RESTClient(AbstractClient):
         description: Optional[str] = None,
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
@@ -509,6 +514,7 @@ class RESTClient(AbstractClient):
             name=name,
             system=system,
             tools=tools,
+            tags=tags,
             description=description,
             metadata_=metadata,
             llm_config=llm_config,
@@ -1617,13 +1623,10 @@ class LocalClient(AbstractClient):
         self.organization = self.server.get_organization_or_default(self.org_id)
 
     # agents
-    def list_agents(self) -> List[AgentState]:
+    def list_agents(self, tags: Optional[List[str]] = None) -> List[AgentState]:
         self.interface.clear()
 
-        # TODO: fix the server function
-        # return self.server.list_agents(user_id=self.user_id)
-
-        return self.server.ms.list_agents(user_id=self.user_id)
+        return self.server.list_agents(user_id=self.user_id, tags=tags)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         """
@@ -1757,6 +1760,7 @@ class LocalClient(AbstractClient):
         description: Optional[str] = None,
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
@@ -1788,6 +1792,7 @@ class LocalClient(AbstractClient):
                 name=name,
                 system=system,
                 tools=tools,
+                tags=tags,
                 description=description,
                 metadata_=metadata,
                 llm_config=llm_config,
@@ -1872,7 +1877,7 @@ class LocalClient(AbstractClient):
             agent_state (AgentState): State of the agent
         """
         self.interface.clear()
-        return self.server.get_agent(agent_name=agent_name, user_id=self.user_id, agent_id=None)
+        return self.server.get_agent_state(agent_name=agent_name, user_id=self.user_id, agent_id=None)
 
     def get_agent(self, agent_id: str) -> AgentState:
         """

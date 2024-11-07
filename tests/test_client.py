@@ -76,7 +76,6 @@ def client(request):
         client = create_client(base_url=server_url, token=None)  # This yields control back to the test function
     else:
         # use local client (no server)
-        server_url = None
         client = create_client()
 
     client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
@@ -88,7 +87,6 @@ def client(request):
 @pytest.fixture(scope="module")
 def agent(client: Union[LocalClient, RESTClient]):
     agent_state = client.create_agent(name=test_agent_name)
-    print("AGENT ID", agent_state.id)
     yield agent_state
 
     # delete agent
@@ -676,3 +674,38 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
         len(custom_agent_state.message_ids) == len(custom_sequence) + 1
     ), f"Expected {len(custom_sequence) + 1} messages, got {len(custom_agent_state.message_ids)}"
     assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]
+
+
+def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """
+    Comprehensive happy path test for adding, retrieving, and managing tags on an agent.
+    """
+
+    # Step 1: Add multiple tags to the agent
+    tags_to_add = ["test_tag_1", "test_tag_2", "test_tag_3"]
+    client.update_agent(agent_id=agent.id, tags=tags_to_add)
+
+    # Step 2: Retrieve tags for the agent and verify they match the added tags
+    retrieved_tags = client.get_agent(agent_id=agent.id).tags
+    assert set(retrieved_tags) == set(tags_to_add), f"Expected tags {tags_to_add}, but got {retrieved_tags}"
+
+    # Step 3: Retrieve agents by each tag to ensure the agent is associated correctly
+    for tag in tags_to_add:
+        agents_with_tag = client.list_agents(tags=[tag])
+        assert agent.id in [a.id for a in agents_with_tag], f"Expected agent {agent.id} to be associated with tag '{tag}'"
+
+    # Step 4: Delete a specific tag from the agent and verify its removal
+    tag_to_delete = tags_to_add.pop()
+    client.update_agent(agent_id=agent.id, tags=tags_to_add)
+
+    # Verify the tag is removed from the agent's tags
+    remaining_tags = client.get_agent(agent_id=agent.id).tags
+    assert tag_to_delete not in remaining_tags, f"Tag '{tag_to_delete}' was not removed as expected"
+    assert set(remaining_tags) == set(tags_to_add), f"Expected remaining tags to be {tags_to_add[1:]}, but got {remaining_tags}"
+
+    # Step 5: Delete all remaining tags from the agent
+    client.update_agent(agent_id=agent.id, tags=[])
+
+    # Verify all tags are removed
+    final_tags = client.get_agent(agent_id=agent.id).tags
+    assert len(final_tags) == 0, f"Expected no tags, but found {final_tags}"

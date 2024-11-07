@@ -64,6 +64,9 @@ class AgentState(BaseAgent, validate_assignment=True):
     # tool rules
     tool_rules: Optional[List[BaseToolRule]] = Field(default=None, description="The list of tool rules.")
 
+    # tags
+    tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
+
     # system prompt
     system: str = Field(..., description="The system prompt used by the agent.")
 
@@ -108,6 +111,7 @@ class CreateAgent(BaseAgent):
     memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     tool_rules: Optional[List[BaseToolRule]] = Field(None, description="The tool rules governing the agent.")
+    tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     agent_type: Optional[AgentType] = Field(None, description="The type of agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
@@ -148,6 +152,7 @@ class UpdateAgentState(BaseAgent):
     id: str = Field(..., description="The id of the agent.")
     name: Optional[str] = Field(None, description="The name of the agent.")
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
+    tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
