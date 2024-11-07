@@ -49,12 +49,6 @@ poetry run pre-commit run --all-files
 ```
 If you don't install pre-commit, you will need to run `poetry run black .` before submitting a PR.
 
-#### Building the docker image
-To build the docker image and run compose from source, you can run:
-```
-docker compose -f dev-compose.yaml up --build -d
-```
-
 ## 2. 🛠️ Making Changes
 
 ### 🌟 Create a Branch
