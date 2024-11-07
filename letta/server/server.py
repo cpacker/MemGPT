@@ -372,11 +372,12 @@ class SyncServer(Server):
             logger.debug(f"Creating an agent object")
             tool_objs = []
             for name in agent_state.tools:
-                tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
-                if not tool_obj:
-                    logger.exception(f"Tool {name} does not exist for user {user_id}")
-                    raise ValueError(f"Tool {name} does not exist for user {user_id}")
-                tool_objs.append(tool_obj)
+                # TODO: This should be a hard failure, but for migration reasons, we patch it for now
+                try:
+                    tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
+                    tool_objs.append(tool_obj)
+                except NoResultFound:
+                    warnings.warn(f"Tried to retrieve a tool with name {name} from the agent_state, but does not exist in tool db.")
 
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
@@ -391,6 +392,11 @@ class SyncServer(Server):
             # Add the agent to the in-memory store and return its reference
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
             self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=letta_agent)
+
+            # if the length of tool_objs does not equal the length of agent_state.tools
+            # then we need to resync the agent_state to the db to prevent further errors
+            save_agent(letta_agent, self.ms)
+
             return letta_agent
 
         except Exception as e:
