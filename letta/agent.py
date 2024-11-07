@@ -248,9 +248,11 @@ class Agent(BaseAgent):
         # initialize a tool rules solver
         if agent_state.tool_rules:
             # if there are tool rules, print out a warning
-            warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
+            for rule in agent_state.tool_rules:
+                if not isinstance(rule, TerminalToolRule):
+                    warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
+                    break
         # add default rule for having send_message be a terminal tool
-
         if agent_state.tool_rules is None:
             agent_state.tool_rules = []
         # Define the rule to add
