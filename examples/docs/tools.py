@@ -1,23 +1,14 @@
 from letta import EmbeddingConfig, LLMConfig, create_client
+from letta.schemas.tool_rule import TerminalToolRule
 
 client = create_client()
 # set automatic defaults for LLM/embedding config
-client.set_default_llm_config(
-    LLMConfig(model="gpt-4", model_endpoint_type="openai", model_endpoint="https://api.openai.com/v1", context_window=8000)
-)
-client.set_default_embedding_config(
-    EmbeddingConfig(
-        embedding_endpoint_type="openai",
-        embedding_endpoint="https://api.openai.com/v1",
-        embedding_model="text-embedding-ada-002",
-        embedding_dim=1536,
-        embedding_chunk_size=300,
-    )
-)
+client.set_default_llm_config(LLMConfig.default_config(model_name="gpt-4"))
+client.set_default_embedding_config(EmbeddingConfig.default_config(model_name="text-embedding-ada-002"))
 
 
 # define a function with a docstring
-def roll_d20() -> str:
+def roll_d20(self) -> str:
     """
     Simulate the roll of a 20-sided die (d20).
 
@@ -38,10 +29,22 @@ def roll_d20() -> str:
     return output_string
 
 
-tool = client.create_tool(roll_d20, name="roll_dice")
+# create a tool from the function
+tool = client.create_tool(roll_d20)
+print(f"Created tool with name {tool.name}")
 
 # create a new agent
-agent_state = client.create_agent(tools=[tool.name])
+agent_state = client.create_agent(
+    # create the agent with an additional tool
+    tools=[tool.name],
+    # add tool rules that terminate execution after specific tools
+    tool_rules=[
+        # exit after roll_d20 is called
+        TerminalToolRule(tool_name=tool.name),
+        # exit after send_message is called (default behavior)
+        TerminalToolRule(tool_name="send_message"),
+    ],
+)
 print(f"Created agent with name {agent_state.name} with tools {agent_state.tools}")
 
 # Message an agent

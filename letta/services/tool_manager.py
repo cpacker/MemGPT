@@ -35,9 +35,7 @@ class ToolManager:
     def create_or_update_tool(self, pydantic_tool: PydanticTool, actor: PydanticUser) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
         # Derive json_schema
-        derived_json_schema = pydantic_tool.json_schema or derive_openai_json_schema(
-            source_code=pydantic_tool.source_code, name=pydantic_tool.name
-        )
+        derived_json_schema = pydantic_tool.json_schema or derive_openai_json_schema(source_code=pydantic_tool.source_code)
         derived_name = pydantic_tool.name or derived_json_schema["name"]
 
         try:
@@ -120,8 +118,8 @@ class ToolManager:
             if "source_code" in update_data.keys() and "json_schema" not in update_data.keys():
                 pydantic_tool = tool.to_pydantic()
 
-                name = update_data["name"] if "name" in update_data.keys() else None
-                new_schema = derive_openai_json_schema(source_code=pydantic_tool.source_code, name=name)
+                update_data["name"] if "name" in update_data.keys() else None
+                new_schema = derive_openai_json_schema(source_code=pydantic_tool.source_code)
 
                 tool.json_schema = new_schema
 
