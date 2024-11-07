@@ -4,9 +4,6 @@ from sqlalchemy import delete
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
 from letta.orm import Organization, Source, Tool, User
-from letta.orm.organization import Organization
-from letta.orm.tool import Tool
-from letta.orm.user import User
 from letta.schemas.agent import CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
