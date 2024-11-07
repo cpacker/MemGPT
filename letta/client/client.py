@@ -1198,7 +1198,8 @@ class RESTClient(AbstractClient):
         Returns:
             source (Source): Created source
         """
-        payload = SourceCreate(name=name, embedding_config=embedding_config or self._default_embedding_config)
+        source_create = SourceCreate(name=name, embedding_config=embedding_config or self._default_embedding_config)
+        payload = source_create.model_dump()
         response = requests.post(f"{self.base_url}/{self.api_prefix}/sources", json=payload, headers=self.headers)
         response_json = response.json()
         return Source(**response_json)
