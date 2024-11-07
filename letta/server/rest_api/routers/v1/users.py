@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from letta.schemas.api_key import APIKey, APIKeyCreate
-from letta.schemas.user import User, UserCreate
+from letta.schemas.user import User, UserCreate, UserUpdate
 from letta.server.rest_api.utils import get_letta_server
 
 # from letta.server.schemas.users import (
@@ -53,6 +53,18 @@ def create_user(
     """
     user = User(**request.model_dump())
     user = server.user_manager.create_user(user)
+    return user
+
+
+@router.put("/", tags=["admin"], response_model=User, operation_id="update_user")
+def update_user(
+    user: UserUpdate = Body(...),
+    server: "SyncServer" = Depends(get_letta_server),
+):
+    """
+    Update a user in the database
+    """
+    user = server.user_manager.update_user(user)
     return user
 
 
