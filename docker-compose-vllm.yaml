@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   letta:
-    image: lettaai/letta:latest
+    image: letta/letta:latest
     ports:
       - "8283:8283"
     environment:
