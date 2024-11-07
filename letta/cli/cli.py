@@ -248,7 +248,9 @@ def run(
         if llm_config.context_window is not None:
             context_window_validator = lambda x: x.isdigit() and int(x) > MIN_CONTEXT_WINDOW and int(x) <= llm_config.context_window
             context_window_input = questionary.text(
-                "Context window (hit enter for default):", default=str(llm_config.context_window), validate=context_window_validator
+                "Select context window limit (hit enter for default):",
+                default=str(llm_config.context_window),
+                validate=context_window_validator,
             ).ask()
             if context_window_input is not None:
                 llm_config.context_window = int(context_window_input)
