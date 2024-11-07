@@ -8,6 +8,8 @@ import letta.utils as utils
 from letta.constants import BASE_TOOLS, DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.enums import MessageRole
 
+from .test_managers import DEFAULT_EMBEDDING_CONFIG
+
 utils.DEBUG = True
 from letta.config import LettaConfig
 from letta.schemas.agent import CreateAgent
@@ -24,7 +26,7 @@ from letta.schemas.letta_message import (
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.message import Message
-from letta.schemas.source import SourceCreate
+from letta.schemas.source import Source
 from letta.server.server import SyncServer
 
 from .utils import DummyDataConnector
@@ -117,7 +119,9 @@ def test_user_message_memory(server, user_id, agent_id):
 @pytest.mark.order(3)
 def test_load_data(server, user_id, agent_id):
     # create source
-    source = server.source_manager.create_source(SourceCreate(name="test_source"), actor=server.default_user)
+    source = server.source_manager.create_source(
+        Source(name="test_source", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=server.default_user
+    )
 
     # load data
     archival_memories = [

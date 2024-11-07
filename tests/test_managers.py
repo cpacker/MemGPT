@@ -9,7 +9,8 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.organization import Organization as PydanticOrganization
-from letta.schemas.source import SourceCreate, SourceUpdate
+from letta.schemas.source import Source as PydanticSource
+from letta.schemas.source import SourceUpdate
 from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolUpdate
 from letta.services.organization_manager import OrganizationManager
@@ -425,25 +426,25 @@ def test_delete_tool_by_id(server: SyncServer, tool_fixture, default_user):
 
 def test_create_source(server: SyncServer, default_user):
     """Test creating a new source."""
-    source_create = SourceCreate(
+    source_pydantic = PydanticSource(
         name="Test Source",
         description="This is a test source.",
         metadata_={"type": "test"},
         embedding_config=DEFAULT_EMBEDDING_CONFIG,
     )
-    source = server.source_manager.create_source(source_create=source_create, actor=default_user)
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
 
     # Assertions to check the created source
-    assert source.name == source_create.name
-    assert source.description == source_create.description
-    assert source.metadata_ == source_create.metadata_
+    assert source.name == source_pydantic.name
+    assert source.description == source_pydantic.description
+    assert source.metadata_ == source_pydantic.metadata_
     assert source.organization_id == default_user.organization_id
 
 
 def test_update_source(server: SyncServer, default_user):
     """Test updating an existing source."""
-    source_create = SourceCreate(name="Original Source", description="Original description", embedding_config=DEFAULT_EMBEDDING_CONFIG)
-    source = server.source_manager.create_source(source_create=source_create, actor=default_user)
+    source_pydantic = PydanticSource(name="Original Source", description="Original description", embedding_config=DEFAULT_EMBEDDING_CONFIG)
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
 
     # Update the source
     update_data = SourceUpdate(name="Updated Source", description="Updated description", metadata_={"type": "updated"})
@@ -457,8 +458,10 @@ def test_update_source(server: SyncServer, default_user):
 
 def test_delete_source(server: SyncServer, default_user):
     """Test deleting a source."""
-    source_create = SourceCreate(name="To Delete", description="This source will be deleted.", embedding_config=DEFAULT_EMBEDDING_CONFIG)
-    source = server.source_manager.create_source(source_create=source_create, actor=default_user)
+    source_pydantic = PydanticSource(
+        name="To Delete", description="This source will be deleted.", embedding_config=DEFAULT_EMBEDDING_CONFIG
+    )
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
 
     # Delete the source
     deleted_source = server.source_manager.delete_source(source_id=source.id, actor=default_user)
@@ -474,8 +477,8 @@ def test_delete_source(server: SyncServer, default_user):
 def test_list_sources(server: SyncServer, default_user):
     """Test listing sources with pagination."""
     # Create multiple sources
-    server.source_manager.create_source(SourceCreate(name="Source 1", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
-    server.source_manager.create_source(SourceCreate(name="Source 2", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
+    server.source_manager.create_source(PydanticSource(name="Source 1", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
+    server.source_manager.create_source(PydanticSource(name="Source 2", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
 
     # List sources without pagination
     sources = server.source_manager.list_sources(actor=default_user)
@@ -493,10 +496,10 @@ def test_list_sources(server: SyncServer, default_user):
 
 def test_get_source_by_id(server: SyncServer, default_user):
     """Test retrieving a source by ID."""
-    source_create = SourceCreate(
+    source_pydantic = PydanticSource(
         name="Retrieve by ID", description="Test source for ID retrieval", embedding_config=DEFAULT_EMBEDDING_CONFIG
     )
-    source = server.source_manager.create_source(source_create=source_create, actor=default_user)
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
 
     # Retrieve the source by ID
     retrieved_source = server.source_manager.get_source_by_id(source_id=source.id, actor=default_user)
@@ -509,10 +512,10 @@ def test_get_source_by_id(server: SyncServer, default_user):
 
 def test_get_source_by_name(server: SyncServer, default_user):
     """Test retrieving a source by name."""
-    source_create = SourceCreate(
+    source_pydantic = PydanticSource(
         name="Unique Source", description="Test source for name retrieval", embedding_config=DEFAULT_EMBEDDING_CONFIG
     )
-    source = server.source_manager.create_source(source_create=source_create, actor=default_user)
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
 
     # Retrieve the source by name
     retrieved_source = server.source_manager.get_source_by_name(source_name=source.name, actor=default_user)
@@ -524,8 +527,8 @@ def test_get_source_by_name(server: SyncServer, default_user):
 
 def test_update_source_no_changes(server: SyncServer, default_user):
     """Test update_source with no actual changes to verify logging and response."""
-    source_create = SourceCreate(name="No Change Source", description="No changes", embedding_config=DEFAULT_EMBEDDING_CONFIG)
-    source = server.source_manager.create_source(source_create=source_create, actor=default_user)
+    source_pydantic = PydanticSource(name="No Change Source", description="No changes", embedding_config=DEFAULT_EMBEDDING_CONFIG)
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
 
     # Attempt to update the source with identical data
     update_data = SourceUpdate(name="No Change Source", description="No changes")

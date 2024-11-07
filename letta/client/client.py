@@ -238,7 +238,7 @@ class AbstractClient(object):
     def delete_file_from_source(self, source_id: str, file_id: str) -> None:
         raise NotImplementedError
 
-    def create_source(self, name: str) -> Source:
+    def create_source(self, name: str, embedding_config: Optional[EmbeddingConfig] = None) -> Source:
         raise NotImplementedError
 
     def delete_source(self, source_id: str):
@@ -1188,7 +1188,7 @@ class RESTClient(AbstractClient):
         if response.status_code not in [200, 204]:
             raise ValueError(f"Failed to delete tool: {response.text}")
 
-    def create_source(self, name: str) -> Source:
+    def create_source(self, name: str, embedding_config: Optional[EmbeddingConfig] = None) -> Source:
         """
         Create a source
 
@@ -1198,7 +1198,7 @@ class RESTClient(AbstractClient):
         Returns:
             source (Source): Created source
         """
-        payload = {"name": name}
+        payload = SourceCreate(name=name, embedding_config=embedding_config or self._default_embedding_config)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/sources", json=payload, headers=self.headers)
         response_json = response.json()
         return Source(**response_json)
@@ -2463,8 +2463,10 @@ class LocalClient(AbstractClient):
         Returns:
             source (Source): Created source
         """
-        request = SourceCreate(name=name, embedding_config=embedding_config or self._default_embedding_config)
-        return self.server.source_manager.create_source(request=request, actor=self.user)
+        source = Source(
+            name=name, embedding_config=embedding_config or self._default_embedding_config, organization_id=self.user.organization_id
+        )
+        return self.server.source_manager.create_source(source=source, actor=self.user)
 
     def delete_source(self, source_id: str):
         """

@@ -3,7 +3,7 @@ from typing import List, Optional
 from letta.orm.errors import NoResultFound
 from letta.orm.source import Source as SourceModel
 from letta.schemas.source import Source as PydanticSource
-from letta.schemas.source import SourceCreate, SourceUpdate
+from letta.schemas.source import SourceUpdate
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types, printd
 
@@ -17,12 +17,12 @@ class SourceManager:
         self.session_maker = db_context
 
     @enforce_types
-    def create_source(self, source_create: SourceCreate, actor: PydanticUser) -> PydanticSource:
-        """Create a new source based on the SourceCreate schema."""
+    def create_source(self, source: PydanticSource, actor: PydanticUser) -> PydanticSource:
+        """Create a new source based on the PydanticSource schema."""
         with self.session_maker() as session:
             # Provide default embedding config if not given
-            create_data = source_create.model_dump()
-            source = SourceModel(**create_data, organization_id=actor.organization_id)
+            source.organization_id = actor.organization_id
+            source = SourceModel(**source.model_dump(exclude_none=True))
             source.create(session, actor=actor)
         return source.to_pydantic()
 

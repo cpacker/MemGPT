@@ -69,7 +69,7 @@ def list_sources(
 
 @router.post("/", response_model=Source, operation_id="create_source")
 def create_source(
-    source: SourceCreate,
+    source_create: SourceCreate,
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -77,8 +77,9 @@ def create_source(
     Create a new data source.
     """
     actor = server.get_user_or_default(user_id=user_id)
+    source = Source(**source_create.model_dump())
 
-    return server.source_manager.create_source(source_create=source, actor=actor)
+    return server.source_manager.create_source(source=source, actor=actor)
 
 
 @router.patch("/{source_id}", response_model=Source, operation_id="update_source")
