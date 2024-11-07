@@ -29,15 +29,21 @@ def roll_d20(self) -> str:
     return output_string
 
 
-tool = client.create_tool(roll_d20, name="roll_dice")
+# create a tool from the function
+tool = client.create_tool(roll_d20)
+print(f"Created tool with name {tool.name}")
 
 # create a new agent
 agent_state = client.create_agent(
     # create the agent with an additional tool
     tools=[tool.name],
     # add tool rules that terminate execution after specific tools
-    # after roll_dice or send_message, the agent will exit execution
-    tool_rules=[TerminalToolRule(tool_name=tool.name), TerminalToolRule(tool_name="send_message")],
+    tool_rules=[
+        # exit after roll_d20 is called
+        TerminalToolRule(tool_name=tool.name),
+        # exit after send_message is called (default behavior)
+        TerminalToolRule(tool_name="send_message"),
+    ],
 )
 print(f"Created agent with name {agent_state.name} with tools {agent_state.tools}")
 
