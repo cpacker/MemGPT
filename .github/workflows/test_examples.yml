@@ -1,4 +1,4 @@
-name: Run Docker integration tests
+name: Examples (documentation)
 
 on:
   push:
