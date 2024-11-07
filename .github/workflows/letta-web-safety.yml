@@ -1,10 +1,12 @@
 name: "Letta Web Compatibility Checker"
 
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+
 
 jobs:
   check-letta-web-compatibility:
