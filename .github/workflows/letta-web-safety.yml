@@ -1,5 +1,6 @@
 name: "Letta Web Compatibility Checker"
 
+
 on:
   push:
     branches: [ main ]
