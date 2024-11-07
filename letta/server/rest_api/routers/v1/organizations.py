@@ -38,7 +38,8 @@ def create_org(
     """
     Create a new org in the database
     """
-    org = server.organization_manager.create_organization(name=request.name)
+    org = Organization(**request.model_dump())
+    org = server.organization_manager.create_organization(pydantic_org=org)
     return org
 
 

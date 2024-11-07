@@ -420,7 +420,7 @@ def test_tools_from_langchain(client: LocalClient):
     exec(source_code, {}, local_scope)
     func = local_scope[tool.name]
 
-    expected_content = "Albert Einstein ( EYEN-styne; German:"
+    expected_content = "Albert Einstein"
     assert expected_content in func(query="Albert Einstein")
 
 

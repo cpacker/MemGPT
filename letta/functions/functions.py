@@ -9,7 +9,7 @@ from letta.constants import CLI_WARNING_PREFIX
 from letta.functions.schema_generator import generate_schema
 
 
-def derive_openai_json_schema(source_code: str, name: Optional[str]) -> dict:
+def derive_openai_json_schema(source_code: str, name: Optional[str] = None) -> dict:
     # auto-generate openai schema
     try:
         # Define a custom environment with necessary imports

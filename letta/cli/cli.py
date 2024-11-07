@@ -10,7 +10,7 @@ import letta.utils as utils
 from letta import create_client
 from letta.agent import Agent, save_agent
 from letta.config import LettaConfig
-from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR
+from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR, MIN_CONTEXT_WINDOW
 from letta.local_llm.constants import ASSISTANT_MESSAGE_CLI_SYMBOL
 from letta.log import get_logger
 from letta.metadata import MetadataStore
@@ -243,6 +243,19 @@ def run(
         else:
             llm_model_name = questionary.select("Select LLM model:", choices=llm_choices).ask().model
         llm_config = [llm_config for llm_config in llm_configs if llm_config.model == llm_model_name][0]
+
+        # option to override context window
+        if llm_config.context_window is not None:
+            context_window_validator = lambda x: x.isdigit() and int(x) > MIN_CONTEXT_WINDOW and int(x) <= llm_config.context_window
+            context_window_input = questionary.text(
+                "Select LLM context window limit (hit enter for default):",
+                default=str(llm_config.context_window),
+                validate=context_window_validator,
+            ).ask()
+            if context_window_input is not None:
+                llm_config.context_window = int(context_window_input)
+            else:
+                sys.exit(1)
 
         # choose form list of embedding configs
         embedding_configs = client.list_embedding_configs()

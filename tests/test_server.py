@@ -541,3 +541,33 @@ def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id:
         + overview.num_tokens_functions_definitions
         + overview.num_tokens_external_memory_summary
     )
+
+
+def test_load_agent_with_nonexistent_tool_names_does_not_error(server: SyncServer, user_id: str):
+    fake_tool_name = "blahblahblah"
+    tools = BASE_TOOLS + [fake_tool_name]
+    agent_state = server.create_agent(
+        request=CreateAgent(
+            name="nonexistent_tools_agent",
+            tools=tools,
+            memory=ChatMemory(
+                human="Sarah",
+                persona="I am a helpful assistant",
+            ),
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        ),
+        actor=server.get_user_or_default(user_id),
+    )
+
+    # Check that the tools in agent_state do NOT include the fake name
+    assert fake_tool_name not in agent_state.tools
+    assert set(BASE_TOOLS).issubset(set(agent_state.tools))
+
+    # Load the agent from the database and check that it doesn't error / tools are correct
+    saved_tools = server.get_tools_from_agent(agent_id=agent_state.id, user_id=user_id)
+    assert fake_tool_name not in agent_state.tools
+    assert set(BASE_TOOLS).issubset(set(agent_state.tools))
+
+    # cleanup
+    server.delete_agent(user_id, agent_state.id)
