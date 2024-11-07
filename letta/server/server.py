@@ -391,10 +391,6 @@ class SyncServer(Server):
             logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
             self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=letta_agent)
 
-            # if the length of tool_objs does not equal the length of agent_state.tools
-            # then we need to resync the agent_state to the db to prevent further errors
-            save_agent(letta_agent, self.ms)
-
             return letta_agent
 
         except Exception as e:

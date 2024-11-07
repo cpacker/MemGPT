@@ -585,7 +585,7 @@ def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState
     persona1_block = client.create_block(label="persona", text="you are agent 1")
     persona2_block = client.create_block(label="persona", text="you are agent 2")
 
-    # create agnets
+    # create agents
     agent_state1 = client.create_agent(name="agent1", memory=BasicBlockMemory(blocks=[block, persona1_block]))
     agent_state2 = client.create_agent(name="agent2", memory=BasicBlockMemory(blocks=[block, persona2_block]))
 
