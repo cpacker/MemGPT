@@ -63,6 +63,37 @@ from fastapi import FastAPI
 log = logging.getLogger("uvicorn")
 
 
+def generate_openapi_schema(app: FastAPI):
+    # Update the OpenAPI schema
+    if not app.openapi_schema:
+        app.openapi_schema = app.openapi()
+
+    openai_docs, letta_docs = [app.openapi_schema.copy() for _ in range(2)]
+
+    openai_docs["paths"] = {k: v for k, v in openai_docs["paths"].items() if k.startswith("/openai")}
+    openai_docs["info"]["title"] = "OpenAI Assistants API"
+    letta_docs["paths"] = {k: v for k, v in letta_docs["paths"].items() if not k.startswith("/openai")}
+    letta_docs["info"]["title"] = "Letta API"
+    letta_docs["components"]["schemas"]["LettaResponse"] = {
+        "properties": LettaResponse.model_json_schema(ref_template="#/components/schemas/LettaResponse/properties/{model}")["$defs"]
+    }
+
+    # Split the API docs into Letta API, and OpenAI Assistants compatible API
+    for name, docs in [
+        (
+            "openai",
+            openai_docs,
+        ),
+        (
+            "letta",
+            letta_docs,
+        ),
+    ]:
+        if settings.cors_origins:
+            docs["servers"] = [{"url": host} for host in settings.cors_origins]
+        Path(f"openapi_{name}.json").write_text(json.dumps(docs, indent=2))
+
+
 def create_application() -> "FastAPI":
     """the application start routine"""
     # global server
@@ -122,34 +153,7 @@ def create_application() -> "FastAPI":
 
         # Tool.load_default_tools(get_db_session())
 
-        # Update the OpenAPI schema
-        if not app.openapi_schema:
-            app.openapi_schema = app.openapi()
-
-        openai_docs, letta_docs = [app.openapi_schema.copy() for _ in range(2)]
-
-        openai_docs["paths"] = {k: v for k, v in openai_docs["paths"].items() if k.startswith("/openai")}
-        openai_docs["info"]["title"] = "OpenAI Assistants API"
-        letta_docs["paths"] = {k: v for k, v in letta_docs["paths"].items() if not k.startswith("/openai")}
-        letta_docs["info"]["title"] = "Letta API"
-        letta_docs["components"]["schemas"]["LettaResponse"] = {
-            "properties": LettaResponse.model_json_schema(ref_template="#/components/schemas/LettaResponse/properties/{model}")["$defs"]
-        }
-
-        # Split the API docs into Letta API, and OpenAI Assistants compatible API
-        for name, docs in [
-            (
-                "openai",
-                openai_docs,
-            ),
-            (
-                "letta",
-                letta_docs,
-            ),
-        ]:
-            if settings.cors_origins:
-                docs["servers"] = [{"url": host} for host in settings.cors_origins]
-            Path(f"openapi_{name}.json").write_text(json.dumps(docs, indent=2))
+        generate_openapi_schema(app)
 
     @app.on_event("shutdown")
     def on_shutdown():
