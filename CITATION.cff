@@ -24,4 +24,4 @@ identifiers:
   - type: arxiv
     value: "2310.08560"
 abstract: "Towards LLMs as Operating Systems"
-url: "https://arxiv.org/abs/2310.08560"
+url: https://arxiv.org/abs/2310.08560
