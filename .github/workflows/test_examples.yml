@@ -60,7 +60,7 @@ jobs:
         poetry run python examples/docs/agent_basic.py
         poetry run python examples/docs/memory.py
         poetry run python examples/docs/rest_client.py
-        poetry run python examples/docs/tool.py
+        poetry run python examples/docs/tools.py
 
     - name: Print docker logs if tests fail
       if: failure()
