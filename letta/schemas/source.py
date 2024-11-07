@@ -48,7 +48,7 @@ class SourceCreate(BaseSource):
     """
 
     # required
-    id: str = Field(BaseSource.generate_id_field(), description="The id of the source.")
+    id: str = BaseSource.generate_id_field()
     name: str = Field(..., description="The name of the source.")
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the source.")
 
