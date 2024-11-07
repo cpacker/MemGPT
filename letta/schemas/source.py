@@ -28,7 +28,7 @@ class Source(BaseSource):
         description (str): The description of the source.
     """
 
-    id: str = Field(..., description="The id of the source.")
+    id: str = BaseSource.generate_id_field()
     name: str = Field(..., description="The name of the source.")
     description: Optional[str] = Field(None, description="The description of the source.")
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the source.")
@@ -36,8 +36,8 @@ class Source(BaseSource):
     metadata_: Optional[dict] = Field(None, description="Metadata associated with the source.")
 
     # metadata fields
-    created_by_id: str = Field(..., description="The id of the user that made this Tool.")
-    last_updated_by_id: str = Field(..., description="The id of the user that made this Tool.")
+    created_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
+    last_updated_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
     created_at: Optional[datetime] = Field(None, description="The timestamp when the source was created.")
     updated_at: Optional[datetime] = Field(None, description="The timestamp when the source was last updated.")
 
@@ -48,6 +48,7 @@ class SourceCreate(BaseSource):
     """
 
     # required
+    id: str = Field(BaseSource.generate_id_field(), description="The id of the source.")
     name: str = Field(..., description="The name of the source.")
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the source.")
 

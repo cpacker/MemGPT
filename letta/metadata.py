@@ -458,6 +458,7 @@ class MetadataStore:
             fields = vars(agent)
             fields["memory"] = agent.memory.to_dict()
             del fields["_internal_memory"]
+            del fields["tags"]
             session.add(AgentModel(**fields))
             session.commit()
 
@@ -489,6 +490,7 @@ class MetadataStore:
             if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
                 fields["memory"] = agent.memory.to_dict()
             del fields["_internal_memory"]
+            del fields["tags"]
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
 

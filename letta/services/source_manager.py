@@ -1,7 +1,6 @@
 from typing import List, Optional
 
 from letta.orm.errors import NoResultFound
-from letta.orm.organization import Organization as OrganizationModel
 from letta.orm.source import Source as SourceModel
 from letta.schemas.source import Source as PydanticSource
 from letta.schemas.source import SourceCreate, SourceUpdate
@@ -65,7 +64,7 @@ class SourceManager:
                 db_session=session,
                 cursor=cursor,
                 limit=limit,
-                _organization_id=OrganizationModel.get_uid_from_identifier(actor.organization_id),
+                organization_id=actor.organization_id,
             )
             return [source.to_pydantic() for source in sources]
 
@@ -84,7 +83,7 @@ class SourceManager:
             sources = SourceModel.list(
                 db_session=session,
                 name=source_name,
-                _organization_id=OrganizationModel.get_uid_from_identifier(actor.organization_id),
+                organization_id=actor.organization_id,
                 limit=1,
             )
             if not sources:

@@ -16,7 +16,7 @@ RUN poetry lock --no-update
 RUN if [ "$LETTA_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
     poetry install --no-root -E "postgres server dev" ; \
     else \
-    poetry install --no-root -E "postgres server" && \
+    poetry install --no-root --all-extras && \
     rm -rf $POETRY_CACHE_DIR ;  \
     fi
 

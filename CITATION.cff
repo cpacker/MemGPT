@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Letta"
+url: "https://github.com/letta-ai/letta"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Packer"
+    given-names: "Charles"
+  - family-names: "Wooders"
+    given-names: "Sarah"
+  - family-names: "Lin"
+    given-names: "Kevin"
+  - family-names: "Fang"
+    given-names: "Vivian"
+  - family-names: "Patil"
+    given-names: "Shishir G"
+  - family-names: "Stoica"
+    given-names: "Ion"
+  - family-names: "Gonzalez"
+    given-names: "Joseph E"
+  journal: "arXiv preprint arXiv:2310.08560"
+  month: 10
+  title: "MemGPT: Towards LLMs as Operating Systems"
+  year: 2023

@@ -34,15 +34,15 @@ class EmbeddingConfigColumn(TypeDecorator):
         return value
 
 
-class Source(OrganizationMixin, SqlalchemyBase):
+class Source(SqlalchemyBase, OrganizationMixin):
     """A source represents an embedded text passage"""
 
-    __tablename__ = "source"
+    __tablename__ = "sources"
     __pydantic_model__ = PydanticSource
 
-    # Add unique constraint on (name, _organization_id)
+    # Add unique constraint on (name, organization_id)
     # An organization should not have multiple sources with the same name
-    __table_args__ = (UniqueConstraint("name", "_organization_id", name="uix_source_name_organization"),)
+    __table_args__ = (UniqueConstraint("name", "organization_id", name="uix_sources_name_organization"),)
 
     name: Mapped[str] = mapped_column(doc="the name of the source, must be unique within the org", nullable=False)
     description: Mapped[str] = mapped_column(nullable=True, doc="a human-readable description of the source")

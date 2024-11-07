@@ -1,0 +1,69 @@
+name: Examples (documentation)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    - name: Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Set permissions for log directory
+      run: |
+        mkdir -p /home/runner/.letta/logs
+        sudo chown -R $USER:$USER /home/runner/.letta/logs
+        chmod -R 755 /home/runner/.letta/logs
+
+    - name: Build and run docker dev server
+      env:
+        LETTA_PG_DB:   letta
+        LETTA_PG_USER: letta
+        LETTA_PG_PASSWORD: letta
+        LETTA_PG_PORT: 8888
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      run: docker compose -f dev-compose.yaml up --build -d
+    #- name: "Setup Python, Poetry and Dependencies"
+    #  uses: packetcoders/action-setup-cache-python-poetry@v1.2.0
+    #  with:
+    #    python-version: "3.12"
+    #    poetry-version: "1.8.2"
+    #    install-args: "--all-extras"
+
+    - name: Wait for service
+      run: bash scripts/wait_for_service.sh http://localhost:8283 -- echo "Service is ready"
+
+    - name: Run tests with pytest
+      env:
+        LETTA_PG_DB:   letta
+        LETTA_PG_USER: letta
+        LETTA_PG_PASSWORD: letta
+        LETTA_PG_PORT: 8888
+        LETTA_SERVER_PASS: test_server_token
+        LETTA_SERVER_URL: http://localhost:8283
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
+      run: |
+        pipx install poetry==1.8.2
+        poetry install -E dev -E postgres -E external-tools
+        poetry run python examples/docs/agent_advanced.py
+        poetry run python examples/docs/agent_basic.py
+        poetry run python examples/docs/memory.py
+        poetry run python examples/docs/rest_client.py
+        poetry run python examples/docs/tools.py
+
+    - name: Print docker logs if tests fail
+      if: failure()
+      run: |
+        echo "Printing Docker Logs..."
+        docker compose -f dev-compose.yaml logs

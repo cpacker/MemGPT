@@ -16,7 +16,7 @@ services:
     ports:
       - "5432:5432"
   letta_server:
-    image: lettaai/letta:latest
+    image: letta/letta:latest
     hostname: letta
     depends_on:
       - letta_db

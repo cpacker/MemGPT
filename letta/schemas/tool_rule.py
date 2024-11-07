@@ -11,15 +11,25 @@ class BaseToolRule(LettaBase):
 
 
 class ToolRule(BaseToolRule):
+    """
+    A ToolRule represents a tool that can be invoked by the agent.
+    """
+
     type: str = Field("ToolRule")
     children: List[str] = Field(..., description="The children tools that can be invoked.")
 
 
 class InitToolRule(BaseToolRule):
+    """
+    Represents the initial tool rule configuration.
+    """
+
     type: str = Field("InitToolRule")
-    """Represents the initial tool rule configuration."""
 
 
 class TerminalToolRule(BaseToolRule):
+    """
+    Represents a terminal tool rule configuration where if this tool gets called, it must end the agent loop.
+    """
+
     type: str = Field("TerminalToolRule")
-    """Represents a terminal tool rule configuration where if this tool gets called, it must end the agent loop."""
