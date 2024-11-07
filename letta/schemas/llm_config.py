@@ -68,7 +68,7 @@ class LLMConfig(BaseModel):
     @classmethod
     def default_config(cls, model_name: str):
         """
-        Convinience function to generate a default `LLMConfig` from a model name. Only some models are supported in this function. 
+        Convinience function to generate a default `LLMConfig` from a model name. Only some models are supported in this function.
 
         Args:
             model_name (str): The name of the model (gpt-4, gpt-4o-mini, letta).

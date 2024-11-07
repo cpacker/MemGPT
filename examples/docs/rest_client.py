@@ -1,5 +1,3 @@
-import json
-
 from letta import create_client
 from letta.schemas.memory import ChatMemory
 
@@ -23,10 +21,10 @@ def main():
 
     # Create an agent
     agent_state = client.create_agent(
-        name="my_agent", 
-        memory=ChatMemory(human="My name is Sarah.", persona="I am a friendly AI."), 
-        embedding_config=embedding_configs[0], 
-        llm_config=llm_configs[0]
+        name="my_agent",
+        memory=ChatMemory(human="My name is Sarah.", persona="I am a friendly AI."),
+        embedding_config=embedding_configs[0],
+        llm_config=llm_configs[0],
     )
     print(f"Created agent: {agent_state.name} with ID {str(agent_state.id)}")
 
