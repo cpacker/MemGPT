@@ -379,6 +379,9 @@ class SyncServer(Server):
                 except NoResultFound:
                     warnings.warn(f"Tried to retrieve a tool with name {name} from the agent_state, but does not exist in tool db.")
 
+            # set agent_state tools to only the names of the available tools
+            agent_state.tools = [t.name for t in tool_objs]
+
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
 
@@ -807,12 +810,17 @@ class SyncServer(Server):
             llm_config = request.llm_config
             embedding_config = request.embedding_config
 
-            # get tools + make sure they exist
+            # get tools + only add if they exist
             tool_objs = []
             if request.tools:
                 for tool_name in request.tools:
-                    tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
-                    tool_objs.append(tool_obj)
+                    try:
+                        tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+                        tool_objs.append(tool_obj)
+                    except NoResultFound:
+                        warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
+            # reset the request.tools to only valid tools
+            request.tools = [t.name for t in tool_objs]
 
             assert request.memory is not None
             memory_functions = get_memory_functions(request.memory)
