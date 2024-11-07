@@ -1,5 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
+type: article
 authors:
 - family-names: "Packer"
   given-names: "Charles"
@@ -16,9 +17,11 @@ authors:
 - family-names: "Gonzalez"
   given-names: "Joseph E"
 title: "MemGPT: Towards LLMs as Operating Systems"
-type: article
 journal: "arXiv preprint arXiv:2310.08560"
 year: 2023
+month: 10
 identifiers:
   - type: arxiv
     value: "2310.08560"
+abstract: "Towards LLMs as Operating Systems"
+url: "https://arxiv.org/abs/2310.08560"
