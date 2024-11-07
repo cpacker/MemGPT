@@ -89,7 +89,8 @@ def create_tool(
     actor = server.get_user_or_default(user_id=user_id)
 
     # Send request to create the tool
-    return server.tool_manager.create_or_update_tool(tool_create=request, actor=actor)
+    tool = Tool(**request.model_dump())
+    return server.tool_manager.create_or_update_tool(pydantic_tool=tool, actor=actor)
 
 
 @router.patch("/{tool_id}", response_model=Tool, operation_id="update_tool")
@@ -103,4 +104,16 @@ def update_tool(
     Update an existing tool
     """
     actor = server.get_user_or_default(user_id=user_id)
-    return server.tool_manager.update_tool_by_id(tool_id, actor.id, request)
+    return server.tool_manager.update_tool_by_id(tool_id=tool_id, tool_update=request, actor=actor)
+
+
+@router.post("/add-base-tools", response_model=List[Tool], operation_id="add_base_tools")
+def add_base_tools(
+    server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Add base tools
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.tool_manager.add_base_tools(actor=actor)

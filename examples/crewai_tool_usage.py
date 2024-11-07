@@ -11,6 +11,10 @@ This example show how you can add CrewAI tools .
 
 First, make sure you have CrewAI and some of the extras downloaded.
 ```
+# from pypi
+pip install 'letta[external-tools]'
+
+# from source
 poetry install --extras "external-tools"
 ```
 then setup letta with `letta configure`.

@@ -1,5 +1,3 @@
-import warnings
-
 import pytest
 
 from letta.helpers import ToolRulesSolver
@@ -62,13 +60,14 @@ def test_get_allowed_tool_names_no_matching_rule_warning():
     # Action: Set last tool to an unrecognized tool and check warnings
     solver.update_tool_usage(UNRECOGNIZED_TOOL)
 
-    with warnings.catch_warnings(record=True) as w:
-        allowed_tools = solver.get_allowed_tool_names()
+    # NOTE: removed for now since this warning is getting triggered on every LLM call
+    # with warnings.catch_warnings(record=True) as w:
+    #    allowed_tools = solver.get_allowed_tool_names()
 
-        # Assert: Expecting a warning and an empty list of allowed tools
-        assert len(w) == 1, "Expected a warning for no matching rule"
-        assert "resolved to no more possible tool calls" in str(w[-1].message)
-        assert allowed_tools == [], "Should return an empty list if no matching rule"
+    #    # Assert: Expecting a warning and an empty list of allowed tools
+    #    assert len(w) == 1, "Expected a warning for no matching rule"
+    #    assert "resolved to no more possible tool calls" in str(w[-1].message)
+    #    assert allowed_tools == [], "Should return an empty list if no matching rule"
 
 
 def test_get_allowed_tool_names_no_matching_rule_error():

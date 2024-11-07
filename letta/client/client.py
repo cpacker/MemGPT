@@ -77,6 +77,7 @@ class AbstractClient(object):
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
+        tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
@@ -225,6 +226,9 @@ class AbstractClient(object):
     def get_tool_id(self, name: str) -> Optional[str]:
         raise NotImplementedError
 
+    def add_base_tools(self) -> List[Tool]:
+        raise NotImplementedError
+
     def load_data(self, connector: DataConnector, source_name: str):
         raise NotImplementedError
 
@@ -330,8 +334,12 @@ class RESTClient(AbstractClient):
         self._default_llm_config = default_llm_config
         self._default_embedding_config = default_embedding_config
 
-    def list_agents(self) -> List[AgentState]:
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers)
+    def list_agents(self, tags: Optional[List[str]] = None) -> List[AgentState]:
+        params = {}
+        if tags:
+            params["tags"] = tags
+
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers, params=params)
         return [AgentState(**agent) for agent in response.json()]
 
     def agent_exists(self, agent_id: str) -> bool:
@@ -369,10 +377,12 @@ class RESTClient(AbstractClient):
         system: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
+        tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
+        initial_message_sequence: Optional[List[Message]] = None,
     ) -> AgentState:
         """Create an agent
 
@@ -421,13 +431,23 @@ class RESTClient(AbstractClient):
             metadata_=metadata,
             memory=memory,
             tools=tool_names,
+            tool_rules=tool_rules,
             system=system,
             agent_type=agent_type,
             llm_config=llm_config if llm_config else self._default_llm_config,
             embedding_config=embedding_config if embedding_config else self._default_embedding_config,
+            initial_message_sequence=initial_message_sequence,
         )
 
-        response = requests.post(f"{self.base_url}/{self.api_prefix}/agents", json=request.model_dump(), headers=self.headers)
+        # Use model_dump_json() instead of model_dump()
+        # If we use model_dump(), the datetime objects will not be serialized correctly
+        # response = requests.post(f"{self.base_url}/{self.api_prefix}/agents", json=request.model_dump(), headers=self.headers)
+        response = requests.post(
+            f"{self.base_url}/{self.api_prefix}/agents",
+            data=request.model_dump_json(),  # Use model_dump_json() instead of json=model_dump()
+            headers={"Content-Type": "application/json", **self.headers},
+        )
+
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
         return AgentState(**response.json())
@@ -464,6 +484,7 @@ class RESTClient(AbstractClient):
         description: Optional[str] = None,
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
@@ -493,6 +514,7 @@ class RESTClient(AbstractClient):
             name=name,
             system=system,
             tools=tools,
+            tags=tags,
             description=description,
             metadata_=metadata,
             llm_config=llm_config,
@@ -599,7 +621,12 @@ class RESTClient(AbstractClient):
             agent_id (str): ID of the agent
         """
         # TODO: implement this
-        raise NotImplementedError
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers, params={"name": agent_name})
+        agents = [AgentState(**agent) for agent in response.json()]
+        if len(agents) == 0:
+            return None
+        assert len(agents) == 1, f"Multiple agents with the same name: {agents}"
+        return agents[0].id
 
     # memory
     def get_in_context_memory(self, agent_id: str) -> Memory:
@@ -791,7 +818,7 @@ class RESTClient(AbstractClient):
         name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
-        include_full_message: Optional[bool] = False,
+        include_full_message: bool = False,
     ) -> Union[LettaResponse, Generator[LettaStreamingResponse, None, None]]:
         """
         Send a message to an agent
@@ -812,7 +839,12 @@ class RESTClient(AbstractClient):
         # TODO: figure out how to handle stream_steps and stream_tokens
 
         # When streaming steps is True, stream_tokens must be False
-        request = LettaRequest(messages=messages, stream_steps=stream_steps, stream_tokens=stream_tokens, return_message_object=True)
+        request = LettaRequest(
+            messages=messages,
+            stream_steps=stream_steps,
+            stream_tokens=stream_tokens,
+            return_message_object=include_full_message,
+        )
         if stream_tokens or stream_steps:
             from letta.client.streaming import _sse_post
 
@@ -827,12 +859,12 @@ class RESTClient(AbstractClient):
             response = LettaResponse(**response.json())
 
             # simplify messages
-            if not include_full_message:
-                messages = []
-                for m in response.messages:
-                    assert isinstance(m, Message)
-                    messages += m.to_letta_message()
-                response.messages = messages
+            # if not include_full_message:
+            #     messages = []
+            #     for m in response.messages:
+            #         assert isinstance(m, Message)
+            #         messages += m.to_letta_message()
+            #     response.messages = messages
 
             return response
 
@@ -851,8 +883,8 @@ class RESTClient(AbstractClient):
         else:
             return [Block(**block) for block in response.json()]
 
-    def create_block(self, label: str, text: str, name: Optional[str] = None, template: bool = False) -> Block:  #
-        request = CreateBlock(label=label, value=text, template=template, name=name)
+    def create_block(self, label: str, text: str, template_name: Optional[str] = None, template: bool = False) -> Block:  #
+        request = CreateBlock(label=label, value=text, template=template, template_name=template_name)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
@@ -864,7 +896,7 @@ class RESTClient(AbstractClient):
             return Block(**response.json())
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
-        request = UpdateBlock(id=block_id, name=name, value=text)
+        request = UpdateBlock(id=block_id, template_name=name, value=text)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update block: {response.text}")
@@ -918,7 +950,7 @@ class RESTClient(AbstractClient):
         Returns:
             human (Human): Human block
         """
-        return self.create_block(label="human", name=name, text=text, template=True)
+        return self.create_block(label="human", template_name=name, text=text, template=True)
 
     def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
         """
@@ -931,7 +963,7 @@ class RESTClient(AbstractClient):
         Returns:
             human (Human): Updated human block
         """
-        request = UpdateHuman(id=human_id, name=name, value=text)
+        request = UpdateHuman(id=human_id, template_name=name, value=text)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{human_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update human: {response.text}")
@@ -958,7 +990,7 @@ class RESTClient(AbstractClient):
         Returns:
             persona (Persona): Persona block
         """
-        return self.create_block(label="persona", name=name, text=text, template=True)
+        return self.create_block(label="persona", template_name=name, text=text, template=True)
 
     def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
         """
@@ -971,7 +1003,7 @@ class RESTClient(AbstractClient):
         Returns:
             persona (Persona): Updated persona block
         """
-        request = UpdatePersona(id=persona_id, name=name, value=text)
+        request = UpdatePersona(id=persona_id, template_name=name, value=text)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{persona_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update persona: {response.text}")
@@ -1265,6 +1297,13 @@ class RESTClient(AbstractClient):
         elif response.status_code != 200:
             raise ValueError(f"Failed to get tool: {response.text}")
         return response.json()
+
+    def add_base_tools(self) -> List[Tool]:
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/tools/add-base-tools/", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to add base tools: {response.text}")
+
+        return [Tool(**tool) for tool in response.json()]
 
     def create_tool(
         self,
@@ -1584,13 +1623,10 @@ class LocalClient(AbstractClient):
         self.organization = self.server.get_organization_or_default(self.org_id)
 
     # agents
-    def list_agents(self) -> List[AgentState]:
+    def list_agents(self, tags: Optional[List[str]] = None) -> List[AgentState]:
         self.interface.clear()
 
-        # TODO: fix the server function
-        # return self.server.list_agents(user_id=self.user_id)
-
-        return self.server.ms.list_agents(user_id=self.user_id)
+        return self.server.list_agents(user_id=self.user_id, tags=tags)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         """
@@ -1633,6 +1669,7 @@ class LocalClient(AbstractClient):
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
+        initial_message_sequence: Optional[List[Message]] = None,
     ) -> AgentState:
         """Create an agent
 
@@ -1687,6 +1724,7 @@ class LocalClient(AbstractClient):
                 agent_type=agent_type,
                 llm_config=llm_config if llm_config else self._default_llm_config,
                 embedding_config=embedding_config if embedding_config else self._default_embedding_config,
+                initial_message_sequence=initial_message_sequence,
             ),
             actor=self.user,
         )
@@ -1722,6 +1760,7 @@ class LocalClient(AbstractClient):
         description: Optional[str] = None,
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
+        tags: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
@@ -1753,6 +1792,7 @@ class LocalClient(AbstractClient):
                 name=name,
                 system=system,
                 tools=tools,
+                tags=tags,
                 description=description,
                 metadata_=metadata,
                 llm_config=llm_config,
@@ -1837,7 +1877,7 @@ class LocalClient(AbstractClient):
             agent_state (AgentState): State of the agent
         """
         self.interface.clear()
-        return self.server.get_agent(agent_name=agent_name, user_id=self.user_id, agent_id=None)
+        return self.server.get_agent_state(agent_name=agent_name, user_id=self.user_id, agent_id=None)
 
     def get_agent(self, agent_id: str) -> AgentState:
         """
@@ -2101,7 +2141,7 @@ class LocalClient(AbstractClient):
         Returns:
             human (Human): Human block
         """
-        return self.server.create_block(CreateHuman(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+        return self.server.create_block(CreateHuman(template_name=name, value=text, user_id=self.user_id), user_id=self.user_id)
 
     def create_persona(self, name: str, text: str):
         """
@@ -2114,7 +2154,7 @@ class LocalClient(AbstractClient):
         Returns:
             persona (Persona): Persona block
         """
-        return self.server.create_block(CreatePersona(name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+        return self.server.create_block(CreatePersona(template_name=name, value=text, user_id=self.user_id), user_id=self.user_id)
 
     def list_humans(self):
         """
@@ -2240,18 +2280,18 @@ class LocalClient(AbstractClient):
             langchain_tool=langchain_tool,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
         )
-        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
+        return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         tool_create = ToolCreate.from_crewai(
             crewai_tool=crewai_tool,
             additional_imports_module_attr_map=additional_imports_module_attr_map,
         )
-        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
+        return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     def load_composio_tool(self, action: "ActionType") -> Tool:
         tool_create = ToolCreate.from_composio(action=action)
-        return self.server.tool_manager.create_or_update_tool(tool_create, actor=self.user)
+        return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
@@ -2283,7 +2323,7 @@ class LocalClient(AbstractClient):
 
         # call server function
         return self.server.tool_manager.create_or_update_tool(
-            ToolCreate(
+            Tool(
                 source_type=source_type,
                 source_code=source_code,
                 name=name,
@@ -2620,7 +2660,7 @@ class LocalClient(AbstractClient):
         """
         return self.server.get_blocks(label=label, template=templates_only)
 
-    def create_block(self, label: str, text: str, name: Optional[str] = None, template: bool = False) -> Block:  #
+    def create_block(self, label: str, text: str, template_name: Optional[str] = None, template: bool = False) -> Block:  #
         """
         Create a block
 
@@ -2633,7 +2673,7 @@ class LocalClient(AbstractClient):
             block (Block): Created block
         """
         return self.server.create_block(
-            CreateBlock(label=label, name=name, value=text, user_id=self.user_id, template=template), user_id=self.user_id
+            CreateBlock(label=label, template_name=template_name, value=text, user_id=self.user_id, template=template), user_id=self.user_id
         )
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
@@ -2648,7 +2688,7 @@ class LocalClient(AbstractClient):
         Returns:
             block (Block): Updated block
         """
-        return self.server.update_block(UpdateBlock(id=block_id, name=name, value=text))
+        return self.server.update_block(UpdateBlock(id=block_id, template_name=name, value=text))
 
     def get_block(self, block_id: str) -> Block:
         """
@@ -2711,7 +2751,7 @@ class LocalClient(AbstractClient):
         return self.server.list_embedding_models()
 
     def create_org(self, name: Optional[str] = None) -> Organization:
-        return self.server.organization_manager.create_organization(name=name)
+        return self.server.organization_manager.create_organization(pydantic_org=Organization(name=name))
 
     def list_orgs(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Organization]:
         return self.server.organization_manager.list_organizations(cursor=cursor, limit=limit)

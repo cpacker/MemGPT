@@ -28,6 +28,7 @@ jobs:
         install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"  # Adjust as necessary
 
     - name: Validate PR Title
+      if: github.event_name == 'pull_request'
       uses: amannn/action-semantic-pull-request@v5
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,14 @@
+name: "Letta Web Compatibility Checker"
+
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+
+jobs:
+  check-letta-web-compatibility:
+    uses: letta-ai/letta-compatibility-workflows/.github/workflows/letta-web-compatibility-tester.yml@main
+    secrets: inherit

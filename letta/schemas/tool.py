@@ -7,7 +7,10 @@ from letta.functions.helpers import (
     generate_crewai_tool_wrapper,
     generate_langchain_tool_wrapper,
 )
-from letta.functions.schema_generator import generate_schema_from_args_schema
+from letta.functions.schema_generator import (
+    generate_schema_from_args_schema_v1,
+    generate_schema_from_args_schema_v2,
+)
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.openai.chat_completion_request import ToolCall
 
@@ -29,21 +32,21 @@ class Tool(BaseTool):
 
     """
 
-    id: str = Field(..., description="The id of the tool.")
+    id: str = BaseTool.generate_id_field()
     description: Optional[str] = Field(None, description="The description of the tool.")
     source_type: Optional[str] = Field(None, description="The type of the source code.")
     module: Optional[str] = Field(None, description="The module of the function.")
-    organization_id: str = Field(..., description="The unique identifier of the organization associated with the tool.")
-    name: str = Field(..., description="The name of the function.")
-    tags: List[str] = Field(..., description="Metadata tags.")
+    organization_id: Optional[str] = Field(None, description="The unique identifier of the organization associated with the tool.")
+    name: Optional[str] = Field(None, description="The name of the function.")
+    tags: List[str] = Field([], description="Metadata tags.")
 
     # code
     source_code: str = Field(..., description="The source code of the function.")
-    json_schema: Dict = Field(default_factory=dict, description="The JSON schema of the function.")
+    json_schema: Optional[Dict] = Field(None, description="The JSON schema of the function.")
 
     # metadata fields
-    created_by_id: str = Field(..., description="The id of the user that made this Tool.")
-    last_updated_by_id: str = Field(..., description="The id of the user that made this Tool.")
+    created_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
+    last_updated_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
 
     def to_dict(self):
         """
@@ -64,7 +67,7 @@ class ToolCreate(LettaBase):
     tags: List[str] = Field([], description="Metadata tags.")
     module: Optional[str] = Field(None, description="The source code of the function.")
     source_code: str = Field(..., description="The source code of the function.")
-    source_type: str = Field(..., description="The source type of the function.")
+    source_type: str = Field("python", description="The source type of the function.")
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
@@ -82,9 +85,10 @@ class ToolCreate(LettaBase):
         Returns:
             Tool: A Letta Tool initialized with attributes derived from the Composio tool.
         """
+        from composio import LogLevel
         from composio_langchain import ComposioToolSet
 
-        composio_toolset = ComposioToolSet()
+        composio_toolset = ComposioToolSet(logging_level=LogLevel.ERROR)
         composio_tools = composio_toolset.get_tools(actions=[action])
 
         assert len(composio_tools) > 0, "User supplied parameters do not match any Composio tools"
@@ -96,7 +100,7 @@ class ToolCreate(LettaBase):
         source_type = "python"
         tags = ["composio"]
         wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(action)
-        json_schema = generate_schema_from_args_schema(composio_tool.args_schema, name=wrapper_func_name, description=description)
+        json_schema = generate_schema_from_args_schema_v2(composio_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
             name=wrapper_func_name,
@@ -128,7 +132,7 @@ class ToolCreate(LettaBase):
         tags = ["langchain"]
         # NOTE: langchain tools may come from different packages
         wrapper_func_name, wrapper_function_str = generate_langchain_tool_wrapper(langchain_tool, additional_imports_module_attr_map)
-        json_schema = generate_schema_from_args_schema(langchain_tool.args_schema, name=wrapper_func_name, description=description)
+        json_schema = generate_schema_from_args_schema_v1(langchain_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
             name=wrapper_func_name,
@@ -158,7 +162,7 @@ class ToolCreate(LettaBase):
         source_type = "python"
         tags = ["crew-ai"]
         wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool, additional_imports_module_attr_map)
-        json_schema = generate_schema_from_args_schema(crewai_tool.args_schema, name=wrapper_func_name, description=description)
+        json_schema = generate_schema_from_args_schema_v1(crewai_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
             name=wrapper_func_name,
@@ -212,3 +216,7 @@ class ToolUpdate(LettaBase):
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
+
+    class Config:
+        extra = "ignore"  # Allows extra fields without validation errors
+        # TODO: Remove this, and clean usage of ToolUpdate everywhere else

@@ -358,26 +358,26 @@ class PostgresStorageConnector(SQLStorageConnector):
         # construct URI from enviornment variables
         if settings.pg_uri:
             self.uri = settings.pg_uri
+
+        # use config URI
+        # TODO: remove this eventually (config should NOT contain URI)
+        if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
+            self.uri = self.config.archival_storage_uri
+            self.db_model = PassageModel
+            if self.config.archival_storage_uri is None:
+                raise ValueError(f"Must specify archival_storage_uri in config {self.config.config_path}")
+        elif table_type == TableType.RECALL_MEMORY:
+            self.uri = self.config.recall_storage_uri
+            self.db_model = MessageModel
+            if self.config.recall_storage_uri is None:
+                raise ValueError(f"Must specify recall_storage_uri in config {self.config.config_path}")
+        elif table_type == TableType.FILES:
+            self.uri = self.config.metadata_storage_uri
+            self.db_model = FileMetadataModel
+            if self.config.metadata_storage_uri is None:
+                raise ValueError(f"Must specify metadata_storage_uri in config {self.config.config_path}")
         else:
-            # use config URI
-            # TODO: remove this eventually (config should NOT contain URI)
-            if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
-                self.uri = self.config.archival_storage_uri
-                self.db_model = PassageModel
-                if self.config.archival_storage_uri is None:
-                    raise ValueError(f"Must specify archival_storage_uri in config {self.config.config_path}")
-            elif table_type == TableType.RECALL_MEMORY:
-                self.uri = self.config.recall_storage_uri
-                self.db_model = MessageModel
-                if self.config.recall_storage_uri is None:
-                    raise ValueError(f"Must specify recall_storage_uri in config {self.config.config_path}")
-            elif table_type == TableType.FILES:
-                self.uri = self.config.metadata_storage_uri
-                self.db_model = FileMetadataModel
-                if self.config.metadata_storage_uri is None:
-                    raise ValueError(f"Must specify metadata_storage_uri in config {self.config.config_path}")
-            else:
-                raise ValueError(f"Table type {table_type} not implemented")
+            raise ValueError(f"Table type {table_type} not implemented")
 
         for c in self.db_model.__table__.columns:
             if c.name == "embedding":
@@ -578,4 +578,6 @@ class SQLLiteStorageConnector(SQLStorageConnector):
 def attach_base():
     # This should be invoked in server.py to make sure Base gets initialized properly
     # DO NOT REMOVE
-    print("Initializing database...")
+    from letta.utils import printd
+
+    printd("Initializing database...")

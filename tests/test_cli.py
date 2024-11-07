@@ -49,6 +49,13 @@ def test_letta_run_create_new_agent(swap_letta_config):
     except (pexpect.TIMEOUT, pexpect.EOF):
         print("[WARNING] LLM model selection step was skipped.")
 
+    # Optional: Context window selection
+    try:
+        child.expect("Select LLM context window limit", timeout=20)
+        child.sendline("")
+    except (pexpect.TIMEOUT, pexpect.EOF):
+        print("[WARNING] Context window selection step was skipped.")
+
     # Optional: Embedding model selection
     try:
         child.expect("Select embedding model:", timeout=20)
@@ -63,6 +70,7 @@ def test_letta_run_create_new_agent(swap_letta_config):
     child.expect("Enter your message:", timeout=60)
     # Capture the output up to this point
     full_output = child.before
+    assert full_output is not None, "No output was captured."
     # Count occurrences of inner thoughts
     cloud_emoji_count = full_output.count(INNER_THOUGHTS_CLI_SYMBOL)
     assert cloud_emoji_count == 1, f"It appears that there are multiple instances of inner thought outputted."
