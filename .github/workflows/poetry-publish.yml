@@ -7,7 +7,7 @@ on:
 jobs:
   build-and-publish:
     name: Build and Publish to PyPI
-    if: github.repository == 'cpacker/MemGPT'  # TODO: if the repo org ever changes, this must be updated
+    if: github.repository == 'letta-ai/letta'  # TODO: if the repo org ever changes, this must be updated
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
