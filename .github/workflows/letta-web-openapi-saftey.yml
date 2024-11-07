@@ -26,7 +26,9 @@ jobs:
           repository: letta-ai/letta-web
           token: ${{ secrets.PULLER_TOKEN }}
       - name: Run OpenAPI schema generation
-        run: bash ./letta/server/generate_openapi_schema.sh
+        run: |
+          ls
+          bash ./letta/server/generate_openapi_schema.sh
       - name: Setup letta-web
         working-directory: letta-web
         run: npm ci
