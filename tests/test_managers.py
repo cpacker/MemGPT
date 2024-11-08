@@ -447,10 +447,16 @@ def test_create_sources_with_same_name_does_not_error(server: SyncServer, defaul
     source_pydantic = PydanticSource(
         name=name,
         description="This is a test source.",
-        metadata_={"type": "test"},
+        metadata_={"type": "medical"},
         embedding_config=DEFAULT_EMBEDDING_CONFIG,
     )
     source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+    source_pydantic = PydanticSource(
+        name=name,
+        description="This is a different test source.",
+        metadata_={"type": "legal"},
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+    )
     same_source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
 
     assert source.id == same_source.id

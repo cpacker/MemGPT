@@ -49,7 +49,8 @@ class SourceCreate(BaseSource):
 
     # required
     name: str = Field(..., description="The name of the source.")
-    embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the source.")
+    # TODO: @matt, make this required after shub makes the FE changes
+    embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the source.")
 
     # optional
     description: Optional[str] = Field(None, description="The description of the source.")
