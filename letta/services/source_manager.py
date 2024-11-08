@@ -19,12 +19,17 @@ class SourceManager:
     @enforce_types
     def create_source(self, source: PydanticSource, actor: PydanticUser) -> PydanticSource:
         """Create a new source based on the PydanticSource schema."""
-        with self.session_maker() as session:
-            # Provide default embedding config if not given
-            source.organization_id = actor.organization_id
-            source = SourceModel(**source.model_dump(exclude_none=True))
-            source.create(session, actor=actor)
-        return source.to_pydantic()
+        # Try getting the source first by id or name
+        db_source = self.get_source_by_id(source.id, actor=actor) or self.get_source_by_name(source.name, actor=actor)
+        if db_source:
+            return db_source
+        else:
+            with self.session_maker() as session:
+                # Provide default embedding config if not given
+                source.organization_id = actor.organization_id
+                source = SourceModel(**source.model_dump(exclude_none=True))
+                source.create(session, actor=actor)
+            return source.to_pydantic()
 
     @enforce_types
     def update_source(self, source_id: str, source_update: SourceUpdate, actor: PydanticUser) -> PydanticSource:
@@ -70,14 +75,17 @@ class SourceManager:
 
     # TODO: We make actor optional for now, but should most likely be enforced due to security reasons
     @enforce_types
-    def get_source_by_id(self, source_id: str, actor: Optional[PydanticUser] = None) -> PydanticSource:
+    def get_source_by_id(self, source_id: str, actor: Optional[PydanticUser] = None) -> Optional[PydanticSource]:
         """Retrieve a source by its ID."""
         with self.session_maker() as session:
-            source = SourceModel.read(db_session=session, identifier=source_id, actor=actor)
-            return source.to_pydantic()
+            try:
+                source = SourceModel.read(db_session=session, identifier=source_id, actor=actor)
+                return source.to_pydantic()
+            except NoResultFound:
+                return None
 
     @enforce_types
-    def get_source_by_name(self, source_name: str, actor: PydanticUser) -> PydanticSource:
+    def get_source_by_name(self, source_name: str, actor: PydanticUser) -> Optional[PydanticSource]:
         """Retrieve a source by its name."""
         with self.session_maker() as session:
             sources = SourceModel.list(
@@ -87,5 +95,6 @@ class SourceManager:
                 limit=1,
             )
             if not sources:
-                raise NoResultFound(f"Source with name '{source_name}' not found.")
-            return sources[0].to_pydantic()
+                return None
+            else:
+                return sources[0].to_pydantic()

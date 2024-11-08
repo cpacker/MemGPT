@@ -441,6 +441,21 @@ def test_create_source(server: SyncServer, default_user):
     assert source.organization_id == default_user.organization_id
 
 
+def test_create_sources_with_same_name_does_not_error(server: SyncServer, default_user):
+    """Test creating a new source."""
+    name = "Test Source"
+    source_pydantic = PydanticSource(
+        name=name,
+        description="This is a test source.",
+        metadata_={"type": "test"},
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+    )
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+    same_source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+
+    assert source.id == same_source.id
+
+
 def test_update_source(server: SyncServer, default_user):
     """Test updating an existing source."""
     source_pydantic = PydanticSource(name="Original Source", description="Original description", embedding_config=DEFAULT_EMBEDDING_CONFIG)
