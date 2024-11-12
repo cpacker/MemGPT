@@ -32,10 +32,6 @@ async def create_chat_completion(
     The 'user' field in the completion_request should be set to the agent ID.
     """
     print(f"GOT REQUEST: {completion_request.model_dump(exclude_none=True)}")
-    # TODO: REMOVE THESE OVERRIDES -> THEY ARE FOR TESTING
-    completion_request.model = "gpt-4o-2024-08-06"
-    completion_request.user = "agent-e213fab4-77c6-484c-bc4c-1d7a16fefdfd"
-    # TODO: REMOVE
 
     actor = server.get_user_or_default(user_id=user_id)
 
