@@ -47,7 +47,7 @@ def load_data(
     passage_store: StorageConnector,
     file_metadata_store: StorageConnector,
 ):
-    """Load data from a connector (generates file and passages) into a specified source_id, associatedw with a user_id."""
+    """Load data from a connector (generates file and passages) into a specified source_id, associated with a user_id."""
     embedding_config = source.embedding_config
 
     # embedding model
@@ -88,7 +88,7 @@ def load_data(
                 file_id=file_metadata.id,
                 source_id=source.id,
                 metadata_=passage_metadata,
-                user_id=source.user_id,
+                user_id=source.created_by_id,
                 embedding_config=source.embedding_config,
                 embedding=embedding,
             )
@@ -155,7 +155,7 @@ class DirectoryConnector(DataConnector):
 
         for metadata in extract_metadata_from_files(files):
             yield FileMetadata(
-                user_id=source.user_id,
+                user_id=source.created_by_id,
                 source_id=source.id,
                 file_name=metadata.get("file_name"),
                 file_path=metadata.get("file_path"),

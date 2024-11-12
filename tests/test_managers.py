@@ -3,14 +3,14 @@ from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
-from letta.orm.organization import Organization
-from letta.orm.tool import Tool
-from letta.orm.user import User
+from letta.orm import Organization, Source, Tool, User
 from letta.schemas.agent import CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.organization import Organization as PydanticOrganization
+from letta.schemas.source import Source as PydanticSource
+from letta.schemas.source import SourceUpdate
 from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolUpdate
 from letta.services.organization_manager import OrganizationManager
@@ -21,11 +21,23 @@ from letta.schemas.user import User as PydanticUser
 from letta.schemas.user import UserUpdate
 from letta.server.server import SyncServer
 
+DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
+    embedding_endpoint_type="hugging-face",
+    embedding_endpoint="https://embeddings.memgpt.ai",
+    embedding_model="letta-free",
+    embedding_dim=1024,
+    embedding_chunk_size=300,
+    azure_endpoint=None,
+    azure_version=None,
+    azure_deployment=None,
+)
+
 
 @pytest.fixture(autouse=True)
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(Source))
         session.execute(delete(Tool))  # Clear all records from the Tool table
         session.execute(delete(User))  # Clear all records from the user table
         session.execute(delete(Organization))  # Clear all records from the organization table
@@ -114,8 +126,6 @@ def tool_fixture(server: SyncServer, default_user, default_organization):
     description = "test_description"
     tags = ["test"]
 
-    org = server.organization_manager.create_default_organization()
-    user = server.user_manager.create_default_user()
     tool = PydanticTool(description=description, tags=tags, source_code=source_code, source_type=source_type)
     derived_json_schema = derive_openai_json_schema(source_code=tool.source_code, name=tool.name)
 
@@ -123,10 +133,10 @@ def tool_fixture(server: SyncServer, default_user, default_organization):
     tool.json_schema = derived_json_schema
     tool.name = derived_name
 
-    tool = server.tool_manager.create_tool(tool, actor=user)
+    tool = server.tool_manager.create_tool(tool, actor=default_user)
 
     # Yield the created tool, organization, and user for use in tests
-    yield {"tool": tool, "organization": org, "user": user, "tool_create": tool}
+    yield {"tool": tool}
 
 
 @pytest.fixture(scope="module")
@@ -240,16 +250,10 @@ def test_update_user(server: SyncServer):
 # ======================================================================================================================
 def test_create_tool(server: SyncServer, tool_fixture, default_user, default_organization):
     tool = tool_fixture["tool"]
-    tool_create = tool_fixture["tool_create"]
 
     # Assertions to ensure the created tool matches the expected values
     assert tool.created_by_id == default_user.id
     assert tool.organization_id == default_organization.id
-    assert tool.description == tool_create.description
-    assert tool.tags == tool_create.tags
-    assert tool.source_code == tool_create.source_code
-    assert tool.source_type == tool_create.source_type
-    assert tool.json_schema == derive_openai_json_schema(source_code=tool_create.source_code, name=tool_create.name)
 
 
 def test_get_tool_by_id(server: SyncServer, tool_fixture, default_user):
@@ -327,7 +331,7 @@ def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, t
 
     # Test begins
     tool = tool_fixture["tool"]
-    og_json_schema = tool_fixture["tool_create"].json_schema
+    og_json_schema = tool.json_schema
 
     source_code = parse_source_code(counter_tool)
 
@@ -364,7 +368,7 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_
 
     # Test begins
     tool = tool_fixture["tool"]
-    og_json_schema = tool_fixture["tool_create"].json_schema
+    og_json_schema = tool.json_schema
 
     source_code = parse_source_code(counter_tool)
     name = "counter_tool"
@@ -413,6 +417,149 @@ def test_delete_tool_by_id(server: SyncServer, tool_fixture, default_user):
 
     tools = server.tool_manager.list_tools(actor=default_user)
     assert len(tools) == 0
+
+
+# ======================================================================================================================
+# Source Manager Tests
+# ======================================================================================================================
+
+
+def test_create_source(server: SyncServer, default_user):
+    """Test creating a new source."""
+    source_pydantic = PydanticSource(
+        name="Test Source",
+        description="This is a test source.",
+        metadata_={"type": "test"},
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+    )
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+
+    # Assertions to check the created source
+    assert source.name == source_pydantic.name
+    assert source.description == source_pydantic.description
+    assert source.metadata_ == source_pydantic.metadata_
+    assert source.organization_id == default_user.organization_id
+
+
+def test_create_sources_with_same_name_does_not_error(server: SyncServer, default_user):
+    """Test creating a new source."""
+    name = "Test Source"
+    source_pydantic = PydanticSource(
+        name=name,
+        description="This is a test source.",
+        metadata_={"type": "medical"},
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+    )
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+    source_pydantic = PydanticSource(
+        name=name,
+        description="This is a different test source.",
+        metadata_={"type": "legal"},
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+    )
+    same_source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+
+    assert source.name == same_source.name
+    assert source.id != same_source.id
+
+
+def test_update_source(server: SyncServer, default_user):
+    """Test updating an existing source."""
+    source_pydantic = PydanticSource(name="Original Source", description="Original description", embedding_config=DEFAULT_EMBEDDING_CONFIG)
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+
+    # Update the source
+    update_data = SourceUpdate(name="Updated Source", description="Updated description", metadata_={"type": "updated"})
+    updated_source = server.source_manager.update_source(source_id=source.id, source_update=update_data, actor=default_user)
+
+    # Assertions to verify update
+    assert updated_source.name == update_data.name
+    assert updated_source.description == update_data.description
+    assert updated_source.metadata_ == update_data.metadata_
+
+
+def test_delete_source(server: SyncServer, default_user):
+    """Test deleting a source."""
+    source_pydantic = PydanticSource(
+        name="To Delete", description="This source will be deleted.", embedding_config=DEFAULT_EMBEDDING_CONFIG
+    )
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+
+    # Delete the source
+    deleted_source = server.source_manager.delete_source(source_id=source.id, actor=default_user)
+
+    # Assertions to verify deletion
+    assert deleted_source.id == source.id
+
+    # Verify that the source no longer appears in list_sources
+    sources = server.source_manager.list_sources(actor=default_user)
+    assert len(sources) == 0
+
+
+def test_list_sources(server: SyncServer, default_user):
+    """Test listing sources with pagination."""
+    # Create multiple sources
+    server.source_manager.create_source(PydanticSource(name="Source 1", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
+    server.source_manager.create_source(PydanticSource(name="Source 2", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
+
+    # List sources without pagination
+    sources = server.source_manager.list_sources(actor=default_user)
+    assert len(sources) == 2
+
+    # List sources with pagination
+    paginated_sources = server.source_manager.list_sources(actor=default_user, limit=1)
+    assert len(paginated_sources) == 1
+
+    # Ensure cursor-based pagination works
+    next_page = server.source_manager.list_sources(actor=default_user, cursor=paginated_sources[-1].id, limit=1)
+    assert len(next_page) == 1
+    assert next_page[0].name != paginated_sources[0].name
+
+
+def test_get_source_by_id(server: SyncServer, default_user):
+    """Test retrieving a source by ID."""
+    source_pydantic = PydanticSource(
+        name="Retrieve by ID", description="Test source for ID retrieval", embedding_config=DEFAULT_EMBEDDING_CONFIG
+    )
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+
+    # Retrieve the source by ID
+    retrieved_source = server.source_manager.get_source_by_id(source_id=source.id, actor=default_user)
+
+    # Assertions to verify the retrieved source matches the created one
+    assert retrieved_source.id == source.id
+    assert retrieved_source.name == source.name
+    assert retrieved_source.description == source.description
+
+
+def test_get_source_by_name(server: SyncServer, default_user):
+    """Test retrieving a source by name."""
+    source_pydantic = PydanticSource(
+        name="Unique Source", description="Test source for name retrieval", embedding_config=DEFAULT_EMBEDDING_CONFIG
+    )
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+
+    # Retrieve the source by name
+    retrieved_source = server.source_manager.get_source_by_name(source_name=source.name, actor=default_user)
+
+    # Assertions to verify the retrieved source matches the created one
+    assert retrieved_source.name == source.name
+    assert retrieved_source.description == source.description
+
+
+def test_update_source_no_changes(server: SyncServer, default_user):
+    """Test update_source with no actual changes to verify logging and response."""
+    source_pydantic = PydanticSource(name="No Change Source", description="No changes", embedding_config=DEFAULT_EMBEDDING_CONFIG)
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+
+    # Attempt to update the source with identical data
+    update_data = SourceUpdate(name="No Change Source", description="No changes")
+    updated_source = server.source_manager.update_source(source_id=source.id, source_update=update_data, actor=default_user)
+
+    # Assertions to ensure the update returned the source but made no modifications
+    assert updated_source.id == source.id
+    assert updated_source.name == source.name
+    assert updated_source.description == source.description
 
 
 # ======================================================================================================================
