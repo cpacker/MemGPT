@@ -19,8 +19,8 @@ class SourceManager:
     @enforce_types
     def create_source(self, source: PydanticSource, actor: PydanticUser) -> PydanticSource:
         """Create a new source based on the PydanticSource schema."""
-        # Try getting the source first by id or name
-        db_source = self.get_source_by_id(source.id, actor=actor) or self.get_source_by_name(source.name, actor=actor)
+        # Try getting the source first by id
+        db_source = self.get_source_by_id(source.id, actor=actor)
         if db_source:
             return db_source
         else:
@@ -58,7 +58,7 @@ class SourceManager:
         """Delete a source by its ID."""
         with self.session_maker() as session:
             source = SourceModel.read(db_session=session, identifier=source_id)
-            source.hard_delete(db_session=session, actor=actor)
+            source.delete(db_session=session, actor=actor)
             return source.to_pydantic()
 
     @enforce_types

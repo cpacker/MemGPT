@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import JSON, TypeDecorator, UniqueConstraint
+from sqlalchemy import JSON, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.mixins import OrganizationMixin
@@ -39,10 +39,6 @@ class Source(SqlalchemyBase, OrganizationMixin):
 
     __tablename__ = "sources"
     __pydantic_model__ = PydanticSource
-
-    # Add unique constraint on (name, organization_id)
-    # An organization should not have multiple sources with the same name
-    __table_args__ = (UniqueConstraint("name", "organization_id", name="uix_sources_name_organization"),)
 
     name: Mapped[str] = mapped_column(doc="the name of the source, must be unique within the org", nullable=False)
     description: Mapped[str] = mapped_column(nullable=True, doc="a human-readable description of the source")
