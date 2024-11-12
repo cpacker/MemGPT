@@ -3,7 +3,7 @@ from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
-from letta.orm import Organization, Source, Tool, User
+from letta.orm import FileMetadata, Organization, Source, Tool, User
 from letta.schemas.agent import CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.file import FileMetadata as PydanticFileMetadata
@@ -38,6 +38,7 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(FileMetadata))
         session.execute(delete(Source))
         session.execute(delete(Tool))  # Clear all records from the Tool table
         session.execute(delete(User))  # Clear all records from the user table
