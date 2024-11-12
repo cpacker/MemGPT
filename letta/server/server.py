@@ -65,7 +65,6 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
@@ -1632,9 +1631,6 @@ class SyncServer(Server):
 
         return job
 
-    def delete_file_from_source(self, source_id: str, file_id: str, user_id: Optional[str]) -> Optional[FileMetadata]:
-        return self.ms.delete_file_from_source(source_id=source_id, file_id=file_id, user_id=user_id)
-
     def load_data(
         self,
         user_id: str,
@@ -1652,10 +1648,9 @@ class SyncServer(Server):
 
         # get the data connectors
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        file_store = StorageConnector.get_storage_connector(TableType.FILES, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, file_store)
+        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user)
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1719,10 +1714,6 @@ class SyncServer(Server):
         source_ids = self.ms.list_attached_source_ids(agent_id)
 
         return [self.source_manager.get_source_by_id(source_id=id) for id in source_ids]
-
-    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
-        # list all attached sources to an agent
-        return self.ms.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
 
     def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)

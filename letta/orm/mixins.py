@@ -29,3 +29,11 @@ class UserMixin(Base):
     __abstract__ = True
 
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
+
+
+class SourceMixin(Base):
+    """Mixin for models (e.g. file) that belong to a source."""
+
+    __abstract__ = True
+
+    source_id: Mapped[str] = mapped_column(String, ForeignKey("sources.id"))

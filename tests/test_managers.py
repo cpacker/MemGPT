@@ -6,6 +6,7 @@ from letta.functions.functions import derive_openai_json_schema, parse_source_co
 from letta.orm import Organization, Source, Tool, User
 from letta.schemas.agent import CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.file import FileMetadata as PydanticFileMetadata
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.organization import Organization as PydanticOrganization
@@ -63,6 +64,18 @@ def other_user(server: SyncServer, default_organization):
     """Fixture to create and return the default user within the default organization."""
     user = server.user_manager.create_user(PydanticUser(name="other", organization_id=default_organization.id))
     yield user
+
+
+@pytest.fixture
+def default_source(server: SyncServer, default_user):
+    source_pydantic = PydanticSource(
+        name="Test Source",
+        description="This is a test source.",
+        metadata_={"type": "test"},
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+    )
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+    yield source
 
 
 @pytest.fixture
@@ -420,7 +433,7 @@ def test_delete_tool_by_id(server: SyncServer, tool_fixture, default_user):
 
 
 # ======================================================================================================================
-# Source Manager Tests
+# Source Manager Tests - Sources
 # ======================================================================================================================
 
 
@@ -560,6 +573,74 @@ def test_update_source_no_changes(server: SyncServer, default_user):
     assert updated_source.id == source.id
     assert updated_source.name == source.name
     assert updated_source.description == source.description
+
+
+# ======================================================================================================================
+# Source Manager Tests - Files
+# ======================================================================================================================
+def test_get_file_by_id(server: SyncServer, default_user, default_source):
+    """Test retrieving a file by ID."""
+    file_metadata = PydanticFileMetadata(
+        file_name="Retrieve File",
+        file_path="/path/to/retrieve_file.txt",
+        file_type="text/plain",
+        file_size=2048,
+        source_id=default_source.id,
+    )
+    created_file = server.source_manager.create_file(file_metadata=file_metadata, actor=default_user)
+
+    # Retrieve the file by ID
+    retrieved_file = server.source_manager.get_file_by_id(file_id=created_file.id, actor=default_user)
+
+    # Assertions to verify the retrieved file matches the created one
+    assert retrieved_file.id == created_file.id
+    assert retrieved_file.file_name == created_file.file_name
+    assert retrieved_file.file_path == created_file.file_path
+    assert retrieved_file.file_type == created_file.file_type
+
+
+def test_list_files(server: SyncServer, default_user, default_source):
+    """Test listing files with pagination."""
+    # Create multiple files
+    server.source_manager.create_file(
+        PydanticFileMetadata(file_name="File 1", file_path="/path/to/file1.txt", file_type="text/plain", source_id=default_source.id),
+        actor=default_user,
+    )
+    server.source_manager.create_file(
+        PydanticFileMetadata(file_name="File 2", file_path="/path/to/file2.txt", file_type="text/plain", source_id=default_source.id),
+        actor=default_user,
+    )
+
+    # List files without pagination
+    files = server.source_manager.list_files(source_id=default_source.id, actor=default_user)
+    assert len(files) == 2
+
+    # List files with pagination
+    paginated_files = server.source_manager.list_files(source_id=default_source.id, actor=default_user, limit=1)
+    assert len(paginated_files) == 1
+
+    # Ensure cursor-based pagination works
+    next_page = server.source_manager.list_files(source_id=default_source.id, actor=default_user, cursor=paginated_files[-1].id, limit=1)
+    assert len(next_page) == 1
+    assert next_page[0].file_name != paginated_files[0].file_name
+
+
+def test_delete_file(server: SyncServer, default_user, default_source):
+    """Test deleting a file."""
+    file_metadata = PydanticFileMetadata(
+        file_name="Delete File", file_path="/path/to/delete_file.txt", file_type="text/plain", source_id=default_source.id
+    )
+    created_file = server.source_manager.create_file(file_metadata=file_metadata, actor=default_user)
+
+    # Delete the file
+    deleted_file = server.source_manager.delete_file(file_id=created_file.id, actor=default_user)
+
+    # Assertions to verify deletion
+    assert deleted_file.id == created_file.id
+
+    # Verify that the file no longer appears in list_files
+    files = server.source_manager.list_files(source_id=default_source.id, actor=default_user)
+    assert len(files) == 0
 
 
 # ======================================================================================================================
