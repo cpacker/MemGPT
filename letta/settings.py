@@ -32,6 +32,9 @@ class ModelSettings(BaseSettings):
     # ollama
     ollama_base_url: Optional[str] = None
 
+    # lmstudio base url
+    lmstudio_base_url: Optional[str] = None
+
     # azure
     azure_api_key: Optional[str] = None
     azure_base_url: Optional[str] = None
