@@ -459,7 +459,8 @@ def test_create_sources_with_same_name_does_not_error(server: SyncServer, defaul
     )
     same_source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
 
-    assert source.id == same_source.id
+    assert source.name == same_source.name
+    assert source.id != same_source.id
 
 
 def test_update_source(server: SyncServer, default_user):
