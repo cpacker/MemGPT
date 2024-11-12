@@ -1,0 +1,42 @@
+name: "Letta Web OpenAPI Compatibility Checker"
+
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+
+jobs:
+  validate-openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: "Setup Python, Poetry and Dependencies"
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: "3.12"
+          poetry-version: "1.8.2"
+          install-args: "-E dev"
+      - name: Checkout letta web
+        uses: actions/checkout@v4
+        with:
+          repository: letta-ai/letta-web
+          token: ${{ secrets.PULLER_TOKEN }}
+          path: letta-web
+      - name: Run OpenAPI schema generation
+        run: |
+          bash ./letta/server/generate_openapi_schema.sh
+      - name: Setup letta-web
+        working-directory: letta-web
+        run: npm ci
+      - name: Copy OpenAPI schema
+        working-directory: .
+        run: cp openapi_letta.json letta-web/libs/letta-agents-api/letta-agents-openapi.json
+      - name: Validate OpenAPI schema
+        working-directory: letta-web
+        run: |
+          npm run agents-api:generate
+          npm run type-check

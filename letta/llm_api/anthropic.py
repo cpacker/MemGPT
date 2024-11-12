@@ -27,11 +27,11 @@ MODEL_LIST = [
         "context_window": 200000,
     },
     {
-        "name": "claude-3-sonnet-20240229",
+        "name": "claude-3-5-sonnet-20241022",
         "context_window": 200000,
     },
     {
-        "name": "claude-3-haiku-20240307",
+        "name": "claude-3-5-haiku-20241022",
         "context_window": 200000,
     },
 ]

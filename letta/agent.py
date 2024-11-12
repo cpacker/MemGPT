@@ -46,6 +46,8 @@ from letta.schemas.passage import Passage
 from letta.schemas.tool import Tool
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
+from letta.services.source_manager import SourceManager
+from letta.services.user_manager import UserManager
 from letta.system import (
     get_heartbeat,
     get_initial_boot_messages,
@@ -1311,7 +1313,7 @@ class Agent(BaseAgent):
     def attach_source(self, source_id: str, source_connector: StorageConnector, ms: MetadataStore):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
-
+        user = UserManager().get_user_by_id(self.agent_state.user_id)
         filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
         size = source_connector.size(filters)
         page_size = 100
@@ -1339,7 +1341,7 @@ class Agent(BaseAgent):
         self.persistence_manager.archival_memory.storage.save()
 
         # attach to agent
-        source = ms.get_source(source_id=source_id)
+        source = SourceManager().get_source_by_id(source_id=source_id, actor=user)
         assert source is not None, f"Source {source_id} not found in metadata store"
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 

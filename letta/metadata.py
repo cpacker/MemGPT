@@ -29,7 +29,6 @@ from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
 from letta.schemas.openai.chat_completion_request import ToolCall, ToolCallFunction
-from letta.schemas.source import Source
 from letta.schemas.tool_rule import (
     BaseToolRule,
     InitToolRule,
@@ -292,40 +291,6 @@ class AgentModel(Base):
         return agent_state
 
 
-class SourceModel(Base):
-    """Defines data model for storing Passages (consisting of text, embedding)"""
-
-    __tablename__ = "sources"
-    __table_args__ = {"extend_existing": True}
-
-    # Assuming passage_id is the primary key
-    # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    embedding_config = Column(EmbeddingConfigColumn)
-    description = Column(String)
-    metadata_ = Column(JSON)
-    Index(__tablename__ + "_idx_user", user_id),
-
-    # TODO: add num passages
-
-    def __repr__(self) -> str:
-        return f"<Source(passage_id='{self.id}', name='{self.name}')>"
-
-    def to_record(self) -> Source:
-        return Source(
-            id=self.id,
-            user_id=self.user_id,
-            name=self.name,
-            created_at=self.created_at,
-            embedding_config=self.embedding_config,
-            description=self.description,
-            metadata_=self.metadata_,
-        )
-
-
 class AgentSourceMappingModel(Base):
     """Stores mapping between agent -> source"""
 
@@ -498,14 +463,6 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def create_source(self, source: Source):
-        with self.session_maker() as session:
-            if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
-                raise ValueError(f"Source with name {source.name} already exists for user {source.user_id}")
-            session.add(SourceModel(**vars(source)))
-            session.commit()
-
-    @enforce_types
     def create_block(self, block: Block):
         with self.session_maker() as session:
             # TODO: fix?
@@ -522,6 +479,7 @@ class MetadataStore:
             ):
 
                 raise ValueError(f"Block with name {block.template_name} already exists")
+
             session.add(BlockModel(**vars(block)))
             session.commit()
 
@@ -534,12 +492,6 @@ class MetadataStore:
             del fields["_internal_memory"]
             del fields["tags"]
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
-            session.commit()
-
-    @enforce_types
-    def update_source(self, source: Source):
-        with self.session_maker() as session:
-            session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
             session.commit()
 
     @enforce_types
@@ -592,26 +544,9 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def delete_source(self, source_id: str):
-        with self.session_maker() as session:
-            # delete from sources table
-            session.query(SourceModel).filter(SourceModel.id == source_id).delete()
-
-            # delete any mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).delete()
-
-            session.commit()
-
-    @enforce_types
     def list_agents(self, user_id: str) -> List[AgentState]:
         with self.session_maker() as session:
             results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    def list_sources(self, user_id: str) -> List[Source]:
-        with self.session_maker() as session:
-            results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
             return [r.to_record() for r in results]
 
     @enforce_types
@@ -628,21 +563,6 @@ class MetadataStore:
             if len(results) == 0:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
-            return results[0].to_record()
-
-    @enforce_types
-    def get_source(
-        self, source_id: Optional[str] = None, user_id: Optional[str] = None, source_name: Optional[str] = None
-    ) -> Optional[Source]:
-        with self.session_maker() as session:
-            if source_id:
-                results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
-            else:
-                assert user_id is not None and source_name is not None
-                results = session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
             return results[0].to_record()
 
     @enforce_types
@@ -699,19 +619,10 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def list_attached_sources(self, agent_id: str) -> List[Source]:
+    def list_attached_source_ids(self, agent_id: str) -> List[str]:
         with self.session_maker() as session:
             results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
-
-            sources = []
-            # make sure source exists
-            for r in results:
-                source = self.get_source(source_id=r.source_id)
-                if source:
-                    sources.append(source)
-                else:
-                    printd(f"Warning: source {r.source_id} does not exist but exists in mapping database. This should never happen.")
-            return sources
+            return [r.source_id for r in results]
 
     @enforce_types
     def list_attached_agents(self, source_id: str) -> List[str]:

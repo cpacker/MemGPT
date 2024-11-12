@@ -6,11 +6,13 @@ from typing import List, Union
 
 import pytest
 from dotenv import load_dotenv
+from sqlalchemy import delete
 
 from letta import create_client
 from letta.agent import initialize_message_sequence
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
+from letta.orm import Source
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole, MessageStreamStatus
@@ -81,6 +83,16 @@ def client(request):
     client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
     yield client
+
+
+@pytest.fixture(autouse=True)
+def clear_tables():
+    """Fixture to clear the organization table before each test."""
+    from letta.server.server import db_context
+
+    with db_context() as session:
+        session.execute(delete(Source))
+        session.commit()
 
 
 # Fixture for test agent

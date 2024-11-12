@@ -95,10 +95,8 @@ def google_ai_get_model_list(base_url: str, api_key: str, key_in_header: bool = 
 
     try:
         response = requests.get(url, headers=headers)
-        printd(f"response = {response}")
         response.raise_for_status()  # Raises HTTPError for 4XX/5XX status
         response = response.json()  # convert to dict from string
-        printd(f"response.json = {response}")
 
         # Grab the models out
         model_list = response["models"]
