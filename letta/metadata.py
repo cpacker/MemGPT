@@ -37,40 +37,6 @@ from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
 
-# class FileMetadataModel(Base):
-#     __tablename__ = "files"
-#     __table_args__ = {"extend_existing": True}
-#
-#     id = Column(String, primary_key=True, nullable=False)
-#     user_id = Column(String, nullable=False)
-#     # TODO: Investigate why this breaks during table creation due to FK
-#     # source_id = Column(String, ForeignKey("sources.id"), nullable=False)
-#     source_id = Column(String, nullable=False)
-#     file_name = Column(String, nullable=True)
-#     file_path = Column(String, nullable=True)
-#     file_type = Column(String, nullable=True)
-#     file_size = Column(Integer, nullable=True)
-#     file_creation_date = Column(String, nullable=True)
-#     file_last_modified_date = Column(String, nullable=True)
-#     created_at = Column(DateTime(timezone=True), server_default=func.now())
-#
-#     def __repr__(self):
-#         return f"<FileMetadata(id='{self.id}', source_id='{self.source_id}', file_name='{self.file_name}')>"
-#
-#     def to_record(self):
-#         return FileMetadata(
-#             id=self.id,
-#             user_id=self.user_id,
-#             source_id=self.source_id,
-#             file_name=self.file_name,
-#             file_path=self.file_path,
-#             file_type=self.file_type,
-#             file_size=self.file_size,
-#             file_creation_date=self.file_creation_date,
-#             file_last_modified_date=self.file_last_modified_date,
-#             created_at=self.created_at,
-#         )
-
 
 class LLMConfigColumn(TypeDecorator):
     """Custom type for storing LLMConfig as JSON"""
