@@ -37,6 +37,7 @@ from letta.log import get_logger
 from letta.memory import get_memory_functions
 from letta.metadata import MetadataStore
 from letta.o1_agent import O1Agent
+from letta.offline_memory_agent import OfflineMemoryAgent
 from letta.orm import Base
 from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
@@ -390,6 +391,8 @@ class SyncServer(Server):
                 letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
             elif agent_state.agent_type == AgentType.o1_agent:
                 letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+            elif agent_state.agent_type == AgentType.offline_memory_agent:
+                letta_agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, tools=tool_objs)
             else:
                 raise NotImplementedError("Not a supported agent type")
 
@@ -798,6 +801,8 @@ class SyncServer(Server):
                 request.system = gpt_system.get_system_text("memgpt_chat")
             elif request.agent_type == AgentType.o1_agent:
                 request.system = gpt_system.get_system_text("memgpt_modified_o1")
+            elif request.agent_type == AgentType.offline_memory_agent:
+                request.system = gpt_system.get_system_text("memgpt_offline_memory")
             else:
                 raise ValueError(f"Invalid agent type: {request.agent_type}")
 

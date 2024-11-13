@@ -30,6 +30,7 @@ class AgentType(str, Enum):
     memgpt_agent = "memgpt_agent"
     split_thread_agent = "split_thread_agent"
     o1_agent = "o1_agent"
+    offline_memory_agent = "offline_memory_agent"
 
 
 class AgentState(BaseAgent, validate_assignment=True):
