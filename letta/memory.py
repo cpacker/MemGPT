@@ -51,7 +51,6 @@ def _format_summary_history(message_history: List[Message]):
 def summarize_messages(
     agent_state: AgentState,
     message_sequence_to_summarize: List[Message],
-    insert_acknowledgement_assistant_message: bool = True,
 ):
     """Summarize a message sequence using GPT"""
     # we need the context_window
@@ -77,7 +76,7 @@ def summarize_messages(
     )
     message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role=MessageRole.user, text=summary_input))
 
-    llm_config_no_inner_thoughts = agent_state.llm_config.copy(deep=True)
+    llm_config_no_inner_thoughts = agent_state.llm_config.model_copy(deep=True)
     llm_config_no_inner_thoughts.put_inner_thoughts_in_kwargs = False
     response = create(
         llm_config=llm_config_no_inner_thoughts,

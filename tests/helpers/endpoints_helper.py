@@ -38,7 +38,7 @@ from letta.schemas.openai.chat_completion_response import (
     FunctionCall,
     Message,
 )
-from letta.utils import get_human_text, get_persona_text
+from letta.utils import get_human_text, get_persona_text, json_dumps
 from tests.helpers.utils import cleanup
 
 # Generate uuid for agent name for this example
@@ -314,6 +314,40 @@ def check_agent_edit_core_memory(filename: str) -> LettaResponse:
 
     # Make sure my name was repeated back to me
     assert_invoked_send_message_with_keyword(response.messages, human_name_b)
+
+    # Make sure some inner monologue is present
+    assert_inner_monologue_is_present_and_valid(response.messages)
+
+    return response
+
+
+def check_agent_summarize_memory_simple(filename: str) -> LettaResponse:
+    """
+    Checks that the LLM is able to summarize its memory
+    """
+    # Set up client
+    client = create_client()
+    cleanup(client=client, agent_uuid=agent_uuid)
+
+    agent_state = setup_agent(client, filename)
+
+    # Send a couple messages
+    friend_name = "Shub"
+    client.user_message(agent_id=agent_state.id, message="Hey, how's it going? What do you think about this whole shindig")
+    client.user_message(agent_id=agent_state.id, message=f"By the way, my friend's name is {friend_name}!")
+    client.user_message(agent_id=agent_state.id, message="Does the number 42 ring a bell?")
+
+    # Summarize
+    agent = client.server._get_or_load_agent(agent_id=agent_state.id)
+    agent.summarize_messages_inplace()
+    print(f"Summarization succeeded: messages[1] = \n\n{json_dumps(agent.messages[1])}\n")
+
+    response = client.user_message(agent_id=agent_state.id, message="What is my friend's name?")
+    # Basic checks
+    assert_sanity_checks(response)
+
+    # Make sure my name was repeated back to me
+    assert_invoked_send_message_with_keyword(response.messages, friend_name)
 
     # Make sure some inner monologue is present
     assert_inner_monologue_is_present_and_valid(response.messages)
