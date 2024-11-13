@@ -80,6 +80,7 @@ alembic = "^1.13.3"
 pyhumps = "^3.8.0"
 psycopg2 = "^2.9.10"
 psycopg2-binary = "^2.9.10"
+e2b-code-interpreter = {version = "^1.0.1", optional = true}
 
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]
@@ -91,6 +92,7 @@ autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
 external-tools = ["crewai", "docker", "crewai-tools", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
+cloud-tool-sandbox = ["e2b-code-interpreter"]
 tests = ["wikipedia"]
 
 [tool.poetry.group.dev.dependencies]

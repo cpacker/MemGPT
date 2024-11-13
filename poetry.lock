@@ -1374,6 +1374,41 @@ files = [
 ]
 
 [[package]]
+name = "e2b"
+version = "1.0.3"
+description = "E2B SDK that give agents cloud environments"
+optional = true
+python-versions = "<4.0,>=3.8"
+files = [
+    {file = "e2b-1.0.3-py3-none-any.whl", hash = "sha256:7e087a94e0b6bc86fd330815dfb3312f0cc365d4f080f5ff1a6335f3f65426de"},
+    {file = "e2b-1.0.3.tar.gz", hash = "sha256:767233663eadf78462b02eb3fa75d0993800309a43e65eaff40686843d26ecf8"},
+]
+
+[package.dependencies]
+attrs = ">=23.2.0"
+httpcore = ">=1.0.5,<2.0.0"
+httpx = ">=0.27.0,<0.28.0"
+packaging = ">=24.1"
+protobuf = ">=3.20.0,<6.0.0"
+python-dateutil = ">=2.8.2"
+
+[[package]]
+name = "e2b-code-interpreter"
+version = "1.0.1"
+description = "E2B Code Interpreter - Stateful code execution"
+optional = true
+python-versions = "<4.0,>=3.8"
+files = [
+    {file = "e2b_code_interpreter-1.0.1-py3-none-any.whl", hash = "sha256:e27c40174ba7daac4942388611a73e1ac58300227f0ba6c0555ee54507d4944c"},
+    {file = "e2b_code_interpreter-1.0.1.tar.gz", hash = "sha256:b0c061e41315d21514affe78f80052be335b687204e669dd7ca852b59eeaaea2"},
+]
+
+[package.dependencies]
+attrs = ">=21.3.0"
+e2b = ">=1.0.0,<2.0.0"
+httpx = ">=0.20.0,<0.28.0"
+
+[[package]]
 name = "embedchain"
 version = "0.1.120"
 description = "Simplest open source retrieval (RAG) framework"
@@ -8482,6 +8517,7 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 
 [extras]
 autogen = ["pyautogen"]
+cloud-tool-sandbox = ["e2b-code-interpreter"]
 dev = ["autoflake", "black", "datasets", "isort", "pexpect", "pre-commit", "pyright", "pytest-asyncio", "pytest-order"]
 external-tools = ["composio-core", "composio-langchain", "crewai", "crewai-tools", "docker", "langchain", "langchain-community", "wikipedia"]
 milvus = ["pymilvus"]
@@ -8494,4 +8530,4 @@ tests = ["wikipedia"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "570c482aed9ff66761ac47b8b7e1ca06525d4e5084791723380101217e163500"
+content-hash = "36bb1afe00548544ed75e605b341f7e511fd1ee9d9941403b4ba3da60e7d98a3"
