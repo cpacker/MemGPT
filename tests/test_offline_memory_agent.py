@@ -15,7 +15,7 @@ def test_offline_memory_agent():
         agent_type=AgentType.offline_memory_agent,
         llm_config=LLMConfig.default_config("gpt-4"),
         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-        memory=ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text("o1_persona")),
+        memory=ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text("offline_memory_persona")),
     )
     agent = client.get_agent(agent_id=agent_state.id)
     assert agent is not None

@@ -889,6 +889,16 @@ class SyncServer(Server):
                         True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
                     ),
                 )
+            elif request.agent_type == AgentType.offline_memory_agent:
+                agent = OfflineMemoryAgent(
+                    interface=interface,
+                    agent_state=agent_state,
+                    tools=tool_objs,
+                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                    first_message_verify_mono=(
+                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+                    ),
+                )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
             # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
