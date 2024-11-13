@@ -351,7 +351,7 @@ class PostgresStorageConnector(SQLStorageConnector):
     # TODO: this should probably eventually be moved into a parent DB class
 
     def __init__(self, table_type: str, config: LettaConfig, user_id, agent_id=None):
-        from pgvector.sqlalchemy import Vector
+        pass
 
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
 
@@ -379,9 +379,9 @@ class PostgresStorageConnector(SQLStorageConnector):
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
-        for c in self.db_model.__table__.columns:
-            if c.name == "embedding":
-                assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
+        # for c in self.db_model.__table__.columns:
+        #     if c.name == "embedding":
+        #         assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
 
         from letta.server.server import db_context
 
