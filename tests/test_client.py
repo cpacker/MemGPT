@@ -12,7 +12,7 @@ from letta import create_client
 from letta.agent import initialize_message_sequence
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
-from letta.orm import Source
+from letta.orm import FileMetadata, Source
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole, MessageStreamStatus
@@ -91,6 +91,7 @@ def clear_tables():
     from letta.server.server import db_context
 
     with db_context() as session:
+        session.execute(delete(FileMetadata))
         session.execute(delete(Source))
         session.commit()
 

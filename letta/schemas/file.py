@@ -29,6 +29,3 @@ class FileMetadata(FileMetadataBase):
     created_at: Optional[datetime] = Field(default_factory=datetime.utcnow, description="The creation date of the file.")
     updated_at: Optional[datetime] = Field(default_factory=datetime.utcnow, description="The update date of the file.")
     is_deleted: bool = Field(False, description="Whether this file is deleted or not.")
-
-    class Config:
-        extra = "allow"
