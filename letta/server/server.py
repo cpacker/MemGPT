@@ -1512,12 +1512,16 @@ class SyncServer(Server):
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
-        # Verify that the agent exists and is owned by the user
+        # Verify that the agent exists and belongs to the org of the user
         agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
         if not agent_state:
             raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
-        if agent_state.user_id != user_id:
-            raise ValueError(f"Could not authorize agent_id={agent_id} with user_id={user_id}")
+
+        agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+        if agent_state_user.organization_id != actor.organization_id:
+            raise ValueError(
+                f"Could not authorize agent_id={agent_id} with user_id={user_id} because of differing organizations; agent_id was created in {agent_state_user.organization_id} while user belongs to {actor.organization_id}. How did they get the agent id?"
+            )
 
         # First, if the agent is in the in-memory cache we should remove it
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
