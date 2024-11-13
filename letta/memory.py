@@ -76,6 +76,7 @@ def summarize_messages(
     )
     message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role=MessageRole.user, text=summary_input))
 
+    # TODO: We need to eventually have a separate LLM config for the summarizer LLM
     llm_config_no_inner_thoughts = agent_state.llm_config.model_copy(deep=True)
     llm_config_no_inner_thoughts.put_inner_thoughts_in_kwargs = False
     response = create(
