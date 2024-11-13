@@ -2440,7 +2440,7 @@ class LocalClient(AbstractClient):
         return job
 
     def delete_file_from_source(self, source_id: str, file_id: str):
-        self.server.delete_file_from_source(source_id, file_id, user_id=self.user_id)
+        self.server.source_manager.delete_file(file_id, actor=self.user)
 
     def get_job(self, job_id: str):
         return self.server.get_job(job_id=job_id)
@@ -2561,7 +2561,7 @@ class LocalClient(AbstractClient):
         Returns:
             files (List[FileMetadata]): List of files
         """
-        return self.server.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
+        return self.server.source_manager.list_files(source_id=source_id, limit=limit, cursor=cursor, actor=self.user)
 
     def update_source(self, source_id: str, name: Optional[str] = None) -> Source:
         """

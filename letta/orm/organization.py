@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from letta.orm.file import FileMetadata
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.organization import Organization as PydanticOrganization
 
@@ -18,7 +18,6 @@ class Organization(SqlalchemyBase):
     __tablename__ = "organizations"
     __pydantic_model__ = PydanticOrganization
 
-    id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(doc="The display name of the organization.")
 
     # relationships
@@ -26,6 +25,7 @@ class Organization(SqlalchemyBase):
     tools: Mapped[List["Tool"]] = relationship("Tool", back_populates="organization", cascade="all, delete-orphan")
     sources: Mapped[List["Source"]] = relationship("Source", back_populates="organization", cascade="all, delete-orphan")
     agents_tags: Mapped[List["AgentsTags"]] = relationship("AgentsTags", back_populates="organization", cascade="all, delete-orphan")
+    files: Mapped[List["FileMetadata"]] = relationship("FileMetadata", back_populates="organization", cascade="all, delete-orphan")
     # TODO: Map these relationships later when we actually make these models
     # below is just a suggestion
     # agents: Mapped[List["Agent"]] = relationship("Agent", back_populates="organization", cascade="all, delete-orphan")
