@@ -3,7 +3,7 @@ import json
 import re
 from typing import List, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, RootModel
 
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import LettaMessage, LettaMessageUnion
@@ -12,6 +12,20 @@ from letta.schemas.usage import LettaUsageStatistics
 from letta.utils import json_dumps
 
 # TODO: consider moving into own file
+
+
+class MessageListResponse(RootModel):
+    root: List[Message]
+
+    class Config:
+        title = "MessageListResponse"  # Explicit title for Stainless
+
+
+class LettaMessageListResponse(RootModel):
+    root: List[LettaMessageUnion]
+
+    class Config:
+        title = "LettaMessageListResponse"  # Explicit title for Stainless
 
 
 class LettaResponse(BaseModel):
