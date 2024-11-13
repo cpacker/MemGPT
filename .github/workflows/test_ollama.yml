@@ -22,7 +22,7 @@ jobs:
         curl -fsSL https://ollama.com/install.sh | sh
         ollama serve &
         sleep 10 # wait for server
-        ollama pull dolphin2.2-mistral:7b-q6_K
+        ollama pull thewindmom/hermes-3-llama-3.1-8b
         ollama pull mxbai-embed-large
 
     - name: "Setup Python, Poetry and Dependencies"

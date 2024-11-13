@@ -7,6 +7,9 @@ import pytest
 import letta.utils as utils
 from letta.constants import BASE_TOOLS, DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.enums import MessageRole
+from letta.schemas.user import User
+
+from .test_managers import DEFAULT_EMBEDDING_CONFIG
 
 utils.DEBUG = True
 from letta.config import LettaConfig
@@ -24,8 +27,7 @@ from letta.schemas.letta_message import (
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.message import Message
-from letta.schemas.source import SourceCreate
-from letta.schemas.user import UserCreate
+from letta.schemas.source import Source
 from letta.server.server import SyncServer
 
 from .utils import DummyDataConnector
@@ -33,25 +35,8 @@ from .utils import DummyDataConnector
 
 @pytest.fixture(scope="module")
 def server():
-    # if os.getenv("OPENAI_API_KEY"):
-    #    create_config("openai")
-    #    credentials = LettaCredentials(
-    #        openai_key=os.getenv("OPENAI_API_KEY"),
-    #    )
-    # else:  # hosted
-    #    create_config("letta_hosted")
-    #    credentials = LettaCredentials()
-
     config = LettaConfig.load()
     print("CONFIG PATH", config.config_path)
-
-    ## set to use postgres
-    # config.archival_storage_uri = db_url
-    # config.recall_storage_uri = db_url
-    # config.metadata_storage_uri = db_url
-    # config.archival_storage_type = "postgres"
-    # config.recall_storage_type = "postgres"
-    # config.metadata_storage_type = "postgres"
 
     config.save()
 
@@ -62,7 +47,7 @@ def server():
 @pytest.fixture(scope="module")
 def org_id(server):
     # create org
-    org = server.organization_manager.create_organization(name="test_org")
+    org = server.organization_manager.create_default_organization()
     print(f"Created org\n{org.id}")
 
     yield org.id
@@ -74,7 +59,7 @@ def org_id(server):
 @pytest.fixture(scope="module")
 def user_id(server, org_id):
     # create user
-    user = server.create_user(UserCreate(name="test_user", organization_id=org_id))
+    user = server.user_manager.create_default_user()
     print(f"Created user\n{user.id}")
 
     yield user.id
@@ -97,7 +82,7 @@ def agent_id(server, user_id):
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        user_id=user_id,
+        actor=server.get_user_or_default(user_id),
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
@@ -135,7 +120,9 @@ def test_user_message_memory(server, user_id, agent_id):
 @pytest.mark.order(3)
 def test_load_data(server, user_id, agent_id):
     # create source
-    source = server.create_source(SourceCreate(name="test_source"), user_id=user_id)
+    source = server.source_manager.create_source(
+        Source(name="test_source", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=server.default_user
+    )
 
     # load data
     archival_memories = [
@@ -559,3 +546,54 @@ def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id:
         + overview.num_tokens_functions_definitions
         + overview.num_tokens_external_memory_summary
     )
+
+
+def test_load_agent_with_nonexistent_tool_names_does_not_error(server: SyncServer, user_id: str):
+    fake_tool_name = "blahblahblah"
+    tools = BASE_TOOLS + [fake_tool_name]
+    agent_state = server.create_agent(
+        request=CreateAgent(
+            name="nonexistent_tools_agent",
+            tools=tools,
+            memory=ChatMemory(
+                human="Sarah",
+                persona="I am a helpful assistant",
+            ),
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        ),
+        actor=server.get_user_or_default(user_id),
+    )
+
+    # Check that the tools in agent_state do NOT include the fake name
+    assert fake_tool_name not in agent_state.tools
+    assert set(BASE_TOOLS).issubset(set(agent_state.tools))
+
+    # Load the agent from the database and check that it doesn't error / tools are correct
+    saved_tools = server.get_tools_from_agent(agent_id=agent_state.id, user_id=user_id)
+    assert fake_tool_name not in agent_state.tools
+    assert set(BASE_TOOLS).issubset(set(agent_state.tools))
+
+    # cleanup
+    server.delete_agent(user_id, agent_state.id)
+
+
+def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
+    agent_state = server.create_agent(
+        request=CreateAgent(
+            name="nonexistent_tools_agent",
+            memory=ChatMemory(
+                human="Sarah",
+                persona="I am a helpful assistant",
+            ),
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        ),
+        actor=server.get_user_or_default(user_id),
+    )
+
+    # create another user in the same org
+    another_user = server.user_manager.create_user(User(organization_id=org_id, name="another"))
+
+    # test that another user in the same org can delete the agent
+    server.delete_agent(another_user.id, agent_state.id)

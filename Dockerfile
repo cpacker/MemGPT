@@ -16,7 +16,7 @@ RUN poetry lock --no-update
 RUN if [ "$LETTA_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
     poetry install --no-root -E "postgres server dev" ; \
     else \
-    poetry install --no-root -E "postgres server" && \
+    poetry install --no-root --all-extras && \
     rm -rf $POETRY_CACHE_DIR ;  \
     fi
 
@@ -31,8 +31,10 @@ ENV VIRTUAL_ENV=/app/.venv \
 COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
 
 COPY ./letta /letta
+COPY ./alembic.ini /alembic.ini
+COPY ./alembic /alembic
 
-EXPOSE 8083
+EXPOSE 8283
 
 CMD ./letta/server/startup.sh
 
@@ -46,6 +48,8 @@ ENV PYTHONPATH=/
 WORKDIR /
 COPY ./tests /tests
 COPY ./letta /letta
+COPY ./alembic.ini /alembic.ini
+COPY ./alembic /alembic
 #COPY ./configs/server_config.yaml /root/.letta/config
 EXPOSE 8083
 

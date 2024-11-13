@@ -2,14 +2,19 @@ import json
 import uuid
 
 from letta import create_client
+from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
-from letta.schemas.tool import Tool
 
 """
 This example show how you can add CrewAI tools .
 
 First, make sure you have CrewAI and some of the extras downloaded.
 ```
+# from pypi
+pip install 'letta[external-tools]'
+
+# from source
 poetry install --extras "external-tools"
 ```
 then setup letta with `letta configure`.
@@ -21,14 +26,14 @@ def main():
 
     crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
 
-    example_website_scrape_tool = Tool.from_crewai(crewai_tool)
-    tool_name = example_website_scrape_tool.name
-
     # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
     client = create_client()
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
     # create tool
-    client.add_tool(example_website_scrape_tool)
+    example_website_scrape_tool = client.load_crewai_tool(crewai_tool)
+    tool_name = example_website_scrape_tool.name
 
     # Confirm that the tool is in
     tools = client.list_tools()

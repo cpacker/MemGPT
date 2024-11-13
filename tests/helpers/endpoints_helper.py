@@ -4,6 +4,7 @@ import uuid
 from typing import Callable, List, Optional, Union
 
 from letta.llm_api.helpers import unpack_inner_thoughts_from_kwargs
+from letta.schemas.tool_rule import BaseToolRule
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ from letta.schemas.openai.chat_completion_response import (
     FunctionCall,
     Message,
 )
-from letta.utils import get_human_text, get_persona_text
+from letta.utils import get_human_text, get_persona_text, json_dumps
 from tests.helpers.utils import cleanup
 
 # Generate uuid for agent name for this example
@@ -61,6 +62,8 @@ def setup_agent(
     memory_human_str: str = get_human_text(DEFAULT_HUMAN),
     memory_persona_str: str = get_persona_text(DEFAULT_PERSONA),
     tools: Optional[List[str]] = None,
+    tool_rules: Optional[List[BaseToolRule]] = None,
+    agent_uuid: str = agent_uuid,
 ) -> AgentState:
     config_data = json.load(open(filename, "r"))
     llm_config = LLMConfig(**config_data)
@@ -73,7 +76,9 @@ def setup_agent(
     config.save()
 
     memory = ChatMemory(human=memory_human_str, persona=memory_persona_str)
-    agent_state = client.create_agent(name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config, memory=memory, tools=tools)
+    agent_state = client.create_agent(
+        name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config, memory=memory, tools=tools, tool_rules=tool_rules
+    )
 
     return agent_state
 
@@ -165,16 +170,13 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
     """
     from crewai_tools import ScrapeWebsiteTool
 
-    from letta.schemas.tool import Tool
-
     crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
-    tool = Tool.from_crewai(crewai_tool)
-    tool_name = tool.name
 
     # Set up client
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
-    client.add_tool(tool)
+    tool = client.load_crewai_tool(crewai_tool=crewai_tool)
+    tool_name = tool.name
 
     # Set up persona for tool usage
     persona = f"""
@@ -222,6 +224,35 @@ def check_agent_recall_chat_memory(filename: str) -> LettaResponse:
 
     # Make sure my name was repeated back to me
     assert_invoked_send_message_with_keyword(response.messages, human_name)
+
+    # Make sure some inner monologue is present
+    assert_inner_monologue_is_present_and_valid(response.messages)
+
+    return response
+
+
+def check_agent_archival_memory_insert(filename: str) -> LettaResponse:
+    """
+    Checks that the LLM will execute an archival memory insert.
+
+    Note: This is acting on the Letta response, note the usage of `user_message`
+    """
+    # Set up client
+    client = create_client()
+    cleanup(client=client, agent_uuid=agent_uuid)
+    agent_state = setup_agent(client, filename)
+    secret_word = "banana"
+
+    response = client.user_message(
+        agent_id=agent_state.id,
+        message=f"Please insert the secret word '{secret_word}' into archival memory.",
+    )
+
+    # Basic checks
+    assert_sanity_checks(response)
+
+    # Make sure archival_memory_search was called
+    assert_invoked_function_call(response.messages, "archival_memory_insert")
 
     # Make sure some inner monologue is present
     assert_inner_monologue_is_present_and_valid(response.messages)
@@ -283,6 +314,40 @@ def check_agent_edit_core_memory(filename: str) -> LettaResponse:
 
     # Make sure my name was repeated back to me
     assert_invoked_send_message_with_keyword(response.messages, human_name_b)
+
+    # Make sure some inner monologue is present
+    assert_inner_monologue_is_present_and_valid(response.messages)
+
+    return response
+
+
+def check_agent_summarize_memory_simple(filename: str) -> LettaResponse:
+    """
+    Checks that the LLM is able to summarize its memory
+    """
+    # Set up client
+    client = create_client()
+    cleanup(client=client, agent_uuid=agent_uuid)
+
+    agent_state = setup_agent(client, filename)
+
+    # Send a couple messages
+    friend_name = "Shub"
+    client.user_message(agent_id=agent_state.id, message="Hey, how's it going? What do you think about this whole shindig")
+    client.user_message(agent_id=agent_state.id, message=f"By the way, my friend's name is {friend_name}!")
+    client.user_message(agent_id=agent_state.id, message="Does the number 42 ring a bell?")
+
+    # Summarize
+    agent = client.server._get_or_load_agent(agent_id=agent_state.id)
+    agent.summarize_messages_inplace()
+    print(f"Summarization succeeded: messages[1] = \n\n{json_dumps(agent.messages[1])}\n")
+
+    response = client.user_message(agent_id=agent_state.id, message="What is my friend's name?")
+    # Basic checks
+    assert_sanity_checks(response)
+
+    # Make sure my name was repeated back to me
+    assert_invoked_send_message_with_keyword(response.messages, friend_name)
 
     # Make sure some inner monologue is present
     assert_inner_monologue_is_present_and_valid(response.messages)

@@ -313,7 +313,7 @@ class GroqProvider(OpenAIProvider):
                 continue
             configs.append(
                 LLMConfig(
-                    model=model["id"], model_endpoint_type="openai", model_endpoint=self.base_url, context_window=model["context_window"]
+                    model=model["id"], model_endpoint_type="groq", model_endpoint=self.base_url, context_window=model["context_window"]
                 )
             )
         return configs
@@ -462,7 +462,6 @@ class VLLMChatCompletionsProvider(Provider):
         response = openai_get_model_list(self.base_url, api_key=None)
 
         configs = []
-        print(response)
         for model in response["data"]:
             configs.append(
                 LLMConfig(

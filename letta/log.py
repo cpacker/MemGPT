@@ -56,7 +56,7 @@ DEVELOPMENT_LOGGING = {
             "propagate": False,
         },
         "uvicorn": {
-            "level": "INFO",
+            "level": "CRITICAL",
             "handlers": ["console"],
             "propagate": False,
         },

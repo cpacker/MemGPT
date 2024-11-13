@@ -11,11 +11,8 @@ from sqlalchemy import (
     Column,
     DateTime,
     Index,
-    Integer,
     String,
     TypeDecorator,
-    asc,
-    or_,
 )
 from sqlalchemy.sql import func
 
@@ -26,51 +23,19 @@ from letta.schemas.api_key import APIKey
 from letta.schemas.block import Block, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
-from letta.schemas.source import Source
-from letta.schemas.tool import Tool
+from letta.schemas.tool_rule import (
+    BaseToolRule,
+    InitToolRule,
+    TerminalToolRule,
+    ToolRule,
+)
 from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
-
-
-class FileMetadataModel(Base):
-    __tablename__ = "files"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True, nullable=False)
-    user_id = Column(String, nullable=False)
-    # TODO: Investigate why this breaks during table creation due to FK
-    # source_id = Column(String, ForeignKey("sources.id"), nullable=False)
-    source_id = Column(String, nullable=False)
-    file_name = Column(String, nullable=True)
-    file_path = Column(String, nullable=True)
-    file_type = Column(String, nullable=True)
-    file_size = Column(Integer, nullable=True)
-    file_creation_date = Column(String, nullable=True)
-    file_last_modified_date = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    def __repr__(self):
-        return f"<FileMetadata(id='{self.id}', source_id='{self.source_id}', file_name='{self.file_name}')>"
-
-    def to_record(self):
-        return FileMetadata(
-            id=self.id,
-            user_id=self.user_id,
-            source_id=self.source_id,
-            file_name=self.file_name,
-            file_path=self.file_path,
-            file_type=self.file_type,
-            file_size=self.file_size,
-            file_creation_date=self.file_creation_date,
-            file_last_modified_date=self.file_last_modified_date,
-            created_at=self.created_at,
-        )
 
 
 class LLMConfigColumn(TypeDecorator):
@@ -199,6 +164,41 @@ def generate_api_key(prefix="sk-", length=51) -> str:
     return new_key
 
 
+class ToolRulesColumn(TypeDecorator):
+    """Custom type for storing a list of ToolRules as JSON"""
+
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        return dialect.type_descriptor(JSON())
+
+    def process_bind_param(self, value: List[BaseToolRule], dialect):
+        """Convert a list of ToolRules to JSON-serializable format."""
+        if value:
+            return [rule.model_dump() for rule in value]
+        return value
+
+    def process_result_value(self, value, dialect) -> List[BaseToolRule]:
+        """Convert JSON back to a list of ToolRules."""
+        if value:
+            return [self.deserialize_tool_rule(rule_data) for rule_data in value]
+        return value
+
+    @staticmethod
+    def deserialize_tool_rule(data: dict) -> BaseToolRule:
+        """Deserialize a dictionary to the appropriate ToolRule subclass based on the 'type'."""
+        rule_type = data.get("type")  # Remove 'type' field if it exists since it is a class var
+        if rule_type == "InitToolRule":
+            return InitToolRule(**data)
+        elif rule_type == "TerminalToolRule":
+            return TerminalToolRule(**data)
+        elif rule_type == "ToolRule":
+            return ToolRule(**data)
+        else:
+            raise ValueError(f"Unknown tool rule type: {rule_type}")
+
+
 class AgentModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
@@ -215,7 +215,6 @@ class AgentModel(Base):
     message_ids = Column(JSON)
     memory = Column(JSON)
     system = Column(String)
-    tools = Column(JSON)
 
     # configs
     agent_type = Column(String)
@@ -227,6 +226,7 @@ class AgentModel(Base):
 
     # tools
     tools = Column(JSON)
+    tool_rules = Column(ToolRulesColumn)
 
     Index(__tablename__ + "_idx_user", user_id),
 
@@ -244,6 +244,7 @@ class AgentModel(Base):
             memory=Memory.load(self.memory),  # load dictionary
             system=self.system,
             tools=self.tools,
+            tool_rules=self.tool_rules,
             agent_type=self.agent_type,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
@@ -251,40 +252,6 @@ class AgentModel(Base):
         )
         assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
         return agent_state
-
-
-class SourceModel(Base):
-    """Defines data model for storing Passages (consisting of text, embedding)"""
-
-    __tablename__ = "sources"
-    __table_args__ = {"extend_existing": True}
-
-    # Assuming passage_id is the primary key
-    # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
-    name = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    embedding_config = Column(EmbeddingConfigColumn)
-    description = Column(String)
-    metadata_ = Column(JSON)
-    Index(__tablename__ + "_idx_user", user_id),
-
-    # TODO: add num passages
-
-    def __repr__(self) -> str:
-        return f"<Source(passage_id='{self.id}', name='{self.name}')>"
-
-    def to_record(self) -> Source:
-        return Source(
-            id=self.id,
-            user_id=self.user_id,
-            name=self.name,
-            created_at=self.created_at,
-            embedding_config=self.embedding_config,
-            description=self.description,
-            metadata_=self.metadata_,
-        )
 
 
 class AgentSourceMappingModel(Base):
@@ -309,16 +276,16 @@ class BlockModel(Base):
     id = Column(String, primary_key=True, nullable=False)
     value = Column(String, nullable=False)
     limit = Column(BIGINT)
-    name = Column(String, nullable=False)
+    template_name = Column(String, nullable=True, default=None)
     template = Column(Boolean, default=False)  # True: listed as possible human/persona
-    label = Column(String)
+    label = Column(String, nullable=False)
     metadata_ = Column(JSON)
     description = Column(String)
     user_id = Column(String)
     Index(__tablename__ + "_idx_user", user_id),
 
     def __repr__(self) -> str:
-        return f"<Block(id='{self.id}', name='{self.name}', template='{self.template}', label='{self.label}', user_id='{self.user_id}')>"
+        return f"<Block(id='{self.id}', template_name='{self.template_name}', template='{self.template_name}', label='{self.label}', user_id='{self.user_id}')>"
 
     def to_record(self) -> Block:
         if self.label == "persona":
@@ -326,7 +293,7 @@ class BlockModel(Base):
                 id=self.id,
                 value=self.value,
                 limit=self.limit,
-                name=self.name,
+                template_name=self.template_name,
                 template=self.template,
                 label=self.label,
                 metadata_=self.metadata_,
@@ -338,7 +305,7 @@ class BlockModel(Base):
                 id=self.id,
                 value=self.value,
                 limit=self.limit,
-                name=self.name,
+                template_name=self.template_name,
                 template=self.template,
                 label=self.label,
                 metadata_=self.metadata_,
@@ -350,44 +317,13 @@ class BlockModel(Base):
                 id=self.id,
                 value=self.value,
                 limit=self.limit,
-                name=self.name,
+                template_name=self.template_name,
                 template=self.template,
                 label=self.label,
                 metadata_=self.metadata_,
                 description=self.description,
                 user_id=self.user_id,
             )
-
-
-class ToolModel(Base):
-    __tablename__ = "tools"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    name = Column(String, nullable=False)
-    user_id = Column(String)
-    description = Column(String)
-    source_type = Column(String)
-    source_code = Column(String)
-    json_schema = Column(JSON)
-    module = Column(String)
-    tags = Column(JSON)
-
-    def __repr__(self) -> str:
-        return f"<Tool(id='{self.id}', name='{self.name}')>"
-
-    def to_record(self) -> Tool:
-        return Tool(
-            id=self.id,
-            name=self.name,
-            user_id=self.user_id,
-            description=self.description,
-            source_type=self.source_type,
-            source_code=self.source_code,
-            json_schema=self.json_schema,
-            module=self.module,
-            tags=self.tags,
-        )
 
 
 class JobModel(Base):
@@ -485,15 +421,8 @@ class MetadataStore:
             fields = vars(agent)
             fields["memory"] = agent.memory.to_dict()
             del fields["_internal_memory"]
+            del fields["tags"]
             session.add(AgentModel(**fields))
-            session.commit()
-
-    @enforce_types
-    def create_source(self, source: Source):
-        with self.session_maker() as session:
-            if session.query(SourceModel).filter(SourceModel.name == source.name).filter(SourceModel.user_id == source.user_id).count() > 0:
-                raise ValueError(f"Source with name {source.name} already exists for user {source.user_id}")
-            session.add(SourceModel(**vars(source)))
             session.commit()
 
     @enforce_types
@@ -504,7 +433,7 @@ class MetadataStore:
             # with a given name doesn't exist.
             if (
                 session.query(BlockModel)
-                .filter(BlockModel.name == block.name)
+                .filter(BlockModel.template_name == block.template_name)
                 .filter(BlockModel.user_id == block.user_id)
                 .filter(BlockModel.template == True)
                 .filter(BlockModel.label == block.label)
@@ -512,16 +441,9 @@ class MetadataStore:
                 > 0
             ):
 
-                raise ValueError(f"Block with name {block.name} already exists")
-            session.add(BlockModel(**vars(block)))
-            session.commit()
+                raise ValueError(f"Block with name {block.template_name} already exists")
 
-    @enforce_types
-    def create_tool(self, tool: Tool):
-        with self.session_maker() as session:
-            if self.get_tool(tool_id=tool.id, tool_name=tool.name, user_id=tool.user_id) is not None:
-                raise ValueError(f"Tool with name {tool.name} already exists")
-            session.add(ToolModel(**vars(tool)))
+            session.add(BlockModel(**vars(block)))
             session.commit()
 
     @enforce_types
@@ -531,13 +453,8 @@ class MetadataStore:
             if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
                 fields["memory"] = agent.memory.to_dict()
             del fields["_internal_memory"]
+            del fields["tags"]
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
-            session.commit()
-
-    @enforce_types
-    def update_source(self, source: Source):
-        with self.session_maker() as session:
-            session.query(SourceModel).filter(SourceModel.id == source.id).update(vars(source))
             session.commit()
 
     @enforce_types
@@ -555,33 +472,6 @@ class MetadataStore:
             else:
                 session.add(BlockModel(**vars(block)))
             session.commit()
-
-    @enforce_types
-    def update_tool(self, tool_id: str, tool: Tool):
-        with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.id == tool_id).update(vars(tool))
-            session.commit()
-
-    @enforce_types
-    def delete_tool(self, tool_id: str):
-        with self.session_maker() as session:
-            session.query(ToolModel).filter(ToolModel.id == tool_id).delete()
-            session.commit()
-
-    @enforce_types
-    def delete_file_from_source(self, source_id: str, file_id: str, user_id: Optional[str]):
-        with self.session_maker() as session:
-            file_metadata = (
-                session.query(FileMetadataModel)
-                .filter(FileMetadataModel.source_id == source_id, FileMetadataModel.id == file_id, FileMetadataModel.user_id == user_id)
-                .first()
-            )
-
-            if file_metadata:
-                session.delete(file_metadata)
-                session.commit()
-
-            return file_metadata
 
     @enforce_types
     def delete_block(self, block_id: str):
@@ -602,43 +492,9 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def delete_source(self, source_id: str):
-        with self.session_maker() as session:
-            # delete from sources table
-            session.query(SourceModel).filter(SourceModel.id == source_id).delete()
-
-            # delete any mappings
-            session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.source_id == source_id).delete()
-
-            session.commit()
-
-    @enforce_types
-    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[ToolModel]:
-        with self.session_maker() as session:
-            # Query for public tools or user-specific tools
-            query = session.query(ToolModel).filter(or_(ToolModel.user_id == None, ToolModel.user_id == user_id))
-
-            # Apply cursor if provided (assuming cursor is an ID)
-            if cursor:
-                query = query.filter(ToolModel.id > cursor)
-
-            # Order by ID and apply limit
-            results = query.order_by(asc(ToolModel.id)).limit(limit).all()
-
-            # Convert to records
-            res = [r.to_record() for r in results]
-            return res
-
-    @enforce_types
     def list_agents(self, user_id: str) -> List[AgentState]:
         with self.session_maker() as session:
             results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    @enforce_types
-    def list_sources(self, user_id: str) -> List[Source]:
-        with self.session_maker() as session:
-            results = session.query(SourceModel).filter(SourceModel.user_id == user_id).all()
             return [r.to_record() for r in results]
 
     @enforce_types
@@ -658,47 +514,6 @@ class MetadataStore:
             return results[0].to_record()
 
     @enforce_types
-    def get_source(
-        self, source_id: Optional[str] = None, user_id: Optional[str] = None, source_name: Optional[str] = None
-    ) -> Optional[Source]:
-        with self.session_maker() as session:
-            if source_id:
-                results = session.query(SourceModel).filter(SourceModel.id == source_id).all()
-            else:
-                assert user_id is not None and source_name is not None
-                results = session.query(SourceModel).filter(SourceModel.name == source_name).filter(SourceModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_tool(
-        self, tool_name: Optional[str] = None, tool_id: Optional[str] = None, user_id: Optional[str] = None
-    ) -> Optional[ToolModel]:
-        with self.session_maker() as session:
-            if tool_id:
-                results = session.query(ToolModel).filter(ToolModel.id == tool_id).all()
-            else:
-                assert tool_name is not None
-                results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == None).all()
-                if user_id:
-                    results += session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            # assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_tool_with_name_and_user_id(self, tool_name: Optional[str] = None, user_id: Optional[str] = None) -> Optional[ToolModel]:
-        with self.session_maker() as session:
-            results = session.query(ToolModel).filter(ToolModel.name == tool_name).filter(ToolModel.user_id == user_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
     def get_block(self, block_id: str) -> Optional[Block]:
         with self.session_maker() as session:
             results = session.query(BlockModel).filter(BlockModel.id == block_id).all()
@@ -713,7 +528,7 @@ class MetadataStore:
         user_id: Optional[str],
         label: Optional[str] = None,
         template: Optional[bool] = None,
-        name: Optional[str] = None,
+        template_name: Optional[str] = None,
         id: Optional[str] = None,
     ) -> Optional[List[Block]]:
         """List available blocks"""
@@ -726,8 +541,8 @@ class MetadataStore:
             if label:
                 query = query.filter(BlockModel.label == label)
 
-            if name:
-                query = query.filter(BlockModel.name == name)
+            if template_name:
+                query = query.filter(BlockModel.template_name == template_name)
 
             if id:
                 query = query.filter(BlockModel.id == id)
@@ -752,19 +567,10 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def list_attached_sources(self, agent_id: str) -> List[Source]:
+    def list_attached_source_ids(self, agent_id: str) -> List[str]:
         with self.session_maker() as session:
             results = session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).all()
-
-            sources = []
-            # make sure source exists
-            for r in results:
-                source = self.get_source(source_id=r.source_id)
-                if source:
-                    sources.append(source)
-                else:
-                    printd(f"Warning: source {r.source_id} does not exist but exists in mapping database. This should never happen.")
-            return sources
+            return [r.source_id for r in results]
 
     @enforce_types
     def list_attached_agents(self, source_id: str) -> List[str]:
@@ -794,27 +600,6 @@ class MetadataStore:
         with self.session_maker() as session:
             session.add(JobModel(**vars(job)))
             session.commit()
-
-    @enforce_types
-    def list_files_from_source(self, source_id: str, limit: int, cursor: Optional[str]):
-        with self.session_maker() as session:
-            # Start with the basic query filtered by source_id
-            query = session.query(FileMetadataModel).filter(FileMetadataModel.source_id == source_id)
-
-            if cursor:
-                # Assuming cursor is the ID of the last file in the previous page
-                query = query.filter(FileMetadataModel.id > cursor)
-
-            # Order by ID or other ordering criteria to ensure correct pagination
-            query = query.order_by(FileMetadataModel.id)
-
-            # Limit the number of results returned
-            results = query.limit(limit).all()
-
-            # Convert the results to the required FileMetadata objects
-            files = [r.to_record() for r in results]
-
-            return files
 
     def delete_job(self, job_id: str):
         with self.session_maker() as session:

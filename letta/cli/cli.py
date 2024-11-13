@@ -10,7 +10,7 @@ import letta.utils as utils
 from letta import create_client
 from letta.agent import Agent, save_agent
 from letta.config import LettaConfig
-from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR
+from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR, MIN_CONTEXT_WINDOW
 from letta.local_llm.constants import ASSISTANT_MESSAGE_CLI_SYMBOL
 from letta.log import get_logger
 from letta.metadata import MetadataStore
@@ -47,6 +47,7 @@ def server(
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
     ade: Annotated[bool, typer.Option(help="Allows remote access")] = False,
+    secure: Annotated[bool, typer.Option(help="Adds simple security access")] = False,
 ):
     """Launch a Letta server process"""
     if type == ServerChoice.rest_api:
@@ -133,6 +134,7 @@ def run(
     # read user id from config
     ms = MetadataStore(config)
     client = create_client()
+    server = client.server
 
     # determine agent to use, if not provided
     if not yes and not agent:
@@ -217,7 +219,7 @@ def run(
         )
 
         # create agent
-        tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
+        tools = [server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=client.user) for tool_name in agent_state.tools]
         letta_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools)
 
     else:  # create new agent
@@ -242,6 +244,19 @@ def run(
         else:
             llm_model_name = questionary.select("Select LLM model:", choices=llm_choices).ask().model
         llm_config = [llm_config for llm_config in llm_configs if llm_config.model == llm_model_name][0]
+
+        # option to override context window
+        if llm_config.context_window is not None:
+            context_window_validator = lambda x: x.isdigit() and int(x) > MIN_CONTEXT_WINDOW and int(x) <= llm_config.context_window
+            context_window_input = questionary.text(
+                "Select LLM context window limit (hit enter for default):",
+                default=str(llm_config.context_window),
+                validate=context_window_validator,
+            ).ask()
+            if context_window_input is not None:
+                llm_config.context_window = int(context_window_input)
+            else:
+                sys.exit(1)
 
         # choose form list of embedding configs
         embedding_configs = client.list_embedding_configs()
@@ -281,10 +296,10 @@ def run(
         system_prompt = system if system else None
 
         memory = ChatMemory(human=human_obj.value, persona=persona_obj.value, limit=core_memory_limit)
-        metadata = {"human": human_obj.name, "persona": persona_obj.name}
+        metadata = {"human": human_obj.template_name, "persona": persona_obj.template_name}
 
-        typer.secho(f"->  {ASSISTANT_MESSAGE_CLI_SYMBOL} Using persona profile: '{persona_obj.name}'", fg=typer.colors.WHITE)
-        typer.secho(f"->  🧑 Using human profile: '{human_obj.name}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  {ASSISTANT_MESSAGE_CLI_SYMBOL} Using persona profile: '{persona_obj.template_name}'", fg=typer.colors.WHITE)
+        typer.secho(f"->  🧑 Using human profile: '{human_obj.template_name}'", fg=typer.colors.WHITE)
 
         # add tools
         agent_state = client.create_agent(
@@ -297,7 +312,7 @@ def run(
         )
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
         typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-        tools = [ms.get_tool(tool_name, user_id=client.user_id) for tool_name in agent_state.tools]
+        tools = [server.tool_manager.get_tool_by_name(tool_name, actor=client.user) for tool_name in agent_state.tools]
 
         letta_agent = Agent(
             interface=interface(),
@@ -325,13 +340,12 @@ def run(
 
 def delete_agent(
     agent_name: Annotated[str, typer.Option(help="Specify agent to delete")],
-    user_id: Annotated[Optional[str], typer.Option(help="User ID to associate with the agent.")] = None,
 ):
     """Delete an agent from the database"""
     # use client ID is no user_id provided
     config = LettaConfig.load()
     MetadataStore(config)
-    client = create_client(user_id=user_id)
+    client = create_client()
     agent = client.get_agent_by_name(agent_name)
     if not agent:
         typer.secho(f"Couldn't find agent named '{agent_name}' to delete", fg=typer.colors.RED)

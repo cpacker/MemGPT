@@ -1,4 +1,4 @@
-name: Run CLI tests
+name: Test CLI
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -10,7 +10,7 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  test-cli:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -19,13 +19,23 @@ jobs:
         image: qdrant/qdrant
         ports:
           - 6333:6333
+      postgres:
+        image: pgvector/pgvector:pg17
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-
-    - name: Build and run container
-      run: bash db/run_postgres.sh
 
     - name: "Setup Python, Poetry and Dependencies"
       uses: packetcoders/action-setup-cache-python-poetry@main
@@ -34,12 +44,23 @@ jobs:
         poetry-version: "1.8.2"
         install-args: "-E dev -E postgres -E tests"
 
+    - name: Migrate database
+      env:
+        LETTA_PG_PORT: 5432
+        LETTA_PG_USER: postgres
+        LETTA_PG_PASSWORD: postgres
+        LETTA_PG_DB: postgres
+        LETTA_PG_HOST: localhost
+      run: |
+        psql -h localhost -U postgres -d postgres -c 'CREATE EXTENSION vector'
+        poetry run alembic upgrade head
+
     - name: Test `letta run` up until first message
       env:
-        LETTA_PG_PORT: 8888
-        LETTA_PG_USER: letta
-        LETTA_PG_PASSWORD: letta
-        LETTA_PG_DB: letta
+        LETTA_PG_PORT: 5432
+        LETTA_PG_USER: postgres
+        LETTA_PG_PASSWORD: postgres
+        LETTA_PG_DB: postgres
         LETTA_PG_HOST: localhost
         LETTA_SERVER_PASS: test_server_token
       run: |

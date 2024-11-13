@@ -3,15 +3,9 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, NOTSET, WARN, WARNING
 
 LETTA_DIR = os.path.join(os.path.expanduser("~"), ".letta")
 
-# Defaults
-DEFAULT_USER_ID = "user-00000000-0000-4000-8000-000000000000"
-# This UUID follows the UUID4 rules:
-# The 13th character (4) indicates it's version 4.
-# The first character of the third segment (8) ensures the variant is correctly set.
-DEFAULT_ORG_ID = "organization-00000000-0000-4000-8000-000000000000"
-DEFAULT_USER_NAME = "default_user"
-DEFAULT_ORG_NAME = "default_org"
-
+ADMIN_PREFIX = "/v1/admin"
+API_PREFIX = "/v1"
+OPENAI_API_PREFIX = "/openai"
 
 # String in the error message for when the context window is too large
 # Example full message:
@@ -23,6 +17,9 @@ IN_CONTEXT_MEMORY_KEYWORD = "CORE_MEMORY"
 
 # OpenAI error message: Invalid 'messages[1].tool_calls[0].id': string too long. Expected a string with maximum length 29, but got a string with length 36 instead.
 TOOL_CALL_ID_MAX_LEN = 29
+
+# minimum context window size
+MIN_CONTEXT_WINDOW = 4000
 
 # embeddings
 MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or else DBs will need to be reset
@@ -42,7 +39,6 @@ DEFAULT_PRESET = "memgpt_chat"
 # Tools
 BASE_TOOLS = [
     "send_message",
-    # "pause_heartbeats",
     "conversation_search",
     "conversation_search_date",
     "archival_memory_insert",

@@ -6,8 +6,13 @@ from typing import Optional
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
+from letta.__init__ import __version__
+from letta.constants import ADMIN_PREFIX, API_PREFIX, OPENAI_API_PREFIX
+from letta.schemas.letta_response import LettaResponse
 from letta.server.constants import REST_DEFAULT_PORT
 
 # NOTE(charles): these are extra routes that are not part of v1 but we still need to mount to pass tests
@@ -53,16 +58,70 @@ password = None
 #    password = secrets.token_urlsafe(16)
 #    #typer.secho(f"Generated admin server password for this session: {password}", fg=typer.colors.GREEN)
 
+import logging
 
-ADMIN_PREFIX = "/v1/admin"
-API_PREFIX = "/v1"
-OPENAI_API_PREFIX = "/openai"
+from fastapi import FastAPI
+
+log = logging.getLogger("uvicorn")
+
+
+def generate_openapi_schema(app: FastAPI):
+    # Update the OpenAPI schema
+    if not app.openapi_schema:
+        app.openapi_schema = app.openapi()
+
+    openai_docs, letta_docs = [app.openapi_schema.copy() for _ in range(2)]
+
+    openai_docs["paths"] = {k: v for k, v in openai_docs["paths"].items() if k.startswith("/openai")}
+    openai_docs["info"]["title"] = "OpenAI Assistants API"
+    letta_docs["paths"] = {k: v for k, v in letta_docs["paths"].items() if not k.startswith("/openai")}
+    letta_docs["info"]["title"] = "Letta API"
+    letta_docs["components"]["schemas"]["LettaResponse"] = {
+        "properties": LettaResponse.model_json_schema(ref_template="#/components/schemas/LettaResponse/properties/{model}")["$defs"]
+    }
+
+    # Split the API docs into Letta API, and OpenAI Assistants compatible API
+    for name, docs in [
+        (
+            "openai",
+            openai_docs,
+        ),
+        (
+            "letta",
+            letta_docs,
+        ),
+    ]:
+        if settings.cors_origins:
+            docs["servers"] = [{"url": host} for host in settings.cors_origins]
+        Path(f"openapi_{name}.json").write_text(json.dumps(docs, indent=2))
+
+
+# middleware that only allows requests to pass through if user provides a password thats randomly generated and stored in memory
+def generate_password():
+    import secrets
+
+    return secrets.token_urlsafe(16)
+
+
+random_password = generate_password()
+
+
+class CheckPasswordMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.headers.get("X-BARE-PASSWORD") == f"password {random_password}":
+            return await call_next(request)
+
+        return JSONResponse(
+            content={"detail": "Unauthorized"},
+            status_code=401,
+        )
 
 
 def create_application() -> "FastAPI":
     """the application start routine"""
     # global server
     # server = SyncServer(default_interface_factory=lambda: interface())
+    print(f"\n[[ Letta server // v{__version__} ]]")
 
     app = FastAPI(
         swagger_ui_parameters={"docExpansion": "none"},
@@ -75,6 +134,11 @@ def create_application() -> "FastAPI":
 
     if "--ade" in sys.argv:
         settings.cors_origins.append("https://app.letta.com")
+        print(f"▶ View using ADE at: https://app.letta.com/local-project/agents")
+
+    if "--secure" in sys.argv:
+        print(f"▶ Using secure mode with password: {random_password}")
+        app.add_middleware(CheckPasswordMiddleware)
 
     app.add_middleware(
         CORSMiddleware,
@@ -116,31 +180,7 @@ def create_application() -> "FastAPI":
 
         # Tool.load_default_tools(get_db_session())
 
-        # Update the OpenAPI schema
-        if not app.openapi_schema:
-            app.openapi_schema = app.openapi()
-
-        openai_docs, letta_docs = [app.openapi_schema.copy() for _ in range(2)]
-
-        openai_docs["paths"] = {k: v for k, v in openai_docs["paths"].items() if k.startswith("/openai")}
-        openai_docs["info"]["title"] = "OpenAI Assistants API"
-        letta_docs["paths"] = {k: v for k, v in letta_docs["paths"].items() if not k.startswith("/openai")}
-        letta_docs["info"]["title"] = "Letta API"
-
-        # Split the API docs into Letta API, and OpenAI Assistants compatible API
-        for name, docs in [
-            (
-                "openai",
-                openai_docs,
-            ),
-            (
-                "letta",
-                letta_docs,
-            ),
-        ]:
-            if settings.cors_origins:
-                docs["servers"] = [{"url": host} for host in settings.cors_origins]
-            Path(f"openapi_{name}.json").write_text(json.dumps(docs, indent=2))
+        generate_openapi_schema(app)
 
     @app.on_event("shutdown")
     def on_shutdown():
@@ -173,7 +213,7 @@ def start_server(
         # Add the handler to the logger
         server_logger.addHandler(stream_handler)
 
-    print(f"Running: uvicorn server:app --host {host or 'localhost'} --port {port or REST_DEFAULT_PORT}")
+    print(f"▶ Server running at: http://{host or 'localhost'}:{port or REST_DEFAULT_PORT}\n")
     uvicorn.run(
         app,
         host=host or "localhost",

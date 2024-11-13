@@ -16,12 +16,10 @@ First things first, let's get you a personal copy of Letta to play with. Think o
 Now, let's bring your new playground to your local machine.
 
 ```shell
-git clone https://github.com/your-username/MemGPT.git
+git clone https://github.com/your-username/letta.git
 ```
 
 ### 🧩 Install Dependencies
-
-**Installing dependencies with poetry** (recommended):
 
 First, install Poetry using [the official instructions here](https://python-poetry.org/docs/#installation).
 
@@ -29,13 +27,13 @@ Once Poetry is installed, navigate to the Letta directory and install the Letta 
 ```shell
 cd Letta
 poetry shell
-poetry install -E dev -E postgres -E local
+poetry install --all-extras
 ```
 
 Now when you want to use `letta`, make sure you first activate the `poetry` environment using poetry shell:
 ```shell
 $ poetry shell
-(pyletta-py3.10) $ letta run
+(pyletta-py3.12) $ letta run
 ```
 
 Alternatively, you can use `poetry run` (which will activate the `poetry` environment for the `letta run` command only):
@@ -43,35 +41,13 @@ Alternatively, you can use `poetry run` (which will activate the `poetry` enviro
 poetry run letta run
 ```
 
-**Installing dependencies with pip**:
-
-First you should set up a dedicated virtual environment. This is optional, but is highly recommended:
-```shell
-cd Letta
-python3 -m venv venv
-. venv/bin/activate
-```
-
-Once you've activated your virtual environment and are in the Letta project directory, you can install the dependencies with `pip`:
-```shell
-pip install -e '.[dev,postgres,local]'
-```
-
-Now, you should be able to run `letta` from the command-line using the downloaded source code (if you used a virtual environment, you have to activate the virtual environment to access `letta`):
-```shell
-$ . venv/bin/activate
-(venv) $ letta run
-```
-
-If you are having dependency issues using `pip`, we recommend you install the package using Poetry. Installing Letta from source using Poetry will ensure that you are using exact package versions that have been tested for the production build.
-
-
-#### (Optional) Installing pre-commit
+#### Installing pre-commit
 We recommend installing pre-commit to ensure proper formatting during development:
 ```
 poetry run pre-commit install
 poetry run pre-commit run --all-files
 ```
+If you don't install pre-commit, you will need to run `poetry run black .` before submitting a PR.
 
 ## 2. 🛠️ Making Changes
 

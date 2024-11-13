@@ -126,6 +126,7 @@ def build_openai_chat_completions_request(
     openai_message_list = [
         cast_message_to_subtype(m.to_openai_dict(put_inner_thoughts_in_kwargs=llm_config.put_inner_thoughts_in_kwargs)) for m in messages
     ]
+
     if llm_config.model:
         model = llm_config.model
     else:
@@ -530,7 +531,12 @@ def openai_chat_completions_request(
         data.pop("tools")
         data.pop("tool_choice", None)  # extra safe,  should exist always (default="auto")
 
+    if "tools" in data:
+        for tool in data["tools"]:
+            tool["function"] = convert_to_structured_output(tool["function"])
+
     response_json = make_post_request(url, headers, data)
+
     return ChatCompletionResponse(**response_json)
 
 

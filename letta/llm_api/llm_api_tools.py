@@ -106,7 +106,7 @@ def create(
     messages: List[Message],
     user_id: Optional[str] = None,  # option UUID to associate request with
     functions: Optional[list] = None,
-    functions_python: Optional[list] = None,
+    functions_python: Optional[dict] = None,
     function_call: str = "auto",
     # hint
     first_message: bool = False,
@@ -140,7 +140,6 @@ def create(
             raise ValueError(f"OpenAI key is missing from letta config file")
 
         data = build_openai_chat_completions_request(llm_config, messages, user_id, functions, function_call, use_tool_naming, max_tokens)
-
         if stream:  # Client requested token streaming
             data.stream = True
             assert isinstance(stream_interface, AgentChunkStreamingInterface) or isinstance(
@@ -313,7 +312,6 @@ def create(
             stream_interface.stream_start()
         try:
             # groq uses the openai chat completions API, so this component should be reusable
-            assert model_settings.groq_api_key is not None, "Groq key is missing"
             response = openai_chat_completions_request(
                 url=llm_config.model_endpoint,
                 api_key=model_settings.groq_api_key,

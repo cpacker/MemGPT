@@ -1,6 +1,4 @@
 # inspecting tools
-import importlib
-import inspect
 import os
 import traceback
 import warnings
@@ -16,7 +14,6 @@ import letta.system as system
 from letta.agent import Agent, save_agent
 from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
-from letta.client.utils import derive_function_name_regex
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -30,11 +27,7 @@ from letta.data_sources.connectors import DataConnector, load_data
 #    Token,
 #    User,
 # )
-from letta.functions.functions import (
-    generate_schema,
-    load_function_set,
-    parse_source_code,
-)
+from letta.functions.functions import generate_schema, parse_source_code
 from letta.functions.schema_generator import generate_schema
 
 # TODO use custom interface
@@ -42,13 +35,16 @@ from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.memory import get_memory_functions
-from letta.metadata import Base, MetadataStore
+from letta.metadata import MetadataStore
 from letta.o1_agent import O1Agent
+from letta.orm import Base
+from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
     AzureProvider,
     GoogleAIProvider,
+    GroqProvider,
     LettaProvider,
     OllamaProvider,
     OpenAIProvider,
@@ -69,7 +65,6 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
@@ -80,12 +75,16 @@ from letta.schemas.memory import (
     RecallMemorySummary,
 )
 from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
+from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
-from letta.schemas.source import Source, SourceCreate, SourceUpdate
-from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
+from letta.schemas.source import Source
+from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.usage import LettaUsageStatistics
-from letta.schemas.user import User, UserCreate
+from letta.schemas.user import User
+from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.organization_manager import OrganizationManager
+from letta.services.source_manager import SourceManager
+from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
 from letta.utils import create_random_username, json_dumps, json_loads
 
@@ -172,6 +171,8 @@ from letta.settings import model_settings, settings, tool_settings
 
 config = LettaConfig.load()
 
+attach_base()
+
 if settings.letta_pg_uri_no_default:
     config.recall_storage_type = "postgres"
     config.recall_storage_uri = settings.letta_pg_uri_no_default
@@ -184,12 +185,9 @@ else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
 
+    Base.metadata.create_all(bind=engine)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-attach_base()
-
-Base.metadata.create_all(bind=engine)
 
 
 # Dependency
@@ -214,6 +212,7 @@ class SyncServer(Server):
         chaining: bool = True,
         max_chaining_steps: Optional[bool] = None,
         default_interface_factory: Callable[[], AgentInterface] = lambda: CLIInterface(),
+        init_with_default_org_and_user: bool = True,
         # default_interface: AgentInterface = CLIInterface(),
         # default_persistence_manager_cls: PersistenceManager = LocalStateManager,
         # auth_mode: str = "none",  # "none, "jwt", "external"
@@ -249,13 +248,21 @@ class SyncServer(Server):
         # Managers that interface with data models
         self.organization_manager = OrganizationManager()
         self.user_manager = UserManager()
+        self.tool_manager = ToolManager()
+        self.source_manager = SourceManager()
+        self.agents_tags_manager = AgentsTagsManager()
 
-        # TODO: this should be removed
-        # add global default tools (for admin)
-        self.add_default_tools(module_name="base")
+        # Make default user and org
+        if init_with_default_org_and_user:
+            self.default_org = self.organization_manager.create_default_organization()
+            self.default_user = self.user_manager.create_default_user()
+            self.add_default_blocks(self.default_user.id)
+            self.tool_manager.add_base_tools(actor=self.default_user)
 
-        if settings.load_default_external_tools:
-            self.add_default_external_tools()
+            # If there is a default org/user
+            # This logic may have to change in the future
+            if settings.load_default_external_tools:
+                self.add_default_external_tools(actor=self.default_user)
 
         # collect providers (always has Letta as a default)
         self._enabled_providers: List[Provider] = [LettaProvider()]
@@ -295,6 +302,8 @@ class SyncServer(Server):
                     api_version=model_settings.azure_api_version,
                 )
             )
+        if model_settings.groq_api_key:
+            self._enabled_providers.append(GroqProvider(api_key=model_settings.groq_api_key))
         if model_settings.vllm_api_base:
             # vLLM exposes both a /chat/completions and a /completions endpoint
             self._enabled_providers.append(
@@ -344,10 +353,10 @@ class SyncServer(Server):
             }
         )
 
-    def _load_agent(self, user_id: str, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
+    def _load_agent(self, agent_id: str, actor: User, interface: Union[AgentInterface, None] = None) -> Agent:
         """Loads a saved agent into memory (if it doesn't exist, throw an error)"""
-        assert isinstance(user_id, str), user_id
         assert isinstance(agent_id, str), agent_id
+        user_id = actor.id
 
         # If an interface isn't specified, use the default
         if interface is None:
@@ -364,11 +373,15 @@ class SyncServer(Server):
             logger.debug(f"Creating an agent object")
             tool_objs = []
             for name in agent_state.tools:
-                tool_obj = self.ms.get_tool(tool_name=name, user_id=user_id)
-                if not tool_obj:
-                    logger.exception(f"Tool {name} does not exist for user {user_id}")
-                    raise ValueError(f"Tool {name} does not exist for user {user_id}")
-                tool_objs.append(tool_obj)
+                # TODO: This should be a hard failure, but for migration reasons, we patch it for now
+                try:
+                    tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
+                    tool_objs.append(tool_obj)
+                except NoResultFound:
+                    warnings.warn(f"Tried to retrieve a tool with name {name} from the agent_state, but does not exist in tool db.")
+
+            # set agent_state tools to only the names of the available tools
+            agent_state.tools = [t.name for t in tool_objs]
 
             # Make sure the memory is a memory object
             assert isinstance(agent_state.memory, Memory)
@@ -395,13 +408,14 @@ class SyncServer(Server):
         if not agent_state:
             raise ValueError(f"Agent does not exist")
         user_id = agent_state.user_id
+        actor = self.user_manager.get_user_by_id(user_id)
 
         logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
         # TODO: consider disabling loading cached agents due to potential concurrency issues
         letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
         if not letta_agent:
             logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
-            letta_agent = self._load_agent(user_id=user_id, agent_id=agent_id)
+            letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
         return letta_agent
 
     def _step(
@@ -755,30 +769,15 @@ class SyncServer(Server):
                 command = command[1:]  # strip the prefix
         return self._command(user_id=user_id, agent_id=agent_id, command=command)
 
-    def create_user(self, request: UserCreate) -> User:
-        """Create a new user using a config"""
-        if not request.name:
-            # auto-generate a name
-            request.name = create_random_username()
-        user = self.user_manager.create_user(request)
-        logger.debug(f"Created new user from config: {user}")
-
-        # add default for the user
-        # TODO: move to org
-        assert user.id is not None, f"User id is None: {user}"
-        self.add_default_blocks(user.id)
-        self.add_default_tools(module_name="base", user_id=user.id)
-
-        return user
-
     def create_agent(
         self,
         request: CreateAgent,
-        user_id: str,
+        actor: User,
         # interface
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
+        user_id = actor.id
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
 
@@ -812,13 +811,17 @@ class SyncServer(Server):
             llm_config = request.llm_config
             embedding_config = request.embedding_config
 
-            # get tools + make sure they exist
+            # get tools + only add if they exist
             tool_objs = []
             if request.tools:
                 for tool_name in request.tools:
-                    tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-                    assert tool_obj, f"Tool {tool_name} does not exist"
-                    tool_objs.append(tool_obj)
+                    try:
+                        tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+                        tool_objs.append(tool_obj)
+                    except NoResultFound:
+                        warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
+            # reset the request.tools to only valid tools
+            request.tools = [t.name for t in tool_objs]
 
             assert request.memory is not None
             memory_functions = get_memory_functions(request.memory)
@@ -829,19 +832,17 @@ class SyncServer(Server):
                     continue
                 source_code = parse_source_code(func)
                 # memory functions are not terminal
-                json_schema = generate_schema(func, terminal=False, name=func_name)
+                json_schema = generate_schema(func, name=func_name)
                 source_type = "python"
                 tags = ["memory", "memgpt-base"]
-                tool = self.create_tool(
-                    request=ToolCreate(
+                tool = self.tool_manager.create_or_update_tool(
+                    Tool(
                         source_code=source_code,
                         source_type=source_type,
                         tags=tags,
                         json_schema=json_schema,
-                        user_id=user_id,
                     ),
-                    update=True,
-                    user_id=user_id,
+                    actor=actor,
                 )
                 tool_objs.append(tool)
                 if not request.tools:
@@ -853,6 +854,7 @@ class SyncServer(Server):
                 name=request.name,
                 user_id=user_id,
                 tools=request.tools if request.tools else [],
+                tool_rules=request.tool_rules if request.tool_rules else [],
                 agent_type=request.agent_type or AgentType.memgpt_agent,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
@@ -867,7 +869,10 @@ class SyncServer(Server):
                     agent_state=agent_state,
                     tools=tool_objs,
                     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                    first_message_verify_mono=(
+                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+                    ),
+                    initial_message_sequence=request.initial_message_sequence,
                 )
             elif request.agent_type == AgentType.o1_agent:
                 agent = O1Agent(
@@ -875,7 +880,9 @@ class SyncServer(Server):
                     agent_state=agent_state,
                     tools=tool_objs,
                     # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=True if (llm_config.model is not None and "gpt-4" in llm_config.model) else False,
+                    first_message_verify_mono=(
+                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+                    ),
                 )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
@@ -899,16 +906,20 @@ class SyncServer(Server):
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
         # return AgentState
+
         return agent.agent_state
 
     def update_agent(
         self,
         request: UpdateAgentState,
-        user_id: str,
+        actor: User,
     ):
         """Update the agents core memory block, return the new state"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        try:
+            self.user_manager.get_user_by_id(user_id=actor.id)
+        except Exception:
+            raise ValueError(f"User user_id={actor.id} does not exist")
+
         if self.ms.get_agent(agent_id=request.id) is None:
             raise ValueError(f"Agent agent_id={request.id} does not exist")
 
@@ -919,7 +930,7 @@ class SyncServer(Server):
         if request.memory:
             assert isinstance(request.memory, Memory), type(request.memory)
             new_memory_contents = request.memory.to_flat_dict()
-            _ = self.update_agent_core_memory(user_id=user_id, agent_id=request.id, new_memory_contents=new_memory_contents)
+            _ = self.update_agent_core_memory(user_id=actor.id, agent_id=request.id, new_memory_contents=new_memory_contents)
 
         # update the system prompt
         if request.system:
@@ -937,17 +948,26 @@ class SyncServer(Server):
             # Replace tools and also re-link
 
             # (1) get tools + make sure they exist
-            tool_objs = []
-            for tool_name in request.tools:
-                tool_obj = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-                assert tool_obj, f"Tool {tool_name} does not exist"
-                tool_objs.append(tool_obj)
+            # Current and target tools as sets of tool names
+            current_tools = set(letta_agent.agent_state.tools)
+            target_tools = set(request.tools)
 
-            # (2) replace the list of tool names ("ids") inside the agent state
-            letta_agent.agent_state.tools = request.tools
+            # Calculate tools to add and remove
+            tools_to_add = target_tools - current_tools
+            tools_to_remove = current_tools - target_tools
 
-            # (3) then attempt to link the tools modules
-            letta_agent.link_tools(tool_objs)
+            # Fetch tool objects for those to add and remove
+            tools_to_add = [self.tool_manager.get_tool_by_name(tool_name=tool, actor=actor) for tool in tools_to_add]
+            tools_to_remove = [self.tool_manager.get_tool_by_name(tool_name=tool, actor=actor) for tool in tools_to_remove]
+
+            # update agent tool list
+            for tool in tools_to_remove:
+                self.remove_tool_from_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
+            for tool in tools_to_add:
+                self.add_tool_to_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
+
+            # reload agent
+            letta_agent = self._get_or_load_agent(agent_id=request.id)
 
         # configs
         if request.llm_config:
@@ -960,6 +980,19 @@ class SyncServer(Server):
             letta_agent.agent_state.name = request.name
         if request.metadata_:
             letta_agent.agent_state.metadata_ = request.metadata_
+
+        # Manage tag state
+        if request.tags is not None:
+            current_tags = set(self.agents_tags_manager.get_tags_for_agent(agent_id=letta_agent.agent_state.id, actor=actor))
+            target_tags = set(request.tags)
+
+            tags_to_add = target_tags - current_tags
+            tags_to_remove = current_tags - target_tags
+
+            for tag in tags_to_add:
+                self.agents_tags_manager.add_tag_to_agent(agent_id=letta_agent.agent_state.id, tag=tag, actor=actor)
+            for tag in tags_to_remove:
+                self.agents_tags_manager.delete_tag_from_agent(agent_id=letta_agent.agent_state.id, tag=tag, actor=actor)
 
         # save the agent
         assert isinstance(letta_agent.memory, Memory)
@@ -985,8 +1018,11 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Add tools from an existing agent"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
+        try:
+            user = self.user_manager.get_user_by_id(user_id=user_id)
+        except NoResultFound:
             raise ValueError(f"User user_id={user_id} does not exist")
+
         if self.ms.get_agent(agent_id=agent_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
@@ -995,12 +1031,12 @@ class SyncServer(Server):
 
         # Get all the tool objects from the request
         tool_objs = []
-        tool_obj = self.ms.get_tool(tool_id=tool_id, user_id=user_id)
+        tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=user)
         assert tool_obj, f"Tool with id={tool_id} does not exist"
         tool_objs.append(tool_obj)
 
         for tool in letta_agent.tools:
-            tool_obj = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
+            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=user)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
             # If it's not the already added tool
@@ -1024,8 +1060,11 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Remove tools from an existing agent"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
+        try:
+            user = self.user_manager.get_user_by_id(user_id=user_id)
+        except NoResultFound:
             raise ValueError(f"User user_id={user_id} does not exist")
+
         if self.ms.get_agent(agent_id=agent_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
@@ -1035,7 +1074,7 @@ class SyncServer(Server):
         # Get all the tool_objs
         tool_objs = []
         for tool in letta_agent.tools:
-            tool_obj = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
+            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=user)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
             # If it's not the tool we want to remove
@@ -1065,96 +1104,19 @@ class SyncServer(Server):
         }
         return agent_config
 
-    def list_agents(
-        self,
-        user_id: str,
-    ) -> List[AgentState]:
+    def list_agents(self, user_id: str, tags: Optional[List[str]] = None) -> List[AgentState]:
         """List all available agents to a user"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        user = self.user_manager.get_user_by_id(user_id=user_id)
 
-        agents_states = self.ms.list_agents(user_id=user_id)
-        return agents_states
-
-    # TODO make return type pydantic
-    def list_agents_legacy(
-        self,
-        user_id: str,
-    ) -> dict:
-        """List all available agents to a user"""
-
-        if user_id is None:
-            agents_states = self.ms.list_all_agents()
-        else:
-            if self.user_manager.get_user_by_id(user_id=user_id) is None:
-                raise ValueError(f"User user_id={user_id} does not exist")
-
+        if tags is None:
             agents_states = self.ms.list_agents(user_id=user_id)
+            return agents_states
+        else:
+            agent_ids = []
+            for tag in tags:
+                agent_ids += self.agents_tags_manager.get_agents_by_tag(tag=tag, actor=user)
 
-        agents_states_dicts = [self._agent_state_to_config(state) for state in agents_states]
-
-        # TODO add a get_message_obj_from_message_id(...) function
-        #      this would allow grabbing Message.created_by without having to load the agent object
-        # all_available_tools = self.ms.list_tools(user_id=user_id) # TODO: add back when user-specific
-        self.ms.list_tools()
-
-        for agent_state, return_dict in zip(agents_states, agents_states_dicts):
-
-            # Get the agent object (loaded in memory)
-            letta_agent = self._get_or_load_agent(user_id=agent_state.user_id, agent_id=agent_state.id)
-
-            # TODO remove this eventually when return type get pydanticfied
-            # this is to add persona_name and human_name so that the columns in UI can populate
-            # TODO hack for frontend, remove
-            # (top level .persona is persona_name, and nested memory.persona is the state)
-            # TODO: eventually modify this to be contained in the metadata
-            return_dict["persona"] = agent_state._metadata.get("persona", None)
-            return_dict["human"] = agent_state._metadata.get("human", None)
-
-            # Add information about tools
-            # TODO letta_agent should really have a field of List[ToolModel]
-            #      then we could just pull that field and return it here
-            # return_dict["tools"] = [tool for tool in all_available_tools if tool.json_schema in letta_agent.functions]
-
-            # get tool info from agent state
-            tools = []
-            for tool_name in agent_state.tools:
-                tool = self.ms.get_tool(tool_name=tool_name, user_id=user_id)
-                tools.append(tool)
-            return_dict["tools"] = tools
-
-            # Add information about memory (raw core, size of recall, size of archival)
-            core_memory = letta_agent.memory
-            recall_memory = letta_agent.persistence_manager.recall_memory
-            archival_memory = letta_agent.persistence_manager.archival_memory
-            memory_obj = {
-                "core_memory": core_memory.to_flat_dict(),
-                "recall_memory": len(recall_memory) if recall_memory is not None else None,
-                "archival_memory": len(archival_memory) if archival_memory is not None else None,
-            }
-            return_dict["memory"] = memory_obj
-
-            # Add information about last run
-            # NOTE: 'last_run' is just the timestamp on the latest message in the buffer
-            # Retrieve the Message object via the recall storage or by directly access _messages
-            last_msg_obj = letta_agent._messages[-1]
-            return_dict["last_run"] = last_msg_obj.created_at
-
-            # Add information about attached sources
-            sources_ids = self.ms.list_attached_sources(agent_id=agent_state.id)
-            sources = [self.ms.get_source(source_id=s_id) for s_id in sources_ids]
-            return_dict["sources"] = [vars(s) for s in sources]
-
-        # Sort agents by "last_run" in descending order, most recent first
-        agents_states_dicts.sort(key=lambda x: x["last_run"], reverse=True)
-
-        logger.debug(f"Retrieved {len(agents_states)} agents for user {user_id}")
-        return {
-            "num_agents": len(agents_states),
-            "agents": agents_states_dicts,
-        }
-
-    # blocks
+            return [self.get_agent_state(user_id=user.id, agent_id=agent_id) for agent_id in agent_ids]
 
     def get_blocks(
         self,
@@ -1165,7 +1127,7 @@ class SyncServer(Server):
         id: Optional[str] = None,
     ) -> Optional[List[Block]]:
 
-        return self.ms.get_blocks(user_id=user_id, label=label, template=template, name=name, id=id)
+        return self.ms.get_blocks(user_id=user_id, label=label, template=template, template_name=name, id=id)
 
     def get_block(self, block_id: str):
 
@@ -1177,14 +1139,18 @@ class SyncServer(Server):
         return blocks[0]
 
     def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_blocks = self.ms.get_blocks(name=request.name, user_id=user_id, template=request.template, label=request.label)
-        if existing_blocks is not None:
+        existing_blocks = self.ms.get_blocks(
+            template_name=request.template_name, user_id=user_id, template=request.template, label=request.label
+        )
+
+        # for templates, update existing block template if exists
+        if existing_blocks is not None and request.template:
             existing_block = existing_blocks[0]
             assert len(existing_blocks) == 1
             if update:
                 return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
             else:
-                raise ValueError(f"Block with name {request.name} already exists")
+                raise ValueError(f"Block with name {request.template_name} already exists")
         block = Block(**vars(request))
         self.ms.create_block(block)
         return block
@@ -1193,9 +1159,9 @@ class SyncServer(Server):
         block = self.get_block(request.id)
         block.limit = request.limit if request.limit is not None else block.limit
         block.value = request.value if request.value is not None else block.value
-        block.name = request.name if request.name is not None else block.name
+        block.template_name = request.template_name if request.template_name is not None else block.template_name
         self.ms.update_block(block=block)
-        return block
+        return self.ms.get_block(block_id=request.id)
 
     def delete_block(self, block_id: str):
         block = self.get_block(block_id)
@@ -1221,18 +1187,6 @@ class SyncServer(Server):
         if not existing_source:
             raise ValueError("Source does not exist")
         return existing_source.id
-
-    def get_agent(self, user_id: str, agent_id: str, agent_name: Optional[str] = None):
-        """Get the agent state"""
-        return self.ms.get_agent(agent_id=agent_id, user_id=user_id)
-
-    # def get_user(self, user_id: str) -> User:
-    #     """Get the user"""
-    #     user = self.user_manager.get_user_by_id(user_id=user_id)
-    #     if user is None:
-    #         raise ValueError(f"User with user_id {user_id} does not exist")
-    #     else:
-    #         return user
 
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
@@ -1451,8 +1405,7 @@ class SyncServer(Server):
 
     def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> Optional[AgentState]:
         """Return the config of an agent"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        user = self.user_manager.get_user_by_id(user_id=user_id)
         if agent_id:
             if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
                 return None
@@ -1465,7 +1418,11 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         assert isinstance(letta_agent.memory, Memory)
-        return letta_agent.agent_state.model_copy(deep=True)
+        agent_state = letta_agent.agent_state.model_copy(deep=True)
+
+        # Load the tags in for the agent_state
+        agent_state.tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=user)
+        return agent_state
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
@@ -1510,7 +1467,7 @@ class SyncServer(Server):
             if value is None:
                 continue
             if letta_agent.memory.get_block(key) != value:
-                letta_agent.memory.update_block_value(name=key, value=value)  # update agent memory
+                letta_agent.memory.update_block_value(label=key, value=value)  # update agent memory
                 modified = True
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message
@@ -1547,17 +1504,24 @@ class SyncServer(Server):
 
     def delete_agent(self, user_id: str, agent_id: str):
         """Delete an agent in the database"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        actor = self.user_manager.get_user_by_id(user_id=user_id)
+        # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM MODEL
+        # TODO: EVENTUALLY WE GET AUTO-DELETES WHEN WE SPECIFY RELATIONSHIPS IN THE ORM
+        self.agents_tags_manager.delete_all_tags_from_agent(agent_id=agent_id, actor=actor)
+
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
-        # Verify that the agent exists and is owned by the user
+        # Verify that the agent exists and belongs to the org of the user
         agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
         if not agent_state:
             raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
-        if agent_state.user_id != user_id:
-            raise ValueError(f"Could not authorize agent_id={agent_id} with user_id={user_id}")
+
+        agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+        if agent_state_user.organization_id != actor.organization_id:
+            raise ValueError(
+                f"Could not authorize agent_id={agent_id} with user_id={user_id} because of differing organizations; agent_id was created in {agent_state_user.organization_id} while user belongs to {actor.organization_id}. How did they get the agent id?"
+            )
 
         # First, if the agent is in the in-memory cache we should remove it
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
@@ -1601,44 +1565,12 @@ class SyncServer(Server):
         self.ms.delete_api_key(api_key=api_key)
         return api_key_obj
 
-    def create_source(self, request: SourceCreate, user_id: str) -> Source:  # TODO: add other fields
-        """Create a new data source"""
-        source = Source(
-            name=request.name,
-            user_id=user_id,
-            embedding_config=self.list_embedding_models()[0],  # TODO: require providing this
-        )
-        self.ms.create_source(source)
-        assert self.ms.get_source(source_name=request.name, user_id=user_id) is not None, f"Failed to create source {request.name}"
-        return source
-
-    def update_source(self, request: SourceUpdate, user_id: str) -> Source:
-        """Update an existing data source"""
-        if not request.id:
-            existing_source = self.ms.get_source(source_name=request.name, user_id=user_id)
-        else:
-            existing_source = self.ms.get_source(source_id=request.id)
-        if not existing_source:
-            raise ValueError("Source does not exist")
-
-        # override updated fields
-        if request.name:
-            existing_source.name = request.name
-        if request.metadata_:
-            existing_source.metadata_ = request.metadata_
-        if request.description:
-            existing_source.description = request.description
-
-        self.ms.update_source(existing_source)
-        return existing_source
-
-    def delete_source(self, source_id: str, user_id: str):
+    def delete_source(self, source_id: str, actor: User):
         """Delete a data source"""
-        source = self.ms.get_source(source_id=source_id, user_id=user_id)
-        self.ms.delete_source(source_id)
+        self.source_manager.delete_source(source_id=source_id, actor=actor)
 
         # delete data from passage store
-        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=actor.id)
         passage_store.delete({"source_id": source_id})
 
         # TODO: delete data from agent passage stores (?)
@@ -1680,9 +1612,9 @@ class SyncServer(Server):
         # try:
         from letta.data_sources.connectors import DirectoryConnector
 
-        source = self.ms.get_source(source_id=source_id)
+        source = self.source_manager.get_source_by_id(source_id=source_id)
         connector = DirectoryConnector(input_files=[file_path])
-        num_passages, num_documents = self.load_data(user_id=source.user_id, source_name=source.name, connector=connector)
+        num_passages, num_documents = self.load_data(user_id=source.created_by_id, source_name=source.name, connector=connector)
         # except Exception as e:
         #    # job failed with error
         #    error = str(e)
@@ -1703,9 +1635,6 @@ class SyncServer(Server):
 
         return job
 
-    def delete_file_from_source(self, source_id: str, file_id: str, user_id: Optional[str]) -> Optional[FileMetadata]:
-        return self.ms.delete_file_from_source(source_id=source_id, file_id=file_id, user_id=user_id)
-
     def load_data(
         self,
         user_id: str,
@@ -1716,16 +1645,16 @@ class SyncServer(Server):
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
 
         # load data from a data source into the document store
-        source = self.ms.get_source(source_name=source_name, user_id=user_id)
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+        source = self.source_manager.get_source_by_name(source_name=source_name, actor=user)
         if source is None:
             raise ValueError(f"Data source {source_name} does not exist for user {user_id}")
 
         # get the data connectors
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        file_store = StorageConnector.get_storage_connector(TableType.FILES, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, file_store)
+        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user)
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1737,10 +1666,13 @@ class SyncServer(Server):
         source_name: Optional[str] = None,
     ) -> Source:
         # attach a data source to an agent
-        data_source = self.ms.get_source(source_id=source_id, user_id=user_id, source_name=source_name)
-        if data_source is None:
-            raise ValueError(f"Data source id={source_id} name={source_name} does not exist for user_id {user_id}")
-
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+        if source_id:
+            data_source = self.source_manager.get_source_by_id(source_id=source_id, actor=user)
+        elif source_name:
+            data_source = self.source_manager.get_source_by_name(source_name=source_name, actor=user)
+        else:
+            raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
 
@@ -1760,12 +1692,14 @@ class SyncServer(Server):
         source_id: Optional[str] = None,
         source_name: Optional[str] = None,
     ) -> Source:
-        if not source_id:
-            assert source_name is not None, "source_name must be provided if source_id is not"
-            source = self.ms.get_source(source_name=source_name, user_id=user_id)
-            source_id = source.id
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+        if source_id:
+            source = self.source_manager.get_source_by_id(source_id=source_id, actor=user)
+        elif source_name:
+            source = self.source_manager.get_source_by_name(source_name=source_name, actor=user)
         else:
-            source = self.ms.get_source(source_id=source_id)
+            raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
+        source_id = source.id
 
         # delete all Passage objects with source_id==source_id from agent's archival memory
         agent = self._get_or_load_agent(agent_id=agent_id)
@@ -1780,27 +1714,25 @@ class SyncServer(Server):
 
     def list_attached_sources(self, agent_id: str) -> List[Source]:
         # list all attached sources to an agent
-        return self.ms.list_attached_sources(agent_id)
+        source_ids = self.ms.list_attached_source_ids(agent_id)
 
-    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
-        # list all attached sources to an agent
-        return self.ms.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
+        return [self.source_manager.get_source_by_id(source_id=id) for id in source_ids]
 
     def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
         return []
 
-    def list_all_sources(self, user_id: str) -> List[Source]:
+    def list_all_sources(self, actor: User) -> List[Source]:
         """List all sources (w/ extra metadata) belonging to a user"""
 
-        sources = self.ms.list_sources(user_id=user_id)
+        sources = self.source_manager.list_sources(actor=actor)
 
         # Add extra metadata to the sources
         sources_with_metadata = []
         for source in sources:
 
             # count number of passages
-            passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+            passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=actor.id)
             num_passages = passage_conn.size({"source_id": source.id})
 
             # TODO: add when files table implemented
@@ -1814,7 +1746,7 @@ class SyncServer(Server):
             attached_agents = [
                 {
                     "id": str(a_id),
-                    "name": self.ms.get_agent(user_id=user_id, agent_id=a_id).name,
+                    "name": self.ms.get_agent(user_id=actor.id, agent_id=a_id).name,
                 }
                 for a_id in agent_ids
             ]
@@ -1830,195 +1762,17 @@ class SyncServer(Server):
 
         return sources_with_metadata
 
-    def get_tool(self, tool_id: str) -> Optional[Tool]:
-        """Get tool by ID."""
-        return self.ms.get_tool(tool_id=tool_id)
-
-    def tool_with_name_and_user_id_exists(self, tool: Tool, user_id: Optional[str] = None) -> bool:
-        """Check if tool exists"""
-        tool = self.ms.get_tool_with_name_and_user_id(tool_name=tool.name, user_id=user_id)
-
-        if tool is None:
-            return False
-        else:
-            return True
-
-    def get_tool_id(self, name: str, user_id: str) -> Optional[str]:
-        """Get tool ID from name and user_id."""
-        tool = self.ms.get_tool(tool_name=name, user_id=user_id)
-        if not tool or tool.id is None:
-            return None
-        return tool.id
-
-    def update_tool(self, request: ToolUpdate, user_id: Optional[str] = None) -> Tool:
-        """Update an existing tool"""
-        if request.name:
-            existing_tool = self.ms.get_tool_with_name_and_user_id(tool_name=request.name, user_id=user_id)
-            if existing_tool is None:
-                raise ValueError(f"Tool with name={request.name}, user_id={user_id} does not exist")
-        else:
-            existing_tool = self.ms.get_tool(tool_id=request.id)
-            if existing_tool is None:
-                raise ValueError(f"Tool with id={request.id} does not exist")
-
-        # Preserve the original tool id
-        # As we can override the tool id as well
-        # This is probably bad design if this is exposed to users...
-        original_id = existing_tool.id
-
-        # override updated fields
-        if request.id:
-            existing_tool.id = request.id
-        if request.description:
-            existing_tool.description = request.description
-        if request.source_code:
-            existing_tool.source_code = request.source_code
-        if request.source_type:
-            existing_tool.source_type = request.source_type
-        if request.tags:
-            existing_tool.tags = request.tags
-        if request.json_schema:
-            existing_tool.json_schema = request.json_schema
-
-        # If name is explicitly provided here, overide the tool name
-        if request.name:
-            existing_tool.name = request.name
-        # Otherwise, if there's no name, and there's source code, we try to derive the name
-        elif request.source_code:
-            existing_tool.name = derive_function_name_regex(request.source_code)
-
-        self.ms.update_tool(original_id, existing_tool)
-        return self.ms.get_tool(tool_id=request.id)
-
-    def create_tool(self, request: ToolCreate, user_id: Optional[str] = None, update: bool = True) -> Tool:  # TODO: add other fields
-        """Create a new tool"""
-
-        # NOTE: deprecated code that existed when we were trying to pretend that `self` was the memory object
-        # if request.tags and "memory" in request.tags:
-        #    # special modifications to memory functions
-        #    # self.memory -> self.memory.memory, since Agent.memory.memory needs to be modified (not BaseMemory.memory)
-        #    request.source_code = request.source_code.replace("self.memory", "self.memory.memory")
-
-        if not request.json_schema:
-            # auto-generate openai schema
-            try:
-                env = {}
-                env.update(globals())
-                exec(request.source_code, env)
-
-                # get available functions
-                functions = [f for f in env if callable(env[f])]
-
-            except Exception as e:
-                logger.error(f"Failed to execute source code: {e}")
-
-            # TODO: not sure if this always works
-            func = env[functions[-1]]
-            json_schema = generate_schema(func, terminal=request.terminal)
-        else:
-            # provided by client
-            json_schema = request.json_schema
-
-        if not request.name:
-            # use name from JSON schema
-            request.name = json_schema["name"]
-            assert request.name, f"Tool name must be provided in json_schema {json_schema}. This should never happen."
-
-        # check if already exists:
-        existing_tool = self.ms.get_tool(tool_id=request.id, tool_name=request.name, user_id=user_id)
-        if existing_tool:
-            if update:
-                # id is an optional field, so we will fill it with the existing tool id
-                if not request.id:
-                    request.id = existing_tool.id
-                updated_tool = self.update_tool(ToolUpdate(**vars(request)), user_id)
-                assert updated_tool is not None, f"Failed to update tool {request.name}"
-                return updated_tool
-            else:
-                raise ValueError(f"Tool {request.name} already exists and update=False")
-
-        # check for description
-        description = None
-        if request.description:
-            description = request.description
-
-        tool = Tool(
-            name=request.name,
-            source_code=request.source_code,
-            source_type=request.source_type,
-            tags=request.tags,
-            json_schema=json_schema,
-            user_id=user_id,
-            description=description,
-        )
-
-        if request.id:
-            tool.id = request.id
-
-        self.ms.create_tool(tool)
-        created_tool = self.ms.get_tool(tool_id=tool.id, user_id=user_id)
-        return created_tool
-
-    def delete_tool(self, tool_id: str):
-        """Delete a tool"""
-        self.ms.delete_tool(tool_id)
-
-    def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50, user_id: Optional[str] = None) -> List[Tool]:
-        """List tools available to user_id"""
-        tools = self.ms.list_tools(cursor=cursor, limit=limit, user_id=user_id)
-        return tools
-
-    def add_default_tools(self, module_name="base", user_id: Optional[str] = None):
-        """Add default tools in {module_name}.py"""
-        full_module_name = f"letta.functions.function_sets.{module_name}"
-        try:
-            module = importlib.import_module(full_module_name)
-        except Exception as e:
-            # Handle other general exceptions
-            raise e
-
-        functions_to_schema = []
-        try:
-            # Load the function set
-            functions_to_schema = load_function_set(module)
-        except ValueError as e:
-            err = f"Error loading function set '{module_name}': {e}"
-            warnings.warn(err)
-
-        # create tool in db
-        for name, schema in functions_to_schema.items():
-            # print([str(inspect.getsource(line)) for line in schema["imports"]])
-            source_code = inspect.getsource(schema["python_function"])
-            tags = [module_name]
-            if module_name == "base":
-                tags.append("letta-base")
-
-            # create to tool
-            self.create_tool(
-                ToolCreate(
-                    name=name,
-                    tags=tags,
-                    source_type="python",
-                    module=schema["module"],
-                    source_code=source_code,
-                    json_schema=schema["json_schema"],
-                    user_id=user_id,
-                ),
-                update=True,
-            )
-
-    def add_default_external_tools(self, user_id: Optional[str] = None) -> bool:
+    def add_default_external_tools(self, actor: User) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
         success = True
+        tool_creates = ToolCreate.load_default_langchain_tools() + ToolCreate.load_default_crewai_tools()
         if tool_settings.composio_api_key:
-            tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools() + Tool.load_default_composio_tools()
-        else:
-            tools = Tool.load_default_langchain_tools() + Tool.load_default_crewai_tools()
-        for tool in tools:
+            tool_creates += ToolCreate.load_default_composio_tools()
+        for tool_create in tool_creates:
             try:
-                self.ms.create_tool(tool)
+                self.tool_manager.create_or_update_tool(Tool(**tool_create.model_dump()), actor=actor)
             except Exception as e:
-                warnings.warn(f"An error occurred while creating tool {tool}: {e}")
+                warnings.warn(f"An error occurred while creating tool {tool_create}: {e}")
                 warnings.warn(traceback.format_exc())
                 success = False
 
@@ -2032,12 +1786,12 @@ class SyncServer(Server):
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_block(CreatePersona(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            self.create_block(CreatePersona(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            self.create_block(CreateHuman(user_id=user_id, name=name, value=text, template=True), user_id=user_id, update=True)
+            self.create_block(CreateHuman(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
 
     def get_agent_message(self, agent_id: str, message_id: str) -> Optional[Message]:
         """Get a single message from the agent's memory"""
@@ -2052,43 +1806,6 @@ class SyncServer(Server):
         # Get the current message
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.update_message(request=request)
-
-        # TODO decide whether this should be done in the server.py or agent.py
-        # Reason to put it in agent.py:
-        # - we use the agent object's persistence_manager to update the message
-        # - it makes it easy to do things like `retry`, `rethink`, etc.
-        # Reason to put it in server.py:
-        # - fundamentally, we should be able to edit a message (without agent id)
-        #   in the server by directly accessing the DB / message store
-        """
-        message = letta_agent.persistence_manager.recall_memory.storage.get(id=request.id)
-        if message is None:
-            raise ValueError(f"Message with id {request.id} not found")
-
-        # Override fields
-        # NOTE: we try to do some sanity checking here (see asserts), but it's not foolproof
-        if request.role:
-            message.role = request.role
-        if request.text:
-            message.text = request.text
-        if request.name:
-            message.name = request.name
-        if request.tool_calls:
-            assert message.role == MessageRole.assistant, "Tool calls can only be added to assistant messages"
-            message.tool_calls = request.tool_calls
-        if request.tool_call_id:
-            assert message.role == MessageRole.tool, "tool_call_id can only be added to tool messages"
-            message.tool_call_id = request.tool_call_id
-
-        # Save the updated message
-        letta_agent.persistence_manager.recall_memory.storage.update(record=message)
-
-        # Return the updated message
-        updated_message = letta_agent.persistence_manager.recall_memory.storage.get(id=message.id)
-        if updated_message is None:
-            raise ValueError(f"Error persisting message - message with id {request.id} not found")
-        return updated_message
-        """
 
     def rewrite_agent_message(self, agent_id: str, new_text: str) -> Message:
 
@@ -2108,25 +1825,25 @@ class SyncServer(Server):
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.retry_message()
 
-    # TODO: Move a lot of this default logic to the ORM
-    def get_default_user(self) -> User:
-        self.organization_manager.create_default_organization()
-        user = self.user_manager.create_default_user()
-
-        self.add_default_blocks(user.id)
-        self.add_default_tools(module_name="base", user_id=user.id)
-
-        return user
-
     def get_user_or_default(self, user_id: Optional[str]) -> User:
         """Get the user object for user_id if it exists, otherwise return the default user object"""
         if user_id is None:
-            return self.get_default_user()
-        else:
-            try:
-                return self.user_manager.get_user_by_id(user_id=user_id)
-            except ValueError:
-                raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
+            user_id = self.user_manager.DEFAULT_USER_ID
+
+        try:
+            return self.user_manager.get_user_by_id(user_id=user_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
+
+    def get_organization_or_default(self, org_id: Optional[str]) -> Organization:
+        """Get the organization object for org_id if it exists, otherwise return the default organization object"""
+        if org_id is None:
+            org_id = self.organization_manager.DEFAULT_ORG_ID
+
+        try:
+            return self.organization_manager.get_organization_by_id(org_id=org_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail=f"Organization with id {org_id} not found")
 
     def list_llm_models(self) -> List[LLMConfig]:
         """List available models"""

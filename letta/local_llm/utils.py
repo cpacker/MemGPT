@@ -18,7 +18,7 @@ def post_json_auth_request(uri, json_payload, auth_type, auth_key):
     """Send a POST request with a JSON payload and optional authentication"""
 
     # By default most local LLM inference servers do not have authorization enabled
-    if auth_type is None:
+    if auth_type is None or auth_type == "":
         response = requests.post(uri, json=json_payload)
 
     # Used by OpenAI, together.ai, Mistral AI

@@ -1,21 +1,13 @@
 name: Code Style Checks
 
 on:
+  push:
+    branches: [ main ]
   pull_request:
-    paths:
-      - '**.py'
-  pull_request_target:
-    types:
-      - opened
-      - edited
-      - synchronize
-  workflow_dispatch:
-
-permissions:
-  pull-requests: read
+    branches: [ main ]
 
 jobs:
-  validation-checks:
+  style-checks:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -36,6 +28,7 @@ jobs:
         install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"  # Adjust as necessary
 
     - name: Validate PR Title
+      if: github.event_name == 'pull_request'
       uses: amannn/action-semantic-pull-request@v5
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

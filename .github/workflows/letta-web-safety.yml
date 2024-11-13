@@ -1,0 +1,84 @@
+name: "Letta Web Compatibility Checker"
+
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+
+jobs:
+  cypress-run:
+    runs-on: ubuntu-latest
+    environment: Deployment
+    # Runs tests in parallel with matrix strategy https://docs.cypress.io/guides/guides/parallelization
+    # https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs
+    # Also see warning here https://github.com/cypress-io/github-action#parallel
+    strategy:
+      fail-fast: false # https://github.com/cypress-io/github-action/issues/48
+      matrix:
+        containers: [ 1 ]
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres
+        ports:
+          - 5433:5432
+        env:
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Checkout letta web
+        uses: actions/checkout@v4
+        with:
+          repository: letta-ai/letta-web
+          token: ${{ secrets.PULLER_TOKEN }}
+          path: letta-web
+      - name: Turn on Letta agents
+        env:
+          LETTA_PG_DB: letta
+          LETTA_PG_USER: letta
+          LETTA_PG_PASSWORD: letta
+          LETTA_PG_PORT: 8888
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: docker compose -f dev-compose.yaml up --build -d
+      - name: Cypress run
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: letta-web
+          build: npm run build:e2e
+          start: npm run start:e2e
+          project: apps/letta
+          wait-on: 'http://localhost:3000' # Waits for above
+          record: false
+          parallel: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CYPRESS_PROJECT_KEY: 38nemh
+          DATABASE_URL: postgres://postgres:postgres@localhost:5433/postgres
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          CYPRESS_GOOGLE_CLIENT_ID: ${{ secrets.CYPRESS_GOOGLE_CLIENT_ID }}
+          CYPRESS_GOOGLE_CLIENT_SECRET: ${{ secrets.CYPRESS_GOOGLE_CLIENT_SECRET }}
+          CYPRESS_GOOGLE_REFRESH_TOKEN: ${{ secrets.CYPRESS_GOOGLE_REFRESH_TOKEN }}
+          LETTA_AGENTS_ENDPOINT: http://localhost:8283
+          NEXT_PUBLIC_CURRENT_HOST: http://localhost:3000
+          IS_CYPRESS_RUN: yes
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

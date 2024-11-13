@@ -41,7 +41,7 @@ jobs:
     #    install-args: "--all-extras"
 
     - name: Wait for service
-      run: bash scripts/wait_for_service.sh http://localhost:8083 -- echo "Service is ready"
+      run: bash scripts/wait_for_service.sh http://localhost:8283 -- echo "Service is ready"
 
     - name: Run tests with pytest
       env:
@@ -50,7 +50,7 @@ jobs:
         LETTA_PG_PASSWORD: letta
         LETTA_PG_PORT: 8888
         LETTA_SERVER_PASS: test_server_token
-        LETTA_SERVER_URL: http://localhost:8083
+        LETTA_SERVER_URL: http://localhost:8283
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
       run: |

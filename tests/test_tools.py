@@ -14,6 +14,7 @@ from letta.constants import DEFAULT_PRESET
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
+from letta.services.tool_manager import ToolManager
 
 test_agent_name = f"test_client_{str(uuid.uuid4())}"
 # test_preset_name = "test_preset"
@@ -56,13 +57,13 @@ def client(request):
             time.sleep(5)
         print("Running client tests with server:", server_url)
     else:
-        server_url = None
         assert False, "Local client not implemented"
 
     assert server_url is not None
     client = create_client(base_url=server_url)  # This yields control back to the test function
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+    # Clear all records from the Tool table
     yield client
 
 
@@ -93,7 +94,9 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
         return message
 
     tools = client.list_tools()
-    print(f"Original tools {[t.name for t in tools]}")
+    tool_names = [t.name for t in tools]
+    for tool in ToolManager.BASE_TOOL_NAMES:
+        assert tool in tool_names
 
     tool = client.create_tool(print_tool, name="my_name", tags=["extras"])
 
@@ -108,13 +111,15 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
 
     # create agent with tool
     agent_state = client.create_agent(tools=[tool.name])
-    response = client.user_message(agent_id=agent_state.id, message="hi")
+
+    # Send message without error
+    client.user_message(agent_id=agent_state.id, message="hi")
 
 
 def test_create_agent_tool(client):
     """Test creation of a agent tool"""
 
-    def core_memory_clear(self: Agent):
+    def core_memory_clear(self: "Agent"):
         """
         Args:
             agent (Agent): The agent to delete from memory.
@@ -123,19 +128,19 @@ def test_create_agent_tool(client):
             str: The agent that was deleted.
 
         """
-        self.memory.update_block_value(name="human", value="")
-        self.memory.update_block_value(name="persona", value="")
+        self.memory.update_block_value(label="human", value="")
+        self.memory.update_block_value(label="persona", value="")
         print("UPDATED MEMORY", self.memory.memory)
         return None
 
     # TODO: test attaching and using function on agent
-    tool = client.create_tool(core_memory_clear, tags=["extras"], update=True)
+    tool = client.create_tool(core_memory_clear, tags=["extras"])
     print(f"Created tool", tool.name)
 
     # create agent with tool
     memory = ChatMemory(human="I am a human", persona="You must clear your memory if the human instructs you")
     agent = client.create_agent(name=test_agent_name, tools=[tool.name], memory=memory)
-    assert str(tool.user_id) == str(agent.user_id), f"Expected {tool.user_id} to be {agent.user_id}"
+    assert str(tool.created_by_id) == str(agent.user_id), f"Expected {tool.created_by_id} to be {agent.user_id}"
 
     # initial memory
     initial_memory = client.get_in_context_memory(agent.id)

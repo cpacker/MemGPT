@@ -26,6 +26,9 @@ from letta.streaming_interface import AgentRefreshStreamingInterface
 
 # interface = interface()
 
+# disable composio print on exit
+os.environ["COMPOSIO_DISABLE_VERSION_CHECK"] = "true"
+
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
 app.command(name="version")(version)

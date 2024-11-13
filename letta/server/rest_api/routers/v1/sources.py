@@ -36,7 +36,7 @@ def get_source(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    return server.get_source(source_id=source_id, user_id=actor.id)
+    return server.source_manager.get_source_by_id(source_id=source_id, actor=actor)
 
 
 @router.get("/name/{source_name}", response_model=str, operation_id="get_source_id_by_name")
@@ -50,8 +50,8 @@ def get_source_id_by_name(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    source_id = server.get_source_id(source_name=source_name, user_id=actor.id)
-    return source_id
+    source = server.source_manager.get_source_by_name(source_name=source_name, actor=actor)
+    return source.id
 
 
 @router.get("/", response_model=List[Source], operation_id="list_sources")
@@ -64,12 +64,12 @@ def list_sources(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    return server.list_all_sources(user_id=actor.id)
+    return server.list_all_sources(actor=actor)
 
 
 @router.post("/", response_model=Source, operation_id="create_source")
 def create_source(
-    source: SourceCreate,
+    source_create: SourceCreate,
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -77,8 +77,9 @@ def create_source(
     Create a new data source.
     """
     actor = server.get_user_or_default(user_id=user_id)
+    source = Source(**source_create.model_dump())
 
-    return server.create_source(request=source, user_id=actor.id)
+    return server.source_manager.create_source(source=source, actor=actor)
 
 
 @router.patch("/{source_id}", response_model=Source, operation_id="update_source")
@@ -92,10 +93,7 @@ def update_source(
     Update the name or documentation of an existing data source.
     """
     actor = server.get_user_or_default(user_id=user_id)
-
-    assert source.id == source_id, "Source ID in path must match ID in request body"
-
-    return server.update_source(request=source, user_id=actor.id)
+    return server.source_manager.update_source(source_id=source_id, source_update=source, actor=actor)
 
 
 @router.delete("/{source_id}", response_model=None, operation_id="delete_source")
@@ -109,7 +107,7 @@ def delete_source(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    server.delete_source(source_id=source_id, user_id=actor.id)
+    server.delete_source(source_id=source_id, actor=actor)
 
 
 @router.post("/{source_id}/attach", response_model=Source, operation_id="attach_agent_to_source")
@@ -124,7 +122,7 @@ def attach_source_to_agent(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    source = server.ms.get_source(source_id=source_id, user_id=actor.id)
+    source = server.source_manager.get_source_by_id(source_id=source_id, actor=actor)
     assert source is not None, f"Source with id={source_id} not found."
     source = server.attach_source_to_agent(source_id=source.id, agent_id=agent_id, user_id=actor.id)
     return source
@@ -158,7 +156,7 @@ def upload_file_to_source(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    source = server.ms.get_source(source_id=source_id, user_id=actor.id)
+    source = server.source_manager.get_source_by_id(source_id=source_id, actor=actor)
     assert source is not None, f"Source with id={source_id} not found."
     bytes = file.file.read()
 
@@ -200,11 +198,13 @@ def list_files_from_source(
     limit: int = Query(1000, description="Number of files to return"),
     cursor: Optional[str] = Query(None, description="Pagination cursor to fetch the next set of results"),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     List paginated files associated with a data source.
     """
-    return server.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.source_manager.list_files(source_id=source_id, limit=limit, cursor=cursor, actor=actor)
 
 
 # it's redundant to include /delete in the URL path. The HTTP verb DELETE already implies that action.
@@ -221,7 +221,7 @@ def delete_file_from_source(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    deleted_file = server.delete_file_from_source(source_id=source_id, file_id=file_id, user_id=actor.id)
+    deleted_file = server.source_manager.delete_file(file_id=file_id, actor=actor)
     if deleted_file is None:
         raise HTTPException(status_code=404, detail=f"File with id={file_id} not found.")
 

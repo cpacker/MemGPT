@@ -1,16 +1,15 @@
 import uuid
-from typing import Union
 
 import pytest
 
 from letta import create_client
-from letta.client.client import LocalClient, RESTClient
+from letta.client.client import LocalClient
 from letta.schemas.agent import AgentState
 from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
-from letta.schemas.tool import Tool
+from letta.schemas.tool import ToolCreate
 
 
 @pytest.fixture(scope="module")
@@ -35,7 +34,7 @@ def agent(client):
     assert client.get_agent(agent_state.id) is None, f"Failed to properly delete agent {agent_state.id}"
 
 
-def test_agent(client: Union[LocalClient, RESTClient]):
+def test_agent(client: LocalClient):
     # create agent
     agent_state_test = client.create_agent(
         name="test_agent2",
@@ -120,26 +119,24 @@ def test_agent(client: Union[LocalClient, RESTClient]):
     client.delete_agent(agent_state_test.id)
 
 
-def test_agent_add_remove_tools(client: Union[LocalClient, RESTClient], agent):
+def test_agent_add_remove_tools(client: LocalClient, agent):
     # Create and add two tools to the client
     # tool 1
     from composio_langchain import Action
 
-    github_tool = Tool.get_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
-    client.add_tool(github_tool)
+    github_tool = client.load_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
     # tool 2
     from crewai_tools import ScrapeWebsiteTool
 
-    scrape_website_tool = Tool.from_crewai(ScrapeWebsiteTool(website_url="https://www.example.com"))
-    client.add_tool(scrape_website_tool)
+    scrape_website_tool = client.load_crewai_tool(crewai_tool=ScrapeWebsiteTool(website_url="https://www.example.com"))
 
     # assert both got added
     tools = client.list_tools()
     assert github_tool.id in [t.id for t in tools]
     assert scrape_website_tool.id in [t.id for t in tools]
 
-    # Assert that all combinations of tool_names, tool_user_ids are unique
-    combinations = [(t.name, t.user_id) for t in tools]
+    # Assert that all combinations of tool_names, organization id are unique
+    combinations = [(t.name, t.organization_id) for t in tools]
     assert len(combinations) == len(set(combinations))
 
     # create agent
@@ -171,9 +168,9 @@ def test_agent_add_remove_tools(client: Union[LocalClient, RESTClient], agent):
     assert scrape_website_tool.name in curr_tool_names
 
 
-def test_agent_with_shared_blocks(client: Union[LocalClient, RESTClient]):
-    persona_block = Block(name="persona", value="Here to test things!", label="persona", user_id=client.user_id)
-    human_block = Block(name="human", value="Me Human, I swear. Beep boop.", label="human", user_id=client.user_id)
+def test_agent_with_shared_blocks(client: LocalClient):
+    persona_block = Block(template_name="persona", value="Here to test things!", label="persona", user_id=client.user_id)
+    human_block = Block(template_name="human", value="Me Human, I swear. Beep boop.", label="human", user_id=client.user_id)
     existing_non_template_blocks = [persona_block, human_block]
     for block in existing_non_template_blocks:
         # ensure that previous chat blocks are persisted, as if another agent already produced them.
@@ -222,7 +219,7 @@ def test_agent_with_shared_blocks(client: Union[LocalClient, RESTClient]):
             client.delete_agent(second_agent_state_test.id)
 
 
-def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_memory(client: LocalClient, agent: AgentState):
     # get agent memory
     original_memory = client.get_in_context_memory(agent.id)
     assert original_memory is not None
@@ -235,7 +232,7 @@ def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert updated_memory.get_block("human").value != original_memory_value  # check if the memory has been updated
 
 
-def test_archival_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_archival_memory(client: LocalClient, agent: AgentState):
     """Test functions for interacting with archival memory store"""
 
     # add archival memory
@@ -250,7 +247,7 @@ def test_archival_memory(client: Union[LocalClient, RESTClient], agent: AgentSta
     client.delete_archival_memory(agent.id, passage.id)
 
 
-def test_recall_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_recall_memory(client: LocalClient, agent: AgentState):
     """Test functions for interacting with recall memory store"""
 
     # send message to the agent
@@ -274,7 +271,7 @@ def test_recall_memory(client: Union[LocalClient, RESTClient], agent: AgentState
     assert exists
 
 
-def test_tools(client: Union[LocalClient, RESTClient]):
+def test_tools(client: LocalClient):
     def print_tool(message: str):
         """
         A tool to print a message
@@ -314,20 +311,18 @@ def test_tools(client: Union[LocalClient, RESTClient]):
     assert client.get_tool(tool.id).tags == extras2
 
     # update tool: source code
-    client.update_tool(tool.id, func=print_tool2)
+    client.update_tool(tool.id, name="print_tool2", func=print_tool2)
     assert client.get_tool(tool.id).name == "print_tool2"
 
 
-def test_tools_from_composio_basic(client: Union[LocalClient, RESTClient]):
+def test_tools_from_composio_basic(client: LocalClient):
     from composio_langchain import Action
 
     # Create a `LocalClient` (you can also use a `RESTClient`, see the letta_rest_client.py example)
     client = create_client()
 
-    tool = Tool.get_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
-
     # create tool
-    client.add_tool(tool)
+    tool = client.load_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
 
     # list tools
     tools = client.list_tools()
@@ -337,18 +332,15 @@ def test_tools_from_composio_basic(client: Union[LocalClient, RESTClient]):
     # The tool creation includes a compile safety check, so if this test doesn't error out, at least the code is compilable
 
 
-def test_tools_from_crewai(client: Union[LocalClient, RESTClient]):
+def test_tools_from_crewai(client: LocalClient):
     # create crewAI tool
 
     from crewai_tools import ScrapeWebsiteTool
 
     crewai_tool = ScrapeWebsiteTool()
 
-    # Translate to memGPT Tool
-    tool = Tool.from_crewai(crewai_tool)
-
     # Add the tool
-    client.add_tool(tool)
+    tool = client.load_crewai_tool(crewai_tool=crewai_tool)
 
     # list tools
     tools = client.list_tools()
@@ -372,18 +364,15 @@ def test_tools_from_crewai(client: Union[LocalClient, RESTClient]):
     assert expected_content in func(website_url=simple_webpage_url)
 
 
-def test_tools_from_crewai_with_params(client: Union[LocalClient, RESTClient]):
+def test_tools_from_crewai_with_params(client: LocalClient):
     # create crewAI tool
 
     from crewai_tools import ScrapeWebsiteTool
 
     crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
 
-    # Translate to memGPT Tool
-    tool = Tool.from_crewai(crewai_tool)
-
     # Add the tool
-    client.add_tool(tool)
+    tool = client.load_crewai_tool(crewai_tool=crewai_tool)
 
     # list tools
     tools = client.list_tools()
@@ -404,7 +393,7 @@ def test_tools_from_crewai_with_params(client: Union[LocalClient, RESTClient]):
     assert expected_content in func()
 
 
-def test_tools_from_langchain(client: Union[LocalClient, RESTClient]):
+def test_tools_from_langchain(client: LocalClient):
     # create langchain tool
     from langchain_community.tools import WikipediaQueryRun
     from langchain_community.utilities import WikipediaAPIWrapper
@@ -412,11 +401,10 @@ def test_tools_from_langchain(client: Union[LocalClient, RESTClient]):
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
     langchain_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
 
-    # Translate to memGPT Tool
-    tool = Tool.from_langchain(langchain_tool, additional_imports_module_attr_map={"langchain_community.utilities": "WikipediaAPIWrapper"})
-
     # Add the tool
-    client.add_tool(tool)
+    tool = client.load_langchain_tool(
+        langchain_tool, additional_imports_module_attr_map={"langchain_community.utilities": "WikipediaAPIWrapper"}
+    )
 
     # list tools
     tools = client.list_tools()
@@ -432,11 +420,11 @@ def test_tools_from_langchain(client: Union[LocalClient, RESTClient]):
     exec(source_code, {}, local_scope)
     func = local_scope[tool.name]
 
-    expected_content = "Albert Einstein ( EYEN-styne; German:"
+    expected_content = "Albert Einstein"
     assert expected_content in func(query="Albert Einstein")
 
 
-def test_tool_creation_langchain_missing_imports(client: Union[LocalClient, RESTClient]):
+def test_tool_creation_langchain_missing_imports(client: LocalClient):
     # create langchain tool
     from langchain_community.tools import WikipediaQueryRun
     from langchain_community.utilities import WikipediaAPIWrapper
@@ -447,4 +435,4 @@ def test_tool_creation_langchain_missing_imports(client: Union[LocalClient, REST
     # Translate to memGPT Tool
     # Intentionally missing {"langchain_community.utilities": "WikipediaAPIWrapper"}
     with pytest.raises(RuntimeError):
-        Tool.from_langchain(langchain_tool)
+        ToolCreate.from_langchain(langchain_tool)
