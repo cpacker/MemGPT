@@ -1,13 +1,13 @@
-from typing import List, Union
+from typing import List
 
 from pydantic import BaseModel, Field
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
-from letta.schemas.message import Message, MessageCreate
+from letta.schemas.message import MessageCreate
 
 
 class LettaRequest(BaseModel):
-    messages: Union[List[MessageCreate], List[Message]] = Field(..., description="The messages to be sent to the agent.")
+    messages: List[MessageCreate] = Field(..., description="The messages to be sent to the agent.")
     run_async: bool = Field(default=False, description="Whether to asynchronously send the messages to the agent.")  # TODO: implement
 
     stream_steps: bool = Field(
