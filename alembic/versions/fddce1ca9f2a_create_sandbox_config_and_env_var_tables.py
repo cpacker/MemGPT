@@ -24,7 +24,7 @@ def upgrade() -> None:
     op.create_table(
         "sandbox_configs",
         sa.Column("id", sa.String(), nullable=False),
-        sa.Column("type", sa.Enum("E2B", "LOCAL_DIR", name="sandboxtype"), nullable=False),
+        sa.Column("type", sa.Enum("E2B", "LOCAL", name="sandboxtype"), nullable=False),
         sa.Column("metadata_", sa.JSON(), nullable=True),
         sa.Column("config", sa.JSON(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
