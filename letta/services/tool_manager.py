@@ -37,11 +37,8 @@ class ToolManager:
         # Derive json_schema
         derived_json_schema = pydantic_tool.json_schema or derive_openai_json_schema(source_code=pydantic_tool.source_code)
         derived_name = pydantic_tool.name or derived_json_schema["name"]
-
-        try:
-            # NOTE: We use the organization id here
-            # This is important, because even if it's a different user, adding the same tool to the org should not happen
-            tool = self.get_tool_by_name(tool_name=derived_name, actor=actor)
+        tool = self.get_tool_by_name(tool_name=derived_name, actor=actor)
+        if tool:
             # Put to dict and remove fields that should not be reset
             update_data = pydantic_tool.model_dump(exclude={"module"}, exclude_unset=True, exclude_none=True)
             # Remove redundant update fields
@@ -54,7 +51,7 @@ class ToolManager:
                 printd(
                     f"`create_or_update_tool` was called with user_id={actor.id}, organization_id={actor.organization_id}, name={pydantic_tool.name}, but found existing tool with nothing to update."
                 )
-        except NoResultFound:
+        else:
             pydantic_tool.json_schema = derived_json_schema
             pydantic_tool.name = derived_name
             tool = self.create_tool(pydantic_tool, actor=actor)
@@ -84,11 +81,14 @@ class ToolManager:
             return tool.to_pydantic()
 
     @enforce_types
-    def get_tool_by_name(self, tool_name: str, actor: PydanticUser):
+    def get_tool_by_name(self, tool_name: str, actor: PydanticUser) -> Optional[PydanticTool]:
         """Retrieve a tool by its name and a user. We derive the organization from the user, and retrieve that tool."""
-        with self.session_maker() as session:
-            tool = ToolModel.read(db_session=session, name=tool_name, actor=actor)
-            return tool.to_pydantic()
+        try:
+            with self.session_maker() as session:
+                tool = ToolModel.read(db_session=session, name=tool_name, actor=actor)
+                return tool.to_pydantic()
+        except NoResultFound:
+            return None
 
     @enforce_types
     def list_tools(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[PydanticTool]:

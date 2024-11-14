@@ -3,13 +3,25 @@ from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
-from letta.orm import FileMetadata, Organization, Source, Tool, User
+from letta.orm import (
+    FileMetadata,
+    Organization,
+    SandboxConfig,
+    SandboxEnvironmentVariable,
+    Source,
+    Tool,
+    User,
+)
 from letta.schemas.agent import CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.file import FileMetadata as PydanticFileMetadata
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.organization import Organization as PydanticOrganization
+from letta.schemas.sandbox_config import SandboxConfig as PydanticSandboxConfig
+from letta.schemas.sandbox_config import SandboxConfigUpdate
+from letta.schemas.sandbox_config import SandboxEnvironmentVariable as PydanticEnvVar
+from letta.schemas.sandbox_config import SandboxEnvVarUpdate, SandboxType
 from letta.schemas.source import Source as PydanticSource
 from letta.schemas.source import SourceUpdate
 from letta.schemas.tool import Tool as PydanticTool
@@ -38,6 +50,8 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(SandboxConfig))
+        session.execute(delete(SandboxEnvironmentVariable))
         session.execute(delete(FileMetadata))
         session.execute(delete(Source))
         session.execute(delete(Tool))  # Clear all records from the Tool table
@@ -151,6 +165,28 @@ def tool_fixture(server: SyncServer, default_user, default_organization):
 
     # Yield the created tool, organization, and user for use in tests
     yield {"tool": tool}
+
+
+@pytest.fixture
+def sandbox_config_fixture(server: SyncServer, default_user):
+    sandbox_config = PydanticSandboxConfig(
+        type=SandboxType.E2B,
+        config={"template_id": "template_1", "timeout_seconds": 60},
+        metadata_={"type": "sandbox"},
+    )
+    created_config = server.sandbox_config_manager.create_or_update_sandbox_config(sandbox_config, actor=default_user)
+    yield created_config
+
+
+@pytest.fixture
+def sandbox_env_var_fixture(server: SyncServer, default_user):
+    env_var = PydanticEnvVar(
+        key="SAMPLE_VAR",
+        value="sample_value",
+        description="A sample environment variable for testing.",
+    )
+    created_env_var = server.sandbox_config_manager.create_sandbox_env_var(env_var, actor=default_user)
+    yield created_env_var
 
 
 @pytest.fixture(scope="module")
@@ -724,3 +760,133 @@ def test_get_agents_by_tag(server: SyncServer, sarah_agent, charles_agent, defau
     assert sarah_agent.id not in agent_ids
     assert charles_agent.id in agent_ids
     assert len(agent_ids) == 1
+
+
+# ======================================================================================================================
+# SandboxConfigManager Tests - Sandbox Configs
+# ======================================================================================================================
+def test_create_or_update_sandbox_config(server: SyncServer, default_user):
+    sandbox_config = PydanticSandboxConfig(
+        type=SandboxType.E2B,
+        config={"template_id": "template_1", "timeout_seconds": 60},
+        metadata_={"type": "sandbox"},
+    )
+    created_config = server.sandbox_config_manager.create_or_update_sandbox_config(sandbox_config, actor=default_user)
+
+    # Assertions
+    assert created_config.type == sandbox_config.type
+    assert created_config.config == sandbox_config.config
+    assert created_config.organization_id == default_user.organization_id
+
+
+def test_update_existing_sandbox_config(server: SyncServer, sandbox_config_fixture, default_user):
+    update_data = SandboxConfigUpdate(config={"template_id": "template_2", "timeout_seconds": 120})
+    updated_config = server.sandbox_config_manager.update_sandbox_config(sandbox_config_fixture.id, update_data, actor=default_user)
+
+    # Assertions
+    assert updated_config.config["template_id"] == "template_2"
+    assert updated_config.config["timeout_seconds"] == 120
+
+
+def test_delete_sandbox_config(server: SyncServer, sandbox_config_fixture, default_user):
+    deleted_config = server.sandbox_config_manager.delete_sandbox_config(sandbox_config_fixture.id, actor=default_user)
+
+    # Assertions to verify deletion
+    assert deleted_config.id == sandbox_config_fixture.id
+
+    # Verify it no longer exists
+    config_list = server.sandbox_config_manager.list_sandbox_configs(actor=default_user)
+    assert sandbox_config_fixture.id not in [config.id for config in config_list]
+
+
+def test_get_sandbox_config_by_type(server: SyncServer, sandbox_config_fixture, default_user):
+    retrieved_config = server.sandbox_config_manager.get_sandbox_config_by_type(sandbox_config_fixture.type, actor=default_user)
+
+    # Assertions to verify correct retrieval
+    assert retrieved_config.id == sandbox_config_fixture.id
+    assert retrieved_config.type == sandbox_config_fixture.type
+
+
+def test_list_sandbox_configs(server: SyncServer, default_user):
+    # Creating multiple sandbox configs
+    config_1 = PydanticSandboxConfig(type=SandboxType.E2B, config={"key": "value1"})
+    config_2 = PydanticSandboxConfig(type=SandboxType.LOCAL, config={"key": "value2"})
+    server.sandbox_config_manager.create_or_update_sandbox_config(config_1, actor=default_user)
+    server.sandbox_config_manager.create_or_update_sandbox_config(config_2, actor=default_user)
+
+    # List configs without pagination
+    configs = server.sandbox_config_manager.list_sandbox_configs(actor=default_user)
+    assert len(configs) >= 2
+
+    # List configs with pagination
+    paginated_configs = server.sandbox_config_manager.list_sandbox_configs(actor=default_user, limit=1)
+    assert len(paginated_configs) == 1
+
+    next_page = server.sandbox_config_manager.list_sandbox_configs(actor=default_user, cursor=paginated_configs[-1].id, limit=1)
+    assert len(next_page) == 1
+    assert next_page[0].id != paginated_configs[0].id
+
+
+# ======================================================================================================================
+# SandboxConfigManager Tests - Environment Variables
+# ======================================================================================================================
+def test_create_sandbox_env_var(server: SyncServer, default_user):
+    env_var = PydanticEnvVar(
+        key="TEST_VAR",
+        value="test_value",
+        description="A test environment variable.",
+    )
+    created_env_var = server.sandbox_config_manager.create_sandbox_env_var(env_var, actor=default_user)
+
+    # Assertions
+    assert created_env_var.key == env_var.key
+    assert created_env_var.value == env_var.value
+    assert created_env_var.organization_id == default_user.organization_id
+
+
+def test_update_sandbox_env_var(server: SyncServer, sandbox_env_var_fixture, default_user):
+    update_data = SandboxEnvVarUpdate(value="updated_value")
+    updated_env_var = server.sandbox_config_manager.update_sandbox_env_var(sandbox_env_var_fixture.id, update_data, actor=default_user)
+
+    # Assertions
+    assert updated_env_var.value == "updated_value"
+    assert updated_env_var.id == sandbox_env_var_fixture.id
+
+
+def test_delete_sandbox_env_var(server: SyncServer, sandbox_env_var_fixture, default_user):
+    deleted_env_var = server.sandbox_config_manager.delete_sandbox_env_var(sandbox_env_var_fixture.id, actor=default_user)
+
+    # Assertions to verify deletion
+    assert deleted_env_var.id == sandbox_env_var_fixture.id
+
+    # Verify it no longer exists
+    env_vars = server.sandbox_config_manager.list_sandbox_env_vars(actor=default_user)
+    assert sandbox_env_var_fixture.id not in [env_var.id for env_var in env_vars]
+
+
+def test_list_sandbox_env_vars(server: SyncServer, default_user):
+    # Creating multiple environment variables
+    env_var_1 = PydanticEnvVar(key="VAR1", value="value1")
+    env_var_2 = PydanticEnvVar(key="VAR2", value="value2")
+    server.sandbox_config_manager.create_sandbox_env_var(env_var_1, actor=default_user)
+    server.sandbox_config_manager.create_sandbox_env_var(env_var_2, actor=default_user)
+
+    # List env vars without pagination
+    env_vars = server.sandbox_config_manager.list_sandbox_env_vars(actor=default_user)
+    assert len(env_vars) >= 2
+
+    # List env vars with pagination
+    paginated_env_vars = server.sandbox_config_manager.list_sandbox_env_vars(actor=default_user, limit=1)
+    assert len(paginated_env_vars) == 1
+
+    next_page = server.sandbox_config_manager.list_sandbox_env_vars(actor=default_user, cursor=paginated_env_vars[-1].id, limit=1)
+    assert len(next_page) == 1
+    assert next_page[0].id != paginated_env_vars[0].id
+
+
+def test_get_sandbox_env_var_by_key(server: SyncServer, sandbox_env_var_fixture, default_user):
+    retrieved_env_var = server.sandbox_config_manager.get_sandbox_env_var_by_key(sandbox_env_var_fixture.key, actor=default_user)
+
+    # Assertions to verify correct retrieval
+    assert retrieved_env_var.id == sandbox_env_var_fixture.id
+    assert retrieved_env_var.key == sandbox_env_var_fixture.key

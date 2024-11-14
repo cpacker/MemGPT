@@ -9,6 +9,8 @@ from tqdm import tqdm
 
 from letta.agent_store.storage import StorageConnector
 from letta.constants import (
+    BASE_CORE_MEMORY_TOOLS,
+    BASE_TOOLS,
     CLI_WARNING_PREFIX,
     FIRST_MESSAGE_ATTEMPTS,
     FUNC_FAILED_HEARTBEAT_MESSAGE,
@@ -46,8 +48,8 @@ from letta.schemas.passage import Passage
 from letta.schemas.tool import Tool
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
-from letta.services.secure_execution_environment import SecureExecutionEnvironment
 from letta.services.source_manager import SourceManager
+from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.user_manager import UserManager
 from letta.system import (
     get_heartbeat,
@@ -720,14 +722,13 @@ class Agent(BaseAgent):
                     if isinstance(function_args[name], dict):
                         function_args[name] = spec[name](**function_args[name])
 
-                function_args["self"] = self  # need to attach self to arg since it's dynamically linked
-
-                matching_tools = [tool for tool in self.tools if tool.name == function_name]
-                tool = matching_tools[0] if matching_tools else None
-                if tool is None or tool.is_trusted():
+                # TODO: This needs to be rethought, how do we allow functions that modify agent state/db?
+                # TODO: There should probably be two types of tools: stateless/stateful
+                if function_name in BASE_TOOLS or BASE_CORE_MEMORY_TOOLS:
+                    function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                     function_response = function_to_call(**function_args)
                 else:
-                    function_response = SecureExecutionEnvironment(tool, function_args).run()
+                    function_response = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run()
 
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow

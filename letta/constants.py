@@ -37,13 +37,8 @@ DEFAULT_HUMAN = "basic"
 DEFAULT_PRESET = "memgpt_chat"
 
 # Tools
-BASE_TOOLS = [
-    "send_message",
-    "conversation_search",
-    "conversation_search_date",
-    "archival_memory_insert",
-    "archival_memory_search",
-]
+BASE_TOOLS = ["send_message", "conversation_search", "conversation_search_date", "archival_memory_insert", "archival_memory_search"]
+BASE_CORE_MEMORY_TOOLS = ["core_memory_append", "core_memory_replace"]
 
 # The name of the tool used to send message to the user
 # May not be relevant in cases where the agent has multiple ways to message to user (send_imessage, send_discord_mesasge, ...)

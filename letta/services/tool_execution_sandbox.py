@@ -5,25 +5,42 @@ from typing import Any, Optional
 from e2b_code_interpreter import Sandbox
 
 from letta.schemas.tool import Tool
+from letta.services.tool_manager import ToolManager
+from letta.services.user_manager import UserManager
 
 
-class SecureExecutionEnvironment:
+class ToolExecutionSandbox:
     DIR = "/home/user/"
 
-    def __init__(self, tool: Tool, args: dict):
-        self.assert_required_args(tool, args)
-        self.tool = tool
+    def __init__(self, tool_name: str, args: dict, user_id: str):
+        from letta.server.server import db_context
+
+        self.session_maker = db_context
+        self.tool_name = tool_name
         self.args = args
 
+        # Get the user
+        # This user corresponds to the agent_state's user_id field
+        # agent_state is the state of the agent that invoked this run
+        self.user = UserManager().get_user_by_id(user_id=user_id)
+
+        # Get the tool
+        # TODO: So in theory, it's possible this retrieves a tool not provisioned to the agent
+        # That would probably imply that agent_state is incorrectly configured
+        self.tool = ToolManager().get_tool_by_name(tool_name=tool_name, actor=self.user)
+
     def run(self) -> Optional[Any]:
+        if not self.tool:
+            return f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
+
         code = self.generate_execution_script()
 
         sbx = Sandbox()
-        sbx.files.write(f"{SecureExecutionEnvironment.DIR}source.py", code)
+        sbx.files.write(f"{ToolExecutionSandbox.DIR}source.py", code)
         sbx.commands.run(
             f"pip install pipreqs && "
-            f"pipreqs {SecureExecutionEnvironment.DIR} && "
-            f"pip install -r {SecureExecutionEnvironment.DIR}requirements.txt"
+            f"pipreqs {ToolExecutionSandbox.DIR} && "
+            f"pip install -r {ToolExecutionSandbox.DIR}requirements.txt"
         )
 
         execution = sbx.run_code(code, envs=self.get_envs())
@@ -39,6 +56,9 @@ class SecureExecutionEnvironment:
 
         sbx.kill()
         return function_response
+
+    def get_or_create_sandbox(self) -> Sandbox:
+        Sandbox.list()
 
     def generate_execution_script(self) -> str:
         code = ""

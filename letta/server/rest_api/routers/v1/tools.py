@@ -2,7 +2,6 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
-from letta.orm.errors import NoResultFound
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
@@ -49,11 +48,10 @@ def get_tool_id(
     Get a tool ID by name
     """
     actor = server.get_user_or_default(user_id=user_id)
-
-    try:
-        tool = server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+    tool = server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+    if tool:
         return tool.id
-    except NoResultFound:
+    else:
         raise HTTPException(status_code=404, detail=f"Tool with name {tool_name} and organization id {actor.organization_id} not found.")
 
 

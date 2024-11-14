@@ -2,12 +2,12 @@ from typing import TYPE_CHECKING, List
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from letta.orm.file import FileMetadata
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.organization import Organization as PydanticOrganization
 
 if TYPE_CHECKING:
 
+    from letta.orm.file import FileMetadata
     from letta.orm.tool import Tool
     from letta.orm.user import User
 
@@ -26,6 +26,13 @@ class Organization(SqlalchemyBase):
     sources: Mapped[List["Source"]] = relationship("Source", back_populates="organization", cascade="all, delete-orphan")
     agents_tags: Mapped[List["AgentsTags"]] = relationship("AgentsTags", back_populates="organization", cascade="all, delete-orphan")
     files: Mapped[List["FileMetadata"]] = relationship("FileMetadata", back_populates="organization", cascade="all, delete-orphan")
+    sandbox_configs: Mapped[List["SandboxConfig"]] = relationship(
+        "SandboxConfig", back_populates="organization", cascade="all, delete-orphan"
+    )
+    sandbox_environment_variables: Mapped[List["SandboxEnvironmentVariable"]] = relationship(
+        "SandboxEnvironmentVariable", back_populates="organization", cascade="all, delete-orphan"
+    )
+
     # TODO: Map these relationships later when we actually make these models
     # below is just a suggestion
     # agents: Mapped[List["Agent"]] = relationship("Agent", back_populates="organization", cascade="all, delete-orphan")
