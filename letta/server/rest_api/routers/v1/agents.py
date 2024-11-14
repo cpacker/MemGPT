@@ -376,8 +376,14 @@ def update_message(
         200: {
             "description": "Successful response",
             "content": {
-                "application/json": {"$ref": "#/components/schemas/LettaResponse"},  # Use model_json_schema() instead of model directly
-                "text/event-stream": {"description": "Server-Sent Events stream"},
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/LettaResponse",
+                    },
+                },
+                "text/event-stream": {
+                    "description": "Server-Sent Events stream",
+                },
             },
         }
     },
