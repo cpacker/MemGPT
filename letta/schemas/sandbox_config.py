@@ -26,7 +26,7 @@ class E2BConfig(BaseModel):
 # Types
 class SandboxType(str, Enum):
     E2B = "e2b"
-    LOCAL_DIR = "local_dir"
+    LOCAL = "local"
 
 
 # Sandbox Config

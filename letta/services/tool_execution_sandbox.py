@@ -50,7 +50,7 @@ class ToolExecutionSandbox:
             return self.run_local_dir_sandbox(code=code, env_vars=env_vars)
 
     def run_local_dir_sandbox(self, code: str, env_vars: Dict[str, str]) -> Optional[Any]:
-        sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL_DIR, actor=self.user)
+        sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=self.user)
         local_configs = sbx_config.get_local_config()
 
         env = os.environ.copy()
