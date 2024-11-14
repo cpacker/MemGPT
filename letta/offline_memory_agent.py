@@ -9,6 +9,46 @@ from letta.schemas.tool import Tool
 from letta.schemas.usage import LettaUsageStatistics
 
 
+def send_message_offline_agent(self: "Agent", message: str) -> Optional[str]:
+    """
+    Sends a message to the human user.
+
+    Args:
+        message (str): Message contents. All unicode (including emojis) are supported.
+
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
+    print("hello")
+    # FIXME passing of msg_obj here is a hack, unclear if guaranteed to be the correct reference
+    self.interface.assistant_message(message)  # , msg_obj=self._messages[-1])
+    return None
+
+
+def trigger_rethink_memory(self: "Agent") -> Optional[str]:
+    """
+    If the user says the word "rethink_memory" then call this function
+    """
+    from letta import create_client
+
+    client = create_client()
+    agents = client.get_agents()
+    for agent in agents:
+        if agent.agent_type == "offline_memory_agent":
+            agent.rethink_memory()
+
+
+def rethink_memory(self: "Agent") -> Optional[str]:
+    """
+    Goes through the memory and rethinks the memory based on the new message.
+
+    """
+    for memory_block in self.memory:
+        print(memory_block)
+    self.memory.update_block_value(name="rethink", value="Rethinking memory")
+    return None
+
+
 class OfflineMemoryAgent(Agent):
     def __init__(
         self,
@@ -30,3 +70,4 @@ class OfflineMemoryAgent(Agent):
         **kwargs,
     ) -> LettaUsageStatistics:
         """Go through what is currently in memory core memory and information."""
+        return super().step(messages, chaining, max_chaining_steps, ms, **kwargs)

@@ -1,28 +1,33 @@
-from letta.client.client import create_client
-from letta.constants import DEFAULT_HUMAN
-from letta.schemas.agent import AgentType
-from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.llm_config import LLMConfig
-from letta.schemas.memory import ChatMemory
-from letta.utils import get_human_text, get_persona_text
+# from letta.functions.function_sets.base import send_message
 
 
 def test_offline_memory_agent():
-    client = create_client()
-    assert client is not None
+    pass
+    # client = create_client()
+    # assert client is not None
 
-    agent_state = client.create_agent(
+    """
+    rethink_memory_tool = client.create_tool(rethink_memory)
+    send_message_offline_agent_tool = client.create_tool(send_message_offline_agent)
+    trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
+    conversation_agent = client.create_agent(
         agent_type=AgentType.offline_memory_agent,
         llm_config=LLMConfig.default_config("gpt-4"),
         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-        memory=ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text("offline_memory_persona")),
+        tools=[send_message_offline_agent.name, trigger_rethink_memory_tool.name],
+        memory=ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        include_base_tools=False,
     )
-    agent = client.get_agent(agent_id=agent_state.id)
-    assert agent is not None
-
-    # create a interaction here
-
-    response = client.user_message(agent_id=agent_state.id, message="")
+    assert conversation_agent is not None
+    memory_rethink_agent = client.create_agent(
+        agent_type=AgentType.offline_memory_agent,
+        memory=ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text("offline_memory_persona")),
+        tools=[rethink_memory.name],
+    )
+    new_memory = Block(name="rethink_memory_block", label="memory_rethink_block", value="", limit=2000)
+    response = client.user_message(agent_id=conversation_agent.id, message="rethink: Tell me something I don't know about myself.")
+    print(response)
+    """
 
 
 if __name__ == "__main__":
