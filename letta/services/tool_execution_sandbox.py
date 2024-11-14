@@ -3,8 +3,6 @@ import os
 import subprocess
 from typing import Any, Dict, Optional
 
-from e2b_code_interpreter import Sandbox
-
 from letta.log import get_logger
 from letta.schemas.sandbox_config import SandboxType
 from letta.services.sandbox_config_manager import SandboxConfigManager
@@ -33,7 +31,7 @@ class ToolExecutionSandbox:
 
         # Get the tool
         # TODO: So in theory, it's possible this retrieves a tool not provisioned to the agent
-        # That would probably imply that agent_state is incorrectly configured
+        # TODO: That would probably imply that agent_state is incorrectly configured
         self.tool = ToolManager().get_tool_by_name(tool_name=tool_name, actor=self.user)
         self.sandbox_config_manager = SandboxConfigManager()
 
@@ -99,6 +97,8 @@ class ToolExecutionSandbox:
             raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
 
     def run_e2b_sandbox(self, code: str, env_vars: Dict[str, str]) -> Optional[Any]:
+        from e2b_code_interpreter import Sandbox
+
         sbx = self.get_e2b_sandbox_with_org()
         # TODO: This may result in a stale sandbox since we try to use a running one, there may be updates to the env since
         if not sbx:
@@ -121,7 +121,9 @@ class ToolExecutionSandbox:
         # Note, we don't kill the sandbox
         return function_response
 
-    def get_e2b_sandbox_with_org(self) -> Optional[Sandbox]:
+    def get_e2b_sandbox_with_org(self) -> Optional["Sandbox"]:
+        from e2b_code_interpreter import Sandbox
+
         # List running sandboxes and access metadata.
         running_sandboxes = Sandbox.list()
         for sandbox in running_sandboxes:

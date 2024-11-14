@@ -50,7 +50,6 @@ class SandboxConfig(SandboxConfigBase):
 class SandboxConfigUpdate(LettaBase):
     """Pydantic model for updating SandboxConfig fields."""
 
-    metadata_: Optional[Dict] = Field(None, description="Metadata associated with the sandbox.")
     config: Optional[Dict] = Field(None, description="The JSON configuration data for the sandbox.")
 
     class Config:
