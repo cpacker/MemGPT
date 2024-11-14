@@ -1,14 +1,19 @@
-from typing import List, Optional
+from pathlib import Path
+from typing import Dict, List, Optional
 
+from letta.log import get_logger
 from letta.orm.errors import NoResultFound
 from letta.orm.sandbox_config import SandboxConfig as SandboxConfigModel
 from letta.orm.sandbox_config import SandboxEnvironmentVariable as SandboxEnvVarModel
+from letta.schemas.sandbox_config import E2BConfig, LocalSandboxConfig
 from letta.schemas.sandbox_config import SandboxConfig as PydanticSandboxConfig
 from letta.schemas.sandbox_config import SandboxConfigUpdate
 from letta.schemas.sandbox_config import SandboxEnvironmentVariable as PydanticEnvVar
 from letta.schemas.sandbox_config import SandboxEnvVarUpdate, SandboxType
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types, printd
+
+logger = get_logger(__name__)
 
 
 class SandboxConfigManager:
@@ -18,6 +23,24 @@ class SandboxConfigManager:
         from letta.server.server import db_context
 
         self.session_maker = db_context
+
+    @enforce_types
+    def get_or_create_default_sandbox_config(self, sandbox_type: SandboxType, actor: PydanticUser) -> PydanticSandboxConfig:
+        sandbox_config = self.get_sandbox_config_by_type(sandbox_type, actor=actor)
+        if not sandbox_config:
+            logger.info(f"Creating new sandbox config of type {sandbox_type}, none found for organization {actor.organization_id}.")
+
+            # TODO: Add more sandbox types later
+            if sandbox_type == SandboxType.E2B:
+                default_config = E2BConfig().model_dump(exclude_none=True)
+            else:
+                default_local_sandbox_path = str(Path(__file__).parent / "tool_sandbox_env")
+                default_config = LocalSandboxConfig(sandbox_dir=default_local_sandbox_path).model_dump(exclude_none=True)
+
+            sandbox_config = self.create_or_update_sandbox_config(
+                PydanticSandboxConfig(type=sandbox_type, config=default_config), actor=actor
+            )
+        return sandbox_config
 
     @enforce_types
     def create_or_update_sandbox_config(self, sandbox_config: PydanticSandboxConfig, actor: PydanticUser) -> PydanticSandboxConfig:
@@ -178,6 +201,14 @@ class SandboxConfigManager:
                 organization_id=actor.organization_id,
             )
             return [env_var.to_pydantic() for env_var in env_vars]
+
+    @enforce_types
+    def get_sandbox_env_vars_as_dict(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Dict[str, str]:
+        env_vars = self.list_sandbox_env_vars(actor, cursor, limit)
+        result = {}
+        for env_var in env_vars:
+            result[env_var.key] = result[env_var.value]
+        return result
 
     @enforce_types
     def get_sandbox_env_var_by_key(self, key: str, actor: Optional[PydanticUser] = None) -> Optional[PydanticEnvVar]:

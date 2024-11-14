@@ -724,7 +724,8 @@ class Agent(BaseAgent):
 
                 # TODO: This needs to be rethought, how do we allow functions that modify agent state/db?
                 # TODO: There should probably be two types of tools: stateless/stateful
-                if function_name in BASE_TOOLS or BASE_CORE_MEMORY_TOOLS:
+
+                if function_name in BASE_TOOLS or function_name in BASE_CORE_MEMORY_TOOLS:
                     function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                     function_response = function_to_call(**function_args)
                 else:

@@ -172,7 +172,6 @@ def sandbox_config_fixture(server: SyncServer, default_user):
     sandbox_config = PydanticSandboxConfig(
         type=SandboxType.E2B,
         config={"template_id": "template_1", "timeout_seconds": 60},
-        metadata_={"type": "sandbox"},
     )
     created_config = server.sandbox_config_manager.create_or_update_sandbox_config(sandbox_config, actor=default_user)
     yield created_config
@@ -769,7 +768,6 @@ def test_create_or_update_sandbox_config(server: SyncServer, default_user):
     sandbox_config = PydanticSandboxConfig(
         type=SandboxType.E2B,
         config={"template_id": "template_1", "timeout_seconds": 60},
-        metadata_={"type": "sandbox"},
     )
     created_config = server.sandbox_config_manager.create_or_update_sandbox_config(sandbox_config, actor=default_user)
 

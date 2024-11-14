@@ -1,15 +1,32 @@
 from enum import Enum
 from typing import Dict, Optional
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from letta.schemas.letta_base import LettaBase, OrmMetadataBase
+
+
+# Configs for different sandboxes
+class LocalSandboxConfig(BaseModel):
+    venv_name: str = Field("venv", description="Name of the virtual environment.")
+    sandbox_dir: str = Field(..., description="Directory for the sandbox environment.")
+
+    class Config:
+        extra = "ignore"
+
+
+class E2BConfig(BaseModel):
+    timeout: int = Field(5 * 60, description="Time limit for the sandbox (in seconds).")
+    template_id: Optional[str] = Field(None, description="The E2B template id (docker image).")
+
+    class Config:
+        extra = "ignore"
 
 
 # Types
 class SandboxType(str, Enum):
     E2B = "e2b"
-    LOCAL = "local"
+    LOCAL_DIR = "local_dir"
 
 
 # Sandbox Config
@@ -20,9 +37,14 @@ class SandboxConfigBase(OrmMetadataBase):
 class SandboxConfig(SandboxConfigBase):
     id: str = SandboxConfigBase.generate_id_field()
     type: SandboxType = Field(None, description="The type of sandbox.")
-    metadata_: Optional[dict] = Field(None, description="Metadata associated with the sandbox.")
     organization_id: Optional[str] = Field(None, description="The unique identifier of the organization associated with the sandbox.")
-    config: Dict = Field(..., description="The JSON configuration data.")
+    config: Dict = Field(default_factory=lambda: {}, description="The JSON configuration data.")
+
+    def get_e2b_config(self) -> E2BConfig:
+        return E2BConfig(**self.config)
+
+    def get_local_config(self) -> LocalSandboxConfig:
+        return LocalSandboxConfig(**self.config)
 
 
 class SandboxConfigUpdate(LettaBase):
