@@ -12,12 +12,12 @@ from sqlalchemy import delete
 from letta.functions.functions import parse_source_code
 from letta.functions.schema_generator import generate_schema
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
-from letta.schemas.sandbox_config import E2BSandboxConfig, LocalSandboxConfig
-from letta.schemas.sandbox_config import SandboxConfig as PydanticSandboxConfig
 from letta.schemas.sandbox_config import (
-    SandboxEnvironmentVariable as PydanticSandboxEnvironmentVariable,
+    E2BSandboxConfig,
+    LocalSandboxConfig,
+    SandboxConfigCreate,
+    SandboxEnvironmentVariableCreate,
 )
-from letta.schemas.sandbox_config import SandboxType
 from letta.schemas.tool import Tool
 from letta.services.organization_manager import OrganizationManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
@@ -195,16 +195,14 @@ def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, default_user):
 
     # Make a custom local sandbox config
     sandbox_dir = str(Path(__file__).parent / "test_tool_sandbox")
-    config = PydanticSandboxConfig(
-        type=SandboxType.LOCAL, config=LocalSandboxConfig(venv_name="test", sandbox_dir=sandbox_dir).model_dump()
-    )
-    config = manager.create_or_update_sandbox_config(config, default_user)
+    config_create = SandboxConfigCreate(config=LocalSandboxConfig(venv_name="test", sandbox_dir=sandbox_dir).model_dump())
+    config = manager.create_or_update_sandbox_config(config_create, default_user)
 
     # Make a environment variable with a long random string
     key = "secret_word"
     long_random_string = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
     manager.create_sandbox_env_var(
-        PydanticSandboxEnvironmentVariable(key=key, value=long_random_string, sandbox_config_id=config.id), default_user
+        SandboxEnvironmentVariableCreate(key=key, value=long_random_string), sandbox_config_id=config.id, actor=default_user
     )
 
     # Create tool and args
@@ -234,13 +232,13 @@ def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, default_us
 
 def test_e2b_sandbox_with_env(check_e2b_key_is_set, print_env_tool, default_user):
     manager = SandboxConfigManager()
-    config = PydanticSandboxConfig(type=SandboxType.E2B, config=E2BSandboxConfig().model_dump())
-    config = manager.create_or_update_sandbox_config(config, default_user)
+    config_create = SandboxConfigCreate(config=E2BSandboxConfig().model_dump())
+    config = manager.create_or_update_sandbox_config(config_create, default_user)
 
     key = "secret_word"
     long_random_string = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
     manager.create_sandbox_env_var(
-        PydanticSandboxEnvironmentVariable(key=key, value=long_random_string, sandbox_config_id=config.id), default_user
+        SandboxEnvironmentVariableCreate(key=key, value=long_random_string), sandbox_config_id=config.id, actor=default_user
     )
 
     # Create tool and args

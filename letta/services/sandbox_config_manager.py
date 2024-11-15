@@ -7,9 +7,13 @@ from letta.orm.sandbox_config import SandboxConfig as SandboxConfigModel
 from letta.orm.sandbox_config import SandboxEnvironmentVariable as SandboxEnvVarModel
 from letta.schemas.sandbox_config import E2BSandboxConfig, LocalSandboxConfig
 from letta.schemas.sandbox_config import SandboxConfig as PydanticSandboxConfig
-from letta.schemas.sandbox_config import SandboxConfigUpdate
+from letta.schemas.sandbox_config import SandboxConfigCreate, SandboxConfigUpdate
 from letta.schemas.sandbox_config import SandboxEnvironmentVariable as PydanticEnvVar
-from letta.schemas.sandbox_config import SandboxEnvVarUpdate, SandboxType
+from letta.schemas.sandbox_config import (
+    SandboxEnvironmentVariableCreate,
+    SandboxEnvironmentVariableUpdate,
+    SandboxType,
+)
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types, printd
 
@@ -37,14 +41,24 @@ class SandboxConfigManager:
                 default_local_sandbox_path = str(Path(__file__).parent / "tool_sandbox_env")
                 default_config = LocalSandboxConfig(sandbox_dir=default_local_sandbox_path).model_dump(exclude_none=True)
 
-            sandbox_config = self.create_or_update_sandbox_config(
-                PydanticSandboxConfig(type=sandbox_type, config=default_config), actor=actor
-            )
+            sandbox_config = self.create_or_update_sandbox_config(SandboxConfigCreate(config=default_config), actor=actor)
         return sandbox_config
 
     @enforce_types
-    def create_or_update_sandbox_config(self, sandbox_config: PydanticSandboxConfig, actor: PydanticUser) -> PydanticSandboxConfig:
+    def create_or_update_sandbox_config(self, sandbox_config_create: SandboxConfigCreate, actor: PydanticUser) -> PydanticSandboxConfig:
         """Create or update a sandbox configuration based on the PydanticSandboxConfig schema."""
+        config = sandbox_config_create.config
+        # Try to auto-derive the type
+        if isinstance(config, E2BSandboxConfig):
+            sandbox_type = SandboxType.E2B
+        elif isinstance(config, LocalSandboxConfig):
+            sandbox_type = SandboxType.LOCAL
+        else:
+            raise NotImplementedError(f"Passed invalid config to SandboxConfigCreate: {config}")
+
+        sandbox_config = PydanticSandboxConfig(
+            type=sandbox_type, config=config.model_dump(exclude_none=True), organization_id=actor.organization_id
+        )
 
         # Attempt to retrieve the existing sandbox configuration by type within the organization
         db_sandbox = self.get_sandbox_config_by_type(sandbox_config.type, actor=actor)
@@ -66,16 +80,17 @@ class SandboxConfigManager:
         else:
             # If the sandbox configuration doesn't exist, create a new one
             with self.session_maker() as session:
-                sandbox_config.organization_id = actor.organization_id
                 db_sandbox = SandboxConfigModel(**sandbox_config.model_dump(exclude_none=True))
                 db_sandbox.create(session, actor=actor)
                 return db_sandbox.to_pydantic()
 
     @enforce_types
-    def update_sandbox_config(self, sandbox_id: str, sandbox_update: SandboxConfigUpdate, actor: PydanticUser) -> PydanticSandboxConfig:
+    def update_sandbox_config(
+        self, sandbox_config_id: str, sandbox_update: SandboxConfigUpdate, actor: PydanticUser
+    ) -> PydanticSandboxConfig:
         """Update an existing sandbox configuration."""
         with self.session_maker() as session:
-            sandbox = SandboxConfigModel.read(db_session=session, identifier=sandbox_id, actor=actor)
+            sandbox = SandboxConfigModel.read(db_session=session, identifier=sandbox_config_id, actor=actor)
             update_data = sandbox_update.model_dump(exclude_unset=True, exclude_none=True)
             update_data = {key: value for key, value in update_data.items() if getattr(sandbox, key) != value}
 
@@ -91,10 +106,10 @@ class SandboxConfigManager:
             return sandbox.to_pydantic()
 
     @enforce_types
-    def delete_sandbox_config(self, sandbox_id: str, actor: PydanticUser) -> PydanticSandboxConfig:
+    def delete_sandbox_config(self, sandbox_config_id: str, actor: PydanticUser) -> PydanticSandboxConfig:
         """Delete a sandbox configuration by its ID."""
         with self.session_maker() as session:
-            sandbox = SandboxConfigModel.read(db_session=session, identifier=sandbox_id, actor=actor)
+            sandbox = SandboxConfigModel.read(db_session=session, identifier=sandbox_config_id, actor=actor)
             sandbox.hard_delete(db_session=session, actor=actor)
             return sandbox.to_pydantic()
 
@@ -113,11 +128,11 @@ class SandboxConfigManager:
             return [sandbox.to_pydantic() for sandbox in sandboxes]
 
     @enforce_types
-    def get_sandbox_config_by_id(self, sandbox_id: str, actor: Optional[PydanticUser] = None) -> Optional[PydanticSandboxConfig]:
+    def get_sandbox_config_by_id(self, sandbox_config_id: str, actor: Optional[PydanticUser] = None) -> Optional[PydanticSandboxConfig]:
         """Retrieve a sandbox configuration by its ID."""
         with self.session_maker() as session:
             try:
-                sandbox = SandboxConfigModel.read(db_session=session, identifier=sandbox_id, actor=actor)
+                sandbox = SandboxConfigModel.read(db_session=session, identifier=sandbox_config_id, actor=actor)
                 return sandbox.to_pydantic()
             except NoResultFound:
                 return None
@@ -140,15 +155,19 @@ class SandboxConfigManager:
                 return None
 
     @enforce_types
-    def create_sandbox_env_var(self, env_var: PydanticEnvVar, actor: PydanticUser) -> PydanticEnvVar:
+    def create_sandbox_env_var(
+        self, env_var_create: SandboxEnvironmentVariableCreate, sandbox_config_id: str, actor: PydanticUser
+    ) -> PydanticEnvVar:
         """Create a new sandbox environment variable."""
+        env_var = PydanticEnvVar(**env_var_create.model_dump(), sandbox_config_id=sandbox_config_id, organization_id=actor.organization_id)
+
         db_env_var = self.get_sandbox_env_var_by_key_and_sandbox_config_id(env_var.key, env_var.sandbox_config_id, actor=actor)
         if db_env_var:
             update_data = env_var.model_dump(exclude_unset=True, exclude_none=True)
             update_data = {key: value for key, value in update_data.items() if getattr(db_env_var, key) != value}
             # If there are changes, update the environment variable
             if update_data:
-                db_env_var = self.update_sandbox_env_var(db_env_var.id, SandboxEnvVarUpdate(**update_data), actor)
+                db_env_var = self.update_sandbox_env_var(db_env_var.id, SandboxEnvironmentVariableUpdate(**update_data), actor)
             else:
                 printd(
                     f"`create_or_update_sandbox_env_var` was called with user_id={actor.id}, organization_id={actor.organization_id}, "
@@ -158,13 +177,14 @@ class SandboxConfigManager:
             return db_env_var
         else:
             with self.session_maker() as session:
-                env_var.organization_id = actor.organization_id
                 env_var = SandboxEnvVarModel(**env_var.model_dump(exclude_none=True))
                 env_var.create(session, actor=actor)
             return env_var.to_pydantic()
 
     @enforce_types
-    def update_sandbox_env_var(self, env_var_id: str, env_var_update: SandboxEnvVarUpdate, actor: PydanticUser) -> PydanticEnvVar:
+    def update_sandbox_env_var(
+        self, env_var_id: str, env_var_update: SandboxEnvironmentVariableUpdate, actor: PydanticUser
+    ) -> PydanticEnvVar:
         """Update an existing sandbox environment variable."""
         with self.session_maker() as session:
             env_var = SandboxEnvVarModel.read(db_session=session, identifier=env_var_id, actor=actor)
@@ -191,7 +211,9 @@ class SandboxConfigManager:
             return env_var.to_pydantic()
 
     @enforce_types
-    def list_sandbox_env_vars(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[PydanticEnvVar]:
+    def list_sandbox_env_vars(
+        self, sandbox_config_id: str, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50
+    ) -> List[PydanticEnvVar]:
         """List all sandbox environment variables with optional pagination."""
         with self.session_maker() as session:
             env_vars = SandboxEnvVarModel.list(
@@ -199,12 +221,15 @@ class SandboxConfigManager:
                 cursor=cursor,
                 limit=limit,
                 organization_id=actor.organization_id,
+                sandbox_config_id=sandbox_config_id,
             )
             return [env_var.to_pydantic() for env_var in env_vars]
 
     @enforce_types
-    def get_sandbox_env_vars_as_dict(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Dict[str, str]:
-        env_vars = self.list_sandbox_env_vars(actor, cursor, limit)
+    def get_sandbox_env_vars_as_dict(
+        self, sandbox_config_id: str, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50
+    ) -> Dict[str, str]:
+        env_vars = self.list_sandbox_env_vars(sandbox_config_id, actor, cursor, limit)
         result = {}
         for env_var in env_vars:
             result[env_var.key] = env_var.value

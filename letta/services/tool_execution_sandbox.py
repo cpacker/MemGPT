@@ -3,10 +3,10 @@ import os
 import subprocess
 import tempfile
 import venv
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from letta.log import get_logger
-from letta.schemas.sandbox_config import SandboxType
+from letta.schemas.sandbox_config import SandboxConfig, SandboxType
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 class ToolExecutionSandbox:
     DIR = "/home/user/"
-    METADATA_ORG_KEY = "organization_id"
+    METADATA_CONFIG_STATE_KEY = "config_state"
 
     def __init__(self, tool_name: str, args: dict, user_id: str):
         from letta.server.server import db_context
@@ -40,20 +40,22 @@ class ToolExecutionSandbox:
     def run(self) -> Optional[Any]:
         if not self.tool:
             return f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
-        # TODO: We set limit to 100 here, but maybe we want it uncapped? Realistically this should be fine.
-        env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(actor=self.user, limit=100)
         if tool_settings.e2b_api_key:
             logger.info("Using e2b for tool execution...")
             code = self.generate_execution_script(wrap_print=False)
-            return self.run_e2b_sandbox(code=code, env_vars=env_vars)
+            return self.run_e2b_sandbox(code=code)
         else:
             logger.info("Using local sandbox for tool execution...")
             code = self.generate_execution_script(wrap_print=True)
-            return self.run_local_dir_sandbox(code=code, env_vars=env_vars)
+            return self.run_local_dir_sandbox(code=code)
 
-    def run_local_dir_sandbox(self, code: str, env_vars: Dict[str, str]) -> Optional[Any]:
+    def run_local_dir_sandbox(self, code: str) -> Optional[Any]:
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=self.user)
         local_configs = sbx_config.get_local_config()
+
+        # Get environment variables for the sandbox
+        # TODO: We set limit to 100 here, but maybe we want it uncapped? Realistically this should be fine.
+        env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
 
         env = os.environ.copy()
         venv_path = os.path.join(local_configs.sandbox_dir, local_configs.venv_name)
@@ -100,15 +102,17 @@ class ToolExecutionSandbox:
             except Exception as e:
                 raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
 
-    def run_e2b_sandbox(self, code: str, env_vars: Dict[str, str]) -> Optional[Any]:
+    def run_e2b_sandbox(self, code: str) -> Optional[Any]:
         from e2b_code_interpreter import Sandbox
 
-        sbx = self.get_e2b_sandbox_with_org()
-        # TODO: This may result in a stale sandbox since we try to use a running one, there may be updates to the env since
+        sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=self.user)
+        sbx = self.get_running_e2b_sandbox_with_same_state(sbx_config)
         if not sbx:
-            sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=self.user)
-            sbx = Sandbox(metadata={self.METADATA_ORG_KEY: self.user.organization_id}, **sbx_config.config)
+            sbx = Sandbox(metadata={self.METADATA_CONFIG_STATE_KEY: self.user.organization_id}, **sbx_config.config)
 
+        # Get environment variables for the sandbox
+        # TODO: We set limit to 100 here, but maybe we want it uncapped? Realistically this should be fine.
+        env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         execution = sbx.run_code(code, envs=env_vars)
         if execution.error is not None:
             raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}")
@@ -120,13 +124,16 @@ class ToolExecutionSandbox:
         # Note, we don't kill the sandbox
         return function_response
 
-    def get_e2b_sandbox_with_org(self) -> Optional["Sandbox"]:
+    def get_running_e2b_sandbox_with_same_state(self, sandbox_config: SandboxConfig) -> Optional["Sandbox"]:
         from e2b_code_interpreter import Sandbox
 
         # List running sandboxes and access metadata.
         running_sandboxes = Sandbox.list()
+
+        # Hash the config to check the state
+        state_hash = hash(sandbox_config)
         for sandbox in running_sandboxes:
-            if self.METADATA_ORG_KEY in sandbox.metadata and sandbox.metadata[self.METADATA_ORG_KEY] == self.user.organization_id:
+            if self.METADATA_CONFIG_STATE_KEY in sandbox.metadata and sandbox.metadata[self.METADATA_CONFIG_STATE_KEY] == state_hash:
                 return Sandbox.connect(sandbox.sandbox_id)
 
         return None

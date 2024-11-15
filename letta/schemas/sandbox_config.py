@@ -1,12 +1,17 @@
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from pydantic import BaseModel, Field
 
 from letta.schemas.letta_base import LettaBase, OrmMetadataBase
 
 
-# Configs for different sandboxes
+# Sandbox Config
+class SandboxType(str, Enum):
+    E2B = "e2b"
+    LOCAL = "local"
+
+
 class LocalSandboxConfig(BaseModel):
     venv_name: str = Field("venv", description="Name of the virtual environment.")
     sandbox_dir: str = Field(..., description="Directory for the sandbox environment.")
@@ -23,13 +28,6 @@ class E2BSandboxConfig(BaseModel):
         extra = "ignore"
 
 
-# Types
-class SandboxType(str, Enum):
-    E2B = "e2b"
-    LOCAL = "local"
-
-
-# Sandbox Config
 class SandboxConfigBase(OrmMetadataBase):
     __id_prefix__ = "sandbox"
 
@@ -46,14 +44,31 @@ class SandboxConfig(SandboxConfigBase):
     def get_local_config(self) -> LocalSandboxConfig:
         return LocalSandboxConfig(**self.config)
 
+    def __hash__(self):
+        # Use a tuple of hashable attributes for hashing
+        return hash(
+            (self.id, self.type, self.organization_id, frozenset(self.config.items()))  # Convert config dictionary to frozenset of items
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, SandboxConfig):
+            return False
+        return (
+            self.id == other.id
+            and self.type == other.type
+            and self.organization_id == other.organization_id
+            and frozenset(self.config.items()) == frozenset(other.config.items())
+        )
+
+
+class SandboxConfigCreate(LettaBase):
+    config: Union[LocalSandboxConfig, E2BSandboxConfig] = Field(..., description="The configuration for the sandbox.")
+
 
 class SandboxConfigUpdate(LettaBase):
     """Pydantic model for updating SandboxConfig fields."""
 
     config: Optional[Dict] = Field(None, description="The JSON configuration data for the sandbox.")
-
-    class Config:
-        extra = "ignore"
 
 
 # Environment Variable
@@ -70,12 +85,15 @@ class SandboxEnvironmentVariable(SandboxEnvironmentVariableBase):
     organization_id: Optional[str] = Field(None, description="The ID of the organization this environment variable belongs to.")
 
 
-class SandboxEnvVarUpdate(LettaBase):
+class SandboxEnvironmentVariableCreate(LettaBase):
+    key: str = Field(..., description="The name of the environment variable.")
+    value: str = Field(..., description="The value of the environment variable.")
+    description: Optional[str] = Field(None, description="An optional description of the environment variable.")
+
+
+class SandboxEnvironmentVariableUpdate(LettaBase):
     """Pydantic model for updating SandboxEnvironmentVariable fields."""
 
     key: Optional[str] = Field(None, description="The name of the environment variable.")
     value: Optional[str] = Field(None, description="The value of the environment variable.")
     description: Optional[str] = Field(None, description="An optional description of the environment variable.")
-
-    class Config:
-        extra = "ignore"

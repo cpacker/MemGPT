@@ -23,6 +23,7 @@ class SandboxConfig(SqlalchemyBase, OrganizationMixin):
     __tablename__ = "sandbox_configs"
     __pydantic_model__ = PydanticSandboxConfig
 
+    # For now, we only allow one type of sandbox config per organization
     __table_args__ = (UniqueConstraint("type", "organization_id", name="uix_type_organization"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
@@ -42,6 +43,7 @@ class SandboxEnvironmentVariable(SqlalchemyBase, OrganizationMixin, SandboxConfi
     __tablename__ = "sandbox_environment_variables"
     __pydantic_model__ = PydanticSandboxEnvironmentVariable
 
+    # We cannot have duplicate key names in the same sandbox, the env var would get overwritten
     __table_args__ = (UniqueConstraint("key", "sandbox_config_id", name="uix_key_sandbox_config"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
