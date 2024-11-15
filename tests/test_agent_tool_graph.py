@@ -6,6 +6,7 @@ import pytest
 from letta import create_client
 from letta.schemas.letta_message import FunctionCallMessage
 from letta.schemas.tool_rule import InitToolRule, TerminalToolRule, ToolRule
+from letta.settings import tool_settings
 from tests.helpers.endpoints_helper import (
     assert_invoked_function_call,
     assert_invoked_send_message_with_keyword,
@@ -19,6 +20,22 @@ from tests.test_endpoints import llm_config_dir
 namespace = uuid.NAMESPACE_DNS
 agent_uuid = str(uuid.uuid5(namespace, "test_agent_tool_graph"))
 config_file = os.path.join(llm_config_dir, "openai-gpt-4o.json")
+
+
+@pytest.fixture
+def mock_e2b_api_key_none():
+    # Store the original value of e2b_api_key
+    original_api_key = tool_settings.e2b_api_key
+
+    # Set e2b_api_key to None
+    tool_settings.e2b_api_key = None
+
+    # Yield control to the test
+    yield
+
+    # Restore the original value of e2b_api_key
+    tool_settings.e2b_api_key = original_api_key
+
 
 """Contrived tools for this test case"""
 
@@ -77,7 +94,7 @@ def auto_error(self: "Agent"):
 
 
 @pytest.mark.timeout(60)  # Sets a 60-second timeout for the test since this could loop infinitely
-def test_single_path_agent_tool_call_graph():
+def test_single_path_agent_tool_call_graph(mock_e2b_api_key_none):
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
 

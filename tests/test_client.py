@@ -1,17 +1,19 @@
 import os
 import threading
 import time
-from typing import List
+from typing import List, Union
 
 import pytest
 from dotenv import load_dotenv
 from sqlalchemy import delete
 
-from letta import create_client
+from letta import LocalClient, RESTClient, create_client
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.sandbox_config import LocalSandboxConfig, SandboxType
+from letta.services.tool_manager import ToolManager
+from letta.settings import tool_settings
 
 # Constants
 SERVER_PORT = 8283
@@ -69,7 +71,22 @@ def clear_tables():
         session.commit()
 
 
-def test_sandbox_config_and_env_var_basic(client):
+@pytest.fixture
+def mock_e2b_api_key_none():
+    # Store the original value of e2b_api_key
+    original_api_key = tool_settings.e2b_api_key
+
+    # Set e2b_api_key to None
+    tool_settings.e2b_api_key = None
+
+    # Yield control to the test
+    yield
+
+    # Restore the original value of e2b_api_key
+    tool_settings.e2b_api_key = original_api_key
+
+
+def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]):
     """
     Test sandbox config and environment variable functions for both LocalClient and RESTClient.
     """
@@ -120,3 +137,41 @@ def test_sandbox_config_and_env_var_basic(client):
 
     # 8. Delete the sandbox config
     client.delete_sandbox_config(sandbox_config_id=sandbox_config.id)
+
+
+def test_create_tool(client: Union[LocalClient, RESTClient], mock_e2b_api_key_none):
+    """Test creation of a simple tool"""
+
+    def print_tool(message: str):
+        """
+        Args:
+            message (str): The message to print.
+
+        Returns:
+            str: The message that was printed.
+
+        """
+        print(message)
+        return message
+
+    tools = client.list_tools()
+    tool_names = [t.name for t in tools]
+    for tool in ToolManager.BASE_TOOL_NAMES:
+        assert tool in tool_names
+
+    tool = client.create_tool(print_tool, name="my_name", tags=["extras"])
+
+    tools = client.list_tools()
+    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
+    print(f"Updated tools {[t.name for t in tools]}")
+
+    # check tool id
+    tool = client.get_tool(tool.id)
+    assert tool is not None, "Expected tool to be created"
+    assert tool.id == tool.id, f"Expected {tool.id} to be {tool.id}"
+
+    # create agent with tool
+    agent_state = client.create_agent(tools=[tool.name])
+
+    # Send message without error
+    client.user_message(agent_id=agent_state.id, message="hi")
