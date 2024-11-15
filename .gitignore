@@ -1021,4 +1021,4 @@ memgpy/pytest.ini
 
 # local sandbox venvs
 letta/services/tool_sandbox_env/*
-letta/tests/test_tool_sandbox/*
+tests/test_tool_sandbox/*
