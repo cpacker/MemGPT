@@ -37,8 +37,8 @@ def clear_tables():
     from letta.server.server import db_context
 
     with db_context() as session:
-        session.execute(delete(SandboxConfig))
         session.execute(delete(SandboxEnvironmentVariable))
+        session.execute(delete(SandboxConfig))
         session.commit()  # Commit the deletion
 
 
