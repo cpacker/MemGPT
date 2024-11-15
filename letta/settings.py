@@ -43,6 +43,9 @@ class ModelSettings(BaseSettings):
     # google ai
     gemini_api_key: Optional[str] = None
 
+    # together
+    together_api_key: Optional[str] = None
+
     # vLLM
     vllm_api_base: Optional[str] = None
 

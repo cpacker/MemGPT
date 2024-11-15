@@ -536,7 +536,8 @@ def openai_chat_completions_request(
             tool["function"] = convert_to_structured_output(tool["function"])
 
     response_json = make_post_request(url, headers, data)
-
+    print(response_json)
+    print("choices!!!", response_json["choices"])
     return ChatCompletionResponse(**response_json)
 
 
