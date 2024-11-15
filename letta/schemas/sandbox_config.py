@@ -15,7 +15,7 @@ class LocalSandboxConfig(BaseModel):
         extra = "ignore"
 
 
-class E2BConfig(BaseModel):
+class E2BSandboxConfig(BaseModel):
     timeout: int = Field(5 * 60, description="Time limit for the sandbox (in seconds).")
     template_id: Optional[str] = Field(None, description="The E2B template id (docker image).")
 
@@ -38,10 +38,10 @@ class SandboxConfig(SandboxConfigBase):
     id: str = SandboxConfigBase.generate_id_field()
     type: SandboxType = Field(None, description="The type of sandbox.")
     organization_id: Optional[str] = Field(None, description="The unique identifier of the organization associated with the sandbox.")
-    config: Dict = Field(default_factory=lambda: {}, description="The JSON configuration data.")
+    config: Dict = Field(default_factory=lambda: {}, description="The JSON sandbox settings data.")
 
-    def get_e2b_config(self) -> E2BConfig:
-        return E2BConfig(**self.config)
+    def get_e2b_config(self) -> E2BSandboxConfig:
+        return E2BSandboxConfig(**self.config)
 
     def get_local_config(self) -> LocalSandboxConfig:
         return LocalSandboxConfig(**self.config)
@@ -66,6 +66,7 @@ class SandboxEnvironmentVariable(SandboxEnvironmentVariableBase):
     key: str = Field(..., description="The name of the environment variable.")
     value: str = Field(..., description="The value of the environment variable.")
     description: Optional[str] = Field(None, description="An optional description of the environment variable.")
+    sandbox_config_id: str = Field(..., description="The ID of the sandbox config this environment variable belongs to.")
     organization_id: Optional[str] = Field(None, description="The ID of the organization this environment variable belongs to.")
 
 

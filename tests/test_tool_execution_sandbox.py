@@ -12,7 +12,7 @@ from sqlalchemy import delete
 from letta.functions.functions import parse_source_code
 from letta.functions.schema_generator import generate_schema
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
-from letta.schemas.sandbox_config import LocalSandboxConfig
+from letta.schemas.sandbox_config import E2BSandboxConfig, LocalSandboxConfig
 from letta.schemas.sandbox_config import SandboxConfig as PydanticSandboxConfig
 from letta.schemas.sandbox_config import (
     SandboxEnvironmentVariable as PydanticSandboxEnvironmentVariable,
@@ -30,6 +30,7 @@ from letta.settings import tool_settings
 VENV_NAME = "test"
 
 
+# Fixtures
 @pytest.fixture(autouse=True)
 def clear_tables():
     """Fixture to clear the organization table before each test."""
@@ -197,12 +198,14 @@ def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, default_user):
     config = PydanticSandboxConfig(
         type=SandboxType.LOCAL, config=LocalSandboxConfig(venv_name="test", sandbox_dir=sandbox_dir).model_dump()
     )
-    manager.create_or_update_sandbox_config(config, default_user)
+    config = manager.create_or_update_sandbox_config(config, default_user)
 
     # Make a environment variable with a long random string
     key = "secret_word"
     long_random_string = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
-    manager.create_sandbox_env_var(PydanticSandboxEnvironmentVariable(key=key, value=long_random_string), default_user)
+    manager.create_sandbox_env_var(
+        PydanticSandboxEnvironmentVariable(key=key, value=long_random_string, sandbox_config_id=config.id), default_user
+    )
 
     # Create tool and args
     args = {}
@@ -231,10 +234,14 @@ def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, default_us
 
 def test_e2b_sandbox_with_env(check_e2b_key_is_set, print_env_tool, default_user):
     manager = SandboxConfigManager()
+    config = PydanticSandboxConfig(type=SandboxType.E2B, config=E2BSandboxConfig().model_dump())
+    config = manager.create_or_update_sandbox_config(config, default_user)
 
     key = "secret_word"
     long_random_string = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
-    manager.create_sandbox_env_var(PydanticSandboxEnvironmentVariable(key=key, value=long_random_string), default_user)
+    manager.create_sandbox_env_var(
+        PydanticSandboxEnvironmentVariable(key=key, value=long_random_string, sandbox_config_id=config.id), default_user
+    )
 
     # Create tool and args
     args = {}

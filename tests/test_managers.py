@@ -50,8 +50,8 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
-        session.execute(delete(SandboxConfig))
         session.execute(delete(SandboxEnvironmentVariable))
+        session.execute(delete(SandboxConfig))
         session.execute(delete(FileMetadata))
         session.execute(delete(Source))
         session.execute(delete(Tool))  # Clear all records from the Tool table
@@ -178,11 +178,12 @@ def sandbox_config_fixture(server: SyncServer, default_user):
 
 
 @pytest.fixture
-def sandbox_env_var_fixture(server: SyncServer, default_user):
+def sandbox_env_var_fixture(server: SyncServer, sandbox_config_fixture, default_user):
     env_var = PydanticEnvVar(
         key="SAMPLE_VAR",
         value="sample_value",
         description="A sample environment variable for testing.",
+        sandbox_config_id=sandbox_config_fixture.id,
     )
     created_env_var = server.sandbox_config_manager.create_sandbox_env_var(env_var, actor=default_user)
     yield created_env_var
@@ -828,11 +829,9 @@ def test_list_sandbox_configs(server: SyncServer, default_user):
 # ======================================================================================================================
 # SandboxConfigManager Tests - Environment Variables
 # ======================================================================================================================
-def test_create_sandbox_env_var(server: SyncServer, default_user):
+def test_create_sandbox_env_var(server: SyncServer, sandbox_config_fixture, default_user):
     env_var = PydanticEnvVar(
-        key="TEST_VAR",
-        value="test_value",
-        description="A test environment variable.",
+        key="TEST_VAR", value="test_value", description="A test environment variable.", sandbox_config_id=sandbox_config_fixture.id
     )
     created_env_var = server.sandbox_config_manager.create_sandbox_env_var(env_var, actor=default_user)
 
@@ -862,10 +861,10 @@ def test_delete_sandbox_env_var(server: SyncServer, sandbox_env_var_fixture, def
     assert sandbox_env_var_fixture.id not in [env_var.id for env_var in env_vars]
 
 
-def test_list_sandbox_env_vars(server: SyncServer, default_user):
+def test_list_sandbox_env_vars(server: SyncServer, sandbox_config_fixture, default_user):
     # Creating multiple environment variables
-    env_var_1 = PydanticEnvVar(key="VAR1", value="value1")
-    env_var_2 = PydanticEnvVar(key="VAR2", value="value2")
+    env_var_1 = PydanticEnvVar(key="VAR1", value="value1", sandbox_config_id=sandbox_config_fixture.id)
+    env_var_2 = PydanticEnvVar(key="VAR2", value="value2", sandbox_config_id=sandbox_config_fixture.id)
     server.sandbox_config_manager.create_sandbox_env_var(env_var_1, actor=default_user)
     server.sandbox_config_manager.create_sandbox_env_var(env_var_2, actor=default_user)
 
@@ -883,7 +882,9 @@ def test_list_sandbox_env_vars(server: SyncServer, default_user):
 
 
 def test_get_sandbox_env_var_by_key(server: SyncServer, sandbox_env_var_fixture, default_user):
-    retrieved_env_var = server.sandbox_config_manager.get_sandbox_env_var_by_key(sandbox_env_var_fixture.key, actor=default_user)
+    retrieved_env_var = server.sandbox_config_manager.get_sandbox_env_var_by_key_and_sandbox_config_id(
+        sandbox_env_var_fixture.key, sandbox_env_var_fixture.sandbox_config_id, actor=default_user
+    )
 
     # Assertions to verify correct retrieval
     assert retrieved_env_var.id == sandbox_env_var_fixture.id

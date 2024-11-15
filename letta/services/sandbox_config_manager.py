@@ -5,7 +5,7 @@ from letta.log import get_logger
 from letta.orm.errors import NoResultFound
 from letta.orm.sandbox_config import SandboxConfig as SandboxConfigModel
 from letta.orm.sandbox_config import SandboxEnvironmentVariable as SandboxEnvVarModel
-from letta.schemas.sandbox_config import E2BConfig, LocalSandboxConfig
+from letta.schemas.sandbox_config import E2BSandboxConfig, LocalSandboxConfig
 from letta.schemas.sandbox_config import SandboxConfig as PydanticSandboxConfig
 from letta.schemas.sandbox_config import SandboxConfigUpdate
 from letta.schemas.sandbox_config import SandboxEnvironmentVariable as PydanticEnvVar
@@ -32,7 +32,7 @@ class SandboxConfigManager:
 
             # TODO: Add more sandbox types later
             if sandbox_type == SandboxType.E2B:
-                default_config = E2BConfig().model_dump(exclude_none=True)
+                default_config = E2BSandboxConfig().model_dump(exclude_none=True)
             else:
                 default_local_sandbox_path = str(Path(__file__).parent / "tool_sandbox_env")
                 default_config = LocalSandboxConfig(sandbox_dir=default_local_sandbox_path).model_dump(exclude_none=True)
@@ -142,7 +142,7 @@ class SandboxConfigManager:
     @enforce_types
     def create_sandbox_env_var(self, env_var: PydanticEnvVar, actor: PydanticUser) -> PydanticEnvVar:
         """Create a new sandbox environment variable."""
-        db_env_var = self.get_sandbox_env_var_by_key(env_var.key, actor=actor)
+        db_env_var = self.get_sandbox_env_var_by_key_and_sandbox_config_id(env_var.key, env_var.sandbox_config_id, actor=actor)
         if db_env_var:
             update_data = env_var.model_dump(exclude_unset=True, exclude_none=True)
             update_data = {key: value for key, value in update_data.items() if getattr(db_env_var, key) != value}
@@ -211,13 +211,16 @@ class SandboxConfigManager:
         return result
 
     @enforce_types
-    def get_sandbox_env_var_by_key(self, key: str, actor: Optional[PydanticUser] = None) -> Optional[PydanticEnvVar]:
-        """Retrieve a sandbox environment variable by its key."""
+    def get_sandbox_env_var_by_key_and_sandbox_config_id(
+        self, key: str, sandbox_config_id: str, actor: Optional[PydanticUser] = None
+    ) -> Optional[PydanticEnvVar]:
+        """Retrieve a sandbox environment variable by its key and sandbox_config_id."""
         with self.session_maker() as session:
             try:
                 env_var = SandboxEnvVarModel.list(
                     db_session=session,
                     key=key,
+                    sandbox_config_id=sandbox_config_id,
                     organization_id=actor.organization_id,
                     limit=1,
                 )
