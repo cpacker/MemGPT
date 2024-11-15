@@ -112,7 +112,7 @@ jobs:
         with:
           python-version: "3.12"
           poetry-version: "1.8.2"
-          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"
+          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests -E cloud-tool-sandbox"
       - name: Migrate database
         env:
           LETTA_PG_PORT: 5432
