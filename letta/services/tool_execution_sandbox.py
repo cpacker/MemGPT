@@ -1,6 +1,8 @@
 import ast
 import os
 import subprocess
+import tempfile
+import venv
 from typing import Any, Dict, Optional
 
 from letta.log import get_logger
@@ -65,36 +67,38 @@ class ToolExecutionSandbox:
             raise FileNotFoundError(f"Sandbox directory does not exist: {local_configs.sandbox_dir}")
         # Verify that the venv path exists and is a directory
         if not os.path.isdir(venv_path):
-            raise FileNotFoundError(f"Virtual environment directory does not exist at: {venv_path}")
+            logger.warning(f"Virtual environment directory does not exist at: {venv_path}, creating one now...")
+            venv.create(venv_path, with_pip=True)
+
         # Ensure the python interpreter exists in the virtual environment
         python_executable = os.path.join(venv_path, "bin", "python3")
         if not os.path.isfile(python_executable):
             raise FileNotFoundError(f"Python executable not found in virtual environment: {python_executable}")
 
         # Write the code to a temp file in the sandbox_dir
-        code_file = os.path.join(local_configs.sandbox_dir, "source.py")
-        with open(code_file, "w") as f:
-            f.write(code)
+        with tempfile.NamedTemporaryFile(mode="w", dir=local_configs.sandbox_dir, suffix=".py", delete=True) as temp_file:
+            temp_file.write(code)
+            temp_file.flush()  # Ensure all data is written to disk
 
-        # Execute the code in a restricted subprocess
-        try:
-            result = subprocess.run(
-                [os.path.join(venv_path, "bin", "python3"), code_file],
-                env=env,
-                cwd=local_configs.sandbox_dir,  # Restrict execution to sandbox_dir
-                timeout=60,
-                capture_output=True,
-                text=True,
-            )
-            if result.stderr:
-                raise RuntimeError(f"Sandbox execution error: {result.stderr}")
-            return self.ast_parse_best_effort(result.stdout)
-        except subprocess.TimeoutExpired:
-            raise TimeoutError(f"Executing tool {self.tool_name} has  timed out.")
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Executing tool {self.tool_name} has process error: {e}")
-        except Exception as e:
-            raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+            # Execute the code in a restricted subprocess
+            try:
+                result = subprocess.run(
+                    [os.path.join(venv_path, "bin", "python3"), temp_file.name],
+                    env=env,
+                    cwd=local_configs.sandbox_dir,  # Restrict execution to sandbox_dir
+                    timeout=60,
+                    capture_output=True,
+                    text=True,
+                )
+                if result.stderr:
+                    raise RuntimeError(f"Sandbox execution error: {result.stderr}")
+                return self.ast_parse_best_effort(result.stdout)
+            except subprocess.TimeoutExpired:
+                raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(f"Executing tool {self.tool_name} has process error: {e}")
+            except Exception as e:
+                raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
 
     def run_e2b_sandbox(self, code: str, env_vars: Dict[str, str]) -> Optional[Any]:
         from e2b_code_interpreter import Sandbox
@@ -104,8 +108,6 @@ class ToolExecutionSandbox:
         if not sbx:
             sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=self.user)
             sbx = Sandbox(metadata={self.METADATA_ORG_KEY: self.user.organization_id}, **sbx_config.config)
-
-        sbx.files.write(f"{ToolExecutionSandbox.DIR}source.py", code)
 
         execution = sbx.run_code(code, envs=env_vars)
         if execution.error is not None:

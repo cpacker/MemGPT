@@ -88,7 +88,7 @@ def join_continuation(lines):
     ['foobarbaz']
 
     Not sure why, but...
-    The character preceeding the backslash is also elided.
+    The character preceding the backslash is also elided.
 
     >>> list(join_continuation(['goo\\', 'dly']))
     ['godly']

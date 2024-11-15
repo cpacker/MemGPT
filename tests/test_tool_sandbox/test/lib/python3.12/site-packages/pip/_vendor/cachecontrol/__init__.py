@@ -8,7 +8,7 @@ Make it easy to import from cachecontrol without long namespaces.
 """
 __author__ = "Eric Larson"
 __email__ = "eric@ionrock.org"
-__version__ = "0.13.1"
+__version__ = "0.14.0"
 
 from pip._vendor.cachecontrol.adapter import CacheControlAdapter
 from pip._vendor.cachecontrol.controller import CacheController

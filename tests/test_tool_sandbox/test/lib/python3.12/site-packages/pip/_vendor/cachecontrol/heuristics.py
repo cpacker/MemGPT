@@ -68,7 +68,7 @@ class OneDayCache(BaseHeuristic):
 
         if "expires" not in response.headers:
             date = parsedate(response.headers["date"])
-            expires = expire_after(timedelta(days=1), date=datetime(*date[:6], tzinfo=timezone.utc))  # type: ignore[misc]
+            expires = expire_after(timedelta(days=1), date=datetime(*date[:6], tzinfo=timezone.utc))  # type: ignore[index,misc]
             headers["expires"] = datetime_to_header(expires)
             headers["cache-control"] = "public"
         return headers

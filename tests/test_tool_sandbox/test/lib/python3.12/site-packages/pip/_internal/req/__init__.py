@@ -1,5 +1,6 @@
 import collections
 import logging
+from dataclasses import dataclass
 from typing import Generator, List, Optional, Sequence, Tuple
 
 from pip._internal.utils.logging import indent_log
@@ -18,12 +19,9 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
 class InstallationResult:
-    def __init__(self, name: str) -> None:
-        self.name = name
-
-    def __repr__(self) -> str:
-        return f"InstallationResult(name={self.name!r})"
+    name: str
 
 
 def _validate_requirements(

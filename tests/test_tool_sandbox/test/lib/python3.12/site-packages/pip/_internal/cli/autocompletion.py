@@ -17,6 +17,10 @@ def autocomplete() -> None:
     # Don't complete if user hasn't sourced bash_completion file.
     if "PIP_AUTO_COMPLETE" not in os.environ:
         return
+    # Don't complete if autocompletion environment variables
+    # are not present
+    if not os.environ.get("COMP_WORDS") or not os.environ.get("COMP_CWORD"):
+        return
     cwords = os.environ["COMP_WORDS"].split()[1:]
     cword = int(os.environ["COMP_CWORD"])
     try:

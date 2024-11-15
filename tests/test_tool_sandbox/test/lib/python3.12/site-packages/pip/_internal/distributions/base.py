@@ -1,9 +1,11 @@
 import abc
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from pip._internal.index.package_finder import PackageFinder
 from pip._internal.metadata.base import BaseDistribution
 from pip._internal.req import InstallRequirement
+
+if TYPE_CHECKING:
+    from pip._internal.index.package_finder import PackageFinder
 
 
 class AbstractDistribution(metaclass=abc.ABCMeta):
@@ -44,7 +46,7 @@ class AbstractDistribution(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def prepare_distribution_metadata(
         self,
-        finder: PackageFinder,
+        finder: "PackageFinder",
         build_isolation: bool,
         check_build_deps: bool,
     ) -> None:

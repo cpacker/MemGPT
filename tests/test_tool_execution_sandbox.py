@@ -23,6 +23,9 @@ from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
 from letta.settings import tool_settings
 
+# Constants
+VENV_NAME = "test"
+
 
 @pytest.fixture(autouse=True)
 def clear_tables():

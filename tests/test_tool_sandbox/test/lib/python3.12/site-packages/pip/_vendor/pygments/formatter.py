@@ -4,7 +4,7 @@
 
     Base formatter class.
 
-    :copyright: Copyright 2006-2023 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2024 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -122,3 +122,8 @@ class Formatter:
             # wrap the outfile in a StreamWriter
             outfile = codecs.lookup(self.encoding)[3](outfile)
         return self.format_unencoded(tokensource, outfile)
+
+    # Allow writing Formatter[str] or Formatter[bytes]. That's equivalent to
+    # Formatter. This helps when using third-party type stubs from typeshed.
+    def __class_getitem__(cls, name):
+        return cls
