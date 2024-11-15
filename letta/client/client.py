@@ -41,6 +41,16 @@ from letta.schemas.message import Message, MessageCreate, UpdateMessage
 from letta.schemas.openai.chat_completions import ToolCall
 from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
+from letta.schemas.sandbox_config import (
+    E2BSandboxConfig,
+    LocalSandboxConfig,
+    SandboxConfig,
+    SandboxConfigCreate,
+    SandboxConfigUpdate,
+    SandboxEnvironmentVariable,
+    SandboxEnvironmentVariableCreate,
+    SandboxEnvironmentVariableUpdate,
+)
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
 from letta.schemas.tool_rule import BaseToolRule
@@ -297,6 +307,112 @@ class AbstractClient(object):
         raise NotImplementedError
 
     def delete_org(self, org_id: str) -> Organization:
+        raise NotImplementedError
+
+    def create_sandbox_config(self, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Create a new sandbox configuration.
+
+        Args:
+            config (Union[LocalSandboxConfig, E2BSandboxConfig]): The sandbox settings.
+
+        Returns:
+            SandboxConfig: The created sandbox configuration.
+        """
+        raise NotImplementedError
+
+    def update_sandbox_config(self, sandbox_config_id: str, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Update an existing sandbox configuration.
+
+        Args:
+            sandbox_config_id (str): The ID of the sandbox configuration to update.
+            config (Union[LocalSandboxConfig, E2BSandboxConfig]): The updated sandbox settings.
+
+        Returns:
+            SandboxConfig: The updated sandbox configuration.
+        """
+        raise NotImplementedError
+
+    def delete_sandbox_config(self, sandbox_config_id: str) -> None:
+        """
+        Delete a sandbox configuration.
+
+        Args:
+            sandbox_config_id (str): The ID of the sandbox configuration to delete.
+        """
+        raise NotImplementedError
+
+    def list_sandbox_configs(self, limit: int = 50, cursor: Optional[str] = None) -> List[SandboxConfig]:
+        """
+        List all sandbox configurations.
+
+        Args:
+            limit (int, optional): The maximum number of sandbox configurations to return. Defaults to 50.
+            cursor (Optional[str], optional): The pagination cursor for retrieving the next set of results.
+
+        Returns:
+            List[SandboxConfig]: A list of sandbox configurations.
+        """
+        raise NotImplementedError
+
+    def create_sandbox_env_var(
+        self, sandbox_config_id: str, key: str, value: str, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Create a new environment variable for a sandbox configuration.
+
+        Args:
+            sandbox_config_id (str): The ID of the sandbox configuration to associate the environment variable with.
+            key (str): The name of the environment variable.
+            value (str): The value of the environment variable.
+            description (Optional[str], optional): A description of the environment variable. Defaults to None.
+
+        Returns:
+            SandboxEnvironmentVariable: The created environment variable.
+        """
+        raise NotImplementedError
+
+    def update_sandbox_env_var(
+        self, env_var_id: str, key: Optional[str] = None, value: Optional[str] = None, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Update an existing environment variable.
+
+        Args:
+            env_var_id (str): The ID of the environment variable to update.
+            key (Optional[str], optional): The updated name of the environment variable. Defaults to None.
+            value (Optional[str], optional): The updated value of the environment variable. Defaults to None.
+            description (Optional[str], optional): The updated description of the environment variable. Defaults to None.
+
+        Returns:
+            SandboxEnvironmentVariable: The updated environment variable.
+        """
+        raise NotImplementedError
+
+    def delete_sandbox_env_var(self, env_var_id: str) -> None:
+        """
+        Delete an environment variable by its ID.
+
+        Args:
+            env_var_id (str): The ID of the environment variable to delete.
+        """
+        raise NotImplementedError
+
+    def list_sandbox_env_vars(
+        self, sandbox_config_id: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> List[SandboxEnvironmentVariable]:
+        """
+        List all environment variables associated with a sandbox configuration.
+
+        Args:
+            sandbox_config_id (str): The ID of the sandbox configuration to retrieve environment variables for.
+            limit (int, optional): The maximum number of environment variables to return. Defaults to 50.
+            cursor (Optional[str], optional): The pagination cursor for retrieving the next set of results.
+
+        Returns:
+            List[SandboxEnvironmentVariable]: A list of environment variables.
+        """
         raise NotImplementedError
 
 
@@ -1564,6 +1680,114 @@ class RESTClient(AbstractClient):
         # Parse and return the deleted organization
         return Organization(**response.json())
 
+    def create_sandbox_config(self, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Create a new sandbox configuration.
+        """
+        payload = {
+            "config": config.model_dump(),
+        }
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/sandbox-config", headers=self.headers, json=payload)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create sandbox config: {response.text}")
+        return SandboxConfig(**response.json())
+
+    def update_sandbox_config(self, sandbox_config_id: str, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Update an existing sandbox configuration.
+        """
+        payload = {
+            "config": config.model_dump(),
+        }
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/{sandbox_config_id}",
+            headers=self.headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update sandbox config with ID '{sandbox_config_id}': {response.text}")
+        return SandboxConfig(**response.json())
+
+    def delete_sandbox_config(self, sandbox_config_id: str) -> None:
+        """
+        Delete a sandbox configuration.
+        """
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/sandbox-config/{sandbox_config_id}", headers=self.headers)
+        if response.status_code == 404:
+            raise ValueError(f"Sandbox config with ID '{sandbox_config_id}' does not exist")
+        elif response.status_code != 204:
+            raise ValueError(f"Failed to delete sandbox config with ID '{sandbox_config_id}': {response.text}")
+
+    def list_sandbox_configs(self, limit: int = 50, cursor: Optional[str] = None) -> List[SandboxConfig]:
+        """
+        List all sandbox configurations.
+        """
+        params = {"limit": limit, "cursor": cursor}
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/sandbox-config", headers=self.headers, params=params)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list sandbox configs: {response.text}")
+        return [SandboxConfig(**config_data) for config_data in response.json()]
+
+    def create_sandbox_env_var(
+        self, sandbox_config_id: str, key: str, value: str, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Create a new environment variable for a sandbox configuration.
+        """
+        payload = {"key": key, "value": value, "description": description}
+        response = requests.post(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/{sandbox_config_id}/environment-variable",
+            headers=self.headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create environment variable for sandbox config ID '{sandbox_config_id}': {response.text}")
+        return SandboxEnvironmentVariable(**response.json())
+
+    def update_sandbox_env_var(
+        self, env_var_id: str, key: Optional[str] = None, value: Optional[str] = None, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Update an existing environment variable.
+        """
+        payload = {k: v for k, v in {"key": key, "value": value, "description": description}.items() if v is not None}
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/environment-variable/{env_var_id}",
+            headers=self.headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update environment variable with ID '{env_var_id}': {response.text}")
+        return SandboxEnvironmentVariable(**response.json())
+
+    def delete_sandbox_env_var(self, env_var_id: str) -> None:
+        """
+        Delete an environment variable by its ID.
+        """
+        response = requests.delete(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/environment-variable/{env_var_id}", headers=self.headers
+        )
+        if response.status_code == 404:
+            raise ValueError(f"Environment variable with ID '{env_var_id}' does not exist")
+        elif response.status_code != 204:
+            raise ValueError(f"Failed to delete environment variable with ID '{env_var_id}': {response.text}")
+
+    def list_sandbox_env_vars(
+        self, sandbox_config_id: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> List[SandboxEnvironmentVariable]:
+        """
+        List all environment variables associated with a sandbox configuration.
+        """
+        params = {"limit": limit, "cursor": cursor}
+        response = requests.get(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/{sandbox_config_id}/environment-variable",
+            headers=self.headers,
+            params=params,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list environment variables for sandbox config ID '{sandbox_config_id}': {response.text}")
+        return [SandboxEnvironmentVariable(**var_data) for var_data in response.json()]
+
 
 class LocalClient(AbstractClient):
     """
@@ -2761,3 +2985,69 @@ class LocalClient(AbstractClient):
 
     def delete_org(self, org_id: str) -> Organization:
         return self.server.organization_manager.delete_organization_by_id(org_id=org_id)
+
+    def create_sandbox_config(self, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Create a new sandbox configuration.
+        """
+        config_create = SandboxConfigCreate(config=config)
+        return self.server.sandbox_config_manager.create_or_update_sandbox_config(sandbox_config_create=config_create, actor=self.user)
+
+    def update_sandbox_config(self, sandbox_config_id: str, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Update an existing sandbox configuration.
+        """
+        sandbox_update = SandboxConfigUpdate(config=config)
+        return self.server.sandbox_config_manager.update_sandbox_config(
+            sandbox_config_id=sandbox_config_id, sandbox_update=sandbox_update, actor=self.user
+        )
+
+    def delete_sandbox_config(self, sandbox_config_id: str) -> None:
+        """
+        Delete a sandbox configuration.
+        """
+        return self.server.sandbox_config_manager.delete_sandbox_config(sandbox_config_id=sandbox_config_id, actor=self.user)
+
+    def list_sandbox_configs(self, limit: int = 50, cursor: Optional[str] = None) -> List[SandboxConfig]:
+        """
+        List all sandbox configurations.
+        """
+        return self.server.sandbox_config_manager.list_sandbox_configs(actor=self.user, limit=limit, cursor=cursor)
+
+    def create_sandbox_env_var(
+        self, sandbox_config_id: str, key: str, value: str, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Create a new environment variable for a sandbox configuration.
+        """
+        env_var_create = SandboxEnvironmentVariableCreate(key=key, value=value, description=description)
+        return self.server.sandbox_config_manager.create_sandbox_env_var(
+            env_var_create=env_var_create, sandbox_config_id=sandbox_config_id, actor=self.user
+        )
+
+    def update_sandbox_env_var(
+        self, env_var_id: str, key: Optional[str] = None, value: Optional[str] = None, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Update an existing environment variable.
+        """
+        env_var_update = SandboxEnvironmentVariableUpdate(key=key, value=value, description=description)
+        return self.server.sandbox_config_manager.update_sandbox_env_var(
+            env_var_id=env_var_id, env_var_update=env_var_update, actor=self.user
+        )
+
+    def delete_sandbox_env_var(self, env_var_id: str) -> None:
+        """
+        Delete an environment variable by its ID.
+        """
+        return self.server.sandbox_config_manager.delete_sandbox_env_var(env_var_id=env_var_id, actor=self.user)
+
+    def list_sandbox_env_vars(
+        self, sandbox_config_id: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> List[SandboxEnvironmentVariable]:
+        """
+        List all environment variables associated with a sandbox configuration.
+        """
+        return self.server.sandbox_config_manager.list_sandbox_env_vars(
+            sandbox_config_id=sandbox_config_id, actor=self.user, limit=limit, cursor=cursor
+        )

@@ -22,8 +22,9 @@ jobs:
       fail-fast: false
       matrix:
         test_suite:
-          - "test_local_client.py"
           - "test_client.py"
+          - "test_local_client.py"
+          - "test_client_legacy.py"
           - "test_server.py"
           - "test_managers.py"
           - "test_tools.py"
@@ -133,4 +134,4 @@ jobs:
           LETTA_SERVER_PASS: test_server_token
           PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
         run: |
-          poetry run pytest -s -vv -k "not test_tool_execution_sandbox.py and not test_agent_tool_graph.py and not test_tool_rule_solver.py and not test_local_client.py and not test_o1_agent.py and not test_cli.py and not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client.py" tests
+          poetry run pytest -s -vv -k "not test_client.py and not test_tool_execution_sandbox.py and not test_agent_tool_graph.py and not test_tool_rule_solver.py and not test_local_client.py and not test_o1_agent.py and not test_cli.py and not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_endpoints and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client_legacy.py" tests

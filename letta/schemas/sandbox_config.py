@@ -68,7 +68,7 @@ class SandboxConfigCreate(LettaBase):
 class SandboxConfigUpdate(LettaBase):
     """Pydantic model for updating SandboxConfig fields."""
 
-    config: Optional[Dict] = Field(None, description="The JSON configuration data for the sandbox.")
+    config: Union[LocalSandboxConfig, E2BSandboxConfig] = Field(None, description="The JSON configuration data for the sandbox.")
 
 
 # Environment Variable

@@ -1,24 +1,18 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Header, Query
+from fastapi import APIRouter, Depends, Query
 
-from letta.schemas.sandbox_config import E2BSandboxConfig, LocalSandboxConfig
 from letta.schemas.sandbox_config import SandboxConfig as PydanticSandboxConfig
-from letta.schemas.sandbox_config import SandboxConfigCreate
+from letta.schemas.sandbox_config import SandboxConfigCreate, SandboxConfigUpdate
 from letta.schemas.sandbox_config import SandboxEnvironmentVariable as PydanticEnvVar
 from letta.schemas.sandbox_config import (
     SandboxEnvironmentVariableCreate,
     SandboxEnvironmentVariableUpdate,
 )
-from letta.server.rest_api.utils import get_letta_server
+from letta.server.rest_api.utils import get_letta_server, get_user_id
 from letta.server.server import SyncServer
 
 router = APIRouter(prefix="/sandbox-config", tags=["sandbox-config"])
-
-
-# Dependency to get user_id from headers
-def get_user_id(user_id: Optional[str] = Header(None, alias="user_id")) -> Optional[str]:
-    return user_id
 
 
 ### Sandbox Config Routes
@@ -38,12 +32,12 @@ def create_sandbox_config(
 @router.patch("/{sandbox_config_id}", response_model=PydanticSandboxConfig)
 def update_sandbox_config(
     sandbox_config_id: str,
-    config: Union[E2BSandboxConfig, LocalSandboxConfig],
+    config_update: SandboxConfigUpdate,
     server: SyncServer = Depends(get_letta_server),
     user_id: str = Depends(get_user_id),
 ):
     actor = server.get_user_or_default(user_id=user_id)
-    return server.sandbox_config_manager.update_sandbox_config(sandbox_config_id, config, actor)
+    return server.sandbox_config_manager.update_sandbox_config(sandbox_config_id, config_update, actor)
 
 
 @router.delete("/{sandbox_config_id}", status_code=204)
@@ -81,7 +75,7 @@ def create_sandbox_env_var(
     return server.sandbox_config_manager.create_sandbox_env_var(env_var_create, sandbox_config_id, actor)
 
 
-@router.patch("/{sandbox_config_id}/environment-variable/{env_var_id}", response_model=PydanticEnvVar)
+@router.patch("/environment-variable/{env_var_id}", response_model=PydanticEnvVar)
 def update_sandbox_env_var(
     env_var_id: str,
     env_var_update: SandboxEnvironmentVariableUpdate,

@@ -5,6 +5,7 @@ import warnings
 from enum import Enum
 from typing import AsyncGenerator, Optional, Union
 
+from fastapi import Header
 from pydantic import BaseModel
 
 from letta.schemas.usage import LettaUsageStatistics
@@ -82,6 +83,11 @@ def get_letta_server() -> SyncServer:
 
     # assert isinstance(server, SyncServer)
     return server
+
+
+# Dependency to get user_id from headers
+def get_user_id(user_id: Optional[str] = Header(None, alias="user_id")) -> Optional[str]:
+    return user_id
 
 
 def get_current_interface() -> StreamingServerInterface:
