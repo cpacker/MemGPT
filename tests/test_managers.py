@@ -783,12 +783,12 @@ def test_create_or_update_sandbox_config(server: SyncServer, default_user):
 
 
 def test_update_existing_sandbox_config(server: SyncServer, sandbox_config_fixture, default_user):
-    update_data = SandboxConfigUpdate(config={"template_id": "template_2", "timeout_seconds": 120})
+    update_data = SandboxConfigUpdate(config=E2BSandboxConfig(template_id="template_2", timeout=120))
     updated_config = server.sandbox_config_manager.update_sandbox_config(sandbox_config_fixture.id, update_data, actor=default_user)
 
     # Assertions
     assert updated_config.config["template_id"] == "template_2"
-    assert updated_config.config["timeout_seconds"] == 120
+    assert updated_config.config["timeout"] == 120
 
 
 def test_delete_sandbox_config(server: SyncServer, sandbox_config_fixture, default_user):

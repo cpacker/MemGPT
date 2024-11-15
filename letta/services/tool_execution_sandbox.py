@@ -19,7 +19,7 @@ class ToolExecutionSandbox:
     DIR = "/home/user/"
     METADATA_CONFIG_STATE_KEY = "config_state"
 
-    def __init__(self, tool_name: str, args: dict, user_id: str):
+    def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False):
         from letta.server.server import db_context
 
         self.session_maker = db_context
@@ -36,6 +36,7 @@ class ToolExecutionSandbox:
         # TODO: That would probably imply that agent_state is incorrectly configured
         self.tool = ToolManager().get_tool_by_name(tool_name=tool_name, actor=self.user)
         self.sandbox_config_manager = SandboxConfigManager()
+        self.force_recreate = force_recreate
 
     def run(self) -> Optional[Any]:
         if not self.tool:
@@ -103,12 +104,12 @@ class ToolExecutionSandbox:
                 raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
 
     def run_e2b_sandbox(self, code: str) -> Optional[Any]:
-        from e2b_code_interpreter import Sandbox
+        pass
 
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=self.user)
         sbx = self.get_running_e2b_sandbox_with_same_state(sbx_config)
-        if not sbx:
-            sbx = Sandbox(metadata={self.METADATA_CONFIG_STATE_KEY: self.user.organization_id}, **sbx_config.config)
+        if not sbx or self.force_recreate:
+            sbx = self.create_e2b_sandbox_with_metadata_hash(sandbox_config=sbx_config)
 
         # Get environment variables for the sandbox
         # TODO: We set limit to 100 here, but maybe we want it uncapped? Realistically this should be fine.
@@ -128,15 +129,27 @@ class ToolExecutionSandbox:
         from e2b_code_interpreter import Sandbox
 
         # List running sandboxes and access metadata.
-        running_sandboxes = Sandbox.list()
+        running_sandboxes = self.list_running_e2b_sandboxes()
 
         # Hash the config to check the state
-        state_hash = hash(sandbox_config)
+        state_hash = str(hash(sandbox_config))
         for sandbox in running_sandboxes:
             if self.METADATA_CONFIG_STATE_KEY in sandbox.metadata and sandbox.metadata[self.METADATA_CONFIG_STATE_KEY] == state_hash:
                 return Sandbox.connect(sandbox.sandbox_id)
 
         return None
+
+    def create_e2b_sandbox_with_metadata_hash(self, sandbox_config: SandboxConfig) -> "Sandbox":
+        from e2b_code_interpreter import Sandbox
+
+        state_hash = str(hash(sandbox_config))
+        return Sandbox(metadata={self.METADATA_CONFIG_STATE_KEY: state_hash}, **sandbox_config.config)
+
+    def list_running_e2b_sandboxes(self):
+        from e2b_code_interpreter import Sandbox
+
+        # List running sandboxes and access metadata.
+        return Sandbox.list()
 
     def ast_parse_best_effort(self, text: str) -> Any:
         try:

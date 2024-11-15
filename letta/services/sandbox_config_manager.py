@@ -48,14 +48,7 @@ class SandboxConfigManager:
     def create_or_update_sandbox_config(self, sandbox_config_create: SandboxConfigCreate, actor: PydanticUser) -> PydanticSandboxConfig:
         """Create or update a sandbox configuration based on the PydanticSandboxConfig schema."""
         config = sandbox_config_create.config
-        # Try to auto-derive the type
-        if isinstance(config, E2BSandboxConfig):
-            sandbox_type = SandboxType.E2B
-        elif isinstance(config, LocalSandboxConfig):
-            sandbox_type = SandboxType.LOCAL
-        else:
-            raise NotImplementedError(f"Passed invalid config to SandboxConfigCreate: {config}")
-
+        sandbox_type = config.type
         sandbox_config = PydanticSandboxConfig(
             type=sandbox_type, config=config.model_dump(exclude_none=True), organization_id=actor.organization_id
         )
@@ -91,6 +84,12 @@ class SandboxConfigManager:
         """Update an existing sandbox configuration."""
         with self.session_maker() as session:
             sandbox = SandboxConfigModel.read(db_session=session, identifier=sandbox_config_id, actor=actor)
+            # We need to check that the sandbox_update provided is the same type as the original sandbox
+            if sandbox.type != sandbox_update.config.type:
+                raise ValueError(
+                    f"Mismatched type for sandbox config update: tried to update sandbox_config of type {sandbox.type} with config of type {sandbox_update.config.type}"
+                )
+
             update_data = sandbox_update.model_dump(exclude_unset=True, exclude_none=True)
             update_data = {key: value for key, value in update_data.items() if getattr(sandbox, key) != value}
 

@@ -1,3 +1,5 @@
+import hashlib
+import json
 from enum import Enum
 from typing import Dict, Optional, Union
 
@@ -16,16 +18,18 @@ class LocalSandboxConfig(BaseModel):
     venv_name: str = Field("venv", description="Name of the virtual environment.")
     sandbox_dir: str = Field(..., description="Directory for the sandbox environment.")
 
-    class Config:
-        extra = "ignore"
+    @property
+    def type(self) -> "SandboxType":
+        return SandboxType.LOCAL
 
 
 class E2BSandboxConfig(BaseModel):
     timeout: int = Field(5 * 60, description="Time limit for the sandbox (in seconds).")
     template_id: Optional[str] = Field(None, description="The E2B template id (docker image).")
 
-    class Config:
-        extra = "ignore"
+    @property
+    def type(self) -> "SandboxType":
+        return SandboxType.E2B
 
 
 class SandboxConfigBase(OrmMetadataBase):
@@ -45,19 +49,31 @@ class SandboxConfig(SandboxConfigBase):
         return LocalSandboxConfig(**self.config)
 
     def __hash__(self):
-        # Use a tuple of hashable attributes for hashing
-        return hash(
-            (self.id, self.type, self.organization_id, frozenset(self.config.items()))  # Convert config dictionary to frozenset of items
+        # Only take into account type, org_id, and the config items
+        # Canonicalize input data into JSON with sorted keys
+        hash_input = json.dumps(
+            {
+                "type": self.type.value,
+                "organization_id": self.organization_id,
+                "config": self.config,
+            },
+            sort_keys=True,  # Ensure stable ordering
+            separators=(",", ":"),  # Minimize serialization differences
         )
+
+        # Compute SHA-256 hash
+        hash_digest = hashlib.sha256(hash_input.encode("utf-8")).digest()
+
+        # Convert the digest to an integer for compatibility with Python's hash requirements
+        return int.from_bytes(hash_digest, byteorder="big")
 
     def __eq__(self, other):
         if not isinstance(other, SandboxConfig):
             return False
         return (
-            self.id == other.id
-            and self.type == other.type
+            self.type == other.type
             and self.organization_id == other.organization_id
-            and frozenset(self.config.items()) == frozenset(other.config.items())
+            and frozenset(sorted(self.config.items())) == frozenset(sorted(other.config.items()))
         )
 
 
