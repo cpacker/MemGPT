@@ -111,6 +111,9 @@ class ToolExecutionSandbox:
         if not sbx or self.force_recreate:
             sbx = self.create_e2b_sandbox_with_metadata_hash(sandbox_config=sbx_config)
 
+        # Since this sandbox was used, we extend its lifecycle by the timeout
+        sbx.set_timeout(sbx_config.get_e2b_config().timeout)
+
         # Get environment variables for the sandbox
         # TODO: We set limit to 100 here, but maybe we want it uncapped? Realistically this should be fine.
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
