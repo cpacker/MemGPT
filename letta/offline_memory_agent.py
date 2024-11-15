@@ -93,7 +93,6 @@ class OfflineMemoryAgent(Agent):
                 messages=next_input_message,
                 **kwargs,
             )
-            print(step_response)
             for message in step_response.messages:
                 if message.tool_calls:
                     for tool_call in message.tool_calls:
