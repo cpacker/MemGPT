@@ -29,10 +29,10 @@ def send_message_offline_agent(self: "Agent", message: str) -> Optional[str]:
 
 def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[str]:
     """
-    If the user says the word "rethink_memory" then call this function
+    This function is alwayas called when user says the word "rethink_memory"
 
     Args:
-        message (Optional[str]): String message to condition what the memory agent should rethink about.
+        message (Optional[str]): String message to condition what the memory agent should rethink about. None if no message is provided.
 
     """
     from letta import create_client
@@ -51,10 +51,25 @@ def rethink_memory(self, new_memory: str, block_label: Optional[str]) -> Optiona
 
     Args:
         new_memory (str): The new memory with information integrated from the memory block.
-        block_label (str): The name of the block to integrate information from. None all the information has been integrated to terminate the loop.
-    """
+        block_label (str): The name of the block to integrate information from. None if all the information has been integrated to terminate the loop.
 
-    self.memory.update_block_value(label="rethink_memory_block", value=new_memory)
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
+    if block_label is not None:
+        self.memory.update_block_value(label="rethink_memory_block", value=new_memory)
+    print("block label", block_label)
+    print("inside rethink", self.memory.get_block("rethink_memory_block").value)
+    return None
+
+
+def finish_rethinking_memory(self) -> Optional[str]:
+    """
+    This function is called when the agent is done rethinking the memory.
+
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
     return None
 
 
@@ -65,10 +80,12 @@ class OfflineMemoryAgent(Agent):
         agent_state: AgentState,
         tools: List[Tool] = [],
         first_message_verify_mono: bool = False,
+        max_memory_rethinks: int = 10,
     ):
         super().__init__(interface, agent_state, tools)
         self.tools = tools
         self.first_message_verify_mono = first_message_verify_mono
+        self.max_memory_rethinks = max_memory_rethinks
 
     def step(
         self,
@@ -86,7 +103,7 @@ class OfflineMemoryAgent(Agent):
         step_count = 0
 
         current_block_label = "rethink_memory_block"
-        while current_block_label in self.memory.list_block_labels():
+        while current_block_label in self.memory.list_block_labels() and counter < self.max_memory_rethinks:
             kwargs["ms"] = ms
             kwargs["first_message"] = False
             step_response = self.inner_step(
@@ -97,13 +114,14 @@ class OfflineMemoryAgent(Agent):
                 if message.tool_calls:
                     for tool_call in message.tool_calls:
                         arguments = json.loads(tool_call.function.arguments)
-                        current_block_label = arguments["block_label"]
+                        current_block_label = arguments.get("block_label")
 
             usage = step_response.usage
             step_count += 1
             total_usage += usage
             counter += 1
             self.interface.step_complete()
+
             if ms:
                 save_agent(self, ms)
 

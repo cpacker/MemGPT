@@ -457,6 +457,7 @@ class SyncServer(Server):
                 ms=self.ms,
                 skip_verify=True,
             )
+            save_agent(letta_agent, self.ms)
 
         except Exception as e:
             logger.error(f"Error in server._step: {e}")
