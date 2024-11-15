@@ -88,7 +88,7 @@ class ToolExecutionSandbox:
             )
             if result.stderr:
                 raise RuntimeError(f"Sandbox execution error: {result.stderr}")
-            return result.stdout
+            return self.ast_parse_best_effort(result.stdout)
         except subprocess.TimeoutExpired:
             raise TimeoutError(f"Executing tool {self.tool_name} has  timed out.")
         except subprocess.CalledProcessError as e:
@@ -113,10 +113,7 @@ class ToolExecutionSandbox:
         elif len(execution.results) == 0:
             function_response = None
         else:
-            try:
-                function_response = ast.literal_eval(execution.results[0].text)
-            except SyntaxError:
-                function_response = execution.results[0].text
+            function_response = self.ast_parse_best_effort(execution.results[0].text)
 
         # Note, we don't kill the sandbox
         return function_response
@@ -131,6 +128,16 @@ class ToolExecutionSandbox:
                 return Sandbox.connect(sandbox.sandbox_id)
 
         return None
+
+    def ast_parse_best_effort(self, text: str) -> Any:
+        try:
+            result = ast.literal_eval(text)
+        except SyntaxError:
+            result = text
+        except ValueError:
+            result = text
+
+        return result
 
     def generate_execution_script(self, wrap_print: bool = False) -> str:
         code = ""

@@ -207,7 +207,7 @@ class SandboxConfigManager:
         env_vars = self.list_sandbox_env_vars(actor, cursor, limit)
         result = {}
         for env_var in env_vars:
-            result[env_var.key] = result[env_var.value]
+            result[env_var.key] = env_var.value
         return result
 
     @enforce_types
