@@ -414,46 +414,49 @@ class TogetherProvider(OpenAIProvider):
         return configs
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
-        from letta.llm_api.openai import openai_get_model_list
+        # TODO renable once we figure out how to pass API keys through properly
+        return []
 
-        response = openai_get_model_list(self.base_url, api_key=self.api_key)
+        # from letta.llm_api.openai import openai_get_model_list
 
-        # TogetherAI's response is missing the 'data' field
-        # assert "data" in response, f"OpenAI model query response missing 'data' field: {response}"
-        if "data" in response:
-            data = response["data"]
-        else:
-            data = response
+        # response = openai_get_model_list(self.base_url, api_key=self.api_key)
 
-        configs = []
-        for model in data:
-            assert "id" in model, f"TogetherAI model missing 'id' field: {model}"
-            model_name = model["id"]
+        # # TogetherAI's response is missing the 'data' field
+        # # assert "data" in response, f"OpenAI model query response missing 'data' field: {response}"
+        # if "data" in response:
+        #     data = response["data"]
+        # else:
+        #     data = response
 
-            if "context_length" in model:
-                # Context length is returned in OpenRouter as "context_length"
-                context_window_size = model["context_length"]
-            else:
-                context_window_size = self.get_model_context_window_size(model_name)
+        # configs = []
+        # for model in data:
+        #     assert "id" in model, f"TogetherAI model missing 'id' field: {model}"
+        #     model_name = model["id"]
 
-            if not context_window_size:
-                continue
+        #     if "context_length" in model:
+        #         # Context length is returned in OpenRouter as "context_length"
+        #         context_window_size = model["context_length"]
+        #     else:
+        #         context_window_size = self.get_model_context_window_size(model_name)
 
-            # TogetherAI includes the type, which we can use to filter out embedding models
-            if "type" in model and model["type"] not in ["embedding"]:
-                continue
+        #     if not context_window_size:
+        #         continue
 
-            configs.append(
-                EmbeddingConfig(
-                    embedding_model=model_name,
-                    embedding_endpoint_type="openai",
-                    embedding_endpoint=self.base_url,
-                    embedding_dim=context_window_size,
-                    embedding_chunk_size=300,  # TODO: change?
-                )
-            )
+        #     # TogetherAI includes the type, which we can use to filter out embedding models
+        #     if "type" in model and model["type"] not in ["embedding"]:
+        #         continue
 
-        return configs
+        #     configs.append(
+        #         EmbeddingConfig(
+        #             embedding_model=model_name,
+        #             embedding_endpoint_type="openai",
+        #             embedding_endpoint=self.base_url,
+        #             embedding_dim=context_window_size,
+        #             embedding_chunk_size=300,  # TODO: change?
+        #         )
+        #     )
+
+        # return configs
 
 
 class GoogleAIProvider(Provider):
