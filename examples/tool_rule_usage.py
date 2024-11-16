@@ -9,7 +9,7 @@ from tests.helpers.endpoints_helper import (
     setup_agent,
 )
 from tests.helpers.utils import cleanup
-from tests.test_endpoints import llm_config_dir
+from tests.test_model_letta_perfomance import llm_config_dir
 
 """
 This example shows how you can constrain tool calls in your agent.
