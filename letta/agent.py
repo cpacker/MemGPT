@@ -48,6 +48,7 @@ from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.source_manager import SourceManager
 from letta.services.user_manager import UserManager
+from letta.streaming_interface import StreamingRefreshCLIInterface
 from letta.system import (
     get_heartbeat,
     get_initial_boot_messages,
@@ -229,7 +230,7 @@ class BaseAgent(ABC):
 class Agent(BaseAgent):
     def __init__(
         self,
-        interface: Optional[AgentInterface],
+        interface: Optional[Union[AgentInterface, StreamingRefreshCLIInterface]],
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[Tool],
