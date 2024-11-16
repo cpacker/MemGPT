@@ -242,26 +242,28 @@ def convert_anthropic_response_to_chatcompletion(
     finish_reason = remap_finish_reason(response_json["stop_reason"])
 
     if isinstance(response_json["content"], list):
-        # inner mono + function call
-        # TODO relax asserts
-        assert len(response_json["content"]) == 2, response_json
-        assert response_json["content"][0]["type"] == "text", response_json
-        assert response_json["content"][1]["type"] == "tool_use", response_json
-        content = strip_xml_tags(string=response_json["content"][0]["text"], tag=inner_thoughts_xml_tag)
-        tool_calls = [
-            ToolCall(
-                id=response_json["content"][1]["id"],
-                type="function",
-                function=FunctionCall(
-                    name=response_json["content"][1]["name"],
-                    arguments=json.dumps(response_json["content"][1]["input"], indent=2),
-                ),
-            )
-        ]
+        if len(response_json["content"]) > 1:
+            # inner mono + function call
+            assert len(response_json["content"]) == 2, response_json
+            assert response_json["content"][0]["type"] == "text", response_json
+            assert response_json["content"][1]["type"] == "tool_use", response_json
+            content = strip_xml_tags(string=response_json["content"][0]["text"], tag=inner_thoughts_xml_tag)
+            tool_calls = [
+                ToolCall(
+                    id=response_json["content"][1]["id"],
+                    type="function",
+                    function=FunctionCall(
+                        name=response_json["content"][1]["name"],
+                        arguments=json.dumps(response_json["content"][1]["input"], indent=2),
+                    ),
+                )
+            ]
+        else:
+            # Just inner mono
+            content = strip_xml_tags(string=response_json["content"][0]["text"], tag=inner_thoughts_xml_tag)
+            tool_calls = None
     else:
-        # just inner mono
-        content = strip_xml_tags(string=response_json["content"], tag=inner_thoughts_xml_tag)
-        tool_calls = None
+        raise RuntimeError("Unexpected type for content in response_json.")
 
     assert response_json["role"] == "assistant", response_json
     choice = Choice(
