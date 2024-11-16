@@ -257,7 +257,7 @@ def run_agent_loop(
                 elif user_input.lower() == "/tokens":
                     tokens = letta_agent.count_tokens()
                     typer.secho(
-                        f"{tokens} / {letta_agent.agent_state.llm_config.context_window}",
+                        f"{tokens}/{letta_agent.agent_state.llm_config.context_window}",
                         fg=typer.colors.GREEN,
                         bold=True,
                     )
