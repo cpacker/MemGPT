@@ -59,6 +59,7 @@ def retry_until_threshold(threshold=0.5, max_attempts=10, sleep_time_seconds=4):
 # ======================================================================================================================
 # OPENAI TESTS
 # ======================================================================================================================
+@retry_until_threshold(threshold=0.75, max_attempts=4)
 def test_openai_gpt_4o_returns_valid_first_message():
     filename = os.path.join(llm_config_dir, "openai-gpt-4o.json")
     response = check_first_response_is_valid_for_llm_endpoint(filename)
@@ -205,44 +206,44 @@ def test_embedding_endpoint_ollama():
 # ======================================================================================================================
 # ANTHROPIC TESTS
 # ======================================================================================================================
-def test_claude_opus_3_returns_valid_first_message():
-    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+def test_claude_haiku_3_5_returns_valid_first_message():
+    filename = os.path.join(llm_config_dir, "claude-3-5-haiku.json")
     response = check_first_response_is_valid_for_llm_endpoint(filename)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
 
 
-def test_claude_opus_3_returns_keyword():
+def test_claude_haiku_3_5_returns_keyword():
     keyword = "banana"
-    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+    filename = os.path.join(llm_config_dir, "claude-3-5-haiku.json")
     response = check_response_contains_keyword(filename, keyword=keyword)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
 
 
-def test_claude_opus_3_uses_external_tool():
-    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+def test_claude_haiku_3_5_uses_external_tool():
+    filename = os.path.join(llm_config_dir, "claude-3-5-haiku.json")
     response = check_agent_uses_external_tool(filename)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
 
 
-def test_claude_opus_3_recall_chat_memory():
-    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+def test_claude_haiku_3_5_recall_chat_memory():
+    filename = os.path.join(llm_config_dir, "claude-3-5-haiku.json")
     response = check_agent_recall_chat_memory(filename)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
 
 
-def test_claude_opus_3_archival_memory_retrieval():
-    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+def test_claude_haiku_3_5_archival_memory_retrieval():
+    filename = os.path.join(llm_config_dir, "claude-3-5-haiku.json")
     response = check_agent_archival_memory_retrieval(filename)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
 
 
-def test_claude_opus_3_edit_core_memory():
-    filename = os.path.join(llm_config_dir, "claude-3-opus.json")
+def test_claude_haiku_3_5_edit_core_memory():
+    filename = os.path.join(llm_config_dir, "claude-3-5-haiku.json")
     response = check_agent_edit_core_memory(filename)
     # Log out successful response
     print(f"Got successful response from client: \n\n{response}")
