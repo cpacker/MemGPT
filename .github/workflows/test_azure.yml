@@ -31,7 +31,7 @@ jobs:
         AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
         AZURE_BASE_URL: ${{ secrets.AZURE_BASE_URL }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_azure_gpt_4o_mini_returns_valid_first_message
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_azure_gpt_4o_mini_returns_valid_first_message
         echo "TEST_FIRST_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
@@ -41,7 +41,7 @@ jobs:
         AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
         AZURE_BASE_URL: ${{ secrets.AZURE_BASE_URL }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_azure_gpt_4o_mini_returns_keyword
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_azure_gpt_4o_mini_returns_keyword
         echo "TEST_KEYWORD_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
@@ -51,7 +51,7 @@ jobs:
         AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
         AZURE_BASE_URL: ${{ secrets.AZURE_BASE_URL }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_azure_gpt_4o_mini_uses_external_tool
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_azure_gpt_4o_mini_uses_external_tool
         echo "TEST_EXTERNAL_TOOL_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
@@ -61,7 +61,7 @@ jobs:
         AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
         AZURE_BASE_URL: ${{ secrets.AZURE_BASE_URL }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_azure_gpt_4o_mini_recall_chat_memory
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_azure_gpt_4o_mini_recall_chat_memory
         echo "TEST_CHAT_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
@@ -71,7 +71,7 @@ jobs:
         AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
         AZURE_BASE_URL: ${{ secrets.AZURE_BASE_URL }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_azure_gpt_4o_mini_archival_memory_retrieval
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_azure_gpt_4o_mini_archival_memory_retrieval
         echo "TEST_ARCHIVAL_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
@@ -81,7 +81,7 @@ jobs:
         AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
         AZURE_BASE_URL: ${{ secrets.AZURE_BASE_URL }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_azure_gpt_4o_mini_edit_core_memory
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_azure_gpt_4o_mini_edit_core_memory
         echo "TEST_CORE_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 

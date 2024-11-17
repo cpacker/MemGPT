@@ -48,6 +48,7 @@ from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.source_manager import SourceManager
 from letta.services.user_manager import UserManager
+from letta.streaming_interface import StreamingRefreshCLIInterface
 from letta.system import (
     get_heartbeat,
     get_initial_boot_messages,
@@ -229,7 +230,7 @@ class BaseAgent(ABC):
 class Agent(BaseAgent):
     def __init__(
         self,
-        interface: Optional[AgentInterface],
+        interface: Optional[Union[AgentInterface, StreamingRefreshCLIInterface]],
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[Tool],
@@ -1580,6 +1581,10 @@ class Agent(BaseAgent):
             num_tokens_functions_definitions=num_tokens_available_functions_definitions,
             functions_definitions=available_functions_definitions,
         )
+
+    def count_tokens(self) -> int:
+        """Count the tokens in the current context window"""
+        return self.get_context_window().context_window_size_current
 
 
 def save_agent(agent: Agent, ms: MetadataStore):
