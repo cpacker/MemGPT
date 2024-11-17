@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-from letta.constants import LLM_MAX_TOKENS
+from letta.constants import LLM_MAX_TOKENS, MIN_CONTEXT_WINDOW
 from letta.llm_api.azure_openai import (
     get_azure_chat_completions_endpoint,
     get_azure_embeddings_endpoint,
@@ -395,6 +395,10 @@ class TogetherProvider(OpenAIProvider):
 
             # We need the context length for embeddings too
             if not context_window_size:
+                continue
+
+            # Skip models that are too small for Letta
+            if context_window_size <= MIN_CONTEXT_WINDOW:
                 continue
 
             # TogetherAI includes the type, which we can use to filter for embedding models
