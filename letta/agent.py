@@ -21,7 +21,7 @@ from letta.constants import (
 )
 from letta.errors import LLMError
 from letta.helpers import ToolRulesSolver
-from letta.interface import AgentInterface
+from letta.interface import AgentInterface, RequestContext
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
 from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
@@ -532,18 +532,19 @@ class Agent(BaseAgent):
 
         try:
             response = create(
-                # agent_state=self.agent_state,
-                llm_config=self.agent_state.llm_config,
-                messages=message_sequence,
-                user_id=self.agent_state.user_id,
-                functions=allowed_functions,
-                functions_python=self.functions_python,
-                function_call=function_call,
-                # hint
-                first_message=first_message,
-                # streaming
-                stream=stream,
-                stream_interface=self.interface,
+                RequestContext(
+                    llm_config=self.agent_state.llm_config,
+                    messages=message_sequence,
+                    user_id=self.agent_state.user_id,
+                    functions=allowed_functions,
+                    functions_python=self.functions_python,
+                    function_call=function_call,
+                    # hint
+                    first_message=first_message,
+                    # streaming
+                    stream=stream,
+                    stream_interface=self.interface,
+                )
             )
 
             if len(response.choices) == 0 or response.choices[0] is None:

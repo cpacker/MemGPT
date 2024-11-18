@@ -88,8 +88,6 @@ from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
 from letta.utils import create_random_username, json_dumps, json_loads
 
-# from letta.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
-
 
 logger = get_logger(__name__)
 
