@@ -12,6 +12,7 @@ from letta.embeddings import embedding_model
 from letta.schemas.file import FileMetadata
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
+from letta.services.source_manager import SourceManager
 from letta.utils import create_uuid_from_string
 
 
@@ -41,13 +42,8 @@ class DataConnector:
         """
 
 
-def load_data(
-    connector: DataConnector,
-    source: Source,
-    passage_store: StorageConnector,
-    file_metadata_store: StorageConnector,
-):
-    """Load data from a connector (generates file and passages) into a specified source_id, associatedw with a user_id."""
+def load_data(connector: DataConnector, source: Source, passage_store: StorageConnector, source_manager: SourceManager, actor: "User"):
+    """Load data from a connector (generates file and passages) into a specified source_id, associated with a user_id."""
     embedding_config = source.embedding_config
 
     # embedding model
@@ -60,7 +56,7 @@ def load_data(
     file_count = 0
     for file_metadata in connector.find_files(source):
         file_count += 1
-        file_metadata_store.insert(file_metadata)
+        source_manager.create_file(file_metadata, actor)
 
         # generate passages
         for passage_text, passage_metadata in connector.generate_passages(file_metadata, chunk_size=embedding_config.embedding_chunk_size):
@@ -88,7 +84,7 @@ def load_data(
                 file_id=file_metadata.id,
                 source_id=source.id,
                 metadata_=passage_metadata,
-                user_id=source.user_id,
+                user_id=source.created_by_id,
                 embedding_config=source.embedding_config,
                 embedding=embedding,
             )
@@ -155,7 +151,6 @@ class DirectoryConnector(DataConnector):
 
         for metadata in extract_metadata_from_files(files):
             yield FileMetadata(
-                user_id=source.user_id,
                 source_id=source.id,
                 file_name=metadata.get("file_name"),
                 file_path=metadata.get("file_path"),

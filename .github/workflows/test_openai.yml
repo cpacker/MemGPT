@@ -29,53 +29,53 @@ jobs:
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_valid_first_message
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_openai_gpt_4o_returns_valid_first_message
 
     - name: Test model sends message with keyword
       id: test_keyword_message
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_returns_keyword
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_openai_gpt_4o_returns_keyword
 
     - name: Test model uses external tool correctly
       id: test_external_tool
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_uses_external_tool
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_openai_gpt_4o_uses_external_tool
 
     - name: Test model recalls chat memory
       id: test_chat_memory
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_recall_chat_memory
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_openai_gpt_4o_recall_chat_memory
 
     - name: Test model uses 'archival_memory_search' to find secret
       id: test_archival_memory_search
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_archival_memory_retrieval
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_openai_gpt_4o_archival_memory_retrieval
 
     - name: Test model uses 'archival_memory_insert' to insert archival memories
       id: test_archival_memory_insert
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_archival_memory_insert
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_openai_gpt_4o_archival_memory_insert
 
     - name: Test model can edit core memories
       id: test_core_memory
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_openai_gpt_4_edit_core_memory
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_openai_gpt_4o_edit_core_memory
 
     - name: Test embedding endpoint
       id: test_embedding_endpoint
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_openai
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_embedding_endpoint_openai

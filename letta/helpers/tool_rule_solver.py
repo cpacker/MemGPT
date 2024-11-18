@@ -1,4 +1,3 @@
-import warnings
 from typing import Dict, List, Optional, Set
 
 from pydantic import BaseModel, Field
@@ -67,7 +66,7 @@ class ToolRulesSolver(BaseModel):
             if error_on_empty:
                 raise RuntimeError(message)
             else:
-                warnings.warn(message)
+                # warnings.warn(message)
                 return []
 
     def is_terminal_tool(self, tool_name: str) -> bool:

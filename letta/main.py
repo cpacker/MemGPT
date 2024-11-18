@@ -26,6 +26,9 @@ from letta.streaming_interface import AgentRefreshStreamingInterface
 
 # interface = interface()
 
+# disable composio print on exit
+os.environ["COMPOSIO_DISABLE_VERSION_CHECK"] = "true"
+
 app = typer.Typer(pretty_exceptions_enable=False)
 app.command(name="run")(run)
 app.command(name="version")(version)
@@ -249,6 +252,15 @@ def run_agent_loop(
                             fg=typer.colors.RED,
                             bold=True,
                         )
+                    continue
+
+                elif user_input.lower() == "/tokens":
+                    tokens = letta_agent.count_tokens()
+                    typer.secho(
+                        f"{tokens}/{letta_agent.agent_state.llm_config.context_window}",
+                        fg=typer.colors.GREEN,
+                        bold=True,
+                    )
                     continue
 
                 elif user_input.lower().startswith("/add_function"):

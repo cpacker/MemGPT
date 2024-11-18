@@ -3,7 +3,6 @@ import inspect
 import traceback
 import warnings
 from abc import ABC, abstractmethod
-from lib2to3.fixer_util import is_list
 from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
@@ -49,6 +48,9 @@ from letta.schemas.tool import Tool
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.block_manager import BlockManager
+from letta.services.source_manager import SourceManager
+from letta.services.user_manager import UserManager
+from letta.streaming_interface import StreamingRefreshCLIInterface
 from letta.system import (
     get_heartbeat,
     get_initial_boot_messages,
@@ -230,7 +232,7 @@ class BaseAgent(ABC):
 class Agent(BaseAgent):
     def __init__(
         self,
-        interface: Optional[AgentInterface],
+        interface: Optional[Union[AgentInterface, StreamingRefreshCLIInterface]],
         # agents can be created from providing agent_state
         agent_state: AgentState,
         tools: List[Tool],
@@ -254,12 +256,21 @@ class Agent(BaseAgent):
         # initialize a tool rules solver
         if agent_state.tool_rules:
             # if there are tool rules, print out a warning
-            warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
+            for rule in agent_state.tool_rules:
+                if not isinstance(rule, TerminalToolRule):
+                    warnings.warn("Tool rules only work reliably for the latest OpenAI models that support structured outputs.")
+                    break
         # add default rule for having send_message be a terminal tool
-
-        if not is_list(agent_state.tool_rules):
+        if agent_state.tool_rules is None:
             agent_state.tool_rules = []
-        agent_state.tool_rules.append(TerminalToolRule(tool_name="send_message"))
+        # Define the rule to add
+        send_message_terminal_rule = TerminalToolRule(tool_name="send_message")
+        # Check if an equivalent rule is already present
+        if not any(
+            isinstance(rule, TerminalToolRule) and rule.tool_name == send_message_terminal_rule.tool_name for rule in agent_state.tool_rules
+        ):
+            agent_state.tool_rules.append(send_message_terminal_rule)
+
         self.tool_rules_solver = ToolRulesSolver(tool_rules=agent_state.tool_rules)
 
         # gpt-4, gpt-3.5-turbo, ...
@@ -401,7 +412,6 @@ class Agent(BaseAgent):
                     exec(tool.module, env)
                 else:
                     exec(tool.source_code, env)
-
                 self.functions_python[tool.json_schema["name"]] = env[tool.json_schema["name"]]
                 self.functions.append(tool.json_schema)
             except Exception as e:
@@ -793,7 +803,6 @@ class Agent(BaseAgent):
 
         # Update ToolRulesSolver state with last called function
         self.tool_rules_solver.update_tool_usage(function_name)
-
         # Update heartbeat request according to provided tool rules
         if self.tool_rules_solver.has_children_tools(function_name):
             heartbeat_request = True
@@ -1312,7 +1321,7 @@ class Agent(BaseAgent):
     def attach_source(self, source_id: str, source_connector: StorageConnector, ms: MetadataStore):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
-
+        user = UserManager().get_user_by_id(self.agent_state.user_id)
         filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
         size = source_connector.size(filters)
         page_size = 100
@@ -1340,7 +1349,7 @@ class Agent(BaseAgent):
         self.persistence_manager.archival_memory.storage.save()
 
         # attach to agent
-        source = ms.get_source(source_id=source_id)
+        source = SourceManager().get_source_by_id(source_id=source_id, actor=user)
         assert source is not None, f"Source {source_id} not found in metadata store"
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 
@@ -1579,6 +1588,10 @@ class Agent(BaseAgent):
             num_tokens_functions_definitions=num_tokens_available_functions_definitions,
             functions_definitions=available_functions_definitions,
         )
+
+    def count_tokens(self) -> int:
+        """Count the tokens in the current context window"""
+        return self.get_context_window().context_window_size_current
 
 
 def save_agent(agent: Agent, ms: MetadataStore):

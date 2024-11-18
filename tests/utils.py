@@ -24,8 +24,7 @@ class DummyDataConnector(DataConnector):
     def find_files(self, source) -> Iterator[FileMetadata]:
         for text in self.texts:
             file_metadata = FileMetadata(
-                user_id="",
-                source_id="",
+                source_id=source.id,
                 file_name="",
                 file_path="",
                 file_type="",

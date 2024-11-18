@@ -1,6 +1,5 @@
 from typing import Dict, List, Optional
 
-from composio import LogLevel
 from pydantic import Field
 
 from letta.functions.helpers import (
@@ -68,7 +67,7 @@ class ToolCreate(LettaBase):
     tags: List[str] = Field([], description="Metadata tags.")
     module: Optional[str] = Field(None, description="The source code of the function.")
     source_code: str = Field(..., description="The source code of the function.")
-    source_type: str = Field(..., description="The source type of the function.")
+    source_type: str = Field("python", description="The source type of the function.")
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
@@ -86,6 +85,7 @@ class ToolCreate(LettaBase):
         Returns:
             Tool: A Letta Tool initialized with attributes derived from the Composio tool.
         """
+        from composio import LogLevel
         from composio_langchain import ComposioToolSet
 
         composio_toolset = ComposioToolSet(logging_level=LogLevel.ERROR)
@@ -216,3 +216,7 @@ class ToolUpdate(LettaBase):
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
+
+    class Config:
+        extra = "ignore"  # Allows extra fields without validation errors
+        # TODO: Remove this, and clean usage of ToolUpdate everywhere else

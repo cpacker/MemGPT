@@ -462,7 +462,6 @@ class VLLMChatCompletionsProvider(Provider):
         response = openai_get_model_list(self.base_url, api_key=None)
 
         configs = []
-        print(response)
         for model in response["data"]:
             configs.append(
                 LLMConfig(
