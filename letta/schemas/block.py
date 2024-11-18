@@ -14,7 +14,7 @@ class BaseBlock(LettaBase, validate_assignment=True):
     __id_prefix__ = "block"
 
     # data value
-    value: Optional[str] = Field(None, description="Value of the block.")
+    value: str = Field(..., description="Value of the block.")
     limit: int = Field(2000, description="Character limit of the block.")
 
     # template data (optional)
@@ -22,7 +22,7 @@ class BaseBlock(LettaBase, validate_assignment=True):
     is_template: bool = Field(False, description="Whether the block is a template (e.g. saved human/persona options).")
 
     # context window label
-    label: str = Field(None, description="Label of the block (e.g. 'human', 'persona') in the context window.")
+    label: Optional[str] = Field(None, description="Label of the block (e.g. 'human', 'persona') in the context window.")
 
     # metadata
     description: Optional[str] = Field(None, description="Description of the block.")
@@ -49,6 +49,9 @@ class BaseBlock(LettaBase, validate_assignment=True):
             # run validation
             self.__class__.model_validate(self.model_dump(exclude_unset=True))
 
+    class Config:
+        extra = "ignore"  # Ignores extra fields
+
 
 class Block(BaseBlock):
     """
@@ -67,7 +70,6 @@ class Block(BaseBlock):
     """
 
     id: str = BaseBlock.generate_id_field()
-    value: str = Field(..., description="Value of the block.")
 
     # associated user/agent
     organization_id: Optional[str] = Field(None, description="The unique identifier of the organization associated with the block.")
@@ -112,6 +114,10 @@ class BlockUpdate(BaseBlock):
     """Update a block"""
 
     limit: Optional[int] = Field(2000, description="Character limit of the block.")
+    value: Optional[str] = Field(None, description="Value of the block.")
+
+    class Config:
+        extra = "ignore"  # Ignores extra fields
 
 
 class UpdatePersona(BlockUpdate):

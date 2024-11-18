@@ -2,8 +2,10 @@ import os
 from typing import List, Optional
 
 from letta.orm.block import Block as BlockModel
+from letta.orm.errors import NoResultFound
+from letta.schemas.block import Block
 from letta.schemas.block import Block as PydanticBlock
-from letta.schemas.block import BlockCreate, BlockUpdate, CreateHuman, CreatePersona
+from letta.schemas.block import BlockUpdate, Human, Persona
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types, list_human_files, list_persona_files
 
@@ -18,14 +20,18 @@ class BlockManager:
         self.session_maker = db_context
 
     @enforce_types
-    def create_block(self, block_create: BlockCreate, actor: PydanticUser) -> PydanticBlock:
-        """Create a new block based on the BlockCreate schema."""
-        with self.session_maker() as session:
-            create_data = block_create.model_dump()
-            block = BlockModel(**create_data, organization_id=actor.organization_id)
-            block.create(session, actor=actor)
-
-        return block.to_pydantic()
+    def create_or_update_block(self, block: Block, actor: PydanticUser) -> PydanticBlock:
+        """Create a new block based on the Block schema."""
+        db_block = self.get_block_by_id(block.id, actor)
+        if db_block:
+            update_data = BlockUpdate(**block.model_dump(exclude_none=True))
+            self.update_block(block.id, update_data, actor)
+        else:
+            with self.session_maker() as session:
+                data = block.model_dump(exclude_none=True)
+                block = BlockModel(**data, organization_id=actor.organization_id)
+                block.create(session, actor=actor)
+            return block.to_pydantic()
 
     @enforce_types
     def update_block(self, block_id: str, block_update: BlockUpdate, actor: PydanticUser) -> PydanticBlock:
@@ -43,7 +49,7 @@ class BlockManager:
         """Delete a block by its ID."""
         with self.session_maker() as session:
             block = BlockModel.read(db_session=session, identifier=block_id)
-            block.delete(db_session=session, actor=actor)
+            block.hard_delete(db_session=session, actor=actor)
             return block.to_pydantic()
 
     @enforce_types
@@ -75,20 +81,23 @@ class BlockManager:
             return [block.to_pydantic() for block in blocks]
 
     @enforce_types
-    def get_block_by_id(self, block_id, actor: PydanticUser) -> PydanticBlock:
+    def get_block_by_id(self, block_id, actor: PydanticUser) -> Optional[PydanticBlock]:
         """Retrieve a block by its name."""
         with self.session_maker() as session:
-            block = BlockModel.read(db_session=session, identifier=block_id, actor=actor)
-            return block.to_pydantic()
+            try:
+                block = BlockModel.read(db_session=session, identifier=block_id, actor=actor)
+                return block.to_pydantic()
+            except NoResultFound:
+                return None
 
     @enforce_types
     def add_default_blocks(self, actor: PydanticUser):
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_block(CreatePersona(template_name=name, value=text, is_template=True), actor=actor)
+            self.create_block(Persona(template_name=name, value=text, is_template=True), actor=actor)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            self.create_block(CreateHuman(template_name=name, value=text, is_template=True), actor=actor)
+            self.create_block(Human(template_name=name, value=text, is_template=True), actor=actor)

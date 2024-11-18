@@ -14,8 +14,6 @@ from letta.schemas.block import (
     Block,
     BlockCreate,
     BlockUpdate,
-    CreateHuman,
-    CreatePersona,
     Human,
     Persona,
     UpdateHuman,
@@ -2142,7 +2140,7 @@ class LocalClient(AbstractClient):
         Returns:
             human (Human): Human block
         """
-        return self.server.block_manager.create_block(CreateHuman(template_name=name, value=text), actor=self.user)
+        return self.server.block_manager.create_or_update_block(Human(template_name=name, value=text), actor=self.user)
 
     def create_persona(self, name: str, text: str):
         """
@@ -2155,7 +2153,7 @@ class LocalClient(AbstractClient):
         Returns:
             persona (Persona): Persona block
         """
-        return self.server.block_manager.create_block(CreatePersona(template_name=name, value=text), actor=self.user)
+        return self.server.block_manager.create_or_update_block(Persona(template_name=name, value=text), actor=self.user)
 
     def list_humans(self):
         """
@@ -2679,8 +2677,8 @@ class LocalClient(AbstractClient):
         Returns:
             block (Block): Created block
         """
-        return self.server.block_manager.create_block(
-            BlockCreate(label=label, template_name=template_name, value=value, is_template=is_template), actor=self.user
+        return self.server.block_manager.create_or_update_block(
+            Block(label=label, template_name=template_name, value=value, is_template=is_template), actor=self.user
         )
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:

@@ -11,7 +11,7 @@ from fastapi import HTTPException
 import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
-from letta.agent import Agent
+from letta.agent import Agent, save_agent
 from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.credentials import LettaCredentials
@@ -54,7 +54,6 @@ from letta.providers import (
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
-from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
@@ -316,44 +315,6 @@ class SyncServer(Server):
                 )
             )
 
-    def save_agent(self, agent: Agent):
-        """Save the agent's state, including memory blocks"""
-
-        agent.update_state()
-        agent_state = agent.agent_state
-        agent_id = agent_state.id
-        assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
-
-        # NOTE: we're saving agent memory before persisting the agent to ensure
-        # that allocated block_ids for each memory block are present in the agent model
-        for block in agent.memory.get_blocks():
-            # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
-            # if block_dict.get("user_id", None) is None:
-            #     block_dict["user_id"] = agent.agent_state.user_id
-            # block = Block(**block_dict)
-            # # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
-            # # the case in some tests, if so we should relax the DB constraint.
-            # if block.value is None:
-            #     block.value = ""
-
-            # TODO: don't hardcode?
-            block_update = BlockUpdate(
-                **block.model_dump(
-                    exclude_unset=True, exclude_none=True, exclude={"id", "created_by_id", "last_updated_by_id", "organization_id"}
-                )
-            )
-            # update block
-            self.block_manager.update_block(block_id=block.id, block_update=block_update, actor=agent.user)
-
-        # save agent state
-        if self.get_agent(agent_id=agent.agent_state.id):
-            self.update_agent(agent_state)
-        else:
-            self.create_agent(agent_state)
-
-        agent.agent_state = self.get_agent(agent_id=agent_id)
-        assert isinstance(agent.agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
-
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
         for d in self.active_agents:
@@ -504,7 +465,7 @@ class SyncServer(Server):
             raise ValueError(command)
 
         elif command.lower() == "save" or command.lower() == "savechat":
-            self.save_agent(letta_agent)
+            save_agent(letta_agent, self.ms)
 
         elif command.lower() == "attach":
             # Different from CLI, we extract the data source name from the command
@@ -926,7 +887,7 @@ class SyncServer(Server):
             raise e
 
         # save agent
-        self.save_agent(agent)
+        save_agent(agent, self.ms)
         logger.debug(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
@@ -1021,7 +982,7 @@ class SyncServer(Server):
 
         # save the agent
         assert isinstance(letta_agent.memory, Memory)
-        self.save_agent(letta_agent)
+        save_agent(letta_agent, self.ms)
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
 
@@ -1075,7 +1036,7 @@ class SyncServer(Server):
         letta_agent.link_tools(tool_objs)
 
         # save the agent
-        self.save_agent(letta_agent)
+        save_agent(letta_agent, self.ms)
         return letta_agent.agent_state
 
     def remove_tool_from_agent(
@@ -1113,7 +1074,7 @@ class SyncServer(Server):
         letta_agent.link_tools(tool_objs)
 
         # save the agent
-        self.save_agent(letta_agent)
+        save_agent(letta_agent, self.ms)
         return letta_agent.agent_state
 
     def _agent_state_to_config(self, agent_state: AgentState) -> dict:
@@ -1449,7 +1410,7 @@ class SyncServer(Server):
         if modified:
             letta_agent.rebuild_memory()
             # save agent
-            self.save_agent(letta_agent)
+            save_agent(letta_agent, self.ms)
 
         return self.ms.get_agent(agent_id=agent_id).memory
 

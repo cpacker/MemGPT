@@ -33,7 +33,8 @@ def create_block(
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     actor = server.get_user_or_default(user_id=user_id)
-    return server.block_manager.create_block(actor=actor, block_create=create_block)
+    block = Block(**create_block.model_dump())
+    return server.block_manager.create_or_update_block(actor=actor, block=block)
 
 
 @router.patch("/{block_id}", response_model=Block, operation_id="update_memory_block")

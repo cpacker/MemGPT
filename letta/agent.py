@@ -30,7 +30,7 @@ from letta.metadata import MetadataStore
 from letta.orm import User
 from letta.persistence_manager import LocalStateManager
 from letta.schemas.agent import AgentState, AgentStepResponse
-from letta.schemas.block import Block, BlockUpdate
+from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole
 from letta.schemas.memory import ContextWindowOverview, Memory
@@ -1624,22 +1624,12 @@ def save_agent_memory(agent: Agent):
 
     for block_dict in agent.memory.to_dict()["memory"].values():
         # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
-        # if block_dict.get("user_id", None) is None:
-        #     block_dict["user_id"] = agent.agent_state.user_id
-        # block = Block(**block_dict)
-        # # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
-        # # the case in some tests, if so we should relax the DB constraint.
-        # if block.value is None:
-        #     block.value = ""
-
         block = Block(**block_dict)
-        block_update = BlockUpdate(
-            **block.model_dump(
-                exclude_unset=True, exclude_none=True, exclude={"id", "created_by_id", "last_updated_by_id", "organization_id"}
-            )
-        )
-
-        BlockManager().update_block(block_id=block.id, block_update=block_update, actor=agent.user)
+        # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
+        # the case in some tests, if so we should relax the DB constraint.
+        if block.value is None:
+            block.value = ""
+        BlockManager().create_or_update_block(block, actor=agent.user)
 
 
 def strip_name_field_from_user_message(user_message_text: str) -> Tuple[str, Optional[str]]:
