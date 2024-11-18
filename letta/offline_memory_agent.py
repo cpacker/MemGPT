@@ -46,8 +46,10 @@ def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[st
 
 def rethink_memory(self, new_memory: str, block_label: Optional[str]) -> Optional[str]:
     """
-    Rethinks the memory in the memory block titled `block_name`,
-    and integrates the information from the memory block into the memory.
+    Reevaluate the memory in block_name, integrating new and updated facts.
+    Replace outdated information with the most likely truths, avoiding redundancy with original memories.
+    Ensure consistency with other memory blocks.
+
 
     Args:
         new_memory (str): The new memory with information integrated from the memory block.
