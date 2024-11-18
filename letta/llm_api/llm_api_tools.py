@@ -25,6 +25,7 @@ from letta.local_llm.constants import (
     INNER_THOUGHTS_KWARG,
     INNER_THOUGHTS_KWARG_DESCRIPTION,
 )
+from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_request import (
@@ -122,6 +123,14 @@ def create(
 ) -> ChatCompletionResponse:
     """Return response to chat completion with backoff"""
     from letta.utils import printd
+
+    # Count the tokens first, if there's an overflow exit early by throwing an error up the stack
+    # NOTE: we want to include a specific substring in the error message to trigger summarization
+    messages_oai_format = [m.to_openai_dict() for m in messages]
+    prompt_tokens = num_tokens_from_messages(messages=messages_oai_format, model=llm_config.model)
+    function_tokens = num_tokens_from_functions(functions=functions, model=llm_config.model) if functions else 0
+    if prompt_tokens + function_tokens > llm_config.context_window:
+        raise Exception(f"Request exceeds maximum context length ({prompt_tokens + function_tokens} > {llm_config.context_window} tokens)")
 
     if not model_settings:
         from letta.settings import model_settings

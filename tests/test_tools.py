@@ -83,6 +83,8 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
 
     def print_tool(message: str):
         """
+        Example tool that prints a message
+
         Args:
             message (str): The message to print.
 
@@ -110,6 +112,7 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
     assert tool.id == tool.id, f"Expected {tool.id} to be {tool.id}"
 
     # create agent with tool
+    assert tool.name is not None, "Expected tool name to be set"
     agent_state = client.create_agent(tools=[tool.name])
 
     # Send message without error
@@ -121,6 +124,8 @@ def test_create_agent_tool(client):
 
     def core_memory_clear(self: "Agent"):
         """
+        Clear the core memory of the agent
+
         Args:
             agent (Agent): The agent to delete from memory.
 

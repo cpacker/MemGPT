@@ -1584,7 +1584,8 @@ class Agent(BaseAgent):
 
     def count_tokens(self) -> int:
         """Count the tokens in the current context window"""
-        return self.get_context_window().context_window_size_current
+        context_window_breakdown = self.get_context_window()
+        return context_window_breakdown.context_window_size_current
 
 
 def save_agent(agent: Agent, ms: MetadataStore):
