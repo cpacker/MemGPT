@@ -2,7 +2,6 @@ import os
 from typing import List, Optional
 
 from letta.orm.block import Block as BlockModel
-from letta.orm.organization import Organization as OrganizationModel
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockCreate, BlockUpdate, CreateHuman, CreatePersona
 from letta.schemas.user import User as PydanticUser
@@ -61,7 +60,7 @@ class BlockManager:
         """Retrieve blocks based on various optional filters."""
         with self.session_maker() as session:
             # Prepare filters
-            filters = {"_organization_id": OrganizationModel.get_uid_from_identifier(actor.organization_id)}
+            filters = {"organization_id": actor.organization_id}
             if label:
                 filters["label"] = label
             if is_template is not None:
@@ -69,7 +68,7 @@ class BlockManager:
             if template_name:
                 filters["template_name"] = template_name
             if id:
-                filters["_id"] = BlockModel.get_uid_from_identifier(id)
+                filters["id"] = id
 
             blocks = BlockModel.list(db_session=session, cursor=cursor, limit=limit, **filters)
 
