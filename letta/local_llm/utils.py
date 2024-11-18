@@ -94,7 +94,8 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
     num_tokens = 0
     for function in functions:
         function_tokens = len(encoding.encode(function["name"]))
-        function_tokens += len(encoding.encode(function["description"]))
+        if function["description"]:
+            function_tokens += len(encoding.encode(function["description"]))
 
         if "parameters" in function:
             parameters = function["parameters"]
