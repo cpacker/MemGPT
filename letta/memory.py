@@ -4,6 +4,7 @@ from typing import Callable, Dict, List, Tuple, Union
 
 from letta.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING_FRAC
 from letta.embeddings import embedding_model, parse_and_chunk_text, query_embedding
+from letta.interface import RequestContext
 from letta.llm_api.llm_api_tools import create
 from letta.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from letta.schemas.agent import AgentState
@@ -80,10 +81,12 @@ def summarize_messages(
     llm_config_no_inner_thoughts = agent_state.llm_config.model_copy(deep=True)
     llm_config_no_inner_thoughts.put_inner_thoughts_in_kwargs = False
     response = create(
-        llm_config=llm_config_no_inner_thoughts,
-        user_id=agent_state.user_id,
-        messages=message_sequence,
-        stream=False,
+        RequestContext(
+            llm_config=llm_config_no_inner_thoughts,
+            user_id=agent_state.user_id,
+            messages=message_sequence,
+            stream=False,
+        )
     )
 
     printd(f"summarize_messages gpt reply: {response.choices[0]}")

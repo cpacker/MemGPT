@@ -3,6 +3,7 @@ import logging
 import uuid
 from typing import Callable, List, Optional, Union
 
+from letta.interface import RequestContext
 from letta.llm_api.helpers import unpack_inner_thoughts_from_kwargs
 from letta.schemas.tool_rule import BaseToolRule
 
@@ -111,11 +112,13 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str) -> ChatComplet
     )
 
     response = create(
-        llm_config=agent_state.llm_config,
-        user_id=str(uuid.UUID(int=1)),  # dummy user_id
-        messages=agent._messages,
-        functions=agent.functions,
-        functions_python=agent.functions_python,
+        RequestContext(
+            llm_config=agent_state.llm_config,
+            user_id=str(uuid.UUID(int=1)),  # dummy user_id
+            messages=agent._messages,
+            functions=agent.functions,
+            functions_python=agent.functions_python,
+        )
     )
 
     # Basic check

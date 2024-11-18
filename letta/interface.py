@@ -1,6 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from colorama import Fore, Style, init
 
@@ -10,9 +10,29 @@ from letta.local_llm.constants import (
     INNER_THOUGHTS_CLI_SYMBOL,
 )
 from letta.schemas.message import Message
+from letta.streaming_interface import AgentChunkStreamingInterface, AgentRefreshStreamingInterface
 from letta.utils import json_loads, printd
+from dataclasses import dataclass
+from letta.schemas.llm_config import LLMConfig
 
 init(autoreset=True)
+
+@dataclass
+class RequestContext:
+    llm_config: LLMConfig
+    messages: List[Message]
+    user_id: Optional[str] = None
+    functions: Optional[list] = None
+    functions_python: Optional[dict] = None
+    function_call: str = "auto"
+    first_message: bool = False
+    use_tool_naming: bool = True
+    stream: bool = False
+    stream_interface: Optional[Union[AgentRefreshStreamingInterface, AgentChunkStreamingInterface]] = None
+    max_tokens: Optional[int] = None
+    model_settings: Optional[dict] = None
+
+
 
 # DEBUG = True  # puts full message outputs in the terminal
 DEBUG = False  # only dumps important messages in the terminal

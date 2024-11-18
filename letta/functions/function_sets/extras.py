@@ -8,6 +8,7 @@ from letta.constants import (
     MESSAGE_CHATGPT_FUNCTION_MODEL,
     MESSAGE_CHATGPT_FUNCTION_SYSTEM_MESSAGE,
 )
+from letta.interface import RequestContext
 from letta.llm_api.llm_api_tools import create
 from letta.schemas.message import Message
 from letta.utils import json_dumps, json_loads
@@ -31,8 +32,10 @@ def message_chatgpt(self, message: str):
     ]
     # TODO: this will error without an LLMConfig
     response = create(
-        model=MESSAGE_CHATGPT_FUNCTION_MODEL,
-        messages=message_sequence,
+        RequestContext(
+            model=MESSAGE_CHATGPT_FUNCTION_MODEL,
+            messages=message_sequence,
+        )
     )
 
     reply = response.choices[0].message.content
