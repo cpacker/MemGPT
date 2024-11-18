@@ -124,6 +124,8 @@ def test_create_agent_tool(client):
 
     def core_memory_clear(self: "Agent"):
         """
+        Clear the core memory of the agent
+
         Args:
             agent (Agent): The agent to delete from memory.
 
