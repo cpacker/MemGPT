@@ -33,6 +33,7 @@ from letta.schemas.openai.chat_completion_request import (
     cast_message_to_subtype,
 )
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
+from letta.settings import ModelSettings
 from letta.streaming_interface import (
     AgentChunkStreamingInterface,
     AgentRefreshStreamingInterface,
@@ -126,6 +127,7 @@ def create(
         from letta.settings import model_settings
 
         model_settings = model_settings
+        assert isinstance(model_settings, ModelSettings)
 
     printd(f"Using model {llm_config.model_endpoint_type}, endpoint: {llm_config.model_endpoint}")
 
@@ -325,6 +327,33 @@ def create(
             response = unpack_all_inner_thoughts_from_kwargs(response=response, inner_thoughts_key=INNER_THOUGHTS_KWARG)
 
         return response
+
+    elif llm_config.model_endpoint_type == "together":
+        """TogetherAI endpoint that goes via /completions instead of /chat/completions"""
+
+        if stream:
+            raise NotImplementedError(f"Streaming not yet implemented for TogetherAI (via the /completions endpoint).")
+
+        if model_settings.together_api_key is None and llm_config.model_endpoint == "https://api.together.ai/v1/completions":
+            raise ValueError(f"TogetherAI key is missing from letta config file")
+
+        return get_chat_completion(
+            model=llm_config.model,
+            messages=messages,
+            functions=functions,
+            functions_python=functions_python,
+            function_call=function_call,
+            context_window=llm_config.context_window,
+            endpoint=llm_config.model_endpoint,
+            endpoint_type="vllm",  # NOTE: use the vLLM path through /completions
+            wrapper=llm_config.model_wrapper,
+            user=str(user_id),
+            # hint
+            first_message=first_message,
+            # auth-related
+            auth_type="bearer_token",  # NOTE: Together expects bearer token auth
+            auth_key=model_settings.together_api_key,
+        )
 
     # local model
     else:

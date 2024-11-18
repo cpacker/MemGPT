@@ -49,6 +49,7 @@ from letta.providers import (
     OllamaProvider,
     OpenAIProvider,
     Provider,
+    TogetherProvider,
     VLLMChatCompletionsProvider,
     VLLMCompletionsProvider,
 )
@@ -303,7 +304,18 @@ class SyncServer(Server):
                 )
             )
         if model_settings.groq_api_key:
-            self._enabled_providers.append(GroqProvider(api_key=model_settings.groq_api_key))
+            self._enabled_providers.append(
+                GroqProvider(
+                    api_key=model_settings.groq_api_key,
+                )
+            )
+        if model_settings.together_api_key:
+            self._enabled_providers.append(
+                TogetherProvider(
+                    api_key=model_settings.together_api_key,
+                    default_prompt_formatter=model_settings.default_prompt_formatter,
+                )
+            )
         if model_settings.vllm_api_base:
             # vLLM exposes both a /chat/completions and a /completions endpoint
             self._enabled_providers.append(

@@ -8,6 +8,7 @@ from letta.providers import (
     MistralProvider,
     OllamaProvider,
     OpenAIProvider,
+    TogetherProvider,
 )
 from letta.settings import model_settings
 
@@ -68,6 +69,15 @@ def test_mistral():
     provider = MistralProvider(api_key=os.getenv("MISTRAL_API_KEY"))
     models = provider.list_llm_models()
     print([m.model for m in models])
+
+
+def test_together():
+    provider = TogetherProvider(api_key=os.getenv("TOGETHER_API_KEY"), default_prompt_formatter="chatml")
+    models = provider.list_llm_models()
+    print([m.model for m in models])
+
+    embedding_models = provider.list_embedding_models()
+    print([m.embedding_model for m in embedding_models])
 
 
 # def test_vllm():
