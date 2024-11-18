@@ -254,13 +254,13 @@ def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_u
     response = sandbox.run()
     assert len(response) == 5
     running_e2b_sandboxes = sandbox.list_running_e2b_sandboxes()
-    assert len(running_e2b_sandboxes) == 1
+    previous_length = len(running_e2b_sandboxes)
 
     # Run it again to ensure that there is still only one running sandbox
     response = sandbox.run()
     assert len(response) == 5
     running_e2b_sandboxes = sandbox.list_running_e2b_sandboxes()
-    assert len(running_e2b_sandboxes) == 1
+    assert len(running_e2b_sandboxes) == previous_length
 
 
 def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_env_tool, test_user):
@@ -305,6 +305,7 @@ def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set,
 
     # Get the sandbox
     running_sandboxes = Sandbox.list()
+    previous_length = len(running_sandboxes)
     sandbox_a = running_sandboxes[0]
     assert sandbox_a.metadata.get(ToolExecutionSandbox.METADATA_CONFIG_STATE_KEY) == str(hash(config))
 
@@ -317,6 +318,7 @@ def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set,
 
     # Get the sandbox
     running_sandboxes = Sandbox.list()
+    assert len(running_sandboxes) - 1 == previous_length
     assert any([s.metadata.get(ToolExecutionSandbox.METADATA_CONFIG_STATE_KEY) == str(hash(config)) for s in running_sandboxes])
 
 
