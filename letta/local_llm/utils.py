@@ -184,6 +184,7 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
         https://community.openai.com/t/how-to-calculate-the-tokens-when-using-function-call/266573/11
     """
     try:
+        # Attempt to search for the encoding based on the model string
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
         # print("Warning: model not found. Using cl100k_base encoding.")
