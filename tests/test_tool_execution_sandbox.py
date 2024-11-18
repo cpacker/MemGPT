@@ -345,6 +345,7 @@ def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set,
     assert len(result.func_return) == 5
     old_config_fingerprint = result.sandbox_config_fingerprint
 
+
     # Change the config
     config_update = SandboxConfigUpdate(config=E2BSandboxConfig(timeout=new_timeout))
     config = manager.update_sandbox_config(config.id, config_update, test_user)
