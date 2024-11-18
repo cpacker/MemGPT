@@ -892,13 +892,6 @@ class Agent(BaseAgent):
             else:
                 break
 
-        """
-        from letta import create_client
-        client = create_client()
-        agents = client.list_agents()
-        for agent in agents:
-        """
-
         return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)
 
     def inner_step(

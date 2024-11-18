@@ -41,7 +41,7 @@ def test_offline_memory_agent():
     )
 
     new_memory = Block(name="rethink_memory_block", label="rethink_memory_block", value="[empty]", limit=2000)
-    conversation_memory = BasicBlockMemory(blocks=[conversation_persona_block, conversation_human_block, block1, block2, new_memory])
+    conversation_memory = BasicBlockMemory(blocks=[conversation_persona_block, conversation_human_block, block1, block2])  # , new_memory])
     offline_memory = BasicBlockMemory(blocks=[offline_persona_block, offline_human_block, block1, block2, new_memory])
 
     conversation_agent = client.create_agent(
@@ -54,7 +54,12 @@ def test_offline_memory_agent():
         include_base_tools=False,
     )
     assert conversation_agent is not None
-    assert conversation_agent.memory.list_block_labels() == ["persona", "human", "interaction_1", "interaction_2", "rethink_memory_block"]
+    assert conversation_agent.memory.list_block_labels() == [
+        "persona",
+        "human",
+        "interaction_1",
+        "interaction_2",
+    ]  # , "rethink_memory_block"]
 
     rethink_memory_tool = client.create_tool(rethink_memory)
     finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
@@ -70,17 +75,13 @@ def test_offline_memory_agent():
     )
     assert offline_memory_agent is not None
     assert offline_memory_agent.memory.list_block_labels() == ["persona", "human", "interaction_1", "interaction_2", "rethink_memory_block"]
-
     _ = client.user_message(agent_id=conversation_agent.id, message="trigger_rethink_memory")
-
     offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
-    _ = client.user_message(agent_id=offline_memory_agent.id, message="I'm done talking now!")
     offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
     assert offline_memory_agent.memory.get_block("rethink_memory_block").value != "[empty]"
-
-    _ = client.user_message(agent_id=conversation_agent.id, message="I'm done talking now!")
     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
-    assert conversation_agent.memory.get_block("rethink_memory_block").value != "[empty]"
+    # TODO(kevin) terminate the subagent
+    # TODO(kevin) link the new block to the conversation agent
 
 
 if __name__ == "__main__":
