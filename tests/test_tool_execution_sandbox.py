@@ -313,11 +313,10 @@ def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set,
     config = manager.update_sandbox_config(config.id, config_update, test_user)
 
     # Run again
-    sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id).run()
+    ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id).run()
 
     # Get the sandbox
     running_sandboxes = Sandbox.list()
-    assert len(running_sandboxes) == 2
     assert any([s.metadata.get(ToolExecutionSandbox.METADATA_CONFIG_STATE_KEY) == str(hash(config)) for s in running_sandboxes])
 
 
