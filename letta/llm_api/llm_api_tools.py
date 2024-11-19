@@ -150,7 +150,15 @@ def create(
             # only is a problem if we are *not* using an openai proxy
             raise ValueError(f"OpenAI key is missing from letta config file")
 
-        data = build_openai_chat_completions_request(llm_config, messages, user_id, functions, function_call, use_tool_naming, max_tokens)
+        data = build_openai_chat_completions_request(
+            llm_config=llm_config,
+            messages=messages,
+            user_id=user_id,
+            functions=functions,
+            function_call=function_call,
+            use_tool_naming=use_tool_naming,
+            max_tokens=max_tokens,
+        )
         if stream:  # Client requested token streaming
             data.stream = True
             assert isinstance(stream_interface, AgentChunkStreamingInterface) or isinstance(
@@ -253,7 +261,7 @@ def create(
                 messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
                 # tool_choice=function_call,
-                # user=str(user_id),
+                user=user_id,
                 # NOTE: max_tokens is required for Anthropic API
                 max_tokens=1024,  # TODO make dynamic
             ),

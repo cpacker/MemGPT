@@ -535,7 +535,7 @@ class Agent(BaseAgent):
                 # agent_state=self.agent_state,
                 llm_config=self.agent_state.llm_config,
                 messages=message_sequence,
-                user_id=self.agent_state.user_id,
+                user_id=self.agent_state.id,
                 functions=allowed_functions,
                 functions_python=self.functions_python,
                 function_call=function_call,
