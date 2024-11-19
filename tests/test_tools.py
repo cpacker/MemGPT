@@ -1,6 +1,3 @@
-import os
-import threading
-import time
 import uuid
 from typing import Union
 
@@ -37,33 +34,12 @@ def run_server():
     start_server(debug=True)
 
 
-# Fixture to create clients with different configurations
-@pytest.fixture(
-    # params=[{"server": True}, {"server": False}],  # whether to use REST API server
-    params=[{"server": True}],  # whether to use REST API server
-    scope="module",
-)
-def client(request):
-
-    if request.param["server"]:
-        # get URL from enviornment
-        server_url = os.getenv("MEMGPT_SERVER_URL")
-        if server_url is None:
-            # run server in thread
-            server_url = "http://localhost:8283"
-            print("Starting server thread")
-            thread = threading.Thread(target=run_server, daemon=True)
-            thread.start()
-            time.sleep(5)
-        print("Running client tests with server:", server_url)
-    else:
-        assert False, "Local client not implemented"
-
-    assert server_url is not None
-    client = create_client(base_url=server_url)  # This yields control back to the test function
+@pytest.fixture(scope="module")
+def client():
+    client = create_client()
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
-    # Clear all records from the Tool table
+
     yield client
 
 
@@ -83,6 +59,8 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
 
     def print_tool(message: str):
         """
+        Example tool that prints a message
+
         Args:
             message (str): The message to print.
 
@@ -110,6 +88,7 @@ def test_create_tool(client: Union[LocalClient, RESTClient]):
     assert tool.id == tool.id, f"Expected {tool.id} to be {tool.id}"
 
     # create agent with tool
+    assert tool.name is not None, "Expected tool name to be set"
     agent_state = client.create_agent(tools=[tool.name])
 
     # Send message without error
@@ -121,6 +100,8 @@ def test_create_agent_tool(client):
 
     def core_memory_clear(self: "Agent"):
         """
+        Clear the core memory of the agent
+
         Args:
             agent (Agent): The agent to delete from memory.
 
@@ -148,8 +129,8 @@ def test_create_agent_tool(client):
     human = initial_memory.get_block("human")
     persona = initial_memory.get_block("persona")
     print("Initial memory:", human, persona)
-    assert len(human) > 0, "Expected human memory to be non-empty"
-    assert len(persona) > 0, "Expected persona memory to be non-empty"
+    assert len(human.value) > 0, "Expected human memory to be non-empty"
+    assert len(persona.value) > 0, "Expected persona memory to be non-empty"
 
     # test agent tool
     response = client.send_message(role="user", agent_id=agent.id, message="clear your memory with the core_memory_clear tool")
@@ -161,8 +142,8 @@ def test_create_agent_tool(client):
     human = updated_memory.get_block("human")
     persona = updated_memory.get_block("persona")
     print("Updated memory:", human, persona)
-    assert len(human) == 0, "Expected human memory to be empty"
-    assert len(persona) == 0, "Expected persona memory to be empty"
+    assert len(human.value) == 0, "Expected human memory to be empty"
+    assert len(persona.value) == 0, "Expected persona memory to be empty"
 
 
 def test_custom_import_tool(client):

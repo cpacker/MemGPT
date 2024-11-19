@@ -4,6 +4,7 @@ from typing import List, Optional, Union
 from letta.agent import Agent, save_agent
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
+from letta.orm import User
 from letta.schemas.agent import AgentState
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import UsageStatistics
@@ -38,8 +39,11 @@ def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[st
     from letta import create_client
 
     recent_convo = "".join([str(message) for message in self.messages])
+    # print("recent convo", recent_convo)
     self.memory.update_block_value(label="conversation_block", value=recent_convo)
+    print("RECENT CONVO", self.memory.get_block("conversation_block"))
 
+    save_agent(self, self.ms)
     client = create_client()
     agents = client.list_agents()
     for agent in agents:
@@ -89,8 +93,9 @@ class OfflineMemoryAgent(Agent):
         tools: List[Tool] = [],
         first_message_verify_mono: bool = False,
         max_memory_rethinks: int = 10,
+        user: User = None,
     ):
-        super().__init__(interface, agent_state, tools)
+        super().__init__(interface, agent_state, tools, user)
         self.tools = tools
         self.first_message_verify_mono = first_message_verify_mono
         self.max_memory_rethinks = max_memory_rethinks

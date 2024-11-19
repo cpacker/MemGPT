@@ -23,9 +23,9 @@ jobs:
 
     - name: Test LLM endpoint
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_llm_endpoint_letta_hosted
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_llm_endpoint_letta_hosted
       continue-on-error: true
 
     - name: Test embedding endpoint
       run: |
-        poetry run pytest -s -vv tests/test_endpoints.py::test_embedding_endpoint_letta_hosted
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_embedding_endpoint_letta_hosted

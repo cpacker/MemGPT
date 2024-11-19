@@ -588,13 +588,13 @@ def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState
     # _reset_config()
 
     # create a block
-    block = client.create_block(label="human", text="username: sarah")
+    block = client.create_block(label="human", value="username: sarah")
 
     # create agents with shared block
     from letta.schemas.memory import BasicBlockMemory
 
-    persona1_block = client.create_block(label="persona", text="you are agent 1")
-    persona2_block = client.create_block(label="persona", text="you are agent 2")
+    persona1_block = client.create_block(label="persona", value="you are agent 1")
+    persona2_block = client.create_block(label="persona", value="you are agent 2")
 
     # create agnets
     agent_state1 = client.create_agent(name="agent1", memory=BasicBlockMemory(blocks=[block, persona1_block]))

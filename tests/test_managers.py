@@ -3,8 +3,10 @@ from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
-from letta.orm import FileMetadata, Organization, Source, Tool, User
+from letta.orm import Block, FileMetadata, Organization, Source, Tool, User
 from letta.schemas.agent import CreateAgent
+from letta.schemas.block import Block as PydanticBlock
+from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.file import FileMetadata as PydanticFileMetadata
 from letta.schemas.llm_config import LLMConfig
@@ -14,6 +16,7 @@ from letta.schemas.source import Source as PydanticSource
 from letta.schemas.source import SourceUpdate
 from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolUpdate
+from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
 
 utils.DEBUG = True
@@ -38,6 +41,7 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(Block))
         session.execute(delete(FileMetadata))
         session.execute(delete(Source))
         session.execute(delete(Tool))  # Clear all records from the Tool table
@@ -431,6 +435,84 @@ def test_delete_tool_by_id(server: SyncServer, tool_fixture, default_user):
 
     tools = server.tool_manager.list_tools(actor=default_user)
     assert len(tools) == 0
+
+
+# ======================================================================================================================
+# Block Manager Tests
+# ======================================================================================================================
+
+
+def test_create_block(server: SyncServer, default_user):
+    block_manager = BlockManager()
+    block_create = PydanticBlock(
+        label="human",
+        is_template=True,
+        value="Sample content",
+        template_name="sample_template",
+        description="A test block",
+        limit=1000,
+        metadata_={"example": "data"},
+    )
+
+    block = block_manager.create_or_update_block(block_create, actor=default_user)
+
+    # Assertions to ensure the created block matches the expected values
+    assert block.label == block_create.label
+    assert block.is_template == block_create.is_template
+    assert block.value == block_create.value
+    assert block.template_name == block_create.template_name
+    assert block.description == block_create.description
+    assert block.limit == block_create.limit
+    assert block.metadata_ == block_create.metadata_
+    assert block.organization_id == default_user.organization_id
+
+
+def test_get_blocks(server, default_user):
+    block_manager = BlockManager()
+
+    # Create blocks to retrieve later
+    block_manager.create_or_update_block(PydanticBlock(label="human", value="Block 1"), actor=default_user)
+    block_manager.create_or_update_block(PydanticBlock(label="persona", value="Block 2"), actor=default_user)
+
+    # Retrieve blocks by different filters
+    all_blocks = block_manager.get_blocks(actor=default_user)
+    assert len(all_blocks) == 2
+
+    human_blocks = block_manager.get_blocks(actor=default_user, label="human")
+    assert len(human_blocks) == 1
+    assert human_blocks[0].label == "human"
+
+    persona_blocks = block_manager.get_blocks(actor=default_user, label="persona")
+    assert len(persona_blocks) == 1
+    assert persona_blocks[0].label == "persona"
+
+
+def test_update_block(server: SyncServer, default_user):
+    block_manager = BlockManager()
+    block = block_manager.create_or_update_block(PydanticBlock(label="persona", value="Original Content"), actor=default_user)
+
+    # Update block's content
+    update_data = BlockUpdate(value="Updated Content", description="Updated description")
+    block_manager.update_block(block_id=block.id, block_update=update_data, actor=default_user)
+
+    # Retrieve the updated block
+    updated_block = block_manager.get_blocks(actor=default_user, id=block.id)[0]
+
+    # Assertions to verify the update
+    assert updated_block.value == "Updated Content"
+    assert updated_block.description == "Updated description"
+
+
+def test_delete_block(server: SyncServer, default_user):
+    block_manager = BlockManager()
+
+    # Create and delete a block
+    block = block_manager.create_or_update_block(PydanticBlock(label="human", value="Sample content"), actor=default_user)
+    block_manager.delete_block(block_id=block.id, actor=default_user)
+
+    # Verify that the block was deleted
+    blocks = block_manager.get_blocks(actor=default_user)
+    assert len(blocks) == 0
 
 
 # ======================================================================================================================

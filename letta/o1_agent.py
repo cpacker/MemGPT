@@ -8,6 +8,7 @@ from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.tool import Tool
 from letta.schemas.usage import LettaUsageStatistics
+from letta.schemas.user import User
 
 
 def send_thinking_message(self: "Agent", message: str) -> Optional[str]:
@@ -43,11 +44,12 @@ class O1Agent(Agent):
         self,
         interface: AgentInterface,
         agent_state: AgentState,
+        user: User,
         tools: List[Tool] = [],
         max_thinking_steps: int = 10,
         first_message_verify_mono: bool = False,
     ):
-        super().__init__(interface, agent_state, tools)
+        super().__init__(interface, agent_state, tools, user)
         self.max_thinking_steps = max_thinking_steps
         self.tools = tools
         self.first_message_verify_mono = first_message_verify_mono

@@ -7,6 +7,7 @@ import pytest
 import letta.utils as utils
 from letta.constants import BASE_TOOLS, DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.enums import MessageRole
+from letta.schemas.user import User
 
 from .test_managers import DEFAULT_EMBEDDING_CONFIG
 
@@ -575,3 +576,24 @@ def test_load_agent_with_nonexistent_tool_names_does_not_error(server: SyncServe
 
     # cleanup
     server.delete_agent(user_id, agent_state.id)
+
+
+def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
+    agent_state = server.create_agent(
+        request=CreateAgent(
+            name="nonexistent_tools_agent",
+            memory=ChatMemory(
+                human="Sarah",
+                persona="I am a helpful assistant",
+            ),
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        ),
+        actor=server.get_user_or_default(user_id),
+    )
+
+    # create another user in the same org
+    another_user = server.user_manager.create_user(User(organization_id=org_id, name="another"))
+
+    # test that another user in the same org can delete the agent
+    server.delete_agent(another_user.id, agent_state.id)

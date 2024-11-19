@@ -1,7 +1,7 @@
-name: Groq Llama 3.1 70b Capabilities Test
+name: Together Llama 3.1 70b Capabilities Test
 
 env:
-  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+  TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
 
 on:
   push:
@@ -27,54 +27,54 @@ jobs:
     - name: Test first message contains expected function call and inner monologue
       id: test_first_message
       env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_groq_llama31_70b_returns_valid_first_message
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_returns_valid_first_message
         echo "TEST_FIRST_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
     - name: Test model sends message with keyword
       id: test_keyword_message
       env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_groq_llama31_70b_returns_keyword
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_returns_keyword
         echo "TEST_KEYWORD_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
     - name: Test model uses external tool correctly
       id: test_external_tool
       env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_groq_llama31_70b_uses_external_tool
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_uses_external_tool
         echo "TEST_EXTERNAL_TOOL_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
     - name: Test model recalls chat memory
       id: test_chat_memory
       env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_groq_llama31_70b_recall_chat_memory
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_recall_chat_memory
         echo "TEST_CHAT_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
     - name: Test model uses 'archival_memory_search' to find secret
       id: test_archival_memory
       env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_groq_llama31_70b_archival_memory_retrieval
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_archival_memory_retrieval
         echo "TEST_ARCHIVAL_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 
     - name: Test model can edit core memories
       id: test_core_memory
       env:
-        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
       run: |
-        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_groq_llama31_70b_edit_core_memory
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_edit_core_memory
         echo "TEST_CORE_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
       continue-on-error: true
 

@@ -15,11 +15,17 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U letta"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   letta_server:
     image: letta/letta:latest
     hostname: letta
     depends_on:
-      - letta_db
+      letta_db:
+        condition: service_healthy
     ports:
       - "8083:8083"
       - "8283:8283"

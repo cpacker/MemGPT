@@ -39,6 +39,7 @@ def test_chat_offline_memory():
     )
 
     conversation_agent = client.create_agent(
+        name="conversation_agent",
         agent_type=AgentType.memgpt_agent,
         system=gpt_system.get_system_text("memgpt_convo_only"),
         llm_config=LLMConfig.default_config("gpt-4"),
@@ -57,6 +58,7 @@ def test_chat_offline_memory():
     rethink_memory_tool = client.create_tool(rethink_memory)
     finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
     offline_memory_agent = client.create_agent(
+        name="offline_memory_agent",
         agent_type=AgentType.offline_memory_agent,
         system=gpt_system.get_system_text("memgpt_offline_memory"),
         memory=offline_memory,
