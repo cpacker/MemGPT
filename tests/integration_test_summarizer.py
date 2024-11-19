@@ -46,7 +46,9 @@ def test_summarizer(config_filename):
     # Create agent
     agent_state = client.create_agent(name=agent_name, llm_config=llm_config, embedding_config=embedding_config)
     tools = [client.get_tool(client.get_tool_id(name=tool_name)) for tool_name in agent_state.tools]
-    letta_agent = Agent(interface=StreamingRefreshCLIInterface(), agent_state=agent_state, tools=tools, first_message_verify_mono=False)
+    letta_agent = Agent(
+        interface=StreamingRefreshCLIInterface(), agent_state=agent_state, tools=tools, first_message_verify_mono=False, user=client.user
+    )
 
     # Make conversation
     messages = [

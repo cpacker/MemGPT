@@ -948,7 +948,7 @@ class RESTClient(AbstractClient):
         Returns:
             human (Human): Human block
         """
-        return self.create_block(label="human", template_name=name, text=text, template=True)
+        return self.create_block(label="human", template_name=name, value=text, is_template=True)
 
     def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
         """
@@ -988,7 +988,7 @@ class RESTClient(AbstractClient):
         Returns:
             persona (Persona): Persona block
         """
-        return self.create_block(label="persona", template_name=name, text=text, template=True)
+        return self.create_block(label="persona", template_name=name, value=text, is_template=True)
 
     def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
         """
