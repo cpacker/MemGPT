@@ -110,6 +110,7 @@ class CreateAgent(BaseAgent):
     name: Optional[str] = Field(None, description="The name of the agent.")
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
     memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
+    include_memory_tools: Optional[bool] = Field(None, description="Whether to include the memory editing tools in the agent.")
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     tool_rules: Optional[List[BaseToolRule]] = Field(None, description="The tool rules governing the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")

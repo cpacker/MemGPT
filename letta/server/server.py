@@ -830,30 +830,32 @@ class SyncServer(Server):
             request.tools = [t.name for t in tool_objs]
 
             assert request.memory is not None
-            memory_functions = get_memory_functions(request.memory)
-            for func_name, func in memory_functions.items():
 
-                if request.tools and func_name in request.tools:
-                    # tool already added
-                    continue
-                source_code = parse_source_code(func)
-                # memory functions are not terminal
-                json_schema = generate_schema(func, name=func_name)
-                source_type = "python"
-                tags = ["memory", "memgpt-base"]
-                tool = self.tool_manager.create_or_update_tool(
-                    Tool(
-                        source_code=source_code,
-                        source_type=source_type,
-                        tags=tags,
-                        json_schema=json_schema,
-                    ),
-                    actor=actor,
-                )
-                tool_objs.append(tool)
-                if not request.tools:
-                    request.tools = []
-                request.tools.append(tool.name)
+            if request.include_memory_tools:
+                memory_functions = get_memory_functions(request.memory)
+                for func_name, func in memory_functions.items():
+
+                    if request.tools and func_name in request.tools:
+                        # tool already added
+                        continue
+                    source_code = parse_source_code(func)
+                    # memory functions are not terminal
+                    json_schema = generate_schema(func, name=func_name)
+                    source_type = "python"
+                    tags = ["memory", "memgpt-base"]
+                    tool = self.tool_manager.create_or_update_tool(
+                        Tool(
+                            source_code=source_code,
+                            source_type=source_type,
+                            tags=tags,
+                            json_schema=json_schema,
+                        ),
+                        actor=actor,
+                    )
+                    tool_objs.append(tool)
+                    if not request.tools:
+                        request.tools = []
+                    request.tools.append(tool.name)
 
             # TODO: save the agent state
             agent_state = AgentState(

@@ -79,6 +79,7 @@ class AbstractClient(object):
         tools: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
+        include_memory_tools: Optional[bool] = True,
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
     ) -> AgentState:
@@ -379,6 +380,7 @@ class RESTClient(AbstractClient):
         tools: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
+        include_memory_tools: Optional[bool] = True,
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
@@ -394,6 +396,7 @@ class RESTClient(AbstractClient):
             system (str): System configuration
             tools (List[str]): List of tools
             include_base_tools (bool): Include base tools
+            include_memory_tools (bool): Include memory tools
             metadata (Dict): Metadata
             description (str): Description
 
@@ -415,10 +418,11 @@ class RESTClient(AbstractClient):
             tool_names += BASE_TOOLS
 
         # add memory tools
-        memory_functions = get_memory_functions(memory)
-        for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
-            tool_names.append(tool.name)
+        if include_memory_tools:
+            memory_functions = get_memory_functions(memory)
+            for func_name, func in memory_functions.items():
+                tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
+                tool_names.append(tool.name)
 
         # check if default configs are provided
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
@@ -1667,6 +1671,7 @@ class LocalClient(AbstractClient):
         tools: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
+        include_memory_tools: Optional[bool] = True,
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
@@ -1683,6 +1688,7 @@ class LocalClient(AbstractClient):
             tools (List[str]): List of tools
             tool_rules (Optional[List[BaseToolRule]]): List of tool rules
             include_base_tools (bool): Include base tools
+            include_memory_tools (bool): Include memory tools
             metadata (Dict): Metadata
             description (str): Description
 
@@ -1701,10 +1707,11 @@ class LocalClient(AbstractClient):
             tool_names += BASE_TOOLS
 
         # add memory tools
-        memory_functions = get_memory_functions(memory)
-        for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
-            tool_names.append(tool.name)
+        if include_memory_tools:
+            memory_functions = get_memory_functions(memory)
+            for func_name, func in memory_functions.items():
+                tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
+                tool_names.append(tool.name)
 
         self.interface.clear()
 
@@ -1720,6 +1727,7 @@ class LocalClient(AbstractClient):
                 metadata_=metadata,
                 memory=memory,
                 tools=tool_names,
+                include_memory_tools=include_memory_tools,
                 tool_rules=tool_rules,
                 system=system,
                 agent_type=agent_type,
