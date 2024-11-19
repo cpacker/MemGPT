@@ -29,39 +29,45 @@ def send_message_offline_agent(self: "Agent", message: str) -> Optional[str]:
 
 def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[str]:
     """
-    This function is alwayas called when user says the word "rethink_memory"
+    Called if and only when user says the word "trigger_rethink_memory". It will trigger the re-evaluation of the memory.
 
     Args:
-        message (Optional[str]): String message to condition what the memory agent should rethink about. None if no message is provided.
+        message (Optional[str]): Description of what aspect of the memory should be re-evaluated.
 
     """
     from letta import create_client
+
+    recent_convo = "".join([str(message) for message in self.messages])
+    self.memory.update_block_value(label="conversation_block", value=recent_convo)
 
     client = create_client()
     agents = client.list_agents()
     for agent in agents:
         if agent.agent_type == "offline_memory_agent":
-            client.user_message(agent_id=agent.id, message=message)
+            response = client.user_message(agent_id=agent.id, message=message)
+            print(response)
 
 
-def rethink_memory(self, new_memory: str, block_label: Optional[str]) -> Optional[str]:
+def rethink_memory(self, new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:
     """
-    Reevaluate the memory in block_name, integrating new and updated facts.
+    Re-evaluate the memory in block_name, integrating new and updated facts.
     Replace outdated information with the most likely truths, avoiding redundancy with original memories.
     Ensure consistency with other memory blocks.
 
-
     Args:
         new_memory (str): The new memory with information integrated from the memory block.
-        block_label (str): The name of the block to integrate information from. None if all the information has been integrated to terminate the loop.
-
+        source_block_label (str): The name of the block to integrate information from. None if all the information has been integrated to terminate the loop.
+        target_block_label (str): The name of the block to write to.
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    if block_label is not None:
-        self.memory.update_block_value(label="rethink_memory_block", value=new_memory)
-    print("block label", block_label)
-    print("inside rethink", self.memory.get_block("rethink_memory_block").value)
+
+    if target_block_label is not None:
+        if self.memory.get_block(target_block_label) is None:
+            self.memory.create_block(label=target_block_label, value=new_memory)
+        self.memory.update_block_value(label=target_block_label, value=new_memory)
+
+    print(f"Rethinking memory for block {target_block_label} with new memory: {new_memory} from block {source_block_label}")
     return None
 
 
@@ -104,8 +110,7 @@ class OfflineMemoryAgent(Agent):
         total_usage = UsageStatistics()
         step_count = 0
 
-        current_block_label = "rethink_memory_block"
-        while current_block_label in self.memory.list_block_labels() and counter < self.max_memory_rethinks:
+        while counter < self.max_memory_rethinks:
             kwargs["ms"] = ms
             kwargs["first_message"] = False
             step_response = self.inner_step(
@@ -115,8 +120,11 @@ class OfflineMemoryAgent(Agent):
             for message in step_response.messages:
                 if message.tool_calls:
                     for tool_call in message.tool_calls:
-                        arguments = json.loads(tool_call.function.arguments)
-                        current_block_label = arguments.get("block_label")
+                        # check if the function name is "finish_rethinking_memory"
+                        if tool_call.function.name == "finish_rethinking_memory":
+                            counter = self.max_memory_rethinks
+                            break
+                        json.loads(tool_call.function.arguments)
 
             usage = step_response.usage
             step_count += 1
