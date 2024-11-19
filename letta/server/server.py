@@ -869,6 +869,7 @@ class SyncServer(Server):
                     first_message_verify_mono=(
                         True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
                     ),
+                    user=actor,
                 )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:

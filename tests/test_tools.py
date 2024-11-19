@@ -34,37 +34,6 @@ def run_server():
     start_server(debug=True)
 
 
-#
-# # Fixture to create clients with different configurations
-# @pytest.fixture(
-#     # params=[{"server": True}, {"server": False}],  # whether to use REST API server
-#     params=[{"server": True}],  # whether to use REST API server
-#     scope="module",
-# )
-# def client(request):
-#
-#     if request.param["server"]:
-#         # get URL from enviornment
-#         server_url = os.getenv("MEMGPT_SERVER_URL")
-#         if server_url is None:
-#             # run server in thread
-#             server_url = "http://localhost:8283"
-#             print("Starting server thread")
-#             thread = threading.Thread(target=run_server, daemon=True)
-#             thread.start()
-#             time.sleep(5)
-#         print("Running client tests with server:", server_url)
-#     else:
-#         assert False, "Local client not implemented"
-#
-#     assert server_url is not None
-#     client = create_client(base_url=server_url)  # This yields control back to the test function
-#     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
-#     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
-#     # Clear all records from the Tool table
-#     yield client
-
-
 @pytest.fixture(scope="module")
 def client():
     client = create_client()
