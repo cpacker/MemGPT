@@ -14,14 +14,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Install Ollama
         run: |
           set -e
           set -x
-          curl -vfsSL https://ollama.com/install.sh | sh
+          curl -vfsSL https://ollama.com/install.sh -o install.sh
+          chmod +x install.sh
+          bash -x install.sh
+          if ! command -v ollama; then
+            echo "Ollama binary not found in PATH after installation."
+            exit 1
+          fi
+          echo "Ollama installed successfully."
 
       - name: Start Ollama Server
         run: |
@@ -30,10 +37,11 @@ jobs:
           ollama serve >ollama_server.log 2>&1 &
           sleep 15
           if ! curl -v http://localhost:11434; then
-            echo "Ollama server failed to start. Logs:"
-            cat ollama_server.log
+            echo "Server logs (if available):"
+            [ -f ollama_server.log ] && cat ollama_server.log || echo "No logs found."
             exit 1
           fi
+          echo "Ollama server started successfully."
 
       - name: Pull Models
         run: |
@@ -46,13 +54,13 @@ jobs:
             ollama pull mxbai-embed-large && break || sleep 5
           done
 
-      - name: Output Ollama Logs (on Failure)
+      - name: Debug Logs on Failure
         if: failure()
         run: |
-          echo "Server logs:"
-          cat ollama_server.log
+          echo "Debugging logs on failure:"
+          [ -f ollama_server.log ] && cat ollama_server.log || echo "No server logs available."
 
-      - name: Setup Python, Poetry and Dependencies
+      - name: Setup Python, Poetry, and Dependencies
         uses: packetcoders/action-setup-cache-python-poetry@main
         with:
           python-version: "3.12"
