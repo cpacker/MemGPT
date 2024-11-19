@@ -30,17 +30,14 @@ class BaseBlock(LettaBase, validate_assignment=True):
 
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
-        try:
-            assert len(self) <= self.limit
-        except AssertionError:
-            error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self)}) - {str(self)}."
+        if len(self.value) > self.limit:
+            error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self.value)}) - {str(self)}."
             raise ValueError(error_msg)
-        except Exception as e:
-            raise e
+
         return self
 
-    def __len__(self):
-        return len(self.value)
+    # def __len__(self):
+    #     return len(self.value)
 
     def __setattr__(self, name, value):
         """Run validation if self.value is updated"""
