@@ -170,7 +170,7 @@ def upload_file_to_source(
     server.ms.create_job(job)
 
     # create background task
-    background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, job_id=job.id, file=file, bytes=bytes)
+    background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, job_id=job.id, bytes=bytes)
 
     # return job information
     job = server.ms.get_job(job_id=job_id)
@@ -226,11 +226,17 @@ def delete_file_from_source(
         raise HTTPException(status_code=404, detail=f"File with id={file_id} not found.")
 
 
-def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):
+def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, bytes: bytes):
     # write the file to a temporary directory (deleted after the context manager exits)
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        file_path = os.path.join(str(tmpdirname), str(file.filename))
-        with open(file_path, "wb") as buffer:
-            buffer.write(bytes)
+    with tempfile.TemporaryDirectory() as temp_dir_name:
+        temp_file_path = None
+        try:
+            with tempfile.NamedTemporaryFile(dir=temp_dir_name, delete=False) as temp_file:
+                temp_file.write(bytes)
+                temp_file.flush()
+                temp_file_path = temp_file.name
 
-        server.load_file_to_source(source_id, file_path, job_id)
+            server.load_file_to_source(source_id, temp_file_path, job_id)
+        finally:
+            if temp_file_path and os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
