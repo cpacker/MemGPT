@@ -39,7 +39,16 @@ class ToolExecutionSandbox:
         self.sandbox_config_manager = SandboxConfigManager()
         self.force_recreate = force_recreate
 
-    def run(self, agent_state: Optional[AgentState] = None) -> Optional[Any]:
+    def run(self, agent_state: Optional[AgentState] = None) -> Tuple[Any, Optional[AgentState]]:
+        """
+        Run the tool in a sandbox environment.
+
+        Args:
+            agent_state (Optional[AgentState]): The state of the agent invoking the tool
+
+        Returns:
+            Tuple[Any, Optional[AgentState]]: Tuple containing (tool_result, agent_state)
+        """
         if not self.tool:
             return f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
         if tool_settings.e2b_api_key:
@@ -54,12 +63,14 @@ class ToolExecutionSandbox:
             return self.run_local_dir_sandbox(code=code)
 
     def parse_results(self, results: str) -> Tuple[Any, Optional[AgentState]]:
+        """Parse results string using ast"""
         result_data = self.ast_parse_best_effort(results)
         agent_state = None
         if result_data["agent_state"]:
             # agent_state = AgentState(**result_data["agent_state"])
             import pickle
 
+            # load pickled agent state
             agent_state = pickle.loads(result_data["agent_state"])
         return result_data["results"], agent_state
 
@@ -195,6 +206,17 @@ class ToolExecutionSandbox:
         return args
 
     def generate_execution_script(self, agent_state: AgentState, wrap_print: bool = False) -> str:
+        """
+        Generate code to run inside of execution sandbox.
+        Passes into a serialized agent state into the code, to be accessed by the tool.
+
+        Args:
+            agent_state (AgentState): The agent state
+            wrap_print (bool): Whether to wrap print statements (?)
+
+        Returns:
+            code (str): The generated code strong
+        """
         # dump JSON representation of agent state to re-load
         code = "from typing import *\n"
 
@@ -263,7 +285,6 @@ class ToolExecutionSandbox:
 
     def invoke_function_call(self, inject_agent_state: bool) -> str:
         """
-
         Generate the code string to call the function.
 
         Args:

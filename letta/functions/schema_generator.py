@@ -93,6 +93,7 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
 
     for param in sig.parameters.values():
         # Exclude 'self' parameter
+        # TODO: eventually remove this (only applies to BASE_TOOLS)
         if param.name == "self":
             continue
 
