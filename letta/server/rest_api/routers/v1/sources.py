@@ -1,5 +1,7 @@
 import os
 import tempfile
+import unicodedata
+import uuid
 from typing import List, Optional
 
 from fastapi import (
@@ -12,6 +14,7 @@ from fastapi import (
     UploadFile,
 )
 
+from letta.constants import MAX_FILENAME_LENGTH, RESERVED_FILENAMES
 from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.passage import Passage
@@ -170,7 +173,7 @@ def upload_file_to_source(
     server.ms.create_job(job)
 
     # create background task
-    background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, job_id=job.id, bytes=bytes)
+    background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, file=file, job_id=job.id, bytes=bytes)
 
     # return job information
     job = server.ms.get_job(job_id=job_id)
@@ -226,17 +229,38 @@ def delete_file_from_source(
         raise HTTPException(status_code=404, detail=f"File with id={file_id} not found.")
 
 
-def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, bytes: bytes):
-    # write the file to a temporary directory (deleted after the context manager exits)
-    with tempfile.TemporaryDirectory() as temp_dir_name:
-        temp_file_path = None
-        try:
-            with tempfile.NamedTemporaryFile(dir=temp_dir_name, delete=False) as temp_file:
-                temp_file.write(bytes)
-                temp_file.flush()
-                temp_file_path = temp_file.name
+def sanitize_filename(filename: str) -> str:
+    filename = os.path.basename(filename)
+    # Remove control characters and normalize Unicode
+    filename = "".join(c for c in filename if c.isprintable())
+    filename = unicodedata.normalize("NFKD", filename)
+    # Replace slashes, backslashes, and null bytes
+    filename = filename.replace("/", "_").replace("\\", "_").replace("\0", "")
+    # Remove any remaining problematic characters
+    filename = "".join(c for c in filename if c not in ("<", ">", ":", '"', "|", "?", "*"))
+    # Enforce maximum length
+    if len(filename) > MAX_FILENAME_LENGTH:
+        filename = filename[:MAX_FILENAME_LENGTH]
+    # Check for invalid or reserved filenames
+    if filename.upper() in RESERVED_FILENAMES or filename in ("", ".", ".."):
+        raise ValueError(f"Invalid filename - file name cannot be in {RESERVED_FILENAMES}")
+    # Ensure filename is unique
+    unique_suffix = uuid.uuid4().hex
+    base, ext = os.path.splitext(filename)
+    filename = f"{base}_{unique_suffix}{ext}"
+    return filename
 
-            server.load_file_to_source(source_id, temp_file_path, job_id)
-        finally:
-            if temp_file_path and os.path.exists(temp_file_path):
-                os.remove(temp_file_path)
+
+def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):
+    # Create a temporary directory (deleted after the context manager exits)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Sanitize the filename
+        sanitized_filename = sanitize_filename(file.filename)
+        file_path = os.path.join(tmpdirname, sanitized_filename)
+
+        # Write the file to the sanitized path
+        with open(file_path, "wb") as buffer:
+            buffer.write(bytes)
+
+        # Pass the file to load_file_to_source
+        server.load_file_to_source(source_id, file_path, job_id)

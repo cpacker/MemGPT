@@ -1,4 +1,5 @@
 import os
+import re
 import threading
 import time
 import uuid
@@ -435,7 +436,10 @@ def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # Get the memgpt paper
     file = files[0]
-    assert file.file_name == "memgpt_paper.pdf"
+    # Assert the filename matches the pattern
+    pattern = re.compile(r"^memgpt_paper_[a-f0-9]{32}\.pdf$")
+    assert pattern.match(file.file_name), f"Filename '{file.file_name}' does not match expected pattern."
+
     assert file.source_id == source.id
 
 
