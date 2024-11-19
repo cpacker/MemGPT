@@ -94,7 +94,10 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
     num_tokens = 0
     for function in functions:
         function_tokens = len(encoding.encode(function["name"]))
-        function_tokens += len(encoding.encode(function["description"]))
+        if function["description"]:
+            function_tokens += len(encoding.encode(function["description"]))
+        else:
+            raise ValueError(f"Function {function['name']} has no description, function: {function}")
 
         if "parameters" in function:
             parameters = function["parameters"]
@@ -184,6 +187,7 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
         https://community.openai.com/t/how-to-calculate-the-tokens-when-using-function-call/266573/11
     """
     try:
+        # Attempt to search for the encoding based on the model string
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
         # print("Warning: model not found. Using cl100k_base encoding.")
@@ -228,7 +232,13 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
                     # num_tokens += len(encoding.encode(value["arguments"]))
 
                 else:
-                    num_tokens += len(encoding.encode(value))
+                    if value is None:
+                        # raise ValueError(f"Message has null value: {key} with value: {value} - message={message}")
+                        warnings.warn(f"Message has null value: {key} with value: {value} - message={message}")
+                    else:
+                        if not isinstance(value, str):
+                            raise ValueError(f"Message has non-string value: {key} with value: {value} - message={message}")
+                        num_tokens += len(encoding.encode(value))
 
                 if key == "name":
                     num_tokens += tokens_per_name

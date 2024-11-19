@@ -1,0 +1,104 @@
+name: Together Llama 3.1 70b Capabilities Test
+
+env:
+  TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: "Setup Python, Poetry and Dependencies"
+      uses: packetcoders/action-setup-cache-python-poetry@main
+      with:
+        python-version: "3.12"
+        poetry-version: "1.8.2"
+        install-args: "-E dev -E external-tools"
+
+    - name: Test first message contains expected function call and inner monologue
+      id: test_first_message
+      env:
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_returns_valid_first_message
+        echo "TEST_FIRST_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Test model sends message with keyword
+      id: test_keyword_message
+      env:
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_returns_keyword
+        echo "TEST_KEYWORD_MESSAGE_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Test model uses external tool correctly
+      id: test_external_tool
+      env:
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_uses_external_tool
+        echo "TEST_EXTERNAL_TOOL_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Test model recalls chat memory
+      id: test_chat_memory
+      env:
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_recall_chat_memory
+        echo "TEST_CHAT_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Test model uses 'archival_memory_search' to find secret
+      id: test_archival_memory
+      env:
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_archival_memory_retrieval
+        echo "TEST_ARCHIVAL_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Test model can edit core memories
+      id: test_core_memory
+      env:
+        TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+      run: |
+        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_together_llama_3_70b_edit_core_memory
+        echo "TEST_CORE_MEMORY_EXIT_CODE=$?" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Summarize test results
+      if: always()
+      run: |
+        echo "Test Results Summary:"
+
+        # If the exit code is empty, treat it as a failure (❌)
+        echo "Test first message: $([[ -z $TEST_FIRST_MESSAGE_EXIT_CODE || $TEST_FIRST_MESSAGE_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model sends message with keyword: $([[ -z $TEST_KEYWORD_MESSAGE_EXIT_CODE || $TEST_KEYWORD_MESSAGE_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model uses external tool: $([[ -z $TEST_EXTERNAL_TOOL_EXIT_CODE || $TEST_EXTERNAL_TOOL_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model recalls chat memory: $([[ -z $TEST_CHAT_MEMORY_EXIT_CODE || $TEST_CHAT_MEMORY_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model uses 'archival_memory_search' to find secret: $([[ -z $TEST_ARCHIVAL_MEMORY_EXIT_CODE || $TEST_ARCHIVAL_MEMORY_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+        echo "Test model can edit core memories: $([[ -z $TEST_CORE_MEMORY_EXIT_CODE || $TEST_CORE_MEMORY_EXIT_CODE -ne 0 ]] && echo ❌ || echo ✅)"
+
+        # Check if any test failed (either non-zero or unset exit code)
+        if [[ -z $TEST_FIRST_MESSAGE_EXIT_CODE || $TEST_FIRST_MESSAGE_EXIT_CODE -ne 0 || \
+              -z $TEST_KEYWORD_MESSAGE_EXIT_CODE || $TEST_KEYWORD_MESSAGE_EXIT_CODE -ne 0 || \
+              -z $TEST_EXTERNAL_TOOL_EXIT_CODE || $TEST_EXTERNAL_TOOL_EXIT_CODE -ne 0 || \
+              -z $TEST_CHAT_MEMORY_EXIT_CODE || $TEST_CHAT_MEMORY_EXIT_CODE -ne 0 || \
+              -z $TEST_ARCHIVAL_MEMORY_EXIT_CODE || $TEST_ARCHIVAL_MEMORY_EXIT_CODE -ne 0 || \
+              -z $TEST_CORE_MEMORY_EXIT_CODE || $TEST_CORE_MEMORY_EXIT_CODE -ne 0 ]]; then
+          echo "Some tests failed."
+          exit 78
+        fi
+      continue-on-error: true

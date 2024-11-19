@@ -70,6 +70,10 @@ class ToolManager:
             pydantic_tool.organization_id = actor.organization_id
             tool_data = pydantic_tool.model_dump()
             tool = ToolModel(**tool_data)
+            # The description is most likely auto-generated via the json_schema,
+            # so copy it over into the top-level description field
+            if tool.description is None:
+                tool.description = tool.json_schema.get("description", None)
             tool.create(session, actor=actor)
 
         return tool.to_pydantic()
