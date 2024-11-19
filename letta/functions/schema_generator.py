@@ -96,6 +96,10 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
         if param.name == "self":
             continue
 
+        # exclude 'agent_state' parameter
+        if param.name == "agent_state":
+            continue
+
         # Assert that the parameter has a type annotation
         if param.annotation == inspect.Parameter.empty:
             raise TypeError(f"Parameter '{param.name}' in function '{function.__name__}' lacks a type annotation")
@@ -129,6 +133,7 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
 
     # append the heartbeat
     # TODO: don't hard-code
+    # TODO: if terminal, don't include this
     if function.__name__ not in ["send_message", "pause_heartbeats"]:
         schema["parameters"]["properties"]["request_heartbeat"] = {
             "type": "boolean",

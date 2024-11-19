@@ -10,9 +10,14 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import delete
 
+from letta import create_client
 from letta.functions.functions import parse_source_code
 from letta.functions.schema_generator import generate_schema
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
+from letta.schemas.agent import AgentState
+from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.llm_config import LLMConfig
+from letta.schemas.memory import ChatMemory
 from letta.schemas.organization import Organization
 from letta.schemas.sandbox_config import (
     E2BSandboxConfig,
@@ -163,6 +168,18 @@ def list_tool(test_user):
     yield tool
 
 
+@pytest.fixture
+def clear_core_memory(test_user):
+    def clear_memory(agent_state: AgentState):
+        """Clear the core memory"""
+        agent_state.memory.get_block("human").value = ""
+        agent_state.memory.get_block("persona").value = ""
+
+    tool = create_tool_from_func(clear_memory)
+    tool = ToolManager().create_or_update_tool(tool, test_user)
+    yield tool
+
+
 # Utility functions
 def create_tool_from_func(func: callable):
     return Tool(
@@ -190,8 +207,26 @@ def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_us
 
     # Run again to get actual response
     sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
-    response = sandbox.run()
+    response, _ = sandbox.run()
     assert response == args["x"] + args["y"]
+
+
+def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, test_user):
+    args = {}
+
+    client = create_client()
+    agent_state = client.create_agent(
+        memory=ChatMemory(persona="This is the persona", human="This is the human"),
+        embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        llm_config=LLMConfig.default_config(model_name="gpt-4"),
+    )
+
+    # Run again to get actual response
+    sandbox = ToolExecutionSandbox(clear_core_memory.name, args, user_id=test_user.id)
+    response, agent_state = sandbox.run(agent_state=agent_state)
+    assert agent_state.memory.get_block("human").value == ""
+    assert agent_state.memory.get_block("persona").value == ""
+    assert response is None
 
 
 def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user):

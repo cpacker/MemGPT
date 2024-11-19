@@ -9,7 +9,6 @@ from tqdm import tqdm
 
 from letta.agent_store.storage import StorageConnector
 from letta.constants import (
-    BASE_CORE_MEMORY_TOOLS,
     BASE_TOOLS,
     CLI_WARNING_PREFIX,
     FIRST_MESSAGE_ATTEMPTS,
@@ -726,11 +725,27 @@ class Agent(BaseAgent):
                 # TODO: This needs to be rethought, how do we allow functions that modify agent state/db?
                 # TODO: There should probably be two types of tools: stateless/stateful
 
-                if function_name in BASE_TOOLS or function_name in BASE_CORE_MEMORY_TOOLS:
+                if function_name in BASE_TOOLS:
                     function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                     function_response = function_to_call(**function_args)
                 else:
-                    function_response = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run()
+                    # execute tool in a sandbox
+                    # TODO: allow agent_state to specify which sandbox to execute tools in
+                    function_response, updated_agent_state = ToolExecutionSandbox(
+                        function_name, function_args, self.agent_state.user_id
+                    ).run(agent_state=self.agent_state)
+                    # update agent state
+                    if self.agent_state != updated_agent_state:
+                        self.agent_state = updated_agent_state
+                        self.memory = self.agent_state.memory  # TODO: don't duplicate
+                        print("updated agent state", self.agent_state.memory.compile())
+                        print("updated", updated_agent_state.memory.compile())
+
+                        # rebuild memory
+                        self.rebuild_memory()
+                    # self.agent_state = updated_agent_state
+                    # print("updated agent state", self.agent_state.memory.compile())
+                    # print("updated", updated_agent_state.memory.compile())
 
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow
@@ -751,6 +766,7 @@ class Agent(BaseAgent):
                 error_msg_user = f"{error_msg}\n{traceback.format_exc()}"
                 printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
+                # TODO: truncate error message somehow
                 messages.append(
                     Message.dict_to_message(
                         agent_id=self.agent_state.id,

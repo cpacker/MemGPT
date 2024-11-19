@@ -15,7 +15,7 @@ class SandboxType(str, Enum):
 
 
 class LocalSandboxConfig(BaseModel):
-    venv_name: str = Field("venv", description="Name of the virtual environment.")
+    venv_name: str = Field("venv", description="Name of the virtual environment.")  # TODO: rename path?
     sandbox_dir: str = Field(..., description="Directory for the sandbox environment.")
 
     @property

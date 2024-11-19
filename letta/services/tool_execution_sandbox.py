@@ -3,9 +3,10 @@ import os
 import subprocess
 import tempfile
 import venv
-from typing import Any, Optional
+from typing import Any, Optional, Tuple
 
 from letta.log import get_logger
+from letta.schemas.agent import AgentState
 from letta.schemas.sandbox_config import SandboxConfig, SandboxType
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_manager import ToolManager
@@ -38,17 +39,29 @@ class ToolExecutionSandbox:
         self.sandbox_config_manager = SandboxConfigManager()
         self.force_recreate = force_recreate
 
-    def run(self) -> Optional[Any]:
+    def run(self, agent_state: Optional[AgentState] = None) -> Optional[Any]:
         if not self.tool:
             return f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
         if tool_settings.e2b_api_key:
             logger.info("Using e2b for tool execution...")
-            code = self.generate_execution_script(wrap_print=False)
+            code = self.generate_execution_script(wrap_print=False, agent_state=agent_state)
             return self.run_e2b_sandbox(code=code)
         else:
             logger.info("Using local sandbox for tool execution...")
-            code = self.generate_execution_script(wrap_print=True)
+            code = self.generate_execution_script(wrap_print=True, agent_state=agent_state)
+            print(code)
+            logger.info("Running code in local sandbox...", code)
             return self.run_local_dir_sandbox(code=code)
+
+    def parse_results(self, results: str) -> Tuple[Any, Optional[AgentState]]:
+        result_data = self.ast_parse_best_effort(results)
+        agent_state = None
+        if result_data["agent_state"]:
+            # agent_state = AgentState(**result_data["agent_state"])
+            import pickle
+
+            agent_state = pickle.loads(result_data["agent_state"])
+        return result_data["results"], agent_state
 
     def run_local_dir_sandbox(self, code: str) -> Optional[Any]:
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=self.user)
@@ -63,6 +76,8 @@ class ToolExecutionSandbox:
         env["VIRTUAL_ENV"] = venv_path
         env["PATH"] = os.path.join(venv_path, "bin") + ":" + env["PATH"]
         env.update(env_vars)
+
+        print("ENV", venv_path)
 
         # Safety checks
         # Check that sandbox_dir exists
@@ -94,8 +109,12 @@ class ToolExecutionSandbox:
                     text=True,
                 )
                 if result.stderr:
+                    print(f"Sandbox execution error: {result.stderr}")
+                    logger.error(f"Sandbox execution error: {result.stderr}")
                     raise RuntimeError(f"Sandbox execution error: {result.stderr}")
-                return self.ast_parse_best_effort(result.stdout)
+                print("RESULT LOCAL", result.stdout)
+                # return self.ast_parse_best_effort(result.stdout)
+                return self.parse_results(result.stdout)
             except subprocess.TimeoutExpired:
                 raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
             except subprocess.CalledProcessError as e:
@@ -124,6 +143,7 @@ class ToolExecutionSandbox:
             function_response = None
         else:
             function_response = self.ast_parse_best_effort(execution.results[0].text)
+        print("RESPONSE", function_response)
 
         # Note, we don't kill the sandbox
         return function_response
@@ -164,15 +184,60 @@ class ToolExecutionSandbox:
 
         return result
 
-    def generate_execution_script(self, wrap_print: bool = False) -> str:
-        code = ""
+    def parse_function_arguments(self, source_code: str, tool_name: str):
+        """Get arguments of a function from its source code"""
+        tree = ast.parse(source_code)
+        args = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == tool_name:
+                for arg in node.args.args:
+                    args.append(arg.arg)
+        return args
+
+    def generate_execution_script(self, agent_state: AgentState, wrap_print: bool = False) -> str:
+        # dump JSON representation of agent state to re-load
+        code = "from typing import *\n"
+
+        # Load the agent state data into the program
+        if agent_state:
+            # agent state is not None
+            # agent_state_json = agent_state.model_dump_json()
+            # code += f"agent_state_json = {agent_state_json}\n"
+            # code += "agent_state = AgentState(**agent_state_json)\n"
+            code += "import pickle\n"
+            code += "import letta\n"
+            code += "from letta import * \n"
+            import pickle
+
+            agent_state_pickle = pickle.dumps(agent_state)
+            code += f"agent_state = pickle.loads({agent_state_pickle})\n"
+        else:
+            # agent state is None
+            code += "agent_state = None\n"
 
         for param in self.args:
             code += self.initialize_param(param, self.args[param])
 
+        if "agent_state" in self.parse_function_arguments(self.tool.source_code, self.tool.name):
+            inject_agent_state = True
+        else:
+            inject_agent_state = False
+
         code += "\n" + self.tool.source_code + "\n"
 
-        code += self.invoke_function_call(wrap_print=wrap_print)
+        # TODO: handle wrapped print
+
+        # function call string
+        # code += self.invoke_function_call(agent_state=agent_state, wrap_print=wrap_print)
+        # code += 'result_json = {"results": ' + self.invoke_function_call(agent_state=agent_state, wrap_print=wrap_print) + ', "agent_state": agent_state.model_dump_json() if agent_state else None}\n'
+        code += (
+            'result_json = {"results": '
+            + self.invoke_function_call(inject_agent_state=inject_agent_state)
+            + ', "agent_state": pickle.dumps(agent_state)}\n'
+        )
+        code += "print(result_json)\n"
+
+        print(code)
 
         return code
 
@@ -196,14 +261,32 @@ class ToolExecutionSandbox:
 
         return name + " = " + str(value) + "\n"
 
-    def invoke_function_call(self, wrap_print: bool = False) -> str:
+    def invoke_function_call(self, inject_agent_state: bool) -> str:
+        """
+
+        Generate the code string to call the function.
+
+        Args:
+            inject_agent_state (bool): Whether to inject the agent's state as an input into the tool
+
+        Returns:
+            str: Generated code string for calling the tool
+        """
         kwargs = []
         for name in self.args:
             if name in self.tool.json_schema["parameters"]["properties"]:
                 kwargs.append(name)
 
-        params = ", ".join([f"{arg}={arg}" for arg in kwargs])
+        param_list = [f"{arg}={arg}" for arg in kwargs]
+        if inject_agent_state:
+            param_list.append("agent_state=agent_state")
+        params = ", ".join(param_list)
+        # if "agent_state" in kwargs:
+        #    params += ", agent_state=agent_state"
+        # TODO: fix to figure out when to insert agent state or not
+        # params += "agent_state=agent_state"
+
         func_call_str = self.tool.name + "(" + params + ")"
-        if wrap_print:
-            func_call_str = f"print({func_call_str})"
         return func_call_str
+
+    #
