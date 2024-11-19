@@ -1,8 +1,6 @@
-import unicodedata
-
 import pytest
 
-from letta.constants import MAX_FILENAME_LENGTH, RESERVED_FILENAMES
+from letta.constants import MAX_FILENAME_LENGTH
 from letta.utils import sanitize_filename
 
 
@@ -16,15 +14,7 @@ def test_valid_filename():
 def test_filename_with_special_characters():
     filename = "invalid:/<>?*ƒfilename.txt"
     sanitized = sanitize_filename(filename)
-    assert sanitized.startswith("_ƒfilename_")
-    assert sanitized.endswith(".txt")
-
-
-def test_filename_with_unicode():
-    filename = "filē_with_ünîcødé.txt"
-    sanitized = sanitize_filename(filename)
-    normalized_filename = unicodedata.normalize("NFKD", filename).split(".")[0]
-    assert sanitized.startswith(normalized_filename)
+    assert sanitized.startswith("ƒfilename_")
     assert sanitized.endswith(".txt")
 
 
@@ -32,7 +22,7 @@ def test_null_byte_in_filename():
     filename = "valid\0filename.txt"
     sanitized = sanitize_filename(filename)
     assert "\0" not in sanitized
-    assert sanitized.startswith("valid_filename_")
+    assert sanitized.startswith("validfilename_")
     assert sanitized.endswith(".txt")
 
 
@@ -43,16 +33,9 @@ def test_path_traversal_characters():
     assert len(sanitized) <= MAX_FILENAME_LENGTH
 
 
-def test_reserved_filenames():
-    for reserved in RESERVED_FILENAMES:
-        filename = f"{reserved}.txt"
-        with pytest.raises(ValueError, match="Invalid filename"):
-            sanitize_filename(filename)
-
-
 def test_empty_filename():
-    with pytest.raises(ValueError, match="Invalid filename"):
-        sanitize_filename("")
+    sanitized = sanitize_filename("")
+    assert sanitized.startswith("_")
 
 
 def test_dot_as_filename():

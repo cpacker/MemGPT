@@ -11,7 +11,6 @@ import random
 import re
 import subprocess
 import sys
-import unicodedata
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -22,6 +21,7 @@ from urllib.parse import urljoin, urlparse
 import demjson3 as demjson
 import pytz
 import tiktoken
+from pathvalidate import sanitize_filename as pathvalidate_sanitize_filename
 
 import letta
 from letta.constants import (
@@ -31,7 +31,6 @@ from letta.constants import (
     FUNCTION_RETURN_CHAR_LIMIT,
     LETTA_DIR,
     MAX_FILENAME_LENGTH,
-    RESERVED_FILENAMES,
     TOOL_CALL_ID_MAX_LEN,
 )
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
@@ -1091,25 +1090,15 @@ def sanitize_filename(filename: str) -> str:
     # Extract the base filename to avoid directory components
     filename = os.path.basename(filename)
 
-    # Normalize Unicode characters and remove control characters
-    filename = unicodedata.normalize("NFKD", filename)
-    filename = "".join(c if c.isprintable() else "_" for c in filename)
-    # Replace invalid characters with underscores
-    invalid_chars = {"<", ">", ":", '"', "|", "?", "*", "/", "\\"}
-    filename = "".join(c if c not in invalid_chars else "_" for c in filename)
-
-    # Remove null bytes explicitly
-    filename = filename.replace("\0", "")
-
-    # Replace consecutive underscores with a single underscore
-    filename = re.sub(r"_+", "_", filename)
+    # External sanitization library
+    filename = pathvalidate_sanitize_filename(filename)
 
     # Split the base and extension
     base, ext = os.path.splitext(filename)
 
-    # Handle reserved names and invalid filenames
-    if base.upper() in RESERVED_FILENAMES or base in ("", ".", ".."):
-        raise ValueError(f"Invalid filename - file name cannot be '{base}' or reserved ({RESERVED_FILENAMES}).")
+    # Cannot start with a period
+    if base.startswith("."):
+        raise ValueError(f"Invalid filename - derived file name {base} cannot start with '.'")
 
     # Truncate the base name to fit within the maximum allowed length
     max_base_length = MAX_FILENAME_LENGTH - len(ext) - 33  # 32 for UUID + 1 for `_`
