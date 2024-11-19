@@ -95,9 +95,9 @@ class BlockManager:
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()
             name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_block(Persona(template_name=name, value=text, is_template=True), actor=actor)
+            self.create_or_update_block(Persona(template_name=name, value=text, is_template=True), actor=actor)
 
         for human_file in list_human_files():
             text = open(human_file, "r", encoding="utf-8").read()
             name = os.path.basename(human_file).replace(".txt", "")
-            self.create_block(Human(template_name=name, value=text, is_template=True), actor=actor)
+            self.create_or_update_block(Human(template_name=name, value=text, is_template=True), actor=actor)
