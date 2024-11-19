@@ -55,13 +55,6 @@ from letta.providers import (
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
-from letta.schemas.block import (
-    Block,
-    CreateBlock,
-    CreateHuman,
-    CreatePersona,
-    UpdateBlock,
-)
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
@@ -83,6 +76,7 @@ from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
+from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
@@ -250,6 +244,7 @@ class SyncServer(Server):
         self.organization_manager = OrganizationManager()
         self.user_manager = UserManager()
         self.tool_manager = ToolManager()
+        self.block_manager = BlockManager()
         self.source_manager = SourceManager()
         self.agents_tags_manager = AgentsTagsManager()
 
@@ -257,7 +252,7 @@ class SyncServer(Server):
         if init_with_default_org_and_user:
             self.default_org = self.organization_manager.create_default_organization()
             self.default_user = self.user_manager.create_default_user()
-            self.add_default_blocks(self.default_user.id)
+            self.block_manager.add_default_blocks(actor=self.default_user)
             self.tool_manager.add_base_tools(actor=self.default_user)
 
             # If there is a default org/user
@@ -333,15 +328,6 @@ class SyncServer(Server):
                 )
             )
 
-    def save_agents(self):
-        """Saves all the agents that are in the in-memory object store"""
-        for agent_d in self.active_agents:
-            try:
-                save_agent(agent_d["agent"], self.ms)
-                logger.debug(f"Saved agent {agent_d['agent_id']}")
-            except Exception as e:
-                logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}:\n{e}")
-
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
         for d in self.active_agents:
@@ -399,9 +385,9 @@ class SyncServer(Server):
             assert isinstance(agent_state.memory, Memory)
 
             if agent_state.agent_type == AgentType.memgpt_agent:
-                letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+                letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs, user=actor)
             elif agent_state.agent_type == AgentType.o1_agent:
-                letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+                letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs, user=actor)
             else:
                 raise NotImplementedError("Not a supported agent type")
 
@@ -884,6 +870,7 @@ class SyncServer(Server):
                     first_message_verify_mono=(
                         True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
                     ),
+                    user=actor,
                     initial_message_sequence=request.initial_message_sequence,
                 )
             elif request.agent_type == AgentType.o1_agent:
@@ -895,6 +882,7 @@ class SyncServer(Server):
                     first_message_verify_mono=(
                         True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
                     ),
+                    user=actor,
                 )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
@@ -1129,56 +1117,6 @@ class SyncServer(Server):
                 agent_ids += self.agents_tags_manager.get_agents_by_tag(tag=tag, actor=user)
 
             return [self.get_agent_state(user_id=user.id, agent_id=agent_id) for agent_id in agent_ids]
-
-    def get_blocks(
-        self,
-        user_id: Optional[str] = None,
-        label: Optional[str] = None,
-        template: Optional[bool] = None,
-        name: Optional[str] = None,
-        id: Optional[str] = None,
-    ) -> Optional[List[Block]]:
-
-        return self.ms.get_blocks(user_id=user_id, label=label, template=template, template_name=name, id=id)
-
-    def get_block(self, block_id: str):
-
-        blocks = self.get_blocks(id=block_id)
-        if blocks is None or len(blocks) == 0:
-            raise ValueError("Block does not exist")
-        if len(blocks) > 1:
-            raise ValueError("Multiple blocks with the same id")
-        return blocks[0]
-
-    def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_blocks = self.ms.get_blocks(
-            template_name=request.template_name, user_id=user_id, template=request.template, label=request.label
-        )
-
-        # for templates, update existing block template if exists
-        if existing_blocks is not None and request.template:
-            existing_block = existing_blocks[0]
-            assert len(existing_blocks) == 1
-            if update:
-                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
-            else:
-                raise ValueError(f"Block with name {request.template_name} already exists")
-        block = Block(**vars(request))
-        self.ms.create_block(block)
-        return block
-
-    def update_block(self, request: UpdateBlock) -> Block:
-        block = self.get_block(request.id)
-        block.limit = request.limit if request.limit is not None else block.limit
-        block.value = request.value if request.value is not None else block.value
-        block.template_name = request.template_name if request.template_name is not None else block.template_name
-        self.ms.update_block(block=block)
-        return self.ms.get_block(block_id=request.id)
-
-    def delete_block(self, block_id: str):
-        block = self.get_block(block_id)
-        self.ms.delete_block(block_id)
-        return block
 
     # convert name->id
 
@@ -1789,21 +1727,6 @@ class SyncServer(Server):
                 success = False
 
         return success
-
-    def add_default_blocks(self, user_id: str):
-        from letta.utils import list_human_files, list_persona_files
-
-        assert user_id is not None, "User ID must be provided"
-
-        for persona_file in list_persona_files():
-            text = open(persona_file, "r", encoding="utf-8").read()
-            name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_block(CreatePersona(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
-
-        for human_file in list_human_files():
-            text = open(human_file, "r", encoding="utf-8").read()
-            name = os.path.basename(human_file).replace(".txt", "")
-            self.create_block(CreateHuman(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
 
     def get_agent_message(self, agent_id: str, message_id: str) -> Optional[Message]:
         """Get a single message from the agent's memory"""

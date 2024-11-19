@@ -33,29 +33,6 @@ def test_load_memory_from_json(sample_memory: Memory):
     assert new_memory.get_block("human").value == "User"
 
 
-# def test_memory_functionality(sample_memory):
-#    """Test memory modification functions"""
-#    # Get memory functions
-#    functions = get_memory_functions(ChatMemory)
-#    # Test core_memory_append function
-#    append_func = functions['core_memory_append']
-#    print("FUNCTIONS", functions)
-#    env = {}
-#    env.update(globals())
-#    for tool in functions:
-#        # WARNING: name may not be consistent?
-#        exec(tool.source_code, env)
-#
-#    print(exec)
-#
-#    append_func(sample_memory, 'persona', " is a test.")
-#    assert sample_memory.memory['persona'].value == "Chat Agent\n is a test."
-#    # Test core_memory_replace function
-#    replace_func = functions['core_memory_replace']
-#    replace_func(sample_memory, 'persona', " is a test.", " was a test.")
-#    assert sample_memory.memory['persona'].value == "Chat Agent\n was a test."
-
-
 def test_memory_limit_validation(sample_memory: Memory):
     """Test exceeding memory limit"""
     with pytest.raises(ValueError):
@@ -89,7 +66,7 @@ def test_memory_jinja2_template(sample_memory: Memory):
         """Generate a string representation of the memory in-context"""
         section_strs = []
         for section, module in self.memory.items():
-            section_strs.append(f'<{section} characters="{len(module)}/{module.limit}">\n{module.value}\n</{section}>')
+            section_strs.append(f'<{section} characters="{len(module.value)}/{module.limit}">\n{module.value}\n</{section}>')
         return "\n".join(section_strs)
 
     old_repr_str = old_repr(sample_memory)

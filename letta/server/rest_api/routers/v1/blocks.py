@@ -2,7 +2,8 @@ from typing import TYPE_CHECKING, List, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
 
-from letta.schemas.block import Block, CreateBlock, UpdateBlock
+from letta.orm.errors import NoResultFound
+from letta.schemas.block import Block, BlockCreate, BlockUpdate
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
 
@@ -22,54 +23,49 @@ def list_blocks(
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     actor = server.get_user_or_default(user_id=user_id)
-
-    blocks = server.get_blocks(user_id=actor.id, label=label, template=templates_only, name=name)
-    if blocks is None:
-        return []
-    return blocks
+    return server.block_manager.get_blocks(actor=actor, label=label, is_template=templates_only, template_name=name)
 
 
 @router.post("/", response_model=Block, operation_id="create_memory_block")
 def create_block(
-    create_block: CreateBlock = Body(...),
+    create_block: BlockCreate = Body(...),
     server: SyncServer = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     actor = server.get_user_or_default(user_id=user_id)
-
-    create_block.user_id = actor.id
-    return server.create_block(user_id=actor.id, request=create_block)
+    block = Block(**create_block.model_dump())
+    return server.block_manager.create_or_update_block(actor=actor, block=block)
 
 
 @router.patch("/{block_id}", response_model=Block, operation_id="update_memory_block")
 def update_block(
     block_id: str,
-    updated_block: UpdateBlock = Body(...),
+    updated_block: BlockUpdate = Body(...),
     server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
 ):
-    # actor = server.get_current_user()
-
-    updated_block.id = block_id
-    return server.update_block(request=updated_block)
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.block_manager.update_block(block_id=block_id, block_update=updated_block, actor=actor)
 
 
-# TODO: delete should not return anything
 @router.delete("/{block_id}", response_model=Block, operation_id="delete_memory_block")
 def delete_block(
     block_id: str,
     server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
 ):
-
-    return server.delete_block(block_id=block_id)
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.block_manager.delete_block(block_id=block_id, actor=actor)
 
 
 @router.get("/{block_id}", response_model=Block, operation_id="get_memory_block")
 def get_block(
     block_id: str,
     server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
 ):
-
-    block = server.get_block(block_id=block_id)
-    if block is None:
+    actor = server.get_user_or_default(user_id=user_id)
+    try:
+        return server.block_manager.get_block_by_id(block_id=block_id, actor=actor)
+    except NoResultFound:
         raise HTTPException(status_code=404, detail="Block not found")
-    return block

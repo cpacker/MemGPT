@@ -12,12 +12,10 @@ from letta.memory import get_memory_functions
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.block import (
     Block,
-    CreateBlock,
-    CreateHuman,
-    CreatePersona,
+    BlockCreate,
+    BlockUpdate,
     Human,
     Persona,
-    UpdateBlock,
     UpdateHuman,
     UpdatePersona,
 )
@@ -883,8 +881,8 @@ class RESTClient(AbstractClient):
         else:
             return [Block(**block) for block in response.json()]
 
-    def create_block(self, label: str, text: str, template_name: Optional[str] = None, template: bool = False) -> Block:  #
-        request = CreateBlock(label=label, value=text, template=template, template_name=template_name)
+    def create_block(self, label: str, value: str, template_name: Optional[str] = None, is_template: bool = False) -> Block:  #
+        request = BlockCreate(label=label, value=value, template=is_template, template_name=template_name)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
@@ -896,7 +894,7 @@ class RESTClient(AbstractClient):
             return Block(**response.json())
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
-        request = UpdateBlock(id=block_id, template_name=name, value=text)
+        request = BlockUpdate(id=block_id, template_name=name, value=text)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update block: {response.text}")
@@ -950,7 +948,7 @@ class RESTClient(AbstractClient):
         Returns:
             human (Human): Human block
         """
-        return self.create_block(label="human", template_name=name, text=text, template=True)
+        return self.create_block(label="human", template_name=name, value=text, is_template=True)
 
     def update_human(self, human_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Human:
         """
@@ -990,7 +988,7 @@ class RESTClient(AbstractClient):
         Returns:
             persona (Persona): Persona block
         """
-        return self.create_block(label="persona", template_name=name, text=text, template=True)
+        return self.create_block(label="persona", template_name=name, value=text, is_template=True)
 
     def update_persona(self, persona_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Persona:
         """
@@ -2125,8 +2123,7 @@ class LocalClient(AbstractClient):
     # humans / personas
 
     def get_block_id(self, name: str, label: str) -> str:
-
-        block = self.server.get_blocks(name=name, label=label, user_id=self.user_id, template=True)
+        block = self.server.block_manager.get_blocks(actor=self.user, template_name=name, label=label, is_template=True)
         if not block:
             return None
         return block[0].id
@@ -2142,7 +2139,7 @@ class LocalClient(AbstractClient):
         Returns:
             human (Human): Human block
         """
-        return self.server.create_block(CreateHuman(template_name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+        return self.server.block_manager.create_or_update_block(Human(template_name=name, value=text), actor=self.user)
 
     def create_persona(self, name: str, text: str):
         """
@@ -2155,7 +2152,7 @@ class LocalClient(AbstractClient):
         Returns:
             persona (Persona): Persona block
         """
-        return self.server.create_block(CreatePersona(template_name=name, value=text, user_id=self.user_id), user_id=self.user_id)
+        return self.server.block_manager.create_or_update_block(Persona(template_name=name, value=text), actor=self.user)
 
     def list_humans(self):
         """
@@ -2164,7 +2161,7 @@ class LocalClient(AbstractClient):
         Returns:
             humans (List[Human]): List of human blocks
         """
-        return self.server.get_blocks(label="human", user_id=self.user_id, template=True)
+        return self.server.block_manager.get_blocks(actor=self.user, label="human", is_template=True)
 
     def list_personas(self) -> List[Persona]:
         """
@@ -2173,7 +2170,7 @@ class LocalClient(AbstractClient):
         Returns:
             personas (List[Persona]): List of persona blocks
         """
-        return self.server.get_blocks(label="persona", user_id=self.user_id, template=True)
+        return self.server.block_manager.get_blocks(actor=self.user, label="persona", is_template=True)
 
     def update_human(self, human_id: str, text: str):
         """
@@ -2186,7 +2183,9 @@ class LocalClient(AbstractClient):
         Returns:
             human (Human): Updated human block
         """
-        return self.server.update_block(UpdateHuman(id=human_id, value=text, user_id=self.user_id, template=True))
+        return self.server.block_manager.update_block(
+            block_id=human_id, block_update=UpdateHuman(value=text, is_template=True), actor=self.user
+        )
 
     def update_persona(self, persona_id: str, text: str):
         """
@@ -2199,7 +2198,9 @@ class LocalClient(AbstractClient):
         Returns:
             persona (Persona): Updated persona block
         """
-        return self.server.update_block(UpdatePersona(id=persona_id, value=text, user_id=self.user_id, template=True))
+        return self.server.block_manager.update_block(
+            block_id=persona_id, block_update=UpdatePersona(value=text, is_template=True), actor=self.user
+        )
 
     def get_persona(self, id: str) -> Persona:
         """
@@ -2212,7 +2213,7 @@ class LocalClient(AbstractClient):
             persona (Persona): Persona block
         """
         assert id, f"Persona ID must be provided"
-        return Persona(**self.server.get_block(id).model_dump())
+        return Persona(**self.server.block_manager.get_block_by_id(id, actor=self.user).model_dump())
 
     def get_human(self, id: str) -> Human:
         """
@@ -2225,7 +2226,7 @@ class LocalClient(AbstractClient):
             human (Human): Human block
         """
         assert id, f"Human ID must be provided"
-        return Human(**self.server.get_block(id).model_dump())
+        return Human(**self.server.block_manager.get_block_by_id(id, actor=self.user).model_dump())
 
     def get_persona_id(self, name: str) -> str:
         """
@@ -2237,7 +2238,7 @@ class LocalClient(AbstractClient):
         Returns:
             id (str): ID of the persona block
         """
-        persona = self.server.get_blocks(name=name, label="persona", user_id=self.user_id, template=True)
+        persona = self.server.block_manager.get_blocks(actor=self.user, template_name=name, label="persona", is_template=True)
         if not persona:
             return None
         return persona[0].id
@@ -2252,7 +2253,7 @@ class LocalClient(AbstractClient):
         Returns:
             id (str): ID of the human block
         """
-        human = self.server.get_blocks(name=name, label="human", user_id=self.user_id, template=True)
+        human = self.server.block_manager.get_blocks(actor=self.user, template_name=name, label="human", is_template=True)
         if not human:
             return None
         return human[0].id
@@ -2264,7 +2265,7 @@ class LocalClient(AbstractClient):
         Args:
             id (str): ID of the persona block
         """
-        self.server.delete_block(id)
+        self.delete_block(id)
 
     def delete_human(self, id: str):
         """
@@ -2273,7 +2274,7 @@ class LocalClient(AbstractClient):
         Args:
             id (str): ID of the human block
         """
-        self.server.delete_block(id)
+        self.delete_block(id)
 
     # tools
     def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
@@ -2661,9 +2662,9 @@ class LocalClient(AbstractClient):
         Returns:
             blocks (List[Block]): List of blocks
         """
-        return self.server.get_blocks(label=label, template=templates_only)
+        return self.server.block_manager.get_blocks(actor=self.user, label=label, is_template=templates_only)
 
-    def create_block(self, label: str, text: str, template_name: Optional[str] = None, template: bool = False) -> Block:  #
+    def create_block(self, label: str, value: str, template_name: Optional[str] = None, is_template: bool = False) -> Block:  #
         """
         Create a block
 
@@ -2675,8 +2676,8 @@ class LocalClient(AbstractClient):
         Returns:
             block (Block): Created block
         """
-        return self.server.create_block(
-            CreateBlock(label=label, template_name=template_name, value=text, user_id=self.user_id, template=template), user_id=self.user_id
+        return self.server.block_manager.create_or_update_block(
+            Block(label=label, template_name=template_name, value=value, is_template=is_template), actor=self.user
         )
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
@@ -2691,7 +2692,9 @@ class LocalClient(AbstractClient):
         Returns:
             block (Block): Updated block
         """
-        return self.server.update_block(UpdateBlock(id=block_id, template_name=name, value=text))
+        return self.server.block_manager.update_block(
+            block_id=block_id, block_update=BlockUpdate(template_name=name, value=text), actor=self.user
+        )
 
     def get_block(self, block_id: str) -> Block:
         """
@@ -2703,7 +2706,7 @@ class LocalClient(AbstractClient):
         Returns:
             block (Block): Block
         """
-        return self.server.get_block(block_id)
+        return self.server.block_manager.get_block_by_id(block_id, actor=self.user)
 
     def delete_block(self, id: str) -> Block:
         """
@@ -2715,7 +2718,7 @@ class LocalClient(AbstractClient):
         Returns:
             block (Block): Deleted block
         """
-        return self.server.delete_block(id)
+        return self.server.block_manager.delete_block(id, actor=self.user)
 
     def set_default_llm_config(self, llm_config: LLMConfig):
         """
