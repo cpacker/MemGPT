@@ -1,7 +1,5 @@
 import os
 import tempfile
-import unicodedata
-import uuid
 from typing import List, Optional
 
 from fastapi import (
@@ -14,13 +12,13 @@ from fastapi import (
     UploadFile,
 )
 
-from letta.constants import MAX_FILENAME_LENGTH, RESERVED_FILENAMES
 from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
+from letta.utils import sanitize_filename
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
 
@@ -227,28 +225,6 @@ def delete_file_from_source(
     deleted_file = server.source_manager.delete_file(file_id=file_id, actor=actor)
     if deleted_file is None:
         raise HTTPException(status_code=404, detail=f"File with id={file_id} not found.")
-
-
-def sanitize_filename(filename: str) -> str:
-    filename = os.path.basename(filename)
-    # Remove control characters and normalize Unicode
-    filename = "".join(c for c in filename if c.isprintable())
-    filename = unicodedata.normalize("NFKD", filename)
-    # Replace slashes, backslashes, and null bytes
-    filename = filename.replace("/", "_").replace("\\", "_").replace("\0", "")
-    # Remove any remaining problematic characters
-    filename = "".join(c for c in filename if c not in ("<", ">", ":", '"', "|", "?", "*"))
-    # Enforce maximum length
-    if len(filename) > MAX_FILENAME_LENGTH:
-        filename = filename[:MAX_FILENAME_LENGTH]
-    # Check for invalid or reserved filenames
-    if filename.upper() in RESERVED_FILENAMES or filename in ("", ".", ".."):
-        raise ValueError(f"Invalid filename - file name cannot be in {RESERVED_FILENAMES}")
-    # Ensure filename is unique
-    unique_suffix = uuid.uuid4().hex
-    base, ext = os.path.splitext(filename)
-    filename = f"{base}_{unique_suffix}{ext}"
-    return filename
 
 
 def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):

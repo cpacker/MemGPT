@@ -11,6 +11,7 @@ import random
 import re
 import subprocess
 import sys
+import unicodedata
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -29,6 +30,8 @@ from letta.constants import (
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     FUNCTION_RETURN_CHAR_LIMIT,
     LETTA_DIR,
+    MAX_FILENAME_LENGTH,
+    RESERVED_FILENAMES,
     TOOL_CALL_ID_MAX_LEN,
 )
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
@@ -1071,3 +1074,51 @@ def json_dumps(data, indent=2):
 
 def json_loads(data):
     return json.loads(data, strict=False)
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize the given filename to prevent directory traversal, invalid characters,
+    and reserved names while ensuring it fits within the maximum length allowed by the filesystem.
+
+    Parameters:
+        filename (str): The user-provided filename.
+
+    Returns:
+        str: A sanitized filename that is unique and safe for use.
+    """
+
+    # Extract the base filename to avoid directory components
+    filename = os.path.basename(filename)
+
+    # Normalize Unicode characters and remove control characters
+    filename = unicodedata.normalize("NFKD", filename)
+    filename = "".join(c if c.isprintable() else "_" for c in filename)
+    # Replace invalid characters with underscores
+    invalid_chars = {"<", ">", ":", '"', "|", "?", "*", "/", "\\"}
+    filename = "".join(c if c not in invalid_chars else "_" for c in filename)
+
+    # Remove null bytes explicitly
+    filename = filename.replace("\0", "")
+
+    # Replace consecutive underscores with a single underscore
+    filename = re.sub(r"_+", "_", filename)
+
+    # Split the base and extension
+    base, ext = os.path.splitext(filename)
+
+    # Handle reserved names and invalid filenames
+    if base.upper() in RESERVED_FILENAMES or base in ("", ".", ".."):
+        raise ValueError(f"Invalid filename - file name cannot be '{base}' or reserved ({RESERVED_FILENAMES}).")
+
+    # Truncate the base name to fit within the maximum allowed length
+    max_base_length = MAX_FILENAME_LENGTH - len(ext) - 33  # 32 for UUID + 1 for `_`
+    if len(base) > max_base_length:
+        base = base[:max_base_length]
+
+    # Append a unique UUID suffix for uniqueness
+    unique_suffix = uuid.uuid4().hex
+    sanitized_filename = f"{base}_{unique_suffix}{ext}"
+
+    # Return the sanitized filename
+    return sanitized_filename
