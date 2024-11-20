@@ -731,9 +731,10 @@ class Agent(BaseAgent):
                 else:
                     # execute tool in a sandbox
                     # TODO: allow agent_state to specify which sandbox to execute tools in
-                    function_response, updated_agent_state = ToolExecutionSandbox(
-                        function_name, function_args, self.agent_state.user_id
-                    ).run(agent_state=self.agent_state)
+                    sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
+                        agent_state=self.agent_state
+                    )
+                    function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
                     # update agent state
                     if self.agent_state != updated_agent_state and updated_agent_state is not None:
                         self.agent_state = updated_agent_state

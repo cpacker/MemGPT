@@ -5,11 +5,11 @@ import subprocess
 import tempfile
 import uuid
 import venv
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from letta.log import get_logger
 from letta.schemas.agent import AgentState
-from letta.schemas.sandbox_config import SandboxConfig, SandboxType
+from letta.schemas.sandbox_config import SandboxConfig, SandboxRunResult, SandboxType
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -39,10 +39,15 @@ class ToolExecutionSandbox:
         # TODO: So in theory, it's possible this retrieves a tool not provisioned to the agent
         # TODO: That would probably imply that agent_state is incorrectly configured
         self.tool = ToolManager().get_tool_by_name(tool_name=tool_name, actor=self.user)
+        if not self.tool:
+            raise ValueError(
+                f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
+            )
+
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.force_recreate = force_recreate
 
-    def run(self, agent_state: Optional[AgentState] = None) -> Tuple[Any, Optional[AgentState]]:
+    def run(self, agent_state: Optional[AgentState] = None) -> Optional[SandboxRunResult]:
         """
         Run the tool in a sandbox environment.
 
@@ -52,8 +57,6 @@ class ToolExecutionSandbox:
         Returns:
             Tuple[Any, Optional[AgentState]]: Tuple containing (tool_result, agent_state)
         """
-        if not self.tool:
-            return f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
         if tool_settings.e2b_api_key:
             logger.info("Using e2b for tool execution...")
             code = self.generate_execution_script(wrap_print_with_markers=False, agent_state=agent_state)
@@ -66,7 +69,7 @@ class ToolExecutionSandbox:
 
     # local sandbox specific functions
 
-    def run_local_dir_sandbox(self, code: str) -> Optional[Any]:
+    def run_local_dir_sandbox(self, code: str) -> Optional[SandboxRunResult]:
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=self.user)
         local_configs = sbx_config.get_local_config()
 
@@ -115,7 +118,10 @@ class ToolExecutionSandbox:
                 func_result, stdout = self.parse_out_function_results_markers(result.stdout)
                 logger.info(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n{stdout}")
                 logger.info(f"Ending stdout log from tool run.")
-                return self.ast_parse_best_effort(func_result)
+                func_return, agent_state = self.ast_parse_best_effort(func_result)
+                return SandboxRunResult(
+                    func_return=func_return, agent_state=agent_state, stdout=stdout, sandbox_config_fingerprint=sbx_config.fingerprint()
+                )
             except subprocess.TimeoutExpired:
                 raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
             except subprocess.CalledProcessError as e:
@@ -153,7 +159,7 @@ class ToolExecutionSandbox:
 
     # e2b sandbox specific functions
 
-    def run_e2b_sandbox(self, code: str) -> Optional[Any]:
+    def run_e2b_sandbox(self, code: str) -> Optional[SandboxRunResult]:
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=self.user)
         sbx = self.get_running_e2b_sandbox_with_same_state(sbx_config)
         if not sbx or self.force_recreate:
@@ -169,12 +175,10 @@ class ToolExecutionSandbox:
         if execution.error is not None:
             raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}")
         elif len(execution.results) == 0:
-            function_response = None
+            return None
         else:
-            function_response = self.ast_parse_best_effort(execution.results[0].text)
-
-        # Note, we don't kill the sandbox
-        return function_response
+            func_return, agent_state = self.ast_parse_best_effort(execution.results[0].text)
+            return SandboxRunResult(func_return=func_return, agent_state=agent_state, sandbox_config_fingerprint=sbx_config.fingerprint())
 
     def get_running_e2b_sandbox_with_same_state(self, sandbox_config: SandboxConfig) -> Optional["Sandbox"]:
         from e2b_code_interpreter import Sandbox
@@ -183,7 +187,7 @@ class ToolExecutionSandbox:
         running_sandboxes = self.list_running_e2b_sandboxes()
 
         # Hash the config to check the state
-        state_hash = str(hash(sandbox_config))
+        state_hash = sandbox_config.fingerprint()
         for sandbox in running_sandboxes:
             if self.METADATA_CONFIG_STATE_KEY in sandbox.metadata and sandbox.metadata[self.METADATA_CONFIG_STATE_KEY] == state_hash:
                 return Sandbox.connect(sandbox.sandbox_id)
@@ -193,7 +197,7 @@ class ToolExecutionSandbox:
     def create_e2b_sandbox_with_metadata_hash(self, sandbox_config: SandboxConfig) -> "Sandbox":
         from e2b_code_interpreter import Sandbox
 
-        state_hash = str(hash(sandbox_config))
+        state_hash = sandbox_config.fingerprint()
         if sandbox_config.get_e2b_config().template_id:
             return Sandbox(sandbox_config.get_e2b_config().template_id, metadata={self.METADATA_CONFIG_STATE_KEY: state_hash})
         else:
