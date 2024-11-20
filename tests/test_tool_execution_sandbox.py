@@ -231,7 +231,7 @@ def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, t
 
 def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
-    response = sandbox.run()
+    response, _ = sandbox.run()
     assert len(response) == 5
 
 
@@ -262,7 +262,7 @@ def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user):
 
     # Run the custom sandbox
     sandbox = ToolExecutionSandbox(cowsay_tool.name, args, user_id=test_user.id)
-    response = sandbox.run()
+    response, _ = sandbox.run()
 
     assert long_random_string in response
 
@@ -278,7 +278,7 @@ def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, test_user)
 
     # Run again to get actual response
     sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
-    response = sandbox.run()
+    response, _ = sandbox.run()
     assert int(response) == args["x"] + args["y"]
 
 
@@ -286,7 +286,7 @@ def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_u
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
 
     # Run the function once
-    response = sandbox.run()
+    response, _ = sandbox.run()
     assert len(response) == 5
     running_e2b_sandboxes = sandbox.list_running_e2b_sandboxes()
     previous_length = len(running_e2b_sandboxes)
@@ -325,7 +325,7 @@ def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_e
 
     # Run the custom sandbox once, assert nothing returns because missing env variable
     sandbox = ToolExecutionSandbox(get_env_tool.name, {}, user_id=test_user.id, force_recreate=True)
-    response = sandbox.run()
+    response, _ = sandbox.run()
     # response should be None
     assert response is None
 
@@ -355,7 +355,7 @@ def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set,
 
     # Run the custom sandbox once, assert a failure gets returned because missing environment variable
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
-    response = sandbox.run()
+    response, _ = sandbox.run()
     assert len(response) == 5
 
     # Get the sandbox
@@ -379,5 +379,5 @@ def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set,
 
 def test_e2b_sandbox_with_list_rv(check_e2b_key_is_set, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
-    response = sandbox.run()
+    response, _ = sandbox.run()
     assert len(response) == 5

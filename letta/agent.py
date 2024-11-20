@@ -735,7 +735,7 @@ class Agent(BaseAgent):
                         function_name, function_args, self.agent_state.user_id
                     ).run(agent_state=self.agent_state)
                     # update agent state
-                    if self.agent_state != updated_agent_state:
+                    if self.agent_state != updated_agent_state and updated_agent_state is not None:
                         self.agent_state = updated_agent_state
                         self.memory = self.agent_state.memory  # TODO: don't duplicate
 

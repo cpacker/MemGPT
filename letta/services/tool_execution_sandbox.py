@@ -65,6 +65,7 @@ class ToolExecutionSandbox:
         """Parse results string using ast"""
         result_data = self.ast_parse_best_effort(results)
         agent_state = None
+        print("PARSE RES", result_data)
         if result_data["agent_state"]:
             # agent_state = AgentState(**result_data["agent_state"])
             import pickle
@@ -217,6 +218,7 @@ class ToolExecutionSandbox:
         """
         # dump JSON representation of agent state to re-load
         code = "from typing import *\n"
+        code += "import pickle\n"
 
         # Load the agent state data into the program
         if agent_state:
@@ -224,7 +226,6 @@ class ToolExecutionSandbox:
             # agent_state_json = agent_state.model_dump_json()
             # code += f"agent_state_json = {agent_state_json}\n"
             # code += "agent_state = AgentState(**agent_state_json)\n"
-            code += "import pickle\n"
             code += "import letta\n"
             code += "from letta import * \n"
             import pickle
