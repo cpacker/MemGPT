@@ -299,23 +299,23 @@ def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_u
 
 
 # TODO: add this back once we have custom e2b template
-# def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test_user):
-#
-#    sandbox = ToolExecutionSandbox(clear_core_memory.name, {}, user_id=test_user.id)
-#
-#    # create an agent
-#    client = create_client()
-#    agent_state = client.create_agent(
-#        memory=ChatMemory(persona="This is the persona", human="This is the human"),
-#        embedding_config=EmbeddingConfig.default_config(provider="openai"),
-#        llm_config=LLMConfig.default_config(model_name="gpt-4"),
-#    )
-#
-#    # run the sandbox
-#    response, agent_state = sandbox.run(agent_state=agent_state)
-#    assert agent_state.memory.get_block("human").value == ""
-#    assert agent_state.memory.get_block("persona").value == ""
-#    assert response is None
+def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test_user):
+
+    sandbox = ToolExecutionSandbox(clear_core_memory.name, {}, user_id=test_user.id)
+
+    # create an agent
+    client = create_client()
+    agent_state = client.create_agent(
+        memory=ChatMemory(persona="This is the persona", human="This is the human"),
+        embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        llm_config=LLMConfig.default_config(model_name="gpt-4"),
+    )
+
+    # run the sandbox
+    response, agent_state = sandbox.run(agent_state=agent_state)
+    assert agent_state.memory.get_block("human").value == ""
+    assert agent_state.memory.get_block("persona").value == ""
+    assert response is None
 
 
 def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_env_tool, test_user):

@@ -148,6 +148,8 @@ class ToolExecutionSandbox:
         # TODO: We set limit to 100 here, but maybe we want it uncapped? Realistically this should be fine.
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         execution = sbx.run_code(code, envs=env_vars)
+        print(execution)
+        print("exec results", execution.results)
         if execution.error is not None:
             raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}")
         elif len(execution.results) == 0:
@@ -157,7 +159,7 @@ class ToolExecutionSandbox:
         print("RESPONSE", function_response)
 
         # Note, we don't kill the sandbox
-        return function_response
+        return self.parse_results(function_response)
 
     def get_running_e2b_sandbox_with_same_state(self, sandbox_config: SandboxConfig) -> Optional["Sandbox"]:
         from e2b_code_interpreter import Sandbox
@@ -177,7 +179,11 @@ class ToolExecutionSandbox:
         from e2b_code_interpreter import Sandbox
 
         state_hash = str(hash(sandbox_config))
-        return Sandbox(metadata={self.METADATA_CONFIG_STATE_KEY: state_hash}, **sandbox_config.config)
+        if sandbox_config.get_e2b_config().template_id:
+            return Sandbox(sandbox_config.get_e2b_config().template_id, metadata={self.METADATA_CONFIG_STATE_KEY: state_hash})
+        else:
+            # no template
+            return Sandbox(metadata={self.METADATA_CONFIG_STATE_KEY: state_hash}, **sandbox_config.config)
 
     def list_running_e2b_sandboxes(self):
         from e2b_code_interpreter import Sandbox
@@ -257,7 +263,10 @@ class ToolExecutionSandbox:
             + self.invoke_function_call(inject_agent_state=inject_agent_state)
             + ', "agent_state": pickle.dumps(agent_state)}\n'
         )
-        code += "print(result_json)\n"
+        if wrap_print:
+            code += "print(result_json)\n"
+        else:
+            code += "result_json\n"
 
         print(code)
 
