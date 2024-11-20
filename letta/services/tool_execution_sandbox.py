@@ -1,9 +1,11 @@
 import ast
 import os
+import pickle
 import subprocess
 import tempfile
+import uuid
 import venv
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from letta.log import get_logger
 from letta.schemas.agent import AgentState
@@ -17,13 +19,13 @@ logger = get_logger(__name__)
 
 
 class ToolExecutionSandbox:
-    DIR = "/home/user/"
     METADATA_CONFIG_STATE_KEY = "config_state"
 
-    def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False):
-        from letta.server.server import db_context
+    # For reducing collisions on files
+    NAMESPACE = uuid.NAMESPACE_DNS
+    RESULTS_FILENAME = str(uuid.uuid5(NAMESPACE, "letta-tool-execution-sandbox"))
 
-        self.session_maker = db_context
+    def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False):
         self.tool_name = tool_name
         self.args = args
 
@@ -53,11 +55,11 @@ class ToolExecutionSandbox:
             return f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
         if tool_settings.e2b_api_key:
             logger.info("Using e2b for tool execution...")
-            code = self.generate_execution_script(wrap_print=False, agent_state=agent_state)
+            code = self.generate_execution_script(dump_results_to_file=False, agent_state=agent_state)
             return self.run_e2b_sandbox(code=code)
         else:
             logger.info("Using local sandbox for tool execution...")
-            code = self.generate_execution_script(wrap_print=True, agent_state=agent_state)
+            code = self.generate_execution_script(dump_results_to_file=True, agent_state=agent_state)
             logger.info("Running code in local sandbox...", code)
             return self.run_local_dir_sandbox(code=code)
 
@@ -73,6 +75,8 @@ class ToolExecutionSandbox:
             # load pickled agent state
             agent_state = pickle.loads(result_data["agent_state"])
         return result_data["results"], agent_state
+
+    # local sandbox specific functions
 
     def run_local_dir_sandbox(self, code: str) -> Optional[Any]:
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=self.user)
@@ -95,7 +99,7 @@ class ToolExecutionSandbox:
         # Verify that the venv path exists and is a directory
         if not os.path.isdir(venv_path):
             logger.warning(f"Virtual environment directory does not exist at: {venv_path}, creating one now...")
-            venv.create(venv_path, with_pip=True)
+            self.create_venv_for_local_sandbox(venv_path=venv_path, env=env, default_packages=["letta"])
 
         # Ensure the python interpreter exists in the virtual environment
         python_executable = os.path.join(venv_path, "bin", "python3")
@@ -114,14 +118,19 @@ class ToolExecutionSandbox:
                     env=env,
                     cwd=local_configs.sandbox_dir,  # Restrict execution to sandbox_dir
                     timeout=60,
-                    capture_output=True,
-                    text=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                 )
                 if result.stderr:
                     logger.error(f"Sandbox execution error: {result.stderr}")
                     raise RuntimeError(f"Sandbox execution error: {result.stderr}")
-                # return self.ast_parse_best_effort(result.stdout)
-                return self.parse_results(result.stdout)
+                try:
+                    result_json = pickle.loads(result.stdout)
+                except pickle.UnpicklingError as e:
+                    raise RuntimeError(f"Failed to unpickle the result: {e}")
+
+                result_json = self.ast_parse_best_effort(result_json)
+                return self.parse_results(result_json)
             except subprocess.TimeoutExpired:
                 raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
             except subprocess.CalledProcessError as e:
@@ -129,9 +138,31 @@ class ToolExecutionSandbox:
             except Exception as e:
                 raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
 
-    def run_e2b_sandbox(self, code: str) -> Optional[Any]:
-        pass
+    def create_venv_for_local_sandbox(self, venv_path: str, env: Dict[str, str], default_packages: Optional[List] = None):
+        venv.create(venv_path, with_pip=True)
 
+        if default_packages:
+            # Install default packages in the virtual environment
+            try:
+                logger.info("Installing default packages in the virtual environment...")
+                subprocess.run(
+                    [os.path.join(venv_path, "bin", "pip"), "install", "--upgrade", "pip"],  # Upgrade pip first
+                    env=env,
+                    check=True,
+                )
+                subprocess.run(
+                    [os.path.join(venv_path, "bin", "pip"), "install"] + default_packages,
+                    env=env,
+                    check=True,
+                )
+                logger.info(f"Successfully installed default packages: {', '.join(default_packages)}")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Failed to install default packages: {e}")
+                raise RuntimeError(f"Failed to install default packages: {e}")
+
+    # e2b sandbox specific functions
+
+    def run_e2b_sandbox(self, code: str) -> Optional[Any]:
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=self.user)
         sbx = self.get_running_e2b_sandbox_with_same_state(sbx_config)
         if not sbx or self.force_recreate:
@@ -184,6 +215,8 @@ class ToolExecutionSandbox:
         # List running sandboxes and access metadata.
         return Sandbox.list()
 
+    # general utility functions
+
     def ast_parse_best_effort(self, text: str) -> Any:
         try:
             result = ast.literal_eval(text)
@@ -204,14 +237,14 @@ class ToolExecutionSandbox:
                     args.append(arg.arg)
         return args
 
-    def generate_execution_script(self, agent_state: AgentState, wrap_print: bool = False) -> str:
+    def generate_execution_script(self, agent_state: AgentState, dump_results_to_file: bool = False) -> str:
         """
         Generate code to run inside of execution sandbox.
         Passes into a serialized agent state into the code, to be accessed by the tool.
 
         Args:
             agent_state (AgentState): The agent state
-            wrap_print (bool): Whether to wrap print statements (?)
+            dump_results_to_file (bool): Whether to wrap print statements (?)
 
         Returns:
             code (str): The generated code strong
@@ -219,6 +252,16 @@ class ToolExecutionSandbox:
         # dump JSON representation of agent state to re-load
         code = "from typing import *\n"
         code += "import pickle\n"
+        code += "import json\n"
+        code += "import sys\n"
+
+        code += """class SilentOutput:
+    def write(self, *args, **kwargs):
+        pass
+    def flush(self):
+        pass
+"""
+        code += "sys.stdout = SilentOutput()\n"
 
         # Load the agent state data into the program
         if agent_state:
@@ -248,16 +291,14 @@ class ToolExecutionSandbox:
 
         # TODO: handle wrapped print
 
-        # function call string
-        # code += self.invoke_function_call(agent_state=agent_state, wrap_print=wrap_print)
-        # code += 'result_json = {"results": ' + self.invoke_function_call(agent_state=agent_state, wrap_print=wrap_print) + ', "agent_state": agent_state.model_dump_json() if agent_state else None}\n'
         code += (
             'result_json = {"results": '
             + self.invoke_function_call(inject_agent_state=inject_agent_state)
             + ', "agent_state": pickle.dumps(agent_state)}\n'
         )
-        if wrap_print:
-            code += "print(result_json)\n"
+        if dump_results_to_file:
+            code += "sys.stdout = sys.__stdout__\n"
+            code += f"""sys.stdout.buffer.write(pickle.dumps(result_json))\n"""
         else:
             code += "result_json\n"
 

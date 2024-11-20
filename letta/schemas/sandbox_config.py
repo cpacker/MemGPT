@@ -25,7 +25,7 @@ class LocalSandboxConfig(BaseModel):
 
 class E2BSandboxConfig(BaseModel):
     timeout: int = Field(5 * 60, description="Time limit for the sandbox (in seconds).")
-    template_id: Optional[str] = Field(None, description="The E2B template id (docker image).")
+    template_id: Optional[str] = Field("a0derw3rssk0l5205tuj", description="The E2B template id (docker image).")
 
     @property
     def type(self) -> "SandboxType":

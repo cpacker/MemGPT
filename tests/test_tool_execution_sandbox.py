@@ -192,9 +192,6 @@ def create_tool_from_func(func: callable):
     )
 
 
-# def find
-
-
 # Tests
 def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_user):
     args = {"x": 10, "y": 5}
@@ -292,7 +289,7 @@ def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_u
     previous_length = len(running_e2b_sandboxes)
 
     # Run it again to ensure that there is still only one running sandbox
-    response = sandbox.run()
+    response, _ = sandbox.run()
     assert len(response) == 5
     running_e2b_sandboxes = sandbox.list_running_e2b_sandboxes()
     assert len(running_e2b_sandboxes) == previous_length
@@ -300,7 +297,6 @@ def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_u
 
 # TODO: add this back once we have custom e2b template
 def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test_user):
-
     sandbox = ToolExecutionSandbox(clear_core_memory.name, {}, user_id=test_user.id)
 
     # create an agent
