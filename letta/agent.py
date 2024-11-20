@@ -738,14 +738,9 @@ class Agent(BaseAgent):
                     if self.agent_state != updated_agent_state:
                         self.agent_state = updated_agent_state
                         self.memory = self.agent_state.memory  # TODO: don't duplicate
-                        print("updated agent state", self.agent_state.memory.compile())
-                        print("updated", updated_agent_state.memory.compile())
 
                         # rebuild memory
                         self.rebuild_memory()
-                    # self.agent_state = updated_agent_state
-                    # print("updated agent state", self.agent_state.memory.compile())
-                    # print("updated", updated_agent_state.memory.compile())
 
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow
