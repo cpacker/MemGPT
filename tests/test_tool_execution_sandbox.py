@@ -243,7 +243,7 @@ def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user):
         venv_python = venv_path / "bin" / "python"
         subprocess.run([venv_python, "-m", "pip", "install", "cowsay"], check=True)
 
-    manager = SandboxConfigManager()
+    manager = SandboxConfigManager(tool_settings)
 
     # Make a custom local sandbox config
     sandbox_dir = str(Path(__file__).parent / "test_tool_sandbox")
@@ -319,7 +319,7 @@ def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test
 
 
 def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_env_tool, test_user):
-    manager = SandboxConfigManager()
+    manager = SandboxConfigManager(tool_settings)
     config_create = SandboxConfigCreate(config=E2BSandboxConfig().model_dump())
     config = manager.create_or_update_sandbox_config(config_create, test_user)
 
@@ -345,7 +345,7 @@ def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_e
 def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set, list_tool, test_user):
     from e2b_code_interpreter import Sandbox
 
-    manager = SandboxConfigManager()
+    manager = SandboxConfigManager(tool_settings)
     old_timeout = 5 * 60
     new_timeout = 10 * 60
 

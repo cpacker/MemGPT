@@ -36,7 +36,7 @@ class ToolExecutionSandbox:
         # TODO: So in theory, it's possible this retrieves a tool not provisioned to the agent
         # TODO: That would probably imply that agent_state is incorrectly configured
         self.tool = ToolManager().get_tool_by_name(tool_name=tool_name, actor=self.user)
-        self.sandbox_config_manager = SandboxConfigManager()
+        self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.force_recreate = force_recreate
 
     def run(self, agent_state: Optional[AgentState] = None) -> Tuple[Any, Optional[AgentState]]:
