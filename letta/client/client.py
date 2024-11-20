@@ -1775,7 +1775,6 @@ class LocalClient(AbstractClient):
         embedding_config: Optional[EmbeddingConfig] = None,
         message_ids: Optional[List[str]] = None,
         memory: Optional[Memory] = None,
-        tags: Optional[List[str]] = None,
     ):
         """
         Update an existing agent
