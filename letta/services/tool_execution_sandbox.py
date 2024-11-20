@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import uuid
 import venv
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from letta.log import get_logger
 from letta.schemas.agent import AgentState
@@ -20,6 +20,7 @@ logger = get_logger(__name__)
 
 class ToolExecutionSandbox:
     METADATA_CONFIG_STATE_KEY = "config_state"
+    REQUIREMENT_TXT_NAME = "requirements.txt"
 
     # For generating long, random marker hashes
     NAMESPACE = uuid.NAMESPACE_DNS
@@ -90,7 +91,7 @@ class ToolExecutionSandbox:
         # Verify that the venv path exists and is a directory
         if not os.path.isdir(venv_path):
             logger.warning(f"Virtual environment directory does not exist at: {venv_path}, creating one now...")
-            self.create_venv_for_local_sandbox(venv_path=venv_path, env=env, default_packages=["letta"])
+            self.create_venv_for_local_sandbox(sandbox_dir_path=local_configs.sandbox_dir, venv_path=venv_path, env=env)
 
         # Ensure the python interpreter exists in the virtual environment
         python_executable = os.path.join(venv_path, "bin", "python3")
@@ -135,27 +136,28 @@ class ToolExecutionSandbox:
         end_index = text.index(self.LOCAL_SANDBOX_RESULT_END_MARKER)
         return text[start_index:end_index], text[: start_index - marker_len] + text[end_index + +marker_len :]
 
-    def create_venv_for_local_sandbox(self, venv_path: str, env: Dict[str, str], default_packages: Optional[List] = None):
+    def create_venv_for_local_sandbox(self, sandbox_dir_path: str, venv_path: str, env: Dict[str, str]):
+        # Step 1: Create the virtual environment
         venv.create(venv_path, with_pip=True)
 
-        if default_packages:
-            # Install default packages in the virtual environment
-            try:
-                logger.info("Installing default packages in the virtual environment...")
-                subprocess.run(
-                    [os.path.join(venv_path, "bin", "pip"), "install", "--upgrade", "pip"],  # Upgrade pip first
-                    env=env,
-                    check=True,
-                )
-                subprocess.run(
-                    [os.path.join(venv_path, "bin", "pip"), "install"] + default_packages,
-                    env=env,
-                    check=True,
-                )
-                logger.info(f"Successfully installed default packages: {', '.join(default_packages)}")
-            except subprocess.CalledProcessError as e:
-                logger.error(f"Failed to install default packages: {e}")
-                raise RuntimeError(f"Failed to install default packages: {e}")
+        pip_path = os.path.join(venv_path, "bin", "pip")
+        try:
+            # Step 2: Upgrade pip
+            logger.info("Upgrading pip in the virtual environment...")
+            subprocess.run([pip_path, "install", "--upgrade", "pip"], env=env, check=True)
+
+            # Step 3: Install packages from requirements.txt if provided
+            requirements_txt_path = os.path.join(sandbox_dir_path, self.REQUIREMENT_TXT_NAME)
+            if os.path.isfile(requirements_txt_path):
+                logger.info(f"Installing packages from requirements file: {requirements_txt_path}")
+                subprocess.run([pip_path, "install", "-r", requirements_txt_path], env=env, check=True)
+                logger.info("Successfully installed packages from requirements.txt")
+            else:
+                logger.warning("No requirements.txt file provided or the file does not exist. Skipping package installation.")
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Error while setting up the virtual environment: {e}")
+            raise RuntimeError(f"Failed to set up the virtual environment: {e}")
 
     # e2b sandbox specific functions
 
@@ -254,12 +256,8 @@ class ToolExecutionSandbox:
 
         # Load the agent state data into the program
         if agent_state:
-            # agent state is not None
-            # agent_state_json = agent_state.model_dump_json()
-            # code += f"agent_state_json = {agent_state_json}\n"
-            # code += "agent_state = AgentState(**agent_state_json)\n"
-            code += "import letta\n"
-            code += "from letta import * \n"
+            # code += "import letta\n"
+            code += "from letta import AgentState \n"
             import pickle
 
             agent_state_pickle = pickle.dumps(agent_state)

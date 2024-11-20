@@ -1,10 +1,7 @@
 import logging
-import os
 import secrets
 import string
-import subprocess
 import uuid
-import venv
 from pathlib import Path
 from unittest.mock import patch
 
@@ -234,13 +231,6 @@ def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user)
 
 
 def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user, caplog):
-    # Make sure to pip install
-    venv_path = Path(__file__).parent / "test_tool_sandbox" / VENV_NAME
-    if not os.path.isdir(venv_path):
-        venv.create(venv_path, with_pip=True)
-        venv_python = venv_path / "bin" / "python"
-        subprocess.run([venv_python, "-m", "pip", "install", "cowsay"], check=True)
-
     manager = SandboxConfigManager(tool_settings)
 
     # Make a custom local sandbox config
