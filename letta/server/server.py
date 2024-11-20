@@ -860,6 +860,7 @@ class SyncServer(Server):
                 memory=request.memory,
                 description=request.description,
                 metadata_=request.metadata_,
+                tags=request.tags,
             )
             if request.agent_type == AgentType.memgpt_agent:
                 agent = Agent(
