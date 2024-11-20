@@ -901,14 +901,14 @@ class SyncServer(Server):
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
 
+        # save agent
+        save_agent(agent, self.ms)
+        logger.debug(f"Created new agent from config: {agent}")
+
         # TODO: move this into save_agent. save_agent should be moved to server.py
         if request.tags:
             for tag in request.tags:
                 self.agents_tags_manager.add_tag_to_agent(agent_id=agent.agent_state.id, tag=tag, actor=actor)
-
-        # save agent
-        save_agent(agent, self.ms)
-        logger.debug(f"Created new agent from config: {agent}")
 
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
 
