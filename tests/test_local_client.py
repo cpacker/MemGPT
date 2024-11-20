@@ -432,3 +432,40 @@ def test_tool_creation_langchain_missing_imports(client: LocalClient):
     # Intentionally missing {"langchain_community.utilities": "WikipediaAPIWrapper"}
     with pytest.raises(RuntimeError):
         ToolCreate.from_langchain(langchain_tool)
+
+
+def test_shared_blocks_without_send_message(client: LocalClient):
+    from letta import BasicBlockMemory
+    from letta.client.client import Block, create_client
+    from letta.schemas.agent import AgentType
+    from letta.schemas.embedding_config import EmbeddingConfig
+    from letta.schemas.llm_config import LLMConfig
+
+    client = create_client()
+    shared_memory_block = Block(name="shared_memory", label="shared_memory", value="[empty]", limit=2000)
+    memory = BasicBlockMemory(blocks=[shared_memory_block])
+
+    agent_1 = client.create_agent(
+        agent_type=AgentType.memgpt_agent,
+        llm_config=LLMConfig.default_config("gpt-4"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        memory=memory,
+    )
+
+    agent_2 = client.create_agent(
+        agent_type=AgentType.memgpt_agent,
+        llm_config=LLMConfig.default_config("gpt-4"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        memory=memory,
+    )
+
+    agent_1.memory.update_block_value(label="shared_memory", value="I am no longer an [empty] memory")
+
+    block_id = agent_1.memory.get_block("shared_memory").id
+    client.update_block(block_id, text="I am no longer an [empty] memory")
+    client.update_agent(agent_id=agent_1.id, memory=agent_1.memory)
+    agent_1 = client.get_agent(agent_1.id)
+    agent_2 = client.get_agent(agent_2.id)
+    client.update_agent(agent_id=agent_2.id, memory=agent_2.memory)
+    assert agent_1.memory.get_block("shared_memory").value == "I am no longer an [empty] memory"
+    assert agent_2.memory.get_block("shared_memory").value == "I am no longer an [empty] memory"
