@@ -419,7 +419,7 @@ async def send_message_to_agent(
     stream_tokens: bool,
     # related to whether or not we return `LettaMessage`s or `Message`s
     return_message_object: bool,  # Should be True for Python Client, False for REST API
-    chat_completion_mode: bool = False,
+    voice_chat_completion_mode: bool = False,
     timestamp: Optional[datetime] = None,
     # Support for AssistantMessage
     use_assistant_message: bool = False,
@@ -456,8 +456,8 @@ async def send_message_to_agent(
 
         # Enable token-streaming within the request if desired
         streaming_interface.streaming_mode = stream_tokens
-        # "chatcompletion mode" does some remapping and ignores inner thoughts
-        streaming_interface.streaming_chat_completion_mode = chat_completion_mode
+        # "voice_chat_completion_mode mode" does some remapping and ignores inner thoughts
+        streaming_interface.voice_chat_completion_mode = voice_chat_completion_mode
 
         # streaming_interface.allow_assistant_message = stream
         # streaming_interface.function_call_legacy_mode = stream

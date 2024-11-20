@@ -286,7 +286,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         # NOTE: flag for supporting legacy 'stream' flag where send_message is treated specially
         self.nonstreaming_legacy_mode = False
         # If chat completion mode, creates a "chatcompletion-style" stream, but with concepts remapped
-        self.streaming_chat_completion_mode = False
+        self.voice_chat_completion_mode = False
         self.streaming_chat_completion_mode_function_name = None  # NOTE: sadly need to track state during stream
         # If chat completion mode, we need a special stream reader to
         # turn function argument to send_message into a normal text stream
@@ -317,7 +317,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self.function_args_buffer = None
         self.function_id_buffer = None
 
-        # State variables for chat_completion_mode = True
+        # State variables for voice_chat_completion_mode = True
         self.curr_function_name = None
         self.curr_function_id = None
 
@@ -392,7 +392,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         """Clean up the stream by deactivating and clearing chunks."""
         self.streaming_chat_completion_mode_function_name = None
 
-        if not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
+        if not self.voice_chat_completion_mode and not self.nonstreaming_legacy_mode:
             self._push_to_buffer(self.multi_step_gen_indicator)
 
         # Wipe the inner thoughts buffers
@@ -404,7 +404,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             # end the stream
             self._active = False
             self._event.set()  # Unblock the generator if it's waiting to allow it to complete
-        elif not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
+        elif not self.voice_chat_completion_mode and not self.nonstreaming_legacy_mode:
             # signal that a new step has started in the stream
             self._push_to_buffer(self.multi_step_indicator)
 
@@ -815,7 +815,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
         processed_chunk = self._process_chunk_to_letta_style(chunk=chunk, message_id=message_id, message_date=message_date)
 
-        if self.streaming_chat_completion_mode:
+        if self.voice_chat_completion_mode:
             proxy_chunk = chunk.model_copy(deep=True)
             if isinstance(processed_chunk, InternalMonologue):
                 proxy_chunk.choices[0].delta = MessageDelta(content=processed_chunk.internal_monologue)
@@ -1014,5 +1014,5 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             raise ValueError(msg)
             new_message = {"function_message": msg}
 
-        if not self.streaming_chat_completion_mode:
+        if not self.voice_chat_completion_mode:
             self._push_to_buffer(new_message)

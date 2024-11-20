@@ -21,6 +21,56 @@ if TYPE_CHECKING:
 router = APIRouter(prefix="/v1/chat/completions", tags=["chat_completions"])
 
 
+@router.post("/voice", response_model=ChatCompletionResponse)
+async def create_voice_chat_completion(
+    completion_request: ChatCompletionRequest = Body(...),
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    """Send a message to a Letta agent via a /chat/completions completion_request
+    This is intended to be used by voice providers, such as LiveKit.
+    The bearer token will be used to identify the user.
+    The 'user' field in the completion_request should be set to the agent ID.
+    """
+    print(f"GOT REQUEST: {completion_request.model_dump(exclude_none=True)}")
+
+    actor = server.get_user_or_default(user_id=user_id)
+
+    agent_id = completion_request.user
+    if agent_id is None:
+        raise HTTPException(status_code=400, detail="Must pass agent_id in the 'user' field")
+
+    if not completion_request.stream:
+        raise HTTPException(status_code=400, detail="Called voice endpoint, but set streaming to False.")
+
+    messages = completion_request.messages
+    messages = [messages[-1]]
+    if messages is None:
+        raise HTTPException(status_code=400, detail="'messages' field must not be empty")
+    if len(messages) > 1:
+        raise HTTPException(status_code=400, detail="'messages' field must be a list of length 1")
+    if messages[0].role != "user":
+        raise HTTPException(status_code=400, detail="'messages[0].role' must be a 'user'")
+
+    # Translate to Message objects
+    messages = [Message.from_chat_completions_message(m, completion_request, actor.id) for m in messages]
+    print("Starting streaming OpenAI proxy response")
+    return await send_message_to_agent(
+        server=server,
+        agent_id=agent_id,
+        user_id=actor.id,
+        messages=messages,
+        # Turn streaming ON
+        stream_steps=True,
+        stream_tokens=True,
+        # Turn on ChatCompletion mode (eg remaps send_message to content)
+        voice_chat_completion_mode=True,
+        return_message_object=False,
+        include_final_message=False,
+    )
+    return response
+
+
 @router.post("", response_model=ChatCompletionResponse)
 async def create_chat_completion(
     completion_request: ChatCompletionRequest = Body(...),
@@ -64,7 +114,7 @@ async def create_chat_completion(
             stream_steps=True,
             stream_tokens=True,
             # Turn on ChatCompletion mode (eg remaps send_message to content)
-            chat_completion_mode=True,
+            voice_chat_completion_mode=True,
             return_message_object=False,
             include_final_message=False,
         )
