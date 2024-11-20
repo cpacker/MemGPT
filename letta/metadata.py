@@ -701,6 +701,6 @@ class MetadataStore:
     def update_job_status(self, job_id: str, status: JobStatus):
         with self.session_maker() as session:
             session.query(JobModel).filter(JobModel.id == job_id).update({"status": status})
-            if status == JobStatus.COMPLETED:
+            if status == JobStatus.completed:
                 session.query(JobModel).filter(JobModel.id == job_id).update({"completed_at": get_utc_time()})
             session.commit()
