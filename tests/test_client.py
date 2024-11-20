@@ -697,9 +697,13 @@ def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], a
     """
     Comprehensive happy path test for adding, retrieving, and managing tags on an agent.
     """
+    tags_to_add = ["test_tag_1", "test_tag_2", "test_tag_3"]
+
+    # Step 0: create an agent with tags
+    tagged_agent = client.create_agent(tags=tags_to_add)
+    assert set(tagged_agent.tags) == set(tags_to_add), f"Expected tags {tags_to_add}, but got {tagged_agent.tags}"
 
     # Step 1: Add multiple tags to the agent
-    tags_to_add = ["test_tag_1", "test_tag_2", "test_tag_3"]
     client.update_agent(agent_id=agent.id, tags=tags_to_add)
 
     # Step 2: Retrieve tags for the agent and verify they match the added tags

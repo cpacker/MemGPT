@@ -860,6 +860,7 @@ class SyncServer(Server):
                 memory=request.memory,
                 description=request.description,
                 metadata_=request.metadata_,
+                tags=request.tags,
             )
             if request.agent_type == AgentType.memgpt_agent:
                 agent = Agent(
@@ -904,8 +905,15 @@ class SyncServer(Server):
         save_agent(agent, self.ms)
         logger.debug(f"Created new agent from config: {agent}")
 
+        # TODO: move this into save_agent. save_agent should be moved to server.py
+        if request.tags:
+            for tag in request.tags:
+                self.agents_tags_manager.add_tag_to_agent(agent_id=agent.agent_state.id, tag=tag, actor=actor)
+
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
-        # return AgentState
+
+        # TODO: remove (hacky)
+        agent.agent_state.tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent.agent_state.id, actor=actor)
 
         return agent.agent_state
 

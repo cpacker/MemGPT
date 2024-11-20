@@ -79,6 +79,7 @@ class AbstractClient(object):
         include_base_tools: Optional[bool] = True,
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
     ) -> AgentState:
         raise NotImplementedError
 
@@ -94,6 +95,7 @@ class AbstractClient(object):
         embedding_config: Optional[EmbeddingConfig] = None,
         message_ids: Optional[List[str]] = None,
         memory: Optional[Memory] = None,
+        tags: Optional[List[str]] = None,
     ):
         raise NotImplementedError
 
@@ -381,6 +383,7 @@ class RESTClient(AbstractClient):
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
         initial_message_sequence: Optional[List[Message]] = None,
+        tags: Optional[List[str]] = None,
     ) -> AgentState:
         """Create an agent
 
@@ -394,6 +397,7 @@ class RESTClient(AbstractClient):
             include_base_tools (bool): Include base tools
             metadata (Dict): Metadata
             description (str): Description
+            tags (List[str]): Tags for filtering agents
 
         Returns:
             agent_state (AgentState): State of the created agent
@@ -435,6 +439,7 @@ class RESTClient(AbstractClient):
             llm_config=llm_config if llm_config else self._default_llm_config,
             embedding_config=embedding_config if embedding_config else self._default_embedding_config,
             initial_message_sequence=initial_message_sequence,
+            tags=tags,
         )
 
         # Use model_dump_json() instead of model_dump()
@@ -482,12 +487,12 @@ class RESTClient(AbstractClient):
         description: Optional[str] = None,
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
-        tags: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         message_ids: Optional[List[str]] = None,
         memory: Optional[Memory] = None,
+        tags: Optional[List[str]] = None,
     ):
         """
         Update an existing agent
@@ -503,6 +508,7 @@ class RESTClient(AbstractClient):
             embedding_config (EmbeddingConfig): Embedding configuration
             message_ids (List[str]): List of message IDs
             memory (Memory): Memory configuration
+            tags (List[str]): Tags for filtering agents
 
         Returns:
             agent_state (AgentState): State of the updated agent
@@ -1669,6 +1675,7 @@ class LocalClient(AbstractClient):
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
         initial_message_sequence: Optional[List[Message]] = None,
+        tags: Optional[List[str]] = None,
     ) -> AgentState:
         """Create an agent
 
@@ -1683,6 +1690,7 @@ class LocalClient(AbstractClient):
             include_base_tools (bool): Include base tools
             metadata (Dict): Metadata
             description (str): Description
+            tags (List[str]): Tags for filtering agents
 
         Returns:
             agent_state (AgentState): State of the created agent
@@ -1724,6 +1732,7 @@ class LocalClient(AbstractClient):
                 llm_config=llm_config if llm_config else self._default_llm_config,
                 embedding_config=embedding_config if embedding_config else self._default_embedding_config,
                 initial_message_sequence=initial_message_sequence,
+                tags=tags,
             ),
             actor=self.user,
         )
@@ -1780,6 +1789,7 @@ class LocalClient(AbstractClient):
             embedding_config (EmbeddingConfig): Embedding configuration
             message_ids (List[str]): List of message IDs
             memory (Memory): Memory configuration
+            tags (List[str]): Tags for filtering agents
 
         Returns:
             agent_state (AgentState): State of the updated agent
