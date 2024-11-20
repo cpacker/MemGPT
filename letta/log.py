@@ -23,12 +23,10 @@ def _setup_logfile() -> "Path":
 # TODO: production logging should be much less invasive
 DEVELOPMENT_LOGGING = {
     "version": 1,
-    "disable_existing_loggers": True,
+    "disable_existing_loggers": False,  # Allow capturing from all loggers
     "formatters": {
         "standard": {"format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"},
-        "no_datetime": {
-            "format": "%(name)s - %(levelname)s - %(message)s",
-        },
+        "no_datetime": {"format": "%(name)s - %(levelname)s - %(message)s"},
     },
     "handlers": {
         "console": {
@@ -46,14 +44,14 @@ DEVELOPMENT_LOGGING = {
             "formatter": "standard",
         },
     },
+    "root": {  # Root logger handles all logs
+        "level": logging.DEBUG if settings.debug else logging.INFO,
+        "handlers": ["console", "file"],
+    },
     "loggers": {
         "Letta": {
             "level": logging.DEBUG if settings.debug else logging.INFO,
-            "handlers": [
-                "console",
-                "file",
-            ],
-            "propagate": False,
+            "propagate": True,  # Let logs bubble up to root
         },
         "uvicorn": {
             "level": "CRITICAL",

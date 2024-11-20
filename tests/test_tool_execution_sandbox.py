@@ -1,3 +1,4 @@
+import logging
 import os
 import secrets
 import string
@@ -232,7 +233,7 @@ def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user)
     assert len(response) == 5
 
 
-def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user):
+def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user, caplog):
     # Make sure to pip install
     venv_path = Path(__file__).parent / "test_tool_sandbox" / VENV_NAME
     if not os.path.isdir(venv_path):
@@ -258,10 +259,12 @@ def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user):
     args = {}
 
     # Run the custom sandbox
-    sandbox = ToolExecutionSandbox(cowsay_tool.name, args, user_id=test_user.id)
-    response, _ = sandbox.run()
+    with caplog.at_level(logging.DEBUG):
+        sandbox = ToolExecutionSandbox(cowsay_tool.name, args, user_id=test_user.id)
+        response, _ = sandbox.run()
 
-    assert long_random_string in response
+    assert response is None
+    assert any(long_random_string in record.message for record in caplog.records)
 
 
 def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, test_user):
