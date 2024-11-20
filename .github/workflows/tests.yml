@@ -29,6 +29,7 @@ jobs:
           - "test_o1_agent.py"
           - "test_tool_rule_solver.py"
           - "test_agent_tool_graph.py"
+          - "test_utils.py"
     services:
       qdrant:
         image: qdrant/qdrant
@@ -131,4 +132,4 @@ jobs:
           LETTA_SERVER_PASS: test_server_token
           PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
         run: |
-          poetry run pytest -s -vv -k "not integration_test_summarizer.py and not test_agent_tool_graph.py and not test_tool_rule_solver.py and not test_local_client.py and not test_o1_agent.py and not test_cli.py and not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_model_letta_perfomance and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client.py" tests
+          poetry run pytest -s -vv -k "not test_utils.py and not integration_test_summarizer.py and not test_agent_tool_graph.py and not test_tool_rule_solver.py and not test_local_client.py and not test_o1_agent.py and not test_cli.py and not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_model_letta_perfomance and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client.py" tests

@@ -80,6 +80,7 @@ alembic = "^1.13.3"
 pyhumps = "^3.8.0"
 psycopg2 = "^2.9.10"
 psycopg2-binary = "^2.9.10"
+pathvalidate = "^3.2.1"
 
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]
