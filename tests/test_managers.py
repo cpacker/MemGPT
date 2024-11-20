@@ -503,6 +503,29 @@ def test_update_block(server: SyncServer, default_user):
     assert updated_block.description == "Updated description"
 
 
+def test_update_block_limit(server: SyncServer, default_user):
+
+    block_manager = BlockManager()
+    block = block_manager.create_or_update_block(PydanticBlock(label="persona", value="Original Content"), actor=default_user)
+
+    limit = len("Updated Content") * 2000
+    update_data = BlockUpdate(value="Updated Content" * 2000, description="Updated description", limit=limit)
+
+    # Check that a large block fails
+    try:
+        block_manager.update_block(block_id=block.id, block_update=update_data, actor=default_user)
+        assert False
+    except Exception:
+        pass
+
+    block_manager.update_block(block_id=block.id, block_update=update_data, actor=default_user, limit=limit)
+    # Retrieve the updated block
+    updated_block = block_manager.get_blocks(actor=default_user, id=block.id)[0]
+    # Assertions to verify the update
+    assert updated_block.value == "Updated Content" * 2000
+    assert updated_block.description == "Updated description"
+
+
 def test_delete_block(server: SyncServer, default_user):
     block_manager = BlockManager()
 
