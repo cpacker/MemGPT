@@ -1086,15 +1086,14 @@ def sanitize_filename(filename: str) -> str:
     Returns:
         str: A sanitized filename that is unique and safe for use.
     """
-
     # Extract the base filename to avoid directory components
     filename = os.path.basename(filename)
 
-    # External sanitization library
-    filename = pathvalidate_sanitize_filename(filename)
-
     # Split the base and extension
     base, ext = os.path.splitext(filename)
+
+    # External sanitization library
+    base = pathvalidate_sanitize_filename(base)
 
     # Cannot start with a period
     if base.startswith("."):
