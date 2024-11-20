@@ -3,9 +3,12 @@ from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
-from letta.orm import Organization, Source, Tool, User
+from letta.orm import Block, FileMetadata, Organization, Source, Tool, User
 from letta.schemas.agent import CreateAgent
+from letta.schemas.block import Block as PydanticBlock
+from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.file import FileMetadata as PydanticFileMetadata
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.organization import Organization as PydanticOrganization
@@ -13,6 +16,7 @@ from letta.schemas.source import Source as PydanticSource
 from letta.schemas.source import SourceUpdate
 from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolUpdate
+from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
 
 utils.DEBUG = True
@@ -37,6 +41,8 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(Block))
+        session.execute(delete(FileMetadata))
         session.execute(delete(Source))
         session.execute(delete(Tool))  # Clear all records from the Tool table
         session.execute(delete(User))  # Clear all records from the user table
@@ -63,6 +69,18 @@ def other_user(server: SyncServer, default_organization):
     """Fixture to create and return the default user within the default organization."""
     user = server.user_manager.create_user(PydanticUser(name="other", organization_id=default_organization.id))
     yield user
+
+
+@pytest.fixture
+def default_source(server: SyncServer, default_user):
+    source_pydantic = PydanticSource(
+        name="Test Source",
+        description="This is a test source.",
+        metadata_={"type": "test"},
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+    )
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+    yield source
 
 
 @pytest.fixture
@@ -420,7 +438,85 @@ def test_delete_tool_by_id(server: SyncServer, tool_fixture, default_user):
 
 
 # ======================================================================================================================
-# Source Manager Tests
+# Block Manager Tests
+# ======================================================================================================================
+
+
+def test_create_block(server: SyncServer, default_user):
+    block_manager = BlockManager()
+    block_create = PydanticBlock(
+        label="human",
+        is_template=True,
+        value="Sample content",
+        template_name="sample_template",
+        description="A test block",
+        limit=1000,
+        metadata_={"example": "data"},
+    )
+
+    block = block_manager.create_or_update_block(block_create, actor=default_user)
+
+    # Assertions to ensure the created block matches the expected values
+    assert block.label == block_create.label
+    assert block.is_template == block_create.is_template
+    assert block.value == block_create.value
+    assert block.template_name == block_create.template_name
+    assert block.description == block_create.description
+    assert block.limit == block_create.limit
+    assert block.metadata_ == block_create.metadata_
+    assert block.organization_id == default_user.organization_id
+
+
+def test_get_blocks(server, default_user):
+    block_manager = BlockManager()
+
+    # Create blocks to retrieve later
+    block_manager.create_or_update_block(PydanticBlock(label="human", value="Block 1"), actor=default_user)
+    block_manager.create_or_update_block(PydanticBlock(label="persona", value="Block 2"), actor=default_user)
+
+    # Retrieve blocks by different filters
+    all_blocks = block_manager.get_blocks(actor=default_user)
+    assert len(all_blocks) == 2
+
+    human_blocks = block_manager.get_blocks(actor=default_user, label="human")
+    assert len(human_blocks) == 1
+    assert human_blocks[0].label == "human"
+
+    persona_blocks = block_manager.get_blocks(actor=default_user, label="persona")
+    assert len(persona_blocks) == 1
+    assert persona_blocks[0].label == "persona"
+
+
+def test_update_block(server: SyncServer, default_user):
+    block_manager = BlockManager()
+    block = block_manager.create_or_update_block(PydanticBlock(label="persona", value="Original Content"), actor=default_user)
+
+    # Update block's content
+    update_data = BlockUpdate(value="Updated Content", description="Updated description")
+    block_manager.update_block(block_id=block.id, block_update=update_data, actor=default_user)
+
+    # Retrieve the updated block
+    updated_block = block_manager.get_blocks(actor=default_user, id=block.id)[0]
+
+    # Assertions to verify the update
+    assert updated_block.value == "Updated Content"
+    assert updated_block.description == "Updated description"
+
+
+def test_delete_block(server: SyncServer, default_user):
+    block_manager = BlockManager()
+
+    # Create and delete a block
+    block = block_manager.create_or_update_block(PydanticBlock(label="human", value="Sample content"), actor=default_user)
+    block_manager.delete_block(block_id=block.id, actor=default_user)
+
+    # Verify that the block was deleted
+    blocks = block_manager.get_blocks(actor=default_user)
+    assert len(blocks) == 0
+
+
+# ======================================================================================================================
+# Source Manager Tests - Sources
 # ======================================================================================================================
 
 
@@ -560,6 +656,74 @@ def test_update_source_no_changes(server: SyncServer, default_user):
     assert updated_source.id == source.id
     assert updated_source.name == source.name
     assert updated_source.description == source.description
+
+
+# ======================================================================================================================
+# Source Manager Tests - Files
+# ======================================================================================================================
+def test_get_file_by_id(server: SyncServer, default_user, default_source):
+    """Test retrieving a file by ID."""
+    file_metadata = PydanticFileMetadata(
+        file_name="Retrieve File",
+        file_path="/path/to/retrieve_file.txt",
+        file_type="text/plain",
+        file_size=2048,
+        source_id=default_source.id,
+    )
+    created_file = server.source_manager.create_file(file_metadata=file_metadata, actor=default_user)
+
+    # Retrieve the file by ID
+    retrieved_file = server.source_manager.get_file_by_id(file_id=created_file.id, actor=default_user)
+
+    # Assertions to verify the retrieved file matches the created one
+    assert retrieved_file.id == created_file.id
+    assert retrieved_file.file_name == created_file.file_name
+    assert retrieved_file.file_path == created_file.file_path
+    assert retrieved_file.file_type == created_file.file_type
+
+
+def test_list_files(server: SyncServer, default_user, default_source):
+    """Test listing files with pagination."""
+    # Create multiple files
+    server.source_manager.create_file(
+        PydanticFileMetadata(file_name="File 1", file_path="/path/to/file1.txt", file_type="text/plain", source_id=default_source.id),
+        actor=default_user,
+    )
+    server.source_manager.create_file(
+        PydanticFileMetadata(file_name="File 2", file_path="/path/to/file2.txt", file_type="text/plain", source_id=default_source.id),
+        actor=default_user,
+    )
+
+    # List files without pagination
+    files = server.source_manager.list_files(source_id=default_source.id, actor=default_user)
+    assert len(files) == 2
+
+    # List files with pagination
+    paginated_files = server.source_manager.list_files(source_id=default_source.id, actor=default_user, limit=1)
+    assert len(paginated_files) == 1
+
+    # Ensure cursor-based pagination works
+    next_page = server.source_manager.list_files(source_id=default_source.id, actor=default_user, cursor=paginated_files[-1].id, limit=1)
+    assert len(next_page) == 1
+    assert next_page[0].file_name != paginated_files[0].file_name
+
+
+def test_delete_file(server: SyncServer, default_user, default_source):
+    """Test deleting a file."""
+    file_metadata = PydanticFileMetadata(
+        file_name="Delete File", file_path="/path/to/delete_file.txt", file_type="text/plain", source_id=default_source.id
+    )
+    created_file = server.source_manager.create_file(file_metadata=file_metadata, actor=default_user)
+
+    # Delete the file
+    deleted_file = server.source_manager.delete_file(file_id=created_file.id, actor=default_user)
+
+    # Assertions to verify deletion
+    assert deleted_file.id == created_file.id
+
+    # Verify that the file no longer appears in list_files
+    files = server.source_manager.list_files(source_id=default_source.id, actor=default_user)
+    assert len(files) == 0
 
 
 # ======================================================================================================================

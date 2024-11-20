@@ -49,23 +49,16 @@ from letta.providers import (
     OllamaProvider,
     OpenAIProvider,
     Provider,
+    TogetherProvider,
     VLLMChatCompletionsProvider,
     VLLMCompletionsProvider,
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
-from letta.schemas.block import (
-    Block,
-    CreateBlock,
-    CreateHuman,
-    CreatePersona,
-    UpdateBlock,
-)
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.letta_message import LettaMessage
 from letta.schemas.llm_config import LLMConfig
@@ -83,6 +76,7 @@ from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
+from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
@@ -250,6 +244,7 @@ class SyncServer(Server):
         self.organization_manager = OrganizationManager()
         self.user_manager = UserManager()
         self.tool_manager = ToolManager()
+        self.block_manager = BlockManager()
         self.source_manager = SourceManager()
         self.agents_tags_manager = AgentsTagsManager()
 
@@ -257,7 +252,7 @@ class SyncServer(Server):
         if init_with_default_org_and_user:
             self.default_org = self.organization_manager.create_default_organization()
             self.default_user = self.user_manager.create_default_user()
-            self.add_default_blocks(self.default_user.id)
+            self.block_manager.add_default_blocks(actor=self.default_user)
             self.tool_manager.add_base_tools(actor=self.default_user)
 
             # If there is a default org/user
@@ -304,7 +299,18 @@ class SyncServer(Server):
                 )
             )
         if model_settings.groq_api_key:
-            self._enabled_providers.append(GroqProvider(api_key=model_settings.groq_api_key))
+            self._enabled_providers.append(
+                GroqProvider(
+                    api_key=model_settings.groq_api_key,
+                )
+            )
+        if model_settings.together_api_key:
+            self._enabled_providers.append(
+                TogetherProvider(
+                    api_key=model_settings.together_api_key,
+                    default_prompt_formatter=model_settings.default_prompt_formatter,
+                )
+            )
         if model_settings.vllm_api_base:
             # vLLM exposes both a /chat/completions and a /completions endpoint
             self._enabled_providers.append(
@@ -321,15 +327,6 @@ class SyncServer(Server):
                     base_url=model_settings.vllm_api_base,
                 )
             )
-
-    def save_agents(self):
-        """Saves all the agents that are in the in-memory object store"""
-        for agent_d in self.active_agents:
-            try:
-                save_agent(agent_d["agent"], self.ms)
-                logger.debug(f"Saved agent {agent_d['agent_id']}")
-            except Exception as e:
-                logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}:\n{e}")
 
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
@@ -388,9 +385,9 @@ class SyncServer(Server):
             assert isinstance(agent_state.memory, Memory)
 
             if agent_state.agent_type == AgentType.memgpt_agent:
-                letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+                letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs, user=actor)
             elif agent_state.agent_type == AgentType.o1_agent:
-                letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs)
+                letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs, user=actor)
             else:
                 raise NotImplementedError("Not a supported agent type")
 
@@ -873,6 +870,7 @@ class SyncServer(Server):
                     first_message_verify_mono=(
                         True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
                     ),
+                    user=actor,
                     initial_message_sequence=request.initial_message_sequence,
                 )
             elif request.agent_type == AgentType.o1_agent:
@@ -884,6 +882,7 @@ class SyncServer(Server):
                     first_message_verify_mono=(
                         True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
                     ),
+                    user=actor,
                 )
             # rebuilding agent memory on agent create in case shared memory blocks
             # were specified in the new agent's memory config. we're doing this for two reasons:
@@ -1118,56 +1117,6 @@ class SyncServer(Server):
                 agent_ids += self.agents_tags_manager.get_agents_by_tag(tag=tag, actor=user)
 
             return [self.get_agent_state(user_id=user.id, agent_id=agent_id) for agent_id in agent_ids]
-
-    def get_blocks(
-        self,
-        user_id: Optional[str] = None,
-        label: Optional[str] = None,
-        template: Optional[bool] = None,
-        name: Optional[str] = None,
-        id: Optional[str] = None,
-    ) -> Optional[List[Block]]:
-
-        return self.ms.get_blocks(user_id=user_id, label=label, template=template, template_name=name, id=id)
-
-    def get_block(self, block_id: str):
-
-        blocks = self.get_blocks(id=block_id)
-        if blocks is None or len(blocks) == 0:
-            raise ValueError("Block does not exist")
-        if len(blocks) > 1:
-            raise ValueError("Multiple blocks with the same id")
-        return blocks[0]
-
-    def create_block(self, request: CreateBlock, user_id: str, update: bool = False) -> Block:
-        existing_blocks = self.ms.get_blocks(
-            template_name=request.template_name, user_id=user_id, template=request.template, label=request.label
-        )
-
-        # for templates, update existing block template if exists
-        if existing_blocks is not None and request.template:
-            existing_block = existing_blocks[0]
-            assert len(existing_blocks) == 1
-            if update:
-                return self.update_block(UpdateBlock(id=existing_block.id, **vars(request)))
-            else:
-                raise ValueError(f"Block with name {request.template_name} already exists")
-        block = Block(**vars(request))
-        self.ms.create_block(block)
-        return block
-
-    def update_block(self, request: UpdateBlock) -> Block:
-        block = self.get_block(request.id)
-        block.limit = request.limit if request.limit is not None else block.limit
-        block.value = request.value if request.value is not None else block.value
-        block.template_name = request.template_name if request.template_name is not None else block.template_name
-        self.ms.update_block(block=block)
-        return self.ms.get_block(block_id=request.id)
-
-    def delete_block(self, block_id: str):
-        block = self.get_block(block_id)
-        self.ms.delete_block(block_id)
-        return block
 
     # convert name->id
 
@@ -1513,12 +1462,16 @@ class SyncServer(Server):
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
-        # Verify that the agent exists and is owned by the user
+        # Verify that the agent exists and belongs to the org of the user
         agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
         if not agent_state:
             raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
-        if agent_state.user_id != user_id:
-            raise ValueError(f"Could not authorize agent_id={agent_id} with user_id={user_id}")
+
+        agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+        if agent_state_user.organization_id != actor.organization_id:
+            raise ValueError(
+                f"Could not authorize agent_id={agent_id} with user_id={user_id} because of differing organizations; agent_id was created in {agent_state_user.organization_id} while user belongs to {actor.organization_id}. How did they get the agent id?"
+            )
 
         # First, if the agent is in the in-memory cache we should remove it
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
@@ -1632,9 +1585,6 @@ class SyncServer(Server):
 
         return job
 
-    def delete_file_from_source(self, source_id: str, file_id: str, user_id: Optional[str]) -> Optional[FileMetadata]:
-        return self.ms.delete_file_from_source(source_id=source_id, file_id=file_id, user_id=user_id)
-
     def load_data(
         self,
         user_id: str,
@@ -1652,10 +1602,9 @@ class SyncServer(Server):
 
         # get the data connectors
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-        file_store = StorageConnector.get_storage_connector(TableType.FILES, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, file_store)
+        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user)
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1674,7 +1623,6 @@ class SyncServer(Server):
             data_source = self.source_manager.get_source_by_name(source_name=source_name, actor=user)
         else:
             raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
-
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
 
@@ -1719,10 +1667,6 @@ class SyncServer(Server):
         source_ids = self.ms.list_attached_source_ids(agent_id)
 
         return [self.source_manager.get_source_by_id(source_id=id) for id in source_ids]
-
-    def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
-        # list all attached sources to an agent
-        return self.ms.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
 
     def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
@@ -1783,21 +1727,6 @@ class SyncServer(Server):
                 success = False
 
         return success
-
-    def add_default_blocks(self, user_id: str):
-        from letta.utils import list_human_files, list_persona_files
-
-        assert user_id is not None, "User ID must be provided"
-
-        for persona_file in list_persona_files():
-            text = open(persona_file, "r", encoding="utf-8").read()
-            name = os.path.basename(persona_file).replace(".txt", "")
-            self.create_block(CreatePersona(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
-
-        for human_file in list_human_files():
-            text = open(human_file, "r", encoding="utf-8").read()
-            name = os.path.basename(human_file).replace(".txt", "")
-            self.create_block(CreateHuman(user_id=user_id, template_name=name, value=text, template=True), user_id=user_id, update=True)
 
     def get_agent_message(self, agent_id: str, message_id: str) -> Optional[Message]:
         """Get a single message from the agent's memory"""

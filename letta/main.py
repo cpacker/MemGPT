@@ -254,6 +254,15 @@ def run_agent_loop(
                         )
                     continue
 
+                elif user_input.lower() == "/tokens":
+                    tokens = letta_agent.count_tokens()
+                    typer.secho(
+                        f"{tokens}/{letta_agent.agent_state.llm_config.context_window}",
+                        fg=typer.colors.GREEN,
+                        bold=True,
+                    )
+                    continue
+
                 elif user_input.lower().startswith("/add_function"):
                     try:
                         if len(user_input) < len("/add_function "):

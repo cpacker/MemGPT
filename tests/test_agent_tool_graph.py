@@ -1,4 +1,3 @@
-import os
 import uuid
 
 import pytest
@@ -13,12 +12,11 @@ from tests.helpers.endpoints_helper import (
     setup_agent,
 )
 from tests.helpers.utils import cleanup
-from tests.test_endpoints import llm_config_dir
 
 # Generate uuid for agent name for this example
 namespace = uuid.NAMESPACE_DNS
 agent_uuid = str(uuid.uuid5(namespace, "test_agent_tool_graph"))
-config_file = os.path.join(llm_config_dir, "openai-gpt-4o.json")
+config_file = "tests/configs/llm_model_configs/openai-gpt-4o.json"
 
 """Contrived tools for this test case"""
 

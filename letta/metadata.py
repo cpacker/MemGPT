@@ -4,27 +4,15 @@ import os
 import secrets
 from typing import List, Optional
 
-from sqlalchemy import (
-    BIGINT,
-    JSON,
-    Boolean,
-    Column,
-    DateTime,
-    Index,
-    Integer,
-    String,
-    TypeDecorator,
-)
+from sqlalchemy import JSON, Column, DateTime, Index, String, TypeDecorator
 from sqlalchemy.sql import func
 
 from letta.config import LettaConfig
 from letta.orm.base import Base
 from letta.schemas.agent import AgentState
 from letta.schemas.api_key import APIKey
-from letta.schemas.block import Block, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus
-from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
@@ -38,41 +26,6 @@ from letta.schemas.tool_rule import (
 from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
-
-
-class FileMetadataModel(Base):
-    __tablename__ = "files"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True, nullable=False)
-    user_id = Column(String, nullable=False)
-    # TODO: Investigate why this breaks during table creation due to FK
-    # source_id = Column(String, ForeignKey("sources.id"), nullable=False)
-    source_id = Column(String, nullable=False)
-    file_name = Column(String, nullable=True)
-    file_path = Column(String, nullable=True)
-    file_type = Column(String, nullable=True)
-    file_size = Column(Integer, nullable=True)
-    file_creation_date = Column(String, nullable=True)
-    file_last_modified_date = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    def __repr__(self):
-        return f"<FileMetadata(id='{self.id}', source_id='{self.source_id}', file_name='{self.file_name}')>"
-
-    def to_record(self):
-        return FileMetadata(
-            id=self.id,
-            user_id=self.user_id,
-            source_id=self.source_id,
-            file_name=self.file_name,
-            file_path=self.file_path,
-            file_type=self.file_type,
-            file_size=self.file_size,
-            file_creation_date=self.file_creation_date,
-            file_last_modified_date=self.file_last_modified_date,
-            created_at=self.created_at,
-        )
 
 
 class LLMConfigColumn(TypeDecorator):
@@ -306,63 +259,6 @@ class AgentSourceMappingModel(Base):
         return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
 
 
-class BlockModel(Base):
-    __tablename__ = "block"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True, nullable=False)
-    value = Column(String, nullable=False)
-    limit = Column(BIGINT)
-    template_name = Column(String, nullable=True, default=None)
-    template = Column(Boolean, default=False)  # True: listed as possible human/persona
-    label = Column(String, nullable=False)
-    metadata_ = Column(JSON)
-    description = Column(String)
-    user_id = Column(String)
-    Index(__tablename__ + "_idx_user", user_id),
-
-    def __repr__(self) -> str:
-        return f"<Block(id='{self.id}', template_name='{self.template_name}', template='{self.template_name}', label='{self.label}', user_id='{self.user_id}')>"
-
-    def to_record(self) -> Block:
-        if self.label == "persona":
-            return Persona(
-                id=self.id,
-                value=self.value,
-                limit=self.limit,
-                template_name=self.template_name,
-                template=self.template,
-                label=self.label,
-                metadata_=self.metadata_,
-                description=self.description,
-                user_id=self.user_id,
-            )
-        elif self.label == "human":
-            return Human(
-                id=self.id,
-                value=self.value,
-                limit=self.limit,
-                template_name=self.template_name,
-                template=self.template,
-                label=self.label,
-                metadata_=self.metadata_,
-                description=self.description,
-                user_id=self.user_id,
-            )
-        else:
-            return Block(
-                id=self.id,
-                value=self.value,
-                limit=self.limit,
-                template_name=self.template_name,
-                template=self.template,
-                label=self.label,
-                metadata_=self.metadata_,
-                description=self.description,
-                user_id=self.user_id,
-            )
-
-
 class JobModel(Base):
     __tablename__ = "jobs"
     __table_args__ = {"extend_existing": True}
@@ -463,27 +359,6 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def create_block(self, block: Block):
-        with self.session_maker() as session:
-            # TODO: fix?
-            # we are only validating that more than one template block
-            # with a given name doesn't exist.
-            if (
-                session.query(BlockModel)
-                .filter(BlockModel.template_name == block.template_name)
-                .filter(BlockModel.user_id == block.user_id)
-                .filter(BlockModel.template == True)
-                .filter(BlockModel.label == block.label)
-                .count()
-                > 0
-            ):
-
-                raise ValueError(f"Block with name {block.template_name} already exists")
-
-            session.add(BlockModel(**vars(block)))
-            session.commit()
-
-    @enforce_types
     def update_agent(self, agent: AgentState):
         with self.session_maker() as session:
             fields = vars(agent)
@@ -492,43 +367,6 @@ class MetadataStore:
             del fields["_internal_memory"]
             del fields["tags"]
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
-            session.commit()
-
-    @enforce_types
-    def update_block(self, block: Block):
-        with self.session_maker() as session:
-            session.query(BlockModel).filter(BlockModel.id == block.id).update(vars(block))
-            session.commit()
-
-    @enforce_types
-    def update_or_create_block(self, block: Block):
-        with self.session_maker() as session:
-            existing_block = session.query(BlockModel).filter(BlockModel.id == block.id).first()
-            if existing_block:
-                session.query(BlockModel).filter(BlockModel.id == block.id).update(vars(block))
-            else:
-                session.add(BlockModel(**vars(block)))
-            session.commit()
-
-    @enforce_types
-    def delete_file_from_source(self, source_id: str, file_id: str, user_id: Optional[str]):
-        with self.session_maker() as session:
-            file_metadata = (
-                session.query(FileMetadataModel)
-                .filter(FileMetadataModel.source_id == source_id, FileMetadataModel.id == file_id, FileMetadataModel.user_id == user_id)
-                .first()
-            )
-
-            if file_metadata:
-                session.delete(file_metadata)
-                session.commit()
-
-            return file_metadata
-
-    @enforce_types
-    def delete_block(self, block_id: str):
-        with self.session_maker() as session:
-            session.query(BlockModel).filter(BlockModel.id == block_id).delete()
             session.commit()
 
     @enforce_types
@@ -564,50 +402,6 @@ class MetadataStore:
                 return None
             assert len(results) == 1, f"Expected 1 result, got {len(results)}"  # should only be one result
             return results[0].to_record()
-
-    @enforce_types
-    def get_block(self, block_id: str) -> Optional[Block]:
-        with self.session_maker() as session:
-            results = session.query(BlockModel).filter(BlockModel.id == block_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    @enforce_types
-    def get_blocks(
-        self,
-        user_id: Optional[str],
-        label: Optional[str] = None,
-        template: Optional[bool] = None,
-        template_name: Optional[str] = None,
-        id: Optional[str] = None,
-    ) -> Optional[List[Block]]:
-        """List available blocks"""
-        with self.session_maker() as session:
-            query = session.query(BlockModel)
-
-            if user_id:
-                query = query.filter(BlockModel.user_id == user_id)
-
-            if label:
-                query = query.filter(BlockModel.label == label)
-
-            if template_name:
-                query = query.filter(BlockModel.template_name == template_name)
-
-            if id:
-                query = query.filter(BlockModel.id == id)
-
-            if template:
-                query = query.filter(BlockModel.template == template)
-
-            results = query.all()
-
-            if len(results) == 0:
-                return None
-
-            return [r.to_record() for r in results]
 
     # agent source metadata
     @enforce_types
@@ -652,27 +446,6 @@ class MetadataStore:
         with self.session_maker() as session:
             session.add(JobModel(**vars(job)))
             session.commit()
-
-    @enforce_types
-    def list_files_from_source(self, source_id: str, limit: int, cursor: Optional[str]):
-        with self.session_maker() as session:
-            # Start with the basic query filtered by source_id
-            query = session.query(FileMetadataModel).filter(FileMetadataModel.source_id == source_id)
-
-            if cursor:
-                # Assuming cursor is the ID of the last file in the previous page
-                query = query.filter(FileMetadataModel.id > cursor)
-
-            # Order by ID or other ordering criteria to ensure correct pagination
-            query = query.order_by(FileMetadataModel.id)
-
-            # Limit the number of results returned
-            results = query.limit(limit).all()
-
-            # Convert the results to the required FileMetadata objects
-            files = [r.to_record() for r in results]
-
-            return files
 
     def delete_job(self, job_id: str):
         with self.session_maker() as session:

@@ -198,11 +198,13 @@ def list_files_from_source(
     limit: int = Query(1000, description="Number of files to return"),
     cursor: Optional[str] = Query(None, description="Pagination cursor to fetch the next set of results"),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     List paginated files associated with a data source.
     """
-    return server.list_files_from_source(source_id=source_id, limit=limit, cursor=cursor)
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.source_manager.list_files(source_id=source_id, limit=limit, cursor=cursor, actor=actor)
 
 
 # it's redundant to include /delete in the URL path. The HTTP verb DELETE already implies that action.
@@ -219,7 +221,7 @@ def delete_file_from_source(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    deleted_file = server.delete_file_from_source(source_id=source_id, file_id=file_id, user_id=actor.id)
+    deleted_file = server.source_manager.delete_file(file_id=file_id, actor=actor)
     if deleted_file is None:
         raise HTTPException(status_code=404, detail=f"File with id={file_id} not found.")
 

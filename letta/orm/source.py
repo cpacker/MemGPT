@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import JSON, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -47,4 +47,5 @@ class Source(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="sources")
+    files: Mapped[List["Source"]] = relationship("FileMetadata", back_populates="source", cascade="all, delete-orphan")
     # agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")

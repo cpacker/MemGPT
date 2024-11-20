@@ -46,6 +46,7 @@ class Choice(BaseModel):
     index: int
     message: Message
     logprobs: Optional[Dict[str, Union[List[MessageContentLogProb], None]]] = None
+    seed: Optional[int] = None  # found in TogetherAI
 
 
 class UsageStatistics(BaseModel):
