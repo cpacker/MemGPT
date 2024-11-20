@@ -1,3 +1,7 @@
+letta
 pgserver~=0.1.4
 py2app~=0.28.8
+pystray
+pillow
+darkdetect
 #py2exe - not currently supporting 3.12 TODO upgrade or downgrade
