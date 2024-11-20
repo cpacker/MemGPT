@@ -23,20 +23,28 @@ def test_chat_offline_memory():
     trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
     send_message_offline_agent_tool = client.create_tool(send_message_offline_agent)
 
-    conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
-    conversation_persona_block = Block(name="persona", label="persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
-    offline_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
-    offline_persona_block = Block(name="persona", label="persona", value=get_persona_text("offline_memory_persona"), limit=2000)
+    conversation_human_block = Block(name="chat_agent_human", label="chat_agent_human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
+    conversation_persona_block = Block(name="chat_agent_persona", label="chat_agent_persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
+    # offline_human_block = Block(name="memory_agent_human", label="memory_agent_human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
+    offline_persona_block = Block(name="offline_memory_persona", label="offline_memory_persona", value=get_persona_text("offline_memory_persona"), limit=2000)
 
-    offline_human_block_new = Block(name="human_new", label="human_new", value=offline_human_block.value, limit=2000)
-    offline_persona_block_new = Block(name="persona_new", label="persona_new", value=offline_persona_block.value, limit=2000)
+    # offline_human_block_new = Block(name="human_new", label="human_new", value=offline_human_block.value, limit=2000)
+    # offline_persona_block_new = Block(name="persona_new", label="persona_new", value=offline_persona_block.value, limit=2000)
+    conversation_human_block_new = Block(name="chat_agent_human_new", label="chat_agent_human_new", value=get_human_text(DEFAULT_HUMAN), limit=2000)
+    conversation_persona_block_new = Block(name="chat_agent_persona_new", label="chat_agent_persona_new", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
 
-    conversation_messages_block = Block(name="conversation_block", label="conversation_block", value="", limit=10000)
+    conversation_messages_block = Block(name="conversation_block", label="conversation_block", value="", limit=20000)
 
     conversation_memory = BasicBlockMemory(blocks=[conversation_persona_block, conversation_human_block, conversation_messages_block])
+    '''
     offline_memory = BasicBlockMemory(
         blocks=[offline_persona_block, offline_human_block, offline_persona_block_new, offline_human_block_new, conversation_messages_block]
     )
+    '''
+    offline_memory = BasicBlockMemory(
+        blocks=[offline_persona_block, conversation_human_block, conversation_persona_block, conversation_human_block_new, conversation_persona_block_new, conversation_messages_block]
+    )
+    
 
     conversation_agent = client.create_agent(
         name="conversation_agent",
@@ -60,7 +68,7 @@ def test_chat_offline_memory():
     offline_memory_agent = client.create_agent(
         name="offline_memory_agent",
         agent_type=AgentType.offline_memory_agent,
-        system=gpt_system.get_system_text("memgpt_offline_memory"),
+        system=gpt_system.get_system_text("memgpt_offline_memory_chat"),
         memory=offline_memory,
         llm_config=LLMConfig.default_config("gpt-4"),
         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
@@ -71,37 +79,21 @@ def test_chat_offline_memory():
     assert offline_memory_agent is not None
 
     for _ in range(3):
-        for message in ["No, my name is Swoodily", "No, my name is Packles"]:
+        for message in ["No, my first name is Swoodily", "No, my first name is Packles"]:
             _ = client.user_message(agent_id=conversation_agent.id, message=message)
 
     offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
     _ = client.user_message(agent_id=conversation_agent.id, message="[trigger_rethink_memory]")
 
-    import pdb
-
-    pdb.set_trace()
-
     offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
-    assert offline_memory_agent.memory.get_block("human_new").value != conversation_agent.memory.get_block("human").value
+    assert offline_memory_agent.memory.get_block("chat_agent_human_new").value != get_human_text(DEFAULT_HUMAN) 
 
     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
-    convo_recall = client.get_recall_memory_summary(agent_id=conversation_agent.id)
-    print("CONVO recall", convo_recall)
 
-    offline_recall = client.get_recall_memory_summary(agent_id=offline_memory_agent.id)
-    print("OFFLINE recall", offline_recall)
+    import pdb; pdb.set_trace()
+    assert offline_memory_agent.memory.get_block("chat_agent_human_new").value == conversation_agent.memory.get_block("chat_agent_human").value
 
-    # print out the in context messages
-    print("CONVO in context:", client.get_in_context_messages(agent_id=conversation_agent.id))
-    print("OFFLINE in context:", client.get_in_context_messages(agent_id=offline_memory_agent.id))
-
-    """
-    _ = client.user_message(
-        agent_id=conversation_agent.id, message="[trigger_rethink_memory]"
-    )
-    """
-
-
+    
 def test_ripple_edit():
     client = create_client()
     assert client is not None
