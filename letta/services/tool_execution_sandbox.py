@@ -58,7 +58,6 @@ class ToolExecutionSandbox:
         else:
             logger.info("Using local sandbox for tool execution...")
             code = self.generate_execution_script(wrap_print=True, agent_state=agent_state)
-            print(code)
             logger.info("Running code in local sandbox...", code)
             return self.run_local_dir_sandbox(code=code)
 
@@ -87,8 +86,6 @@ class ToolExecutionSandbox:
         env["VIRTUAL_ENV"] = venv_path
         env["PATH"] = os.path.join(venv_path, "bin") + ":" + env["PATH"]
         env.update(env_vars)
-
-        print("ENV", venv_path)
 
         # Safety checks
         # Check that sandbox_dir exists
@@ -120,10 +117,8 @@ class ToolExecutionSandbox:
                     text=True,
                 )
                 if result.stderr:
-                    print(f"Sandbox execution error: {result.stderr}")
                     logger.error(f"Sandbox execution error: {result.stderr}")
                     raise RuntimeError(f"Sandbox execution error: {result.stderr}")
-                print("RESULT LOCAL", result.stdout)
                 # return self.ast_parse_best_effort(result.stdout)
                 return self.parse_results(result.stdout)
             except subprocess.TimeoutExpired:
@@ -148,15 +143,12 @@ class ToolExecutionSandbox:
         # TODO: We set limit to 100 here, but maybe we want it uncapped? Realistically this should be fine.
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         execution = sbx.run_code(code, envs=env_vars)
-        print(execution)
-        print("exec results", execution.results)
         if execution.error is not None:
             raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}")
         elif len(execution.results) == 0:
             function_response = None
         else:
             function_response = self.ast_parse_best_effort(execution.results[0].text)
-        print("RESPONSE", function_response)
 
         # Note, we don't kill the sandbox
         return self.parse_results(function_response)
@@ -267,8 +259,6 @@ class ToolExecutionSandbox:
             code += "print(result_json)\n"
         else:
             code += "result_json\n"
-
-        print(code)
 
         return code
 
