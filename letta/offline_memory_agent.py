@@ -37,13 +37,8 @@ def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[st
 
     """
     from letta import create_client
-
     recent_convo = "".join([str(message) for message in self.messages])
-    # print("recent convo", recent_convo)
     self.memory.update_block_value(label="conversation_block", value=recent_convo)
-    print("RECENT CONVO", self.memory.get_block("conversation_block"))
-
-    save_agent(self, self.ms)
     client = create_client()
     agents = client.list_agents()
     for agent in agents:
