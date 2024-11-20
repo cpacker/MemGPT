@@ -525,7 +525,6 @@ class RESTClient(AbstractClient):
             embedding_config=embedding_config,
             message_ids=message_ids,
             memory=memory,
-            tags=tags,
         )
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
@@ -1809,7 +1808,6 @@ class LocalClient(AbstractClient):
                 embedding_config=embedding_config,
                 message_ids=message_ids,
                 memory=memory,
-                tags=tags,
             ),
             actor=self.user,
         )
