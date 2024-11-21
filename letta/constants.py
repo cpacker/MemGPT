@@ -133,12 +133,8 @@ MESSAGE_SUMMARY_REQUEST_ACK = "Understood, I will respond with a summary of the 
 # These serve as in-context examples of how to use functions / what user messages look like
 MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST = 3
 
-# Default memory limits
-CORE_MEMORY_PERSONA_CHAR_LIMIT = 2000
-CORE_MEMORY_HUMAN_CHAR_LIMIT = 2000
-
 # Function return limits
-FUNCTION_RETURN_CHAR_LIMIT = 6000  # ~300 words
+FUNCTION_RETURN_TOKEN_LIMIT = 1500  # ~300 words
 
 MAX_PAUSE_HEARTBEATS = 360  # in min
 
@@ -155,9 +151,9 @@ FUNC_FAILED_HEARTBEAT_MESSAGE = f"{NON_USER_MSG_PREFIX}Function call failed, ret
 
 RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE = 5
 
-# TODO Is this config or constant?
-CORE_MEMORY_PERSONA_CHAR_LIMIT: int = 2000
-CORE_MEMORY_HUMAN_CHAR_LIMIT: int = 2000
+# Default memory limits
+CORE_MEMORY_PERSONA_TOKEN_LIMIT: int = 2000
+CORE_MEMORY_HUMAN_TOKEN_LIMIT: int = 2000
 
 MAX_FILENAME_LENGTH = 255
 RESERVED_FILENAMES = {"CON", "PRN", "AUX", "NUL", "COM1", "COM2", "LPT1", "LPT2"}

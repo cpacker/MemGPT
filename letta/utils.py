@@ -26,9 +26,10 @@ from pathvalidate import sanitize_filename as pathvalidate_sanitize_filename
 import letta
 from letta.constants import (
     CLI_WARNING_PREFIX,
-    CORE_MEMORY_HUMAN_CHAR_LIMIT,
-    CORE_MEMORY_PERSONA_CHAR_LIMIT,
-    FUNCTION_RETURN_CHAR_LIMIT,
+    CORE_MEMORY_HUMAN_TOKEN_LIMIT,
+    CORE_MEMORY_PERSONA_TOKEN_LIMIT,
+    DEFAULT_TIKTOKEN_MODEL,
+    FUNCTION_RETURN_TOKEN_LIMIT,
     LETTA_DIR,
     MAX_FILENAME_LENGTH,
     TOOL_CALL_ID_MAX_LEN,
@@ -790,7 +791,7 @@ class OpenAIBackcompatUnpickler(pickle.Unpickler):
         return super().find_class(module, name)
 
 
-def count_tokens(s: str, model: str = "gpt-4") -> int:
+def count_tokens(s: str, model: str = DEFAULT_TIKTOKEN_MODEL) -> int:
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(s))
 
@@ -927,11 +928,10 @@ def validate_function_response(function_response_string: any, strict: bool = Fal
 
     # Now check the length and make sure it doesn't go over the limit
     # TODO we should change this to a max token limit that's variable based on tokens remaining (or context-window)
-    if truncate and len(function_response_string) > FUNCTION_RETURN_CHAR_LIMIT:
-        print(
-            f"{CLI_WARNING_PREFIX}function return was over limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT}) and was truncated"
-        )
-        function_response_string = f"{function_response_string[:FUNCTION_RETURN_CHAR_LIMIT]}... [NOTE: function output was truncated since it exceeded the character limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT})]"
+    token_count = count_tokens(function_response_string)
+    if truncate and token_count > FUNCTION_RETURN_TOKEN_LIMIT:
+        print(f"{CLI_WARNING_PREFIX}function return was over limit ({token_count} > {FUNCTION_RETURN_TOKEN_LIMIT}) and was truncated")
+        function_response_string = f"{function_response_string[:FUNCTION_RETURN_TOKEN_LIMIT]}... [NOTE: function output was truncated since it exceeded the token limit ({token_count} > {FUNCTION_RETURN_TOKEN_LIMIT})]"
 
     return function_response_string
 
@@ -994,8 +994,9 @@ def get_human_text(name: str, enforce_limit=True):
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
             human_text = open(file_path, "r", encoding="utf-8").read().strip()
-            if enforce_limit and len(human_text) > CORE_MEMORY_HUMAN_CHAR_LIMIT:
-                raise ValueError(f"Contents of {name}.txt is over the character limit ({len(human_text)} > {CORE_MEMORY_HUMAN_CHAR_LIMIT})")
+            token_count = count_tokens(human_text, model=DEFAULT_TIKTOKEN_MODEL)
+            if enforce_limit and token_count > CORE_MEMORY_HUMAN_TOKEN_LIMIT:
+                raise ValueError(f"Contents of {name}.txt is over the token limit ({token_count} > {CORE_MEMORY_HUMAN_TOKEN_LIMIT})")
             return human_text
 
     raise ValueError(f"Human {name}.txt not found")
@@ -1006,20 +1007,12 @@ def get_persona_text(name: str, enforce_limit=True):
         file = os.path.basename(file_path)
         if f"{name}.txt" == file or name == file:
             persona_text = open(file_path, "r", encoding="utf-8").read().strip()
-            if enforce_limit and len(persona_text) > CORE_MEMORY_PERSONA_CHAR_LIMIT:
-                raise ValueError(
-                    f"Contents of {name}.txt is over the character limit ({len(persona_text)} > {CORE_MEMORY_PERSONA_CHAR_LIMIT})"
-                )
+            token_count = count_tokens(persona_text, model=DEFAULT_TIKTOKEN_MODEL)
+            if enforce_limit and token_count > CORE_MEMORY_PERSONA_TOKEN_LIMIT:
+                raise ValueError(f"Contents of {name}.txt is over the token limit ({token_count} > {CORE_MEMORY_PERSONA_TOKEN_LIMIT})")
             return persona_text
 
     raise ValueError(f"Persona {name}.txt not found")
-
-
-def get_human_text(name: str):
-    for file_path in list_human_files():
-        file = os.path.basename(file_path)
-        if f"{name}.txt" == file or name == file:
-            return open(file_path, "r", encoding="utf-8").read().strip()
 
 
 def get_schema_diff(schema_a, schema_b):
