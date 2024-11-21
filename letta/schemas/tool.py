@@ -4,7 +4,6 @@ from pydantic import Field
 
 from letta.functions.helpers import (
     generate_composio_tool_wrapper,
-    generate_crewai_tool_wrapper,
     generate_langchain_tool_wrapper,
 )
 from letta.functions.schema_generator import (
@@ -144,36 +143,6 @@ class ToolCreate(LettaBase):
         )
 
     @classmethod
-    def from_crewai(
-        cls,
-        crewai_tool: "CrewAIBaseTool",
-        additional_imports_module_attr_map: dict[str, str] = None,
-    ) -> "ToolCreate":
-        """
-        Class method to create an instance of Tool from a crewAI BaseTool object.
-
-        Args:
-            crewai_tool (CrewAIBaseTool): An instance of a crewAI BaseTool (BaseTool from crewai)
-
-        Returns:
-            Tool: A Letta Tool initialized with attributes derived from the provided crewAI BaseTool object.
-        """
-        description = crewai_tool.description
-        source_type = "python"
-        tags = ["crew-ai"]
-        wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool, additional_imports_module_attr_map)
-        json_schema = generate_schema_from_args_schema_v1(crewai_tool.args_schema, name=wrapper_func_name, description=description)
-
-        return cls(
-            name=wrapper_func_name,
-            description=description,
-            source_type=source_type,
-            tags=tags,
-            source_code=wrapper_function_str,
-            json_schema=json_schema,
-        )
-
-    @classmethod
     def load_default_langchain_tools(cls) -> List["ToolCreate"]:
         # For now, we only support wikipedia tool
         from langchain_community.tools import WikipediaQueryRun
@@ -184,15 +153,6 @@ class ToolCreate(LettaBase):
         )
 
         return [wikipedia_tool]
-
-    @classmethod
-    def load_default_crewai_tools(cls) -> List["ToolCreate"]:
-        # For now, we only support scrape website tool
-        from crewai_tools import ScrapeWebsiteTool
-
-        web_scrape_tool = ToolCreate.from_crewai(ScrapeWebsiteTool())
-
-        return [web_scrape_tool]
 
     @classmethod
     def load_default_composio_tools(cls) -> List["ToolCreate"]:

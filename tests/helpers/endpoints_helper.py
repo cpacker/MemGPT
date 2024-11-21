@@ -164,14 +164,12 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
 
     Note: This is acting on the Letta response, note the usage of `user_message`
     """
-    from crewai_tools import ScrapeWebsiteTool
-
-    crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
+    from composio_langchain import Action
 
     # Set up client
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
-    tool = client.load_crewai_tool(crewai_tool=crewai_tool)
+    tool = client.load_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
     tool_name = tool.name
 
     # Set up persona for tool usage
