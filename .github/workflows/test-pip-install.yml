@@ -17,7 +17,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install package with extras
-      run: pip install '.[all]'  # Replace 'all' with the key that includes all extras
+      run: pip install '.[external-tools,postgres,dev,server,ollama]'  # Replace 'all' with the key that includes all extras
 
     - name: Check package installation
       run: pip list  # Or any other command to verify successful installation
