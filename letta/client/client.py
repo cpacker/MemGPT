@@ -899,8 +899,8 @@ class RESTClient(AbstractClient):
         else:
             return Block(**response.json())
 
-    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
-        request = BlockUpdate(id=block_id, template_name=name, value=text)
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None, limit: Optional[int] = None) -> Block:
+        request = BlockUpdate(id=block_id, template_name=name, value=text, limit=limit if limit else self.get_block(block_id).limit)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update block: {response.text}")
@@ -2690,7 +2690,7 @@ class LocalClient(AbstractClient):
             Block(label=label, template_name=template_name, value=value, is_template=is_template), actor=self.user
         )
 
-    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None, limit: Optional[int] = None) -> Block:
         """
         Update a block
 
@@ -2703,7 +2703,9 @@ class LocalClient(AbstractClient):
             block (Block): Updated block
         """
         return self.server.block_manager.update_block(
-            block_id=block_id, block_update=BlockUpdate(template_name=name, value=text), actor=self.user
+            block_id=block_id,
+            block_update=BlockUpdate(template_name=name, value=text, limit=limit if limit else self.get_block(block_id).limit),
+            actor=self.user,
         )
 
     def get_block(self, block_id: str) -> Block:
