@@ -333,7 +333,7 @@ class SyncServer(Server):
         for agent_d in self.active_agents:
             try:
                 save_agent(agent_d["agent"], self.ms)
-                logger.debug(f"Saved agent {agent_d['agent_id']}")
+                logger.info(f"Saved agent {agent_d['agent_id']}")
             except Exception as e:
                 logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}:\n{e}")
 
