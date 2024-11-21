@@ -19,7 +19,9 @@ class BaseBlock(LettaBase, validate_assignment=True):
     value: str = Field(..., description="Value of the block.")
     limit: int = Field(2000, description="Token limit of the block.")
     # required to enforcing the token limit
-    tokenizer_model: str = Field(DEFAULT_TIKTOKEN_MODEL, description="Tokenizer model to use for the block.")
+    tokenizer_model: str = Field(
+        DEFAULT_TIKTOKEN_MODEL, description="Tokenizer model to use for the block to enforce the token limit of value."
+    )
 
     # template data (optional)
     template_name: Optional[str] = Field(None, description="Name of the block if it is a template.", alias="name")
