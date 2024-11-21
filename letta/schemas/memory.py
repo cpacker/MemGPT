@@ -73,7 +73,7 @@ class Memory(BaseModel, validate_assignment=True):
         "</{{ block.label }}>"
         "{% if not loop.last %}\n{% endif %}"
         "{% endfor %}",
-        description="Jinja2 template for compiling memory blocks into a prompt string",
+        description="Jinja2 template for compiling memory blocks into a prompt string.",
     )
 
     def get_prompt_template(self) -> str:
@@ -254,6 +254,12 @@ class ChatMemory(BasicBlockMemory):
 
 class UpdateMemory(BaseModel):
     """Update the memory of the agent"""
+
+    # Memory.memory is a dict mapping from memory block label to memory block.
+    memory: Optional[Dict[str, Block]] = Field(None, description="Mapping from memory block section to memory block.")
+
+    # Memory.template is a Jinja2 template for compiling memory module into a prompt string.
+    prompt_template: Optional[str] = Field(None, description="Jinja2 template for compiling memory blocks into a prompt string.")
 
 
 class ArchivalMemorySummary(BaseModel):
