@@ -161,3 +161,6 @@ CORE_MEMORY_HUMAN_CHAR_LIMIT: int = 2000
 
 MAX_FILENAME_LENGTH = 255
 RESERVED_FILENAMES = {"CON", "PRN", "AUX", "NUL", "COM1", "COM2", "LPT1", "LPT2"}
+
+# Default tokenizer model to use with tiktoken
+DEFAULT_TIKTOKEN_MODEL = "gpt-4"
