@@ -94,6 +94,7 @@ qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
 external-tools = ["crewai", "docker", "crewai-tools", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
 tests = ["wikipedia"]
+all = ["postgres", "dev", "server", "external-tools", "ollama", "tests"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
