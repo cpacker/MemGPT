@@ -67,6 +67,7 @@ from letta.schemas.memory import (
     ContextWindowOverview,
     Memory,
     RecallMemorySummary,
+    UpdateMemory,
 )
 from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
 from letta.schemas.organization import Organization
@@ -1414,19 +1415,25 @@ class SyncServer(Server):
 
         return response
 
-    def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> Memory:
+    def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory: UpdateMemory, allow_new_blocks: bool = True) -> Memory:
         """Update the agents core memory block, return the new state"""
+
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
+        modified = False
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
 
-        # old_core_memory = self.get_agent_memory(agent_id=agent_id)
+        if new_memory.prompt_template:
+            letta_agent.memory.set_prompt_template(new_memory.prompt_template)
+            modified = True
 
-        modified = False
+        if new_memory.memory:
+            raise NotImplementedError("Updating memory blocks is not yet implemented")
+
         for key, value in new_memory_contents.items():
             if letta_agent.memory.get_block(key) is None:
                 # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.memory.list_block_names())}")
