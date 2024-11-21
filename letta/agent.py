@@ -1208,6 +1208,30 @@ class Agent(BaseAgent):
         new_messages = [new_system_message_obj] + self._messages[1:]  # swap index 0 (system)
         self._messages = new_messages
 
+    def update_memory_blocks_from_db(self):
+        for block in self.memory.to_dict()["memory"].values():
+            if block.get("templates", False):
+                # we don't expect to update shared memory blocks that
+                # are templates. this is something we could update in the
+                # future if we expect templates to change often.
+                continue
+            block_id = block.get("id")
+
+            # TODO: This is really hacky and we should probably figure out how to
+            db_block = BlockManager().get_block_by_id(block_id=block_id, actor=self.user)
+            if db_block is None:
+                # this case covers if someone has deleted a shared block by interacting
+                # with some other agent.
+                # in that case we should remove this shared block from the agent currently being
+                # evaluated.
+                printd(f"removing block: {block_id=}")
+                continue
+            if not isinstance(db_block.value, str):
+                printd(f"skipping block update, unexpected value: {block_id=}")
+                continue
+            # TODO: we may want to update which columns we're updating from shared memory e.g. the limit
+            self.memory.update_block_value(label=block.get("label", ""), value=db_block.value)
+
     def rebuild_memory(self, force=False, update_timestamp=True, ms: Optional[MetadataStore] = None):
         """Rebuilds the system message with the latest memory object and any shared memory block updates"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
@@ -1219,28 +1243,7 @@ class Agent(BaseAgent):
             return
 
         if ms:
-            for block in self.memory.to_dict()["memory"].values():
-                if block.get("templates", False):
-                    # we don't expect to update shared memory blocks that
-                    # are templates. this is something we could update in the
-                    # future if we expect templates to change often.
-                    continue
-                block_id = block.get("id")
-
-                # TODO: This is really hacky and we should probably figure out how to
-                db_block = BlockManager().get_block_by_id(block_id=block_id, actor=self.user)
-                if db_block is None:
-                    # this case covers if someone has deleted a shared block by interacting
-                    # with some other agent.
-                    # in that case we should remove this shared block from the agent currently being
-                    # evaluated.
-                    printd(f"removing block: {block_id=}")
-                    continue
-                if not isinstance(db_block.value, str):
-                    printd(f"skipping block update, unexpected value: {block_id=}")
-                    continue
-                # TODO: we may want to update which columns we're updating from shared memory e.g. the limit
-                self.memory.update_block_value(label=block.get("label", ""), value=db_block.value)
+            self.update_memory_blocks_from_db()
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False

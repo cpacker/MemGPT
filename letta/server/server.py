@@ -1385,8 +1385,9 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         assert isinstance(letta_agent.memory, Memory)
-        agent_state = letta_agent.agent_state.model_copy(deep=True)
 
+        letta_agent.update_memory_blocks_from_db()
+        agent_state = letta_agent.agent_state.model_copy(deep=True)
         # Load the tags in for the agent_state
         agent_state.tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=user)
         return agent_state
