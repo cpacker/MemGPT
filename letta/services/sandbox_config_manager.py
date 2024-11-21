@@ -23,10 +23,11 @@ logger = get_logger(__name__)
 class SandboxConfigManager:
     """Manager class to handle business logic related to SandboxConfig and SandboxEnvironmentVariable."""
 
-    def __init__(self):
+    def __init__(self, settings):
         from letta.server.server import db_context
 
         self.session_maker = db_context
+        self.e2b_template_id = settings.e2b_sandbox_template_id
 
     @enforce_types
     def get_or_create_default_sandbox_config(self, sandbox_type: SandboxType, actor: PydanticUser) -> PydanticSandboxConfig:
@@ -36,7 +37,7 @@ class SandboxConfigManager:
 
             # TODO: Add more sandbox types later
             if sandbox_type == SandboxType.E2B:
-                default_config = E2BSandboxConfig().model_dump(exclude_none=True)
+                default_config = E2BSandboxConfig(template_id=self.e2b_template_id).model_dump(exclude_none=True)
             else:
                 default_local_sandbox_path = str(Path(__file__).parent / "tool_sandbox_env")
                 default_config = LocalSandboxConfig(sandbox_dir=default_local_sandbox_path).model_dump(exclude_none=True)

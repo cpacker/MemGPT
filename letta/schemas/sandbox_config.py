@@ -1,10 +1,11 @@
 import hashlib
 import json
 from enum import Enum
-from typing import Dict, Optional, Union
+from typing import Any, Dict, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from letta.schemas.agent import AgentState
 from letta.schemas.letta_base import LettaBase, OrmMetadataBase
 
 
@@ -14,8 +15,15 @@ class SandboxType(str, Enum):
     LOCAL = "local"
 
 
+class SandboxRunResult(BaseModel):
+    func_return: Optional[Any] = Field(None, description="The function return object")
+    agent_state: Optional[AgentState] = Field(None, description="The agent state")
+    stdout: Optional[str] = Field(None, description="Captured stdout (e.g. prints, logs) from the function invocation")
+    sandbox_config_fingerprint: str = Field(None, description="The fingerprint of the config for the sandbox")
+
+
 class LocalSandboxConfig(BaseModel):
-    venv_name: str = Field("venv", description="Name of the virtual environment.")
+    venv_name: str = Field("venv", description="Name of the virtual environment.")  # TODO: rename path?
     sandbox_dir: str = Field(..., description="Directory for the sandbox environment.")
 
     @property
@@ -25,7 +33,7 @@ class LocalSandboxConfig(BaseModel):
 
 class E2BSandboxConfig(BaseModel):
     timeout: int = Field(5 * 60, description="Time limit for the sandbox (in seconds).")
-    template_id: Optional[str] = Field(None, description="The E2B template id (docker image).")
+    template_id: Optional[str] = Field("a0derw3rssk0l5205tuj", description="The E2B template id (docker image).")
 
     @property
     def type(self) -> "SandboxType":
@@ -48,7 +56,7 @@ class SandboxConfig(SandboxConfigBase):
     def get_local_config(self) -> LocalSandboxConfig:
         return LocalSandboxConfig(**self.config)
 
-    def __hash__(self):
+    def fingerprint(self) -> str:
         # Only take into account type, org_id, and the config items
         # Canonicalize input data into JSON with sorted keys
         hash_input = json.dumps(
@@ -65,16 +73,7 @@ class SandboxConfig(SandboxConfigBase):
         hash_digest = hashlib.sha256(hash_input.encode("utf-8")).digest()
 
         # Convert the digest to an integer for compatibility with Python's hash requirements
-        return int.from_bytes(hash_digest, byteorder="big")
-
-    def __eq__(self, other):
-        if not isinstance(other, SandboxConfig):
-            return False
-        return (
-            self.type == other.type
-            and self.organization_id == other.organization_id
-            and frozenset(sorted(self.config.items())) == frozenset(sorted(other.config.items()))
-        )
+        return str(int.from_bytes(hash_digest, byteorder="big"))
 
 
 class SandboxConfigCreate(LettaBase):

@@ -252,7 +252,7 @@ class SyncServer(Server):
         self.tool_manager = ToolManager()
         self.source_manager = SourceManager()
         self.agents_tags_manager = AgentsTagsManager()
-        self.sandbox_config_manager = SandboxConfigManager()
+        self.sandbox_config_manager = SandboxConfigManager(tool_settings)
 
         # Make default user and org
         if init_with_default_org_and_user:

@@ -12,7 +12,6 @@ on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   run-core-unit-tests:

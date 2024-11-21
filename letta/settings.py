@@ -12,6 +12,7 @@ class ToolSettings(BaseSettings):
 
     # Sandbox configurations
     e2b_api_key: Optional[str] = None
+    e2b_sandbox_template_id: Optional[str] = None
 
 
 class ModelSettings(BaseSettings):

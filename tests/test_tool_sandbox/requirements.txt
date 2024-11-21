@@ -1,0 +1,5 @@
+letta
+requests
+pgvector
+pg8000
+cowsay
