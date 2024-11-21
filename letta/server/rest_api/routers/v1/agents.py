@@ -218,7 +218,8 @@ def update_agent_memory(
 ):
     """
     Update the core memory of a specific agent.
-    This endpoint accepts new memory contents (human and persona) and updates the core memory of the agent identified by the user ID and agent ID.
+    This endpoint accepts new memory contents to update the core memory of the agent.
+    This endpoint only supports modifying existing blocks; it does not support deleting/unlinking or creating/linking blocks.
     """
     actor = server.get_user_or_default(user_id=user_id)
 
