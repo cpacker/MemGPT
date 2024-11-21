@@ -146,7 +146,7 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
     # but allows us to test the `get_tools_from_agent` pathway as well
     curr_tools = client.get_tools_from_agent(agent_state.id)
     curr_tool_names = [t.name for t in curr_tools]
-    assert len(curr_tool_names) == curr_num_tools + 2
+    assert len(curr_tool_names) == curr_num_tools + 1
     assert github_tool.name in curr_tool_names
 
     # remove only the github tool
@@ -155,7 +155,7 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
     # confirm that only one tool left
     curr_tools = client.get_tools_from_agent(agent_state.id)
     curr_tool_names = [t.name for t in curr_tools]
-    assert len(curr_tool_names) == curr_num_tools + 1
+    assert len(curr_tool_names) == curr_num_tools
     assert github_tool.name not in curr_tool_names
 
 
