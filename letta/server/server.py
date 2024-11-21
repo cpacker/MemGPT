@@ -1827,3 +1827,56 @@ class SyncServer(Server):
         # Get the current message
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.get_context_window()
+
+    def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
+        """Link a block to an agent's memory"""
+
+        # Get the user
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+
+        # Get the block first
+        block = self.block_manager.get_block_by_id(block_id=block_id, actor=user)
+        if block is None:
+            raise ValueError(f"Block with id {block_id} not found")
+
+        # Link a block to an agent's memory
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        letta_agent.memory.link_block(block=block)
+
+        # Recompile the agent memory
+        letta_agent.rebuild_memory()
+
+        # save agent
+        save_agent(letta_agent, self.ms)
+
+        updated_agent = self.ms.get_agent(agent_id=agent_id)
+        if updated_agent is None:
+            raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        return updated_agent.memory
+
+    def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
+        """Unlink a block from an agent's memory. If the block is not linked to any agent, delete it."""
+
+        # Get the user
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+
+        # Link a block to an agent's memory
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        unlinked_block = letta_agent.memory.unlink_block(block_label=block_label)
+
+        # Check if the block is linked to any other agent
+        # TODO needs reference counting GC to handle loose blocks
+        # block = self.block_manager.get_block_by_id(block_id=unlinked_block.id, actor=user)
+        # if block is None:
+        # raise ValueError(f"Block with id {block_id} not found")
+
+        # Recompile the agent memory
+        letta_agent.rebuild_memory()
+
+        # save agent
+        save_agent(letta_agent, self.ms)
+
+        updated_agent = self.ms.get_agent(agent_id=agent_id)
+        if updated_agent is None:
+            raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        return updated_agent.memory

@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.block import Block, BlockCreate
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
@@ -223,6 +224,48 @@ def update_agent_memory(
 
     memory = server.update_agent_core_memory(user_id=actor.id, agent_id=agent_id, new_memory_contents=request)
     return memory
+
+
+@router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
+def add_agent_memory_block(
+    agent_id: str,
+    create_block: BlockCreate = Body(...),
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Creates a memory block and links it to the agent.
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+
+    # Copied from POST /blocks
+    block_req = Block(**create_block.model_dump())
+    block = server.block_manager.create_or_update_block(actor=actor, block=block_req)
+
+    # Link the block to the agent
+    updated_memory = server.link_block_to_agent_memory(user_id=actor.id, agent_id=agent_id, block_id=block.id)
+
+    return updated_memory
+
+
+@router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block")
+def remove_agent_memory_block(
+    agent_id: str,
+    # TODO should this be block_id, or the label?
+    # I think label is OK since it's user-friendly + guaranteed to be unique within a Memory object
+    block_label: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Removes a memory block from an agent by unlnking it. If the block is not linked to any other agent, it is deleted.
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+
+    # Unlink the block from the agent
+    updated_memory = server.unlink_block_from_agent_memory(user_id=actor.id, agent_id=agent_id, block_label=block_label)
+
+    return updated_memory
 
 
 @router.get("/{agent_id}/memory/recall", response_model=RecallMemorySummary, operation_id="get_agent_recall_memory_summary")
