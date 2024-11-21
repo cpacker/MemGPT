@@ -38,10 +38,10 @@ def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[st
     """
     from letta import create_client
     client = create_client()
-    recent_convo = "".join([str(message) for message in self.messages[3:]]) # TODO: make a better representation of the convo history
+    recent_convo = "".join([str(message) for message in self.messages])[-2000:] # TODO: make a better representation of the convo history
     self.memory.update_block_value(label="conversation_block", value=recent_convo)
     client.update_block(self.memory.get_block("conversation_block").id, text=recent_convo)
-    client.update_agent(agent_id=self.id, memory=self.memory)
+    client.update_agent(agent_id=self.agent_state.id, memory=self.memory)
 
     client = create_client()
     agents = client.list_agents()
@@ -72,10 +72,9 @@ def rethink_memory(self, new_memory: str, target_block_label: Optional[str], sou
             self.memory.create_block(label=target_block_label, value=new_memory)
         self.memory.update_block_value(label=target_block_label, value=new_memory)
         block_id = self.memory.get_block(target_block_label).id
-
-        client.update_block(block_id, text="I am no longer an [empty] memory")
-        client.update_agent(agent_id=self.id, memory=self.memory)
-        
+        client.update_block(block_id, text=new_memory)
+        client.update_agent(agent_id=self.agent_state.id, memory=self.agent_state.memory)
+    
 
     print(f"Rethinking memory for block {target_block_label} with new memory: {new_memory} from block {source_block_label}")
     return None
@@ -102,8 +101,8 @@ def finish_rethinking_memory(self) -> Optional[str]:
             client.update_block(chat_persona_block.id, text=self.memory.get_block("chat_agent_persona_new").value)
             client.update_block(chat_human_block.id, text=self.memory.get_block("chat_agent_human_new").value)
             import pdb; pdb.set_trace()
-            agent = client.get_agent(agent.id)
             client.update_agent(agent_id=agent.id, memory=agent.memory)
+            agent = client.get_agent(agent.id)
 
     return None
 
