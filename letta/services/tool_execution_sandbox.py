@@ -1,4 +1,5 @@
 import ast
+import base64
 import os
 import pickle
 import subprocess
@@ -125,7 +126,7 @@ class ToolExecutionSandbox:
                     logger.error(f"Sandbox execution error: {result.stderr}")
                     raise RuntimeError(f"Sandbox execution error: {result.stderr}")
                 func_result, stdout = self.parse_out_function_results_markers(result.stdout)
-                func_return, agent_state = self.ast_parse_best_effort(func_result)
+                func_return, agent_state = self.parse_best_effort(func_result)
                 return SandboxRunResult(
                     func_return=func_return, agent_state=agent_state, stdout=[stdout], sandbox_config_fingerprint=sbx_config.fingerprint()
                 )
@@ -181,11 +182,11 @@ class ToolExecutionSandbox:
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         execution = sbx.run_code(code, envs=env_vars)
         if execution.error is not None:
-            raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}")
+            raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}. Generated code: \n\n{code}")
         elif len(execution.results) == 0:
             return None
         else:
-            func_return, agent_state = self.ast_parse_best_effort(execution.results[0].text)
+            func_return, agent_state = self.parse_best_effort(execution.results[0].text)
             return SandboxRunResult(
                 func_return=func_return,
                 agent_state=agent_state,
@@ -212,11 +213,11 @@ class ToolExecutionSandbox:
 
         state_hash = sandbox_config.fingerprint()
         e2b_config = sandbox_config.get_e2b_config()
-        if e2b_config.template_id:
-            sbx = Sandbox(sandbox_config.get_e2b_config().template_id, metadata={self.METADATA_CONFIG_STATE_KEY: state_hash})
+        if e2b_config.template:
+            sbx = Sandbox(sandbox_config.get_e2b_config().template, metadata={self.METADATA_CONFIG_STATE_KEY: state_hash})
         else:
             # no template
-            sbx = Sandbox(metadata={self.METADATA_CONFIG_STATE_KEY: state_hash}, **sandbox_config.config)
+            sbx = Sandbox(metadata={self.METADATA_CONFIG_STATE_KEY: state_hash}, **e2b_config.model_dump(exclude={"pip_requirements"}))
 
         # install pip requirements
         if e2b_config.pip_requirements:
@@ -232,17 +233,11 @@ class ToolExecutionSandbox:
 
     # general utility functions
 
-    def ast_parse_best_effort(self, text: str) -> Any:
-        try:
-            result = ast.literal_eval(text)
-        except SyntaxError:
-            result = {"results": text, "agent_state": None}
-        except ValueError:
-            result = {"results": text, "agent_state": None}
-
+    def parse_best_effort(self, text: str) -> Any:
+        result = pickle.loads(base64.b64decode(text))
         agent_state = None
         if not result["agent_state"] is None:
-            agent_state = pickle.loads(result["agent_state"])
+            agent_state = result["agent_state"]
         return result["results"], agent_state
 
     def parse_function_arguments(self, source_code: str, tool_name: str):
@@ -271,6 +266,7 @@ class ToolExecutionSandbox:
         code = "from typing import *\n"
         code += "import pickle\n"
         code += "import sys\n"
+        code += "import base64\n"
 
         # Load the agent state data into the program
         if agent_state:
@@ -297,16 +293,15 @@ class ToolExecutionSandbox:
         # TODO: handle wrapped print
 
         code += (
-            'result_json = {"results": '
-            + self.invoke_function_call(inject_agent_state=inject_agent_state)
-            + ', "agent_state": pickle.dumps(agent_state)}\n'
+            'result = {"results": ' + self.invoke_function_call(inject_agent_state=inject_agent_state) + ', "agent_state": agent_state}\n'
         )
+        code += "result = base64.b64encode(pickle.dumps(result)).decode('utf-8')\n"
         if wrap_print_with_markers:
             code += f"sys.stdout.write('{self.LOCAL_SANDBOX_RESULT_START_MARKER}')\n"
-            code += f"sys.stdout.write(str(result_json))\n"
+            code += f"sys.stdout.write(str(result))\n"
             code += f"sys.stdout.write('{self.LOCAL_SANDBOX_RESULT_END_MARKER}')\n"
         else:
-            code += "result_json\n"
+            code += "result\n"
 
         return code
 

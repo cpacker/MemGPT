@@ -872,16 +872,16 @@ def test_default_e2b_settings_sandbox_config(server: SyncServer, default_user):
 
     # Assertions
     assert e2b_config.timeout == 5 * 60
-    assert e2b_config.template_id
-    assert e2b_config.template_id == tool_settings.e2b_sandbox_template_id
+    assert e2b_config.template
+    assert e2b_config.template == tool_settings.e2b_sandbox_template_id
 
 
 def test_update_existing_sandbox_config(server: SyncServer, sandbox_config_fixture, default_user):
-    update_data = SandboxConfigUpdate(config=E2BSandboxConfig(template_id="template_2", timeout=120))
+    update_data = SandboxConfigUpdate(config=E2BSandboxConfig(template="template_2", timeout=120))
     updated_config = server.sandbox_config_manager.update_sandbox_config(sandbox_config_fixture.id, update_data, actor=default_user)
 
     # Assertions
-    assert updated_config.config["template_id"] == "template_2"
+    assert updated_config.config["template"] == "template_2"
     assert updated_config.config["timeout"] == 120
 
 

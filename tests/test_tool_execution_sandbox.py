@@ -24,7 +24,6 @@ from letta.schemas.sandbox_config import (
     SandboxConfigCreate,
     SandboxConfigUpdate,
     SandboxEnvironmentVariableCreate,
-    SandboxType,
 )
 from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.user import User
@@ -180,6 +179,18 @@ def composio_github_star_tool(test_user):
     tool_manager = ToolManager()
     tool_create = ToolCreate.from_composio(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
     tool = tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=test_user)
+    yield tool
+
+
+@pytest.fixture
+def clear_core_memory(test_user):
+    def clear_memory(agent_state: AgentState):
+        """Clear the core memory"""
+        agent_state.memory.get_block("human").value = ""
+        agent_state.memory.get_block("persona").value = ""
+
+    tool = create_tool_from_func(clear_memory)
+    tool = ToolManager().create_or_update_tool(tool, test_user)
     yield tool
 
 
@@ -399,18 +410,19 @@ def test_e2b_sandbox_with_list_rv(check_e2b_key_is_set, list_tool, test_user):
     assert len(result.func_return) == 5
 
 
-def test_e2b_e2e_composio_star_github(check_e2b_key_is_set, check_composio_key_set, composio_github_star_tool, test_user):
-    # Add the composio key
-    manager = SandboxConfigManager(tool_settings)
-    config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=test_user)
-
-    manager.create_sandbox_env_var(
-        SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value=tool_settings.composio_api_key),
-        sandbox_config_id=config.id,
-        actor=test_user,
-    )
-
-    result = ToolExecutionSandbox(composio_github_star_tool.name, {}, user_id=test_user.id).run()
-    import ipdb
-
-    ipdb.set_trace()
+# TODO: Add tests for composio
+# def test_e2b_e2e_composio_star_github(check_e2b_key_is_set, check_composio_key_set, composio_github_star_tool, test_user):
+#     # Add the composio key
+#     manager = SandboxConfigManager(tool_settings)
+#     config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=test_user)
+#
+#     manager.create_sandbox_env_var(
+#         SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value=tool_settings.composio_api_key),
+#         sandbox_config_id=config.id,
+#         actor=test_user,
+#     )
+#
+#     result = ToolExecutionSandbox(composio_github_star_tool.name, {}, user_id=test_user.id).run()
+#     import ipdb
+#
+#     ipdb.set_trace()

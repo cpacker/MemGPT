@@ -37,7 +37,7 @@ class SandboxConfigManager:
 
             # TODO: Add more sandbox types later
             if sandbox_type == SandboxType.E2B:
-                default_config = E2BSandboxConfig(template_id=self.e2b_template_id).model_dump(exclude_none=True)
+                default_config = E2BSandboxConfig(template=self.e2b_template_id).model_dump(exclude_none=True)
             else:
                 default_local_sandbox_path = str(Path(__file__).parent / "tool_sandbox_env")
                 default_config = LocalSandboxConfig(sandbox_dir=default_local_sandbox_path).model_dump(exclude_none=True)
