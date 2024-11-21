@@ -328,6 +328,15 @@ class SyncServer(Server):
                 )
             )
 
+    def save_agents(self):
+        """Saves all the agents that are in the in-memory object store"""
+        for agent_d in self.active_agents:
+            try:
+                save_agent(agent_d["agent"], self.ms)
+                logger.info(f"Saved agent {agent_d['agent_id']}")
+            except Exception as e:
+                logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}:\n{e}")
+
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
         for d in self.active_agents:
