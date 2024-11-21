@@ -78,7 +78,7 @@ class LettaBase(BaseModel):
         """
         _ = values  # for SCA
         if isinstance(v, UUID):
-            logger.warning("Bare UUIDs are deprecated, please use the full prefixed id!")
+            logger.warning(f"Bare UUIDs are deprecated, please use the full prefixed id ({cls.__id_prefix__})!")
             return f"{cls.__id_prefix__}-{v}"
         return v
 

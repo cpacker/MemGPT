@@ -1,6 +1,7 @@
 import os
 import threading
 import time
+import uuid
 from typing import List, Union
 
 import pytest
@@ -9,10 +10,10 @@ from sqlalchemy import delete
 
 from letta import LocalClient, RESTClient, create_client
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
+from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.sandbox_config import LocalSandboxConfig, SandboxType
-from letta.services.tool_manager import ToolManager
 from letta.settings import tool_settings
 
 # Constants
@@ -58,6 +59,16 @@ def client(request):
     client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
     yield client
+
+
+# Fixture for test agent
+@pytest.fixture(scope="module")
+def agent(client: Union[LocalClient, RESTClient]):
+    agent_state = client.create_agent(name=f"test_client_{str(uuid.uuid4())}")
+    yield agent_state
+
+    # delete agent
+    client.delete_agent(agent_state.id)
 
 
 @pytest.fixture(autouse=True)
@@ -139,39 +150,40 @@ def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]
     client.delete_sandbox_config(sandbox_config_id=sandbox_config.id)
 
 
-def test_create_tool(client: Union[LocalClient, RESTClient], mock_e2b_api_key_none):
-    """Test creation of a simple tool"""
+def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """
+    Comprehensive happy path test for adding, retrieving, and managing tags on an agent.
+    """
+    tags_to_add = ["test_tag_1", "test_tag_2", "test_tag_3"]
 
-    def print_tool(message: str):
-        """
-        Args:
-            message (str): The message to print.
+    # Step 0: create an agent with tags
+    tagged_agent = client.create_agent(tags=tags_to_add)
+    assert set(tagged_agent.tags) == set(tags_to_add), f"Expected tags {tags_to_add}, but got {tagged_agent.tags}"
 
-        Returns:
-            str: The message that was printed.
+    # Step 1: Add multiple tags to the agent
+    client.update_agent(agent_id=agent.id, tags=tags_to_add)
 
-        """
-        print(message)
-        return message
+    # Step 2: Retrieve tags for the agent and verify they match the added tags
+    retrieved_tags = client.get_agent(agent_id=agent.id).tags
+    assert set(retrieved_tags) == set(tags_to_add), f"Expected tags {tags_to_add}, but got {retrieved_tags}"
 
-    tools = client.list_tools()
-    tool_names = [t.name for t in tools]
-    for tool in ToolManager.BASE_TOOL_NAMES:
-        assert tool in tool_names
+    # Step 3: Retrieve agents by each tag to ensure the agent is associated correctly
+    for tag in tags_to_add:
+        agents_with_tag = client.list_agents(tags=[tag])
+        assert agent.id in [a.id for a in agents_with_tag], f"Expected agent {agent.id} to be associated with tag '{tag}'"
 
-    tool = client.create_tool(print_tool, name="my_name", tags=["extras"])
+    # Step 4: Delete a specific tag from the agent and verify its removal
+    tag_to_delete = tags_to_add.pop()
+    client.update_agent(agent_id=agent.id, tags=tags_to_add)
 
-    tools = client.list_tools()
-    assert tool in tools, f"Expected {tool.name} in {[t.name for t in tools]}"
-    print(f"Updated tools {[t.name for t in tools]}")
+    # Verify the tag is removed from the agent's tags
+    remaining_tags = client.get_agent(agent_id=agent.id).tags
+    assert tag_to_delete not in remaining_tags, f"Tag '{tag_to_delete}' was not removed as expected"
+    assert set(remaining_tags) == set(tags_to_add), f"Expected remaining tags to be {tags_to_add[1:]}, but got {remaining_tags}"
 
-    # check tool id
-    tool = client.get_tool(tool.id)
-    assert tool is not None, "Expected tool to be created"
-    assert tool.id == tool.id, f"Expected {tool.id} to be {tool.id}"
+    # Step 5: Delete all remaining tags from the agent
+    client.update_agent(agent_id=agent.id, tags=[])
 
-    # create agent with tool
-    agent_state = client.create_agent(tools=[tool.name])
-
-    # Send message without error
-    client.user_message(agent_id=agent_state.id, message="hi")
+    # Verify all tags are removed
+    final_tags = client.get_agent(agent_id=agent.id).tags
+    assert len(final_tags) == 0, f"Expected no tags, but found {final_tags}"

@@ -21,6 +21,7 @@ from urllib.parse import urljoin, urlparse
 import demjson3 as demjson
 import pytz
 import tiktoken
+from pathvalidate import sanitize_filename as pathvalidate_sanitize_filename
 
 import letta
 from letta.constants import (
@@ -29,6 +30,7 @@ from letta.constants import (
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
     FUNCTION_RETURN_CHAR_LIMIT,
     LETTA_DIR,
+    MAX_FILENAME_LENGTH,
     TOOL_CALL_ID_MAX_LEN,
 )
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
@@ -1071,3 +1073,40 @@ def json_dumps(data, indent=2):
 
 def json_loads(data):
     return json.loads(data, strict=False)
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize the given filename to prevent directory traversal, invalid characters,
+    and reserved names while ensuring it fits within the maximum length allowed by the filesystem.
+
+    Parameters:
+        filename (str): The user-provided filename.
+
+    Returns:
+        str: A sanitized filename that is unique and safe for use.
+    """
+    # Extract the base filename to avoid directory components
+    filename = os.path.basename(filename)
+
+    # Split the base and extension
+    base, ext = os.path.splitext(filename)
+
+    # External sanitization library
+    base = pathvalidate_sanitize_filename(base)
+
+    # Cannot start with a period
+    if base.startswith("."):
+        raise ValueError(f"Invalid filename - derived file name {base} cannot start with '.'")
+
+    # Truncate the base name to fit within the maximum allowed length
+    max_base_length = MAX_FILENAME_LENGTH - len(ext) - 33  # 32 for UUID + 1 for `_`
+    if len(base) > max_base_length:
+        base = base[:max_base_length]
+
+    # Append a unique UUID suffix for uniqueness
+    unique_suffix = uuid.uuid4().hex
+    sanitized_filename = f"{base}_{unique_suffix}{ext}"
+
+    # Return the sanitized filename
+    return sanitized_filename

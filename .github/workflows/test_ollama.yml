@@ -14,32 +14,73 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Start Ollama Server
-      run: |
-        curl -fsSL https://ollama.com/install.sh | sh
-        ollama serve &
-        sleep 10 # wait for server
-        ollama pull thewindmom/hermes-3-llama-3.1-8b
-        ollama pull mxbai-embed-large
+      - name: Install Ollama
+        run: |
+          set -e
+          set -x
+          curl -vfsSL https://ollama.com/install.sh -o install.sh
+          chmod +x install.sh
+          bash -x install.sh
+          if ! command -v ollama; then
+            echo "Ollama binary not found in PATH after installation."
+            exit 1
+          fi
+          echo "Ollama installed successfully."
 
-    - name: "Setup Python, Poetry and Dependencies"
-      uses: packetcoders/action-setup-cache-python-poetry@main
-      with:
-        python-version: "3.12"
-        poetry-version: "1.8.2"
-        install-args: "-E dev -E ollama"
+      - name: Start Ollama Server
+        run: |
+          set -e
+          set -x
+          ollama serve >ollama_server.log 2>&1 &
+          sleep 15
+          if ! curl -v http://localhost:11434; then
+            echo "Server logs (if available):"
+            [ -f ollama_server.log ] && cat ollama_server.log || echo "No logs found."
+            exit 1
+          fi
+          echo "Ollama server started successfully."
 
-    - name: Test LLM endpoint
-      run: |
-        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_llm_endpoint_ollama
+      - name: Pull Models
+        run: |
+          set -e
+          set -x
+          for attempt in {1..3}; do
+            ollama pull thewindmom/hermes-3-llama-3.1-8b && break || sleep 5
+          done
+          for attempt in {1..3}; do
+            ollama pull mxbai-embed-large && break || sleep 5
+          done
 
-    - name: Test embedding endpoint
-      run: |
-        poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_embedding_endpoint_ollama
+      - name: Debug Logs on Failure
+        if: failure()
+        run: |
+          echo "Debugging logs on failure:"
+          [ -f ollama_server.log ] && cat ollama_server.log || echo "No server logs available."
 
-    - name: Test provider
-      run: |
-        poetry run pytest -s -vv tests/test_providers.py::test_ollama
+      - name: Setup Python, Poetry, and Dependencies
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: "3.12"
+          poetry-version: "1.8.2"
+          install-args: "-E dev -E ollama"
+
+      - name: Test LLM Endpoint
+        run: |
+          set -e
+          set -x
+          poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_llm_endpoint_ollama
+
+      - name: Test Embedding Endpoint
+        run: |
+          set -e
+          set -x
+          poetry run pytest -s -vv tests/test_model_letta_perfomance.py::test_embedding_endpoint_ollama
+
+      - name: Test Provider
+        run: |
+          set -e
+          set -x
+          poetry run pytest -s -vv tests/test_providers.py::test_ollama
