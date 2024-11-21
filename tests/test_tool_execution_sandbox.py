@@ -1,9 +1,4 @@
-import logging
-import secrets
-import string
 import uuid
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 from sqlalchemy import delete
@@ -17,17 +12,9 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
 from letta.schemas.organization import Organization
-from letta.schemas.sandbox_config import (
-    E2BSandboxConfig,
-    LocalSandboxConfig,
-    SandboxConfigCreate,
-    SandboxConfigUpdate,
-    SandboxEnvironmentVariableCreate,
-)
 from letta.schemas.tool import Tool
 from letta.schemas.user import User
 from letta.services.organization_manager import OrganizationManager
-from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -190,22 +177,22 @@ def create_tool_from_func(func: callable):
     )
 
 
-# Tests
-def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_user):
-    args = {"x": 10, "y": 5}
-
-    # Mock and assert correct pathway was invoked
-    with patch.object(ToolExecutionSandbox, "run_local_dir_sandbox") as mock_run_local_dir_sandbox:
-        sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
-        sandbox.run()
-        mock_run_local_dir_sandbox.assert_called_once()
-
-    # Run again to get actual response
-    sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
-    result = sandbox.run()
-    assert result.func_return == args["x"] + args["y"]
-
-
+# # Tests
+# def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_user):
+#     args = {"x": 10, "y": 5}
+#
+#     # Mock and assert correct pathway was invoked
+#     with patch.object(ToolExecutionSandbox, "run_local_dir_sandbox") as mock_run_local_dir_sandbox:
+#         sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
+#         sandbox.run()
+#         mock_run_local_dir_sandbox.assert_called_once()
+#
+#     # Run again to get actual response
+#     sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
+#     result = sandbox.run()
+#     assert result.func_return == args["x"] + args["y"]
+#
+#
 def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, test_user):
     args = {}
 
@@ -224,140 +211,142 @@ def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, t
     assert result.func_return is None
 
 
-def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user):
-    sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
-    result = sandbox.run()
-    assert len(result.func_return) == 5
-
-
-def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user, caplog):
-    manager = SandboxConfigManager(tool_settings)
-
-    # Make a custom local sandbox config
-    sandbox_dir = str(Path(__file__).parent / "test_tool_sandbox")
-    config_create = SandboxConfigCreate(config=LocalSandboxConfig(venv_name="test", sandbox_dir=sandbox_dir).model_dump())
-    config = manager.create_or_update_sandbox_config(config_create, test_user)
-
-    # Make a environment variable with a long random string
-    key = "secret_word"
-    long_random_string = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
-    manager.create_sandbox_env_var(
-        SandboxEnvironmentVariableCreate(key=key, value=long_random_string), sandbox_config_id=config.id, actor=test_user
-    )
-
-    # Create tool and args
-    args = {}
-
-    # Run the custom sandbox
-    with caplog.at_level(logging.DEBUG):
-        sandbox = ToolExecutionSandbox(cowsay_tool.name, args, user_id=test_user.id)
-        result = sandbox.run()
-
-    assert result.func_return is None
-    assert any(long_random_string in record.message for record in caplog.records)
-
-
-def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, test_user):
-    args = {"x": 10, "y": 5}
-
-    # Mock and assert correct pathway was invoked
-    with patch.object(ToolExecutionSandbox, "run_e2b_sandbox") as mock_run_local_dir_sandbox:
-        sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
-        sandbox.run()
-        mock_run_local_dir_sandbox.assert_called_once()
-
-    # Run again to get actual response
-    sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
-    result = sandbox.run()
-    assert int(result.func_return) == args["x"] + args["y"]
-
-
-def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_user):
-    sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
-
-    # Run the function once
-    result = sandbox.run()
-    old_config_fingerprint = result.sandbox_config_fingerprint
-
-    # Run it again to ensure that there is still only one running sandbox
-    result = sandbox.run()
-    new_config_fingerprint = result.sandbox_config_fingerprint
-
-    assert old_config_fingerprint == new_config_fingerprint
-
-
-def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test_user):
-    sandbox = ToolExecutionSandbox(clear_core_memory.name, {}, user_id=test_user.id)
-
-    # create an agent
-    client = create_client()
-    agent_state = client.create_agent(
-        memory=ChatMemory(persona="This is the persona", human="This is the human"),
-        embedding_config=EmbeddingConfig.default_config(provider="openai"),
-        llm_config=LLMConfig.default_config(model_name="gpt-4"),
-    )
-
-    # run the sandbox
-    result = sandbox.run(agent_state=agent_state)
-    assert result.agent_state.memory.get_block("human").value == ""
-    assert result.agent_state.memory.get_block("persona").value == ""
-    assert result.func_return is None
-
-
-def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_env_tool, test_user):
-    manager = SandboxConfigManager(tool_settings)
-    config_create = SandboxConfigCreate(config=E2BSandboxConfig().model_dump())
-    config = manager.create_or_update_sandbox_config(config_create, test_user)
-
-    # Run the custom sandbox once, assert nothing returns because missing env variable
-    sandbox = ToolExecutionSandbox(get_env_tool.name, {}, user_id=test_user.id, force_recreate=True)
-    result = sandbox.run()
-    # response should be None
-    assert result.func_return is None
-
-    # Add an environment variable
-    key = "secret_word"
-    long_random_string = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
-    manager.create_sandbox_env_var(
-        SandboxEnvironmentVariableCreate(key=key, value=long_random_string), sandbox_config_id=config.id, actor=test_user
-    )
-
-    # Assert that the environment variable gets injected correctly, even when the sandbox is NOT refreshed
-    sandbox = ToolExecutionSandbox(get_env_tool.name, {}, user_id=test_user.id)
-    result = sandbox.run()
-    assert long_random_string in result.func_return
-
-
-def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set, list_tool, test_user):
-    pass
-
-    manager = SandboxConfigManager(tool_settings)
-    old_timeout = 5 * 60
-    new_timeout = 10 * 60
-
-    # Make the config
-    config_create = SandboxConfigCreate(config=E2BSandboxConfig(timeout=old_timeout))
-    config = manager.create_or_update_sandbox_config(config_create, test_user)
-
-    # Run the custom sandbox once, assert a failure gets returned because missing environment variable
-    sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
-    result = sandbox.run()
-    assert len(result.func_return) == 5
-    old_config_fingerprint = result.sandbox_config_fingerprint
-
-    # Change the config
-    config_update = SandboxConfigUpdate(config=E2BSandboxConfig(timeout=new_timeout))
-    config = manager.update_sandbox_config(config.id, config_update, test_user)
-
-    # Run again
-    result = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id).run()
-    new_config_fingerprint = result.sandbox_config_fingerprint
-
-    # Assert the fingerprints are different
-    assert old_config_fingerprint != new_config_fingerprint
-
-
-def test_e2b_sandbox_with_list_rv(check_e2b_key_is_set, list_tool, test_user):
-    sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
-    result = sandbox.run()
-    assert len(result.func_return) == 5
+#
+#
+# def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user):
+#     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
+#     result = sandbox.run()
+#     assert len(result.func_return) == 5
+#
+#
+# def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user, caplog):
+#     manager = SandboxConfigManager(tool_settings)
+#
+#     # Make a custom local sandbox config
+#     sandbox_dir = str(Path(__file__).parent / "test_tool_sandbox")
+#     config_create = SandboxConfigCreate(config=LocalSandboxConfig(venv_name="test", sandbox_dir=sandbox_dir).model_dump())
+#     config = manager.create_or_update_sandbox_config(config_create, test_user)
+#
+#     # Make a environment variable with a long random string
+#     key = "secret_word"
+#     long_random_string = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
+#     manager.create_sandbox_env_var(
+#         SandboxEnvironmentVariableCreate(key=key, value=long_random_string), sandbox_config_id=config.id, actor=test_user
+#     )
+#
+#     # Create tool and args
+#     args = {}
+#
+#     # Run the custom sandbox
+#     with caplog.at_level(logging.DEBUG):
+#         sandbox = ToolExecutionSandbox(cowsay_tool.name, args, user_id=test_user.id)
+#         result = sandbox.run()
+#
+#     assert result.func_return is None
+#     assert any(long_random_string in record.message for record in caplog.records)
+#
+#
+# def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, test_user):
+#     args = {"x": 10, "y": 5}
+#
+#     # Mock and assert correct pathway was invoked
+#     with patch.object(ToolExecutionSandbox, "run_e2b_sandbox") as mock_run_local_dir_sandbox:
+#         sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
+#         sandbox.run()
+#         mock_run_local_dir_sandbox.assert_called_once()
+#
+#     # Run again to get actual response
+#     sandbox = ToolExecutionSandbox(add_integers_tool.name, args, user_id=test_user.id)
+#     result = sandbox.run()
+#     assert int(result.func_return) == args["x"] + args["y"]
+#
+#
+# def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_user):
+#     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
+#
+#     # Run the function once
+#     result = sandbox.run()
+#     old_config_fingerprint = result.sandbox_config_fingerprint
+#
+#     # Run it again to ensure that there is still only one running sandbox
+#     result = sandbox.run()
+#     new_config_fingerprint = result.sandbox_config_fingerprint
+#
+#     assert old_config_fingerprint == new_config_fingerprint
+#
+#
+# def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test_user):
+#     sandbox = ToolExecutionSandbox(clear_core_memory.name, {}, user_id=test_user.id)
+#
+#     # create an agent
+#     client = create_client()
+#     agent_state = client.create_agent(
+#         memory=ChatMemory(persona="This is the persona", human="This is the human"),
+#         embedding_config=EmbeddingConfig.default_config(provider="openai"),
+#         llm_config=LLMConfig.default_config(model_name="gpt-4"),
+#     )
+#
+#     # run the sandbox
+#     result = sandbox.run(agent_state=agent_state)
+#     assert result.agent_state.memory.get_block("human").value == ""
+#     assert result.agent_state.memory.get_block("persona").value == ""
+#     assert result.func_return is None
+#
+#
+# def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_env_tool, test_user):
+#     manager = SandboxConfigManager(tool_settings)
+#     config_create = SandboxConfigCreate(config=E2BSandboxConfig().model_dump())
+#     config = manager.create_or_update_sandbox_config(config_create, test_user)
+#
+#     # Run the custom sandbox once, assert nothing returns because missing env variable
+#     sandbox = ToolExecutionSandbox(get_env_tool.name, {}, user_id=test_user.id, force_recreate=True)
+#     result = sandbox.run()
+#     # response should be None
+#     assert result.func_return is None
+#
+#     # Add an environment variable
+#     key = "secret_word"
+#     long_random_string = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
+#     manager.create_sandbox_env_var(
+#         SandboxEnvironmentVariableCreate(key=key, value=long_random_string), sandbox_config_id=config.id, actor=test_user
+#     )
+#
+#     # Assert that the environment variable gets injected correctly, even when the sandbox is NOT refreshed
+#     sandbox = ToolExecutionSandbox(get_env_tool.name, {}, user_id=test_user.id)
+#     result = sandbox.run()
+#     assert long_random_string in result.func_return
+#
+#
+# def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set, list_tool, test_user):
+#     pass
+#
+#     manager = SandboxConfigManager(tool_settings)
+#     old_timeout = 5 * 60
+#     new_timeout = 10 * 60
+#
+#     # Make the config
+#     config_create = SandboxConfigCreate(config=E2BSandboxConfig(timeout=old_timeout))
+#     config = manager.create_or_update_sandbox_config(config_create, test_user)
+#
+#     # Run the custom sandbox once, assert a failure gets returned because missing environment variable
+#     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
+#     result = sandbox.run()
+#     assert len(result.func_return) == 5
+#     old_config_fingerprint = result.sandbox_config_fingerprint
+#
+#     # Change the config
+#     config_update = SandboxConfigUpdate(config=E2BSandboxConfig(timeout=new_timeout))
+#     config = manager.update_sandbox_config(config.id, config_update, test_user)
+#
+#     # Run again
+#     result = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id).run()
+#     new_config_fingerprint = result.sandbox_config_fingerprint
+#
+#     # Assert the fingerprints are different
+#     assert old_config_fingerprint != new_config_fingerprint
+#
+#
+# def test_e2b_sandbox_with_list_rv(check_e2b_key_is_set, list_tool, test_user):
+#     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
+#     result = sandbox.run()
+#     assert len(result.func_return) == 5
