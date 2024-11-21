@@ -36,6 +36,7 @@ from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolUpdate
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
+from letta.settings import tool_settings
 
 utils.DEBUG = True
 from letta.config import LettaConfig
@@ -863,6 +864,16 @@ def test_create_or_update_sandbox_config(server: SyncServer, default_user):
     assert created_config.type == SandboxType.E2B
     assert created_config.get_e2b_config() == sandbox_config_create.config
     assert created_config.organization_id == default_user.organization_id
+
+
+def test_default_e2b_settings_sandbox_config(server: SyncServer, default_user):
+    created_config = server.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=default_user)
+    e2b_config = created_config.get_e2b_config()
+
+    # Assertions
+    assert e2b_config.timeout == 5 * 60
+    assert e2b_config.template_id
+    assert e2b_config.template_id == tool_settings.e2b_sandbox_template_id
 
 
 def test_update_existing_sandbox_config(server: SyncServer, sandbox_config_fixture, default_user):

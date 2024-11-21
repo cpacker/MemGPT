@@ -32,10 +32,8 @@ class LocalSandboxConfig(BaseModel):
 
 
 class E2BSandboxConfig(BaseModel):
-    DEFAULT_TEMPLATE_ID: str = "a0derw3rssk0l5205tuj"  # Class-level constant for the default template ID.
-
     timeout: int = Field(5 * 60, description="Time limit for the sandbox (in seconds).")
-    template_id: Optional[str] = Field(DEFAULT_TEMPLATE_ID, description="The E2B template id (docker image).")
+    template_id: Optional[str] = Field(None, description="The E2B template id (docker image).")
     pip_requirements: Optional[List[str]] = Field(None, description="A list of pip packages to install on the E2B Sandbox")
 
     @property

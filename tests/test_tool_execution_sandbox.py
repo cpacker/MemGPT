@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from composio import Action
 from sqlalchemy import delete
 
 from letta import create_client
@@ -23,8 +24,9 @@ from letta.schemas.sandbox_config import (
     SandboxConfigCreate,
     SandboxConfigUpdate,
     SandboxEnvironmentVariableCreate,
+    SandboxType,
 )
-from letta.schemas.tool import Tool
+from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.user import User
 from letta.services.organization_manager import OrganizationManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
@@ -77,6 +79,13 @@ def mock_e2b_api_key_none():
 def check_e2b_key_is_set():
     original_api_key = tool_settings.e2b_api_key
     assert original_api_key is not None, "Missing e2b key! Cannot execute these tests."
+    yield
+
+
+@pytest.fixture
+def check_composio_key_set():
+    original_api_key = tool_settings.composio_api_key
+    assert original_api_key is not None, "Missing composio key! Cannot execute this test."
     yield
 
 
@@ -167,6 +176,14 @@ def list_tool(test_user):
 
 
 @pytest.fixture
+def composio_github_star_tool(test_user):
+    tool_manager = ToolManager()
+    tool_create = ToolCreate.from_composio(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    tool = tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=test_user)
+    yield tool
+
+
+@pytest.fixture
 def clear_core_memory(test_user):
     def clear_memory(agent_state: AgentState):
         """Clear the core memory"""
@@ -190,7 +207,7 @@ def create_tool_from_func(func: callable):
     )
 
 
-# Tests
+# Local sandbox tests
 def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_user):
     args = {"x": 10, "y": 5}
 
@@ -255,6 +272,9 @@ def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user, cap
 
     assert result.func_return is None
     assert any(long_random_string in record.message for record in caplog.records)
+
+
+# E2B sandbox tests
 
 
 def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, test_user):
@@ -346,8 +366,6 @@ def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_e
 
 
 def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set, list_tool, test_user):
-    pass
-
     manager = SandboxConfigManager(tool_settings)
     old_timeout = 5 * 60
     new_timeout = 10 * 60
@@ -369,6 +387,7 @@ def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set,
     # Run again
     result = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id).run()
     new_config_fingerprint = result.sandbox_config_fingerprint
+    assert config.fingerprint() == new_config_fingerprint
 
     # Assert the fingerprints are different
     assert old_config_fingerprint != new_config_fingerprint
@@ -378,3 +397,20 @@ def test_e2b_sandbox_with_list_rv(check_e2b_key_is_set, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
     result = sandbox.run()
     assert len(result.func_return) == 5
+
+
+def test_e2b_e2e_composio_star_github(check_e2b_key_is_set, check_composio_key_set, composio_github_star_tool, test_user):
+    # Add the composio key
+    manager = SandboxConfigManager(tool_settings)
+    config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=test_user)
+
+    manager.create_sandbox_env_var(
+        SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value=tool_settings.composio_api_key),
+        sandbox_config_id=config.id,
+        actor=test_user,
+    )
+
+    result = ToolExecutionSandbox(composio_github_star_tool.name, {}, user_id=test_user.id).run()
+    import ipdb
+
+    ipdb.set_trace()
