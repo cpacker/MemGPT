@@ -272,6 +272,23 @@ def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, test_user)
     assert int(result.func_return) == args["x"] + args["y"]
 
 
+def test_e2b_sandbox_pip_installs(check_e2b_key_is_set, cowsay_tool, test_user):
+    manager = SandboxConfigManager(tool_settings)
+    config_create = SandboxConfigCreate(config=E2BSandboxConfig(pip_requirements=["cowsay"]).model_dump())
+    config = manager.create_or_update_sandbox_config(config_create, test_user)
+
+    # Add an environment variable
+    key = "secret_word"
+    long_random_string = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(20))
+    manager.create_sandbox_env_var(
+        SandboxEnvironmentVariableCreate(key=key, value=long_random_string), sandbox_config_id=config.id, actor=test_user
+    )
+
+    sandbox = ToolExecutionSandbox(cowsay_tool.name, {}, user_id=test_user.id)
+    result = sandbox.run()
+    assert long_random_string in result.stdout[0]
+
+
 def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
 
@@ -344,7 +361,6 @@ def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set,
     result = sandbox.run()
     assert len(result.func_return) == 5
     old_config_fingerprint = result.sandbox_config_fingerprint
-
 
     # Change the config
     config_update = SandboxConfigUpdate(config=E2BSandboxConfig(timeout=new_timeout))

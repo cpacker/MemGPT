@@ -61,12 +61,20 @@ class ToolExecutionSandbox:
         if tool_settings.e2b_api_key:
             logger.info("Using e2b for tool execution...")
             code = self.generate_execution_script(wrap_print_with_markers=False, agent_state=agent_state)
-            return self.run_e2b_sandbox(code=code)
+            result = self.run_e2b_sandbox(code=code)
         else:
             logger.info("Using local sandbox for tool execution...")
             code = self.generate_execution_script(wrap_print_with_markers=True, agent_state=agent_state)
-            logger.info("Running code in local sandbox...")
-            return self.run_local_dir_sandbox(code=code)
+            result = self.run_local_dir_sandbox(code=code)
+
+        # Log out any stdout from the tool run
+        logger.info(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n")
+        for log_line in result.stdout:
+            logger.info(f"{log_line}\n")
+        logger.info(f"Ending stdout log from tool run.")
+
+        # Return result
+        return result
 
     # local sandbox specific functions
 
@@ -117,11 +125,9 @@ class ToolExecutionSandbox:
                     logger.error(f"Sandbox execution error: {result.stderr}")
                     raise RuntimeError(f"Sandbox execution error: {result.stderr}")
                 func_result, stdout = self.parse_out_function_results_markers(result.stdout)
-                logger.info(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n{stdout}")
-                logger.info(f"Ending stdout log from tool run.")
                 func_return, agent_state = self.ast_parse_best_effort(func_result)
                 return SandboxRunResult(
-                    func_return=func_return, agent_state=agent_state, stdout=stdout, sandbox_config_fingerprint=sbx_config.fingerprint()
+                    func_return=func_return, agent_state=agent_state, stdout=[stdout], sandbox_config_fingerprint=sbx_config.fingerprint()
                 )
             except subprocess.TimeoutExpired:
                 raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
@@ -180,7 +186,12 @@ class ToolExecutionSandbox:
             return None
         else:
             func_return, agent_state = self.ast_parse_best_effort(execution.results[0].text)
-            return SandboxRunResult(func_return=func_return, agent_state=agent_state, sandbox_config_fingerprint=sbx_config.fingerprint())
+            return SandboxRunResult(
+                func_return=func_return,
+                agent_state=agent_state,
+                stdout=execution.logs.stdout,
+                sandbox_config_fingerprint=sbx_config.fingerprint(),
+            )
 
     def get_running_e2b_sandbox_with_same_state(self, sandbox_config: SandboxConfig) -> Optional["Sandbox"]:
         from e2b_code_interpreter import Sandbox
@@ -200,11 +211,18 @@ class ToolExecutionSandbox:
         from e2b_code_interpreter import Sandbox
 
         state_hash = sandbox_config.fingerprint()
-        if sandbox_config.get_e2b_config().template_id:
-            return Sandbox(sandbox_config.get_e2b_config().template_id, metadata={self.METADATA_CONFIG_STATE_KEY: state_hash})
+        e2b_config = sandbox_config.get_e2b_config()
+        if e2b_config.template_id:
+            sbx = Sandbox(sandbox_config.get_e2b_config().template_id, metadata={self.METADATA_CONFIG_STATE_KEY: state_hash})
         else:
             # no template
-            return Sandbox(metadata={self.METADATA_CONFIG_STATE_KEY: state_hash}, **sandbox_config.config)
+            sbx = Sandbox(metadata={self.METADATA_CONFIG_STATE_KEY: state_hash}, **sandbox_config.config)
+
+        # install pip requirements
+        if e2b_config.pip_requirements:
+            for package in e2b_config.pip_requirements:
+                sbx.commands.run(f"pip install {package}")
+        return sbx
 
     def list_running_e2b_sandboxes(self):
         from e2b_code_interpreter import Sandbox

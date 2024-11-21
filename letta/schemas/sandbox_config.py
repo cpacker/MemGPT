@@ -1,7 +1,7 @@
 import hashlib
 import json
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -18,7 +18,7 @@ class SandboxType(str, Enum):
 class SandboxRunResult(BaseModel):
     func_return: Optional[Any] = Field(None, description="The function return object")
     agent_state: Optional[AgentState] = Field(None, description="The agent state")
-    stdout: Optional[str] = Field(None, description="Captured stdout (e.g. prints, logs) from the function invocation")
+    stdout: Optional[List[str]] = Field(None, description="Captured stdout (e.g. prints, logs) from the function invocation")
     sandbox_config_fingerprint: str = Field(None, description="The fingerprint of the config for the sandbox")
 
 
@@ -32,8 +32,11 @@ class LocalSandboxConfig(BaseModel):
 
 
 class E2BSandboxConfig(BaseModel):
+    DEFAULT_TEMPLATE_ID: str = "a0derw3rssk0l5205tuj"  # Class-level constant for the default template ID.
+
     timeout: int = Field(5 * 60, description="Time limit for the sandbox (in seconds).")
-    template_id: Optional[str] = Field("a0derw3rssk0l5205tuj", description="The E2B template id (docker image).")
+    template_id: Optional[str] = Field(DEFAULT_TEMPLATE_ID, description="The E2B template id (docker image).")
+    pip_requirements: Optional[List[str]] = Field(None, description="A list of pip packages to install on the E2B Sandbox")
 
     @property
     def type(self) -> "SandboxType":
