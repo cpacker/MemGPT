@@ -256,8 +256,8 @@ class ToolExecutionSandbox:
 
         # Load the agent state data into the program
         if agent_state:
-            # code += "import letta\n"
-            code += "from letta import AgentState \n"
+            code += "import letta\n"
+            code += "from letta import * \n"
             import pickle
 
             agent_state_pickle = pickle.dumps(agent_state)
