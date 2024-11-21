@@ -74,7 +74,7 @@ def rethink_memory(self, new_memory: str, target_block_label: Optional[str], sou
         block_id = self.memory.get_block(target_block_label).id
         client.update_block(block_id, text=new_memory)
         client.update_agent(agent_id=self.agent_state.id, memory=self.agent_state.memory)
-    
+        _ = client.get_agent(self.agent_state.id)
 
     print(f"Rethinking memory for block {target_block_label} with new memory: {new_memory} from block {source_block_label}")
     return None
@@ -100,8 +100,8 @@ def finish_rethinking_memory(self) -> Optional[str]:
             chat_human_block = agent.memory.get_block("chat_agent_human")
             client.update_block(chat_persona_block.id, text=self.memory.get_block("chat_agent_persona_new").value)
             client.update_block(chat_human_block.id, text=self.memory.get_block("chat_agent_human_new").value)
-            import pdb; pdb.set_trace()
             client.update_agent(agent_id=agent.id, memory=agent.memory)
+            self = client.get_agent(self.agent_state.id)
             agent = client.get_agent(agent.id)
 
     return None
@@ -151,7 +151,6 @@ class OfflineMemoryAgent(Agent):
                         if tool_call.function.name == "finish_rethinking_memory":
                             counter = self.max_memory_rethinks
                             break
-                        json.loads(tool_call.function.arguments)
 
             usage = step_response.usage
             step_count += 1

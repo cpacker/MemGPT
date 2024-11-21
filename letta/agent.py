@@ -728,6 +728,7 @@ class Agent(BaseAgent):
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
 
                 function_response = function_to_call(**function_args)
+                self.update_memory_blocks_from_db() # in case function edits memory
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow
                     truncate = False
