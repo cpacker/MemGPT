@@ -38,7 +38,8 @@ chromadb = ">=0.4.24,<0.5.0"
 sqlalchemy-json = "^0.7.0"
 fastapi = {version = "^0.104.1", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
-pydantic = "^2.7.4"
+#pydantic = "^2.7.4"
+pydantic = ">=2.7.4,<2.10.0"
 pyautogen = {version = "0.2.22", optional = true}
 html2text = "^2020.1.16"
 docx2txt = "^0.8"
@@ -67,6 +68,7 @@ tiktoken = "^0.7.0"
 nltk = "^3.8.1"
 jinja2 = "^3.1.4"
 locust = "^2.31.5"
+#llama-index = "0.11.21"
 llama-index = "^0.11.9"
 llama-index-embeddings-openai = "^0.2.5"
 llama-index-embeddings-ollama = "^0.3.1"
