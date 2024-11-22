@@ -52,6 +52,7 @@ def trigger_rethink_memory_convo(self: "Agent", message: Optional[str]) -> Optio
             client.get_agent(agent.id)
             client.user_message(agent_id=agent.id, message=message)
 
+
 def rethink_memory_convo(self, new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:
     """
     Re-evaluate the memory in block_name, integrating new and updated facts.
@@ -80,6 +81,7 @@ def rethink_memory_convo(self, new_memory: str, target_block_label: Optional[str
 
     print(f"Rethinking memory for block {target_block_label} with new memory: {new_memory} from block {source_block_label}")
     return None
+
 
 def rethink_memory(self, new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:
     """
