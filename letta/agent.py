@@ -1325,6 +1325,12 @@ class Agent(BaseAgent):
 
     def update_state(self) -> AgentState:
         message_ids = [msg.id for msg in self._messages]
+
+        # Assert that these are all strings
+        if any(not isinstance(m_id, str) for m_id in message_ids):
+            warnings.warn(f"Non-string message IDs found in agent state: {message_ids}")
+            message_ids = [m_id for m_id in message_ids if isinstance(m_id, str)]
+
         assert isinstance(self.memory, Memory), f"Memory is not a Memory object: {type(self.memory)}"
 
         # override any fields that may have been updated
