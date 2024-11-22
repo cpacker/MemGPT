@@ -21,7 +21,16 @@ jobs:
       fail-fast: false
       matrix:
         test_suite:
+          - "test_client.py"
+          - "test_local_client.py"
+          - "test_client_legacy.py"
+          - "test_server.py"
+          - "test_managers.py"
+          - "test_o1_agent.py"
+          - "test_tool_rule_solver.py"
+          - "test_agent_tool_graph.py"
           - "test_tool_execution_sandbox.py"
+          - "test_utils.py"
     services:
       qdrant:
         image: qdrant/qdrant
@@ -50,7 +59,7 @@ jobs:
         with:
           python-version: "3.12"
           poetry-version: "1.8.2"
-          install-args: "--all-extras"
+          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests -E cloud-tool-sandbox"
       - name: Migrate database
         env:
           LETTA_PG_PORT: 5432
@@ -61,13 +70,6 @@ jobs:
         run: |
           psql -h localhost -U postgres -d postgres -c 'CREATE EXTENSION vector'
           poetry run alembic upgrade head
-      - name: Enforce Poetry Python Environment
-        run: |
-          echo "PATH=$(poetry env info --path)/bin:$PATH" >> $GITHUB_ENV
-      - name: Debug Python Environment
-        run: |
-          poetry env info
-          poetry run which python
       - name: Run core unit tests
         env:
           LETTA_PG_PORT: 5432
@@ -78,3 +80,57 @@ jobs:
           LETTA_SERVER_PASS: test_server_token
         run: |
           poetry run pytest -s -vv tests/${{ matrix.test_suite }}
+
+  misc-unit-tests:
+    runs-on: ubuntu-latest
+    needs: run-core-unit-tests
+    services:
+      qdrant:
+        image: qdrant/qdrant
+        ports:
+          - 6333:6333
+      postgres:
+        image: pgvector/pgvector:pg17
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python, Poetry, and Dependencies
+        uses: packetcoders/action-setup-cache-python-poetry@main
+        with:
+          python-version: "3.12"
+          poetry-version: "1.8.2"
+          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests -E cloud-tool-sandbox"
+      - name: Migrate database
+        env:
+          LETTA_PG_PORT: 5432
+          LETTA_PG_USER: postgres
+          LETTA_PG_PASSWORD: postgres
+          LETTA_PG_DB: postgres
+          LETTA_PG_HOST: localhost
+        run: |
+          psql -h localhost -U postgres -d postgres -c 'CREATE EXTENSION vector'
+          poetry run alembic upgrade head
+      - name: Run misc unit tests
+        env:
+          LETTA_PG_PORT: 5432
+          LETTA_PG_USER: postgres
+          LETTA_PG_PASSWORD: postgres
+          LETTA_PG_DB: postgres
+          LETTA_PG_HOST: localhost
+          LETTA_SERVER_PASS: test_server_token
+          PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
+        run: |
+          poetry run pytest -s -vv -k "not test_model_letta_perfomance.py and not test_utils.py and not test_client.py and not test_tool_execution_sandbox.py and not integration_test_summarizer.py and not test_agent_tool_graph.py and not test_tool_rule_solver.py and not test_local_client.py and not test_o1_agent.py and not test_cli.py and not test_concurrent_connections.py and not test_quickstart and not test_model_letta_performance and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client_legacy.py" tests
