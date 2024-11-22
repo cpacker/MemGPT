@@ -4,7 +4,6 @@ from letta.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.offline_memory_agent import (
     finish_rethinking_memory,
     rethink_memory,
-    send_message_offline_agent,
     trigger_rethink_memory,
     trigger_rethink_memory_convo,
 )
@@ -22,7 +21,6 @@ def test_chat_offline_memory():
     assert client is not None
 
     trigger_rethink_memory_convo_tool = client.create_tool(trigger_rethink_memory_convo)
-    send_message_offline_agent_tool = client.create_tool(send_message_offline_agent)
 
     conversation_human_block = Block(name="chat_agent_human", label="chat_agent_human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
     conversation_persona_block = Block(
@@ -57,14 +55,14 @@ def test_chat_offline_memory():
         system=gpt_system.get_system_text("memgpt_convo_only"),
         llm_config=LLMConfig.default_config("gpt-4"),
         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-        tools=[send_message_offline_agent_tool.name, trigger_rethink_memory_convo_tool.name],
+        tools=["send_message", trigger_rethink_memory_convo_tool.name],
         memory=conversation_memory,
         include_base_tools=False,
         include_memory_tools=False,
     )
     assert conversation_agent is not None
     assert [tool.name for tool in client.get_tools_from_agent(agent_id=conversation_agent.id)] == [
-        send_message_offline_agent_tool.name,
+        "send_message",
         trigger_rethink_memory_convo_tool.name,
     ]
 
@@ -101,7 +99,6 @@ def test_ripple_edit():
     assert client is not None
 
     trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
-    send_message_offline_agent_tool = client.create_tool(send_message_offline_agent)
 
     conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
     conversation_persona_block = Block(name="persona", label="persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
@@ -132,7 +129,7 @@ def test_ripple_edit():
         system=gpt_system.get_system_text("memgpt_convo_only"),
         llm_config=LLMConfig.default_config("gpt-4"),
         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-        tools=[send_message_offline_agent_tool.name, trigger_rethink_memory_tool.name],
+        tools=["send_message", trigger_rethink_memory_tool.name],
         memory=conversation_memory,
         include_base_tools=False,
     )
@@ -166,7 +163,3 @@ def test_ripple_edit():
     assert offline_memory_agent.memory.get_block("rethink_memory_block").value != "[empty]"
     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
     assert conversation_agent.memory.get_block("rethink_memory_block").value != "[empty]"
-
-
-if __name__ == "__main__":
-    test_offline_memory_agent()

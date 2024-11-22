@@ -11,22 +11,6 @@ from letta.schemas.tool import Tool
 from letta.schemas.usage import LettaUsageStatistics
 
 
-def send_message_offline_agent(self: "Agent", message: str) -> Optional[str]:
-    """
-    Sends a message to the human user. The function is the same as the base send_message function, but is used
-    when we do not include the other base tools.
-
-    Args:
-        message (str): Message contents. All unicode (including emojis) are supported.
-
-    Returns:
-        Optional[str]: None is always returned as this function does not produce a response.
-    """
-    # FIXME passing of msg_obj here is a hack, unclear if guaranteed to be the correct reference
-    self.interface.assistant_message(message)  # , msg_obj=self._messages[-1])
-    return None
-
-
 def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[str]:
     """
     Called if and only when user says the word "trigger_rethink_memory". It will trigger the re-evaluation of the memory.
