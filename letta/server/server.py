@@ -17,24 +17,10 @@ from letta.agent_store.storage import StorageConnector, TableType
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
-# from letta.data_types import (
-#    AgentState,
-#    EmbeddingConfig,
-#    LLMConfig,
-#    Message,
-#    Preset,
-#    Source,
-#    Token,
-#    User,
-# )
-from letta.functions.functions import generate_schema, parse_source_code
-from letta.functions.schema_generator import generate_schema
-
 # TODO use custom interface
 from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
-from letta.memory import get_memory_functions
 from letta.metadata import MetadataStore
 from letta.o1_agent import O1Agent
 from letta.orm import Base
@@ -55,6 +41,7 @@ from letta.providers import (
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
+from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
@@ -83,6 +70,18 @@ from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
 from letta.utils import create_random_username, json_dumps, json_loads
+
+# from letta.data_types import (
+#    AgentState,
+#    EmbeddingConfig,
+#    LLMConfig,
+#    Message,
+#    Preset,
+#    Source,
+#    Token,
+#    User,
+# )
+
 
 # from letta.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
 
@@ -826,6 +825,12 @@ class SyncServer(Server):
             else:
                 raise ValueError(f"Invalid agent type: {request.agent_type}")
 
+        # create blocks and link ids
+        block_ids = []
+        for create_block in request.memory_blocks:
+            block = self.block_manager.create_or_update_block(Block(**create_block.model_dump()), actor=actor)
+            block_ids.append(block.id)
+
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.user_manager.get_user_by_id(user_id=user_id)
         if not user:
@@ -848,31 +853,31 @@ class SyncServer(Server):
             # reset the request.tools to only valid tools
             request.tools = [t.name for t in tool_objs]
 
-            assert request.memory is not None
-            memory_functions = get_memory_functions(request.memory)
-            for func_name, func in memory_functions.items():
+            # assert request.memory is not None
+            # memory_functions = get_memory_functions(request.memory)
+            # for func_name, func in memory_functions.items():
 
-                if request.tools and func_name in request.tools:
-                    # tool already added
-                    continue
-                source_code = parse_source_code(func)
-                # memory functions are not terminal
-                json_schema = generate_schema(func, name=func_name)
-                source_type = "python"
-                tags = ["memory", "memgpt-base"]
-                tool = self.tool_manager.create_or_update_tool(
-                    Tool(
-                        source_code=source_code,
-                        source_type=source_type,
-                        tags=tags,
-                        json_schema=json_schema,
-                    ),
-                    actor=actor,
-                )
-                tool_objs.append(tool)
-                if not request.tools:
-                    request.tools = []
-                request.tools.append(tool.name)
+            #    if request.tools and func_name in request.tools:
+            #        # tool already added
+            #        continue
+            #    source_code = parse_source_code(func)
+            #    # memory functions are not terminal
+            #    json_schema = generate_schema(func, name=func_name)
+            #    source_type = "python"
+            #    tags = ["memory", "memgpt-base"]
+            #    tool = self.tool_manager.create_or_update_tool(
+            #        Tool(
+            #            source_code=source_code,
+            #            source_type=source_type,
+            #            tags=tags,
+            #            json_schema=json_schema,
+            #        ),
+            #        actor=actor,
+            #    )
+            #    tool_objs.append(tool)
+            #    if not request.tools:
+            #        request.tools = []
+            #    request.tools.append(tool.name)
 
             # TODO: save the agent state
             agent_state = AgentState(
@@ -884,7 +889,11 @@ class SyncServer(Server):
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 system=request.system,
-                memory=request.memory,
+                # memory=request.memory,
+                # memory
+                memory_block_ids=block_ids,
+                memory_prompt_template=request.memory_prompt_template,
+                # other metadata
                 description=request.description,
                 metadata_=request.metadata_,
                 tags=request.tags,

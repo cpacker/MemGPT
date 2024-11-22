@@ -18,7 +18,6 @@ from letta.schemas.letta_request import LettaRequest
 from letta.schemas.letta_response import LettaResponse
 from letta.schemas.memory import (
     ArchivalMemorySummary,
-    BasicBlockMemory,
     ContextWindowOverview,
     CreateArchivalMemory,
     Memory,
@@ -86,9 +85,9 @@ def create_agent(
     agent.user_id = actor.id
     # TODO: sarah make general
     # TODO: eventually remove this
-    assert agent.memory is not None  # TODO: dont force this, can be None (use default human/person)
-    blocks = agent.memory.get_blocks()
-    agent.memory = BasicBlockMemory(blocks=blocks)
+    # assert agent.memory is not None  # TODO: dont force this, can be None (use default human/person)
+    # blocks = agent.memory.get_blocks()
+    # agent.memory = BasicBlockMemory(blocks=blocks)
 
     return server.create_agent(agent, actor=actor)
 
