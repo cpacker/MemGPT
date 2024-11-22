@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
 from letta.schemas.letta_base import LettaBase
@@ -115,6 +115,13 @@ class BlockUpdate(BaseBlock):
 
     class Config:
         extra = "ignore"  # Ignores extra fields
+
+
+class BlockLimitUpdate(BaseModel):
+    """Update the limit of a block"""
+
+    label: str = Field(..., description="Label of the block.")
+    limit: int = Field(..., description="New limit of the block.")
 
 
 class UpdatePersona(BlockUpdate):
