@@ -3,10 +3,10 @@ import base64
 import os
 import pickle
 import subprocess
+import sys
 import tempfile
 import uuid
-import venv
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from letta.log import get_logger
 from letta.schemas.agent import AgentState
@@ -87,25 +87,14 @@ class ToolExecutionSandbox:
         # TODO: We set limit to 100 here, but maybe we want it uncapped? Realistically this should be fine.
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
 
+        # Prepare the environment for subprocess
         env = os.environ.copy()
-        venv_path = os.path.join(local_configs.sandbox_dir, local_configs.venv_name)
-        env["VIRTUAL_ENV"] = venv_path
-        env["PATH"] = os.path.join(venv_path, "bin") + ":" + env["PATH"]
         env.update(env_vars)
 
         # Safety checks
         # Check that sandbox_dir exists
         if not os.path.isdir(local_configs.sandbox_dir):
             raise FileNotFoundError(f"Sandbox directory does not exist: {local_configs.sandbox_dir}")
-        # Verify that the venv path exists and is a directory
-        if not os.path.isdir(venv_path):
-            logger.warning(f"Virtual environment directory does not exist at: {venv_path}, creating one now...")
-            self.create_venv_for_local_sandbox(sandbox_dir_path=local_configs.sandbox_dir, venv_path=venv_path, env=env)
-
-        # Ensure the python interpreter exists in the virtual environment
-        python_executable = os.path.join(venv_path, "bin", "python3")
-        if not os.path.isfile(python_executable):
-            raise FileNotFoundError(f"Python executable not found in virtual environment: {python_executable}")
 
         # Write the code to a temp file in the sandbox_dir
         with tempfile.NamedTemporaryFile(mode="w", dir=local_configs.sandbox_dir, suffix=".py", delete=True) as temp_file:
@@ -115,7 +104,7 @@ class ToolExecutionSandbox:
             # Execute the code in a restricted subprocess
             try:
                 result = subprocess.run(
-                    [os.path.join(venv_path, "bin", "python3"), temp_file.name],
+                    [sys.executable, temp_file.name],  # Use the current Python interpreter
                     env=env,
                     cwd=local_configs.sandbox_dir,  # Restrict execution to sandbox_dir
                     timeout=60,
@@ -128,7 +117,10 @@ class ToolExecutionSandbox:
                 func_result, stdout = self.parse_out_function_results_markers(result.stdout)
                 func_return, agent_state = self.parse_best_effort(func_result)
                 return SandboxRunResult(
-                    func_return=func_return, agent_state=agent_state, stdout=[stdout], sandbox_config_fingerprint=sbx_config.fingerprint()
+                    func_return=func_return,
+                    agent_state=agent_state,
+                    stdout=[stdout],
+                    sandbox_config_fingerprint=sbx_config.fingerprint(),
                 )
             except subprocess.TimeoutExpired:
                 raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
@@ -142,29 +134,6 @@ class ToolExecutionSandbox:
         start_index = text.index(self.LOCAL_SANDBOX_RESULT_START_MARKER) + marker_len
         end_index = text.index(self.LOCAL_SANDBOX_RESULT_END_MARKER)
         return text[start_index:end_index], text[: start_index - marker_len] + text[end_index + +marker_len :]
-
-    def create_venv_for_local_sandbox(self, sandbox_dir_path: str, venv_path: str, env: Dict[str, str]):
-        # Step 1: Create the virtual environment
-        venv.create(venv_path, with_pip=True)
-
-        pip_path = os.path.join(venv_path, "bin", "pip")
-        try:
-            # Step 2: Upgrade pip
-            logger.info("Upgrading pip in the virtual environment...")
-            subprocess.run([pip_path, "install", "--upgrade", "pip"], env=env, check=True)
-
-            # Step 3: Install packages from requirements.txt if provided
-            requirements_txt_path = os.path.join(sandbox_dir_path, self.REQUIREMENT_TXT_NAME)
-            if os.path.isfile(requirements_txt_path):
-                logger.info(f"Installing packages from requirements file: {requirements_txt_path}")
-                subprocess.run([pip_path, "install", "-r", requirements_txt_path], env=env, check=True)
-                logger.info("Successfully installed packages from requirements.txt")
-            else:
-                logger.warning("No requirements.txt file provided or the file does not exist. Skipping package installation.")
-
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Error while setting up the virtual environment: {e}")
-            raise RuntimeError(f"Failed to set up the virtual environment: {e}")
 
     # e2b sandbox specific functions
 

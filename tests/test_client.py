@@ -18,8 +18,6 @@ from letta.settings import tool_settings
 
 # Constants
 SERVER_PORT = 8283
-DEFAULT_VENV_NAME = "test-venv"
-UPDATED_VENV_NAME = "updated-venv"
 SANDBOX_DIR = "/tmp/sandbox"
 UPDATED_SANDBOX_DIR = "/tmp/updated_sandbox"
 ENV_VAR_KEY = "TEST_VAR"
@@ -103,18 +101,16 @@ def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]
     """
 
     # 1. Create a sandbox config
-    local_config = LocalSandboxConfig(venv_name=DEFAULT_VENV_NAME, sandbox_dir=SANDBOX_DIR)
+    local_config = LocalSandboxConfig(sandbox_dir=SANDBOX_DIR)
     sandbox_config = client.create_sandbox_config(config=local_config)
 
     # Assert the created sandbox config
     assert sandbox_config.id is not None
     assert sandbox_config.type == SandboxType.LOCAL
-    assert sandbox_config.config["venv_name"] == DEFAULT_VENV_NAME
 
     # 2. Update the sandbox config
-    updated_config = LocalSandboxConfig(venv_name=UPDATED_VENV_NAME, sandbox_dir=UPDATED_SANDBOX_DIR)
+    updated_config = LocalSandboxConfig(sandbox_dir=UPDATED_SANDBOX_DIR)
     sandbox_config = client.update_sandbox_config(sandbox_config_id=sandbox_config.id, config=updated_config)
-    assert sandbox_config.config["venv_name"] == UPDATED_VENV_NAME
     assert sandbox_config.config["sandbox_dir"] == UPDATED_SANDBOX_DIR
 
     # 3. List all sandbox configs

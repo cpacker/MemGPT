@@ -35,7 +35,6 @@ from letta.services.user_manager import UserManager
 from letta.settings import tool_settings
 
 # Constants
-VENV_NAME = "test"
 namespace = uuid.NAMESPACE_DNS
 org_name = str(uuid.uuid5(namespace, "test-tool-execution-sandbox-org"))
 user_name = str(uuid.uuid5(namespace, "test-tool-execution-sandbox-user"))
@@ -219,6 +218,7 @@ def create_tool_from_func(func: callable):
 
 
 # Local sandbox tests
+@pytest.mark.local_sandbox
 def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_user):
     args = {"x": 10, "y": 5}
 
@@ -234,6 +234,7 @@ def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_us
     assert result.func_return == args["x"] + args["y"]
 
 
+@pytest.mark.local_sandbox
 def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, test_user):
     args = {}
 
@@ -252,18 +253,20 @@ def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, t
     assert result.func_return is None
 
 
+@pytest.mark.local_sandbox
 def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
     result = sandbox.run()
     assert len(result.func_return) == 5
 
 
-def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user, caplog):
+@pytest.mark.local_sandbox
+def test_local_sandbox_custom(mock_e2b_api_key_none, get_env_tool, test_user, caplog):
     manager = SandboxConfigManager(tool_settings)
 
     # Make a custom local sandbox config
     sandbox_dir = str(Path(__file__).parent / "test_tool_sandbox")
-    config_create = SandboxConfigCreate(config=LocalSandboxConfig(venv_name="test", sandbox_dir=sandbox_dir).model_dump())
+    config_create = SandboxConfigCreate(config=LocalSandboxConfig(sandbox_dir=sandbox_dir).model_dump())
     config = manager.create_or_update_sandbox_config(config_create, test_user)
 
     # Make a environment variable with a long random string
@@ -278,16 +281,16 @@ def test_local_sandbox_custom(mock_e2b_api_key_none, cowsay_tool, test_user, cap
 
     # Run the custom sandbox
     with caplog.at_level(logging.DEBUG):
-        sandbox = ToolExecutionSandbox(cowsay_tool.name, args, user_id=test_user.id)
+        sandbox = ToolExecutionSandbox(get_env_tool.name, args, user_id=test_user.id)
         result = sandbox.run()
 
-    assert result.func_return is None
-    assert any(long_random_string in record.message for record in caplog.records)
+    assert long_random_string in result.func_return
 
 
 # E2B sandbox tests
 
 
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, test_user):
     args = {"x": 10, "y": 5}
 
@@ -303,6 +306,7 @@ def test_e2b_sandbox_default(check_e2b_key_is_set, add_integers_tool, test_user)
     assert int(result.func_return) == args["x"] + args["y"]
 
 
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_pip_installs(check_e2b_key_is_set, cowsay_tool, test_user):
     manager = SandboxConfigManager(tool_settings)
     config_create = SandboxConfigCreate(config=E2BSandboxConfig(pip_requirements=["cowsay"]).model_dump())
@@ -320,6 +324,7 @@ def test_e2b_sandbox_pip_installs(check_e2b_key_is_set, cowsay_tool, test_user):
     assert long_random_string in result.stdout[0]
 
 
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
 
@@ -334,6 +339,7 @@ def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_u
     assert old_config_fingerprint == new_config_fingerprint
 
 
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test_user):
     sandbox = ToolExecutionSandbox(clear_core_memory.name, {}, user_id=test_user.id)
 
@@ -352,6 +358,7 @@ def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test
     assert result.func_return is None
 
 
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_env_tool, test_user):
     manager = SandboxConfigManager(tool_settings)
     config_create = SandboxConfigCreate(config=E2BSandboxConfig().model_dump())
@@ -376,6 +383,7 @@ def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_e
     assert long_random_string in result.func_return
 
 
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set, list_tool, test_user):
     manager = SandboxConfigManager(tool_settings)
     old_timeout = 5 * 60
@@ -404,6 +412,7 @@ def test_e2b_sandbox_config_change_force_recreates_sandbox(check_e2b_key_is_set,
     assert old_config_fingerprint != new_config_fingerprint
 
 
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_with_list_rv(check_e2b_key_is_set, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
     result = sandbox.run()

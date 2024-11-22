@@ -1,4 +1,0 @@
-letta
-requests
-pgvector
-pg8000
