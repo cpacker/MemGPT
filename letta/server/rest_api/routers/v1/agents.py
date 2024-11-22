@@ -236,9 +236,7 @@ def update_agent_memory_label(
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
-    Update the core memory of a specific agent.
-    This endpoint accepts new memory contents to update the core memory of the agent.
-    This endpoint only supports modifying existing blocks; it does not support deleting/unlinking or creating/linking blocks.
+    Update the label of a block in an agent's memory.
     """
     actor = server.get_user_or_default(user_id=user_id)
 
