@@ -158,6 +158,13 @@ class Memory(BaseModel, validate_assignment=True):
 
         self.memory[block.label] = block
 
+    def unlink_block(self, block_label: str) -> Block:
+        """Unlink a block from the memory object"""
+        if block_label not in self.memory:
+            raise ValueError(f"Block with label {block_label} does not exist")
+
+        return self.memory.pop(block_label)
+
     def update_block_value(self, label: str, value: str):
         """Update the value of a block"""
         if label not in self.memory:
@@ -166,6 +173,19 @@ class Memory(BaseModel, validate_assignment=True):
             raise ValueError(f"Provided value must be a string")
 
         self.memory[label].value = value
+
+    def update_block_label(self, current_label: str, new_label: str):
+        """Update the label of a block"""
+        if current_label not in self.memory:
+            raise ValueError(f"Block with label {current_label} does not exist")
+        if not isinstance(new_label, str):
+            raise ValueError(f"Provided new label must be a string")
+
+        # First change the label of the block
+        self.memory[current_label].label = new_label
+
+        # Then swap the block to the new label
+        self.memory[new_label] = self.memory.pop(current_label)
 
 
 # TODO: ideally this is refactored into ChatMemory and the subclasses are given more specific names.

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
 from letta.schemas.letta_base import LettaBase
@@ -93,6 +93,13 @@ class BlockCreate(BaseBlock):
 
     is_template: bool = True
     label: str = Field(..., description="Label of the block.")
+
+
+class BlockLabelUpdate(BaseModel):
+    """Update the label of a block"""
+
+    current_label: str = Field(..., description="Current label of the block.")
+    new_label: str = Field(..., description="New label of the block.")
 
 
 class CreatePersona(BlockCreate):
