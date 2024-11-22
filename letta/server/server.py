@@ -409,7 +409,7 @@ class SyncServer(Server):
             logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
             raise
 
-    def _get_or_load_agent(self, agent_id: str) -> Agent:
+    def _get_or_load_agent(self, agent_id: str, caching: bool = True) -> Agent:
         """Check if the agent is in-memory, then load"""
 
         # Gets the agent state
@@ -420,14 +420,24 @@ class SyncServer(Server):
         actor = self.user_manager.get_user_by_id(user_id)
 
         logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
-        # TODO: consider disabling loading cached agents due to potential concurrency issues
+        if caching:
+            # TODO: consider disabling loading cached agents due to potential concurrency issues
+            letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
+            if not letta_agent:
+                logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
+                letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
+        else:
+            # This breaks unit tests in test_local_client.py
+            letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
+
         # letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
         # if not letta_agent:
         # logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
 
         # NOTE: no longer caching, always forcing a lot from the database
         # Loads the agent objects
-        letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
+        # letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
+
         return letta_agent
 
     def _step(
@@ -1445,7 +1455,8 @@ class SyncServer(Server):
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message
         if modified:
-            letta_agent.rebuild_memory(force=True, ms=self.ms)
+            letta_agent.rebuild_memory()
+            # letta_agent.rebuild_memory(force=True, ms=self.ms)  # This breaks unit tests in test_local_client.py
             # save agent
             save_agent(letta_agent, self.ms)
 
