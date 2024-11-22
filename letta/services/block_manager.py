@@ -29,6 +29,8 @@ class BlockManager:
         else:
             with self.session_maker() as session:
                 data = block.model_dump(exclude_none=True)
+                # Remove organization_id from data if it exists
+                data.pop("organization_id", None)
                 block = BlockModel(**data, organization_id=actor.organization_id)
                 block.create(session, actor=actor)
             return block.to_pydantic()
