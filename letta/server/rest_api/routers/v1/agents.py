@@ -227,11 +227,11 @@ def update_agent_memory(
     return memory
 
 
-@router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory")
+@router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory_label")
 def update_agent_memory_label(
     agent_id: str,
-    current: str,
-    new: str,
+    current_label: str,
+    new_label: str,
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -240,7 +240,9 @@ def update_agent_memory_label(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    memory = server.update_agent_memory_label(user_id=actor.id, agent_id=agent_id, current_block_label=current, new_block_label=new)
+    memory = server.update_agent_memory_label(
+        user_id=actor.id, agent_id=agent_id, current_block_label=current_label, new_block_label=new_label
+    )
     return memory
 
 
