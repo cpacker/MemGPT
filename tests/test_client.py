@@ -740,7 +740,7 @@ def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent
     try:
         current_labels = agent.memory.list_block_labels()
         example_label = current_labels[0]
-        example_new_limit = 1000
+        example_new_limit = 1
         current_block = agent.memory.get_block(label=example_label)
         current_block_length = len(current_block.value)
 
