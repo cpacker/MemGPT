@@ -6,7 +6,6 @@ import pickle
 import runpy
 import sys
 import tempfile
-import uuid
 from typing import Any, Optional
 
 from letta.log import get_logger
@@ -24,10 +23,9 @@ class ToolExecutionSandbox:
     METADATA_CONFIG_STATE_KEY = "config_state"
     REQUIREMENT_TXT_NAME = "requirements.txt"
 
-    # For generating long, random marker hashes
-    NAMESPACE = uuid.NAMESPACE_DNS
-    LOCAL_SANDBOX_RESULT_START_MARKER = str(uuid.uuid5(NAMESPACE, "local-sandbox-result-start-marker"))
-    LOCAL_SANDBOX_RESULT_END_MARKER = str(uuid.uuid5(NAMESPACE, "local-sandbox-result-end-marker"))
+    # This is the variable name in the auto-generated code that contains the function results
+    # We make this a long random string to avoid collisions with any variables in the user's code
+    LOCAL_SANDBOX_RESULT_VAR_NAME = "result_ZQqiequkcFwRwwGQMqkt"
 
     def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False):
         self.tool_name = tool_name
@@ -62,17 +60,17 @@ class ToolExecutionSandbox:
         """
         if tool_settings.e2b_api_key:
             logger.info(f"Using e2b sandbox to execute {self.tool_name}")
-            code = self.generate_execution_script(wrap_print_with_markers=False, agent_state=agent_state)
+            code = self.generate_execution_script(agent_state=agent_state)
             result = self.run_e2b_sandbox(code=code)
         else:
             logger.info(f"Using local sandbox to execute {self.tool_name}")
-            code = self.generate_execution_script(wrap_print_with_markers=True, agent_state=agent_state)
+            code = self.generate_execution_script(agent_state=agent_state)
             result = self.run_local_dir_sandbox(code=code)
 
         # Log out any stdout from the tool run
         logger.info(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n")
         for log_line in result.stdout:
-            logger.info(f"{log_line}\n")
+            logger.info(f"{log_line}")
         logger.info(f"Ending stdout log from tool run.")
 
         # Return result
@@ -108,10 +106,11 @@ class ToolExecutionSandbox:
             temp_file.flush()
             temp_file_path = temp_file.name
 
+        # Save the old stdout
+        old_stdout = sys.stdout
         try:
             # Redirect stdout to capture script output
             captured_stdout = io.StringIO()
-            old_stdout = sys.stdout
             sys.stdout = captured_stdout
 
             # Execute the temp file
@@ -119,7 +118,7 @@ class ToolExecutionSandbox:
                 result = runpy.run_path(temp_file_path, init_globals=env_vars)
 
             # Fetch the result
-            func_result = result.get("result")
+            func_result = result.get(self.LOCAL_SANDBOX_RESULT_VAR_NAME)
             func_return, agent_state = self.parse_best_effort(func_result)
 
             # Restore stdout and collect captured output
@@ -138,12 +137,6 @@ class ToolExecutionSandbox:
             # Clean up the temp file and restore stdout
             sys.stdout = old_stdout
             os.remove(temp_file_path)
-
-    def parse_out_function_results_markers(self, text: str):
-        marker_len = len(self.LOCAL_SANDBOX_RESULT_START_MARKER)
-        start_index = text.index(self.LOCAL_SANDBOX_RESULT_START_MARKER) + marker_len
-        end_index = text.index(self.LOCAL_SANDBOX_RESULT_END_MARKER)
-        return text[start_index:end_index], text[: start_index - marker_len] + text[end_index + +marker_len :]
 
     # e2b sandbox specific functions
 
@@ -169,7 +162,7 @@ class ToolExecutionSandbox:
             return SandboxRunResult(
                 func_return=func_return,
                 agent_state=agent_state,
-                stdout=execution.logs.stdout,
+                stdout=execution.logs.stdout + execution.logs.stderr,
                 sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
 
@@ -229,14 +222,13 @@ class ToolExecutionSandbox:
                     args.append(arg.arg)
         return args
 
-    def generate_execution_script(self, agent_state: AgentState, wrap_print_with_markers: bool = False) -> str:
+    def generate_execution_script(self, agent_state: AgentState) -> str:
         """
         Generate code to run inside of execution sandbox.
         Passes into a serialized agent state into the code, to be accessed by the tool.
 
         Args:
             agent_state (AgentState): The agent state
-            wrap_print_with_markers (bool): Whether to wrap print statements (?)
 
         Returns:
             code (str): The generated code strong
@@ -272,15 +264,15 @@ class ToolExecutionSandbox:
         # TODO: handle wrapped print
 
         code += (
-            'result = {"results": ' + self.invoke_function_call(inject_agent_state=inject_agent_state) + ', "agent_state": agent_state}\n'
+            self.LOCAL_SANDBOX_RESULT_VAR_NAME
+            + ' = {"results": '
+            + self.invoke_function_call(inject_agent_state=inject_agent_state)
+            + ', "agent_state": agent_state}\n'
         )
-        code += "result = base64.b64encode(pickle.dumps(result)).decode('utf-8')\n"
-        if wrap_print_with_markers:
-            code += f"sys.stdout.write('{self.LOCAL_SANDBOX_RESULT_START_MARKER}')\n"
-            code += f"sys.stdout.write(str(result))\n"
-            code += f"sys.stdout.write('{self.LOCAL_SANDBOX_RESULT_END_MARKER}')\n"
-        else:
-            code += "result\n"
+        code += (
+            f"{self.LOCAL_SANDBOX_RESULT_VAR_NAME} = base64.b64encode(pickle.dumps({self.LOCAL_SANDBOX_RESULT_VAR_NAME})).decode('utf-8')\n"
+        )
+        code += f"{self.LOCAL_SANDBOX_RESULT_VAR_NAME}\n"
 
         return code
 
