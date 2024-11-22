@@ -1929,3 +1929,33 @@ class SyncServer(Server):
             raise ValueError(f"Agent with id {agent_id} not found after linking block")
         assert unlinked_block.label not in updated_agent.memory.list_block_labels()
         return updated_agent.memory
+
+    def update_agent_memory_limit(self, user_id: str, agent_id: str, block_label: str, limit: int) -> Memory:
+        """Update the limit of a block in an agent's memory"""
+
+        # Get the user
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+
+        # Link a block to an agent's memory
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        letta_agent.memory.update_block_limit(label=block_label, limit=limit)
+        assert block_label in letta_agent.memory.list_block_labels()
+
+        # write out the update the database
+        self.block_manager.create_or_update_block(block=letta_agent.memory.get_block(block_label), actor=user)
+
+        # check that the block was updated
+        updated_block = self.block_manager.get_block_by_id(block_id=letta_agent.memory.get_block(block_label).id, actor=user)
+        assert updated_block and updated_block.limit == limit
+
+        # Recompile the agent memory
+        letta_agent.rebuild_memory(force=True, ms=self.ms)
+
+        # save agent
+        save_agent(letta_agent, self.ms)
+
+        updated_agent = self.ms.get_agent(agent_id=agent_id)
+        if updated_agent is None:
+            raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        assert updated_agent.memory.get_block(label=block_label).limit == limit
+        return updated_agent.memory

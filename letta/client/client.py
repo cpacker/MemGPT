@@ -1600,6 +1600,18 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to remove agent memory block: {response.text}")
         return Memory(**response.json())
 
+    def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+
+        # @router.patch("/{agent_id}/memory/limit", response_model=Memory, operation_id="update_agent_memory_limit")
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/limit",
+            headers=self.headers,
+            json={"label": block_label, "limit": limit},
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent memory limit: {response.text}")
+        return Memory(**response.json())
+
 
 class LocalClient(AbstractClient):
     """
@@ -2823,3 +2835,6 @@ class LocalClient(AbstractClient):
 
     def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
         return self.server.unlink_block_from_agent_memory(user_id=self.user_id, agent_id=agent_id, block_label=block_label)
+
+    def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+        return self.server.update_agent_memory_limit(user_id=self.user_id, agent_id=agent_id, block_label=block_label, limit=limit)

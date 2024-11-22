@@ -124,6 +124,13 @@ class BlockUpdate(BaseBlock):
         extra = "ignore"  # Ignores extra fields
 
 
+class BlockLimitUpdate(BaseModel):
+    """Update the limit of a block"""
+
+    label: str = Field(..., description="Label of the block.")
+    limit: int = Field(..., description="New limit of the block.")
+
+
 class UpdatePersona(BlockUpdate):
     """Update a persona block"""
 

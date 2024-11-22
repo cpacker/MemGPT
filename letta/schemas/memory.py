@@ -187,6 +187,19 @@ class Memory(BaseModel, validate_assignment=True):
         # Then swap the block to the new label
         self.memory[new_label] = self.memory.pop(current_label)
 
+    def update_block_limit(self, label: str, limit: int):
+        """Update the limit of a block"""
+        if label not in self.memory:
+            raise ValueError(f"Block with label {label} does not exist")
+        if not isinstance(limit, int):
+            raise ValueError(f"Provided limit must be an integer")
+
+        # Check to make sure the new limit is greater than the current length of the block
+        if len(self.memory[label].value) > limit:
+            raise ValueError(f"New limit {limit} is less than the current length of the block {len(self.memory[label].value)}")
+
+        self.memory[label].limit = limit
+
 
 # TODO: ideally this is refactored into ChatMemory and the subclasses are given more specific names.
 class BasicBlockMemory(Memory):

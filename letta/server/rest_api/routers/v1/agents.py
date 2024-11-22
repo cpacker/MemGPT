@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from letta.schemas.block import Block, BlockCreate, BlockLabelUpdate
+from letta.schemas.block import Block, BlockCreate, BlockLabelUpdate, BlockLimitUpdate
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
@@ -218,6 +218,7 @@ def update_agent_memory(
 ):
     """
     Update the core memory of a specific agent.
+        This endpoint accepts new memory contents (labels as keys, and values as values) and updates the core memory of the agent identified by the user ID and agent ID.
     This endpoint accepts new memory contents to update the core memory of the agent.
     This endpoint only supports modifying existing blocks; it does not support deleting/unlinking or creating/linking blocks.
     """
@@ -285,6 +286,27 @@ def remove_agent_memory_block(
     updated_memory = server.unlink_block_from_agent_memory(user_id=actor.id, agent_id=agent_id, block_label=block_label)
 
     return updated_memory
+
+
+@router.patch("/{agent_id}/memory/limit", response_model=Memory, operation_id="update_agent_memory_limit")
+def update_agent_memory_limit(
+    agent_id: str,
+    update_label: BlockLimitUpdate = Body(...),
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Update the limit of a block in an agent's memory.
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+
+    memory = server.update_agent_memory_limit(
+        user_id=actor.id,
+        agent_id=agent_id,
+        block_label=update_label.label,
+        limit=update_label.limit,
+    )
+    return memory
 
 
 @router.get("/{agent_id}/memory/recall", response_model=RecallMemorySummary, operation_id="get_agent_recall_memory_summary")
