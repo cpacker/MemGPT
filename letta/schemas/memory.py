@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     pass
 
+from letta.constants import CORE_MEMORY_BLOCK_CHAR_LIMIT
 from letta.schemas.block import Block
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_request import Tool
@@ -270,7 +271,7 @@ class ChatMemory(BasicBlockMemory):
     ChatMemory initializes a BaseChatMemory with two default blocks, `human` and `persona`.
     """
 
-    def __init__(self, persona: str, human: str, limit: int = 2000):
+    def __init__(self, persona: str, human: str, limit: int = CORE_MEMORY_BLOCK_CHAR_LIMIT):
         """
         Initialize the ChatMemory object with a persona and human string.
 
