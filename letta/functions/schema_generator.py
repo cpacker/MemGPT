@@ -56,7 +56,7 @@ def type_to_json_schema_type(py_type):
         None: "null",
         type(None): "null",
         # Optional types
-        Optional[str]: "string",
+        # Optional[str]: "string",  # NOTE: caught above ^
         Union[str, None]: "string",
     }
     if py_type not in type_map:
