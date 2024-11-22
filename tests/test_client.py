@@ -33,7 +33,7 @@ from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.tool_manager import ToolManager
 from letta.settings import model_settings
-from letta.utils import get_utc_time
+from letta.utils import create_random_username, get_utc_time
 from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
@@ -736,36 +736,55 @@ def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], a
 def test_update_agent_memory_label(client: Union[LocalClient, RESTClient], agent: AgentState):
     """Test that we can update the label of a block in an agent's memory"""
 
-    current_labels = agent.memory.list_block_labels()
-    example_label = current_labels[0]
-    example_new_label = "example_new_label"
-    assert example_new_label not in current_labels
+    agent = client.create_agent(name=create_random_username())
 
-    client.update_agent_memory_label(agent_id=agent.id, current_label=example_label, new_label=example_new_label)
+    try:
+        current_labels = agent.memory.list_block_labels()
+        example_label = current_labels[0]
+        example_new_label = "example_new_label"
+        assert example_new_label not in current_labels
 
-    updated_agent = client.get_agent(agent_id=agent.id)
-    assert example_new_label in updated_agent.memory.list_block_labels()
+        client.update_agent_memory_label(agent_id=agent.id, current_label=example_label, new_label=example_new_label)
+
+        updated_agent = client.get_agent(agent_id=agent.id)
+        assert example_new_label in updated_agent.memory.list_block_labels()
+
+    finally:
+        client.delete_agent(agent.id)
 
 
 def test_add_remove_agent_memory_block(client: Union[LocalClient, RESTClient], agent: AgentState):
     """Test that we can add and remove a block from an agent's memory"""
 
-    current_labels = agent.memory.list_block_labels()
-    example_new_label = "example_new_label"
-    example_new_value = "example value"
-    assert example_new_label not in current_labels
+    agent = client.create_agent(name=create_random_username())
 
-    # Link a new memory block
-    client.add_agent_memory_block(agent_id=agent.id, create_block=BlockCreate(label=example_new_label, value=example_new_value, limit=1000))
+    try:
+        current_labels = agent.memory.list_block_labels()
+        example_new_label = "example_new_label"
+        example_new_value = "example value"
+        assert example_new_label not in current_labels
 
-    updated_agent = client.get_agent(agent_id=agent.id)
-    assert example_new_label in updated_agent.memory.list_block_labels()
+        # Link a new memory block
+        client.add_agent_memory_block(
+            agent_id=agent.id,
+            create_block=BlockCreate(
+                label=example_new_label,
+                value=example_new_value,
+                limit=1000,
+            ),
+        )
 
-    # Now unlink the block
-    client.remove_agent_memory_block(agent_id=agent.id, block_label=example_new_label)
+        updated_agent = client.get_agent(agent_id=agent.id)
+        assert example_new_label in updated_agent.memory.list_block_labels()
 
-    updated_agent = client.get_agent(agent_id=agent.id)
-    assert example_new_label not in updated_agent.memory.list_block_labels()
+        # Now unlink the block
+        client.remove_agent_memory_block(agent_id=agent.id, block_label=example_new_label)
+
+        updated_agent = client.get_agent(agent_id=agent.id)
+        assert example_new_label not in updated_agent.memory.list_block_labels()
+
+    finally:
+        client.delete_agent(agent.id)
 
 
 # def test_core_memory_token_limits(client: Union[LocalClient, RESTClient], agent: AgentState):

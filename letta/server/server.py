@@ -1899,7 +1899,6 @@ class SyncServer(Server):
             raise ValueError(f"Agent with id {agent_id} not found after linking block")
         assert block.label in updated_agent.memory.list_block_labels()
 
-        print("XXXXXXX SUCCESSFULLY LINKED BLOCK INTO UPDATED AGENT", updated_agent.memory)
         return updated_agent.memory
 
     def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
