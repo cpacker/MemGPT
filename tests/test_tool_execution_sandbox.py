@@ -246,9 +246,6 @@ def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, t
 def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
     result = sandbox.run()
-    import ipdb
-
-    ipdb.set_trace()
     assert len(result.func_return) == 5
 
 
