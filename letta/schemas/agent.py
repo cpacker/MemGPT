@@ -4,12 +4,15 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import UsageStatistics
+from letta.schemas.source import Source
+from letta.schemas.tool import Tool
 from letta.schemas.tool_rule import BaseToolRule
 
 
@@ -49,6 +52,8 @@ class AgentState(BaseAgent, validate_assignment=True):
 
     """
 
+    # TODO: Potentially rename to AgentStateInternal (?) or AgentStateORM
+
     id: str = BaseAgent.generate_id_field()
     name: str = Field(..., description="The name of the agent.")
     created_at: datetime = Field(..., description="The datetime the agent was created.", default_factory=datetime.now)
@@ -56,7 +61,15 @@ class AgentState(BaseAgent, validate_assignment=True):
     # in-context memory
     message_ids: Optional[List[str]] = Field(default=None, description="The ids of the messages in the agent's in-context memory.")
 
-    memory: Memory = Field(default_factory=Memory, description="The in-context memory of the agent.")
+    # DEPRECATE: too confusing and redundant with blocks table
+    # memory: Memory = Field(default_factory=Memory, description="The in-context memory of the agent.")
+
+    # memory
+    memory_block_ids: List[str] = Field(
+        ..., description="The ids of the memory blocks in the agent's in-context memory."
+    )  # TODO: mapping table?
+    memory_tools: List[str] = Field(..., description="The tool names used by the agent's memory.")  # TODO: ids?
+    memory_prompt_str: str = Field(..., description="The prompt string used by the agent's memory.")
 
     # tools
     tools: List[str] = Field(..., description="The tools used by the agent.")
@@ -102,6 +115,15 @@ class AgentState(BaseAgent, validate_assignment=True):
     class Config:
         arbitrary_types_allowed = True
         validate_assignment = True
+
+
+class AgentStateResponse(AgentState):
+    # additional data we pass back when getting agent state
+    # this is also returned if you call .get_agent(agent_id)
+    tool_rules: List[BaseToolRule]
+    sources: List[Source]
+    memory_blocks: List[Block]
+    tools: List[Tool]
 
 
 class CreateAgent(BaseAgent):
