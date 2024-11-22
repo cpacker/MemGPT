@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Optional, Type
 from sqlalchemy import JSON, BigInteger, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from letta.constants import DEFAULT_TIKTOKEN_MODEL
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.block import Block as PydanticBlock
@@ -28,6 +29,9 @@ class Block(OrganizationMixin, SqlalchemyBase):
     )
     value: Mapped[str] = mapped_column(doc="Text content of the block for the respective section of core memory.")
     limit: Mapped[BigInteger] = mapped_column(Integer, default=2000, doc="Character limit of the block.")
+    tokenizer_model: Mapped[str] = mapped_column(
+        default=DEFAULT_TIKTOKEN_MODEL, doc="Tokenizer model to use for the block to enforce the token limit of value."
+    )
     metadata_: Mapped[Optional[dict]] = mapped_column(JSON, default={}, doc="arbitrary information related to the block.")
 
     # relationships

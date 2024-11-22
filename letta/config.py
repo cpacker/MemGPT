@@ -8,8 +8,8 @@ from typing import Optional
 import letta
 import letta.utils as utils
 from letta.constants import (
-    CORE_MEMORY_HUMAN_CHAR_LIMIT,
-    CORE_MEMORY_PERSONA_CHAR_LIMIT,
+    CORE_MEMORY_HUMAN_TOKEN_LIMIT,
+    CORE_MEMORY_PERSONA_TOKEN_LIMIT,
     DEFAULT_HUMAN,
     DEFAULT_PERSONA,
     DEFAULT_PRESET,
@@ -88,8 +88,8 @@ class LettaConfig:
     policies_accepted: bool = False
 
     # Default memory limits
-    core_memory_persona_char_limit: int = CORE_MEMORY_PERSONA_CHAR_LIMIT
-    core_memory_human_char_limit: int = CORE_MEMORY_HUMAN_CHAR_LIMIT
+    core_memory_persona_token_limit: int = CORE_MEMORY_PERSONA_TOKEN_LIMIT
+    core_memory_human_token_limit: int = CORE_MEMORY_HUMAN_TOKEN_LIMIT
 
     def __post_init__(self):
         # ensure types

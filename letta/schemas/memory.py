@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 if TYPE_CHECKING:
     pass
 
+from letta.constants import DEFAULT_TIKTOKEN_MODEL
 from letta.schemas.block import Block
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_request import Tool
@@ -67,12 +68,12 @@ class Memory(BaseModel, validate_assignment=True):
     # Memory.template is a Jinja2 template for compiling memory module into a prompt string.
     prompt_template: str = Field(
         default="{% for block in memory.values() %}"
-        '<{{ block.label }} characters="{{ block.value|length }}/{{ block.limit }}">\n'
+        '<{{ block.label }} tokens="{{ block.value|length }}/{{ block.limit }}">\n'
         "{{ block.value }}\n"
         "</{{ block.label }}>"
         "{% if not loop.last %}\n{% endif %}"
         "{% endfor %}",
-        description="Jinja2 template for compiling memory blocks into a prompt string",
+        description="Jinja2 template for compiling memory blocks into a prompt string.",
     )
 
     def get_prompt_template(self) -> str:
@@ -270,22 +271,28 @@ class ChatMemory(BasicBlockMemory):
     ChatMemory initializes a BaseChatMemory with two default blocks, `human` and `persona`.
     """
 
-    def __init__(self, persona: str, human: str, limit: int = 2000):
+    def __init__(self, persona: str, human: str, limit: int = 2000, tokenizer_model: str = DEFAULT_TIKTOKEN_MODEL):
         """
         Initialize the ChatMemory object with a persona and human string.
 
         Args:
             persona (str): The starter value for the persona block.
             human (str): The starter value for the human block.
-            limit (int): The character limit for each block.
+            limit (int): The token limit for each block.
         """
         super().__init__()
-        self.link_block(block=Block(value=persona, limit=limit, label="persona"))
-        self.link_block(block=Block(value=human, limit=limit, label="human"))
+        self.link_block(block=Block(value=persona, limit=limit, label="persona", tokenizer_model=tokenizer_model))
+        self.link_block(block=Block(value=human, limit=limit, label="human", tokenizer_model=tokenizer_model))
 
 
 class UpdateMemory(BaseModel):
     """Update the memory of the agent"""
+
+    # Memory.memory is a dict mapping from memory block label to memory block.
+    memory: Optional[Dict[str, Block]] = Field(None, description="Mapping from memory block section to memory block.")
+
+    # Memory.template is a Jinja2 template for compiling memory module into a prompt string.
+    prompt_template: Optional[str] = Field(None, description="Jinja2 template for compiling memory blocks into a prompt string.")
 
 
 class ArchivalMemorySummary(BaseModel):
