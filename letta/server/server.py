@@ -1828,6 +1828,27 @@ class SyncServer(Server):
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.get_context_window()
 
+    def update_agent_memory_label(self, user_id: str, agent_id: str, current_block_label: str, new_block_label: str) -> Memory:
+        """Update the label of a block in an agent's memory"""
+
+        # Get the user
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+
+        # Link a block to an agent's memory
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        letta_agent.memory.update_block_label(current_label=current_block_label, new_label=new_block_label)
+
+        # Recompile the agent memory
+        letta_agent.rebuild_memory()
+
+        # save agent
+        save_agent(letta_agent, self.ms)
+
+        updated_agent = self.ms.get_agent(agent_id=agent_id)
+        if updated_agent is None:
+            raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        return updated_agent.memory
+
     def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
         """Link a block to an agent's memory"""
 
