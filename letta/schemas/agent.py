@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from letta.schemas.block import Block
+from letta.schemas.block import Block, CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.llm_config import LLMConfig
@@ -69,7 +69,7 @@ class AgentState(BaseAgent, validate_assignment=True):
         ..., description="The ids of the memory blocks in the agent's in-context memory."
     )  # TODO: mapping table?
     memory_tools: List[str] = Field(..., description="The tool names used by the agent's memory.")  # TODO: ids?
-    memory_prompt_str: str = Field(..., description="The prompt string used by the agent's memory.")
+    memory_prompt_template: str = Field(..., description="The prompt string used by the agent's memory.")
 
     # tools
     tools: List[str] = Field(..., description="The tools used by the agent.")
@@ -130,7 +130,18 @@ class CreateAgent(BaseAgent):
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
-    memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
+
+    # memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
+
+    # memory creation
+    memory_blocks: List[CreateBlock] = Field(
+        # [CreateHuman(), CreatePersona()], description="The blocks to create in the agent's in-context memory."
+        ...,
+        description="The blocks to create in the agent's in-context memory.",
+    )
+    memory_prompt_template: Optional[str] = Field(None, description="The prompt template used by the agent's memory.")
+    memory_tools: List[str] = Field(["core_memory_append", "core_memory_replace"], description="The tool names used by the agent's memory.")
+
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     tool_rules: Optional[List[BaseToolRule]] = Field(None, description="The tool rules governing the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
@@ -181,7 +192,8 @@ class UpdateAgentState(BaseAgent):
 
     # TODO: determine if these should be editable via this schema?
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
-    memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
+
+    # memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
 
 
 class AgentStepResponse(BaseModel):

@@ -10,15 +10,7 @@ from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
-from letta.schemas.block import (
-    Block,
-    BlockCreate,
-    BlockUpdate,
-    Human,
-    Persona,
-    UpdateHuman,
-    UpdatePersona,
-)
+from letta.schemas.block import Block, BlockUpdate, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
@@ -1933,6 +1925,8 @@ class LocalClient(AbstractClient):
         llm_config: LLMConfig = None,
         # memory
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        # memory_blocks = [CreateHuman(value=get_human_text(DEFAULT_HUMAN), limit=5000), CreatePersona(value=get_persona_text(DEFAULT_PERSONA), limit=5000)],
+        # memory_tools = BASE_MEMORY_TOOLS,
         # system
         system: Optional[str] = None,
         # tools
@@ -1974,13 +1968,14 @@ class LocalClient(AbstractClient):
         if include_base_tools:
             tool_names += BASE_TOOLS
 
-        # add memory tools
-        memory_functions = get_memory_functions(memory)
-        for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
-            tool_names.append(tool.name)
+        # TODO: make sure these are added server-side
+        ## add memory tools
+        # memory_functions = get_memory_functions(memory)
+        # for func_name, func in memory_functions.items():
+        #    tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
+        #    tool_names.append(tool.name)
 
-        self.interface.clear()
+        # self.interface.clear()
 
         # check if default configs are provided
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
@@ -1993,6 +1988,8 @@ class LocalClient(AbstractClient):
                 description=description,
                 metadata_=metadata,
                 memory=memory,
+                # memory_blocks=memory_blocks,
+                # memory_tools=memory_tools,
                 tools=tool_names,
                 tool_rules=tool_rules,
                 system=system,
@@ -2004,6 +2001,15 @@ class LocalClient(AbstractClient):
             ),
             actor=self.user,
         )
+
+        # Link additional blocks to the agent (block ids created on the client)
+        # This needs to happen since the create agent does not allow passing in blocks which have already been persisted and have an ID
+        # So we create the agent and then link the blocks afterwards
+        for block in memory.get_blocks():
+            self.add_agent_memory_block(agent_state.id, block)
+
+        # TODO: get full agent state
+
         return agent_state
 
     def update_message(

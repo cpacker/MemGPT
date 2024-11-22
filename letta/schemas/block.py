@@ -88,11 +88,11 @@ class Persona(Block):
     label: str = "persona"
 
 
-class BlockCreate(BaseBlock):
-    """Create a block"""
-
-    is_template: bool = True
-    label: str = Field(..., description="Label of the block.")
+# class BlockCreate(BaseBlock):
+#    """Create a block"""
+#
+#    is_template: bool = True
+#    label: str = Field(..., description="Label of the block.")
 
 
 class BlockLabelUpdate(BaseModel):
@@ -102,16 +102,16 @@ class BlockLabelUpdate(BaseModel):
     new_label: str = Field(..., description="New label of the block.")
 
 
-class CreatePersona(BlockCreate):
-    """Create a persona block"""
-
-    label: str = "persona"
-
-
-class CreateHuman(BlockCreate):
-    """Create a human block"""
-
-    label: str = "human"
+# class CreatePersona(BlockCreate):
+#    """Create a persona block"""
+#
+#    label: str = "persona"
+#
+#
+# class CreateHuman(BlockCreate):
+#    """Create a human block"""
+#
+#    label: str = "human"
 
 
 class BlockUpdate(BaseBlock):
@@ -131,13 +131,57 @@ class BlockLimitUpdate(BaseModel):
     limit: int = Field(..., description="New limit of the block.")
 
 
-class UpdatePersona(BlockUpdate):
-    """Update a persona block"""
+# class UpdatePersona(BlockUpdate):
+#    """Update a persona block"""
+#
+#    label: str = "persona"
+#
+#
+# class UpdateHuman(BlockUpdate):
+#    """Update a human block"""
+#
+#    label: str = "human"
+
+
+class CreateBlock(BaseBlock):
+    """Create a block"""
+
+    label: str = Field(..., description="Label of the block.")
+    limit: int = Field(2000, description="Character limit of the block.")
+    value: str = Field(..., description="Value of the block.")
+
+    # block templates
+    is_template: bool = False
+    template_name: Optional[str] = Field(None, description="Name of the block if it is a template.", alias="name")
+
+
+class CreateHuman(CreateBlock):
+    """Create a human block"""
+
+    label: str = "human"
+
+
+class CreatePersona(CreateBlock):
+    """Create a persona block"""
 
     label: str = "persona"
 
 
-class UpdateHuman(BlockUpdate):
-    """Update a human block"""
+class CreateBlockTemplate(CreateBlock):
+    """Create a block template"""
 
+    is_template: bool = True
+
+
+class CreateHumanBlockTemplate(CreateHuman):
+    """Create a human block template"""
+
+    is_template: bool = True
     label: str = "human"
+
+
+class CreatePersonaBlockTemplate(CreatePersona):
+    """Create a persona block template"""
+
+    is_template: bool = True
+    label: str = "persona"
