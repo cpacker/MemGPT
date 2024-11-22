@@ -398,7 +398,7 @@ uvloop = ["uvloop (>=0.15.2)"]
 name = "blinker"
 version = "1.9.0"
 description = "Fast, simple object-to-object and broadcast signaling"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "blinker-1.9.0-py3-none-any.whl", hash = "sha256:ba0efaa9080b619ff2f3459d1d500c57bddea4a6b424b60a91141db6fd2f08bc"},
@@ -409,7 +409,7 @@ files = [
 name = "brotli"
 version = "1.1.0"
 description = "Python bindings for the Brotli compression library"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "Brotli-1.1.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:e1140c64812cb9b06c922e77f1c26a75ec5e3f0fb2bf92cc8c58720dec276752"},
@@ -889,7 +889,7 @@ test = ["pytest"]
 name = "composio-core"
 version = "0.5.44"
 description = "Core package to act as a bridge between composio platform and other services."
-optional = false
+optional = true
 python-versions = "<4,>=3.9"
 files = [
     {file = "composio_core-0.5.44-py3-none-any.whl", hash = "sha256:bb125794035a3c3c98dab1e72b45024068019c5eb3f29b9cc4eafc845320774b"},
@@ -925,7 +925,7 @@ tools = ["diskcache", "flake8", "networkx", "pathspec", "pygments", "ruff", "tra
 name = "composio-langchain"
 version = "0.5.44"
 description = "Use Composio to get an array of tools with your LangChain agent."
-optional = false
+optional = true
 python-versions = "<4,>=3.9"
 files = [
     {file = "composio_langchain-0.5.44-py3-none-any.whl", hash = "sha256:4cb05d5b92faea32bc02c04e49b5dfae5858abe2f6469a81c673d7f754402375"},
@@ -943,7 +943,7 @@ pydantic = ">=2.6.4"
 name = "configargparse"
 version = "1.7"
 description = "A drop-in replacement for argparse that allows options to also be set via config files and/or environment variables."
-optional = false
+optional = true
 python-versions = ">=3.5"
 files = [
     {file = "ConfigArgParse-1.7-py3-none-any.whl", hash = "sha256:d249da6591465c6c26df64a9f73d2536e743be2f244eb3ebe61114af2f94f86b"},
@@ -958,7 +958,7 @@ yaml = ["PyYAML"]
 name = "cryptography"
 version = "43.0.3"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "cryptography-43.0.3-cp37-abi3-macosx_10_9_universal2.whl", hash = "sha256:bf7a1932ac4176486eab36a19ed4c0492da5d97123f1406cf15e41b05e787d2e"},
@@ -1385,7 +1385,7 @@ vw = ["scikit-learn", "vowpalwabbit (>=8.10.0,<9.0.0)"]
 name = "flask"
 version = "3.1.0"
 description = "A simple framework for building complex web applications."
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "flask-3.1.0-py3-none-any.whl", hash = "sha256:d667207822eb83f1c4b50949b1623c8fc8d51f2341d65f72e1a1815397551136"},
@@ -1407,7 +1407,7 @@ dotenv = ["python-dotenv"]
 name = "flask-cors"
 version = "5.0.0"
 description = "A Flask extension adding a decorator for CORS support"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "Flask_Cors-5.0.0-py2.py3-none-any.whl", hash = "sha256:b9e307d082a9261c100d8fb0ba909eec6a228ed1b60a8315fd85f783d61910bc"},
@@ -1421,7 +1421,7 @@ Flask = ">=0.9"
 name = "flask-login"
 version = "0.6.3"
 description = "User authentication and session management for Flask."
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "Flask-Login-0.6.3.tar.gz", hash = "sha256:5e23d14a607ef12806c699590b89d0f0e0d67baeec599d75947bf9c147330333"},
@@ -1590,7 +1590,7 @@ tqdm = ["tqdm"]
 name = "gevent"
 version = "24.11.1"
 description = "Coroutine-based network library"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "gevent-24.11.1-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:92fe5dfee4e671c74ffaa431fd7ffd0ebb4b339363d24d0d944de532409b935e"},
@@ -1650,7 +1650,7 @@ test = ["cffi (>=1.17.1)", "coverage (>=5.0)", "dnspython (>=1.16.0,<2.0)", "idn
 name = "geventhttpclient"
 version = "2.3.1"
 description = "HTTP client library for gevent"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "geventhttpclient-2.3.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:da22ab7bf5af4ba3d07cffee6de448b42696e53e7ac1fe97ed289037733bf1c2"},
@@ -2269,7 +2269,7 @@ type = ["pytest-mypy"]
 name = "inflection"
 version = "0.5.1"
 description = "A port of Ruby on Rails inflector to Python"
-optional = false
+optional = true
 python-versions = ">=3.5"
 files = [
     {file = "inflection-0.5.1-py2.py3-none-any.whl", hash = "sha256:f38b2b640938a4f35ade69ac3d053042959b62a0f1076a5bbaa1b9526605a8a2"},
@@ -2390,7 +2390,7 @@ colors = ["colorama (>=0.4.6)"]
 name = "itsdangerous"
 version = "2.2.0"
 description = "Safely pass data to untrusted environments and back."
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef"},
@@ -2530,7 +2530,7 @@ files = [
 name = "jsonpatch"
 version = "1.33"
 description = "Apply JSON-Patches (RFC 6902)"
-optional = false
+optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, !=3.6.*"
 files = [
     {file = "jsonpatch-1.33-py2.py3-none-any.whl", hash = "sha256:0ae28c0cd062bbd8b8ecc26d7d164fbbea9652a1a3693f3b956c1eae5145dade"},
@@ -2544,7 +2544,7 @@ jsonpointer = ">=1.9"
 name = "jsonpointer"
 version = "3.0.0"
 description = "Identify specific nodes in a JSON document (RFC 6901)"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "jsonpointer-3.0.0-py2.py3-none-any.whl", hash = "sha256:13e088adc14fca8b6aa8177c044e12701e6ad4b28ff10e65f2267a90109c9942"},
@@ -2555,7 +2555,7 @@ files = [
 name = "jsonref"
 version = "1.1.0"
 description = "jsonref is a library for automatic dereferencing of JSON Reference objects for Python."
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "jsonref-1.1.0-py3-none-any.whl", hash = "sha256:590dc7773df6c21cbf948b5dac07a72a251db28b0238ceecce0a2abfa8ec30a9"},
@@ -2566,7 +2566,7 @@ files = [
 name = "jsonschema"
 version = "4.23.0"
 description = "An implementation of JSON Schema validation for Python"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "jsonschema-4.23.0-py3-none-any.whl", hash = "sha256:fbadb6f8b144a8f8cf9f0b89ba94501d143e50411a1278633f56a7acf7fd5566"},
@@ -2587,7 +2587,7 @@ format-nongpl = ["fqdn", "idna", "isoduration", "jsonpointer (>1.13)", "rfc3339-
 name = "jsonschema-specifications"
 version = "2024.10.1"
 description = "The JSON Schema meta-schemas and vocabularies, exposed as a Registry"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "jsonschema_specifications-2024.10.1-py3-none-any.whl", hash = "sha256:a09a0680616357d9a0ecf05c12ad234479f549239d0f5b55f3deea67475da9bf"},
@@ -2670,7 +2670,7 @@ adal = ["adal (>=1.0.2)"]
 name = "langchain"
 version = "0.3.7"
 description = "Building applications with LLMs through composability"
-optional = false
+optional = true
 python-versions = "<4.0,>=3.9"
 files = [
     {file = "langchain-0.3.7-py3-none-any.whl", hash = "sha256:cf4af1d5751dacdc278df3de1ff3cbbd8ca7eb55d39deadccdd7fb3d3ee02ac0"},
@@ -2697,7 +2697,7 @@ tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10"
 name = "langchain-community"
 version = "0.3.7"
 description = "Community contributed LangChain integrations."
-optional = false
+optional = true
 python-versions = "<4.0,>=3.9"
 files = [
     {file = "langchain_community-0.3.7-py3-none-any.whl", hash = "sha256:048f89d9a54b0720a0f865d5d469494e088cb9970a2397b19446ce0d84867141"},
@@ -2725,7 +2725,7 @@ tenacity = ">=8.1.0,<8.4.0 || >8.4.0,<10"
 name = "langchain-core"
 version = "0.3.19"
 description = "Building applications with LLMs through composability"
-optional = false
+optional = true
 python-versions = "<4.0,>=3.9"
 files = [
     {file = "langchain_core-0.3.19-py3-none-any.whl", hash = "sha256:562b7cc3c15dfaa9270cb1496990c1f3b3e0b660c4d6a3236d7f693346f2a96c"},
@@ -2748,7 +2748,7 @@ typing-extensions = ">=4.7"
 name = "langchain-openai"
 version = "0.2.9"
 description = "An integration package connecting OpenAI and LangChain"
-optional = false
+optional = true
 python-versions = "<4.0,>=3.9"
 files = [
     {file = "langchain_openai-0.2.9-py3-none-any.whl", hash = "sha256:2723015e56879f9e5edfcb175fdbec6c296c1b3bf65caad28579ce9c4d1bd652"},
@@ -2764,7 +2764,7 @@ tiktoken = ">=0.7,<1"
 name = "langchain-text-splitters"
 version = "0.3.2"
 description = "LangChain text splitting utilities"
-optional = false
+optional = true
 python-versions = "<4.0,>=3.9"
 files = [
     {file = "langchain_text_splitters-0.3.2-py3-none-any.whl", hash = "sha256:0db28c53f41d1bc024cdb3b1646741f6d46d5371e90f31e7e7c9fbe75d01c726"},
@@ -2778,7 +2778,7 @@ langchain-core = ">=0.3.15,<0.4.0"
 name = "langchainhub"
 version = "0.1.21"
 description = "The LangChain Hub API client"
-optional = false
+optional = true
 python-versions = "<4.0,>=3.8.1"
 files = [
     {file = "langchainhub-0.1.21-py3-none-any.whl", hash = "sha256:1cc002dc31e0d132a776afd044361e2b698743df5202618cf2bad399246b895f"},
@@ -2794,7 +2794,7 @@ types-requests = ">=2.31.0.2,<3.0.0.0"
 name = "langsmith"
 version = "0.1.144"
 description = "Client library to connect to the LangSmith LLM Tracing and Evaluation Platform."
-optional = false
+optional = true
 python-versions = "<4.0,>=3.8.1"
 files = [
     {file = "langsmith-0.1.144-py3-none-any.whl", hash = "sha256:08ffb975bff2e82fc6f5428837c64c074ea25102d08a25e256361a80812c6100"},
@@ -3121,7 +3121,7 @@ pydantic = "!=2.10"
 name = "locust"
 version = "2.32.3"
 description = "Developer-friendly load testing framework"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "locust-2.32.3-py3-none-any.whl", hash = "sha256:ebfce96f82b0b31418a498ae97724fdba9a41754e88471de56920339f3974347"},
@@ -3466,7 +3466,7 @@ tests = ["pytest (>=4.6)"]
 name = "msgpack"
 version = "1.1.0"
 description = "MessagePack serializer"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "msgpack-1.1.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:7ad442d527a7e358a469faf43fda45aaf4ac3249c8310a82f0ccff9164e5dccd"},
@@ -4208,7 +4208,7 @@ xml = ["lxml (>=4.9.2)"]
 name = "paramiko"
 version = "3.5.0"
 description = "SSH2 protocol library"
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "paramiko-3.5.0-py3-none-any.whl", hash = "sha256:1fedf06b085359051cd7d0d270cebe19e755a8a921cc2ddbfa647fb0cd7d68f9"},
@@ -5179,7 +5179,7 @@ model = ["milvus-model (>=0.1.0)"]
 name = "pynacl"
 version = "1.5.0"
 description = "Python binding to the Networking and Cryptography (NaCl) library"
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "PyNaCl-1.5.0-cp36-abi3-macosx_10_10_universal2.whl", hash = "sha256:401002a4aaa07c9414132aaed7f6836ff98f59277a234704ff66878c2ee4a0d1"},
@@ -5227,7 +5227,7 @@ image = ["Pillow (>=8.0.0)"]
 name = "pyperclip"
 version = "1.9.0"
 description = "A cross-platform clipboard module for Python. (Only handles plain text for now.)"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "pyperclip-1.9.0.tar.gz", hash = "sha256:b7de0142ddc81bfc5c7507eea19da920b92252b548b96186caf94a5e2527d310"},
@@ -5292,7 +5292,7 @@ nodejs = ["nodejs-wheel-binaries"]
 name = "pysher"
 version = "1.0.8"
 description = "Pusher websocket client for python, based on Erik Kulyk's PythonPusherClient"
-optional = false
+optional = true
 python-versions = "*"
 files = [
     {file = "Pysher-1.0.8.tar.gz", hash = "sha256:7849c56032b208e49df67d7bd8d49029a69042ab0bb45b2ed59fa08f11ac5988"},
@@ -5699,7 +5699,7 @@ prompt_toolkit = ">=2.0,<=3.0.36"
 name = "referencing"
 version = "0.35.1"
 description = "JSON Referencing + Python"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "referencing-0.35.1-py3-none-any.whl", hash = "sha256:eda6d3234d62814d1c64e305c1331c9a3a6132da475ab6382eaa997b21ee75de"},
@@ -5856,7 +5856,7 @@ rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
 name = "requests-toolbelt"
 version = "1.0.0"
 description = "A utility belt for advanced users of python-requests"
-optional = false
+optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 files = [
     {file = "requests-toolbelt-1.0.0.tar.gz", hash = "sha256:7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6"},
@@ -5889,7 +5889,7 @@ jupyter = ["ipywidgets (>=7.5.1,<9)"]
 name = "rpds-py"
 version = "0.21.0"
 description = "Python bindings to Rust's persistent data structures (rpds)"
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "rpds_py-0.21.0-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:a017f813f24b9df929674d0332a374d40d7f0162b326562daae8066b502d0590"},
@@ -6016,7 +6016,7 @@ asn1crypto = ">=1.5.1"
 name = "semver"
 version = "3.0.2"
 description = "Python helper for Semantic Versioning (https://semver.org)"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "semver-3.0.2-py3-none-any.whl", hash = "sha256:b1ea4686fe70b981f85359eda33199d60c53964284e0cfb4977d243e37cf4bf4"},
@@ -6027,7 +6027,7 @@ files = [
 name = "sentry-sdk"
 version = "2.19.0"
 description = "Python client for Sentry (https://sentry.io)"
-optional = false
+optional = true
 python-versions = ">=3.6"
 files = [
     {file = "sentry_sdk-2.19.0-py2.py3-none-any.whl", hash = "sha256:7b0b3b709dee051337244a09a30dbf6e95afe0d34a1f8b430d45e0982a7c125b"},
@@ -6664,7 +6664,7 @@ test = ["black (>=22.3.0,<23.0.0)", "coverage (>=6.2,<7.0)", "isort (>=5.0.6,<6.
 name = "types-requests"
 version = "2.32.0.20241016"
 description = "Typing stubs for requests"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "types-requests-2.32.0.20241016.tar.gz", hash = "sha256:0d9cad2f27515d0e3e3da7134a1b6f28fb97129d86b867f24d9c726452634d95"},
@@ -7119,7 +7119,7 @@ files = [
 name = "werkzeug"
 version = "3.1.3"
 description = "The comprehensive WSGI web application library."
-optional = false
+optional = true
 python-versions = ">=3.9"
 files = [
     {file = "werkzeug-3.1.3-py3-none-any.whl", hash = "sha256:54b78bf3716d19a65be4fceccc0d1d7b89e608834989dfae50ea87564639213e"},
@@ -7476,7 +7476,7 @@ type = ["pytest-mypy"]
 name = "zope-event"
 version = "5.0"
 description = "Very basic event publishing system"
-optional = false
+optional = true
 python-versions = ">=3.7"
 files = [
     {file = "zope.event-5.0-py3-none-any.whl", hash = "sha256:2832e95014f4db26c47a13fdaef84cef2f4df37e66b59d8f1f4a8f319a632c26"},
@@ -7494,7 +7494,7 @@ test = ["zope.testrunner"]
 name = "zope-interface"
 version = "7.1.1"
 description = "Interfaces for Python"
-optional = false
+optional = true
 python-versions = ">=3.8"
 files = [
     {file = "zope.interface-7.1.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:6650bd56ef350d37c8baccfd3ee8a0483ed6f8666e641e4b9ae1a1827b79f9e5"},
@@ -7545,9 +7545,9 @@ test = ["coverage[toml]", "zope.event", "zope.testing"]
 testing = ["coverage[toml]", "zope.event", "zope.testing"]
 
 [extras]
-all = ["autoflake", "black", "composio-core", "composio-langchain", "datasets", "docker", "fastapi", "isort", "langchain", "langchain-community", "llama-index-embeddings-ollama", "pexpect", "pg8000", "pgvector", "pre-commit", "psycopg2", "psycopg2-binary", "pyright", "pytest-asyncio", "pytest-order", "uvicorn", "websockets", "wikipedia"]
+all = ["autoflake", "black", "composio-core", "composio-langchain", "datasets", "docker", "fastapi", "isort", "langchain", "langchain-community", "llama-index-embeddings-ollama", "locust", "pexpect", "pg8000", "pgvector", "pre-commit", "psycopg2", "psycopg2-binary", "pyright", "pytest-asyncio", "pytest-order", "uvicorn", "websockets", "wikipedia"]
 autogen = ["pyautogen"]
-dev = ["autoflake", "black", "datasets", "isort", "pexpect", "pre-commit", "pyright", "pytest-asyncio", "pytest-order"]
+dev = ["autoflake", "black", "datasets", "isort", "locust", "pexpect", "pre-commit", "pyright", "pytest-asyncio", "pytest-order"]
 external-tools = ["composio-core", "composio-langchain", "docker", "langchain", "langchain-community", "wikipedia"]
 milvus = ["pymilvus"]
 ollama = ["llama-index-embeddings-ollama"]
@@ -7559,4 +7559,4 @@ tests = ["wikipedia"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "4847d98ce49e07e94329ad1c3d4216a40bfa4605992ab3ccd81ca195b7ac8db4"
+content-hash = "608f7d3ec8dd286bf1bacaf0b05647d6020e5c0e7a97fc0e255325e3a72ecd17"
