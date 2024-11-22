@@ -88,7 +88,7 @@ def create_tool(
 
     # Send request to create the tool
     tool = Tool(**request.model_dump())
-    return server.tool_manager.create_or_update_tool(pydantic_tool=tool, actor=actor)
+    return server.tool_manager.create_tool(pydantic_tool=tool, actor=actor)
 
 
 @router.patch("/{tool_id}", response_model=Tool, operation_id="update_tool")
