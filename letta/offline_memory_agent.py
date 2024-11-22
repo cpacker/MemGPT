@@ -52,6 +52,34 @@ def trigger_rethink_memory_convo(self: "Agent", message: Optional[str]) -> Optio
             client.get_agent(agent.id)
             client.user_message(agent_id=agent.id, message=message)
 
+def rethink_memory_convo(self, new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:
+    """
+    Re-evaluate the memory in block_name, integrating new and updated facts.
+    Replace outdated information with the most likely truths, avoiding redundancy with original memories.
+    Ensure consistency with other memory blocks.
+
+    Args:
+        new_memory (str): The new memory with information integrated from the memory block. If there is no new information, then this should be the same as the content in the source block.
+        source_block_label (str): The name of the block to integrate information from. None if all the information has been integrated to terminate the loop. This can by any block.
+        target_block_label (str): The name of the block to write to. This should be `chat_agent_human_new` or `chat_agent_persona_new`.
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
+
+    from letta import create_client
+
+    client = create_client()
+    if target_block_label is not None:
+        if self.memory.get_block(target_block_label) is None:
+            self.memory.create_block(label=target_block_label, value=new_memory)
+        self.memory.update_block_value(label=target_block_label, value=new_memory)
+        block_id = self.memory.get_block(target_block_label).id
+        client.update_block(block_id, text=new_memory)
+        client.update_agent(agent_id=self.agent_state.id, memory=self.agent_state.memory)
+        _ = client.get_agent(self.agent_state.id)
+
+    print(f"Rethinking memory for block {target_block_label} with new memory: {new_memory} from block {source_block_label}")
+    return None
 
 def rethink_memory(self, new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:
     """
