@@ -190,9 +190,6 @@ class AbstractClient(object):
     def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         raise NotImplementedError
 
-    def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
-        raise NotImplementedError
-
     def load_composio_tool(self, action: "ActionType") -> Tool:
         raise NotImplementedError
 

@@ -1733,7 +1733,7 @@ class SyncServer(Server):
     def add_default_external_tools(self, actor: User) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
         success = True
-        tool_creates = ToolCreate.load_default_langchain_tools() + ToolCreate.load_default_crewai_tools()
+        tool_creates = ToolCreate.load_default_langchain_tools()
         if tool_settings.composio_api_key:
             tool_creates += ToolCreate.load_default_composio_tools()
         for tool_create in tool_creates:

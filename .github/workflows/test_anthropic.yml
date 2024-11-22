@@ -2,6 +2,7 @@ name: Anthropic Claude Opus 3 Capabilities Test
 
 env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
 
 on:
   push:
