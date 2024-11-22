@@ -103,6 +103,8 @@ class ToolExecutionSandbox:
 
             # Execute the code in a restricted subprocess
             try:
+                print("ASDFASDFASDFR")
+                print(sys.executable)
                 result = subprocess.run(
                     [sys.executable, temp_file.name],  # Use the current Python interpreter
                     env=env,
@@ -239,6 +241,8 @@ class ToolExecutionSandbox:
 
         # Load the agent state data into the program
         if agent_state:
+            code += "import letta\n"
+            code += "from letta import * \n"
             import pickle
 
             agent_state_pickle = pickle.dumps(agent_state)

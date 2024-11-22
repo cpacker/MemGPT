@@ -183,7 +183,7 @@ def composio_github_star_tool(test_user):
 
 @pytest.fixture
 def clear_core_memory(test_user):
-    def clear_memory(agent_state: "AgentState"):
+    def clear_memory(agent_state: AgentState):
         """Clear the core memory"""
         agent_state.memory.get_block("human").value = ""
         agent_state.memory.get_block("persona").value = ""
