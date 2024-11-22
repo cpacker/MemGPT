@@ -227,6 +227,25 @@ def update_agent_memory(
     return memory
 
 
+@router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory")
+def update_agent_memory_label(
+    agent_id: str,
+    current: str,
+    new: str,
+    server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Update the core memory of a specific agent.
+    This endpoint accepts new memory contents to update the core memory of the agent.
+    This endpoint only supports modifying existing blocks; it does not support deleting/unlinking or creating/linking blocks.
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+
+    memory = server.update_agent_memory_label(user_id=actor.id, agent_id=agent_id, current_block_label=current, new_block_label=new)
+    return memory
+
+
 @router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
 def add_agent_memory_block(
     agent_id: str,
