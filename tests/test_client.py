@@ -841,3 +841,13 @@ def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent
 
     finally:
         client.delete_agent(agent.id)
+
+
+def test_update_agent_tags(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can do a basic memory update on an agent"""
+
+    # check that the agent from agent state exists
+    agent_obj = client.get_agent(agent_id=agent.id)
+    assert agent_obj is not None
+
+    #

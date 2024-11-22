@@ -61,4 +61,5 @@ class AgentsTagsManager:
         with self.session_maker() as session:
             # Query for all tags associated with the given agent
             tags_for_agent = AgentsTagsModel.list(db_session=session, agent_id=agent_id, organization_id=actor.organization_id)
-            return [record.tag for record in tags_for_agent]
+            tags = [record.tag for record in tags_for_agent]
+            return [tag for tag in tags if isinstance(tag, str)]

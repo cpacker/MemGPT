@@ -433,7 +433,7 @@ class PostgresStorageConnector(SQLStorageConnector):
                 else:
                     db_record = self.db_model(**record.dict())
                     session.add(db_record)
-                    print(f"Added record with id {record.id}")
+                    # print(f"Added record with id {record.id}")
                     session.commit()
 
                 added_ids.append(record.id)
