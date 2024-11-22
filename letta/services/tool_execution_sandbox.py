@@ -1,8 +1,9 @@
 import ast
 import base64
+import io
 import os
 import pickle
-import subprocess
+import runpy
 import sys
 import tempfile
 import uuid
@@ -78,58 +79,65 @@ class ToolExecutionSandbox:
         return result
 
     # local sandbox specific functions
+    from contextlib import contextmanager
+
+    @contextmanager
+    def temporary_env_vars(self, env_vars: dict):
+        original_env = os.environ.copy()  # Backup original environment variables
+        os.environ.update(env_vars)  # Update with the new variables
+        try:
+            yield
+        finally:
+            os.environ.clear()
+            os.environ.update(original_env)  # Restore original environment variables
 
     def run_local_dir_sandbox(self, code: str) -> Optional[SandboxRunResult]:
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=self.user)
         local_configs = sbx_config.get_local_config()
 
         # Get environment variables for the sandbox
-        # TODO: We set limit to 100 here, but maybe we want it uncapped? Realistically this should be fine.
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
 
-        # Prepare the environment for subprocess
-        env = os.environ.copy()
-        env.update(env_vars)
-
         # Safety checks
-        # Check that sandbox_dir exists
         if not os.path.isdir(local_configs.sandbox_dir):
             raise FileNotFoundError(f"Sandbox directory does not exist: {local_configs.sandbox_dir}")
 
         # Write the code to a temp file in the sandbox_dir
-        with tempfile.NamedTemporaryFile(mode="w", dir=local_configs.sandbox_dir, suffix=".py", delete=True) as temp_file:
+        with tempfile.NamedTemporaryFile(mode="w", dir=local_configs.sandbox_dir, suffix=".py", delete=False) as temp_file:
             temp_file.write(code)
-            temp_file.flush()  # Ensure all data is written to disk
+            temp_file.flush()
+            temp_file_path = temp_file.name
 
-            # Execute the code in a restricted subprocess
-            try:
-                print("ASDFASDFASDFR")
-                print(sys.executable)
-                result = subprocess.run(
-                    [sys.executable, temp_file.name],  # Use the current Python interpreter
-                    env=env,
-                    cwd=local_configs.sandbox_dir,  # Restrict execution to sandbox_dir
-                    timeout=60,
-                    capture_output=True,
-                    text=True,
-                )
-                if result.stderr:
-                    logger.error(f"Sandbox execution error: {result.stderr}")
-                    raise RuntimeError(f"Sandbox execution error: {result.stderr}")
-                func_result, stdout = self.parse_out_function_results_markers(result.stdout)
-                func_return, agent_state = self.parse_best_effort(func_result)
-                return SandboxRunResult(
-                    func_return=func_return,
-                    agent_state=agent_state,
-                    stdout=[stdout],
-                    sandbox_config_fingerprint=sbx_config.fingerprint(),
-                )
-            except subprocess.TimeoutExpired:
-                raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Executing tool {self.tool_name} has process error: {e}")
-            except Exception as e:
-                raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+        try:
+            # Redirect stdout to capture script output
+            captured_stdout = io.StringIO()
+            old_stdout = sys.stdout
+            sys.stdout = captured_stdout
+
+            # Execute the temp file
+            with self.temporary_env_vars(env_vars):
+                result = runpy.run_path(temp_file_path, init_globals=env_vars)
+
+            # Fetch the result
+            func_result = result.get("result")
+            func_return, agent_state = self.parse_best_effort(func_result)
+
+            # Restore stdout and collect captured output
+            sys.stdout = old_stdout
+            stdout_output = captured_stdout.getvalue()
+
+            return SandboxRunResult(
+                func_return=func_return,
+                agent_state=agent_state,
+                stdout=[stdout_output],
+                sandbox_config_fingerprint=sbx_config.fingerprint(),
+            )
+        except Exception as e:
+            raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+        finally:
+            # Clean up the temp file and restore stdout
+            sys.stdout = old_stdout
+            os.remove(temp_file_path)
 
     def parse_out_function_results_markers(self, text: str):
         marker_len = len(self.LOCAL_SANDBOX_RESULT_START_MARKER)

@@ -1,4 +1,3 @@
-import logging
 import secrets
 import string
 import uuid
@@ -154,7 +153,9 @@ def get_env_tool(test_user):
         """
         import os
 
-        return os.getenv("secret_word")
+        secret_word = os.getenv("secret_word")
+        print(secret_word)
+        return secret_word
 
     tool = create_tool_from_func(get_env)
     tool = ToolManager().create_or_update_tool(tool, test_user)
@@ -245,11 +246,14 @@ def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, t
 def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
     result = sandbox.run()
+    import ipdb
+
+    ipdb.set_trace()
     assert len(result.func_return) == 5
 
 
 @pytest.mark.local_sandbox
-def test_local_sandbox_custom(mock_e2b_api_key_none, get_env_tool, test_user, caplog):
+def test_local_sandbox_env(mock_e2b_api_key_none, get_env_tool, test_user):
     manager = SandboxConfigManager(tool_settings)
 
     # Make a custom local sandbox config
@@ -268,9 +272,8 @@ def test_local_sandbox_custom(mock_e2b_api_key_none, get_env_tool, test_user, ca
     args = {}
 
     # Run the custom sandbox
-    with caplog.at_level(logging.DEBUG):
-        sandbox = ToolExecutionSandbox(get_env_tool.name, args, user_id=test_user.id)
-        result = sandbox.run()
+    sandbox = ToolExecutionSandbox(get_env_tool.name, args, user_id=test_user.id)
+    result = sandbox.run()
 
     assert long_random_string in result.func_return
 
