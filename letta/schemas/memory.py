@@ -176,7 +176,7 @@ class Memory(BaseModel, validate_assignment=True):
 
         # Check to make sure the new limit is greater than the current length of the block
         if len(self.memory[label].value) > limit:
-            raise ValueError(f"New limit is less than the current length of the block")
+            raise ValueError(f"New limit {limit} is less than the current length of the block {len(self.memory[label].value)}")
 
         self.memory[label].limit = limit
 
