@@ -63,9 +63,7 @@ jobs:
           poetry run alembic upgrade head
       - name: Enforce Poetry Python Environment
         run: |
-          poetry config virtualenvs.in-project true
-          poetry env use python3.12  # Explicitly set Python version
-          echo "source $(poetry env info --path)/bin/activate" >> $GITHUB_ENV
+          echo "PATH=$(poetry env info --path)/bin:$PATH" >> $GITHUB_ENV
       - name: Debug Python Environment
         run: |
           poetry env info
