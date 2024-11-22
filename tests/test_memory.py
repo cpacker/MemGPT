@@ -140,3 +140,16 @@ def test_update_block_label(sample_memory: Memory):
     sample_memory.update_block_label(current_label=test_old_label, new_label=test_new_label)
     assert test_new_label in sample_memory.list_block_labels()
     assert test_old_label not in sample_memory.list_block_labels()
+
+
+def test_update_block_limit(sample_memory: Memory):
+    """Test updating the limit of a block"""
+
+    test_new_limit = 1000
+    current_labels = sample_memory.list_block_labels()
+    test_old_label = current_labels[0]
+
+    assert sample_memory.get_block(label=test_old_label).limit != test_new_limit
+
+    sample_memory.update_block_limit(label=test_old_label, limit=test_new_limit)
+    assert sample_memory.get_block(label=test_old_label).limit == test_new_limit

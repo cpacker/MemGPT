@@ -810,3 +810,34 @@ def test_add_remove_agent_memory_block(client: Union[LocalClient, RESTClient], a
 
 #     finally:
 #         client.delete_agent(new_agent.id)
+
+
+def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can update the limit of a block in an agent's memory"""
+
+    agent = client.create_agent(name=create_random_username())
+
+    try:
+        current_labels = agent.memory.list_block_labels()
+        example_label = current_labels[0]
+        example_new_limit = 1
+        current_block = agent.memory.get_block(label=example_label)
+        current_block_length = len(current_block.value)
+
+        assert example_new_limit != agent.memory.get_block(label=example_label).limit
+        assert example_new_limit < current_block_length
+
+        # We expect this to throw a value error
+        with pytest.raises(ValueError):
+            client.update_agent_memory_limit(agent_id=agent.id, block_label=example_label, limit=example_new_limit)
+
+        # Now try the same thing with a higher limit
+        example_new_limit = current_block_length + 10000
+        assert example_new_limit > current_block_length
+        client.update_agent_memory_limit(agent_id=agent.id, block_label=example_label, limit=example_new_limit)
+
+        updated_agent = client.get_agent(agent_id=agent.id)
+        assert example_new_limit == updated_agent.memory.get_block(label=example_label).limit
+
+    finally:
+        client.delete_agent(agent.id)
