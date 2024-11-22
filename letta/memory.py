@@ -81,7 +81,7 @@ def summarize_messages(
     llm_config_no_inner_thoughts.put_inner_thoughts_in_kwargs = False
     response = create(
         llm_config=llm_config_no_inner_thoughts,
-        user_id=agent_state.user_id,
+        user_id=agent_state.id,
         messages=message_sequence,
         stream=False,
     )

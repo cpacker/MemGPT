@@ -360,5 +360,11 @@ def anthropic_chat_completions_request(
     data.pop("user", None)
     data.pop("tool_choice", None)
 
+    # insert user_id for Anthropic
+    if "metadata" not in data:
+        data["metadata"] = {}
+    if user_id is not None:
+        data["metadata"]["user_id"] = user_id
+
     response_json = make_post_request(url, headers, data)
     return convert_anthropic_response_to_chatcompletion(response_json=response_json, inner_thoughts_xml_tag=inner_thoughts_xml_tag)
