@@ -1,4 +1,3 @@
-import json
 from typing import List, Optional, Union
 
 from letta.agent import Agent, save_agent
@@ -37,8 +36,27 @@ def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[st
 
     """
     from letta import create_client
+
     client = create_client()
-    recent_convo = "".join([str(message) for message in self.messages])[-2000:] # TODO: make a better representation of the convo history
+    agents = client.list_agents()
+    for agent in agents:
+        if agent.agent_type == "offline_memory_agent":
+            client.get_agent(agent.id)
+            client.user_message(agent_id=agent.id, message=message)
+
+
+def trigger_rethink_memory_convo(self: "Agent", message: Optional[str]) -> Optional[str]:
+    """
+    Called if and only when user says the word "trigger_rethink_memory". It will trigger the re-evaluation of the memory.
+
+    Args:
+        message (Optional[str]): Description of what aspect of the memory should be re-evaluated.
+
+    """
+    from letta import create_client
+
+    client = create_client()
+    recent_convo = "".join([str(message) for message in self.messages])[-2000:]  # TODO: make a better representation of the convo history
     self.memory.update_block_value(label="conversation_block", value=recent_convo)
     client.update_block(self.memory.get_block("conversation_block").id, text=recent_convo)
     client.update_agent(agent_id=self.agent_state.id, memory=self.memory)
@@ -66,6 +84,7 @@ def rethink_memory(self, new_memory: str, target_block_label: Optional[str], sou
     """
 
     from letta import create_client
+
     client = create_client()
     if target_block_label is not None:
         if self.memory.get_block(target_block_label) is None:
@@ -88,14 +107,15 @@ def finish_rethinking_memory(self) -> Optional[str]:
         Optional[str]: None is always returned as this function does not produce a response.
     """
     from letta import create_client
+
     client = create_client()
     agents = client.list_agents()
-    
+
     for agent in agents:
         if agent.name == "conversation_agent":
             agent.memory.update_block_value(label="chat_agent_human", value=self.memory.get_block("chat_agent_human_new").value)
             agent.memory.update_block_value(label="chat_agent_persona", value=self.memory.get_block("chat_agent_persona_new").value)
-            
+
             chat_persona_block = agent.memory.get_block("chat_agent_persona")
             chat_human_block = agent.memory.get_block("chat_agent_human")
             client.update_block(chat_persona_block.id, text=self.memory.get_block("chat_agent_persona_new").value)
