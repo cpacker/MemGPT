@@ -30,8 +30,8 @@ from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.orm import User
 from letta.persistence_manager import LocalStateManager
-from letta.schemas.agent import AgentState, AgentStepResponse
-from letta.schemas.block import Block
+from letta.schemas.agent import AgentState, AgentStateResponse, AgentStepResponse
+from letta.schemas.block import Block, BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole
 from letta.schemas.memory import ContextWindowOverview, Memory
@@ -236,9 +236,13 @@ class Agent(BaseAgent):
         self,
         interface: Optional[Union[AgentInterface, StreamingRefreshCLIInterface]],
         # agents can be created from providing agent_state
-        agent_state: AgentState,
-        tools: List[Tool],
+        # agent_state: AgentState,
+        # tools: List[Tool],
+        # blocks: List[Block],
+        agent_state: AgentStateResponse,  # in-memory representation of the agent state (read from multiple tables)
         user: User,
+        # state managers (TODO: add agent manager)
+        block_manager: BlockManager,
         # memory: Memory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
@@ -253,7 +257,7 @@ class Agent(BaseAgent):
         self.user = user
 
         # link tools
-        self.link_tools(tools)
+        self.link_tools(agent_state.tools)
 
         # initialize a tool rules solver
         if agent_state.tool_rules:
@@ -278,13 +282,13 @@ class Agent(BaseAgent):
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
 
-        # Store the system instructions (used to rebuild memory)
-        self.system = self.agent_state.system
+        # state managers
+        self.block_manager = block_manager
 
         # Initialize the memory object
-        self.memory = self.agent_state.memory
-        assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
-        printd("Initialized memory object", self.memory.compile())
+        # self.memory = Memory(blocks)
+        # assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
+        # printd("Initialized memory object", self.memory.compile())
 
         # Interface must implement:
         # - internal_monologue
@@ -322,8 +326,8 @@ class Agent(BaseAgent):
             # Generate a sequence of initial messages to put in the buffer
             init_messages = initialize_message_sequence(
                 model=self.model,
-                system=self.system,
-                memory=self.memory,
+                system=self.agent_state.system,
+                memory=self.agent_state.memory,
                 archival_memory=None,
                 recall_memory=None,
                 memory_edit_timestamp=get_utc_time(),
@@ -345,8 +349,8 @@ class Agent(BaseAgent):
                 # Basic "more human than human" initial message sequence
                 init_messages = initialize_message_sequence(
                     model=self.model,
-                    system=self.system,
-                    memory=self.memory,
+                    system=self.agent_state.system,
+                    memory=self.agent_state.memory,
                     archival_memory=None,
                     recall_memory=None,
                     memory_edit_timestamp=get_utc_time(),
@@ -379,6 +383,49 @@ class Agent(BaseAgent):
 
         # Create the agent in the DB
         self.update_state()
+
+    def execute_tool_and_persist_state(self, function_name, function_to_call, function_args):
+        """
+        Execute tool modifications and persist the state of the agent.
+        Note: only some agent state modifications will be persisted, such as data in the AgentState ORM and block data
+        """
+        # TODO: add agent manager here
+
+        # original block data
+        original_memory = self.agent_state.memory
+
+        # TODO: need to have an AgentState object that actually has full access to the block data
+        # this is because the sandbox tools need to be able to access block.value to edit this data
+        if function_name in BASE_TOOLS:
+            # base tools are allowed to access the `Agent` object and run on the database
+            function_args["self"] = self  # need to attach self to arg since it's dynamically linked
+            function_response = function_to_call(**function_args)
+        else:
+            # execute tool in a sandbox
+            # TODO: allow agent_state to specify which sandbox to execute tools in
+            sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
+                agent_state=self.agent_state
+            )
+            function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
+            # update agent state
+            if updated_agent_state.memory.compile() != original_memory.compile():
+                # update the blocks (LRW) in the DB
+                for label in original_memory.list_block_labels():
+                    updated_value = updated_agent_state.memory.get_block(label).value
+                    if updated_value != original_memory.get_block(label).value:
+                        # update the block if it's changed
+                        block = self.block_manager.update_block(label, BlockUpdate(value=updated_value), self.user)
+                        print("Updated", block.id, block.value)
+
+                # rebuild memory
+                self.rebuild_memory()
+
+                # refresh memory from DB (using block ids)
+                self.agent_state.memory = Memory(
+                    blocks=[self.block_manager.get_block_by_id(block_id) for block_id in self.agent_state.memory_block_ids]
+                )
+
+        return function_response
 
     @property
     def messages(self) -> List[dict]:
@@ -727,26 +774,25 @@ class Agent(BaseAgent):
                     if isinstance(function_args[name], dict):
                         function_args[name] = spec[name](**function_args[name])
 
-                # TODO: This needs to be rethought, how do we allow functions that modify agent state/db?
-                # TODO: There should probably be two types of tools: stateless/stateful
+                # handle tool execution (sandbox) and state updates
+                function_response = self.execute_tool_and_persist_state(function_name, function_to_call, function_args)
+                # if function_name in BASE_TOOLS:
+                #    function_args["self"] = self  # need to attach self to arg since it's dynamically linked
+                #    function_response = function_to_call(**function_args)
+                # else:
+                #    # execute tool in a sandbox
+                #    # TODO: allow agent_state to specify which sandbox to execute tools in
+                #    sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
+                #        agent_state=self.agent_state
+                #    )
+                #    function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
+                #    # update agent state
+                #    if self.agent_state != updated_agent_state and updated_agent_state is not None:
+                #        self.agent_state = updated_agent_state
+                #        self.memory = self.agent_state.memory  # TODO: don't duplicate
 
-                if function_name in BASE_TOOLS:
-                    function_args["self"] = self  # need to attach self to arg since it's dynamically linked
-                    function_response = function_to_call(**function_args)
-                else:
-                    # execute tool in a sandbox
-                    # TODO: allow agent_state to specify which sandbox to execute tools in
-                    sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
-                        agent_state=self.agent_state
-                    )
-                    function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
-                    # update agent state
-                    if self.agent_state != updated_agent_state and updated_agent_state is not None:
-                        self.agent_state = updated_agent_state
-                        self.memory = self.agent_state.memory  # TODO: don't duplicate
-
-                        # rebuild memory
-                        self.rebuild_memory()
+                #        # rebuild memory
+                #        self.rebuild_memory()
 
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow
@@ -1276,7 +1322,7 @@ class Agent(BaseAgent):
 
         # update memory (TODO: potentially update recall/archival stats seperately)
         new_system_message_str = compile_system_message(
-            system_prompt=self.system,
+            system_prompt=self.agent_state.system,
             in_context_memory=self.memory,
             in_context_memory_last_edit=memory_edit_timestamp,
             archival_memory=self.persistence_manager.archival_memory,
@@ -1304,11 +1350,11 @@ class Agent(BaseAgent):
         """Update the system prompt of the agent (requires rebuilding the memory block if there's a difference)"""
         assert isinstance(new_system_prompt, str)
 
-        if new_system_prompt == self.system:
+        if new_system_prompt == self.agent_state.system:
             input("same???")
             return
 
-        self.system = new_system_prompt
+        self.agent_state.system = new_system_prompt
 
         # updating the system prompt requires rebuilding the memory block inside the compiled system message
         self.rebuild_memory(force=True, update_timestamp=False)
@@ -1331,7 +1377,6 @@ class Agent(BaseAgent):
         # override any fields that may have been updated
         self.agent_state.message_ids = message_ids
         self.agent_state.memory = self.memory
-        self.agent_state.system = self.system
 
         return self.agent_state
 

@@ -39,7 +39,13 @@ from letta.providers import (
     VLLMChatCompletionsProvider,
     VLLMCompletionsProvider,
 )
-from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
+from letta.schemas.agent import (
+    AgentState,
+    AgentStateResponse,
+    AgentType,
+    CreateAgent,
+    UpdateAgentState,
+)
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -360,6 +366,26 @@ class SyncServer(Server):
                 "agent": agent_obj,
             }
         )
+
+    def _initialize_agent(self, agent_id: str, actor: User, initial_message_sequence: List[Message], interface) -> Agent:
+        """Initialize an agent object with a sequence of messages"""
+
+        agent_state = self.get_agent(agent_id=agent_id)
+        if agent_state.agent_type == AgentType.memgpt_agent:
+            agent = Agent(
+                interface=interface,
+                agent_state=agent_state,
+                user=actor,
+                initial_message_sequence=initial_message_sequence,
+            )
+        elif agent_state.agent_type == AgentType.o1_agent:
+            agent = O1Agent(
+                interface=interface,
+                agent_state=agent_state,
+                user=actor,
+            )
+        # update the agent state (with new message ids)
+        self.ms.update_agent(agent_id=agent_id, agent_state=agent_state)
 
     def _load_agent(self, agent_id: str, actor: User, interface: Union[AgentInterface, None] = None) -> Agent:
         """Loads a saved agent into memory (if it doesn't exist, throw an error)"""
@@ -831,127 +857,201 @@ class SyncServer(Server):
             block = self.block_manager.create_or_update_block(Block(**create_block.model_dump()), actor=actor)
             block_ids.append(block.id)
 
+        # create the tags
+        if request.tags:
+            for tag in request.tags:
+                self.agents_tags_manager.add_tag_to_agent(agent_id=agent.agent_state.id, tag=tag, actor=actor)
+
+        # get tools + only add if they exist
+        tool_objs = []
+        if request.tools:
+            for tool_name in request.tools:
+                tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+                if tool_obj:
+                    tool_objs.append(tool_obj)
+                else:
+                    warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
+        # reset the request.tools to only valid tools
+        request.tools = [t.name for t in tool_objs]
+
+        # get the user
         logger.debug(f"Attempting to find user: {user_id}")
         user = self.user_manager.get_user_by_id(user_id=user_id)
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
-        try:
-            # model configuration
-            llm_config = request.llm_config
-            embedding_config = request.embedding_config
+        # TODO: create the message objects (NOTE: do this after we migrate to `CreateMessage`)
 
-            # get tools + only add if they exist
-            tool_objs = []
-            if request.tools:
-                for tool_name in request.tools:
-                    tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
-                    if tool_obj:
-                        tool_objs.append(tool_obj)
-                    else:
-                        warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
-            # reset the request.tools to only valid tools
-            request.tools = [t.name for t in tool_objs]
+        # created and persist the agent state in the DB
+        agent_state = AgentState(
+            name=request.name,
+            user_id=user_id,
+            tools=request.tools if request.tools else [],
+            tool_rules=request.tool_rules if request.tool_rules else [],
+            agent_type=request.agent_type or AgentType.memgpt_agent,
+            llm_config=request.llm_config,
+            embedding_config=request.embedding_config,
+            system=request.system,
+            # memory=request.memory,
+            # memory
+            memory_block_ids=block_ids,
+            # other metadata
+            description=request.description,
+            metadata_=request.metadata_,
+            tags=request.tags,
+        )
+        # TODO: move this to agent ORM
+        self.ms.create_agent(agent_state)
 
-            # assert request.memory is not None
-            # memory_functions = get_memory_functions(request.memory)
-            # for func_name, func in memory_functions.items():
+        # create an agent to instantiate the initial messages
+        self._initialize_agent(agent_id=agent_state.id, actor=actor, initial_message_sequence=request.initial_message_sequence)
 
-            #    if request.tools and func_name in request.tools:
-            #        # tool already added
-            #        continue
-            #    source_code = parse_source_code(func)
-            #    # memory functions are not terminal
-            #    json_schema = generate_schema(func, name=func_name)
-            #    source_type = "python"
-            #    tags = ["memory", "memgpt-base"]
-            #    tool = self.tool_manager.create_or_update_tool(
-            #        Tool(
-            #            source_code=source_code,
-            #            source_type=source_type,
-            #            tags=tags,
-            #            json_schema=json_schema,
-            #        ),
-            #        actor=actor,
-            #    )
-            #    tool_objs.append(tool)
-            #    if not request.tools:
-            #        request.tools = []
-            #    request.tools.append(tool.name)
+        # retrieve the full agent data: this reconstructs all the sources, tools, memory object, etc.
+        in_memory_agent_state = self.get_agent(agent_state.id)
+        return in_memory_agent_state
 
-            # TODO: save the agent state
-            agent_state = AgentState(
-                name=request.name,
-                user_id=user_id,
-                tools=request.tools if request.tools else [],
-                tool_rules=request.tool_rules if request.tool_rules else [],
-                agent_type=request.agent_type or AgentType.memgpt_agent,
-                llm_config=llm_config,
-                embedding_config=embedding_config,
-                system=request.system,
-                # memory=request.memory,
-                # memory
-                memory_block_ids=block_ids,
-                memory_prompt_template=request.memory_prompt_template,
-                # other metadata
-                description=request.description,
-                metadata_=request.metadata_,
-                tags=request.tags,
-            )
-            if request.agent_type == AgentType.memgpt_agent:
-                agent = Agent(
-                    interface=interface,
-                    agent_state=agent_state,
-                    tools=tool_objs,
-                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=(
-                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
-                    ),
-                    user=actor,
-                    initial_message_sequence=request.initial_message_sequence,
-                )
-            elif request.agent_type == AgentType.o1_agent:
-                agent = O1Agent(
-                    interface=interface,
-                    agent_state=agent_state,
-                    tools=tool_objs,
-                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
-                    first_message_verify_mono=(
-                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
-                    ),
-                    user=actor,
-                )
-            # rebuilding agent memory on agent create in case shared memory blocks
-            # were specified in the new agent's memory config. we're doing this for two reasons:
-            # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
-            # 2. if the shared block state changed since this agent initialization started, we can be sure to have the latest value
-            agent.rebuild_memory(force=True, ms=self.ms)
-            # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
-            # self.ms.update_agent(agent.agent_state)
-        except Exception as e:
-            logger.exception(e)
-            try:
-                if agent:
-                    self.ms.delete_agent(agent_id=agent.agent_state.id)
-            except Exception as delete_e:
-                logger.exception(f"Failed to delete_agent:\n{delete_e}")
-            raise e
+        # try:
+        #    # model configuration
+        #    llm_config = request.llm_config
+        #    embedding_config = request.embedding_config
 
-        # save agent
-        save_agent(agent, self.ms)
-        logger.debug(f"Created new agent from config: {agent}")
+        #    # get tools + only add if they exist
+        #    tool_objs = []
+        #    if request.tools:
+        #        for tool_name in request.tools:
+        #            tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+        #            if tool_obj:
+        #                tool_objs.append(tool_obj)
+        #            else:
+        #                warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
+        #    # reset the request.tools to only valid tools
+        #    request.tools = [t.name for t in tool_objs]
 
-        # TODO: move this into save_agent. save_agent should be moved to server.py
-        if request.tags:
-            for tag in request.tags:
-                self.agents_tags_manager.add_tag_to_agent(agent_id=agent.agent_state.id, tag=tag, actor=actor)
+        #    #assert request.memory is not None
+        #    #memory_functions = get_memory_functions(request.memory)
+        #    #for func_name, func in memory_functions.items():
 
-        assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
+        #    #    if request.tools and func_name in request.tools:
+        #    #        # tool already added
+        #    #        continue
+        #    #    source_code = parse_source_code(func)
+        #    #    # memory functions are not terminal
+        #    #    json_schema = generate_schema(func, name=func_name)
+        #    #    source_type = "python"
+        #    #    tags = ["memory", "memgpt-base"]
+        #    #    tool = self.tool_manager.create_or_update_tool(
+        #    #        Tool(
+        #    #            source_code=source_code,
+        #    #            source_type=source_type,
+        #    #            tags=tags,
+        #    #            json_schema=json_schema,
+        #    #        ),
+        #    #        actor=actor,
+        #    #    )
+        #    #    tool_objs.append(tool)
+        #    #    if not request.tools:
+        #    #        request.tools = []
+        #    #    request.tools.append(tool.name)
 
-        # TODO: remove (hacky)
-        agent.agent_state.tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent.agent_state.id, actor=actor)
+        #    # TODO: save the agent state
+        #    agent_state = AgentState(
+        #        name=request.name,
+        #        user_id=user_id,
+        #        tools=request.tools if request.tools else [],
+        #        tool_rules=request.tool_rules if request.tool_rules else [],
+        #        agent_type=request.agent_type or AgentType.memgpt_agent,
+        #        llm_config=llm_config,
+        #        embedding_config=embedding_config,
+        #        system=request.system,
+        #        #memory=request.memory,
+        #        # memory
+        #        memory_block_ids=block_ids,
+        #        # other metadata
+        #        description=request.description,
+        #        metadata_=request.metadata_,
+        #        tags=request.tags,
+        #    )
 
-        return agent.agent_state
+        #    # TODO: persist the agent
+
+        #    if request.agent_type == AgentType.memgpt_agent:
+        #        agent = Agent(
+        #            interface=interface,
+        #            agent_state=agent_state,
+        #            tools=tool_objs,
+        #            # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+        #            first_message_verify_mono=(
+        #                True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+        #            ),
+        #            user=actor,
+        #            initial_message_sequence=request.initial_message_sequence,
+        #        )
+        #    elif request.agent_type == AgentType.o1_agent:
+        #        agent = O1Agent(
+        #            interface=interface,
+        #            agent_state=agent_state,
+        #            tools=tool_objs,
+        #            # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+        #            first_message_verify_mono=(
+        #                True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+        #            ),
+        #            user=actor,
+        #        )
+        #    # rebuilding agent memory on agent create in case shared memory blocks
+        #    # were specified in the new agent's memory config. we're doing this for two reasons:
+        #    # 1. if only the ID of the shared memory block was specified, we can fetch its most recent value
+        #    # 2. if the shared block state changed since this agent initialization started, we can be sure to have the latest value
+        #    agent.rebuild_memory(force=True, ms=self.ms)
+        #    # FIXME: this is a hacky way to get the system prompts injected into agent into the DB
+        #    # self.ms.update_agent(agent.agent_state)
+        # except Exception as e:
+        #    logger.exception(e)
+        #    try:
+        #        if agent:
+        #            self.ms.delete_agent(agent_id=agent.agent_state.id)
+        #    except Exception as delete_e:
+        #        logger.exception(f"Failed to delete_agent:\n{delete_e}")
+        #    raise e
+
+        ## save agent
+        # save_agent(agent, self.ms)
+        # logger.debug(f"Created new agent from config: {agent}")
+
+        ## TODO: move this into save_agent. save_agent should be moved to server.py
+        # if request.tags:
+        #    for tag in request.tags:
+        #        self.agents_tags_manager.add_tag_to_agent(agent_id=agent.agent_state.id, tag=tag, actor=actor)
+
+        # assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
+
+        ## TODO: remove (hacky)
+        # agent.agent_state.tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent.agent_state.id, actor=actor)
+
+        # return agent.agent_state
+
+    def get_agent(self, agent_id: str) -> AgentStateResponse:
+
+        # get data persisted from the DB
+        agent_state = self.ms.get_agent(agent_id=agent_id)
+        user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+
+        # construct the in-memory, full agent state - this gather data stored in different tables but that needs to be passed to `Agent`
+        # we also return this data to the user to provide all the state related to an agent
+
+        # get `Memory` object
+        memory = Memory(blocks=[self.block_manager.get_block_by_id(block_id=block_id) for block_id in agent_state.memory_block_ids])
+
+        # get `Tool` objects
+        tools = [self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=None) for tool_name in agent_state.tools]
+
+        # get `Source` objects
+        sources = [self.source_manager.get_source_by_id(source_id=source_id) for source_id in self.list_attached_sources(agent_id=agent_id)]
+
+        # get the tags
+        tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=user)
+
+        # return the full agent state - this contains all data needed to recreate the agent
+        return AgentStateResponse(**agent_state.model_dump(), memory=memory, tools=tools, sources=sources)
 
     def update_agent(
         self,

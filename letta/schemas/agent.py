@@ -68,8 +68,6 @@ class AgentState(BaseAgent, validate_assignment=True):
     memory_block_ids: List[str] = Field(
         ..., description="The ids of the memory blocks in the agent's in-context memory."
     )  # TODO: mapping table?
-    memory_tools: List[str] = Field(..., description="The tool names used by the agent's memory.")  # TODO: ids?
-    memory_prompt_template: str = Field(..., description="The prompt string used by the agent's memory.")
 
     # tools
     tools: List[str] = Field(..., description="The tools used by the agent.")
@@ -117,16 +115,28 @@ class AgentState(BaseAgent, validate_assignment=True):
         validate_assignment = True
 
 
+class InMemoryAgentState(AgentState):
+    # This is an object representing the in-process state of a running `Agent`
+    # Field in this object can be theoretically edited by tools, and will be persisted by the ORM
+    memory: Memory = Field(..., description="The in-context memory of the agent.")
+    tools: List[Tool] = Field(..., description="The tools used by the agent.")
+    llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
+    embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
+    system: str = Field(..., description="The system prompt used by the agent.")
+    agent_type: AgentType = Field(..., description="The type of agent.")
+    tool_rules: List[BaseToolRule] = Field(..., description="The tool rules governing the agent.")
+
+
 class AgentStateResponse(AgentState):
     # additional data we pass back when getting agent state
     # this is also returned if you call .get_agent(agent_id)
-    tool_rules: List[BaseToolRule]
+    # NOTE: this is what actually gets passed around internall
     sources: List[Source]
     memory_blocks: List[Block]
     tools: List[Tool]
 
 
-class CreateAgent(BaseAgent):
+class CreateAgent(BaseAgent):  #
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
@@ -139,8 +149,6 @@ class CreateAgent(BaseAgent):
         ...,
         description="The blocks to create in the agent's in-context memory.",
     )
-    memory_prompt_template: Optional[str] = Field(None, description="The prompt template used by the agent's memory.")
-    memory_tools: List[str] = Field(["core_memory_append", "core_memory_replace"], description="The tool names used by the agent's memory.")
 
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     tool_rules: Optional[List[BaseToolRule]] = Field(None, description="The tool rules governing the agent.")
