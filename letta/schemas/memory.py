@@ -180,6 +180,11 @@ class Memory(BaseModel, validate_assignment=True):
             raise ValueError(f"Block with label {current_label} does not exist")
         if not isinstance(new_label, str):
             raise ValueError(f"Provided new label must be a string")
+
+        # First change the label of the block
+        self.memory[current_label].label = new_label
+
+        # Then swap the block to the new label
         self.memory[new_label] = self.memory.pop(current_label)
 
 

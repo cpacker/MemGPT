@@ -411,6 +411,8 @@ class SyncServer(Server):
 
     def _get_or_load_agent(self, agent_id: str) -> Agent:
         """Check if the agent is in-memory, then load"""
+
+        # Gets the agent state
         agent_state = self.ms.get_agent(agent_id=agent_id)
         if not agent_state:
             raise ValueError(f"Agent does not exist")
@@ -419,10 +421,13 @@ class SyncServer(Server):
 
         logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
         # TODO: consider disabling loading cached agents due to potential concurrency issues
-        letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
-        if not letta_agent:
-            logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
-            letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
+        # letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
+        # if not letta_agent:
+        # logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
+
+        # NOTE: no longer caching, always forcing a lot from the database
+        # Loads the agent objects
+        letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
         return letta_agent
 
     def _step(
@@ -1440,7 +1445,7 @@ class SyncServer(Server):
 
         # If we modified the memory contents, we need to rebuild the memory block inside the system message
         if modified:
-            letta_agent.rebuild_memory()
+            letta_agent.rebuild_memory(force=True, ms=self.ms)
             # save agent
             save_agent(letta_agent, self.ms)
 
@@ -1837,9 +1842,14 @@ class SyncServer(Server):
         # Link a block to an agent's memory
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         letta_agent.memory.update_block_label(current_label=current_block_label, new_label=new_block_label)
+        assert new_block_label in letta_agent.memory.list_block_labels()
+        self.block_manager.create_or_update_block(block=letta_agent.memory.get_block(new_block_label), actor=user)
+
+        # check that the block was updated
+        updated_block = self.block_manager.get_block_by_id(block_id=letta_agent.memory.get_block(new_block_label).id, actor=user)
 
         # Recompile the agent memory
-        letta_agent.rebuild_memory()
+        letta_agent.rebuild_memory(force=True, ms=self.ms)
 
         # save agent
         save_agent(letta_agent, self.ms)
@@ -1848,6 +1858,7 @@ class SyncServer(Server):
         if updated_agent is None:
             raise ValueError(f"Agent with id {agent_id} not found after linking block")
         assert new_block_label in updated_agent.memory.list_block_labels()
+        assert current_block_label not in updated_agent.memory.list_block_labels()
         return updated_agent.memory
 
     def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
@@ -1867,7 +1878,7 @@ class SyncServer(Server):
         assert block.label in letta_agent.memory.list_block_labels()
 
         # Recompile the agent memory
-        letta_agent.rebuild_memory()
+        letta_agent.rebuild_memory(force=True, ms=self.ms)
 
         # save agent
         save_agent(letta_agent, self.ms)
@@ -1898,7 +1909,7 @@ class SyncServer(Server):
         # raise ValueError(f"Block with id {block_id} not found")
 
         # Recompile the agent memory
-        letta_agent.rebuild_memory()
+        letta_agent.rebuild_memory(force=True, ms=self.ms)
 
         # save agent
         save_agent(letta_agent, self.ms)
