@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import pgserver
 import webbrowser
 
@@ -5,6 +6,7 @@ from letta.settings import settings
 
 from server import ThreadedServer
 from tray import Tray
+from logviewer import CuteLogger
 
 pgdata = settings.letta_dir / "pgdata"
 pgdata.mkdir(parents=True, exist_ok=True)
@@ -19,6 +21,8 @@ settings.pg_uri = database.get_uri()
 app_server = ThreadedServer.get_configured_server()
 
 with app_server.run_in_thread():
+    cute = CuteLogger()
+    cute.apply_cuteness()
     tray = Tray()
     webbrowser.open("https://app.letta.com")
     tray.create()
