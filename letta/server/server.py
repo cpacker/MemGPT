@@ -1847,6 +1847,7 @@ class SyncServer(Server):
         updated_agent = self.ms.get_agent(agent_id=agent_id)
         if updated_agent is None:
             raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        assert new_block_label in updated_agent.memory.list_block_labels()
         return updated_agent.memory
 
     def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
@@ -1863,6 +1864,7 @@ class SyncServer(Server):
         # Link a block to an agent's memory
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         letta_agent.memory.link_block(block=block)
+        assert block.label in letta_agent.memory.list_block_labels()
 
         # Recompile the agent memory
         letta_agent.rebuild_memory()
@@ -1873,6 +1875,9 @@ class SyncServer(Server):
         updated_agent = self.ms.get_agent(agent_id=agent_id)
         if updated_agent is None:
             raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        assert block.label in updated_agent.memory.list_block_labels()
+
+        print("XXXXXXX SUCCESSFULLY LINKED BLOCK INTO UPDATED AGENT", updated_agent.memory)
         return updated_agent.memory
 
     def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
@@ -1884,6 +1889,7 @@ class SyncServer(Server):
         # Link a block to an agent's memory
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         unlinked_block = letta_agent.memory.unlink_block(block_label=block_label)
+        assert unlinked_block.label not in letta_agent.memory.list_block_labels()
 
         # Check if the block is linked to any other agent
         # TODO needs reference counting GC to handle loose blocks
@@ -1900,4 +1906,5 @@ class SyncServer(Server):
         updated_agent = self.ms.get_agent(agent_id=agent_id)
         if updated_agent is None:
             raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        assert unlinked_block.label not in updated_agent.memory.list_block_labels()
         return updated_agent.memory

@@ -1576,6 +1576,8 @@ class RESTClient(AbstractClient):
             headers=self.headers,
             json={"current_label": current_label, "new_label": new_label},
         )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent memory label: {response.text}")
         return Memory(**response.json())
 
     def add_agent_memory_block(self, agent_id: str, create_block: BlockCreate) -> Memory:
@@ -1586,6 +1588,8 @@ class RESTClient(AbstractClient):
             headers=self.headers,
             json=create_block.model_dump(),
         )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to add agent memory block: {response.text}")
         return Memory(**response.json())
 
     def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
@@ -1595,6 +1599,8 @@ class RESTClient(AbstractClient):
             f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block/{block_label}",
             headers=self.headers,
         )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to remove agent memory block: {response.text}")
         return Memory(**response.json())
 
 

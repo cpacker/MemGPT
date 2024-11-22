@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from letta.schemas.block import Block, BlockCreate
+from letta.schemas.block import Block, BlockCreate, BlockLabelUpdate
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
@@ -230,8 +230,7 @@ def update_agent_memory(
 @router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory_label")
 def update_agent_memory_label(
     agent_id: str,
-    current_label: str,
-    new_label: str,
+    update_label: BlockLabelUpdate = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -241,7 +240,7 @@ def update_agent_memory_label(
     actor = server.get_user_or_default(user_id=user_id)
 
     memory = server.update_agent_memory_label(
-        user_id=actor.id, agent_id=agent_id, current_block_label=current_label, new_block_label=new_label
+        user_id=actor.id, agent_id=agent_id, current_block_label=update_label.current_label, new_block_label=update_label.new_label
     )
     return memory
 
