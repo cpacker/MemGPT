@@ -2,6 +2,7 @@
 
 import os
 import secrets
+import warnings
 from typing import List, Optional
 
 from sqlalchemy import JSON, Column, DateTime, Index, String, TypeDecorator
@@ -353,8 +354,14 @@ class MetadataStore:
                 raise ValueError(f"Agent with name {agent.name} already exists")
             fields = vars(agent)
             fields["memory"] = agent.memory.to_dict()
-            del fields["_internal_memory"]
-            del fields["tags"]
+            if "_internal_memory" in fields:
+                del fields["_internal_memory"]
+            else:
+                warnings.warn(f"Agent {agent.id} has no _internal_memory field")
+            if "tags" in fields:
+                del fields["tags"]
+            else:
+                warnings.warn(f"Agent {agent.id} has no tags field")
             session.add(AgentModel(**fields))
             session.commit()
 
@@ -364,8 +371,14 @@ class MetadataStore:
             fields = vars(agent)
             if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
                 fields["memory"] = agent.memory.to_dict()
-            del fields["_internal_memory"]
-            del fields["tags"]
+            if "_internal_memory" in fields:
+                del fields["_internal_memory"]
+            else:
+                warnings.warn(f"Agent {agent.id} has no _internal_memory field")
+            if "tags" in fields:
+                del fields["tags"]
+            else:
+                warnings.warn(f"Agent {agent.id} has no tags field")
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
 

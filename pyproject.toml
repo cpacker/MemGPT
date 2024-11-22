@@ -38,7 +38,6 @@ chromadb = ">=0.4.24,<0.5.0"
 sqlalchemy-json = "^0.7.0"
 fastapi = {version = "^0.104.1", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
-#pydantic = "^2.7.4"
 pydantic = ">=2.7.4,<2.10.0"
 pyautogen = {version = "0.2.22", optional = true}
 html2text = "^2020.1.16"
@@ -51,9 +50,6 @@ pymilvus = {version ="^2.4.3", optional = true}
 python-box = "^7.1.1"
 sqlmodel = "^0.0.16"
 autoflake = {version = "^2.3.0", optional = true}
-#llama-index-embeddings-huggingface = {version = "^0.2.0", optional = true}
-#llama-index-embeddings-azure-openai = "^0.1.6"
-#llama-index-embeddings-ollama = {version = "^0.1.2", optional = true}
 python-multipart = "^0.0.9"
 sqlalchemy-utils = "^0.41.2"
 pytest-order = {version = "^1.2.0", optional = true}
@@ -61,41 +57,39 @@ pytest-asyncio = {version = "^0.23.2", optional = true}
 pydantic-settings = "^2.2.1"
 httpx-sse = "^0.4.0"
 isort = { version = "^5.13.2", optional = true }
-crewai = {version = "^0.41.1", optional = true}
-crewai-tools = {version = "^0.8.3", optional = true}
 docker = {version = "^7.1.0", optional = true}
 tiktoken = "^0.7.0"
 nltk = "^3.8.1"
 jinja2 = "^3.1.4"
-locust = "^2.31.5"
+locust = {version = "^2.31.5", optional = true}
 llama-index = "^0.11.9"
 llama-index-embeddings-openai = "^0.2.5"
 llama-index-embeddings-ollama = "^0.3.1"
-#llama-index-embeddings-huggingface = {version = "^0.2.0", optional = true}
 wikipedia = {version = "^1.4.0", optional = true}
-langchain = {version = "^0.2.16", optional = true}
-langchain-community = {version = "^0.2.17", optional = true}
-composio-langchain = "^0.5.28"
-composio-core = "^0.5.34"
+composio-langchain = {version = "^0.5.28", optional = true}
+composio-core = {version = "^0.5.34", optional = true}
 alembic = "^1.13.3"
 pyhumps = "^3.8.0"
 psycopg2 = "^2.9.10"
 psycopg2-binary = "^2.9.10"
 e2b-code-interpreter = {version = "^1.0.1", optional = true}
 pathvalidate = "^3.2.1"
+langchain-community = {version = "^0.3.7", optional = true}
+langchain = {version = "^0.3.7", optional = true}
 
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]
 postgres = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2"]
 milvus = ["pymilvus"]
-dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort"]
+dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "locust"]
 server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
-external-tools = ["crewai", "docker", "crewai-tools", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
 cloud-tool-sandbox = ["e2b-code-interpreter"]
+external-tools = ["docker", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
 tests = ["wikipedia"]
+all = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2", "pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "websockets", "fastapi", "uvicorn", "llama-index-embeddings-ollama", "docker", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain", "locust"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"

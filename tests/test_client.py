@@ -11,10 +11,12 @@ from sqlalchemy import delete
 from letta import LocalClient, RESTClient, create_client
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.agent import AgentState
+from letta.schemas.block import BlockCreate
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.sandbox_config import LocalSandboxConfig, SandboxType
 from letta.settings import tool_settings
+from letta.utils import create_random_username
 
 # Constants
 SERVER_PORT = 8283
@@ -183,3 +185,113 @@ def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], a
     # Verify all tags are removed
     final_tags = client.get_agent(agent_id=agent.id).tags
     assert len(final_tags) == 0, f"Expected no tags, but found {final_tags}"
+
+
+def test_update_agent_memory_label(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can update the label of a block in an agent's memory"""
+
+    agent = client.create_agent(name=create_random_username())
+
+    try:
+        current_labels = agent.memory.list_block_labels()
+        example_label = current_labels[0]
+        example_new_label = "example_new_label"
+        assert example_new_label not in current_labels
+
+        client.update_agent_memory_label(agent_id=agent.id, current_label=example_label, new_label=example_new_label)
+
+        updated_agent = client.get_agent(agent_id=agent.id)
+        assert example_new_label in updated_agent.memory.list_block_labels()
+
+    finally:
+        client.delete_agent(agent.id)
+
+
+def test_add_remove_agent_memory_block(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can add and remove a block from an agent's memory"""
+
+    agent = client.create_agent(name=create_random_username())
+
+    try:
+        current_labels = agent.memory.list_block_labels()
+        example_new_label = "example_new_label"
+        example_new_value = "example value"
+        assert example_new_label not in current_labels
+
+        # Link a new memory block
+        client.add_agent_memory_block(
+            agent_id=agent.id,
+            create_block=BlockCreate(
+                label=example_new_label,
+                value=example_new_value,
+                limit=1000,
+            ),
+        )
+
+        updated_agent = client.get_agent(agent_id=agent.id)
+        assert example_new_label in updated_agent.memory.list_block_labels()
+
+        # Now unlink the block
+        client.remove_agent_memory_block(agent_id=agent.id, block_label=example_new_label)
+
+        updated_agent = client.get_agent(agent_id=agent.id)
+        assert example_new_label not in updated_agent.memory.list_block_labels()
+
+    finally:
+        client.delete_agent(agent.id)
+
+
+# def test_core_memory_token_limits(client: Union[LocalClient, RESTClient], agent: AgentState):
+#     """Test that the token limit is enforced for the core memory blocks"""
+
+#     # Create an agent
+#     new_agent = client.create_agent(
+#         name="test-core-memory-token-limits",
+#         tools=BASE_TOOLS,
+#         memory=ChatMemory(human="The humans name is Joe.", persona="My name is Sam.", limit=2000),
+#     )
+
+#     try:
+#         # Then intentionally set the limit to be extremely low
+#         client.update_agent(
+#             agent_id=new_agent.id,
+#             memory=ChatMemory(human="The humans name is Joe.", persona="My name is Sam.", limit=100),
+#         )
+
+#         # TODO we should probably not allow updating the core memory limit if
+
+#         # TODO in which case we should modify this test to actually to a proper token counter check
+
+#     finally:
+#         client.delete_agent(new_agent.id)
+
+
+def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can update the limit of a block in an agent's memory"""
+
+    agent = client.create_agent(name=create_random_username())
+
+    try:
+        current_labels = agent.memory.list_block_labels()
+        example_label = current_labels[0]
+        example_new_limit = 1
+        current_block = agent.memory.get_block(label=example_label)
+        current_block_length = len(current_block.value)
+
+        assert example_new_limit != agent.memory.get_block(label=example_label).limit
+        assert example_new_limit < current_block_length
+
+        # We expect this to throw a value error
+        with pytest.raises(ValueError):
+            client.update_agent_memory_limit(agent_id=agent.id, block_label=example_label, limit=example_new_limit)
+
+        # Now try the same thing with a higher limit
+        example_new_limit = current_block_length + 10000
+        assert example_new_limit > current_block_length
+        client.update_agent_memory_limit(agent_id=agent.id, block_label=example_label, limit=example_new_limit)
+
+        updated_agent = client.get_agent(agent_id=agent.id)
+        assert example_new_limit == updated_agent.memory.get_block(label=example_label).limit
+
+    finally:
+        client.delete_agent(agent.id)

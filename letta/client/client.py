@@ -200,9 +200,6 @@ class AbstractClient(object):
     def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         raise NotImplementedError
 
-    def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
-        raise NotImplementedError
-
     def load_composio_tool(self, action: "ActionType") -> Tool:
         raise NotImplementedError
 
@@ -1015,8 +1012,8 @@ class RESTClient(AbstractClient):
         else:
             return Block(**response.json())
 
-    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
-        request = BlockUpdate(id=block_id, template_name=name, value=text)
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None, limit: Optional[int] = None) -> Block:
+        request = BlockUpdate(id=block_id, template_name=name, value=text, limit=limit if limit else self.get_block(block_id).limit)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update block: {response.text}")
@@ -1791,6 +1788,53 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to list environment variables for sandbox config ID '{sandbox_config_id}': {response.text}")
         return [SandboxEnvironmentVariable(**var_data) for var_data in response.json()]
+
+    def update_agent_memory_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
+
+        # @router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory_label")
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/label",
+            headers=self.headers,
+            json={"current_label": current_label, "new_label": new_label},
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent memory label: {response.text}")
+        return Memory(**response.json())
+
+    def add_agent_memory_block(self, agent_id: str, create_block: BlockCreate) -> Memory:
+
+        # @router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
+        response = requests.post(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block",
+            headers=self.headers,
+            json=create_block.model_dump(),
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to add agent memory block: {response.text}")
+        return Memory(**response.json())
+
+    def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
+
+        # @router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block")
+        response = requests.delete(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block/{block_label}",
+            headers=self.headers,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to remove agent memory block: {response.text}")
+        return Memory(**response.json())
+
+    def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+
+        # @router.patch("/{agent_id}/memory/limit", response_model=Memory, operation_id="update_agent_memory_limit")
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/limit",
+            headers=self.headers,
+            json={"label": block_label, "limit": limit},
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent memory limit: {response.text}")
+        return Memory(**response.json())
 
 
 class LocalClient(AbstractClient):
@@ -2914,7 +2958,7 @@ class LocalClient(AbstractClient):
             Block(label=label, template_name=template_name, value=value, is_template=is_template), actor=self.user
         )
 
-    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None, limit: Optional[int] = None) -> Block:
         """
         Update a block
 
@@ -2927,7 +2971,9 @@ class LocalClient(AbstractClient):
             block (Block): Updated block
         """
         return self.server.block_manager.update_block(
-            block_id=block_id, block_update=BlockUpdate(template_name=name, value=text), actor=self.user
+            block_id=block_id,
+            block_update=BlockUpdate(template_name=name, value=text, limit=limit if limit else self.get_block(block_id).limit),
+            actor=self.user,
         )
 
     def get_block(self, block_id: str) -> Block:
@@ -3064,3 +3110,21 @@ class LocalClient(AbstractClient):
         return self.server.sandbox_config_manager.list_sandbox_env_vars(
             sandbox_config_id=sandbox_config_id, actor=self.user, limit=limit, cursor=cursor
         )
+
+    def update_agent_memory_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
+        return self.server.update_agent_memory_label(
+            user_id=self.user_id, agent_id=agent_id, current_block_label=current_label, new_block_label=new_label
+        )
+
+    def add_agent_memory_block(self, agent_id: str, create_block: BlockCreate) -> Memory:
+        block_req = Block(**create_block.model_dump())
+        block = self.server.block_manager.create_or_update_block(actor=self.user, block=block_req)
+        # Link the block to the agent
+        updated_memory = self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_id, block_id=block.id)
+        return updated_memory
+
+    def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
+        return self.server.unlink_block_from_agent_memory(user_id=self.user_id, agent_id=agent_id, block_label=block_label)
+
+    def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+        return self.server.update_agent_memory_limit(user_id=self.user_id, agent_id=agent_id, block_label=block_label, limit=limit)

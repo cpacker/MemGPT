@@ -2,6 +2,7 @@ name: OpenAI GPT-4 Capabilities Test
 
 env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
 
 on:
   push:
