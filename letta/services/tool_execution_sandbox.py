@@ -3,9 +3,7 @@ import base64
 import io
 import os
 import pickle
-import random
 import runpy
-import string
 import sys
 import tempfile
 from typing import Any, Optional
@@ -27,7 +25,7 @@ class ToolExecutionSandbox:
 
     # This is the variable name in the auto-generated code that contains the function results
     # We make this a long random string to avoid collisions with any variables in the user's code
-    LOCAL_SANDBOX_RESULT_VAR_NAME = "".join(random.choices(string.ascii_letters + "_", k=20))
+    LOCAL_SANDBOX_RESULT_VAR_NAME = "result_ZQqiequkcFwRwwGQMqkt"
 
     def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False):
         self.tool_name = tool_name
