@@ -561,7 +561,7 @@ def test_update_block_limit(server: SyncServer, default_user):
     except Exception:
         pass
 
-    block_manager.update_block(block_id=block.id, block_update=update_data, actor=default_user, limit=limit)
+    block_manager.update_block(block_id=block.id, block_update=update_data, actor=default_user)
     # Retrieve the updated block
     updated_block = block_manager.get_blocks(actor=default_user, id=block.id)[0]
     # Assertions to verify the update

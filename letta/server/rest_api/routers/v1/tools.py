@@ -18,7 +18,7 @@ def delete_tool(
     Delete a tool by name
     """
     # actor = server.get_user_or_default(user_id=user_id)
-    server.tool_manager.delete_tool(tool_id=tool_id)
+    (server.tool_manager.delete_tool(tool_id=tool_id))
 
 
 @router.get("/{tool_id}", response_model=Tool, operation_id="get_tool")
