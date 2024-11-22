@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Dict, Optional, Type, Union, get_args, get_origin
+from typing import Any, Dict, List, Optional, Type, Union, get_args, get_origin
 
 from docstring_parser import parse
 from pydantic import BaseModel
@@ -38,15 +38,29 @@ def type_to_json_schema_type(py_type):
 
     # Mapping of Python types to JSON schema types
     type_map = {
+        # Basic types
         int: "integer",
         str: "string",
         bool: "boolean",
         float: "number",
-        list[str]: "array",
-        # Add more mappings as needed
+        # Collections
+        List[str]: "array",
+        List[int]: "array",
+        list: "array",
+        tuple: "array",
+        set: "array",
+        # Dictionaries
+        dict: "object",
+        Dict[str, Any]: "object",
+        # Special types
+        None: "null",
+        type(None): "null",
+        # Optional types
+        # Optional[str]: "string",  # NOTE: caught above ^
+        Union[str, None]: "string",
     }
     if py_type not in type_map:
-        raise ValueError(f"Python type {py_type} has no corresponding JSON schema type")
+        raise ValueError(f"Python type {py_type} has no corresponding JSON schema type - full map: {type_map}")
 
     return type_map.get(py_type, "string")  # Default to "string" if type not in map
 
