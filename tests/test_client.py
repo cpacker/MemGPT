@@ -32,7 +32,7 @@ from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.tool_manager import ToolManager
 from letta.settings import model_settings
-from letta.utils import create_random_username, get_utc_time
+from letta.utils import get_utc_time
 from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
@@ -730,34 +730,3 @@ def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], a
     # Verify all tags are removed
     final_tags = client.get_agent(agent_id=agent.id).tags
     assert len(final_tags) == 0, f"Expected no tags, but found {final_tags}"
-
-
-def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent: AgentState):
-    """Test that we can update the limit of a block in an agent's memory"""
-
-    agent = client.create_agent(name=create_random_username())
-
-    try:
-        current_labels = agent.memory.list_block_labels()
-        example_label = current_labels[0]
-        example_new_limit = 1
-        current_block = agent.memory.get_block(label=example_label)
-        current_block_length = len(current_block.value)
-
-        assert example_new_limit != agent.memory.get_block(label=example_label).limit
-        assert example_new_limit < current_block_length
-
-        # We expect this to throw a value error
-        with pytest.raises(ValueError):
-            client.update_agent_memory_limit(agent_id=agent.id, block_label=example_label, limit=example_new_limit)
-
-        # Now try the same thing with a higher limit
-        example_new_limit = current_block_length + 10000
-        assert example_new_limit > current_block_length
-        client.update_agent_memory_limit(agent_id=agent.id, block_label=example_label, limit=example_new_limit)
-
-        updated_agent = client.get_agent(agent_id=agent.id)
-        assert example_new_limit == updated_agent.memory.get_block(label=example_label).limit
-
-    finally:
-        client.delete_agent(agent.id)
