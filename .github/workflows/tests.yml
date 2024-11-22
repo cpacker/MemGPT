@@ -61,6 +61,15 @@ jobs:
         run: |
           psql -h localhost -U postgres -d postgres -c 'CREATE EXTENSION vector'
           poetry run alembic upgrade head
+      - name: Enforce Poetry Python Environment
+        run: |
+          poetry config virtualenvs.in-project true
+          poetry env use python3.12  # Explicitly set Python version
+          echo "source $(poetry env info --path)/bin/activate" >> $GITHUB_ENV
+      - name: Debug Python Environment
+        run: |
+          poetry env info
+          poetry run which python
       - name: Run core unit tests
         env:
           LETTA_PG_PORT: 5432
