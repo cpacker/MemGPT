@@ -10,6 +10,10 @@ from letta.local_llm.constants import DEFAULT_WRAPPER_NAME
 class ToolSettings(BaseSettings):
     composio_api_key: Optional[str] = None
 
+    # Sandbox configurations
+    e2b_api_key: Optional[str] = None
+    e2b_sandbox_template_id: Optional[str] = "ngtrcfmr9wyzs9yjd8l2"  # Updated manually
+
 
 class ModelSettings(BaseSettings):
 

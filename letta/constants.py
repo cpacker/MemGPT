@@ -36,14 +36,8 @@ DEFAULT_PERSONA = "sam_pov"
 DEFAULT_HUMAN = "basic"
 DEFAULT_PRESET = "memgpt_chat"
 
-# Tools
-BASE_TOOLS = [
-    "send_message",
-    "conversation_search",
-    "conversation_search_date",
-    "archival_memory_insert",
-    "archival_memory_search",
-]
+# Base tools that cannot be edited, as they access agent state directly
+BASE_TOOLS = ["send_message", "conversation_search", "conversation_search_date", "archival_memory_insert", "archival_memory_search"]
 
 # The name of the tool used to send message to the user
 # May not be relevant in cases where the agent has multiple ways to message to user (send_imessage, send_discord_mesasge, ...)

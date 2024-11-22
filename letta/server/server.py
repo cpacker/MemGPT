@@ -78,6 +78,7 @@ from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
+from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -247,6 +248,7 @@ class SyncServer(Server):
         self.block_manager = BlockManager()
         self.source_manager = SourceManager()
         self.agents_tags_manager = AgentsTagsManager()
+        self.sandbox_config_manager = SandboxConfigManager(tool_settings)
 
         # Make default user and org
         if init_with_default_org_and_user:
@@ -381,10 +383,11 @@ class SyncServer(Server):
             tool_objs = []
             for name in agent_state.tools:
                 # TODO: This should be a hard failure, but for migration reasons, we patch it for now
-                try:
+                tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
+                if tool_obj:
                     tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
                     tool_objs.append(tool_obj)
-                except NoResultFound:
+                else:
                     warnings.warn(f"Tried to retrieve a tool with name {name} from the agent_state, but does not exist in tool db.")
 
             # set agent_state tools to only the names of the available tools
@@ -837,10 +840,10 @@ class SyncServer(Server):
             tool_objs = []
             if request.tools:
                 for tool_name in request.tools:
-                    try:
-                        tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+                    tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+                    if tool_obj:
                         tool_objs.append(tool_obj)
-                    except NoResultFound:
+                    else:
                         warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
             # reset the request.tools to only valid tools
             request.tools = [t.name for t in tool_objs]
