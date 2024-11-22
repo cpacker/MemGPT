@@ -28,8 +28,10 @@ class BlockManager:
             self.update_block(block.id, update_data, actor)
         else:
             with self.session_maker() as session:
+                # Always write the organization_id
+                block.organization_id = actor.organization_id
                 data = block.model_dump(exclude_none=True)
-                block = BlockModel(**data, organization_id=actor.organization_id)
+                block = BlockModel(**data)
                 block.create(session, actor=actor)
             return block.to_pydantic()
 
