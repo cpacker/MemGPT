@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "letta"
-version = "0.5.4"
+version = "0.5.5"
 packages = [
     {include = "letta"}
 ]
@@ -85,7 +85,6 @@ server = ["websockets", "fastapi", "uvicorn"]
 autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
-#external-tools = ["crewai", "docker", "crewai-tools", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
 external-tools = ["docker", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
 tests = ["wikipedia"]
 all = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2", "pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "websockets", "fastapi", "uvicorn", "llama-index-embeddings-ollama", "docker", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain", "locust"]
