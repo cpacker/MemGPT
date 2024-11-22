@@ -163,3 +163,29 @@ def test_ripple_edit():
     assert offline_memory_agent.memory.get_block("rethink_memory_block").value != "[empty]"
     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
     assert conversation_agent.memory.get_block("rethink_memory_block").value != "[empty]"
+
+
+def test_chat_only_agent():
+    conversation_human_block = Block(name="chat_agent_human", label="chat_agent_human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
+    conversation_persona_block = Block(
+        name="chat_agent_persona", label="chat_agent_persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000
+    )
+    conversation_memory = BasicBlockMemory(blocks=[conversation_persona_block, conversation_human_block])
+
+    client = create_client()
+    chat_only_agent = client.create_agent(
+        name="conversation_agent",
+        agent_type=AgentType.chat_only_agent,
+        llm_config=LLMConfig.default_config("gpt-4"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        tools=["send_message"],
+        memory=conversation_memory,
+        include_base_tools=False,
+        include_memory_tools=False,
+    )
+    assert chat_only_agent is not None
+    assert chat_only_agent.memory.list_block_labels() == ["chat_agent_persona", "chat_agent_human"]
+
+    for message in ["hello", "my name is not chad, my name is swoodily"]:
+        client.send_message(agent_id=chat_only_agent.id, message=message, role="user")
+        chat_only_agent = client.get_agent(agent_id=chat_only_agent.id)

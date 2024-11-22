@@ -60,7 +60,7 @@ def rethink_memory(self, new_memory: str, target_block_label: Optional[str], sou
     Ensure consistency with other memory blocks.
 
     Args:
-        new_memory (str): The new memory with information integrated from the memory block.
+        new_memory (str): The new memory with information integrated from the memory block. If there is no new information, then this should be the same as the content in the source block.
         source_block_label (str): The name of the block to integrate information from. None if all the information has been integrated to terminate the loop.
         target_block_label (str): The name of the block to write to.
     Returns:

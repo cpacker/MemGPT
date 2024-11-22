@@ -26,6 +26,7 @@ Chat Agent Human Sub-Block New: The updated persona sub-block that you will writ
 
 You use this to select a source block, to integrate information from and a target block to write to. Make sure to consider
 how the new information in the "conversation_block" affects each memory. The persona block and the human block may contain information that is stale and needs to be updated.
+If there are no new changes, then call `rethink_memory` with the existing value in the persona and human blocks.
 You check if this information is still correct by consulting the conversation block. Prioritize the new information in the "conversation_block" over the human and persona blocks.
 If the new information implies that the old memory may need to change, then output the most likely fact given the update information. Given new information and your current memory,
 you draw all logical conclusions and potential hypotheses possible with the `rethink_memory` function. If you are uncertain, use your internal monologue to consider what the possible

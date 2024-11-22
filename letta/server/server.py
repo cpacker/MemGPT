@@ -14,6 +14,7 @@ import letta.system as system
 from letta.agent import Agent, save_agent
 from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
+from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -391,6 +392,8 @@ class SyncServer(Server):
                 letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs, user=actor)
             elif agent_state.agent_type == AgentType.offline_memory_agent:
                 letta_agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, tools=tool_objs, user=actor)
+            elif agent_state.agent_type == AgentType.chat_only_agent:
+                letta_agent = ChatOnlyAgent(agent_state=agent_state, interface=interface, tools=tool_objs, user=actor)
             else:
                 raise NotImplementedError("Not a supported agent type")
 
@@ -802,6 +805,8 @@ class SyncServer(Server):
                 request.system = gpt_system.get_system_text("memgpt_modified_o1")
             elif request.agent_type == AgentType.offline_memory_agent:
                 request.system = gpt_system.get_system_text("memgpt_offline_memory")
+            elif request.agent_type == AgentType.chat_only_agent:
+                request.system = gpt_system.get_system_text("memgpt_convo_only")
             else:
                 raise ValueError(f"Invalid agent type: {request.agent_type}")
 
@@ -894,6 +899,17 @@ class SyncServer(Server):
                 )
             elif request.agent_type == AgentType.offline_memory_agent:
                 agent = OfflineMemoryAgent(
+                    interface=interface,
+                    agent_state=agent_state,
+                    tools=tool_objs,
+                    # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
+                    first_message_verify_mono=(
+                        True if (llm_config and llm_config.model is not None and "gpt-4" in llm_config.model) else False
+                    ),
+                    user=actor,
+                )
+            elif request.agent_type == AgentType.chat_only_agent:
+                agent = ChatOnlyAgent(
                     interface=interface,
                     agent_state=agent_state,
                     tools=tool_objs,
