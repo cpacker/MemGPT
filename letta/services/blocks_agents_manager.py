@@ -28,7 +28,8 @@ class BlocksAgentsManager:
                 blocks_agents_record = BlocksAgentsModel.read(db_session=session, agent_id=agent_id, block_label=block_label)
                 warnings.warn(f"Block label '{block_label}' already exists for agent '{agent_id}'.")
             except NoResultFound:
-                blocks_agents_record = BlocksAgentsModel(agent_id=agent_id, block_id=block_id, block_label=block_label)
+                blocks_agents_record = PydanticBlocksAgents(agent_id=agent_id, block_id=block_id, block_label=block_label)
+                blocks_agents_record = BlocksAgentsModel(**blocks_agents_record.model_dump(exclude_none=True))
                 blocks_agents_record.create(session)
 
             return blocks_agents_record.to_pydantic()

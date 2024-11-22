@@ -1,10 +1,13 @@
 import pytest
 from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
+from letta.metadata import AgentModel
 from letta.orm import (
     Block,
+    BlocksAgents,
     FileMetadata,
     Organization,
     SandboxConfig,
@@ -13,6 +16,7 @@ from letta.orm import (
     Tool,
     User,
 )
+from letta.orm.agents_tags import AgentsTags
 from letta.schemas.agent import CreateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate
@@ -60,12 +64,15 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(BlocksAgents))
+        session.execute(delete(AgentsTags))
         session.execute(delete(SandboxEnvironmentVariable))
         session.execute(delete(SandboxConfig))
         session.execute(delete(Block))
         session.execute(delete(FileMetadata))
         session.execute(delete(Source))
         session.execute(delete(Tool))  # Clear all records from the Tool table
+        session.execute(delete(AgentModel))
         session.execute(delete(User))  # Clear all records from the user table
         session.execute(delete(Organization))  # Clear all records from the organization table
         session.commit()  # Commit the deletion
@@ -121,8 +128,6 @@ def sarah_agent(server: SyncServer, default_user, default_organization):
     )
     yield agent_state
 
-    server.delete_agent(user_id=default_user.id, agent_id=agent_state.id)
-
 
 @pytest.fixture
 def charles_agent(server: SyncServer, default_user, default_organization):
@@ -140,8 +145,6 @@ def charles_agent(server: SyncServer, default_user, default_organization):
         actor=default_user,
     )
     yield agent_state
-
-    server.delete_agent(user_id=default_user.id, agent_id=agent_state.id)
 
 
 @pytest.fixture
@@ -198,6 +201,36 @@ def sandbox_env_var_fixture(server: SyncServer, sandbox_config_fixture, default_
         env_var_create, sandbox_config_id=sandbox_config_fixture.id, actor=default_user
     )
     yield created_env_var
+
+
+@pytest.fixture
+def default_block(server: SyncServer, default_user):
+    """Fixture to create and return a default block."""
+    block_manager = BlockManager()
+    block_data = PydanticBlock(
+        label="default_label",
+        value="Default Block Content",
+        description="A default test block",
+        limit=1000,
+        metadata_={"type": "test"},
+    )
+    block = block_manager.create_or_update_block(block_data, actor=default_user)
+    yield block
+
+
+@pytest.fixture
+def other_block(server: SyncServer, default_user):
+    """Fixture to create and return another block."""
+    block_manager = BlockManager()
+    block_data = PydanticBlock(
+        label="other_label",
+        value="Other Block Content",
+        description="Another test block",
+        limit=500,
+        metadata_={"type": "test"},
+    )
+    block = block_manager.create_or_update_block(block_data, actor=default_user)
+    yield block
 
 
 @pytest.fixture(scope="module")
@@ -1018,3 +1051,85 @@ def test_get_sandbox_env_var_by_key(server: SyncServer, sandbox_env_var_fixture,
     # Assertions to verify correct retrieval
     assert retrieved_env_var.id == sandbox_env_var_fixture.id
     assert retrieved_env_var.key == sandbox_env_var_fixture.key
+
+
+# ======================================================================================================================
+# BlocksAgentsManager Tests
+# ======================================================================================================================
+def test_add_block_to_agent(server, sarah_agent, default_user, default_block):
+    block_association = server.blocks_agents_manager.add_block_to_agent(
+        agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label
+    )
+
+    assert block_association.agent_id == sarah_agent.id
+    assert block_association.block_id == default_block.id
+    assert block_association.block_label == default_block.label
+
+
+def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
+    with pytest.raises(IntegrityError, match="violates foreign key constraint .*fk_block_id_label"):
+        server.blocks_agents_manager.add_block_to_agent(
+            agent_id=sarah_agent.id, block_id="nonexistent_block", block_label="nonexistent_label"
+        )
+
+
+def test_add_block_to_agent_duplicate_label(server, sarah_agent, default_user, default_block, other_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+    with pytest.warns(UserWarning, match=f"Block label '{default_block.label}' already exists for agent '{sarah_agent.id}'"):
+        server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=default_block.label)
+
+
+def test_remove_block_with_label_from_agent(server, sarah_agent, default_user, default_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+    removed_block = server.blocks_agents_manager.remove_block_with_label_from_agent(
+        agent_id=sarah_agent.id, block_label=default_block.label
+    )
+
+    assert removed_block.block_label == default_block.label
+    assert removed_block.block_id == default_block.id
+    assert removed_block.agent_id == sarah_agent.id
+
+    with pytest.raises(ValueError, match=f"Block label '{default_block.label}' not found for agent '{sarah_agent.id}'"):
+        server.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=sarah_agent.id, block_label=default_block.label)
+
+
+def test_update_block_id_for_agent(server, sarah_agent, default_user, default_block, other_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+    updated_block = server.blocks_agents_manager.update_block_id_for_agent(
+        agent_id=sarah_agent.id, block_label=default_block.label, new_block_id=other_block.id
+    )
+
+    assert updated_block.block_id == other_block.id
+    assert updated_block.block_label == default_block.label
+    assert updated_block.agent_id == sarah_agent.id
+
+
+def test_list_block_ids_for_agent(server, sarah_agent, default_user, default_block, other_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=other_block.label)
+
+    retrieved_block_ids = server.blocks_agents_manager.list_block_ids_for_agent(agent_id=sarah_agent.id)
+
+    assert set(retrieved_block_ids) == {default_block.id, other_block.id}
+
+
+def test_list_agent_ids_with_block(server, sarah_agent, charles_agent, default_user, default_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+    server.blocks_agents_manager.add_block_to_agent(agent_id=charles_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+    agent_ids = server.blocks_agents_manager.list_agent_ids_with_block(block_id=default_block.id)
+
+    assert sarah_agent.id in agent_ids
+    assert charles_agent.id in agent_ids
+    assert len(agent_ids) == 2
+
+
+def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user, default_block):
+    block_manager = BlockManager()
+    block_manager.delete_block(block_id=default_block.id, actor=default_user)
+
+    with pytest.raises(IntegrityError, match='insert or update on table "blocks_agents" violates foreign key constraint'):
+        server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
