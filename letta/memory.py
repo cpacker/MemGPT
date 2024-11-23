@@ -6,7 +6,7 @@ from letta.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING
 from letta.embeddings import embedding_model, parse_and_chunk_text, query_embedding
 from letta.llm_api.llm_api_tools import create
 from letta.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
-from letta.schemas.agent import AgentState
+from letta.schemas.agent import PersistedAgentState
 from letta.schemas.enums import MessageRole
 from letta.schemas.memory import Memory
 from letta.schemas.message import Message
@@ -49,7 +49,7 @@ def _format_summary_history(message_history: List[Message]):
 
 
 def summarize_messages(
-    agent_state: AgentState,
+    agent_state: PersistedAgentState,
     message_sequence_to_summarize: List[Message],
 ):
     """Summarize a message sequence using GPT"""
@@ -331,7 +331,7 @@ class BaseRecallMemory(RecallMemory):
 class EmbeddingArchivalMemory(ArchivalMemory):
     """Archival memory with embedding based search"""
 
-    def __init__(self, agent_state: AgentState, top_k: int = 100):
+    def __init__(self, agent_state: PersistedAgentState, top_k: int = 100):
         """Init function for archival memory
 
         :param archival_memory_database: name of dataset to pre-fill archival with

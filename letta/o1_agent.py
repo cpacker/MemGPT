@@ -3,7 +3,7 @@ from typing import List, Optional, Union
 from letta.agent import Agent, save_agent
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
-from letta.schemas.agent import AgentState
+from letta.schemas.agent import PersistedAgentState
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.tool import Tool
@@ -43,7 +43,7 @@ class O1Agent(Agent):
     def __init__(
         self,
         interface: AgentInterface,
-        agent_state: AgentState,
+        agent_state: PersistedAgentState,
         user: User,
         tools: List[Tool] = [],
         max_thinking_steps: int = 10,

@@ -10,7 +10,7 @@ import uuid
 from typing import Any, Optional
 
 from letta.log import get_logger
-from letta.schemas.agent import AgentState
+from letta.schemas.agent import PersistedAgentState
 from letta.schemas.sandbox_config import SandboxConfig, SandboxRunResult, SandboxType
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_manager import ToolManager
@@ -50,7 +50,7 @@ class ToolExecutionSandbox:
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.force_recreate = force_recreate
 
-    def run(self, agent_state: Optional[AgentState] = None) -> Optional[SandboxRunResult]:
+    def run(self, agent_state: Optional[PersistedAgentState] = None) -> Optional[SandboxRunResult]:
         """
         Run the tool in a sandbox environment.
 
@@ -229,7 +229,7 @@ class ToolExecutionSandbox:
                     args.append(arg.arg)
         return args
 
-    def generate_execution_script(self, agent_state: AgentState, wrap_print_with_markers: bool = False) -> str:
+    def generate_execution_script(self, agent_state: PersistedAgentState, wrap_print_with_markers: bool = False) -> str:
         """
         Generate code to run inside of execution sandbox.
         Passes into a serialized agent state into the code, to be accessed by the tool.

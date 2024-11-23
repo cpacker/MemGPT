@@ -2,9 +2,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
-from letta.schemas.block import Block, CreateBlock
+from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.llm_config import LLMConfig
@@ -35,25 +35,8 @@ class AgentType(str, Enum):
     o1_agent = "o1_agent"
 
 
-class AgentState(BaseAgent, validate_assignment=True):
-    """
-    Representation of an agent's state. This is the state of the agent at a given time, and is persisted in the DB backend. The state has all the information needed to recreate a persisted agent.
-
-    Parameters:
-        id (str): The unique identifier of the agent.
-        name (str): The name of the agent (must be unique to the user).
-        created_at (datetime): The datetime the agent was created.
-        message_ids (List[str]): The ids of the messages in the agent's in-context memory.
-        memory (Memory): The in-context memory of the agent.
-        tools (List[str]): The tools used by the agent. This includes any memory editing functions specified in `memory`.
-        system (str): The system prompt used by the agent.
-        llm_config (LLMConfig): The LLM configuration used by the agent.
-        embedding_config (EmbeddingConfig): The embedding configuration used by the agent.
-
-    """
-
-    # TODO: Potentially rename to AgentStateInternal (?) or AgentStateORM
-
+class PersistedAgentState(BaseAgent, validate_assignment=True):
+    # NOTE: this has been changed to represent the data stored in the ORM, NOT what is passed around internally or returned to the user
     id: str = BaseAgent.generate_id_field()
     name: str = Field(..., description="The name of the agent.")
     created_at: datetime = Field(..., description="The datetime the agent was created.", default_factory=datetime.now)
@@ -70,13 +53,14 @@ class AgentState(BaseAgent, validate_assignment=True):
     )  # TODO: mapping table?
 
     # tools
-    tools: List[str] = Field(..., description="The tools used by the agent.")
+    # TODO: move to ORM mapping
+    tool_names: List[str] = Field(..., description="The tools used by the agent.")
 
     # tool rules
     tool_rules: Optional[List[BaseToolRule]] = Field(default=None, description="The list of tool rules.")
 
     # tags
-    tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
+    # tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
 
     # system prompt
     system: str = Field(..., description="The system prompt used by the agent.")
@@ -88,52 +72,55 @@ class AgentState(BaseAgent, validate_assignment=True):
     llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
     embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
 
-    def __init__(self, **data):
-        super().__init__(**data)
-        self._internal_memory = self.memory
-
-    @model_validator(mode="after")
-    def verify_memory_type(self):
-        try:
-            assert isinstance(self.memory, Memory)
-        except Exception as e:
-            raise e
-        return self
-
-    @property
-    def memory(self) -> Memory:
-        return self._internal_memory
-
-    @memory.setter
-    def memory(self, value):
-        if not isinstance(value, Memory):
-            raise TypeError(f"Expected Memory, got {type(value).__name__}")
-        self._internal_memory = value
-
     class Config:
         arbitrary_types_allowed = True
         validate_assignment = True
 
 
-class InMemoryAgentState(AgentState):
+class AgentState(PersistedAgentState):
+    """
+    Representation of an agent's state. This is the state of the agent at a given time, and is persisted in the DB backend. The state has all the information needed to recreate a persisted agent.
+
+    Parameters:
+        id (str): The unique identifier of the agent.
+        name (str): The name of the agent (must be unique to the user).
+        created_at (datetime): The datetime the agent was created.
+        message_ids (List[str]): The ids of the messages in the agent's in-context memory.
+        memory (Memory): The in-context memory of the agent.
+        tools (List[str]): The tools used by the agent. This includes any memory editing functions specified in `memory`.
+        system (str): The system prompt used by the agent.
+        llm_config (LLMConfig): The LLM configuration used by the agent.
+        embedding_config (EmbeddingConfig): The embedding configuration used by the agent.
+
+    """
+
+    # NOTE: this is what is returned to the client and also what is used to initialize `Agent`
+
     # This is an object representing the in-process state of a running `Agent`
     # Field in this object can be theoretically edited by tools, and will be persisted by the ORM
     memory: Memory = Field(..., description="The in-context memory of the agent.")
     tools: List[Tool] = Field(..., description="The tools used by the agent.")
-    llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
-    embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
-    system: str = Field(..., description="The system prompt used by the agent.")
-    agent_type: AgentType = Field(..., description="The type of agent.")
-    tool_rules: List[BaseToolRule] = Field(..., description="The tool rules governing the agent.")
+    sources: List[Source] = Field(..., description="The sources used by the agent.")
+    tags: List[str] = Field(..., description="The tags associated with the agent.")
+    # TODO: add in context message objects
+
+    def to_persisted_agent_state(self) -> PersistedAgentState:
+        # turn back into persisted agent
+        data = self.model_dump()
+        del data["memory"]
+        del data["tools"]
+        del data["sources"]
+        del data["tags"]
+        return PersistedAgentState(**data)
 
 
-class AgentStateResponse(AgentState):
-    # additional data we pass back when getting agent state
-    # this is also returned if you call .get_agent(agent_id)
-    # NOTE: this is what actually gets passed around internall
-    sources: List[Source]
-    memory_blocks: List[Block]
-    tools: List[Tool]
+# class AgentStateResponse(PersistedAgentState):
+#    # additional data we pass back when getting agent state
+#    # this is also returned if you call .get_agent(agent_id)
+#    # NOTE: this is what actually gets passed around internall
+#    sources: List[Source]
+#    memory_blocks: List[Block]
+#    tools: List[Tool]
 
 
 class CreateAgent(BaseAgent):  #
@@ -192,7 +179,7 @@ class CreateAgent(BaseAgent):  #
 class UpdateAgentState(BaseAgent):
     id: str = Field(..., description="The id of the agent.")
     name: Optional[str] = Field(None, description="The name of the agent.")
-    tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
+    tool_names: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")

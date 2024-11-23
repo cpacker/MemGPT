@@ -12,7 +12,7 @@ from letta import create_client
 from letta.functions.functions import parse_source_code
 from letta.functions.schema_generator import generate_schema
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
-from letta.schemas.agent import AgentState
+from letta.schemas.agent import PersistedAgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
@@ -184,7 +184,7 @@ def composio_github_star_tool(test_user):
 
 @pytest.fixture
 def clear_core_memory(test_user):
-    def clear_memory(agent_state: AgentState):
+    def clear_memory(agent_state: PersistedAgentState):
         """Clear the core memory"""
         agent_state.memory.get_block("human").value = ""
         agent_state.memory.get_block("persona").value = ""

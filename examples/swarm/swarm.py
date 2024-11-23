@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import typer
 
-from letta import AgentState, EmbeddingConfig, LLMConfig, create_client
+from letta import EmbeddingConfig, LLMConfig, PersistedAgentState, create_client
 from letta.schemas.agent import AgentType
 from letta.schemas.memory import BasicBlockMemory, Block
 
@@ -32,7 +32,7 @@ class Swarm:
         include_base_tools: Optional[bool] = True,
         # instructions
         instructions: str = "",
-    ) -> AgentState:
+    ) -> PersistedAgentState:
 
         # todo: process tools for agent handoff
         persona_value = (

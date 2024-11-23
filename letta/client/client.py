@@ -9,8 +9,21 @@ from letta.constants import ADMIN_PREFIX, BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PER
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
-from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
-from letta.schemas.block import Block, BlockUpdate, Human, Persona
+from letta.schemas.agent import (
+    AgentType,
+    CreateAgent,
+    PersistedAgentState,
+    UpdateAgentState,
+)
+from letta.schemas.block import (
+    Block,
+    BlockUpdate,
+    CreateBlock,
+    CreateHuman,
+    CreatePersona,
+    Human,
+    Persona,
+)
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
@@ -22,7 +35,6 @@ from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import (
     ArchivalMemorySummary,
-    ChatMemory,
     CreateArchivalMemory,
     Memory,
     RecallMemorySummary,
@@ -74,7 +86,8 @@ class AbstractClient(object):
         agent_type: Optional[AgentType] = AgentType.memgpt_agent,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
-        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        # memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        memory=None,
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
@@ -82,7 +95,7 @@ class AbstractClient(object):
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
-    ) -> AgentState:
+    ) -> PersistedAgentState:
         raise NotImplementedError
 
     def update_agent(
@@ -116,10 +129,10 @@ class AbstractClient(object):
     def delete_agent(self, agent_id: str):
         raise NotImplementedError
 
-    def get_agent(self, agent_id: str) -> AgentState:
+    def get_agent(self, agent_id: str) -> PersistedAgentState:
         raise NotImplementedError
 
-    def get_agent_id(self, agent_name: str) -> AgentState:
+    def get_agent_id(self, agent_name: str) -> PersistedAgentState:
         raise NotImplementedError
 
     def get_in_context_memory(self, agent_id: str) -> Memory:
@@ -439,13 +452,13 @@ class RESTClient(AbstractClient):
         self._default_llm_config = default_llm_config
         self._default_embedding_config = default_embedding_config
 
-    def list_agents(self, tags: Optional[List[str]] = None) -> List[AgentState]:
+    def list_agents(self, tags: Optional[List[str]] = None) -> List[PersistedAgentState]:
         params = {}
         if tags:
             params["tags"] = tags
 
         response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers, params=params)
-        return [AgentState(**agent) for agent in response.json()]
+        return [PersistedAgentState(**agent) for agent in response.json()]
 
     def agent_exists(self, agent_id: str) -> bool:
         """
@@ -477,7 +490,8 @@ class RESTClient(AbstractClient):
         embedding_config: EmbeddingConfig = None,
         llm_config: LLMConfig = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        # memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        memory=None,
         # system
         system: Optional[str] = None,
         # tools
@@ -489,7 +503,7 @@ class RESTClient(AbstractClient):
         description: Optional[str] = None,
         initial_message_sequence: Optional[List[Message]] = None,
         tags: Optional[List[str]] = None,
-    ) -> AgentState:
+    ) -> PersistedAgentState:
         """Create an agent
 
         Args:
@@ -558,7 +572,7 @@ class RESTClient(AbstractClient):
 
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
-        return AgentState(**response.json())
+        return PersistedAgentState(**response.json())
 
     def update_message(
         self,
@@ -634,7 +648,7 @@ class RESTClient(AbstractClient):
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
-        return AgentState(**response.json())
+        return PersistedAgentState(**response.json())
 
     def get_tools_from_agent(self, agent_id: str) -> List[Tool]:
         """
@@ -665,7 +679,7 @@ class RESTClient(AbstractClient):
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/add-tool/{tool_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
-        return AgentState(**response.json())
+        return PersistedAgentState(**response.json())
 
     def remove_tool_from_agent(self, agent_id: str, tool_id: str):
         """
@@ -682,7 +696,7 @@ class RESTClient(AbstractClient):
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/remove-tool/{tool_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
-        return AgentState(**response.json())
+        return PersistedAgentState(**response.json())
 
     def rename_agent(self, agent_id: str, new_name: str):
         """
@@ -705,7 +719,7 @@ class RESTClient(AbstractClient):
         response = requests.delete(f"{self.base_url}/{self.api_prefix}/agents/{str(agent_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
-    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
+    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> PersistedAgentState:
         """
         Get an agent's state by it's ID.
 
@@ -717,9 +731,9 @@ class RESTClient(AbstractClient):
         """
         response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
-        return AgentState(**response.json())
+        return PersistedAgentState(**response.json())
 
-    def get_agent_id(self, agent_name: str) -> AgentState:
+    def get_agent_id(self, agent_name: str) -> PersistedAgentState:
         """
         Get the ID of an agent by name (names are unique per user)
 
@@ -731,7 +745,7 @@ class RESTClient(AbstractClient):
         """
         # TODO: implement this
         response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers, params={"name": agent_name})
-        agents = [AgentState(**agent) for agent in response.json()]
+        agents = [PersistedAgentState(**agent) for agent in response.json()]
         if len(agents) == 0:
             return None
         assert len(agents) == 1, f"Multiple agents with the same name: {agents}"
@@ -993,7 +1007,7 @@ class RESTClient(AbstractClient):
             return [Block(**block) for block in response.json()]
 
     def create_block(self, label: str, value: str, template_name: Optional[str] = None, is_template: bool = False) -> Block:  #
-        request = BlockCreate(label=label, value=value, template=is_template, template_name=template_name)
+        request = CreateBlock(label=label, value=value, template=is_template, template_name=template_name)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
@@ -1793,7 +1807,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to update agent memory label: {response.text}")
         return Memory(**response.json())
 
-    def add_agent_memory_block(self, agent_id: str, create_block: BlockCreate) -> Memory:
+    def add_agent_memory_block(self, agent_id: str, create_block: CreateBlock) -> Memory:
 
         # @router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
         response = requests.post(
@@ -1888,7 +1902,7 @@ class LocalClient(AbstractClient):
         self.organization = self.server.get_organization_or_default(self.org_id)
 
     # agents
-    def list_agents(self, tags: Optional[List[str]] = None) -> List[AgentState]:
+    def list_agents(self, tags: Optional[List[str]] = None) -> List[PersistedAgentState]:
         self.interface.clear()
 
         return self.server.list_agents(user_id=self.user_id, tags=tags)
@@ -1924,8 +1938,11 @@ class LocalClient(AbstractClient):
         embedding_config: EmbeddingConfig = None,
         llm_config: LLMConfig = None,
         # memory
-        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
-        # memory_blocks = [CreateHuman(value=get_human_text(DEFAULT_HUMAN), limit=5000), CreatePersona(value=get_persona_text(DEFAULT_PERSONA), limit=5000)],
+        # memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        memory_blocks=[
+            CreateHuman(value=get_human_text(DEFAULT_HUMAN), limit=5000),
+            CreatePersona(value=get_persona_text(DEFAULT_PERSONA), limit=5000),
+        ],
         # memory_tools = BASE_MEMORY_TOOLS,
         # system
         system: Optional[str] = None,
@@ -1938,7 +1955,7 @@ class LocalClient(AbstractClient):
         description: Optional[str] = None,
         initial_message_sequence: Optional[List[Message]] = None,
         tags: Optional[List[str]] = None,
-    ) -> AgentState:
+    ) -> PersistedAgentState:
         """Create an agent
 
         Args:
@@ -1987,8 +2004,8 @@ class LocalClient(AbstractClient):
                 name=name,
                 description=description,
                 metadata_=metadata,
-                memory=memory,
-                # memory_blocks=memory_blocks,
+                # memory=memory,
+                memory_blocks=memory_blocks,
                 # memory_tools=memory_tools,
                 tools=tool_names,
                 tool_rules=tool_rules,
@@ -2005,8 +2022,8 @@ class LocalClient(AbstractClient):
         # Link additional blocks to the agent (block ids created on the client)
         # This needs to happen since the create agent does not allow passing in blocks which have already been persisted and have an ID
         # So we create the agent and then link the blocks afterwards
-        for block in memory.get_blocks():
-            self.add_agent_memory_block(agent_state.id, block)
+        # for block in memory.get_blocks():
+        #    self.add_agent_memory_block(agent_state.id, block)
 
         # TODO: get full agent state
 
@@ -2047,7 +2064,6 @@ class LocalClient(AbstractClient):
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         message_ids: Optional[List[str]] = None,
-        memory: Optional[Memory] = None,
     ):
         """
         Update an existing agent
@@ -2068,20 +2084,20 @@ class LocalClient(AbstractClient):
         Returns:
             agent_state (AgentState): State of the updated agent
         """
+        # TODO: add the abilitty to reset linked block_ids
         self.interface.clear()
         agent_state = self.server.update_agent(
             UpdateAgentState(
                 id=agent_id,
                 name=name,
                 system=system,
-                tools=tools,
+                tool_names=tools,
                 tags=tags,
                 description=description,
                 metadata_=metadata,
                 llm_config=llm_config,
                 embedding_config=embedding_config,
                 message_ids=message_ids,
-                memory=memory,
             ),
             actor=self.user,
         )
@@ -2149,7 +2165,7 @@ class LocalClient(AbstractClient):
         """
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_by_name(self, agent_name: str) -> AgentState:
+    def get_agent_by_name(self, agent_name: str) -> PersistedAgentState:
         """
         Get an agent by its name
 
@@ -2162,7 +2178,7 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.get_agent_state(agent_name=agent_name, user_id=self.user_id, agent_id=None)
 
-    def get_agent(self, agent_id: str) -> AgentState:
+    def get_agent(self, agent_id: str) -> PersistedAgentState:
         """
         Get an agent's state by its ID.
 
@@ -3122,7 +3138,7 @@ class LocalClient(AbstractClient):
             user_id=self.user_id, agent_id=agent_id, current_block_label=current_label, new_block_label=new_label
         )
 
-    def add_agent_memory_block(self, agent_id: str, create_block: BlockCreate) -> Memory:
+    def add_agent_memory_block(self, agent_id: str, create_block: CreateBlock) -> Memory:
         block_req = Block(**create_block.model_dump())
         block = self.server.block_manager.create_or_update_block(actor=self.user, block=block_req)
         # Link the block to the agent

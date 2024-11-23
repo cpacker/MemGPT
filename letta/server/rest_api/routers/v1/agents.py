@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, stat
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.agent import CreateAgent, PersistedAgentState, UpdateAgentState
 from letta.schemas.block import Block, BlockCreate, BlockLabelUpdate, BlockLimitUpdate
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
@@ -38,7 +38,7 @@ from letta.utils import deduplicate
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-@router.get("/", response_model=List[AgentState], operation_id="list_agents")
+@router.get("/", response_model=List[PersistedAgentState], operation_id="list_agents")
 def list_agents(
     name: Optional[str] = Query(None, description="Name of the agent"),
     tags: Optional[List[str]] = Query(None, description="List of tags to filter agents by"),
@@ -72,7 +72,7 @@ def get_agent_context_window(
     return server.get_agent_context_window(user_id=actor.id, agent_id=agent_id)
 
 
-@router.post("/", response_model=AgentState, operation_id="create_agent")
+@router.post("/", response_model=PersistedAgentState, operation_id="create_agent")
 def create_agent(
     agent: CreateAgent = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
@@ -92,7 +92,7 @@ def create_agent(
     return server.create_agent(agent, actor=actor)
 
 
-@router.patch("/{agent_id}", response_model=AgentState, operation_id="update_agent")
+@router.patch("/{agent_id}", response_model=PersistedAgentState, operation_id="update_agent")
 def update_agent(
     agent_id: str,
     update_agent: UpdateAgentState = Body(...),
@@ -115,7 +115,7 @@ def get_tools_from_agent(
     return server.get_tools_from_agent(agent_id=agent_id, user_id=actor.id)
 
 
-@router.patch("/{agent_id}/add-tool/{tool_id}", response_model=AgentState, operation_id="add_tool_to_agent")
+@router.patch("/{agent_id}/add-tool/{tool_id}", response_model=PersistedAgentState, operation_id="add_tool_to_agent")
 def add_tool_to_agent(
     agent_id: str,
     tool_id: str,
@@ -127,7 +127,7 @@ def add_tool_to_agent(
     return server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
 
-@router.patch("/{agent_id}/remove-tool/{tool_id}", response_model=AgentState, operation_id="remove_tool_from_agent")
+@router.patch("/{agent_id}/remove-tool/{tool_id}", response_model=PersistedAgentState, operation_id="remove_tool_from_agent")
 def remove_tool_from_agent(
     agent_id: str,
     tool_id: str,
@@ -139,7 +139,7 @@ def remove_tool_from_agent(
     return server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
 
-@router.get("/{agent_id}", response_model=AgentState, operation_id="get_agent")
+@router.get("/{agent_id}", response_model=PersistedAgentState, operation_id="get_agent")
 def get_agent_state(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),

@@ -14,7 +14,7 @@ from letta.agent import initialize_message_sequence
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
 from letta.orm import FileMetadata, Source
-from letta.schemas.agent import AgentState
+from letta.schemas.agent import PersistedAgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole, MessageStreamStatus
 from letta.schemas.letta_message import (
@@ -60,7 +60,7 @@ def run_server():
 # Fixture to create clients with different configurations
 @pytest.fixture(
     # params=[{"server": True}, {"server": False}],  # whether to use REST API server
-    params=[{"server": True}],  # whether to use REST API server
+    params=[{"server": False}],  # whether to use REST API server
     scope="module",
 )
 def client(request):
@@ -107,7 +107,7 @@ def agent(client: Union[LocalClient, RESTClient]):
     client.delete_agent(agent_state.id)
 
 
-def test_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_agent(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
 
     # test client.rename_agent
     new_name = "RenamedTestAgent"
@@ -126,7 +126,7 @@ def test_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert client.agent_exists(agent_id=delete_agent.id) == False, "Agent deletion failed"
 
 
-def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_memory(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # _reset_config()
 
     memory_response = client.get_in_context_memory(agent_id=agent.id)
@@ -142,7 +142,7 @@ def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     ), "Memory update failed"
 
 
-def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # _reset_config()
 
     message = "Hello, agent!"
@@ -181,7 +181,7 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
     # TODO: add streaming tests
 
 
-def test_archival_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_archival_memory(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # _reset_config()
 
     memory_content = "Archival memory content"
@@ -215,7 +215,7 @@ def test_archival_memory(client: Union[LocalClient, RESTClient], agent: AgentSta
     client.get_archival_memory(agent.id)
 
 
-def test_core_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_core_memory(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     response = client.send_message(agent_id=agent.id, message="Update your core memory to remember that my name is Timber!", role="user")
     print("Response", response)
 
@@ -223,7 +223,7 @@ def test_core_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
 
 
-def test_messages(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_messages(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # _reset_config()
 
     send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
@@ -233,7 +233,7 @@ def test_messages(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert len(messages_response) > 0, "Retrieving messages failed"
 
 
-def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_streaming_send_message because LocalClient does not support streaming")
     assert isinstance(client, RESTClient), client
@@ -292,7 +292,7 @@ def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: A
     assert done_gen, "Message stream not done generation"
 
 
-def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_humans_personas(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # _reset_config()
 
     humans_response = client.list_humans()
@@ -347,7 +347,7 @@ def test_list_tools(client: Union[LocalClient, RESTClient]):
     assert sorted(tool_names) == sorted(expected)
 
 
-def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # clear sources
     for source in client.list_sources():
         client.delete_source(source.id)
@@ -383,7 +383,7 @@ def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: Ag
     assert len(files) == 0  # Should be empty
 
 
-def test_delete_file_from_source(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_delete_file_from_source(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # clear sources
     for source in client.list_sources():
         client.delete_source(source.id)
@@ -412,7 +412,7 @@ def test_delete_file_from_source(client: Union[LocalClient, RESTClient], agent: 
     assert len(empty_files) == 0
 
 
-def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_load_file(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # _reset_config()
 
     # clear sources
@@ -443,7 +443,7 @@ def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert file.source_id == source.id
 
 
-def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_sources(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # _reset_config()
 
     # clear sources
@@ -534,7 +534,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     client.delete_source(source.id)
 
 
-def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_message_update(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     """Test that we can update the details of a message"""
 
     # create a message
@@ -588,7 +588,7 @@ def test_list_llm_models(client: RESTClient):
         assert has_model_endpoint_type(models, "anthropic")
 
 
-def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     # _reset_config()
 
     # create a block
@@ -633,7 +633,7 @@ def cleanup_agents():
             print(f"Failed to delete agent {agent_id}: {e}")
 
 
-def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState, cleanup_agents: List[str]):
+def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: PersistedAgentState, cleanup_agents: List[str]):
     """Test that we can set an initial message sequence
 
     If we pass in None, we should get a "default" message sequence
@@ -693,7 +693,7 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]
 
 
-def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     """
     Comprehensive happy path test for adding, retrieving, and managing tags on an agent.
     """

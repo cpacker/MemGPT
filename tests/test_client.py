@@ -10,7 +10,7 @@ from sqlalchemy import delete
 
 from letta import LocalClient, RESTClient, create_client
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
-from letta.schemas.agent import AgentState
+from letta.schemas.agent import PersistedAgentState
 from letta.schemas.block import BlockCreate
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
@@ -148,7 +148,7 @@ def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]
     client.delete_sandbox_config(sandbox_config_id=sandbox_config.id)
 
 
-def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     """
     Comprehensive happy path test for adding, retrieving, and managing tags on an agent.
     """
@@ -187,7 +187,7 @@ def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], a
     assert len(final_tags) == 0, f"Expected no tags, but found {final_tags}"
 
 
-def test_update_agent_memory_label(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_update_agent_memory_label(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     """Test that we can update the label of a block in an agent's memory"""
 
     agent = client.create_agent(name=create_random_username())
@@ -207,7 +207,7 @@ def test_update_agent_memory_label(client: Union[LocalClient, RESTClient], agent
         client.delete_agent(agent.id)
 
 
-def test_add_remove_agent_memory_block(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_add_remove_agent_memory_block(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     """Test that we can add and remove a block from an agent's memory"""
 
     agent = client.create_agent(name=create_random_username())
@@ -266,7 +266,7 @@ def test_add_remove_agent_memory_block(client: Union[LocalClient, RESTClient], a
 #         client.delete_agent(new_agent.id)
 
 
-def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
     """Test that we can update the limit of a block in an agent's memory"""
 
     agent = client.create_agent(name=create_random_username())

@@ -75,8 +75,6 @@ class Memory(BaseModel, validate_assignment=True):
         "{% endfor %}",
         description="Jinja2 template for compiling memory blocks into a prompt string",
     )
-    # whether the memory should be persisted
-    to_persist = False
 
     def get_prompt_template(self) -> str:
         """Return the current Jinja2 template string."""
@@ -242,13 +240,13 @@ class BasicBlockMemory(Memory):
         Args:
             blocks (List[Block]): List of blocks to be linked to the memory object.
         """
-        super().__init__()
-        for block in blocks:
-            # TODO: centralize these internal schema validations
-            # assert block.name is not None and block.name != "", "each existing chat block must have a name"
-            # self.link_block(name=block.name, block=block)
-            assert block.label is not None and block.label != "", "each existing chat block must have a name"
-            self.link_block(block=block)
+        super().__init__(blocks=blocks)
+        # for block in blocks:
+        #    # TODO: centralize these internal schema validations
+        #    # assert block.name is not None and block.name != "", "each existing chat block must have a name"
+        #    # self.link_block(name=block.name, block=block)
+        #    assert block.label is not None and block.label != "", "each existing chat block must have a name"
+        #    self.link_block(block=block)
 
     def core_memory_append(agent_state: "AgentState", label: str, content: str) -> Optional[str]:  # type: ignore
         """
@@ -300,9 +298,9 @@ class ChatMemory(BasicBlockMemory):
             human (str): The starter value for the human block.
             limit (int): The character limit for each block.
         """
-        super().__init__()
-        self.link_block(block=Block(value=persona, limit=limit, label="persona"))
-        self.link_block(block=Block(value=human, limit=limit, label="human"))
+        super().__init__(blocks=[Block(value=persona, limit=limit, label="persona"), Block(value=human, limit=limit, label="human")])
+        # self.link_block(block=Block(value=persona, limit=limit, label="persona"))
+        # self.link_block(block=Block(value=human, limit=limit, label="human"))
 
 
 class UpdateMemory(BaseModel):
