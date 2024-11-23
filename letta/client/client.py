@@ -5,7 +5,13 @@ from typing import Callable, Dict, Generator, List, Optional, Union
 import requests
 
 import letta.utils
-from letta.constants import ADMIN_PREFIX, BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
+from letta.constants import (
+    ADMIN_PREFIX,
+    BASE_MEMORY_TOOLS,
+    BASE_TOOLS,
+    DEFAULT_HUMAN,
+    DEFAULT_PERSONA,
+)
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
 from letta.memory import get_memory_functions
@@ -1984,6 +1990,7 @@ class LocalClient(AbstractClient):
             tool_names += tools
         if include_base_tools:
             tool_names += BASE_TOOLS
+            tool_names += BASE_MEMORY_TOOLS
 
         # TODO: make sure these are added server-side
         ## add memory tools

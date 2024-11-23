@@ -165,34 +165,37 @@ class Memory(BaseModel, validate_assignment=True):
                 return
         self.blocks.append(block)
 
+    #    def link_block(self, block: Block, override: Optional[bool] = False):
+    #        """Link a new block to the memory object"""
+    #        #if not isinstance(block, Block):
+    #        #    raise ValueError(f"Param block must be type Block (not {type(block)})")
+    #        #if not override and block.label in self.memory:
+    #        #    raise ValueError(f"Block with label {block.label} already exists")
+    #        if block.label in self.list_block_labels():
+    #            if override:
+    #                del self.unlink_block(block.label)
+    #            raise ValueError(f"Block with label {block.label} already exists")
+    #        self.blocks.append(block)
+    #
+    #    def unlink_block(self, block_label: str) -> Block:
+    #        """Unlink a block from the memory object"""
+    #        if block_label not in self.memory:
+    #            raise ValueError(f"Block with label {block_label} does not exist")
+    #
+    #        return self.memory.pop(block_label)
+    #
+    def update_block_value(self, label: str, value: str):
+        """Update the value of a block"""
+        if not isinstance(value, str):
+            raise ValueError(f"Provided value must be a string")
 
-#    def link_block(self, block: Block, override: Optional[bool] = False):
-#        """Link a new block to the memory object"""
-#        #if not isinstance(block, Block):
-#        #    raise ValueError(f"Param block must be type Block (not {type(block)})")
-#        #if not override and block.label in self.memory:
-#        #    raise ValueError(f"Block with label {block.label} already exists")
-#        if block.label in self.list_block_labels():
-#            if override:
-#                del self.unlink_block(block.label)
-#            raise ValueError(f"Block with label {block.label} already exists")
-#        self.blocks.append(block)
-#
-#    def unlink_block(self, block_label: str) -> Block:
-#        """Unlink a block from the memory object"""
-#        if block_label not in self.memory:
-#            raise ValueError(f"Block with label {block_label} does not exist")
-#
-#        return self.memory.pop(block_label)
-#
-#    def update_block_value(self, label: str, value: str):
-#        """Update the value of a block"""
-#        if label not in self.memory:
-#            raise ValueError(f"Block with label {label} does not exist")
-#        if not isinstance(value, str):
-#            raise ValueError(f"Provided value must be a string")
-#
-#        self.memory[label].value = value
+        for block in self.blocks:
+            if block.label == label:
+                block.value = value
+                return
+        raise ValueError(f"Block with label {label} does not exist")
+
+
 #
 #    def update_block_label(self, current_label: str, new_label: str):
 #        """Update the label of a block"""

@@ -878,6 +878,7 @@ class SyncServer(Server):
 
         # get tools + only add if they exist
         tool_objs = []
+        print("CREATE TOOLS", request.tools)
         if request.tools:
             for tool_name in request.tools:
                 tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
@@ -885,6 +886,7 @@ class SyncServer(Server):
                     tool_objs.append(tool_obj)
                 else:
                     warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
+                    print(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
         # reset the request.tools to only valid tools
         request.tools = [t.name for t in tool_objs]
 
