@@ -380,9 +380,10 @@ class PostgresStorageConnector(SQLStorageConnector):
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
-        for c in self.db_model.__table__.columns:
-            if c.name == "embedding":
-                assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
+        if settings.pg_uri:
+            for c in self.db_model.__table__.columns:
+                if c.name == "embedding":
+                    assert isinstance(c.type, Vector), f"Embedding column must be of type Vector, got {c.type}"
 
         from letta.server.server import db_context
 
@@ -432,7 +433,7 @@ class PostgresStorageConnector(SQLStorageConnector):
                 else:
                     db_record = self.db_model(**record.dict())
                     session.add(db_record)
-                    print(f"Added record with id {record.id}")
+                    # print(f"Added record with id {record.id}")
                     session.commit()
 
                 added_ids.append(record.id)

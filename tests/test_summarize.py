@@ -99,6 +99,7 @@ def test_auto_summarize():
         def summarize_message_exists(messages: List[Message]) -> bool:
             for message in messages:
                 if message.text and "have been hidden from view due to conversation memory constraints" in message.text:
+                    print(f"Summarize message found after {message_count} messages: \n {message.text}")
                     return True
             return False
 
@@ -113,12 +114,12 @@ def test_auto_summarize():
             )
             message_count += 1
 
+            print(f"Message {message_count}: \n\n{response.messages}")
+
             # check if the summarize message is inside the messages
             assert isinstance(client, LocalClient), "Test only works with LocalClient"
             agent_obj = client.server._get_or_load_agent(agent_id=agent_state.id)
             if summarize_message_exists(agent_obj._messages):
-                # We found a summarize message
-                print(f"Summarize message found after {message_count} messages")
                 break
 
             if message_count > MAX_ATTEMPTS:

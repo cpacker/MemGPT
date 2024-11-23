@@ -13,8 +13,6 @@ def generate_composio_tool_wrapper(action: "ActionType") -> tuple[str, str]:
 
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
-    if 'self' in kwargs:
-        del kwargs['self']
     from composio import Action, App, Tag
     from composio_langchain import ComposioToolSet
 
@@ -46,38 +44,6 @@ def generate_langchain_tool_wrapper(
     # Combine all parts into the wrapper function
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
-    if 'self' in kwargs:
-        del kwargs['self']
-    import importlib
-    {import_statement}
-    {extra_module_imports}
-    {tool_instantiation}
-    {run_call}
-"""
-
-    # Compile safety check
-    assert_code_gen_compilable(wrapper_function_str)
-
-    return func_name, wrapper_function_str
-
-
-def generate_crewai_tool_wrapper(tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> tuple[str, str]:
-    tool_name = tool.__class__.__name__
-    import_statement = f"from crewai_tools import {tool_name}"
-    extra_module_imports = generate_import_code(additional_imports_module_attr_map)
-
-    # Safety check that user has passed in all required imports:
-    assert_all_classes_are_imported(tool, additional_imports_module_attr_map)
-
-    tool_instantiation = f"tool = {generate_imported_tool_instantiation_call_str(tool)}"
-    run_call = f"return tool._run(**kwargs)"
-    func_name = humps.decamelize(tool_name)
-
-    # Combine all parts into the wrapper function
-    wrapper_function_str = f"""
-def {func_name}(**kwargs):
-    if 'self' in kwargs:
-        del kwargs['self']
     import importlib
     {import_statement}
     {extra_module_imports}
@@ -98,9 +64,7 @@ def assert_code_gen_compilable(code_str):
         print(f"Syntax error in code: {e}")
 
 
-def assert_all_classes_are_imported(
-    tool: Union["LangChainBaseTool", "CrewAIBaseTool"], additional_imports_module_attr_map: dict[str, str]
-) -> None:
+def assert_all_classes_are_imported(tool: Union["LangChainBaseTool"], additional_imports_module_attr_map: dict[str, str]) -> None:
     # Safety check that user has passed in all required imports:
     tool_name = tool.__class__.__name__
     current_class_imports = {tool_name}
@@ -114,7 +78,7 @@ def assert_all_classes_are_imported(
         raise RuntimeError(err_msg)
 
 
-def find_required_class_names_for_import(obj: Union["LangChainBaseTool", "CrewAIBaseTool", BaseModel]) -> list[str]:
+def find_required_class_names_for_import(obj: Union["LangChainBaseTool", BaseModel]) -> list[str]:
     """
     Finds all the class names for required imports when instantiating the `obj`.
     NOTE: This does not return the full import path, only the class name.
@@ -202,10 +166,10 @@ def generate_imported_tool_instantiation_call_str(obj: Any) -> Optional[str]:
     else:
         # Otherwise, if it is none of the above, that usually means it is a custom Python class that is NOT a BaseModel
         # Thus, we cannot get enough information about it to stringify it
-        # This may cause issues, but we are making the assumption that any of these custom Python types are handled correctly by the parent library, such as LangChain or CrewAI
+        # This may cause issues, but we are making the assumption that any of these custom Python types are handled correctly by the parent library, such as LangChain
         # An example would be that WikipediaAPIWrapper has an argument that is a wikipedia (pip install wikipedia) object
         # We cannot stringify this easily, but WikipediaAPIWrapper handles the setting of this parameter internally
-        # This assumption seems fair to me, since usually they are external imports, and LangChain and CrewAI should be bundling those as module-level imports within the tool
+        # This assumption seems fair to me, since usually they are external imports, and LangChain should be bundling those as module-level imports within the tool
         # We throw a warning here anyway and provide the class name
         print(
             f"[WARNING] Skipping parsing unknown class {obj.__class__.__name__} (does not inherit from the Pydantic BaseModel and is not a basic Python type)"
@@ -219,10 +183,9 @@ def generate_imported_tool_instantiation_call_str(obj: Any) -> Optional[str]:
 
 
 def is_base_model(obj: Any):
-    from crewai_tools.tools.base_tool import BaseModel as CrewAiBaseModel
     from langchain_core.pydantic_v1 import BaseModel as LangChainBaseModel
 
-    return isinstance(obj, BaseModel) or isinstance(obj, LangChainBaseModel) or isinstance(obj, CrewAiBaseModel)
+    return isinstance(obj, BaseModel) or isinstance(obj, LangChainBaseModel)
 
 
 def generate_import_code(module_attr_map: Optional[dict]):

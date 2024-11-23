@@ -77,7 +77,9 @@ from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
+from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.services.organization_manager import OrganizationManager
+from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -247,6 +249,8 @@ class SyncServer(Server):
         self.block_manager = BlockManager()
         self.source_manager = SourceManager()
         self.agents_tags_manager = AgentsTagsManager()
+        self.blocks_agents_manager = BlocksAgentsManager()
+        self.sandbox_config_manager = SandboxConfigManager(tool_settings)
 
         # Make default user and org
         if init_with_default_org_and_user:
@@ -328,6 +332,15 @@ class SyncServer(Server):
                 )
             )
 
+    def save_agents(self):
+        """Saves all the agents that are in the in-memory object store"""
+        for agent_d in self.active_agents:
+            try:
+                save_agent(agent_d["agent"], self.ms)
+                logger.info(f"Saved agent {agent_d['agent_id']}")
+            except Exception as e:
+                logger.exception(f"Error occurred while trying to save agent {agent_d['agent_id']}:\n{e}")
+
     def _get_agent(self, user_id: str, agent_id: str) -> Union[Agent, None]:
         """Get the agent object from the in-memory object store"""
         for d in self.active_agents:
@@ -372,10 +385,11 @@ class SyncServer(Server):
             tool_objs = []
             for name in agent_state.tools:
                 # TODO: This should be a hard failure, but for migration reasons, we patch it for now
-                try:
+                tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
+                if tool_obj:
                     tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
                     tool_objs.append(tool_obj)
-                except NoResultFound:
+                else:
                     warnings.warn(f"Tried to retrieve a tool with name {name} from the agent_state, but does not exist in tool db.")
 
             # set agent_state tools to only the names of the available tools
@@ -400,8 +414,10 @@ class SyncServer(Server):
             logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
             raise
 
-    def _get_or_load_agent(self, agent_id: str) -> Agent:
+    def _get_or_load_agent(self, agent_id: str, caching: bool = True) -> Agent:
         """Check if the agent is in-memory, then load"""
+
+        # Gets the agent state
         agent_state = self.ms.get_agent(agent_id=agent_id)
         if not agent_state:
             raise ValueError(f"Agent does not exist")
@@ -409,11 +425,24 @@ class SyncServer(Server):
         actor = self.user_manager.get_user_by_id(user_id)
 
         logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
-        # TODO: consider disabling loading cached agents due to potential concurrency issues
-        letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
-        if not letta_agent:
-            logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
+        if caching:
+            # TODO: consider disabling loading cached agents due to potential concurrency issues
+            letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
+            if not letta_agent:
+                logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
+                letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
+        else:
+            # This breaks unit tests in test_local_client.py
             letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
+
+        # letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
+        # if not letta_agent:
+        # logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
+
+        # NOTE: no longer caching, always forcing a lot from the database
+        # Loads the agent objects
+        # letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
+
         return letta_agent
 
     def _step(
@@ -813,10 +842,10 @@ class SyncServer(Server):
             tool_objs = []
             if request.tools:
                 for tool_name in request.tools:
-                    try:
-                        tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+                    tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+                    if tool_obj:
                         tool_objs.append(tool_obj)
-                    except NoResultFound:
+                    else:
                         warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
             # reset the request.tools to only valid tools
             request.tools = [t.name for t in tool_objs]
@@ -860,6 +889,7 @@ class SyncServer(Server):
                 memory=request.memory,
                 description=request.description,
                 metadata_=request.metadata_,
+                tags=request.tags,
             )
             if request.agent_type == AgentType.memgpt_agent:
                 agent = Agent(
@@ -904,8 +934,15 @@ class SyncServer(Server):
         save_agent(agent, self.ms)
         logger.debug(f"Created new agent from config: {agent}")
 
+        # TODO: move this into save_agent. save_agent should be moved to server.py
+        if request.tags:
+            for tag in request.tags:
+                self.agents_tags_manager.add_tag_to_agent(agent_id=agent.agent_state.id, tag=tag, actor=actor)
+
         assert isinstance(agent.agent_state.memory, Memory), f"Invalid memory type: {type(agent_state.memory)}"
-        # return AgentState
+
+        # TODO: remove (hacky)
+        agent.agent_state.tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent.agent_state.id, actor=actor)
 
         return agent.agent_state
 
@@ -1368,8 +1405,9 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         assert isinstance(letta_agent.memory, Memory)
-        agent_state = letta_agent.agent_state.model_copy(deep=True)
 
+        letta_agent.update_memory_blocks_from_db()
+        agent_state = letta_agent.agent_state.model_copy(deep=True)
         # Load the tags in for the agent_state
         agent_state.tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=user)
         return agent_state
@@ -1423,6 +1461,7 @@ class SyncServer(Server):
         # If we modified the memory contents, we need to rebuild the memory block inside the system message
         if modified:
             letta_agent.rebuild_memory()
+            # letta_agent.rebuild_memory(force=True, ms=self.ms)  # This breaks unit tests in test_local_client.py
             # save agent
             save_agent(letta_agent, self.ms)
 
@@ -1715,7 +1754,7 @@ class SyncServer(Server):
     def add_default_external_tools(self, actor: User) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
         success = True
-        tool_creates = ToolCreate.load_default_langchain_tools() + ToolCreate.load_default_crewai_tools()
+        tool_creates = ToolCreate.load_default_langchain_tools()
         if tool_settings.composio_api_key:
             tool_creates += ToolCreate.load_default_composio_tools()
         for tool_create in tool_creates:
@@ -1809,3 +1848,119 @@ class SyncServer(Server):
         # Get the current message
         letta_agent = self._get_or_load_agent(agent_id=agent_id)
         return letta_agent.get_context_window()
+
+    def update_agent_memory_label(self, user_id: str, agent_id: str, current_block_label: str, new_block_label: str) -> Memory:
+        """Update the label of a block in an agent's memory"""
+
+        # Get the user
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+
+        # Link a block to an agent's memory
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        letta_agent.memory.update_block_label(current_label=current_block_label, new_label=new_block_label)
+        assert new_block_label in letta_agent.memory.list_block_labels()
+        self.block_manager.create_or_update_block(block=letta_agent.memory.get_block(new_block_label), actor=user)
+
+        # check that the block was updated
+        updated_block = self.block_manager.get_block_by_id(block_id=letta_agent.memory.get_block(new_block_label).id, actor=user)
+
+        # Recompile the agent memory
+        letta_agent.rebuild_memory(force=True, ms=self.ms)
+
+        # save agent
+        save_agent(letta_agent, self.ms)
+
+        updated_agent = self.ms.get_agent(agent_id=agent_id)
+        if updated_agent is None:
+            raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        assert new_block_label in updated_agent.memory.list_block_labels()
+        assert current_block_label not in updated_agent.memory.list_block_labels()
+        return updated_agent.memory
+
+    def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
+        """Link a block to an agent's memory"""
+
+        # Get the user
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+
+        # Get the block first
+        block = self.block_manager.get_block_by_id(block_id=block_id, actor=user)
+        if block is None:
+            raise ValueError(f"Block with id {block_id} not found")
+
+        # Link a block to an agent's memory
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        letta_agent.memory.link_block(block=block)
+        assert block.label in letta_agent.memory.list_block_labels()
+
+        # Recompile the agent memory
+        letta_agent.rebuild_memory(force=True, ms=self.ms)
+
+        # save agent
+        save_agent(letta_agent, self.ms)
+
+        updated_agent = self.ms.get_agent(agent_id=agent_id)
+        if updated_agent is None:
+            raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        assert block.label in updated_agent.memory.list_block_labels()
+
+        return updated_agent.memory
+
+    def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
+        """Unlink a block from an agent's memory. If the block is not linked to any agent, delete it."""
+
+        # Get the user
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+
+        # Link a block to an agent's memory
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        unlinked_block = letta_agent.memory.unlink_block(block_label=block_label)
+        assert unlinked_block.label not in letta_agent.memory.list_block_labels()
+
+        # Check if the block is linked to any other agent
+        # TODO needs reference counting GC to handle loose blocks
+        # block = self.block_manager.get_block_by_id(block_id=unlinked_block.id, actor=user)
+        # if block is None:
+        # raise ValueError(f"Block with id {block_id} not found")
+
+        # Recompile the agent memory
+        letta_agent.rebuild_memory(force=True, ms=self.ms)
+
+        # save agent
+        save_agent(letta_agent, self.ms)
+
+        updated_agent = self.ms.get_agent(agent_id=agent_id)
+        if updated_agent is None:
+            raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        assert unlinked_block.label not in updated_agent.memory.list_block_labels()
+        return updated_agent.memory
+
+    def update_agent_memory_limit(self, user_id: str, agent_id: str, block_label: str, limit: int) -> Memory:
+        """Update the limit of a block in an agent's memory"""
+
+        # Get the user
+        user = self.user_manager.get_user_by_id(user_id=user_id)
+
+        # Link a block to an agent's memory
+        letta_agent = self._get_or_load_agent(agent_id=agent_id)
+        letta_agent.memory.update_block_limit(label=block_label, limit=limit)
+        assert block_label in letta_agent.memory.list_block_labels()
+
+        # write out the update the database
+        self.block_manager.create_or_update_block(block=letta_agent.memory.get_block(block_label), actor=user)
+
+        # check that the block was updated
+        updated_block = self.block_manager.get_block_by_id(block_id=letta_agent.memory.get_block(block_label).id, actor=user)
+        assert updated_block and updated_block.limit == limit
+
+        # Recompile the agent memory
+        letta_agent.rebuild_memory(force=True, ms=self.ms)
+
+        # save agent
+        save_agent(letta_agent, self.ms)
+
+        updated_agent = self.ms.get_agent(agent_id=agent_id)
+        if updated_agent is None:
+            raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        assert updated_agent.memory.get_block(label=block_label).limit == limit
+        return updated_agent.memory

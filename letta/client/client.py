@@ -39,6 +39,16 @@ from letta.schemas.message import Message, MessageCreate, UpdateMessage
 from letta.schemas.openai.chat_completion_request import ToolCall
 from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
+from letta.schemas.sandbox_config import (
+    E2BSandboxConfig,
+    LocalSandboxConfig,
+    SandboxConfig,
+    SandboxConfigCreate,
+    SandboxConfigUpdate,
+    SandboxEnvironmentVariable,
+    SandboxEnvironmentVariableCreate,
+    SandboxEnvironmentVariableUpdate,
+)
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
 from letta.schemas.tool_rule import BaseToolRule
@@ -79,6 +89,7 @@ class AbstractClient(object):
         include_base_tools: Optional[bool] = True,
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
+        tags: Optional[List[str]] = None,
     ) -> AgentState:
         raise NotImplementedError
 
@@ -94,6 +105,7 @@ class AbstractClient(object):
         embedding_config: Optional[EmbeddingConfig] = None,
         message_ids: Optional[List[str]] = None,
         memory: Optional[Memory] = None,
+        tags: Optional[List[str]] = None,
     ):
         raise NotImplementedError
 
@@ -186,9 +198,6 @@ class AbstractClient(object):
         raise NotImplementedError
 
     def load_langchain_tool(self, langchain_tool: "LangChainBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
-        raise NotImplementedError
-
-    def load_crewai_tool(self, crewai_tool: "CrewAIBaseTool", additional_imports_module_attr_map: dict[str, str] = None) -> Tool:
         raise NotImplementedError
 
     def load_composio_tool(self, action: "ActionType") -> Tool:
@@ -297,6 +306,112 @@ class AbstractClient(object):
     def delete_org(self, org_id: str) -> Organization:
         raise NotImplementedError
 
+    def create_sandbox_config(self, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Create a new sandbox configuration.
+
+        Args:
+            config (Union[LocalSandboxConfig, E2BSandboxConfig]): The sandbox settings.
+
+        Returns:
+            SandboxConfig: The created sandbox configuration.
+        """
+        raise NotImplementedError
+
+    def update_sandbox_config(self, sandbox_config_id: str, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Update an existing sandbox configuration.
+
+        Args:
+            sandbox_config_id (str): The ID of the sandbox configuration to update.
+            config (Union[LocalSandboxConfig, E2BSandboxConfig]): The updated sandbox settings.
+
+        Returns:
+            SandboxConfig: The updated sandbox configuration.
+        """
+        raise NotImplementedError
+
+    def delete_sandbox_config(self, sandbox_config_id: str) -> None:
+        """
+        Delete a sandbox configuration.
+
+        Args:
+            sandbox_config_id (str): The ID of the sandbox configuration to delete.
+        """
+        raise NotImplementedError
+
+    def list_sandbox_configs(self, limit: int = 50, cursor: Optional[str] = None) -> List[SandboxConfig]:
+        """
+        List all sandbox configurations.
+
+        Args:
+            limit (int, optional): The maximum number of sandbox configurations to return. Defaults to 50.
+            cursor (Optional[str], optional): The pagination cursor for retrieving the next set of results.
+
+        Returns:
+            List[SandboxConfig]: A list of sandbox configurations.
+        """
+        raise NotImplementedError
+
+    def create_sandbox_env_var(
+        self, sandbox_config_id: str, key: str, value: str, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Create a new environment variable for a sandbox configuration.
+
+        Args:
+            sandbox_config_id (str): The ID of the sandbox configuration to associate the environment variable with.
+            key (str): The name of the environment variable.
+            value (str): The value of the environment variable.
+            description (Optional[str], optional): A description of the environment variable. Defaults to None.
+
+        Returns:
+            SandboxEnvironmentVariable: The created environment variable.
+        """
+        raise NotImplementedError
+
+    def update_sandbox_env_var(
+        self, env_var_id: str, key: Optional[str] = None, value: Optional[str] = None, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Update an existing environment variable.
+
+        Args:
+            env_var_id (str): The ID of the environment variable to update.
+            key (Optional[str], optional): The updated name of the environment variable. Defaults to None.
+            value (Optional[str], optional): The updated value of the environment variable. Defaults to None.
+            description (Optional[str], optional): The updated description of the environment variable. Defaults to None.
+
+        Returns:
+            SandboxEnvironmentVariable: The updated environment variable.
+        """
+        raise NotImplementedError
+
+    def delete_sandbox_env_var(self, env_var_id: str) -> None:
+        """
+        Delete an environment variable by its ID.
+
+        Args:
+            env_var_id (str): The ID of the environment variable to delete.
+        """
+        raise NotImplementedError
+
+    def list_sandbox_env_vars(
+        self, sandbox_config_id: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> List[SandboxEnvironmentVariable]:
+        """
+        List all environment variables associated with a sandbox configuration.
+
+        Args:
+            sandbox_config_id (str): The ID of the sandbox configuration to retrieve environment variables for.
+            limit (int, optional): The maximum number of environment variables to return. Defaults to 50.
+            cursor (Optional[str], optional): The pagination cursor for retrieving the next set of results.
+
+        Returns:
+            List[SandboxEnvironmentVariable]: A list of environment variables.
+        """
+        raise NotImplementedError
+
 
 class RESTClient(AbstractClient):
     """
@@ -381,6 +496,7 @@ class RESTClient(AbstractClient):
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
         initial_message_sequence: Optional[List[Message]] = None,
+        tags: Optional[List[str]] = None,
     ) -> AgentState:
         """Create an agent
 
@@ -394,6 +510,7 @@ class RESTClient(AbstractClient):
             include_base_tools (bool): Include base tools
             metadata (Dict): Metadata
             description (str): Description
+            tags (List[str]): Tags for filtering agents
 
         Returns:
             agent_state (AgentState): State of the created agent
@@ -435,6 +552,7 @@ class RESTClient(AbstractClient):
             llm_config=llm_config if llm_config else self._default_llm_config,
             embedding_config=embedding_config if embedding_config else self._default_embedding_config,
             initial_message_sequence=initial_message_sequence,
+            tags=tags,
         )
 
         # Use model_dump_json() instead of model_dump()
@@ -482,12 +600,12 @@ class RESTClient(AbstractClient):
         description: Optional[str] = None,
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
-        tags: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         message_ids: Optional[List[str]] = None,
         memory: Optional[Memory] = None,
+        tags: Optional[List[str]] = None,
     ):
         """
         Update an existing agent
@@ -503,6 +621,7 @@ class RESTClient(AbstractClient):
             embedding_config (EmbeddingConfig): Embedding configuration
             message_ids (List[str]): List of message IDs
             memory (Memory): Memory configuration
+            tags (List[str]): Tags for filtering agents
 
         Returns:
             agent_state (AgentState): State of the updated agent
@@ -893,8 +1012,8 @@ class RESTClient(AbstractClient):
         else:
             return Block(**response.json())
 
-    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
-        request = BlockUpdate(id=block_id, template_name=name, value=text)
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None, limit: Optional[int] = None) -> Block:
+        request = BlockUpdate(id=block_id, template_name=name, value=text, limit=limit if limit else self.get_block(block_id).limit)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update block: {response.text}")
@@ -1562,6 +1681,161 @@ class RESTClient(AbstractClient):
         # Parse and return the deleted organization
         return Organization(**response.json())
 
+    def create_sandbox_config(self, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Create a new sandbox configuration.
+        """
+        payload = {
+            "config": config.model_dump(),
+        }
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/sandbox-config", headers=self.headers, json=payload)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create sandbox config: {response.text}")
+        return SandboxConfig(**response.json())
+
+    def update_sandbox_config(self, sandbox_config_id: str, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Update an existing sandbox configuration.
+        """
+        payload = {
+            "config": config.model_dump(),
+        }
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/{sandbox_config_id}",
+            headers=self.headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update sandbox config with ID '{sandbox_config_id}': {response.text}")
+        return SandboxConfig(**response.json())
+
+    def delete_sandbox_config(self, sandbox_config_id: str) -> None:
+        """
+        Delete a sandbox configuration.
+        """
+        response = requests.delete(f"{self.base_url}/{self.api_prefix}/sandbox-config/{sandbox_config_id}", headers=self.headers)
+        if response.status_code == 404:
+            raise ValueError(f"Sandbox config with ID '{sandbox_config_id}' does not exist")
+        elif response.status_code != 204:
+            raise ValueError(f"Failed to delete sandbox config with ID '{sandbox_config_id}': {response.text}")
+
+    def list_sandbox_configs(self, limit: int = 50, cursor: Optional[str] = None) -> List[SandboxConfig]:
+        """
+        List all sandbox configurations.
+        """
+        params = {"limit": limit, "cursor": cursor}
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/sandbox-config", headers=self.headers, params=params)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list sandbox configs: {response.text}")
+        return [SandboxConfig(**config_data) for config_data in response.json()]
+
+    def create_sandbox_env_var(
+        self, sandbox_config_id: str, key: str, value: str, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Create a new environment variable for a sandbox configuration.
+        """
+        payload = {"key": key, "value": value, "description": description}
+        response = requests.post(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/{sandbox_config_id}/environment-variable",
+            headers=self.headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create environment variable for sandbox config ID '{sandbox_config_id}': {response.text}")
+        return SandboxEnvironmentVariable(**response.json())
+
+    def update_sandbox_env_var(
+        self, env_var_id: str, key: Optional[str] = None, value: Optional[str] = None, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Update an existing environment variable.
+        """
+        payload = {k: v for k, v in {"key": key, "value": value, "description": description}.items() if v is not None}
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/environment-variable/{env_var_id}",
+            headers=self.headers,
+            json=payload,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update environment variable with ID '{env_var_id}': {response.text}")
+        return SandboxEnvironmentVariable(**response.json())
+
+    def delete_sandbox_env_var(self, env_var_id: str) -> None:
+        """
+        Delete an environment variable by its ID.
+        """
+        response = requests.delete(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/environment-variable/{env_var_id}", headers=self.headers
+        )
+        if response.status_code == 404:
+            raise ValueError(f"Environment variable with ID '{env_var_id}' does not exist")
+        elif response.status_code != 204:
+            raise ValueError(f"Failed to delete environment variable with ID '{env_var_id}': {response.text}")
+
+    def list_sandbox_env_vars(
+        self, sandbox_config_id: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> List[SandboxEnvironmentVariable]:
+        """
+        List all environment variables associated with a sandbox configuration.
+        """
+        params = {"limit": limit, "cursor": cursor}
+        response = requests.get(
+            f"{self.base_url}/{self.api_prefix}/sandbox-config/{sandbox_config_id}/environment-variable",
+            headers=self.headers,
+            params=params,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to list environment variables for sandbox config ID '{sandbox_config_id}': {response.text}")
+        return [SandboxEnvironmentVariable(**var_data) for var_data in response.json()]
+
+    def update_agent_memory_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
+
+        # @router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory_label")
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/label",
+            headers=self.headers,
+            json={"current_label": current_label, "new_label": new_label},
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent memory label: {response.text}")
+        return Memory(**response.json())
+
+    def add_agent_memory_block(self, agent_id: str, create_block: BlockCreate) -> Memory:
+
+        # @router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
+        response = requests.post(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block",
+            headers=self.headers,
+            json=create_block.model_dump(),
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to add agent memory block: {response.text}")
+        return Memory(**response.json())
+
+    def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
+
+        # @router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block")
+        response = requests.delete(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block/{block_label}",
+            headers=self.headers,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to remove agent memory block: {response.text}")
+        return Memory(**response.json())
+
+    def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+
+        # @router.patch("/{agent_id}/memory/limit", response_model=Memory, operation_id="update_agent_memory_limit")
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/limit",
+            headers=self.headers,
+            json={"label": block_label, "limit": limit},
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent memory limit: {response.text}")
+        return Memory(**response.json())
+
 
 class LocalClient(AbstractClient):
     """
@@ -1669,6 +1943,7 @@ class LocalClient(AbstractClient):
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
         initial_message_sequence: Optional[List[Message]] = None,
+        tags: Optional[List[str]] = None,
     ) -> AgentState:
         """Create an agent
 
@@ -1683,6 +1958,7 @@ class LocalClient(AbstractClient):
             include_base_tools (bool): Include base tools
             metadata (Dict): Metadata
             description (str): Description
+            tags (List[str]): Tags for filtering agents
 
         Returns:
             agent_state (AgentState): State of the created agent
@@ -1724,6 +2000,7 @@ class LocalClient(AbstractClient):
                 llm_config=llm_config if llm_config else self._default_llm_config,
                 embedding_config=embedding_config if embedding_config else self._default_embedding_config,
                 initial_message_sequence=initial_message_sequence,
+                tags=tags,
             ),
             actor=self.user,
         )
@@ -1780,6 +2057,7 @@ class LocalClient(AbstractClient):
             embedding_config (EmbeddingConfig): Embedding configuration
             message_ids (List[str]): List of message IDs
             memory (Memory): Memory configuration
+            tags (List[str]): Tags for filtering agents
 
         Returns:
             agent_state (AgentState): State of the updated agent
@@ -2680,7 +2958,7 @@ class LocalClient(AbstractClient):
             Block(label=label, template_name=template_name, value=value, is_template=is_template), actor=self.user
         )
 
-    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None) -> Block:
+    def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None, limit: Optional[int] = None) -> Block:
         """
         Update a block
 
@@ -2693,7 +2971,9 @@ class LocalClient(AbstractClient):
             block (Block): Updated block
         """
         return self.server.block_manager.update_block(
-            block_id=block_id, block_update=BlockUpdate(template_name=name, value=text), actor=self.user
+            block_id=block_id,
+            block_update=BlockUpdate(template_name=name, value=text, limit=limit if limit else self.get_block(block_id).limit),
+            actor=self.user,
         )
 
     def get_block(self, block_id: str) -> Block:
@@ -2764,3 +3044,87 @@ class LocalClient(AbstractClient):
 
     def delete_org(self, org_id: str) -> Organization:
         return self.server.organization_manager.delete_organization_by_id(org_id=org_id)
+
+    def create_sandbox_config(self, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Create a new sandbox configuration.
+        """
+        config_create = SandboxConfigCreate(config=config)
+        return self.server.sandbox_config_manager.create_or_update_sandbox_config(sandbox_config_create=config_create, actor=self.user)
+
+    def update_sandbox_config(self, sandbox_config_id: str, config: Union[LocalSandboxConfig, E2BSandboxConfig]) -> SandboxConfig:
+        """
+        Update an existing sandbox configuration.
+        """
+        sandbox_update = SandboxConfigUpdate(config=config)
+        return self.server.sandbox_config_manager.update_sandbox_config(
+            sandbox_config_id=sandbox_config_id, sandbox_update=sandbox_update, actor=self.user
+        )
+
+    def delete_sandbox_config(self, sandbox_config_id: str) -> None:
+        """
+        Delete a sandbox configuration.
+        """
+        return self.server.sandbox_config_manager.delete_sandbox_config(sandbox_config_id=sandbox_config_id, actor=self.user)
+
+    def list_sandbox_configs(self, limit: int = 50, cursor: Optional[str] = None) -> List[SandboxConfig]:
+        """
+        List all sandbox configurations.
+        """
+        return self.server.sandbox_config_manager.list_sandbox_configs(actor=self.user, limit=limit, cursor=cursor)
+
+    def create_sandbox_env_var(
+        self, sandbox_config_id: str, key: str, value: str, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Create a new environment variable for a sandbox configuration.
+        """
+        env_var_create = SandboxEnvironmentVariableCreate(key=key, value=value, description=description)
+        return self.server.sandbox_config_manager.create_sandbox_env_var(
+            env_var_create=env_var_create, sandbox_config_id=sandbox_config_id, actor=self.user
+        )
+
+    def update_sandbox_env_var(
+        self, env_var_id: str, key: Optional[str] = None, value: Optional[str] = None, description: Optional[str] = None
+    ) -> SandboxEnvironmentVariable:
+        """
+        Update an existing environment variable.
+        """
+        env_var_update = SandboxEnvironmentVariableUpdate(key=key, value=value, description=description)
+        return self.server.sandbox_config_manager.update_sandbox_env_var(
+            env_var_id=env_var_id, env_var_update=env_var_update, actor=self.user
+        )
+
+    def delete_sandbox_env_var(self, env_var_id: str) -> None:
+        """
+        Delete an environment variable by its ID.
+        """
+        return self.server.sandbox_config_manager.delete_sandbox_env_var(env_var_id=env_var_id, actor=self.user)
+
+    def list_sandbox_env_vars(
+        self, sandbox_config_id: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> List[SandboxEnvironmentVariable]:
+        """
+        List all environment variables associated with a sandbox configuration.
+        """
+        return self.server.sandbox_config_manager.list_sandbox_env_vars(
+            sandbox_config_id=sandbox_config_id, actor=self.user, limit=limit, cursor=cursor
+        )
+
+    def update_agent_memory_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
+        return self.server.update_agent_memory_label(
+            user_id=self.user_id, agent_id=agent_id, current_block_label=current_label, new_block_label=new_label
+        )
+
+    def add_agent_memory_block(self, agent_id: str, create_block: BlockCreate) -> Memory:
+        block_req = Block(**create_block.model_dump())
+        block = self.server.block_manager.create_or_update_block(actor=self.user, block=block_req)
+        # Link the block to the agent
+        updated_memory = self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_id, block_id=block.id)
+        return updated_memory
+
+    def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
+        return self.server.unlink_block_from_agent_memory(user_id=self.user_id, agent_id=agent_id, block_label=block_label)
+
+    def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+        return self.server.update_agent_memory_limit(user_id=self.user_id, agent_id=agent_id, block_label=block_label, limit=limit)

@@ -88,16 +88,19 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
     try:
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
-        print("Warning: model not found. Using cl100k_base encoding.")
+        warnings.warn("Warning: model not found. Using cl100k_base encoding.")
         encoding = tiktoken.get_encoding("cl100k_base")
 
     num_tokens = 0
     for function in functions:
         function_tokens = len(encoding.encode(function["name"]))
         if function["description"]:
-            function_tokens += len(encoding.encode(function["description"]))
+            if not isinstance(function["description"], str):
+                warnings.warn(f"Function {function['name']} has non-string description: {function['description']}")
+            else:
+                function_tokens += len(encoding.encode(function["description"]))
         else:
-            raise ValueError(f"Function {function['name']} has no description, function: {function}")
+            warnings.warn(f"Function {function['name']} has no description, function: {function}")
 
         if "parameters" in function:
             parameters = function["parameters"]

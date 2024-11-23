@@ -124,15 +124,10 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
     from composio_langchain import Action
 
     github_tool = client.load_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
-    # tool 2
-    from crewai_tools import ScrapeWebsiteTool
-
-    scrape_website_tool = client.load_crewai_tool(crewai_tool=ScrapeWebsiteTool(website_url="https://www.example.com"))
 
     # assert both got added
     tools = client.list_tools()
     assert github_tool.id in [t.id for t in tools]
-    assert scrape_website_tool.id in [t.id for t in tools]
 
     # Assert that all combinations of tool_names, organization id are unique
     combinations = [(t.name, t.organization_id) for t in tools]
@@ -144,7 +139,6 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
 
     # add both tools to agent in steps
     agent_state = client.add_tool_to_agent(agent_id=agent_state.id, tool_id=github_tool.id)
-    agent_state = client.add_tool_to_agent(agent_id=agent_state.id, tool_id=scrape_website_tool.id)
 
     # confirm that both tools are in the agent state
     # we could access it like agent_state.tools, but will use the client function instead
@@ -152,9 +146,8 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
     # but allows us to test the `get_tools_from_agent` pathway as well
     curr_tools = client.get_tools_from_agent(agent_state.id)
     curr_tool_names = [t.name for t in curr_tools]
-    assert len(curr_tool_names) == curr_num_tools + 2
+    assert len(curr_tool_names) == curr_num_tools + 1
     assert github_tool.name in curr_tool_names
-    assert scrape_website_tool.name in curr_tool_names
 
     # remove only the github tool
     agent_state = client.remove_tool_from_agent(agent_id=agent_state.id, tool_id=github_tool.id)
@@ -162,9 +155,8 @@ def test_agent_add_remove_tools(client: LocalClient, agent):
     # confirm that only one tool left
     curr_tools = client.get_tools_from_agent(agent_state.id)
     curr_tool_names = [t.name for t in curr_tools]
-    assert len(curr_tool_names) == curr_num_tools + 1
+    assert len(curr_tool_names) == curr_num_tools
     assert github_tool.name not in curr_tool_names
-    assert scrape_website_tool.name in curr_tool_names
 
 
 def test_agent_with_shared_blocks(client: LocalClient):
@@ -328,67 +320,6 @@ def test_tools_from_composio_basic(client: LocalClient):
     # The tool creation includes a compile safety check, so if this test doesn't error out, at least the code is compilable
 
 
-def test_tools_from_crewai(client: LocalClient):
-    # create crewAI tool
-
-    from crewai_tools import ScrapeWebsiteTool
-
-    crewai_tool = ScrapeWebsiteTool()
-
-    # Add the tool
-    tool = client.load_crewai_tool(crewai_tool=crewai_tool)
-
-    # list tools
-    tools = client.list_tools()
-    assert tool.name in [t.name for t in tools]
-
-    # get tool
-    tool_id = client.get_tool_id(name=tool.name)
-    retrieved_tool = client.get_tool(tool_id)
-    source_code = retrieved_tool.source_code
-
-    # Parse the function and attempt to use it
-    local_scope = {}
-    exec(source_code, {}, local_scope)
-    func = local_scope[tool.name]
-
-    # Pull a simple HTML website and check that scraping it works
-    # TODO: This is very hacky and can break at any time if the website changes.
-    # Host our own websites to test website tool calling on.
-    simple_webpage_url = "https://www.example.com"
-    expected_content = "This domain is for use in illustrative examples in documents."
-    assert expected_content in func(website_url=simple_webpage_url)
-
-
-def test_tools_from_crewai_with_params(client: LocalClient):
-    # create crewAI tool
-
-    from crewai_tools import ScrapeWebsiteTool
-
-    crewai_tool = ScrapeWebsiteTool(website_url="https://www.example.com")
-
-    # Add the tool
-    tool = client.load_crewai_tool(crewai_tool=crewai_tool)
-
-    # list tools
-    tools = client.list_tools()
-    assert tool.name in [t.name for t in tools]
-
-    # get tool
-    tool_id = client.get_tool_id(name=tool.name)
-    retrieved_tool = client.get_tool(tool_id)
-    source_code = retrieved_tool.source_code
-
-    # Parse the function and attempt to use it
-    local_scope = {}
-    exec(source_code, {}, local_scope)
-    func = local_scope[tool.name]
-
-    # Pull a simple HTML website and check that scraping it works
-    expected_content = "This domain is for use in illustrative examples in documents."
-    assert expected_content in func()
-
-
 def test_tools_from_langchain(client: LocalClient):
     # create langchain tool
     from langchain_community.tools import WikipediaQueryRun
@@ -432,3 +363,40 @@ def test_tool_creation_langchain_missing_imports(client: LocalClient):
     # Intentionally missing {"langchain_community.utilities": "WikipediaAPIWrapper"}
     with pytest.raises(RuntimeError):
         ToolCreate.from_langchain(langchain_tool)
+
+
+def test_shared_blocks_without_send_message(client: LocalClient):
+    from letta import BasicBlockMemory
+    from letta.client.client import Block, create_client
+    from letta.schemas.agent import AgentType
+    from letta.schemas.embedding_config import EmbeddingConfig
+    from letta.schemas.llm_config import LLMConfig
+
+    client = create_client()
+    shared_memory_block = Block(name="shared_memory", label="shared_memory", value="[empty]", limit=2000)
+    memory = BasicBlockMemory(blocks=[shared_memory_block])
+
+    agent_1 = client.create_agent(
+        agent_type=AgentType.memgpt_agent,
+        llm_config=LLMConfig.default_config("gpt-4"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        memory=memory,
+    )
+
+    agent_2 = client.create_agent(
+        agent_type=AgentType.memgpt_agent,
+        llm_config=LLMConfig.default_config("gpt-4"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        memory=memory,
+    )
+
+    agent_1.memory.update_block_value(label="shared_memory", value="I am no longer an [empty] memory")
+
+    block_id = agent_1.memory.get_block("shared_memory").id
+    client.update_block(block_id, text="I am no longer an [empty] memory")
+    client.update_agent(agent_id=agent_1.id, memory=agent_1.memory)
+    agent_1 = client.get_agent(agent_1.id)
+    agent_2 = client.get_agent(agent_2.id)
+    client.update_agent(agent_id=agent_2.id, memory=agent_2.memory)
+    assert agent_1.memory.get_block("shared_memory").value == "I am no longer an [empty] memory"
+    assert agent_2.memory.get_block("shared_memory").value == "I am no longer an [empty] memory"

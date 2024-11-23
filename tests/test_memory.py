@@ -1,6 +1,7 @@
 import pytest
 
 # Import the classes here, assuming the above definitions are in a module named memory_module
+from letta.schemas.block import Block
 from letta.schemas.memory import ChatMemory, Memory
 
 
@@ -36,10 +37,10 @@ def test_load_memory_from_json(sample_memory: Memory):
 def test_memory_limit_validation(sample_memory: Memory):
     """Test exceeding memory limit"""
     with pytest.raises(ValueError):
-        ChatMemory(persona="x" * 3000, human="y" * 3000)
+        ChatMemory(persona="x " * 10000, human="y " * 10000)
 
     with pytest.raises(ValueError):
-        sample_memory.get_block("persona").value = "x" * 3000
+        sample_memory.get_block("persona").value = "x " * 10000
 
 
 def test_memory_jinja2_template_load(sample_memory: Memory):
@@ -105,3 +106,50 @@ def test_memory_jinja2_set_template(sample_memory: Memory):
     )
     with pytest.raises(ValueError):
         sample_memory.set_prompt_template(prompt_template=template_bad_memory_structure)
+
+
+def test_link_unlink_block(sample_memory: Memory):
+    """Test linking and unlinking a block to the memory"""
+
+    # Link a new block
+
+    test_new_label = "test_new_label"
+    test_new_value = "test_new_value"
+    test_new_block = Block(label=test_new_label, value=test_new_value, limit=2000)
+
+    current_labels = sample_memory.list_block_labels()
+    assert test_new_label not in current_labels
+
+    sample_memory.link_block(block=test_new_block)
+    assert test_new_label in sample_memory.list_block_labels()
+    assert sample_memory.get_block(test_new_label).value == test_new_value
+
+    # Unlink the block
+    sample_memory.unlink_block(block_label=test_new_label)
+    assert test_new_label not in sample_memory.list_block_labels()
+
+
+def test_update_block_label(sample_memory: Memory):
+    """Test updating the label of a block"""
+
+    test_new_label = "test_new_label"
+    current_labels = sample_memory.list_block_labels()
+    assert test_new_label not in current_labels
+    test_old_label = current_labels[0]
+
+    sample_memory.update_block_label(current_label=test_old_label, new_label=test_new_label)
+    assert test_new_label in sample_memory.list_block_labels()
+    assert test_old_label not in sample_memory.list_block_labels()
+
+
+def test_update_block_limit(sample_memory: Memory):
+    """Test updating the limit of a block"""
+
+    test_new_limit = 1000
+    current_labels = sample_memory.list_block_labels()
+    test_old_label = current_labels[0]
+
+    assert sample_memory.get_block(label=test_old_label).limit != test_new_limit
+
+    sample_memory.update_block_limit(label=test_old_label, limit=test_new_limit)
+    assert sample_memory.get_block(label=test_old_label).limit == test_new_limit

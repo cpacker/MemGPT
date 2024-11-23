@@ -6,12 +6,13 @@ env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
   GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+  E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+  E2B_SANDBOX_TEMPLATE_ID: ${{ secrets.E2B_SANDBOX_TEMPLATE_ID }}
 
 on:
   push:
     branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   run-core-unit-tests:
@@ -21,14 +22,16 @@ jobs:
       fail-fast: false
       matrix:
         test_suite:
-          - "test_local_client.py"
           - "test_client.py"
+          - "test_local_client.py"
+          - "test_client_legacy.py"
           - "test_server.py"
           - "test_managers.py"
-          - "test_tools.py"
           - "test_o1_agent.py"
           - "test_tool_rule_solver.py"
           - "test_agent_tool_graph.py"
+          - "test_tool_execution_sandbox.py"
+          - "test_utils.py"
     services:
       qdrant:
         image: qdrant/qdrant
@@ -57,7 +60,7 @@ jobs:
         with:
           python-version: "3.12"
           poetry-version: "1.8.2"
-          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"
+          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests -E cloud-tool-sandbox"
       - name: Migrate database
         env:
           LETTA_PG_PORT: 5432
@@ -110,7 +113,7 @@ jobs:
         with:
           python-version: "3.12"
           poetry-version: "1.8.2"
-          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"
+          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests -E cloud-tool-sandbox"
       - name: Migrate database
         env:
           LETTA_PG_PORT: 5432
@@ -131,4 +134,4 @@ jobs:
           LETTA_SERVER_PASS: test_server_token
           PYTHONPATH: ${{ github.workspace }}:${{ env.PYTHONPATH }}
         run: |
-          poetry run pytest -s -vv -k "not integration_test_summarizer.py and not test_agent_tool_graph.py and not test_tool_rule_solver.py and not test_local_client.py and not test_o1_agent.py and not test_cli.py and not test_tools.py and not test_concurrent_connections.py and not test_quickstart and not test_model_letta_perfomance and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client.py" tests
+          poetry run pytest -s -vv -k "not test_model_letta_perfomance.py and not test_utils.py and not test_client.py and not test_tool_execution_sandbox.py and not integration_test_summarizer.py and not test_agent_tool_graph.py and not test_tool_rule_solver.py and not test_local_client.py and not test_o1_agent.py and not test_cli.py and not test_concurrent_connections.py and not test_quickstart and not test_model_letta_performance and not test_storage and not test_server and not test_openai_client and not test_providers and not test_client_legacy.py" tests

@@ -5,8 +5,9 @@ from pydantic import BaseModel, Field
 
 # Forward referencing to avoid circular import with Agent -> Memory -> Agent
 if TYPE_CHECKING:
-    from letta.agent import Agent
+    pass
 
+from letta.constants import CORE_MEMORY_BLOCK_CHAR_LIMIT
 from letta.schemas.block import Block
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_request import Tool
@@ -158,6 +159,13 @@ class Memory(BaseModel, validate_assignment=True):
 
         self.memory[block.label] = block
 
+    def unlink_block(self, block_label: str) -> Block:
+        """Unlink a block from the memory object"""
+        if block_label not in self.memory:
+            raise ValueError(f"Block with label {block_label} does not exist")
+
+        return self.memory.pop(block_label)
+
     def update_block_value(self, label: str, value: str):
         """Update the value of a block"""
         if label not in self.memory:
@@ -166,6 +174,32 @@ class Memory(BaseModel, validate_assignment=True):
             raise ValueError(f"Provided value must be a string")
 
         self.memory[label].value = value
+
+    def update_block_label(self, current_label: str, new_label: str):
+        """Update the label of a block"""
+        if current_label not in self.memory:
+            raise ValueError(f"Block with label {current_label} does not exist")
+        if not isinstance(new_label, str):
+            raise ValueError(f"Provided new label must be a string")
+
+        # First change the label of the block
+        self.memory[current_label].label = new_label
+
+        # Then swap the block to the new label
+        self.memory[new_label] = self.memory.pop(current_label)
+
+    def update_block_limit(self, label: str, limit: int):
+        """Update the limit of a block"""
+        if label not in self.memory:
+            raise ValueError(f"Block with label {label} does not exist")
+        if not isinstance(limit, int):
+            raise ValueError(f"Provided limit must be an integer")
+
+        # Check to make sure the new limit is greater than the current length of the block
+        if len(self.memory[label].value) > limit:
+            raise ValueError(f"New limit {limit} is less than the current length of the block {len(self.memory[label].value)}")
+
+        self.memory[label].limit = limit
 
 
 # TODO: ideally this is refactored into ChatMemory and the subclasses are given more specific names.
@@ -196,7 +230,7 @@ class BasicBlockMemory(Memory):
             assert block.label is not None and block.label != "", "each existing chat block must have a name"
             self.link_block(block=block)
 
-    def core_memory_append(self: "Agent", label: str, content: str) -> Optional[str]:  # type: ignore
+    def core_memory_append(agent_state: "AgentState", label: str, content: str) -> Optional[str]:  # type: ignore
         """
         Append to the contents of core memory.
 
@@ -207,12 +241,12 @@ class BasicBlockMemory(Memory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
-        current_value = str(self.memory.get_block(label).value)
+        current_value = str(agent_state.memory.get_block(label).value)
         new_value = current_value + "\n" + str(content)
-        self.memory.update_block_value(label=label, value=new_value)
+        agent_state.memory.update_block_value(label=label, value=new_value)
         return None
 
-    def core_memory_replace(self: "Agent", label: str, old_content: str, new_content: str) -> Optional[str]:  # type: ignore
+    def core_memory_replace(agent_state: "AgentState", label: str, old_content: str, new_content: str) -> Optional[str]:  # type: ignore
         """
         Replace the contents of core memory. To delete memories, use an empty string for new_content.
 
@@ -224,11 +258,11 @@ class BasicBlockMemory(Memory):
         Returns:
             Optional[str]: None is always returned as this function does not produce a response.
         """
-        current_value = str(self.memory.get_block(label).value)
+        current_value = str(agent_state.memory.get_block(label).value)
         if old_content not in current_value:
             raise ValueError(f"Old content '{old_content}' not found in memory block '{label}'")
         new_value = current_value.replace(str(old_content), str(new_content))
-        self.memory.update_block_value(label=label, value=new_value)
+        agent_state.memory.update_block_value(label=label, value=new_value)
         return None
 
 
@@ -237,7 +271,7 @@ class ChatMemory(BasicBlockMemory):
     ChatMemory initializes a BaseChatMemory with two default blocks, `human` and `persona`.
     """
 
-    def __init__(self, persona: str, human: str, limit: int = 2000):
+    def __init__(self, persona: str, human: str, limit: int = CORE_MEMORY_BLOCK_CHAR_LIMIT):
         """
         Initialize the ChatMemory object with a persona and human string.
 

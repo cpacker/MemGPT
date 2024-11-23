@@ -8,7 +8,7 @@ client.set_default_embedding_config(EmbeddingConfig.default_config(model_name="t
 
 
 # define a function with a docstring
-def roll_d20(self) -> str:
+def roll_d20() -> str:
     """
     Simulate the roll of a 20-sided die (d20).
 

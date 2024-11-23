@@ -37,3 +37,11 @@ class SourceMixin(Base):
     __abstract__ = True
 
     source_id: Mapped[str] = mapped_column(String, ForeignKey("sources.id"))
+
+
+class SandboxConfigMixin(Base):
+    """Mixin for models that belong to a SandboxConfig."""
+
+    __abstract__ = True
+
+    sandbox_config_id: Mapped[str] = mapped_column(String, ForeignKey("sandbox_configs.id"))
