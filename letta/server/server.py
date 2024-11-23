@@ -1390,7 +1390,6 @@ class SyncServer(Server):
 
     def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> Optional[AgentState]:
         """Return the config of an agent"""
-        import pdb; pdb.set_trace()
         user = self.user_manager.get_user_by_id(user_id=user_id)
         if agent_id:
             if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:

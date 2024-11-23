@@ -57,7 +57,6 @@ class ChatOnlyAgent(Agent):
             def rethink_memory():
                 from letta.client.client import create_client
                 client = create_client()
-                print('offline_agent before:', self.offline_memory_agent)
                 if self.offline_memory_agent:
                     client.delete_agent(agent_id=self.offline_memory_agent.id)
                     self.offline_memory_agent = None
@@ -110,13 +109,10 @@ class ChatOnlyAgent(Agent):
                 client.get_agent(self.offline_memory_agent.id)
                 client.send_message(agent_id=self.offline_memory_agent.id, message="Reorganize the memory", role="user")
                 client.delete_agent(agent_id=self.offline_memory_agent.id)
-                import pdb; pdb.set_trace()
                 self.update_memory_blocks_from_db()
-                print("after get", self.memory.get_block("chat_agent_human").value)
                 # client.get_agent(self.agent_state.id)
                 # client.update_agent(agent_id=self.agent_state.id, memory=self.agent_state.memory)
                 self.offline_memory_agent = None
-                print("done")
 
             # Run the rethink_memory function in a separate thread
             with ThreadPoolExecutor(max_workers=1) as executor:
