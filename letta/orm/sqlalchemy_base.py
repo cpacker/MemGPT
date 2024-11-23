@@ -179,10 +179,18 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     def _handle_dbapi_error(cls, e: DBAPIError):
         """Handle database errors and raise appropriate custom exceptions."""
         orig = e.orig  # Extract the original error from the DBAPIError
-        if isinstance(orig, dict):  # pg8000-style error
-            error_code = orig.get("C")
-        else:  # psycopg2-style error
-            error_code = getattr(orig, "pgcode", None)
+        error_code = None
+
+        # For psycopg2
+        if hasattr(orig, "pgcode"):
+            error_code = orig.pgcode
+        # For pg8000
+        elif hasattr(orig, "args") and len(orig.args) > 0:
+            # The first argument contains the error details as a dictionary
+            err_dict = orig.args[0]
+            if isinstance(err_dict, dict):
+                error_code = err_dict.get("C")  # 'C' is the error code field
+        logger.info(f"Extracted error_code: {error_code}")
 
         # Handle unique constraint violations
         if error_code == "23505":
