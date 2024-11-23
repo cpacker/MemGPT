@@ -204,7 +204,7 @@ class AgentModel(Base):
 
     # state (context compilation)
     message_ids = Column(JSON)
-    memory_block_ids = Column(JSON)
+    # memory_block_ids = Column(JSON)
     system = Column(String)
 
     # configs
@@ -233,7 +233,7 @@ class AgentModel(Base):
             description=self.description,
             message_ids=self.message_ids,
             # memory=Memory.load(self.memory),  # load dictionary
-            memory_block_ids=self.memory_block_ids,
+            # memory_block_ids=self.memory_block_ids,
             system=self.system,
             tool_names=self.tool_names,
             tool_rules=self.tool_rules,

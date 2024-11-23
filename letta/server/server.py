@@ -868,10 +868,10 @@ class SyncServer(Server):
                 raise ValueError(f"Invalid agent type: {request.agent_type}")
 
         # create blocks (note: cannot be linked into the agent_id is created)
-        block_ids = []
+        blocks = []
         for create_block in request.memory_blocks:
             block = self.block_manager.create_or_update_block(Block(**create_block.model_dump()), actor=actor)
-            block_ids.append(block.id)
+            blocks.append(block)
 
         # get tools + only add if they exist
         tool_objs = []
@@ -921,12 +921,12 @@ class SyncServer(Server):
         # create the tags
         if request.tags:
             for tag in request.tags:
-                self.agents_tags_manager.add_tag_to_agent(agent_id=agent_state.agent_state.id, tag=tag, actor=actor)
+                self.agents_tags_manager.add_tag_to_agent(agent_id=agent_state.id, tag=tag, actor=actor)
 
         # create block mappins (now that agent is persisted)
-        for block_id in block_ids:
+        for block in blocks:
             # this links the created block to the agent
-            self.blocks_agents_manager.add_block_to_agent(block_id=block_id, agent_id=agent_state.agent_state.id, actor=actor)
+            self.blocks_agents_manager.add_block_to_agent(block_id=block.id, agent_id=agent_state.id, block_label=block.label)
 
         # create an agent to instantiate the initial messages
         agent = self._initialize_agent(agent_id=agent_state.id, actor=actor, initial_message_sequence=request.initial_message_sequence)
