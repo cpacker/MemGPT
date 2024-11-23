@@ -211,6 +211,14 @@ class AbstractClient(object):
     ) -> Tool:
         raise NotImplementedError
 
+    def create_or_update_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Tool:
+        raise NotImplementedError
+
     def update_tool(
         self,
         id: str,
@@ -532,7 +540,7 @@ class RESTClient(AbstractClient):
         # add memory tools
         memory_functions = get_memory_functions(memory)
         for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
+            tool = self.create_or_update_tool(func, name=func_name, tags=["memory", "letta-base"])
             tool_names.append(tool.name)
 
         # check if default configs are provided
@@ -1440,18 +1448,39 @@ class RESTClient(AbstractClient):
         Returns:
             tool (Tool): The created tool.
         """
-
-        # TODO: check tool update code
-        # TODO: check if tool already exists
-
-        # TODO: how to load modules?
-        # parse source code/schema
         source_code = parse_source_code(func)
         source_type = "python"
 
         # call server function
         request = ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags)
         response = requests.post(f"{self.base_url}/{self.api_prefix}/tools", json=request.model_dump(), headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to create tool: {response.text}")
+        return Tool(**response.json())
+
+    def create_or_update_tool(
+        self,
+        func: Callable,
+        name: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+    ) -> Tool:
+        """
+        Creates or updates a tool. This stores the source code of function on the server, so that the server can execute the function and generate an OpenAI JSON schemas for it when using with an agent.
+
+        Args:
+            func (callable): The function to create a tool for.
+            name: (str): Name of the tool (must be unique per-user.)
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+
+        Returns:
+            tool (Tool): The created tool.
+        """
+        source_code = parse_source_code(func)
+        source_type = "python"
+
+        # call server function
+        request = ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags)
+        response = requests.put(f"{self.base_url}/{self.api_prefix}/tools", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
         return Tool(**response.json())
@@ -1488,45 +1517,6 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
         return Tool(**response.json())
-
-    # def create_tool(
-    #    self,
-    #    func,
-    #    name: Optional[str] = None,
-    #    update: Optional[bool] = True,  # TODO: actually use this
-    #    tags: Optional[List[str]] = None,
-    # ):
-    #    """Create a tool
-
-    #    Args:
-    #        func (callable): The function to create a tool for.
-    #        tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
-    #        update (bool, optional): Update the tool if it already exists. Defaults to True.
-
-    #    Returns:
-    #        Tool object
-    #    """
-
-    #    # TODO: check if tool already exists
-    #    # TODO: how to load modules?
-    #    # parse source code/schema
-    #    source_code = parse_source_code(func)
-    #    json_schema = generate_schema(func, name)
-    #    source_type = "python"
-    #    json_schema["name"]
-
-    #    # create data
-    #    data = {"source_code": source_code, "source_type": source_type, "tags": tags, "json_schema": json_schema, "update": update}
-    #    try:
-    #        CreateToolRequest(**data)  # validate data
-    #    except Exception as e:
-    #        raise ValueError(f"Failed to create tool: {e}, invalid input {data}")
-
-    #    # make REST request
-    #    response = requests.post(f"{self.base_url}/{self.api_prefix}/tools", json=data, headers=self.headers)
-    #    if response.status_code != 200:
-    #        raise ValueError(f"Failed to create tool: {response.text}")
-    #    return ToolModel(**response.json())
 
     def list_tools(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[Tool]:
         """
@@ -1977,7 +1967,7 @@ class LocalClient(AbstractClient):
         # add memory tools
         memory_functions = get_memory_functions(memory)
         for func_name, func in memory_functions.items():
-            tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
+            tool = self.create_or_update_tool(func, name=func_name, tags=["memory", "letta-base"])
             tool_names.append(tool.name)
 
         self.interface.clear()
@@ -2573,7 +2563,6 @@ class LocalClient(AbstractClient):
         tool_create = ToolCreate.from_composio(action=action)
         return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
-    # TODO: Use the above function `add_tool` here as there is duplicate logic
     def create_tool(
         self,
         func,
@@ -2596,6 +2585,42 @@ class LocalClient(AbstractClient):
         # TODO: check if tool already exists
         # TODO: how to load modules?
         # parse source code/schema
+        source_code = parse_source_code(func)
+        source_type = "python"
+        if not tags:
+            tags = []
+
+        # call server function
+        return self.server.tool_manager.create_tool(
+            Tool(
+                source_type=source_type,
+                source_code=source_code,
+                name=name,
+                tags=tags,
+                description=description,
+            ),
+            actor=self.user,
+        )
+
+    def create_or_update_tool(
+        self,
+        func,
+        name: Optional[str] = None,
+        tags: Optional[List[str]] = None,
+        description: Optional[str] = None,
+    ) -> Tool:
+        """
+        Creates or updates a tool. This stores the source code of function on the server, so that the server can execute the function and generate an OpenAI JSON schemas for it when using with an agent.
+
+        Args:
+            func (callable): The function to create a tool for.
+            name: (str): Name of the tool (must be unique per-user.)
+            tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            description (str, optional): The description.
+
+        Returns:
+            tool (Tool): The created tool.
+        """
         source_code = parse_source_code(func)
         source_type = "python"
         if not tags:

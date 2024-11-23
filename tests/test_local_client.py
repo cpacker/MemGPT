@@ -284,7 +284,7 @@ def test_tools(client: LocalClient):
         print(msg)
 
     # create tool
-    tool = client.create_tool(func=print_tool, tags=["extras"])
+    tool = client.create_or_update_tool(func=print_tool, tags=["extras"])
 
     # list tools
     tools = client.list_tools()

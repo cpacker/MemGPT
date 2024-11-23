@@ -1,11 +1,16 @@
 from typing import TYPE_CHECKING, List, Literal, Optional, Type
 
 from sqlalchemy import String, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Mapped, mapped_column
 
 from letta.log import get_logger
 from letta.orm.base import Base, CommonSqlalchemyMetaMixins
-from letta.orm.errors import NoResultFound
+from letta.orm.errors import (
+    ForeignKeyConstraintViolationError,
+    NoResultFound,
+    UniqueConstraintViolationError,
+)
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -102,12 +107,14 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
         if actor:
             self._set_created_and_updated_by_fields(actor.id)
-
-        with db_session as session:
-            session.add(self)
-            session.commit()
-            session.refresh(self)
-            return self
+        try:
+            with db_session as session:
+                session.add(self)
+                session.commit()
+                session.refresh(self)
+                return self
+        except DBAPIError as e:
+            self._handle_dbapi_error(e)
 
     def delete(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
         logger.debug(f"Soft deleting {self.__class__.__name__} with ID: {self.id} with actor={actor}")
@@ -167,6 +174,30 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         if not org_id:
             raise ValueError(f"object {actor} has no organization accessor")
         return query.where(cls.organization_id == org_id, cls.is_deleted == False)
+
+    @classmethod
+    def _handle_dbapi_error(cls, e: DBAPIError):
+        """Handle database errors and raise appropriate custom exceptions."""
+        orig = e.orig  # Extract the original error from the DBAPIError
+        if isinstance(orig, dict):  # pg8000-style error
+            error_code = orig.get("C")
+        else:  # psycopg2-style error
+            error_code = getattr(orig, "pgcode", None)
+
+        # Handle unique constraint violations
+        if error_code == "23505":
+            raise UniqueConstraintViolationError(
+                f"A unique constraint was violated for {cls.__name__}. Check your input for duplicates: {e}"
+            ) from e
+
+        # Handle foreign key violations
+        if error_code == "23503":
+            raise ForeignKeyConstraintViolationError(
+                f"A foreign key constraint was violated for {cls.__name__}. Check your input for missing or invalid references: {e}"
+            ) from e
+
+        # Re-raise for other unhandled DBAPI errors
+        raise
 
     @property
     def __pydantic_model__(self) -> Type["BaseModel"]:

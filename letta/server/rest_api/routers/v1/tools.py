@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
+from letta.orm.errors import UniqueConstraintViolationError
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
@@ -83,12 +84,37 @@ def create_tool(
     """
     Create a new tool
     """
-    # Derive user and org id from actor
-    actor = server.get_user_or_default(user_id=user_id)
+    try:
+        actor = server.get_user_or_default(user_id=user_id)
+        tool = Tool(**request.model_dump())
+        return server.tool_manager.create_tool(pydantic_tool=tool, actor=actor)
+    except UniqueConstraintViolationError as e:
+        # Log or print the full exception here for debugging
+        print(f"Error occurred: {e}")
+        raise HTTPException(status_code=409, detail=str(e))
 
-    # Send request to create the tool
-    tool = Tool(**request.model_dump())
-    return server.tool_manager.create_tool(pydantic_tool=tool, actor=actor)
+
+@router.put("/", response_model=Tool, operation_id="upsert_tool")
+def upsert_tool(
+    request: ToolCreate = Body(...),
+    server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    """
+    Create or update a tool
+    """
+    try:
+        actor = server.get_user_or_default(user_id=user_id)
+        tool = server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**request.model_dump()), actor=actor)
+        return tool
+    except UniqueConstraintViolationError as e:
+        # Log the error and raise a conflict exception
+        print(f"Unique constraint violation occurred: {e}")
+        raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        # Catch other unexpected errors and raise an internal server error
+        print(f"Unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
 
 
 @router.patch("/{tool_id}", response_model=Tool, operation_id="update_tool")

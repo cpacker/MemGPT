@@ -12,8 +12,8 @@ def test_o1_agent():
     client = create_client()
     assert client is not None
 
-    thinking_tool = client.create_tool(send_thinking_message)
-    final_tool = client.create_tool(send_final_message)
+    thinking_tool = client.create_or_update_tool(send_thinking_message)
+    final_tool = client.create_or_update_tool(send_final_message)
 
     agent_state = client.create_agent(
         agent_type=AgentType.o1_agent,

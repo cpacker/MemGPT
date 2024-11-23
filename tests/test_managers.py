@@ -1,6 +1,5 @@
 import pytest
 from sqlalchemy import delete
-from sqlalchemy.exc import DBAPIError
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
@@ -17,6 +16,10 @@ from letta.orm import (
     User,
 )
 from letta.orm.agents_tags import AgentsTags
+from letta.orm.errors import (
+    ForeignKeyConstraintViolationError,
+    UniqueConstraintViolationError,
+)
 from letta.schemas.agent import CreateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate
@@ -352,7 +355,7 @@ def test_create_tool_duplicate_name(server: SyncServer, print_tool, default_user
     data = print_tool.model_dump(exclude=["id"])
     tool = PydanticTool(**data)
 
-    with pytest.raises(DBAPIError, match='duplicate key value violates unique constraint "uix_name_organization"'):
+    with pytest.raises(UniqueConstraintViolationError):
         server.tool_manager.create_tool(tool, actor=default_user)
 
 
@@ -389,7 +392,7 @@ def test_list_tools(server: SyncServer, print_tool, default_user):
 
     # Assertions to check that the created tool is listed
     assert len(tools) == 1
-    assert any(t.id == tool.id for t in tools)
+    assert any(t.id == print_tool.id for t in tools)
 
 
 def test_update_tool_by_id(server: SyncServer, print_tool, default_user):
@@ -489,11 +492,11 @@ def test_update_tool_multi_user(server: SyncServer, print_tool, default_user, ot
     tool_update = ToolUpdate(description=updated_description)
 
     # Update the print_tool using the manager method, but WITH THE OTHER USER'S ID!
-    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=other_user)
+    server.tool_manager.update_tool_by_id(print_tool.id, tool_update, actor=other_user)
 
     # Check that the created_by and last_updated_by fields are correct
     # Fetch the updated print_tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    updated_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     assert updated_tool.last_updated_by_id == other_user.id
     assert updated_tool.created_by_id == default_user.id
@@ -1061,7 +1064,7 @@ def test_add_block_to_agent(server, sarah_agent, default_user, default_block):
 
 
 def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
-    with pytest.raises(DBAPIError, match="violates foreign key constraint .*fk_block_id_label"):
+    with pytest.raises(ForeignKeyConstraintViolationError):
         server.blocks_agents_manager.add_block_to_agent(
             agent_id=sarah_agent.id, block_id="nonexistent_block", block_label="nonexistent_label"
         )
@@ -1125,5 +1128,5 @@ def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user
     block_manager = BlockManager()
     block_manager.delete_block(block_id=default_block.id, actor=default_user)
 
-    with pytest.raises(DBAPIError, match='insert or update on table "blocks_agents" violates foreign key constraint'):
+    with pytest.raises(ForeignKeyConstraintViolationError):
         server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
