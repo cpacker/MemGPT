@@ -406,7 +406,7 @@ class Agent(BaseAgent):
 
             # refresh memory from DB (using block ids)
             self.agent_state.memory = Memory(
-                blocks=[self.block_manager.get_block_by_id(block_id) for block_id in self.agent_state.memory_block_ids]
+                blocks=[self.block_manager.get_block_by_id(block.id, actor=self.user) for block in self.agent_state.memory.get_blocks()]
             )
 
             # NOTE: don't do this since re-buildin the memory is handled at the start of the step
@@ -987,7 +987,7 @@ class Agent(BaseAgent):
             # Step 0: update core memory
             # only pulling latest block data if shared memory is being used
             current_persisted_memory = Memory(
-                blocks=[self.block_manager.get_block_by_id(block_id) for block_id in self.agent_state.memory_block_ids]
+                blocks=[self.block_manager.get_block_by_id(block.id, actor=self.user) for block in self.agent_state.memory.get_blocks()]
             )  # read blocks from DB
             self.update_memory_if_change(current_persisted_memory)
             # TODO: ensure we're passing in metadata store from all surfaces
