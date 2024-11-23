@@ -595,14 +595,17 @@ def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: PersistedA
     block = client.create_block(label="human", value="username: sarah")
 
     # create agents with shared block
-    from letta.schemas.memory import BasicBlockMemory
+    from letta.schemas.block import CreateBlock
 
-    persona1_block = client.create_block(label="persona", value="you are agent 1")
-    persona2_block = client.create_block(label="persona", value="you are agent 2")
-
+    # persona1_block = client.create_block(label="persona", value="you are agent 1")
+    # persona2_block = client.create_block(label="persona", value="you are agent 2")
     # create agnets
-    agent_state1 = client.create_agent(name="agent1", memory=BasicBlockMemory(blocks=[block, persona1_block]))
-    agent_state2 = client.create_agent(name="agent2", memory=BasicBlockMemory(blocks=[block, persona2_block]))
+    agent_state1 = client.create_agent(name="agent1", memory_blocks=[CreateBlock(label="persona", value="you are agent 1")])
+    agent_state2 = client.create_agent(name="agent2", memory_blocks=[CreateBlock(label="persona", value="you are agent 2")])
+
+    # attach shared block to both agents
+    client.link_agent_memory_block(agent_state1.id, block.id)
+    client.link_agent_memory_block(agent_state2.id, block.id)
 
     # update memory
     response = client.user_message(agent_id=agent_state1.id, message="my name is actually charles")

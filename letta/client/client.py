@@ -3152,6 +3152,9 @@ class LocalClient(AbstractClient):
         updated_memory = self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_id, block_id=block.id)
         return updated_memory
 
+    def link_agent_memory_block(self, agent_id: str, block_id: str) -> Memory:
+        return self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_id, block_id=block_id)
+
     def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
         return self.server.unlink_block_from_agent_memory(user_id=self.user_id, agent_id=agent_id, block_label=block_label)
 
