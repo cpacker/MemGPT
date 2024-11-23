@@ -1390,6 +1390,7 @@ class SyncServer(Server):
 
     def get_agent_state(self, user_id: str, agent_id: Optional[str], agent_name: Optional[str] = None) -> Optional[AgentState]:
         """Return the config of an agent"""
+        import pdb; pdb.set_trace()
         user = self.user_manager.get_user_by_id(user_id=user_id)
         if agent_id:
             if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
@@ -1405,6 +1406,7 @@ class SyncServer(Server):
         assert isinstance(letta_agent.memory, Memory)
 
         letta_agent.update_memory_blocks_from_db()
+        letta_agent.agent_state.memory = letta_agent.memory
         agent_state = letta_agent.agent_state.model_copy(deep=True)
         # Load the tags in for the agent_state
         agent_state.tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=user)

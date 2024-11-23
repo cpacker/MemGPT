@@ -189,3 +189,7 @@ def test_chat_only_agent():
     for message in ["hello", "my name is not chad, my name is swoodily"]:
         client.send_message(agent_id=chat_only_agent.id, message=message, role="user")
         chat_only_agent = client.get_agent(agent_id=chat_only_agent.id)
+
+    import pdb; pdb.set_trace() 
+    chat_only_agent = client.get_agent(agent_id=chat_only_agent.id)
+    assert chat_only_agent.memory.get_block("chat_agent_human").value != get_human_text(DEFAULT_HUMAN)
