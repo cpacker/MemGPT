@@ -47,7 +47,7 @@ from letta.schemas.agent import (
     UpdateAgentState,
 )
 from letta.schemas.api_key import APIKey, APIKeyCreate
-from letta.schemas.block import Block
+from letta.schemas.block import Block, BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
@@ -874,6 +874,7 @@ class SyncServer(Server):
         for create_block in request.memory_blocks:
             block = self.block_manager.create_or_update_block(Block(**create_block.model_dump()), actor=actor)
             blocks.append(block)
+            print(f"Create block {block.id} user {actor.id}")
 
         # get tools + only add if they exist
         tool_objs = []
@@ -929,6 +930,7 @@ class SyncServer(Server):
         for block in blocks:
             # this links the created block to the agent
             self.blocks_agents_manager.add_block_to_agent(block_id=block.id, agent_id=agent_state.id, block_label=block.label)
+            print("created mapping", block.id, agent_state.id, block.label)
 
         # create an agent to instantiate the initial messages
         agent = self._initialize_agent(agent_id=agent_state.id, actor=actor, initial_message_sequence=request.initial_message_sequence)
@@ -1583,37 +1585,63 @@ class SyncServer(Server):
 
         return response
 
-    def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> Memory:
-        """Update the agents core memory block, return the new state"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+    def get_agent_block_by_label(self, user_id: str, agent_id: str, label: str) -> Block:
+        """Get a block by label"""
+        # TODO: implement at ORM?
+        for block_id in self.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id):
+            block = self.block_manager.get_block_by_id(block_id=block_id, actor=self.user_manager.get_user_by_id(user_id=user_id))
+            if block.label == label:
+                return block
+        return None
 
-        # Get the agent object (loaded in memory)
+    def update_agent_core_memory(self, user_id: str, agent_id: str, label: str, value: str) -> Memory:
+        """Update the value of a block in the agent's memory"""
+
+        # get the block id
+        block = self.get_agent_block_by_label(user_id=user_id, agent_id=agent_id, label=label)
+        block_id = block.id
+        print("query", block_id, agent_id, label)
+
+        # update the block
+        self.block_manager.update_block(
+            block_id=block_id, block_update=BlockUpdate(value=value), actor=self.user_manager.get_user_by_id(user_id=user_id)
+        )
+
+        # load agent
         letta_agent = self.load_agent(agent_id=agent_id)
+        return letta_agent.agent_state.memory
 
-        # old_core_memory = self.get_agent_memory(agent_id=agent_id)
+    # def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> Memory:
+    #    """Update the agents core memory block, return the new state"""
+    #    if self.user_manager.get_user_by_id(user_id=user_id) is None:
+    #        raise ValueError(f"User user_id={user_id} does not exist")
+    #    if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+    #        raise ValueError(f"Agent agent_id={agent_id} does not exist")
 
-        modified = False
-        for key, value in new_memory_contents.items():
-            if letta_agent.memory.get_block(key) is None:
-                # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.memory.list_block_names())}")
-                raise ValueError(f"Key {key} not found in agent memory {str(letta_agent.memory.memory)}")
-            if value is None:
-                continue
-            if letta_agent.memory.get_block(key) != value:
-                letta_agent.memory.update_block_value(label=key, value=value)  # update agent memory
-                modified = True
+    #    # Get the agent object (loaded in memory)
+    #    letta_agent = self.load_agent(agent_id=agent_id)
 
-        # If we modified the memory contents, we need to rebuild the memory block inside the system message
-        if modified:
-            letta_agent.rebuild_system_prompt()
-            # letta_agent.rebuild_memory(force=True, ms=self.ms)  # This breaks unit tests in test_local_client.py
-            # save agent
-            save_agent(letta_agent, self.ms)
+    #    # old_core_memory = self.get_agent_memory(agent_id=agent_id)
 
-        return self.ms.get_agent(agent_id=agent_id).memory
+    #    modified = False
+    #    for key, value in new_memory_contents.items():
+    #        if letta_agent.agent_state.memory.get_block(key) is None:
+    #            # raise ValueError(f"Key {key} not found in agent memory {list(letta_agent.memory.list_block_names())}")
+    #            raise ValueError(f"Key {key} not found in agent memory {str(letta_agent.memory.memory)}")
+    #        if value is None:
+    #            continue
+    #        if letta_agent.agent_state.memory.get_block(key) != value:
+    #            letta_agent.agent_state.memory.update_block_value(label=key, value=value)  # update agent memory
+    #            modified = True
+
+    #    # If we modified the memory contents, we need to rebuild the memory block inside the system message
+    #    if modified:
+    #        letta_agent.rebuild_system_prompt()
+    #        # letta_agent.rebuild_memory(force=True, ms=self.ms)  # This breaks unit tests in test_local_client.py
+    #        # save agent
+    #        save_agent(letta_agent, self.ms)
+
+    #    return letta_agent.agent_state.memory
 
     def rename_agent(self, user_id: str, agent_id: str, new_agent_name: str) -> PersistedAgentState:
         """Update the name of the agent in the database"""
@@ -2003,27 +2031,41 @@ class SyncServer(Server):
         # Get the user
         user = self.user_manager.get_user_by_id(user_id=user_id)
 
-        # Link a block to an agent's memory
-        letta_agent = self.load_agent(agent_id=agent_id)
-        letta_agent.memory.update_block_label(current_label=current_block_label, new_label=new_block_label)
-        assert new_block_label in letta_agent.memory.list_block_labels()
-        self.block_manager.create_or_update_block(block=letta_agent.memory.get_block(new_block_label), actor=user)
+        # get the block
+        block_id = self.blocks_agents_manager.get_block_id_for_label(current_block_label)
 
-        # check that the block was updated
-        updated_block = self.block_manager.get_block_by_id(block_id=letta_agent.memory.get_block(new_block_label).id, actor=user)
+        # rename the block label (update block)
+        updated_block = self.block_manager.update_block(block_id=block_id, block_update=BlockUpdate(label=new_block_label), actor=user)
 
-        # Recompile the agent memory
-        letta_agent.rebuild_system_prompt(force=True, ms=self.ms)
+        # remove the mapping
+        self.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=agent_id, block_label=current_block_label, actor=user)
 
-        # save agent
-        save_agent(letta_agent, self.ms)
+        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        return memory
 
-        updated_agent = self.ms.get_agent(agent_id=agent_id)
-        if updated_agent is None:
-            raise ValueError(f"Agent with id {agent_id} not found after linking block")
-        assert new_block_label in updated_agent.memory.list_block_labels()
-        assert current_block_label not in updated_agent.memory.list_block_labels()
-        return updated_agent.memory
+        ## re-add the mapping
+
+        ## Link a block to an agent's memory
+        # letta_agent = self.load_agent(agent_id=agent_id)
+        # letta_agent.memory.update_block_label(current_label=current_block_label, new_label=new_block_label)
+        # assert new_block_label in letta_agent.memory.list_block_labels()
+        # self.block_manager.create_or_update_block(block=letta_agent.memory.get_block(new_block_label), actor=user)
+
+        ## check that the block was updated
+        # updated_block = self.block_manager.get_block_by_id(block_id=letta_agent.memory.get_block(new_block_label).id, actor=user)
+
+        ## Recompile the agent memory
+        # letta_agent.rebuild_system_prompt(force=True, ms=self.ms)
+
+        ## save agent
+        # save_agent(letta_agent, self.ms)
+
+        # updated_agent = self.ms.get_agent(agent_id=agent_id)
+        # if updated_agent is None:
+        #    raise ValueError(f"Agent with id {agent_id} not found after linking block")
+        # assert new_block_label in updated_agent.memory.list_block_labels()
+        # assert current_block_label not in updated_agent.memory.list_block_labels()
+        # return updated_agent.memory
 
     def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
         """Link a block to an agent's memory"""
@@ -2111,4 +2153,4 @@ class SyncServer(Server):
         if updated_agent is None:
             raise ValueError(f"Agent with id {agent_id} not found after linking block")
         assert updated_agent.memory.get_block(label=block_label).limit == limit
-        return updated_agent.memory
+        return updated_agent.memoryprin

@@ -2236,7 +2236,7 @@ class LocalClient(AbstractClient):
 
         """
         # TODO: implement this (not sure what it should look like)
-        memory = self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, new_memory_contents={section: value})
+        memory = self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, label=section, value=value)
         return memory
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
