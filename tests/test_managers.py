@@ -343,7 +343,6 @@ def test_update_user(server: SyncServer):
 # ToolManager Tests
 # ======================================================================================================================
 def test_create_tool(server: SyncServer, print_tool, default_user, default_organization):
-
     # Assertions to ensure the created tool matches the expected values
     assert print_tool.created_by_id == default_user.id
     assert print_tool.organization_id == default_organization.id
@@ -358,7 +357,6 @@ def test_create_tool_duplicate_name(server: SyncServer, print_tool, default_user
 
 
 def test_get_tool_by_id(server: SyncServer, print_tool, default_user):
-
     # Fetch the tool by ID using the manager method
     fetched_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
@@ -372,7 +370,6 @@ def test_get_tool_by_id(server: SyncServer, print_tool, default_user):
 
 
 def test_get_tool_with_actor(server: SyncServer, print_tool, default_user):
-
     # Fetch the print_tool by name and organization ID
     fetched_tool = server.tool_manager.get_tool_by_name(print_tool.name, actor=default_user)
 
@@ -387,7 +384,6 @@ def test_get_tool_with_actor(server: SyncServer, print_tool, default_user):
 
 
 def test_list_tools(server: SyncServer, print_tool, default_user):
-
     # List tools (should include the one created by the fixture)
     tools = server.tool_manager.list_tools(actor=default_user)
 
@@ -397,7 +393,6 @@ def test_list_tools(server: SyncServer, print_tool, default_user):
 
 
 def test_update_tool_by_id(server: SyncServer, print_tool, default_user):
-
     updated_description = "updated_description"
 
     # Create a ToolUpdate object to modify the print_tool's description
@@ -428,7 +423,6 @@ def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, p
         return True
 
     # Test begins
-
     og_json_schema = print_tool.json_schema
 
     source_code = parse_source_code(counter_tool)
@@ -465,7 +459,6 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, print
         return True
 
     # Test begins
-
     og_json_schema = print_tool.json_schema
 
     source_code = parse_source_code(counter_tool)
@@ -490,7 +483,6 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, print
 
 
 def test_update_tool_multi_user(server: SyncServer, print_tool, default_user, other_user):
-
     updated_description = "updated_description"
 
     # Create a ToolUpdate object to modify the print_tool's description
@@ -508,7 +500,6 @@ def test_update_tool_multi_user(server: SyncServer, print_tool, default_user, ot
 
 
 def test_delete_tool_by_id(server: SyncServer, print_tool, default_user):
-
     # Delete the print_tool using the manager method
     server.tool_manager.delete_tool_by_id(print_tool.id, actor=default_user)
 
