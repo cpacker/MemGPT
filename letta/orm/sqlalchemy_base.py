@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from sqlalchemy.orm import Session
 
-    # from letta.orm.user import User
 
 logger = get_logger(__name__)
 
@@ -28,6 +27,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         cls, *, db_session: "Session", cursor: Optional[str] = None, limit: Optional[int] = 50, **kwargs
     ) -> List[Type["SqlalchemyBase"]]:
         """List records with optional cursor (for pagination) and limit."""
+        logger.debug(f"Listing {cls.__name__} with kwarg filters {kwargs}")
         with db_session as session:
             # Start with the base query filtered by kwargs
             query = select(cls).filter_by(**kwargs)
@@ -67,6 +67,8 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         Raises:
             NoResultFound: if the object is not found
         """
+        logger.debug(f"Reading {cls.__name__} with ID: {identifier} with actor={actor}")
+
         # Start the query
         query = select(cls)
         # Collect query conditions for better error reporting
@@ -96,6 +98,8 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         raise NoResultFound(f"{cls.__name__} not found with {conditions_str}")
 
     def create(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+        logger.debug(f"Creating {self.__class__.__name__} with ID: {self.id} with actor={actor}")
+
         if actor:
             self._set_created_and_updated_by_fields(actor.id)
 
@@ -106,6 +110,8 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return self
 
     def delete(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+        logger.debug(f"Soft deleting {self.__class__.__name__} with ID: {self.id} with actor={actor}")
+
         if actor:
             self._set_created_and_updated_by_fields(actor.id)
 
@@ -114,8 +120,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
     def hard_delete(self, db_session: "Session", actor: Optional["User"] = None) -> None:
         """Permanently removes the record from the database."""
-        if actor:
-            logger.info(f"User {actor.id} requested hard deletion of {self.__class__.__name__} with ID {self.id}")
+        logger.debug(f"Hard deleting {self.__class__.__name__} with ID: {self.id} with actor={actor}")
 
         with db_session as session:
             try:
@@ -129,6 +134,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
                 logger.info(f"{self.__class__.__name__} with ID {self.id} successfully hard deleted")
 
     def update(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+        logger.debug(f"Updating {self.__class__.__name__} with ID: {self.id} with actor={actor}")
         if actor:
             self._set_created_and_updated_by_fields(actor.id)
 

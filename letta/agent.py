@@ -1359,7 +1359,6 @@ class Agent(BaseAgent):
         assert isinstance(new_system_prompt, str)
 
         if new_system_prompt == self.agent_state.system:
-            input("same???")
             return
 
         self.agent_state.system = new_system_prompt

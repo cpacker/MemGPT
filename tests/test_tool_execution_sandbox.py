@@ -23,6 +23,7 @@ from letta.schemas.sandbox_config import (
     SandboxConfigCreate,
     SandboxConfigUpdate,
     SandboxEnvironmentVariableCreate,
+    SandboxType,
 )
 from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.user import User
@@ -275,6 +276,22 @@ def test_local_sandbox_env(mock_e2b_api_key_none, get_env_tool, test_user):
     assert long_random_string in result.func_return
 
 
+@pytest.mark.local_sandbox
+def test_local_sandbox_e2e_composio_star_github(mock_e2b_api_key_none, check_composio_key_set, composio_github_star_tool, test_user):
+    # Add the composio key
+    manager = SandboxConfigManager(tool_settings)
+    config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=test_user)
+
+    manager.create_sandbox_env_var(
+        SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value=tool_settings.composio_api_key),
+        sandbox_config_id=config.id,
+        actor=test_user,
+    )
+
+    result = ToolExecutionSandbox(composio_github_star_tool.name, {"owner": "letta-ai", "repo": "letta"}, user_id=test_user.id).run()
+    assert result.func_return["details"] == "Action executed successfully"
+
+
 # E2B sandbox tests
 
 
@@ -407,19 +424,17 @@ def test_e2b_sandbox_with_list_rv(check_e2b_key_is_set, list_tool, test_user):
     assert len(result.func_return) == 5
 
 
-# TODO: Add tests for composio
-# def test_e2b_e2e_composio_star_github(check_e2b_key_is_set, check_composio_key_set, composio_github_star_tool, test_user):
-#     # Add the composio key
-#     manager = SandboxConfigManager(tool_settings)
-#     config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=test_user)
-#
-#     manager.create_sandbox_env_var(
-#         SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value=tool_settings.composio_api_key),
-#         sandbox_config_id=config.id,
-#         actor=test_user,
-#     )
-#
-#     result = ToolExecutionSandbox(composio_github_star_tool.name, {}, user_id=test_user.id).run()
-#     import ipdb
-#
-#     ipdb.set_trace()
+@pytest.mark.e2b_sandboxfunc
+def test_e2b_e2e_composio_star_github(check_e2b_key_is_set, check_composio_key_set, composio_github_star_tool, test_user):
+    # Add the composio key
+    manager = SandboxConfigManager(tool_settings)
+    config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=test_user)
+
+    manager.create_sandbox_env_var(
+        SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value=tool_settings.composio_api_key),
+        sandbox_config_id=config.id,
+        actor=test_user,
+    )
+
+    result = ToolExecutionSandbox(composio_github_star_tool.name, {"owner": "letta-ai", "repo": "letta"}, user_id=test_user.id).run()
+    assert result.func_return["details"] == "Action executed successfully"

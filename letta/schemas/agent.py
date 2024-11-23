@@ -48,9 +48,9 @@ class PersistedAgentState(BaseAgent, validate_assignment=True):
     # memory: Memory = Field(default_factory=Memory, description="The in-context memory of the agent.")
 
     # memory
-    memory_block_ids: List[str] = Field(
-        ..., description="The ids of the memory blocks in the agent's in-context memory."
-    )  # TODO: mapping table?
+    # memory_block_ids: List[str] = Field(
+    #    ..., description="The ids of the memory blocks in the agent's in-context memory."
+    # )  # TODO: mapping table?
 
     # tools
     # TODO: move to ORM mapping

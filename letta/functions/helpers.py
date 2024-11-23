@@ -13,8 +13,6 @@ def generate_composio_tool_wrapper(action: "ActionType") -> tuple[str, str]:
 
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
-    if 'self' in kwargs:
-        del kwargs['self']
     from composio import Action, App, Tag
     from composio_langchain import ComposioToolSet
 
@@ -46,8 +44,6 @@ def generate_langchain_tool_wrapper(
     # Combine all parts into the wrapper function
     wrapper_function_str = f"""
 def {func_name}(**kwargs):
-    if 'self' in kwargs:
-        del kwargs['self']
     import importlib
     {import_statement}
     {extra_module_imports}

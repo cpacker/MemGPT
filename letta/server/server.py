@@ -70,6 +70,7 @@ from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
+from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
@@ -253,7 +254,9 @@ class SyncServer(Server):
         self.block_manager = BlockManager()
         self.source_manager = SourceManager()
         self.agents_tags_manager = AgentsTagsManager()
+        self.blocks_agents_manager = BlocksAgentsManager()
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
+        self.blocks_agents_manager = BlocksAgentsManager()
 
         # Make default user and org
         if init_with_default_org_and_user:
@@ -864,7 +867,7 @@ class SyncServer(Server):
             else:
                 raise ValueError(f"Invalid agent type: {request.agent_type}")
 
-        # create blocks and link ids
+        # create blocks (note: cannot be linked into the agent_id is created)
         block_ids = []
         for create_block in request.memory_blocks:
             block = self.block_manager.create_or_update_block(Block(**create_block.model_dump()), actor=actor)
@@ -900,9 +903,6 @@ class SyncServer(Server):
             llm_config=request.llm_config,
             embedding_config=request.embedding_config,
             system=request.system,
-            # memory=request.memory,
-            # memory
-            memory_block_ids=block_ids,
             # other metadata
             description=request.description,
             metadata_=request.metadata_,
@@ -911,13 +911,22 @@ class SyncServer(Server):
         print()
         print("TOOL RULES", agent_state.tool_rules)
         # TODO: move this to agent ORM
+        # this saves the agent ID and state into the DB
         self.ms.create_agent(agent_state)
         print("created")
+
+        # Note: mappings (e.g. tags, blocks) are created after the agent is persisted
+        # TODO: add source mappings here as well
 
         # create the tags
         if request.tags:
             for tag in request.tags:
                 self.agents_tags_manager.add_tag_to_agent(agent_id=agent_state.agent_state.id, tag=tag, actor=actor)
+
+        # create block mappins (now that agent is persisted)
+        for block_id in block_ids:
+            # this links the created block to the agent
+            self.blocks_agents_manager.add_block_to_agent(block_id=block_id, agent_id=agent_state.agent_state.id, actor=actor)
 
         # create an agent to instantiate the initial messages
         agent = self._initialize_agent(agent_id=agent_state.id, actor=actor, initial_message_sequence=request.initial_message_sequence)
@@ -1049,6 +1058,10 @@ class SyncServer(Server):
         # return agent.agent_state
 
     def get_agent(self, agent_id: str) -> AgentState:
+        """
+        Retrieve the full agent state from the DB.
+        This gathers data accross multiple tables to provide the full state of an agent, which is passed into the `Agent` object for creation.
+        """
 
         # get data persisted from the DB
         agent_state = self.ms.get_agent(agent_id=agent_id)
@@ -1057,10 +1070,10 @@ class SyncServer(Server):
         # construct the in-memory, full agent state - this gather data stored in different tables but that needs to be passed to `Agent`
         # we also return this data to the user to provide all the state related to an agent
 
-        # get `Memory` object
-        memory = Memory(
-            blocks=[self.block_manager.get_block_by_id(block_id=block_id, actor=user) for block_id in agent_state.memory_block_ids]
-        )
+        # get `Memory` object by getting the linked block IDs and fetching the blocks, then putting that into a `Memory` object
+        # this is the "in memory" representation of the in-context memory
+        block_ids = self.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id)
+        memory = Memory(blocks=[self.block_manager.get_block_by_id(block_id=block_id, actor=user) for block_id in block_ids])
 
         # get `Tool` objects
         tools = [self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=user) for tool_name in agent_state.tool_names]

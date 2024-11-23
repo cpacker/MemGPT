@@ -37,10 +37,10 @@ def test_load_memory_from_json(sample_memory: Memory):
 def test_memory_limit_validation(sample_memory: Memory):
     """Test exceeding memory limit"""
     with pytest.raises(ValueError):
-        ChatMemory(persona="x" * 3000, human="y" * 3000)
+        ChatMemory(persona="x " * 10000, human="y " * 10000)
 
     with pytest.raises(ValueError):
-        sample_memory.get_block("persona").value = "x" * 3000
+        sample_memory.get_block("persona").value = "x " * 10000
 
 
 def test_memory_jinja2_template_load(sample_memory: Memory):
