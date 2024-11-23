@@ -92,6 +92,10 @@ def create_tool(
         # Log or print the full exception here for debugging
         print(f"Error occurred: {e}")
         raise HTTPException(status_code=409, detail=str(e))
+    except Exception as e:
+        # Catch other unexpected errors and raise an internal server error
+        print(f"Unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
 @router.put("/", response_model=Tool, operation_id="upsert_tool")
@@ -114,7 +118,7 @@ def upsert_tool(
     except Exception as e:
         # Catch other unexpected errors and raise an internal server error
         print(f"Unexpected error occurred: {e}")
-        raise HTTPException(status_code=500, detail="An unexpected error occurred.")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
 @router.patch("/{tool_id}", response_model=Tool, operation_id="update_tool")
