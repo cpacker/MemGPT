@@ -1,6 +1,6 @@
 import pytest
 from sqlalchemy import delete
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
@@ -1067,7 +1067,7 @@ def test_add_block_to_agent(server, sarah_agent, default_user, default_block):
 
 
 def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
-    with pytest.raises(IntegrityError, match="violates foreign key constraint .*fk_block_id_label"):
+    with pytest.raises(DBAPIError, match="violates foreign key constraint .*fk_block_id_label"):
         server.blocks_agents_manager.add_block_to_agent(
             agent_id=sarah_agent.id, block_id="nonexistent_block", block_label="nonexistent_label"
         )
@@ -1131,5 +1131,5 @@ def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user
     block_manager = BlockManager()
     block_manager.delete_block(block_id=default_block.id, actor=default_user)
 
-    with pytest.raises(IntegrityError, match='insert or update on table "blocks_agents" violates foreign key constraint'):
+    with pytest.raises(DBAPIError, match='insert or update on table "blocks_agents" violates foreign key constraint'):
         server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
