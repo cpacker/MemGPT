@@ -77,6 +77,7 @@ from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
+from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
@@ -248,6 +249,7 @@ class SyncServer(Server):
         self.block_manager = BlockManager()
         self.source_manager = SourceManager()
         self.agents_tags_manager = AgentsTagsManager()
+        self.blocks_agents_manager = BlocksAgentsManager()
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
 
         # Make default user and org
