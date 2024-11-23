@@ -2045,30 +2045,6 @@ class SyncServer(Server):
         memory = self.load_agent(agent_id=agent_id).agent_state.memory
         return memory
 
-        ## re-add the mapping
-
-        ## Link a block to an agent's memory
-        # letta_agent = self.load_agent(agent_id=agent_id)
-        # letta_agent.memory.update_block_label(current_label=current_block_label, new_label=new_block_label)
-        # assert new_block_label in letta_agent.memory.list_block_labels()
-        # self.block_manager.create_or_update_block(block=letta_agent.memory.get_block(new_block_label), actor=user)
-
-        ## check that the block was updated
-        # updated_block = self.block_manager.get_block_by_id(block_id=letta_agent.memory.get_block(new_block_label).id, actor=user)
-
-        ## Recompile the agent memory
-        # letta_agent.rebuild_system_prompt(force=True, ms=self.ms)
-
-        ## save agent
-        # save_agent(letta_agent, self.ms)
-
-        # updated_agent = self.ms.get_agent(agent_id=agent_id)
-        # if updated_agent is None:
-        #    raise ValueError(f"Agent with id {agent_id} not found after linking block")
-        # assert new_block_label in updated_agent.memory.list_block_labels()
-        # assert current_block_label not in updated_agent.memory.list_block_labels()
-        # return updated_agent.memory
-
     def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
         """Link a block to an agent's memory"""
         block = self.block_manager.get_block_by_id(block_id=block_id, actor=self.user_manager.get_user_by_id(user_id=user_id))
@@ -2078,87 +2054,21 @@ class SyncServer(Server):
         memory = self.load_agent(agent_id=agent_id).agent_state.memory
         return memory
 
-        ## Get the user
-        # user = self.user_manager.get_user_by_id(user_id=user_id)
-
-        ## Get the block first
-        # block = self.block_manager.get_block_by_id(block_id=block_id, actor=user)
-        # if block is None:
-        #    raise ValueError(f"Block with id {block_id} not found")
-
-        ## Link a block to an agent's memory
-        # letta_agent = self.load_agent(agent_id=agent_id)
-        # letta_agent.memory.link_block(block=block)
-        # assert block.label in letta_agent.memory.list_block_labels()
-
-        ## Recompile the agent memory
-        # letta_agent.rebuild_system_prompt(force=True, ms=self.ms)
-
-        ## save agent
-        # save_agent(letta_agent, self.ms)
-
-        # updated_agent = self.ms.get_agent(agent_id=agent_id)
-        # if updated_agent is None:
-        #    raise ValueError(f"Agent with id {agent_id} not found after linking block")
-        # assert block.label in updated_agent.memory.list_block_labels()
-
-        # return updated_agent.memory
-
     def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
         """Unlink a block from an agent's memory. If the block is not linked to any agent, delete it."""
+        self.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=agent_id, block_label=block_label)
 
-        # Get the user
-        user = self.user_manager.get_user_by_id(user_id=user_id)
-
-        # Link a block to an agent's memory
-        letta_agent = self.load_agent(agent_id=agent_id)
-        unlinked_block = letta_agent.memory.unlink_block(block_label=block_label)
-        assert unlinked_block.label not in letta_agent.memory.list_block_labels()
-
-        # Check if the block is linked to any other agent
-        # TODO needs reference counting GC to handle loose blocks
-        # block = self.block_manager.get_block_by_id(block_id=unlinked_block.id, actor=user)
-        # if block is None:
-        # raise ValueError(f"Block with id {block_id} not found")
-
-        # Recompile the agent memory
-        letta_agent.rebuild_system_prompt(force=True, ms=self.ms)
-
-        # save agent
-        save_agent(letta_agent, self.ms)
-
-        updated_agent = self.ms.get_agent(agent_id=agent_id)
-        if updated_agent is None:
-            raise ValueError(f"Agent with id {agent_id} not found after linking block")
-        assert unlinked_block.label not in updated_agent.memory.list_block_labels()
-        return updated_agent.memory
+        # get agent memory
+        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        return memory
 
     def update_agent_memory_limit(self, user_id: str, agent_id: str, block_label: str, limit: int) -> Memory:
         """Update the limit of a block in an agent's memory"""
+        block = self.get_agent_block_by_label(user_id=user_id, agent_id=agent_id, label=block_label)
+        self.block_manager.update_block(
+            block_id=block.id, block_update=BlockUpdate(limit=limit), actor=self.user_manager.get_user_by_id(user_id=user_id)
+        )
 
-        # Get the user
-        user = self.user_manager.get_user_by_id(user_id=user_id)
-
-        # Link a block to an agent's memory
-        letta_agent = self.load_agent(agent_id=agent_id)
-        letta_agent.memory.update_block_limit(label=block_label, limit=limit)
-        assert block_label in letta_agent.memory.list_block_labels()
-
-        # write out the update the database
-        self.block_manager.create_or_update_block(block=letta_agent.memory.get_block(block_label), actor=user)
-
-        # check that the block was updated
-        updated_block = self.block_manager.get_block_by_id(block_id=letta_agent.memory.get_block(block_label).id, actor=user)
-        assert updated_block and updated_block.limit == limit
-
-        # Recompile the agent memory
-        letta_agent.rebuild_system_prompt(force=True, ms=self.ms)
-
-        # save agent
-        save_agent(letta_agent, self.ms)
-
-        updated_agent = self.ms.get_agent(agent_id=agent_id)
-        if updated_agent is None:
-            raise ValueError(f"Agent with id {agent_id} not found after linking block")
-        assert updated_agent.memory.get_block(label=block_label).limit == limit
-        return updated_agent.memoryprin
+        # get agent memory
+        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        return memory
