@@ -4,9 +4,9 @@ from pydantic import BaseModel, Field
 
 from letta.schemas.tool_rule import (
     BaseToolRule,
+    ChildToolRule,
     InitToolRule,
     TerminalToolRule,
-    ToolRule,
 )
 
 
@@ -21,7 +21,7 @@ class ToolRulesSolver(BaseModel):
     init_tool_rules: List[InitToolRule] = Field(
         default_factory=list, description="Initial tool rules to be used at the start of tool execution."
     )
-    tool_rules: List[ToolRule] = Field(
+    tool_rules: List[ChildToolRule] = Field(
         default_factory=list, description="Standard tool rules for controlling execution sequence and allowed transitions."
     )
     terminal_tool_rules: List[TerminalToolRule] = Field(
@@ -35,7 +35,7 @@ class ToolRulesSolver(BaseModel):
         for rule in tool_rules:
             if isinstance(rule, InitToolRule):
                 self.init_tool_rules.append(rule)
-            elif isinstance(rule, ToolRule):
+            elif isinstance(rule, ChildToolRule):
                 self.tool_rules.append(rule)
             elif isinstance(rule, TerminalToolRule):
                 self.terminal_tool_rules.append(rule)

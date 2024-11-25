@@ -3,7 +3,7 @@
 import os
 import secrets
 import warnings
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from sqlalchemy import JSON, Column, DateTime, Index, String, TypeDecorator
 from sqlalchemy.sql import func
@@ -13,16 +13,11 @@ from letta.orm.base import Base
 from letta.schemas.agent import PersistedAgentState
 from letta.schemas.api_key import APIKey
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import JobStatus
+from letta.schemas.enums import JobStatus, ToolRuleType
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
-from letta.schemas.tool_rule import (
-    BaseToolRule,
-    InitToolRule,
-    TerminalToolRule,
-    ToolRule,
-)
+from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
 from letta.schemas.user import User
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
@@ -163,29 +158,41 @@ class ToolRulesColumn(TypeDecorator):
     def load_dialect_impl(self, dialect):
         return dialect.type_descriptor(JSON())
 
-    def process_bind_param(self, value: List[BaseToolRule], dialect):
+    def process_bind_param(self, value, dialect):
         """Convert a list of ToolRules to JSON-serializable format."""
         if value:
-            return [rule.model_dump() for rule in value]
+            print("ORIGINAL", value)
+            data = [rule.model_dump() for rule in value]
+            for d in data:
+                d["type"] = d["type"].value
+            from pprint import pprint
+
+            print("DUMP TOOL RULES")
+            pprint(data)
+            for d in data:
+                assert not (d["type"] == "ToolRule" and "children" not in d), "ToolRule does not have children field"
+            return data
         return value
 
-    def process_result_value(self, value, dialect) -> List[BaseToolRule]:
+    def process_result_value(self, value, dialect) -> List[Union[ChildToolRule, InitToolRule, TerminalToolRule]]:
         """Convert JSON back to a list of ToolRules."""
         if value:
             return [self.deserialize_tool_rule(rule_data) for rule_data in value]
         return value
 
     @staticmethod
-    def deserialize_tool_rule(data: dict) -> BaseToolRule:
+    def deserialize_tool_rule(data: dict) -> Union[ChildToolRule, InitToolRule, TerminalToolRule]:
         """Deserialize a dictionary to the appropriate ToolRule subclass based on the 'type'."""
-        rule_type = data.get("type")  # Remove 'type' field if it exists since it is a class var
+        rule_type = ToolRuleType(data.get("type"))  # Remove 'type' field if it exists since it is a class var
         print("DESERIALIZING TOOL RULE", data)
-        if rule_type == "InitToolRule":
+        if rule_type == ToolRuleType.run_first:
             return InitToolRule(**data)
-        elif rule_type == "TerminalToolRule":
+        elif rule_type == ToolRuleType.exit_loop:
             return TerminalToolRule(**data)
-        elif rule_type == "ToolRule":
-            return ToolRule(**data)
+        elif rule_type == ToolRuleType.constrain_child_tools:
+            rule = ChildToolRule(**data)
+            print(rule.children)
+            return rule
         else:
             raise ValueError(f"Unknown tool rule type: {rule_type}")
 
@@ -225,6 +232,7 @@ class AgentModel(Base):
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> PersistedAgentState:
+        print("FINAL RULES", self.tool_rules)
         agent_state = PersistedAgentState(
             id=self.id,
             user_id=self.user_id,

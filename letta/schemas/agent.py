@@ -13,7 +13,7 @@ from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool
-from letta.schemas.tool_rule import BaseToolRule
+from letta.schemas.tool_rule import ToolRule
 
 
 class BaseAgent(LettaBase, validate_assignment=True):
@@ -57,7 +57,7 @@ class PersistedAgentState(BaseAgent, validate_assignment=True):
     tool_names: List[str] = Field(..., description="The tools used by the agent.")
 
     # tool rules
-    tool_rules: Optional[List[BaseToolRule]] = Field(default=None, description="The list of tool rules.")
+    tool_rules: Optional[List[ToolRule]] = Field(default=None, description="The list of tool rules.")
 
     # tags
     # tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
@@ -138,7 +138,7 @@ class CreateAgent(BaseAgent):  #
     )
 
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
-    tool_rules: Optional[List[BaseToolRule]] = Field(None, description="The tool rules governing the agent.")
+    tool_rules: Optional[List[ToolRule]] = Field(None, description="The tool rules governing the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     agent_type: Optional[AgentType] = Field(None, description="The type of agent.")

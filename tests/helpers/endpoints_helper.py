@@ -22,7 +22,7 @@ from letta.errors import (
 )
 from letta.llm_api.llm_api_tools import create
 from letta.local_llm.constants import INNER_THOUGHTS_KWARG
-from letta.schemas.agent import PersistedAgentState
+from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_message import (
     FunctionCallMessage,
@@ -64,7 +64,7 @@ def setup_agent(
     tools: Optional[List[str]] = None,
     tool_rules: Optional[List[BaseToolRule]] = None,
     agent_uuid: str = agent_uuid,
-) -> PersistedAgentState:
+) -> AgentState:
     config_data = json.load(open(filename, "r"))
     llm_config = LLMConfig(**config_data)
     embedding_config = EmbeddingConfig(**json.load(open(EMBEDDING_CONFIG_PATH)))
@@ -76,6 +76,7 @@ def setup_agent(
     config.save()
 
     memory = ChatMemory(human=memory_human_str, persona=memory_persona_str)
+    print("tool rules", [r.model_dump() for r in tool_rules])
     agent_state = client.create_agent(
         name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config, memory=memory, tools=tools, tool_rules=tool_rules
     )

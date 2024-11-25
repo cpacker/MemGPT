@@ -21,15 +21,7 @@ from letta.schemas.agent import (
     PersistedAgentState,
     UpdateAgentState,
 )
-from letta.schemas.block import (
-    Block,
-    BlockUpdate,
-    CreateBlock,
-    CreateHuman,
-    CreatePersona,
-    Human,
-    Persona,
-)
+from letta.schemas.block import Block, BlockUpdate, CreateBlock, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # new schemas
@@ -41,6 +33,7 @@ from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import (
     ArchivalMemorySummary,
+    ChatMemory,
     CreateArchivalMemory,
     Memory,
     RecallMemorySummary,
@@ -1944,11 +1937,12 @@ class LocalClient(AbstractClient):
         embedding_config: EmbeddingConfig = None,
         llm_config: LLMConfig = None,
         # memory
-        # memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
-        memory_blocks=[
-            CreateHuman(value=get_human_text(DEFAULT_HUMAN), limit=5000),
-            CreatePersona(value=get_persona_text(DEFAULT_PERSONA), limit=5000),
-        ],
+        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        # TODO: eventually move to passing memory blocks
+        # memory_blocks=[
+        #    {"label": "human", "value": get_human_text(DEFAULT_HUMAN), "limit": 5000},
+        #    {"label": "persona", "value": get_persona_text(DEFAULT_PERSONA), "limit": 5000},
+        # ],
         # memory_tools = BASE_MEMORY_TOOLS,
         # system
         system: Optional[str] = None,
@@ -1968,7 +1962,7 @@ class LocalClient(AbstractClient):
             name (str): Name of the agent
             embedding_config (EmbeddingConfig): Embedding configuration
             llm_config (LLMConfig): LLM configuration
-            memory (Memory): Memory configuration
+            memory_blocks (List[Dict]): List of configurations for the memory blocks (placed in core-memory)
             system (str): System configuration
             tools (List[str]): List of tools
             tool_rules (Optional[List[BaseToolRule]]): List of tool rules
@@ -1983,6 +1977,14 @@ class LocalClient(AbstractClient):
 
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
+
+        # pack blocks into pydantic models to ensure valid format
+        # blocks = {
+        #    CreateBlock(**block) for block in memory_blocks
+        # }
+
+        # NOTE: this is a temporary fix until we decide to break the python client na dupdate our examples
+        blocks = [CreateBlock(value=block.value, limit=block.limit, label=block.label) for block in memory.get_blocks()]
 
         # construct list of tools
         tool_names = []
@@ -2012,7 +2014,7 @@ class LocalClient(AbstractClient):
                 description=description,
                 metadata_=metadata,
                 # memory=memory,
-                memory_blocks=memory_blocks,
+                memory_blocks=blocks,
                 # memory_tools=memory_tools,
                 tools=tool_names,
                 tool_rules=tool_rules,

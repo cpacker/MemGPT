@@ -4,7 +4,7 @@ import pytest
 
 from letta import create_client
 from letta.schemas.letta_message import FunctionCallMessage
-from letta.schemas.tool_rule import InitToolRule, TerminalToolRule, ToolRule
+from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
 from letta.settings import tool_settings
 from tests.helpers.endpoints_helper import (
     assert_invoked_function_call,
@@ -107,10 +107,10 @@ def test_single_path_agent_tool_call_graph(mock_e2b_api_key_none):
     # Make tool rules
     tool_rules = [
         InitToolRule(tool_name="first_secret_word"),
-        ToolRule(tool_name="first_secret_word", children=["second_secret_word"]),
-        ToolRule(tool_name="second_secret_word", children=["third_secret_word"]),
-        ToolRule(tool_name="third_secret_word", children=["fourth_secret_word"]),
-        ToolRule(tool_name="fourth_secret_word", children=["send_message"]),
+        ChildToolRule(tool_name="first_secret_word", children=["second_secret_word"]),
+        ChildToolRule(tool_name="second_secret_word", children=["third_secret_word"]),
+        ChildToolRule(tool_name="third_secret_word", children=["fourth_secret_word"]),
+        ChildToolRule(tool_name="fourth_secret_word", children=["send_message"]),
         TerminalToolRule(tool_name="send_message"),
     ]
 

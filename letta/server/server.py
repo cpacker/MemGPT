@@ -937,8 +937,12 @@ class SyncServer(Server):
         # create an agent to instantiate the initial messages
         agent = self._initialize_agent(agent_id=agent_state.id, actor=actor, initial_message_sequence=request.initial_message_sequence)
 
+        print("BEFORE SAVE", agent.agent_state.tool_rules)
+
         # persist the agent state (containing initialized messages)
         save_agent(agent, self.ms)
+
+        print("AFTER SAVE", agent.agent_state.tool_rules)
 
         # retrieve the full agent data: this reconstructs all the sources, tools, memory object, etc.
         in_memory_agent_state = self.get_agent(agent_state.id)
