@@ -1,0 +1,1 @@
+tail -f ~/.letta/logs/letta.log
