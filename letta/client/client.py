@@ -3190,10 +3190,22 @@ class LocalClient(AbstractClient):
     def update_block(
         self,
         block_id: str,
-        label: str,
+        label: Optional[str] = None,
         value: Optional[str] = None,
         limit: Optional[int] = None,
     ):
+        """
+        Update a block given the ID with the provided fields
+
+        Args:
+            block_id (str): ID of the block
+            label (str): Label to assign to the block
+            value (str): Value to assign to the block
+            limit (int): Token limit to assign to the block
+
+        Returns:
+            block (Block): Updated block
+        """
         data = {}
         if value:
             data["value"] = value
