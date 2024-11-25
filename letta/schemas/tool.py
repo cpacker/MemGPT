@@ -1,7 +1,8 @@
 from typing import Dict, List, Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
+from letta.functions.functions import derive_openai_json_schema
 from letta.functions.helpers import (
     generate_composio_tool_wrapper,
     generate_langchain_tool_wrapper,
@@ -43,6 +44,29 @@ class Tool(BaseTool):
     # metadata fields
     created_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
     last_updated_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
+
+    @model_validator(mode="after")
+    def populate_missing_fields(self):
+        """
+        Populate missing fields: name, description, and json_schema.
+        """
+        # Derive JSON schema if not provided
+        if not self.json_schema:
+            self.json_schema = derive_openai_json_schema(source_code=self.source_code)
+
+        # Derive name from the JSON schema if not provided
+        if not self.name:
+            # TODO: This in theory could error, but name should always be on json_schema
+            # TODO: Make JSON schema a typed pydantic object
+            self.name = self.json_schema.get("name")
+
+        # Derive description from the JSON schema if not provided
+        if not self.description:
+            # TODO: This in theory could error, but description should always be on json_schema
+            # TODO: Make JSON schema a typed pydantic object
+            self.description = self.json_schema.get("description")
+
+        return self
 
     def to_dict(self):
         """

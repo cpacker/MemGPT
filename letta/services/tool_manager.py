@@ -35,9 +35,7 @@ class ToolManager:
     def create_or_update_tool(self, pydantic_tool: PydanticTool, actor: PydanticUser) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
         # Derive json_schema
-        derived_json_schema = pydantic_tool.json_schema or derive_openai_json_schema(source_code=pydantic_tool.source_code)
-        derived_name = pydantic_tool.name or derived_json_schema["name"]
-        tool = self.get_tool_by_name(tool_name=derived_name, actor=actor)
+        tool = self.get_tool_by_name(tool_name=pydantic_tool.name, actor=actor)
         if tool:
             # Put to dict and remove fields that should not be reset
             update_data = pydantic_tool.model_dump(exclude={"module"}, exclude_unset=True, exclude_none=True)
@@ -52,8 +50,6 @@ class ToolManager:
                     f"`create_or_update_tool` was called with user_id={actor.id}, organization_id={actor.organization_id}, name={pydantic_tool.name}, but found existing tool with nothing to update."
                 )
         else:
-            pydantic_tool.json_schema = derived_json_schema
-            pydantic_tool.name = derived_name
             tool = self.create_tool(pydantic_tool, actor=actor)
 
         return tool
@@ -61,18 +57,15 @@ class ToolManager:
     @enforce_types
     def create_tool(self, pydantic_tool: PydanticTool, actor: PydanticUser) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
-        # Create the tool
         with self.session_maker() as session:
             # Set the organization id at the ORM layer
             pydantic_tool.organization_id = actor.organization_id
+            # Auto-generate description if not provided
+            if pydantic_tool.description is None:
+                pydantic_tool.description = pydantic_tool.json_schema.get("description", None)
             tool_data = pydantic_tool.model_dump()
             tool = ToolModel(**tool_data)
-            # The description is most likely auto-generated via the json_schema,
-            # so copy it over into the top-level description field
-            if tool.description is None:
-                tool.description = tool.json_schema.get("description", None)
-            tool.create(session, actor=actor)
-
+            tool.create(session, actor=actor)  # Re-raise other database-related errors
         return tool.to_pydantic()
 
     @enforce_types

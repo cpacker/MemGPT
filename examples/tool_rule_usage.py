@@ -93,7 +93,7 @@ def main():
     functions = [first_secret_word, second_secret_word, third_secret_word, fourth_secret_word, auto_error]
     tools = []
     for func in functions:
-        tool = client.create_tool(func)
+        tool = client.create_or_update_tool(func)
         tools.append(tool)
     tool_names = [t.name for t in tools[:-1]]
 

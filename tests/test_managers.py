@@ -1,6 +1,5 @@
 import pytest
 from sqlalchemy import delete
-from sqlalchemy.exc import DBAPIError
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
@@ -17,6 +16,10 @@ from letta.orm import (
     User,
 )
 from letta.orm.agents_tags import AgentsTags
+from letta.orm.errors import (
+    ForeignKeyConstraintViolationError,
+    UniqueConstraintViolationError,
+)
 from letta.schemas.agent import CreateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate
@@ -148,7 +151,7 @@ def charles_agent(server: SyncServer, default_user, default_organization):
 
 
 @pytest.fixture
-def tool_fixture(server: SyncServer, default_user, default_organization):
+def print_tool(server: SyncServer, default_user, default_organization):
     """Fixture to create a tool with default settings and clean up after the test."""
 
     def print_tool(message: str):
@@ -177,8 +180,8 @@ def tool_fixture(server: SyncServer, default_user, default_organization):
 
     tool = server.tool_manager.create_tool(tool, actor=default_user)
 
-    # Yield the created tool, organization, and user for use in tests
-    yield {"tool": tool}
+    # Yield the created tool
+    yield tool
 
 
 @pytest.fixture
@@ -340,76 +343,75 @@ def test_update_user(server: SyncServer):
 
 
 # ======================================================================================================================
-# Tool Manager Tests
+# ToolManager Tests
 # ======================================================================================================================
-def test_create_tool(server: SyncServer, tool_fixture, default_user, default_organization):
-    tool = tool_fixture["tool"]
-
+def test_create_tool(server: SyncServer, print_tool, default_user, default_organization):
     # Assertions to ensure the created tool matches the expected values
-    assert tool.created_by_id == default_user.id
-    assert tool.organization_id == default_organization.id
+    assert print_tool.created_by_id == default_user.id
+    assert print_tool.organization_id == default_organization.id
 
 
-def test_get_tool_by_id(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
+def test_create_tool_duplicate_name(server: SyncServer, print_tool, default_user, default_organization):
+    data = print_tool.model_dump(exclude=["id"])
+    tool = PydanticTool(**data)
 
+    with pytest.raises(UniqueConstraintViolationError):
+        server.tool_manager.create_tool(tool, actor=default_user)
+
+
+def test_get_tool_by_id(server: SyncServer, print_tool, default_user):
     # Fetch the tool by ID using the manager method
-    fetched_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    fetched_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     # Assertions to check if the fetched tool matches the created tool
-    assert fetched_tool.id == tool.id
-    assert fetched_tool.name == tool.name
-    assert fetched_tool.description == tool.description
-    assert fetched_tool.tags == tool.tags
-    assert fetched_tool.source_code == tool.source_code
-    assert fetched_tool.source_type == tool.source_type
+    assert fetched_tool.id == print_tool.id
+    assert fetched_tool.name == print_tool.name
+    assert fetched_tool.description == print_tool.description
+    assert fetched_tool.tags == print_tool.tags
+    assert fetched_tool.source_code == print_tool.source_code
+    assert fetched_tool.source_type == print_tool.source_type
 
 
-def test_get_tool_with_actor(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
-
-    # Fetch the tool by name and organization ID
-    fetched_tool = server.tool_manager.get_tool_by_name(tool.name, actor=default_user)
+def test_get_tool_with_actor(server: SyncServer, print_tool, default_user):
+    # Fetch the print_tool by name and organization ID
+    fetched_tool = server.tool_manager.get_tool_by_name(print_tool.name, actor=default_user)
 
     # Assertions to check if the fetched tool matches the created tool
-    assert fetched_tool.id == tool.id
-    assert fetched_tool.name == tool.name
+    assert fetched_tool.id == print_tool.id
+    assert fetched_tool.name == print_tool.name
     assert fetched_tool.created_by_id == default_user.id
-    assert fetched_tool.description == tool.description
-    assert fetched_tool.tags == tool.tags
-    assert fetched_tool.source_code == tool.source_code
-    assert fetched_tool.source_type == tool.source_type
+    assert fetched_tool.description == print_tool.description
+    assert fetched_tool.tags == print_tool.tags
+    assert fetched_tool.source_code == print_tool.source_code
+    assert fetched_tool.source_type == print_tool.source_type
 
 
-def test_list_tools(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
-
+def test_list_tools(server: SyncServer, print_tool, default_user):
     # List tools (should include the one created by the fixture)
     tools = server.tool_manager.list_tools(actor=default_user)
 
     # Assertions to check that the created tool is listed
     assert len(tools) == 1
-    assert any(t.id == tool.id for t in tools)
+    assert any(t.id == print_tool.id for t in tools)
 
 
-def test_update_tool_by_id(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
+def test_update_tool_by_id(server: SyncServer, print_tool, default_user):
     updated_description = "updated_description"
 
-    # Create a ToolUpdate object to modify the tool's description
+    # Create a ToolUpdate object to modify the print_tool's description
     tool_update = ToolUpdate(description=updated_description)
 
     # Update the tool using the manager method
-    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=default_user)
+    server.tool_manager.update_tool_by_id(print_tool.id, tool_update, actor=default_user)
 
     # Fetch the updated tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    updated_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     # Assertions to check if the update was successful
     assert updated_tool.description == updated_description
 
 
-def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, tool_fixture, default_user):
+def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, print_tool, default_user):
     def counter_tool(counter: int):
         """
         Args:
@@ -424,8 +426,7 @@ def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, t
         return True
 
     # Test begins
-    tool = tool_fixture["tool"]
-    og_json_schema = tool.json_schema
+    og_json_schema = print_tool.json_schema
 
     source_code = parse_source_code(counter_tool)
 
@@ -433,10 +434,10 @@ def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, t
     tool_update = ToolUpdate(source_code=source_code)
 
     # Update the tool using the manager method
-    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=default_user)
+    server.tool_manager.update_tool_by_id(print_tool.id, tool_update, actor=default_user)
 
     # Fetch the updated tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    updated_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     # Assertions to check if the update was successful, and json_schema is updated as well
     assert updated_tool.source_code == source_code
@@ -446,7 +447,7 @@ def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, t
     assert updated_tool.json_schema == new_schema
 
 
-def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_fixture, default_user):
+def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, print_tool, default_user):
     def counter_tool(counter: int):
         """
         Args:
@@ -461,8 +462,7 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_
         return True
 
     # Test begins
-    tool = tool_fixture["tool"]
-    og_json_schema = tool.json_schema
+    og_json_schema = print_tool.json_schema
 
     source_code = parse_source_code(counter_tool)
     name = "counter_tool"
@@ -471,10 +471,10 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_
     tool_update = ToolUpdate(name=name, source_code=source_code)
 
     # Update the tool using the manager method
-    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=default_user)
+    server.tool_manager.update_tool_by_id(print_tool.id, tool_update, actor=default_user)
 
     # Fetch the updated tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    updated_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     # Assertions to check if the update was successful, and json_schema is updated as well
     assert updated_tool.source_code == source_code
@@ -485,29 +485,26 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_
     assert updated_tool.name == name
 
 
-def test_update_tool_multi_user(server: SyncServer, tool_fixture, default_user, other_user):
-    tool = tool_fixture["tool"]
+def test_update_tool_multi_user(server: SyncServer, print_tool, default_user, other_user):
     updated_description = "updated_description"
 
-    # Create a ToolUpdate object to modify the tool's description
+    # Create a ToolUpdate object to modify the print_tool's description
     tool_update = ToolUpdate(description=updated_description)
 
-    # Update the tool using the manager method, but WITH THE OTHER USER'S ID!
-    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=other_user)
+    # Update the print_tool using the manager method, but WITH THE OTHER USER'S ID!
+    server.tool_manager.update_tool_by_id(print_tool.id, tool_update, actor=other_user)
 
     # Check that the created_by and last_updated_by fields are correct
-    # Fetch the updated tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    # Fetch the updated print_tool to verify the changes
+    updated_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     assert updated_tool.last_updated_by_id == other_user.id
     assert updated_tool.created_by_id == default_user.id
 
 
-def test_delete_tool_by_id(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
-
-    # Delete the tool using the manager method
-    server.tool_manager.delete_tool_by_id(tool.id, actor=default_user)
+def test_delete_tool_by_id(server: SyncServer, print_tool, default_user):
+    # Delete the print_tool using the manager method
+    server.tool_manager.delete_tool_by_id(print_tool.id, actor=default_user)
 
     tools = server.tool_manager.list_tools(actor=default_user)
     assert len(tools) == 0
@@ -1067,7 +1064,7 @@ def test_add_block_to_agent(server, sarah_agent, default_user, default_block):
 
 
 def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
-    with pytest.raises(DBAPIError, match="violates foreign key constraint .*fk_block_id_label"):
+    with pytest.raises(ForeignKeyConstraintViolationError):
         server.blocks_agents_manager.add_block_to_agent(
             agent_id=sarah_agent.id, block_id="nonexistent_block", block_label="nonexistent_label"
         )
@@ -1131,5 +1128,5 @@ def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user
     block_manager = BlockManager()
     block_manager.delete_block(block_id=default_block.id, actor=default_user)
 
-    with pytest.raises(DBAPIError, match='insert or update on table "blocks_agents" violates foreign key constraint'):
+    with pytest.raises(ForeignKeyConstraintViolationError):
         server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
