@@ -36,7 +36,7 @@ from letta.schemas.memory import (
     RecallMemorySummary,
 )
 from letta.schemas.message import Message, MessageCreate, UpdateMessage
-from letta.schemas.openai.chat_completions import ToolCall
+from letta.schemas.openai.chat_completion_request import ToolCall
 from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
 from letta.schemas.sandbox_config import (

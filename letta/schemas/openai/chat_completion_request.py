@@ -2,19 +2,10 @@ from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
-
-class SystemMessage(BaseModel):
-    content: str
-    role: str = "system"
-    name: Optional[str] = None
+from letta.schemas.enums import MessageRole
 
 
-class UserMessage(BaseModel):
-    content: Union[str, List[str]]
-    role: str = "user"
-    name: Optional[str] = None
-
-
+# Tool call types
 class ToolCallFunction(BaseModel):
     name: str
     arguments: str
@@ -26,16 +17,29 @@ class ToolCall(BaseModel):
     function: ToolCallFunction
 
 
+# Message types
+class SystemMessage(BaseModel):
+    content: str
+    role: str = MessageRole.system
+    name: Optional[str] = None
+
+
+class UserMessage(BaseModel):
+    content: Union[str, List[str]]
+    role: str = MessageRole.user
+    name: Optional[str] = None
+
+
 class AssistantMessage(BaseModel):
     content: Optional[str] = None
-    role: str = "assistant"
+    role: str = MessageRole.assistant
     name: Optional[str] = None
     tool_calls: Optional[List[ToolCall]] = None
 
 
 class ToolMessage(BaseModel):
     content: str
-    role: str = "tool"
+    role: str = MessageRole.tool
     tool_call_id: str
 
 

@@ -22,7 +22,10 @@ from letta.schemas.letta_message import (
     LettaMessage,
 )
 from letta.schemas.message import Message
-from letta.schemas.openai.chat_completion_response import ChatCompletionChunkResponse
+from letta.schemas.openai.chat_completion_response import (
+    ChatCompletionChunkResponse,
+    MessageDelta,
+)
 from letta.streaming_interface import AgentChunkStreamingInterface
 from letta.streaming_utils import (
     FunctionArgumentsStreamHandler,
@@ -283,7 +286,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         # NOTE: flag for supporting legacy 'stream' flag where send_message is treated specially
         self.nonstreaming_legacy_mode = False
         # If chat completion mode, creates a "chatcompletion-style" stream, but with concepts remapped
-        self.streaming_chat_completion_mode = False
+        self.voice_chat_completion_mode = False
         self.streaming_chat_completion_mode_function_name = None  # NOTE: sadly need to track state during stream
         # If chat completion mode, we need a special stream reader to
         # turn function argument to send_message into a normal text stream
@@ -313,6 +316,10 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self.function_name_buffer = None
         self.function_args_buffer = None
         self.function_id_buffer = None
+
+        # State variables for voice_chat_completion_mode = True
+        self.curr_function_name = None
+        self.curr_function_id = None
 
         # extra prints
         self.debug = False
@@ -363,7 +370,10 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         """Add an item to the deque"""
         assert self._active, "Generator is inactive"
         assert (
-            isinstance(item, LettaMessage) or isinstance(item, LegacyLettaMessage) or isinstance(item, MessageStreamStatus)
+            isinstance(item, LettaMessage)
+            or isinstance(item, LegacyLettaMessage)
+            or isinstance(item, MessageStreamStatus)
+            or isinstance(item, ChatCompletionChunkResponse)
         ), f"Wrong type: {type(item)}"
 
         self._chunks.append(item)
@@ -382,7 +392,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         """Clean up the stream by deactivating and clearing chunks."""
         self.streaming_chat_completion_mode_function_name = None
 
-        if not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
+        if not self.voice_chat_completion_mode and not self.nonstreaming_legacy_mode:
             self._push_to_buffer(self.multi_step_gen_indicator)
 
         # Wipe the inner thoughts buffers
@@ -394,7 +404,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             # end the stream
             self._active = False
             self._event.set()  # Unblock the generator if it's waiting to allow it to complete
-        elif not self.streaming_chat_completion_mode and not self.nonstreaming_legacy_mode:
+        elif not self.voice_chat_completion_mode and not self.nonstreaming_legacy_mode:
             # signal that a new step has started in the stream
             self._push_to_buffer(self.multi_step_indicator)
 
@@ -455,8 +465,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
 
                 # If we get a "hit" on the special keyword we're looking for, we want to skip to the next chunk
                 # TODO I don't think this handles the function name in multi-pieces problem. Instead, we should probably reset the streaming_chat_completion_mode_function_name when we make this hit?
-                # if self.streaming_chat_completion_mode_function_name == self.assistant_message_function_name:
-                if tool_call.function.name == self.assistant_message_function_name:
+                if self.streaming_chat_completion_mode_function_name == self.assistant_message_function_name:
                     self.streaming_chat_completion_json_reader.reset()
                     # early exit to turn into content mode
                     return None
@@ -785,7 +794,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                             proxy_chunk.choices[0].delta.content = cleaned_func_args
 
         processed_chunk = proxy_chunk.model_dump(exclude_none=True)
-
+        processed_chunk["created"] = processed_chunk["created"].isoformat()
         return processed_chunk
 
     def process_chunk(self, chunk: ChatCompletionChunkResponse, message_id: str, message_date: datetime):
@@ -804,11 +813,42 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         # Example where we just pass through the raw stream from the underlying OpenAI SSE stream
         # processed_chunk = chunk.model_dump_json(exclude_none=True)
 
-        if self.streaming_chat_completion_mode:
-            # processed_chunk = self._process_chunk_to_openai_style(chunk)
-            raise NotImplementedError("OpenAI proxy streaming temporarily disabled")
-        else:
-            processed_chunk = self._process_chunk_to_letta_style(chunk=chunk, message_id=message_id, message_date=message_date)
+        processed_chunk = self._process_chunk_to_letta_style(chunk=chunk, message_id=message_id, message_date=message_date)
+
+        if self.voice_chat_completion_mode:
+            proxy_chunk = chunk.model_copy(deep=True)
+            if isinstance(processed_chunk, InternalMonologue):
+                proxy_chunk.choices[0].delta = MessageDelta(content=processed_chunk.internal_monologue)
+                processed_chunk = proxy_chunk
+            elif isinstance(processed_chunk, FunctionCallMessage):
+                function_id_changed = False
+                if processed_chunk.function_call.name:
+                    self.curr_function_name = processed_chunk.function_call.name
+                if processed_chunk.function_call.function_call_id:
+                    if self.curr_function_id != processed_chunk.function_call.function_call_id:
+                        function_id_changed = True
+                    self.curr_function_id = processed_chunk.function_call.function_call_id
+
+                if self.curr_function_name == "send_message":
+                    if processed_chunk.function_call.arguments:
+                        proxy_chunk.choices[0].delta = MessageDelta(content=processed_chunk.function_call.arguments)
+                        processed_chunk = proxy_chunk
+                    else:
+                        processed_chunk = None
+                else:
+                    if function_id_changed:
+                        proxy_chunk.choices[0].delta = MessageDelta(
+                            content=f"Hold on a second. I'm calling a function named {self.curr_function_name}"
+                        )
+                        processed_chunk = proxy_chunk
+                    else:
+                        processed_chunk = None
+            else:
+                processed_chunk = None
+
+        #     processed_chunk = chunk
+        # processed_chunk = self._process_chunk_to_openai_style(chunk)
+        # raise NotImplementedError("OpenAI proxy streaming temporarily disabled")
 
         if processed_chunk is None:
             return
@@ -974,4 +1014,5 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
             raise ValueError(msg)
             new_message = {"function_message": msg}
 
-        self._push_to_buffer(new_message)
+        if not self.voice_chat_completion_mode:
+            self._push_to_buffer(new_message)

@@ -17,7 +17,7 @@ from letta.schemas.enums import JobStatus
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
-from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
+from letta.schemas.openai.chat_completion_request import ToolCall, ToolCallFunction
 from letta.schemas.tool_rule import (
     BaseToolRule,
     InitToolRule,
@@ -487,6 +487,6 @@ class MetadataStore:
     def update_job_status(self, job_id: str, status: JobStatus):
         with self.session_maker() as session:
             session.query(JobModel).filter(JobModel.id == job_id).update({"status": status})
-            if status == JobStatus.COMPLETED:
+            if status == JobStatus.completed:
                 session.query(JobModel).filter(JobModel.id == job_id).update({"completed_at": get_utc_time()})
             session.commit()

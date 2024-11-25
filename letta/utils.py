@@ -865,7 +865,6 @@ def get_local_time(timezone=None):
 
 def get_utc_time() -> datetime:
     """Get the current UTC time"""
-    # return datetime.now(pytz.utc)
     return datetime.now(timezone.utc)
 
 

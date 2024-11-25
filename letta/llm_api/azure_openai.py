@@ -4,8 +4,8 @@ import requests
 
 from letta.llm_api.helpers import make_post_request
 from letta.schemas.llm_config import LLMConfig
+from letta.schemas.openai.chat_completion_request import ChatCompletionRequest
 from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
-from letta.schemas.openai.chat_completions import ChatCompletionRequest
 from letta.schemas.openai.embedding_response import EmbeddingResponse
 from letta.settings import ModelSettings
 
