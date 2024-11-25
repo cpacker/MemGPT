@@ -1984,7 +1984,7 @@ class LocalClient(AbstractClient):
         # }
 
         # NOTE: this is a temporary fix until we decide to break the python client na dupdate our examples
-        blocks = [CreateBlock(value=block.value, limit=block.limit, label=block.label) for block in memory.get_blocks()]
+        # blocks = [CreateBlock(value=block.value, limit=block.limit, label=block.label) for block in memory.get_blocks()]
 
         # construct list of tools
         tool_names = []
@@ -2014,7 +2014,7 @@ class LocalClient(AbstractClient):
                 description=description,
                 metadata_=metadata,
                 # memory=memory,
-                memory_blocks=blocks,
+                memory_blocks=[],
                 # memory_tools=memory_tools,
                 tools=tool_names,
                 tool_rules=tool_rules,
@@ -2031,12 +2031,13 @@ class LocalClient(AbstractClient):
         # Link additional blocks to the agent (block ids created on the client)
         # This needs to happen since the create agent does not allow passing in blocks which have already been persisted and have an ID
         # So we create the agent and then link the blocks afterwards
-        # for block in memory.get_blocks():
-        #    self.add_agent_memory_block(agent_state.id, block)
+        user = self.server.get_user_or_default(self.user_id)
+        for block in memory.get_blocks():
+            self.server.block_manager.create_or_update_block(block, actor=user)
+            self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_state.id, block_id=block.id)
 
         # TODO: get full agent state
-
-        return agent_state
+        return self.server.get_agent(agent_state.id)
 
     def update_message(
         self,

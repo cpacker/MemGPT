@@ -184,11 +184,6 @@ def test_agent_with_shared_blocks(client: LocalClient):
         )
         assert isinstance(first_agent_state_test.memory, Memory)
 
-        first_blocks_dict = first_agent_state_test.memory.to_dict()["memory"]
-        assert persona_block.id == first_blocks_dict.get("persona", {}).get("id")
-        assert human_block.id == first_blocks_dict.get("human", {}).get("id")
-        client.update_in_context_memory(first_agent_state_test.id, section="human", value="I'm an analyst therapist.")
-
         # when this agent is created with the shared block references this agent's in-memory blocks should
         # have this latest value set by the other agent.
         second_agent_state_test = client.create_agent(
@@ -197,11 +192,21 @@ def test_agent_with_shared_blocks(client: LocalClient):
             description="This is a test agent using shared memory blocks",
         )
 
+        first_memory = first_agent_state_test.memory
+        assert persona_block.id == first_memory.get_block("persona").id
+        assert human_block.id == first_memory.get_block("human").id
+        client.update_agent_memory_block(first_agent_state_test.id, label="human", value="I'm an analyst therapist.")
+        print("Updated human block value:", client.get_agent_memory_block(first_agent_state_test.id, label="human").value)
+
+        # refresh agent state
+        second_agent_state_test = client.get_agent(second_agent_state_test.id)
+
         assert isinstance(second_agent_state_test.memory, Memory)
-        second_blocks_dict = second_agent_state_test.memory.to_dict()["memory"]
-        assert persona_block.id == second_blocks_dict.get("persona", {}).get("id")
-        assert human_block.id == second_blocks_dict.get("human", {}).get("id")
-        assert second_blocks_dict.get("human", {}).get("value") == "I'm an analyst therapist."
+        second_memory = second_agent_state_test.memory
+        assert persona_block.id == second_memory.get_block("persona").id
+        assert human_block.id == second_memory.get_block("human").id
+        # assert second_blocks_dict.get("human", {}).get("value") == "I'm an analyst therapist."
+        assert second_memory.get_block("human").value == "I'm an analyst therapist."
 
     finally:
         if first_agent_state_test:

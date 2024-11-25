@@ -1075,6 +1075,9 @@ class SyncServer(Server):
 
         # get data persisted from the DB
         agent_state = self.ms.get_agent(agent_id=agent_id)
+        if agent_state is None:
+            # agent does not exist
+            return None
         user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
         # construct the in-memory, full agent state - this gather data stored in different tables but that needs to be passed to `Agent`
@@ -1225,7 +1228,7 @@ class SyncServer(Server):
         assert tool_obj, f"Tool with id={tool_id} does not exist"
         tool_objs.append(tool_obj)
 
-        for tool in letta_agent.tools:
+        for tool in letta_agent.agent_state.tools:
             tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=user)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
