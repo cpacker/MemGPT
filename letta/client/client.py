@@ -3210,6 +3210,7 @@ class LocalClient(AbstractClient):
             data["value"] = value
         if limit:
             data["limit"] = limit
+        print("OG UPDATE DATA", data)
         return self.server.block_manager.update_block(block.id, actor=self.user, block_update=BlockUpdate(**data))
 
     def update_block(

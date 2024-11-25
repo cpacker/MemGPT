@@ -76,7 +76,7 @@ def setup_agent(
     config.save()
 
     memory = ChatMemory(human=memory_human_str, persona=memory_persona_str)
-    print("tool rules", [r.model_dump() for r in tool_rules])
+    print("tool rules", [r.model_dump() for r in tool_rules] if tool_rules else None)
     agent_state = client.create_agent(
         name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config, memory=memory, tools=tools, tool_rules=tool_rules
     )

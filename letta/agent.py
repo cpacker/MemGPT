@@ -387,7 +387,7 @@ class Agent(BaseAgent):
 
     def update_memory_if_change(self, new_memory: Memory) -> bool:
         """
-        Update self.memory if there are any changes to blocks
+        Update internal memory object and system prompt if there have been modifications.
 
         Args:
             new_memory (Memory): the new memory object to compare to the current memory object
@@ -1400,11 +1400,8 @@ class Agent(BaseAgent):
             warnings.warn(f"Non-string message IDs found in agent state: {message_ids}")
             message_ids = [m_id for m_id in message_ids if isinstance(m_id, str)]
 
-        assert isinstance(self.memory, Memory), f"Memory is not a Memory object: {type(self.memory)}"
-
         # override any fields that may have been updated
         self.agent_state.message_ids = message_ids
-        # self.agent_state.memory = self.memory
 
         return self.agent_state
 

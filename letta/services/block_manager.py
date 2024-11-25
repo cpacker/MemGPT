@@ -34,14 +34,19 @@ class BlockManager:
             return block.to_pydantic()
 
     @enforce_types
-    def update_block(self, block_id: str, block_update: BlockUpdate, actor: PydanticUser, limit: Optional[int] = None) -> PydanticBlock:
+    def update_block(self, block_id: str, block_update: BlockUpdate, actor: PydanticUser) -> PydanticBlock:
         """Update a block by its ID with the given BlockUpdate object."""
         with self.session_maker() as session:
             block = BlockModel.read(db_session=session, identifier=block_id, actor=actor)
             update_data = block_update.model_dump(exclude_unset=True, exclude_none=True)
-            print("UPDATE DATA", update_data)
+            validate_block_model = block.to_pydantic()  # use this to ensure we end up with a valid pydantic object
             for key, value in update_data.items():
                 setattr(block, key, value)
+                try:
+                    validate_block_model.__setattr__(key, value)
+                except Exception as e:
+                    # invalid pydantic model
+                    raise ValueError(f"Failed to set {key} to {value} on block {block_id}: {e}")
             block.update(db_session=session, actor=actor)
             return block.to_pydantic()
 
