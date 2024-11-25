@@ -30,7 +30,7 @@ def roll_d20() -> str:
 
 
 # create a tool from the function
-tool = client.create_tool(roll_d20)
+tool = client.create_or_update_tool(roll_d20)
 print(f"Created tool with name {tool.name}")
 
 # create a new agent

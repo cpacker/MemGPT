@@ -97,11 +97,11 @@ def test_single_path_agent_tool_call_graph(mock_e2b_api_key_none):
     cleanup(client=client, agent_uuid=agent_uuid)
 
     # Add tools
-    t1 = client.create_tool(first_secret_word)
-    t2 = client.create_tool(second_secret_word)
-    t3 = client.create_tool(third_secret_word)
-    t4 = client.create_tool(fourth_secret_word)
-    t_err = client.create_tool(auto_error)
+    t1 = client.create_or_update_tool(first_secret_word)
+    t2 = client.create_or_update_tool(second_secret_word)
+    t3 = client.create_or_update_tool(third_secret_word)
+    t4 = client.create_or_update_tool(fourth_secret_word)
+    t_err = client.create_or_update_tool(auto_error)
     tools = [t1, t2, t3, t4, t_err]
 
     # Make tool rules
