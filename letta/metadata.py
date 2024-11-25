@@ -161,14 +161,10 @@ class ToolRulesColumn(TypeDecorator):
     def process_bind_param(self, value, dialect):
         """Convert a list of ToolRules to JSON-serializable format."""
         if value:
-            print("ORIGINAL", value)
             data = [rule.model_dump() for rule in value]
             for d in data:
                 d["type"] = d["type"].value
-            from pprint import pprint
 
-            print("DUMP TOOL RULES")
-            pprint(data)
             for d in data:
                 assert not (d["type"] == "ToolRule" and "children" not in d), "ToolRule does not have children field"
             return data
@@ -184,14 +180,12 @@ class ToolRulesColumn(TypeDecorator):
     def deserialize_tool_rule(data: dict) -> Union[ChildToolRule, InitToolRule, TerminalToolRule]:
         """Deserialize a dictionary to the appropriate ToolRule subclass based on the 'type'."""
         rule_type = ToolRuleType(data.get("type"))  # Remove 'type' field if it exists since it is a class var
-        print("DESERIALIZING TOOL RULE", data)
         if rule_type == ToolRuleType.run_first:
             return InitToolRule(**data)
         elif rule_type == ToolRuleType.exit_loop:
             return TerminalToolRule(**data)
         elif rule_type == ToolRuleType.constrain_child_tools:
             rule = ChildToolRule(**data)
-            print(rule.children)
             return rule
         else:
             raise ValueError(f"Unknown tool rule type: {rule_type}")
@@ -232,7 +226,6 @@ class AgentModel(Base):
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
     def to_record(self) -> PersistedAgentState:
-        print("FINAL RULES", self.tool_rules)
         agent_state = PersistedAgentState(
             id=self.id,
             user_id=self.user_id,

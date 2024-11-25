@@ -28,23 +28,8 @@ class BaseBlock(LettaBase, validate_assignment=True):
     description: Optional[str] = Field(None, description="Description of the block.")
     metadata_: Optional[dict] = Field({}, description="Metadata of the block.")
 
-    @model_validator(mode="after")
-    def verify_char_limit(self) -> Self:
-        if len(self.value) > self.limit:
-            error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self.value)}) - {str(self)}."
-            raise ValueError(error_msg)
-
-        return self
-
     # def __len__(self):
     #     return len(self.value)
-
-    def __setattr__(self, name, value):
-        """Run validation if self.value is updated"""
-        super().__setattr__(name, value)
-        if name == "value":
-            # run validation
-            self.__class__.model_validate(self.model_dump(exclude_unset=True))
 
     class Config:
         extra = "ignore"  # Ignores extra fields
@@ -74,6 +59,21 @@ class Block(BaseBlock):
     # default orm fields
     created_by_id: Optional[str] = Field(None, description="The id of the user that made this Block.")
     last_updated_by_id: Optional[str] = Field(None, description="The id of the user that last updated this Block.")
+
+    @model_validator(mode="after")
+    def verify_char_limit(self) -> Self:
+        if len(self.value) > self.limit:
+            error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self.value)}) - {str(self)}."
+            raise ValueError(error_msg)
+
+        return self
+
+    def __setattr__(self, name, value):
+        """Run validation if self.value is updated"""
+        super().__setattr__(name, value)
+        if name == "value":
+            # run validation
+            self.__class__.model_validate(self.model_dump(exclude_unset=True))
 
 
 class Human(Block):

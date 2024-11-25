@@ -2035,6 +2035,7 @@ class LocalClient(AbstractClient):
         for block in memory.get_blocks():
             self.server.block_manager.create_or_update_block(block, actor=user)
             self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_state.id, block_id=block.id)
+            print("BLOCK LIMI", self.get_block(block.id).limit)
 
         # TODO: get full agent state
         return self.server.get_agent(agent_state.id)
@@ -3143,9 +3144,8 @@ class LocalClient(AbstractClient):
         )
 
     def update_agent_memory_block_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
-        return self.server.update_agent_memory_label(
-            user_id=self.user_id, agent_id=agent_id, current_block_label=current_label, new_block_label=new_label
-        )
+        block = self.get_agent_memory_block(agent_id, current_label)
+        return self.update_block(block.id, label=new_label)
 
     def add_agent_memory_block(self, agent_id: str, create_block: CreateBlock) -> Memory:
         block_req = Block(**create_block.model_dump())

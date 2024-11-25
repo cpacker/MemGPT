@@ -2025,23 +2025,23 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
         return letta_agent.get_context_window()
 
-    def update_agent_memory_label(self, user_id: str, agent_id: str, current_block_label: str, new_block_label: str) -> Memory:
-        """Update the label of a block in an agent's memory"""
+    # def update_agent_memory_label(self, user_id: str, agent_id: str, current_block_label: str, new_block_label: str) -> Memory:
+    #    """Update the label of a block in an agent's memory"""
 
-        # Get the user
-        user = self.user_manager.get_user_by_id(user_id=user_id)
+    #    # Get the user
+    #    user = self.user_manager.get_user_by_id(user_id=user_id)
 
-        # get the block
-        block_id = self.blocks_agents_manager.get_block_id_for_label(current_block_label)
+    #    # get the block
+    #    block_id = self.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=current_block_label)
 
-        # rename the block label (update block)
-        updated_block = self.block_manager.update_block(block_id=block_id, block_update=BlockUpdate(label=new_block_label), actor=user)
+    #    # rename the block label (update block)
+    #    updated_block = self.block_manager.update_block(block_id=block_id, block_update=BlockUpdate(label=new_block_label), actor=user)
 
-        # remove the mapping
-        self.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=agent_id, block_label=current_block_label, actor=user)
+    #    # remove the mapping
+    #    self.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=agent_id, block_label=current_block_label)
 
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
-        return memory
+    #    memory = self.load_agent(agent_id=agent_id).agent_state.memory
+    #    return memory
 
     def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
         """Link a block to an agent's memory"""

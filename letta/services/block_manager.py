@@ -28,19 +28,18 @@ class BlockManager:
             self.update_block(block.id, update_data, actor)
         else:
             with self.session_maker() as session:
-                # Always write the organization_id
-                block.organization_id = actor.organization_id
                 data = block.model_dump(exclude_none=True)
-                block = BlockModel(**data)
+                block = BlockModel(**data, organization_id=actor.organization_id)
                 block.create(session, actor=actor)
             return block.to_pydantic()
 
     @enforce_types
-    def update_block(self, block_id: str, block_update: BlockUpdate, actor: PydanticUser) -> PydanticBlock:
+    def update_block(self, block_id: str, block_update: BlockUpdate, actor: PydanticUser, limit: Optional[int] = None) -> PydanticBlock:
         """Update a block by its ID with the given BlockUpdate object."""
         with self.session_maker() as session:
             block = BlockModel.read(db_session=session, identifier=block_id, actor=actor)
             update_data = block_update.model_dump(exclude_unset=True, exclude_none=True)
+            print("UPDATE DATA", update_data)
             for key, value in update_data.items():
                 setattr(block, key, value)
             block.update(db_session=session, actor=actor)
