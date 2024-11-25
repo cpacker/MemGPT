@@ -2046,6 +2046,8 @@ class SyncServer(Server):
     def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
         """Link a block to an agent's memory"""
         block = self.block_manager.get_block_by_id(block_id=block_id, actor=self.user_manager.get_user_by_id(user_id=user_id))
+        if block is None:
+            raise ValueError(f"Block with id {block_id} not found")
         self.blocks_agents_manager.add_block_to_agent(agent_id, block_id, block_label=block.label)
 
         # get agent memory

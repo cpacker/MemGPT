@@ -14,12 +14,7 @@ from letta.constants import (
 )
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
-from letta.schemas.agent import (
-    AgentType,
-    CreateAgent,
-    PersistedAgentState,
-    UpdateAgentState,
-)
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.block import Block, BlockUpdate, CreateBlock, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 
@@ -93,7 +88,7 @@ class AbstractClient(object):
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
-    ) -> PersistedAgentState:
+    ) -> AgentState:
         raise NotImplementedError
 
     def update_agent(
@@ -127,10 +122,10 @@ class AbstractClient(object):
     def delete_agent(self, agent_id: str):
         raise NotImplementedError
 
-    def get_agent(self, agent_id: str) -> PersistedAgentState:
+    def get_agent(self, agent_id: str) -> AgentState:
         raise NotImplementedError
 
-    def get_agent_id(self, agent_name: str) -> PersistedAgentState:
+    def get_agent_id(self, agent_name: str) -> AgentState:
         raise NotImplementedError
 
     def get_in_context_memory(self, agent_id: str) -> Memory:
@@ -458,13 +453,13 @@ class RESTClient(AbstractClient):
         self._default_llm_config = default_llm_config
         self._default_embedding_config = default_embedding_config
 
-    def list_agents(self, tags: Optional[List[str]] = None) -> List[PersistedAgentState]:
+    def list_agents(self, tags: Optional[List[str]] = None) -> List[AgentState]:
         params = {}
         if tags:
             params["tags"] = tags
 
         response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers, params=params)
-        return [PersistedAgentState(**agent) for agent in response.json()]
+        return [AgentState(**agent) for agent in response.json()]
 
     def agent_exists(self, agent_id: str) -> bool:
         """
@@ -508,7 +503,7 @@ class RESTClient(AbstractClient):
         description: Optional[str] = None,
         initial_message_sequence: Optional[List[Message]] = None,
         tags: Optional[List[str]] = None,
-    ) -> PersistedAgentState:
+    ) -> AgentState:
         """Create an agent
 
         Args:
@@ -541,7 +536,8 @@ class RESTClient(AbstractClient):
             name=name,
             description=description,
             metadata_=metadata,
-            memory=memory,
+            # memory=memory,
+            memory_blocks=[],
             tools=tool_names,
             tool_rules=tool_rules,
             system=system,
@@ -564,9 +560,21 @@ class RESTClient(AbstractClient):
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
 
-        # TODO: create and link blocks
+        # gather agent state
+        agent_state = AgentState(**response.json())
 
-        return PersistedAgentState(**response.json())
+        # create and link blocks
+        for block in memory.get_blocks():
+            print("Lookups block id", block.id)
+            if not self.get_block(block.id):
+                # note: this does not update existing blocks
+                # WARNING: this resets the block ID - this method is a hack for backwards compat, should eventually use CreateBlock not Memory
+                block = self.create_block(label=block.label, value=block.value, limit=block.limit)
+            print("block exists", self.get_block(block.id))
+            self.link_agent_memory_block(agent_id=agent_state.id, block_id=block.id)
+
+        # refresh and return agent
+        return self.get_agent(agent_state.id)
 
     def update_message(
         self,
@@ -599,12 +607,11 @@ class RESTClient(AbstractClient):
         name: Optional[str] = None,
         description: Optional[str] = None,
         system: Optional[str] = None,
-        tools: Optional[List[str]] = None,
+        tool_names: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
         message_ids: Optional[List[str]] = None,
-        memory: Optional[Memory] = None,
         tags: Optional[List[str]] = None,
     ):
         """
@@ -615,12 +622,11 @@ class RESTClient(AbstractClient):
             name (str): Name of the agent
             description (str): Description of the agent
             system (str): System configuration
-            tools (List[str]): List of tools
+            tool_names (List[str]): List of tools
             metadata (Dict): Metadata
             llm_config (LLMConfig): LLM configuration
             embedding_config (EmbeddingConfig): Embedding configuration
             message_ids (List[str]): List of message IDs
-            memory (Memory): Memory configuration
             tags (List[str]): Tags for filtering agents
 
         Returns:
@@ -630,19 +636,18 @@ class RESTClient(AbstractClient):
             id=agent_id,
             name=name,
             system=system,
-            tools=tools,
+            tool_names=tool_names,
             tags=tags,
             description=description,
             metadata_=metadata,
             llm_config=llm_config,
             embedding_config=embedding_config,
             message_ids=message_ids,
-            memory=memory,
         )
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
-        return PersistedAgentState(**response.json())
+        return AgentState(**response.json())
 
     def get_tools_from_agent(self, agent_id: str) -> List[Tool]:
         """
@@ -673,7 +678,7 @@ class RESTClient(AbstractClient):
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/add-tool/{tool_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
-        return PersistedAgentState(**response.json())
+        return AgentState(**response.json())
 
     def remove_tool_from_agent(self, agent_id: str, tool_id: str):
         """
@@ -690,7 +695,7 @@ class RESTClient(AbstractClient):
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/remove-tool/{tool_id}", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update agent: {response.text}")
-        return PersistedAgentState(**response.json())
+        return AgentState(**response.json())
 
     def rename_agent(self, agent_id: str, new_name: str):
         """
@@ -713,7 +718,7 @@ class RESTClient(AbstractClient):
         response = requests.delete(f"{self.base_url}/{self.api_prefix}/agents/{str(agent_id)}", headers=self.headers)
         assert response.status_code == 200, f"Failed to delete agent: {response.text}"
 
-    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> PersistedAgentState:
+    def get_agent(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> AgentState:
         """
         Get an agent's state by it's ID.
 
@@ -725,9 +730,9 @@ class RESTClient(AbstractClient):
         """
         response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}", headers=self.headers)
         assert response.status_code == 200, f"Failed to get agent: {response.text}"
-        return PersistedAgentState(**response.json())
+        return AgentState(**response.json())
 
-    def get_agent_id(self, agent_name: str) -> PersistedAgentState:
+    def get_agent_id(self, agent_name: str) -> AgentState:
         """
         Get the ID of an agent by name (names are unique per user)
 
@@ -739,7 +744,7 @@ class RESTClient(AbstractClient):
         """
         # TODO: implement this
         response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers, params={"name": agent_name})
-        agents = [PersistedAgentState(**agent) for agent in response.json()]
+        agents = [AgentState(**agent) for agent in response.json()]
         if len(agents) == 0:
             return None
         assert len(agents) == 1, f"Multiple agents with the same name: {agents}"
@@ -1000,8 +1005,12 @@ class RESTClient(AbstractClient):
         else:
             return [Block(**block) for block in response.json()]
 
-    def create_block(self, label: str, value: str, template_name: Optional[str] = None, is_template: bool = False) -> Block:  #
+    def create_block(
+        self, label: str, value: str, limit: Optional[int] = None, template_name: Optional[str] = None, is_template: bool = False
+    ) -> Block:  #
         request = CreateBlock(label=label, value=value, template=is_template, template_name=template_name)
+        if limit:
+            request.limit = limit
         response = requests.post(f"{self.base_url}/{self.api_prefix}/blocks", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create block: {response.text}")
@@ -1020,6 +1029,7 @@ class RESTClient(AbstractClient):
         return Block(**response.json())
 
     def get_block(self, block_id: str) -> Block:
+        print("data", self.base_url, block_id, self.headers)
         response = requests.get(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", headers=self.headers)
         if response.status_code == 404:
             return None
@@ -1771,21 +1781,32 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to list environment variables for sandbox config ID '{sandbox_config_id}': {response.text}")
         return [SandboxEnvironmentVariable(**var_data) for var_data in response.json()]
 
-    def update_agent_memory_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
+    def update_agent_memory_block_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
+        """Rename a block in the agent's core memory
 
-        # @router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory_label")
-        response = requests.patch(
-            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/label",
-            headers=self.headers,
-            json={"current_label": current_label, "new_label": new_label},
-        )
-        if response.status_code != 200:
-            raise ValueError(f"Failed to update agent memory label: {response.text}")
-        return Memory(**response.json())
+        Args:
+            agent_id (str): The agent ID
+            current_label (str): The current label of the block
+            new_label (str): The new label of the block
 
+        Returns:
+            memory (Memory): The updated memory
+        """
+        block = self.get_agent_memory_block(agent_id, current_label)
+        return self.update_block(block.id, label=new_label)
+
+    # TODO: remove this
     def add_agent_memory_block(self, agent_id: str, create_block: CreateBlock) -> Memory:
+        """
+        Create and link a memory block to an agent's core memory
 
-        # @router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
+        Args:
+            agent_id (str): The agent ID
+            create_block (CreateBlock): The block to create
+
+        Returns:
+            memory (Memory): The updated memory
+        """
         response = requests.post(
             f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block",
             headers=self.headers,
@@ -1795,9 +1816,38 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to add agent memory block: {response.text}")
         return Memory(**response.json())
 
-    def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
+    def link_agent_memory_block(self, agent_id: str, block_id: str) -> Memory:
+        """
+        Link a block to an agent's core memory
 
-        # @router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block")
+        Args:
+            agent_id (str): The agent ID
+            block_id (str): The block ID
+
+        Returns:
+            memory (Memory): The updated memory
+        """
+        params = {"agent_id": agent_id}
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/blocks/{block_id}/attach",
+            params=params,
+            headers=self.headers,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to link agent memory block: {response.text}")
+        return Block(**response.json())
+
+    def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
+        """
+        Unlike a block from the agent's core memory
+
+        Args:
+            agent_id (str): The agent ID
+            block_label (str): The block label
+
+        Returns:
+            memory (Memory): The updated memory
+        """
         response = requests.delete(
             f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block/{block_label}",
             headers=self.headers,
@@ -1806,17 +1856,158 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to remove agent memory block: {response.text}")
         return Memory(**response.json())
 
-    def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+    # def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+    #    return self.server.update_agent_memory_limit(user_id=self.user_id, agent_id=agent_id, block_label=block_label, limit=limit)
 
-        # @router.patch("/{agent_id}/memory/limit", response_model=Memory, operation_id="update_agent_memory_limit")
-        response = requests.patch(
-            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/limit",
+    def get_agent_memory_blocks(self, agent_id: str) -> List[Block]:
+        """
+        Get all the blocks in the agent's core memory
+
+        Args:
+            agent_id (str): The agent ID
+
+        Returns:
+            blocks (List[Block]): The blocks in the agent's core memory
+        """
+        response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block", headers=self.headers)
+        if response.status_code != 200:
+            raise ValueError(f"Failed to get agent memory blocks: {response.text}")
+        return [Block(**block) for block in response.json()]
+
+    def get_agent_memory_block(self, agent_id: str, label: str) -> Block:
+        """
+        Get a block in the agent's core memory by its label
+
+        Args:
+            agent_id (str): The agent ID
+            label (str): The label in the agent's core memory
+
+        Returns:
+            block (Block): The block corresponding to the label
+        """
+        response = requests.get(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block/{label}",
             headers=self.headers,
-            json={"label": block_label, "limit": limit},
         )
         if response.status_code != 200:
-            raise ValueError(f"Failed to update agent memory limit: {response.text}")
-        return Memory(**response.json())
+            raise ValueError(f"Failed to get agent memory block: {response.text}")
+        return Block(**response.json())
+
+    def update_agent_memory_block(
+        self,
+        agent_id: str,
+        label: str,
+        value: Optional[str] = None,
+        limit: Optional[int] = None,
+    ):
+        """
+        Update a block in the agent's core memory by specifying its label
+
+        Args:
+            agent_id (str): The agent ID
+            label (str): The label of the block
+            value (str): The new value of the block
+            limit (int): The new limit of the block
+
+        Returns:
+            block (Block): The updated block
+        """
+        # setup data
+        data = {}
+        if value:
+            data["value"] = value
+        if limit:
+            data["limit"] = limit
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block/{label}",
+            headers=self.headers,
+            json=data,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update agent memory block: {response.text}")
+        return Block(**response.json())
+
+    def update_block(
+        self,
+        block_id: str,
+        label: Optional[str] = None,
+        value: Optional[str] = None,
+        limit: Optional[int] = None,
+    ):
+        """
+        Update a block given the ID with the provided fields
+
+        Args:
+            block_id (str): ID of the block
+            label (str): Label to assign to the block
+            value (str): Value to assign to the block
+            limit (int): Token limit to assign to the block
+
+        Returns:
+            block (Block): Updated block
+        """
+        data = {}
+        if value:
+            data["value"] = value
+        if limit:
+            data["limit"] = limit
+        if label:
+            data["label"] = label
+        response = requests.patch(
+            f"{self.base_url}/{self.api_prefix}/blocks/{block_id}",
+            headers=self.headers,
+            json=data,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to update block: {response.text}")
+        return Block(**response.json())
+
+    # def update_agent_memory_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
+
+    #    # @router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory_label")
+    #    response = requests.patch(
+    #        f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/label",
+    #        headers=self.headers,
+    #        json={"current_label": current_label, "new_label": new_label},
+    #    )
+    #    if response.status_code != 200:
+    #        raise ValueError(f"Failed to update agent memory label: {response.text}")
+    #    return Memory(**response.json())
+
+    # def add_agent_memory_block(self, agent_id: str, create_block: CreateBlock) -> Memory:
+
+    #    # @router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
+    #    response = requests.post(
+    #        f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block",
+    #        headers=self.headers,
+    #        json=create_block.model_dump(),
+    #    )
+    #    if response.status_code != 200:
+    #        raise ValueError(f"Failed to add agent memory block: {response.text}")
+    #    return Memory(**response.json())
+
+    # def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
+
+    #    # @router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block")
+    #    response = requests.delete(
+    #        f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/block/{block_label}",
+    #        headers=self.headers,
+    #    )
+    #    if response.status_code != 200:
+    #        raise ValueError(f"Failed to remove agent memory block: {response.text}")
+    #    return Memory(**response.json())
+
+    # def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+
+    #    # @router.patch("/{agent_id}/memory/limit", response_model=Memory, operation_id="update_agent_memory_limit")
+    #    response = requests.patch(
+    #        f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/memory/limit",
+    #        headers=self.headers,
+    #        json={"label": block_label, "limit": limit},
+    #    )
+    #    if response.status_code != 200:
+    #        raise ValueError(f"Failed to update agent memory limit: {response.text}")
+    #    return Memory(**response.json())
 
 
 class LocalClient(AbstractClient):
@@ -1878,7 +2069,7 @@ class LocalClient(AbstractClient):
         self.organization = self.server.get_organization_or_default(self.org_id)
 
     # agents
-    def list_agents(self, tags: Optional[List[str]] = None) -> List[PersistedAgentState]:
+    def list_agents(self, tags: Optional[List[str]] = None) -> List[AgentState]:
         self.interface.clear()
 
         return self.server.list_agents(user_id=self.user_id, tags=tags)
@@ -1932,7 +2123,7 @@ class LocalClient(AbstractClient):
         description: Optional[str] = None,
         initial_message_sequence: Optional[List[Message]] = None,
         tags: Optional[List[str]] = None,
-    ) -> PersistedAgentState:
+    ) -> AgentState:
         """Create an agent
 
         Args:
@@ -2152,7 +2343,7 @@ class LocalClient(AbstractClient):
         """
         self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
 
-    def get_agent_by_name(self, agent_name: str) -> PersistedAgentState:
+    def get_agent_by_name(self, agent_name: str) -> AgentState:
         """
         Get an agent by its name
 
@@ -2165,7 +2356,7 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         return self.server.get_agent_state(agent_name=agent_name, user_id=self.user_id, agent_id=None)
 
-    def get_agent(self, agent_id: str) -> PersistedAgentState:
+    def get_agent(self, agent_id: str) -> AgentState:
         """
         Get an agent's state by its ID.
 
@@ -2986,7 +3177,9 @@ class LocalClient(AbstractClient):
         """
         return self.server.block_manager.get_blocks(actor=self.user, label=label, is_template=templates_only)
 
-    def create_block(self, label: str, value: str, template_name: Optional[str] = None, is_template: bool = False) -> Block:  #
+    def create_block(
+        self, label: str, value: str, limit: Optional[int] = None, template_name: Optional[str] = None, is_template: bool = False
+    ) -> Block:  #
         """
         Create a block
 
@@ -2994,13 +3187,15 @@ class LocalClient(AbstractClient):
             label (str): Label of the block
             name (str): Name of the block
             text (str): Text of the block
+            limit (int): Character of the block
 
         Returns:
             block (Block): Created block
         """
-        return self.server.block_manager.create_or_update_block(
-            Block(label=label, template_name=template_name, value=value, is_template=is_template), actor=self.user
-        )
+        block = Block(label=label, template_name=template_name, value=value, is_template=is_template)
+        if limit:
+            block.limit = limit
+        return self.server.block_manager.create_or_update_block(block, actor=self.user)
 
     def update_block(self, block_id: str, name: Optional[str] = None, text: Optional[str] = None, limit: Optional[int] = None) -> Block:
         """

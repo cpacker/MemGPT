@@ -1,13 +1,17 @@
 import asyncio
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
-from letta.schemas.agent import CreateAgent, PersistedAgentState, UpdateAgentState
-from letta.schemas.block import Block, BlockCreate, BlockLabelUpdate, BlockLimitUpdate
+from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
+from letta.schemas.block import (  # , BlockLabelUpdate, BlockLimitUpdate
+    Block,
+    BlockUpdate,
+    CreateBlock,
+)
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
@@ -38,7 +42,7 @@ from letta.utils import deduplicate
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-@router.get("/", response_model=List[PersistedAgentState], operation_id="list_agents")
+@router.get("/", response_model=List[AgentState], operation_id="list_agents")
 def list_agents(
     name: Optional[str] = Query(None, description="Name of the agent"),
     tags: Optional[List[str]] = Query(None, description="List of tags to filter agents by"),
@@ -72,7 +76,7 @@ def get_agent_context_window(
     return server.get_agent_context_window(user_id=actor.id, agent_id=agent_id)
 
 
-@router.post("/", response_model=PersistedAgentState, operation_id="create_agent")
+@router.post("/", response_model=AgentState, operation_id="create_agent")
 def create_agent(
     agent: CreateAgent = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
@@ -92,7 +96,7 @@ def create_agent(
     return server.create_agent(agent, actor=actor)
 
 
-@router.patch("/{agent_id}", response_model=PersistedAgentState, operation_id="update_agent")
+@router.patch("/{agent_id}", response_model=AgentState, operation_id="update_agent")
 def update_agent(
     agent_id: str,
     update_agent: UpdateAgentState = Body(...),
@@ -115,7 +119,7 @@ def get_tools_from_agent(
     return server.get_tools_from_agent(agent_id=agent_id, user_id=actor.id)
 
 
-@router.patch("/{agent_id}/add-tool/{tool_id}", response_model=PersistedAgentState, operation_id="add_tool_to_agent")
+@router.patch("/{agent_id}/add-tool/{tool_id}", response_model=AgentState, operation_id="add_tool_to_agent")
 def add_tool_to_agent(
     agent_id: str,
     tool_id: str,
@@ -127,7 +131,7 @@ def add_tool_to_agent(
     return server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
 
-@router.patch("/{agent_id}/remove-tool/{tool_id}", response_model=PersistedAgentState, operation_id="remove_tool_from_agent")
+@router.patch("/{agent_id}/remove-tool/{tool_id}", response_model=AgentState, operation_id="remove_tool_from_agent")
 def remove_tool_from_agent(
     agent_id: str,
     tool_id: str,
@@ -139,7 +143,7 @@ def remove_tool_from_agent(
     return server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
 
-@router.get("/{agent_id}", response_model=PersistedAgentState, operation_id="get_agent")
+@router.get("/{agent_id}", response_model=AgentState, operation_id="get_agent")
 def get_agent_state(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
@@ -195,6 +199,7 @@ def get_agent_in_context_messages(
     return server.get_in_context_messages(agent_id=agent_id)
 
 
+# TODO: remove? can also get with agent blocks
 @router.get("/{agent_id}/memory", response_model=Memory, operation_id="get_agent_memory")
 def get_agent_memory(
     agent_id: str,
@@ -208,47 +213,77 @@ def get_agent_memory(
     return server.get_agent_memory(agent_id=agent_id)
 
 
-@router.patch("/{agent_id}/memory", response_model=Memory, operation_id="update_agent_memory")
-def update_agent_memory(
+# @router.patch("/{agent_id}/memory", response_model=Memory, operation_id="update_agent_memory")
+# def update_agent_memory(
+#    agent_id: str,
+#    request: Dict = Body(...),
+#    server: "SyncServer" = Depends(get_letta_server),
+#    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+# ):
+#    """
+#    Update the core memory of a specific agent.
+#        This endpoint accepts new memory contents (labels as keys, and values as values) and updates the core memory of the agent identified by the user ID and agent ID.
+#    This endpoint accepts new memory contents to update the core memory of the agent.
+#    This endpoint only supports modifying existing blocks; it does not support deleting/unlinking or creating/linking blocks.
+#    """
+#    actor = server.get_user_or_default(user_id=user_id)
+#
+#    memory = server.update_agent_core_memory(user_id=actor.id, agent_id=agent_id, new_memory_contents=request)
+#    return memory
+
+
+# @router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory_label")
+# def update_agent_memory_label(
+#    agent_id: str,
+#    update_label: BlockLabelUpdate = Body(...),
+#    server: "SyncServer" = Depends(get_letta_server),
+#    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+# ):
+#    """
+#    Update the label of a block in an agent's memory.
+#    """
+#    actor = server.get_user_or_default(user_id=user_id)
+#
+#    memory = server.update_agent_memory_label(
+#        user_id=actor.id, agent_id=agent_id, current_block_label=update_label.current_label, new_block_label=update_label.new_label
+#    )
+#    return memory
+
+
+@router.get("/{agent_id}/memory/block/{block_label}", response_model=Block, operation_id="get_agent_memory_block")
+def get_agent_memory_block(
     agent_id: str,
-    request: Dict = Body(...),
+    block_label: str,
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
-    Update the core memory of a specific agent.
-        This endpoint accepts new memory contents (labels as keys, and values as values) and updates the core memory of the agent identified by the user ID and agent ID.
-    This endpoint accepts new memory contents to update the core memory of the agent.
-    This endpoint only supports modifying existing blocks; it does not support deleting/unlinking or creating/linking blocks.
+    Retrieve a memory block from an agent.
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    memory = server.update_agent_core_memory(user_id=actor.id, agent_id=agent_id, new_memory_contents=request)
-    return memory
+    block_id = server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=block_label)
+    return server.block_manager.get_block_by_id(block_id, actor=actor)
 
 
-@router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory_label")
-def update_agent_memory_label(
+@router.get("/{agent_id}/memory/block", response_model=List[Block], operation_id="get_agent_memory_blocks")
+def get_agent_memory_blocks(
     agent_id: str,
-    update_label: BlockLabelUpdate = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
-    Update the label of a block in an agent's memory.
+    Retrieve the memory blocks of a specific agent.
     """
     actor = server.get_user_or_default(user_id=user_id)
-
-    memory = server.update_agent_memory_label(
-        user_id=actor.id, agent_id=agent_id, current_block_label=update_label.current_label, new_block_label=update_label.new_label
-    )
-    return memory
+    block_ids = server.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id)
+    return [server.block_manager.get_block_by_id(block_id, actor=actor) for block_id in block_ids]
 
 
 @router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
 def add_agent_memory_block(
     agent_id: str,
-    create_block: BlockCreate = Body(...),
+    create_block: CreateBlock = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -267,7 +302,7 @@ def add_agent_memory_block(
     return updated_memory
 
 
-@router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block")
+@router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block_by_label")
 def remove_agent_memory_block(
     agent_id: str,
     # TODO should this be block_id, or the label?
@@ -287,25 +322,45 @@ def remove_agent_memory_block(
     return updated_memory
 
 
-@router.patch("/{agent_id}/memory/limit", response_model=Memory, operation_id="update_agent_memory_limit")
-def update_agent_memory_limit(
+@router.patch("/{agent_id}/memory/block/{block_label}", response_model=Block, operation_id="update_agent_memory_block_by_label")
+def update_agent_memory_block(
     agent_id: str,
-    update_label: BlockLimitUpdate = Body(...),
+    block_label: str,
+    update_block: BlockUpdate = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
-    Update the limit of a block in an agent's memory.
+    Removes a memory block from an agent by unlnking it. If the block is not linked to any other agent, it is deleted.
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    memory = server.update_agent_memory_limit(
-        user_id=actor.id,
-        agent_id=agent_id,
-        block_label=update_label.label,
-        limit=update_label.limit,
-    )
-    return memory
+    # get the block_id from the label
+    block_id = server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=block_label)
+
+    # update the block
+    return server.block_manager.update_block(block_id=block_id, block_update=update_block, actor=actor)
+
+
+# @router.patch("/{agent_id}/memory/limit", response_model=Memory, operation_id="update_agent_memory_limit")
+# def update_agent_memory_limit(
+#    agent_id: str,
+#    update_label: BlockLimitUpdate = Body(...),
+#    server: "SyncServer" = Depends(get_letta_server),
+#    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+# ):
+#    """
+#    Update the limit of a block in an agent's memory.
+#    """
+#    actor = server.get_user_or_default(user_id=user_id)
+#
+#    memory = server.update_agent_memory_limit(
+#        user_id=actor.id,
+#        agent_id=agent_id,
+#        block_label=update_label.label,
+#        limit=update_label.limit,
+#    )
+#    return memory
 
 
 @router.get("/{agent_id}/memory/recall", response_model=RecallMemorySummary, operation_id="get_agent_recall_memory_summary")

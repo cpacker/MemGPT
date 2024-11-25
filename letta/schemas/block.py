@@ -88,7 +88,7 @@ class Persona(Block):
     label: str = "persona"
 
 
-# class BlockCreate(BaseBlock):
+# class CreateBlock(BaseBlock):
 #    """Create a block"""
 #
 #    is_template: bool = True
@@ -102,13 +102,13 @@ class BlockLabelUpdate(BaseModel):
     new_label: str = Field(..., description="New label of the block.")
 
 
-# class CreatePersona(BlockCreate):
+# class CreatePersona(CreateBlock):
 #    """Create a persona block"""
 #
 #    label: str = "persona"
 #
 #
-# class CreateHuman(BlockCreate):
+# class CreateHuman(CreateBlock):
 #    """Create a human block"""
 #
 #    label: str = "human"
