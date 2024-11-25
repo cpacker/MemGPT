@@ -14,7 +14,6 @@ from letta.constants import (
 )
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
-from letta.memory import get_memory_functions
 from letta.schemas.agent import (
     AgentType,
     CreateAgent,
@@ -497,8 +496,7 @@ class RESTClient(AbstractClient):
         embedding_config: EmbeddingConfig = None,
         llm_config: LLMConfig = None,
         # memory
-        # memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
-        memory=None,
+        memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         # system
         system: Optional[str] = None,
         # tools
@@ -528,27 +526,13 @@ class RESTClient(AbstractClient):
         Returns:
             agent_state (AgentState): State of the created agent
         """
-
-        # TODO: implement this check once name lookup works
-        # if name:
-        #    exist_agent_id = self.get_agent_id(agent_name=name)
-
-        #    raise ValueError(f"Agent with name {name} already exists")
-
-        # construct list of tools
         tool_names = []
         if tools:
             tool_names += tools
         if include_base_tools:
             tool_names += BASE_TOOLS
+            tool_names += BASE_MEMORY_TOOLS
 
-        # add memory tools
-        memory_functions = get_memory_functions(memory)
-        for func_name, func in memory_functions.items():
-            tool = self.create_or_update_tool(func, name=func_name, tags=["memory", "letta-base"])
-            tool_names.append(tool.name)
-
-        # check if default configs are provided
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
         assert llm_config or self._default_llm_config, f"LLM config must be provided"
 
@@ -579,6 +563,9 @@ class RESTClient(AbstractClient):
 
         if response.status_code != 200:
             raise ValueError(f"Status {response.status_code} - Failed to create agent: {response.text}")
+
+        # TODO: create and link blocks
+
         return PersistedAgentState(**response.json())
 
     def update_message(
@@ -3169,10 +3156,31 @@ class LocalClient(AbstractClient):
         )
 
     def update_agent_memory_block_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
+        """Rename a block in the agent's core memory
+
+        Args:
+            agent_id (str): The agent ID
+            current_label (str): The current label of the block
+            new_label (str): The new label of the block
+
+        Returns:
+            memory (Memory): The updated memory
+        """
         block = self.get_agent_memory_block(agent_id, current_label)
         return self.update_block(block.id, label=new_label)
 
+    # TODO: remove this
     def add_agent_memory_block(self, agent_id: str, create_block: CreateBlock) -> Memory:
+        """
+        Create and link a memory block to an agent's core memory
+
+        Args:
+            agent_id (str): The agent ID
+            create_block (CreateBlock): The block to create
+
+        Returns:
+            memory (Memory): The updated memory
+        """
         block_req = Block(**create_block.model_dump())
         block = self.server.block_manager.create_or_update_block(actor=self.user, block=block_req)
         # Link the block to the agent
@@ -3180,21 +3188,59 @@ class LocalClient(AbstractClient):
         return updated_memory
 
     def link_agent_memory_block(self, agent_id: str, block_id: str) -> Memory:
+        """
+        Link a block to an agent's core memory
+
+        Args:
+            agent_id (str): The agent ID
+            block_id (str): The block ID
+
+        Returns:
+            memory (Memory): The updated memory
+        """
         return self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_id, block_id=block_id)
 
     def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
+        """
+        Unlike a block from the agent's core memory
+
+        Args:
+            agent_id (str): The agent ID
+            block_label (str): The block label
+
+        Returns:
+            memory (Memory): The updated memory
+        """
         return self.server.unlink_block_from_agent_memory(user_id=self.user_id, agent_id=agent_id, block_label=block_label)
 
     # def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
     #    return self.server.update_agent_memory_limit(user_id=self.user_id, agent_id=agent_id, block_label=block_label, limit=limit)
 
     def get_agent_memory_blocks(self, agent_id: str) -> List[Block]:
+        """
+        Get all the blocks in the agent's core memory
+
+        Args:
+            agent_id (str): The agent ID
+
+        Returns:
+            blocks (List[Block]): The blocks in the agent's core memory
+        """
         block_ids = self.server.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id)
         return [self.server.block_manager.get_block_by_id(block_id, actor=self.user) for block_id in block_ids]
 
     def get_agent_memory_block(self, agent_id: str, label: str) -> Block:
+        """
+        Get a block in the agent's core memory by its label
+
+        Args:
+            agent_id (str): The agent ID
+            label (str): The label in the agent's core memory
+
+        Returns:
+            block (Block): The block corresponding to the label
+        """
         block_id = self.server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=label)
-        print("block id", block_id)
         return self.server.block_manager.get_block_by_id(block_id, actor=self.user)
 
     def update_agent_memory_block(
@@ -3204,13 +3250,24 @@ class LocalClient(AbstractClient):
         value: Optional[str] = None,
         limit: Optional[int] = None,
     ):
+        """
+        Update a block in the agent's core memory by specifying its label
+
+        Args:
+            agent_id (str): The agent ID
+            label (str): The label of the block
+            value (str): The new value of the block
+            limit (int): The new limit of the block
+
+        Returns:
+            block (Block): The updated block
+        """
         block = self.get_agent_memory_block(agent_id, label)
         data = {}
         if value:
             data["value"] = value
         if limit:
             data["limit"] = limit
-        print("OG UPDATE DATA", data)
         return self.server.block_manager.update_block(block.id, actor=self.user, block_update=BlockUpdate(**data))
 
     def update_block(
