@@ -2087,7 +2087,6 @@ class LocalClient(AbstractClient):
             llm_config (LLMConfig): LLM configuration
             embedding_config (EmbeddingConfig): Embedding configuration
             message_ids (List[str]): List of message IDs
-            memory (Memory): Memory configuration
             tags (List[str]): Tags for filtering agents
 
         Returns:
@@ -3142,7 +3141,7 @@ class LocalClient(AbstractClient):
             sandbox_config_id=sandbox_config_id, actor=self.user, limit=limit, cursor=cursor
         )
 
-    def update_agent_memory_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
+    def update_agent_memory_block_label(self, agent_id: str, current_label: str, new_label: str) -> Memory:
         return self.server.update_agent_memory_label(
             user_id=self.user_id, agent_id=agent_id, current_block_label=current_label, new_block_label=new_label
         )
@@ -3160,5 +3159,45 @@ class LocalClient(AbstractClient):
     def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
         return self.server.unlink_block_from_agent_memory(user_id=self.user_id, agent_id=agent_id, block_label=block_label)
 
-    def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
-        return self.server.update_agent_memory_limit(user_id=self.user_id, agent_id=agent_id, block_label=block_label, limit=limit)
+    # def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
+    #    return self.server.update_agent_memory_limit(user_id=self.user_id, agent_id=agent_id, block_label=block_label, limit=limit)
+
+    def get_agent_memory_blocks(self, agent_id: str) -> List[Block]:
+        block_ids = self.server.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id)
+        return [self.server.block_manager.get_block_by_id(block_id, actor=self.user) for block_id in block_ids]
+
+    def get_agent_memory_block(self, agent_id: str, label: str) -> Block:
+        block_id = self.server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=label)
+        print("block id", block_id)
+        return self.server.block_manager.get_block_by_id(block_id, actor=self.user)
+
+    def update_agent_memory_block(
+        self,
+        agent_id: str,
+        label: str,
+        value: Optional[str] = None,
+        limit: Optional[int] = None,
+    ):
+        block = self.get_agent_memory_block(agent_id, label)
+        data = {}
+        if value:
+            data["value"] = value
+        if limit:
+            data["limit"] = limit
+        return self.server.block_manager.update_block(block.id, actor=self.user, block_update=BlockUpdate(**data))
+
+    def update_block(
+        self,
+        block_id: str,
+        label: str,
+        value: Optional[str] = None,
+        limit: Optional[int] = None,
+    ):
+        data = {}
+        if value:
+            data["value"] = value
+        if limit:
+            data["limit"] = limit
+        if label:
+            data["label"] = label
+        return self.server.block_manager.update_block(block_id, actor=self.user, block_update=BlockUpdate(**data))

@@ -51,10 +51,10 @@ def test_agent(client: LocalClient):
     print("TOOLS", [t.name for t in tools])
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
-    for block in agent_state.memory.to_dict()["memory"].values():
-        db_block = client.server.block_manager.get_block_by_id(block.get("id"), actor=client.user)
+    for block in agent_state.memory.blocks:
+        db_block = client.server.block_manager.get_block_by_id(block.id, actor=client.user)
         assert db_block is not None, "memory block not persisted on agent create"
-        assert db_block.value == block.get("value"), "persisted block data does not match in-memory data"
+        assert db_block.value == block.value, "persisted block data does not match in-memory data"
 
     assert isinstance(agent_state.memory, Memory)
     # update agent: name
@@ -79,10 +79,10 @@ def test_agent(client: LocalClient):
     assert isinstance(agent_state.memory, Memory)
     # update agent: tools
     tool_to_delete = "send_message"
-    assert tool_to_delete in agent_state.tools
-    new_agent_tools = [t_name for t_name in agent_state.tools if t_name != tool_to_delete]
+    assert tool_to_delete in agent_state.tool_names
+    new_agent_tools = [t_name for t_name in agent_state.tool_names if t_name != tool_to_delete]
     client.update_agent(agent_state_test.id, tools=new_agent_tools)
-    assert client.get_agent(agent_state_test.id).tools == new_agent_tools
+    assert client.get_agent(agent_state_test.id).tool_names == new_agent_tools
 
     assert isinstance(agent_state.memory, Memory)
     # update agent: memory
@@ -92,7 +92,10 @@ def test_agent(client: LocalClient):
     assert agent_state.memory.get_block("human").value != new_human
     assert agent_state.memory.get_block("persona").value != new_persona
 
-    client.update_agent(agent_state_test.id, memory=new_memory)
+    # client.update_agent(agent_state_test.id, memory=new_memory)
+    # update blocks:
+    client.update_agent_memory_block(agent_state_test.id, label="human", value=new_human)
+    client.update_agent_memory_block(agent_state_test.id, label="persona", value=new_persona)
     assert client.get_agent(agent_state_test.id).memory.get_block("human").value == new_human
     assert client.get_agent(agent_state_test.id).memory.get_block("persona").value == new_persona
 

@@ -89,6 +89,6 @@ class BlocksAgentsManager:
         with self.session_maker() as session:
             try:
                 blocks_agents_record = BlocksAgentsModel.read(db_session=session, agent_id=agent_id, block_label=block_label)
-                return blocks_agents_record.id
+                return blocks_agents_record.block_id
             except NoResultFound:
                 raise ValueError(f"Block label '{block_label}' not found for agent '{agent_id}'.")

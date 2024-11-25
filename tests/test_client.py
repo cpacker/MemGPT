@@ -198,7 +198,7 @@ def test_update_agent_memory_label(client: Union[LocalClient, RESTClient], agent
         example_new_label = "example_new_label"
         assert example_new_label not in current_labels
 
-        client.update_agent_memory_label(agent_id=agent.id, current_label=example_label, new_label=example_new_label)
+        client.update_agent_memory_block_label(agent_id=agent.id, current_label=example_label, new_label=example_new_label)
 
         updated_agent = client.get_agent(agent_id=agent.id)
         assert example_new_label in updated_agent.memory.list_block_labels()

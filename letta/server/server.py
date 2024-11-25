@@ -1140,7 +1140,7 @@ class SyncServer(Server):
 
             # (1) get tools + make sure they exist
             # Current and target tools as sets of tool names
-            current_tools = [tool.name for tool in set(letta_agent.agent_state.tools)]
+            current_tools = set(letta_agent.agent_state.tool_names)
             target_tools = set(request.tool_names)
 
             # Calculate tools to add and remove
@@ -1234,7 +1234,7 @@ class SyncServer(Server):
                 tool_objs.append(tool_obj)
 
         # replace the list of tool names ("ids") inside the agent state
-        letta_agent.agent_state.tools = [tool.name for tool in tool_objs]
+        letta_agent.agent_state.tool_names = [tool.name for tool in tool_objs]
 
         # then attempt to link the tools modules
         letta_agent.link_tools(tool_objs)
@@ -1263,7 +1263,7 @@ class SyncServer(Server):
 
         # Get all the tool_objs
         tool_objs = []
-        for tool in letta_agent.tools:
+        for tool in letta_agent.agent_state.tools:
             tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=user)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
@@ -1272,7 +1272,7 @@ class SyncServer(Server):
                 tool_objs.append(tool_obj)
 
         # replace the list of tool names ("ids") inside the agent state
-        letta_agent.agent_state.tools = [tool.name for tool in tool_objs]
+        letta_agent.agent_state.tool_names = [tool.name for tool in tool_objs]
 
         # then attempt to link the tools modules
         letta_agent.link_tools(tool_objs)
@@ -1590,15 +1590,6 @@ class SyncServer(Server):
             response["defaults"] = clean_default_config
 
         return response
-
-    def get_agent_block_by_label(self, user_id: str, agent_id: str, label: str) -> Block:
-        """Get a block by label"""
-        # TODO: implement at ORM?
-        for block_id in self.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id):
-            block = self.block_manager.get_block_by_id(block_id=block_id, actor=self.user_manager.get_user_by_id(user_id=user_id))
-            if block.label == label:
-                return block
-        return None
 
     def update_agent_core_memory(self, user_id: str, agent_id: str, label: str, value: str) -> Memory:
         """Update the value of a block in the agent's memory"""
@@ -2072,7 +2063,21 @@ class SyncServer(Server):
         self.block_manager.update_block(
             block_id=block.id, block_update=BlockUpdate(limit=limit), actor=self.user_manager.get_user_by_id(user_id=user_id)
         )
-
         # get agent memory
         memory = self.load_agent(agent_id=agent_id).agent_state.memory
         return memory
+
+    def upate_block(self, user_id: str, block_id: str, block_update: BlockUpdate) -> Block:
+        """Update a block"""
+        return self.block_manager.update_block(
+            block_id=block_id, block_update=block_update, actor=self.user_manager.get_user_by_id(user_id=user_id)
+        )
+
+    def get_agent_block_by_label(self, user_id: str, agent_id: str, label: str) -> Block:
+        """Get a block by label"""
+        # TODO: implement at ORM?
+        for block_id in self.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id):
+            block = self.block_manager.get_block_by_id(block_id=block_id, actor=self.user_manager.get_user_by_id(user_id=user_id))
+            if block.label == label:
+                return block
+        return None
