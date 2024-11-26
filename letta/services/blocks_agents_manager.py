@@ -92,3 +92,8 @@ class BlocksAgentsManager:
                 return blocks_agents_record.block_id
             except NoResultFound:
                 raise ValueError(f"Block label '{block_label}' not found for agent '{agent_id}'.")
+
+    @enforce_types
+    def remove_all_agent_blocks(self, agent_id: str):
+        for block_id in self.list_block_ids_for_agent(agent_id):
+            self.remove_block_with_id_from_agent(agent_id, block_id)

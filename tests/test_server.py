@@ -455,7 +455,7 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
 
     # Grab the raw Agent object
-    letta_agent = server._get_or_load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -466,7 +466,7 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     server.rethink_agent_message(agent_id=agent_id, new_thought=new_thought)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server._get_or_load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -483,7 +483,7 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     server.rewrite_agent_message(agent_id=agent_id, new_text=new_text)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server._get_or_load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -494,7 +494,7 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     server.retry_agent_message(agent_id=agent_id)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server._get_or_load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]

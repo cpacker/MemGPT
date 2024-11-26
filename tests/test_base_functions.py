@@ -23,7 +23,7 @@ def agent_obj():
     agent_state = client.create_agent()
 
     global agent_obj
-    agent_obj = client.server._get_or_load_agent(agent_id=agent_state.id)
+    agent_obj = client.server.load_agent(agent_id=agent_state.id)
     yield agent_obj
 
     client.delete_agent(agent_obj.agent_state.id)

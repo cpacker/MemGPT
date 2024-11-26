@@ -454,7 +454,7 @@ class SyncServer(Server):
     #        logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
     #        raise
 
-    # def _get_or_load_agent(self, agent_id: str, caching: bool = True) -> Agent:
+    # def load_agent(self, agent_id: str, caching: bool = True) -> Agent:
     #    """Check if the agent is in-memory, then load"""
 
     #    # Gets the agent state
@@ -505,7 +505,7 @@ class SyncServer(Server):
         try:
 
             # Get the agent object (loaded in memory)
-            # letta_agent = self._get_or_load_agent(agent_id=agent_id)
+            # letta_agent = self.load_agent(agent_id=agent_id)
             letta_agent = self.load_agent(agent_id=agent_id)
             if letta_agent is None:
                 raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
@@ -1673,6 +1673,7 @@ class SyncServer(Server):
         # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM MODEL
         # TODO: EVENTUALLY WE GET AUTO-DELETES WHEN WE SPECIFY RELATIONSHIPS IN THE ORM
         self.agents_tags_manager.delete_all_tags_from_agent(agent_id=agent_id, actor=actor)
+        self.blocks_agents_manager.remove_all_agent_blocks(agent_id=agent_id)
 
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")

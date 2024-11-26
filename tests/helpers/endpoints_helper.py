@@ -333,7 +333,7 @@ def check_agent_summarize_memory_simple(filename: str) -> LettaResponse:
     client.user_message(agent_id=agent_state.id, message="Does the number 42 ring a bell?")
 
     # Summarize
-    agent = client.server._get_or_load_agent(agent_id=agent_state.id)
+    agent = client.server.load_agent(agent_id=agent_state.id)
     agent.summarize_messages_inplace()
     print(f"Summarization succeeded: messages[1] = \n\n{json_dumps(agent.messages[1])}\n")
 

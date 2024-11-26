@@ -33,7 +33,7 @@ def create_test_agent():
     )
 
     global agent_obj
-    agent_obj = client.server._get_or_load_agent(agent_id=agent_state.id)
+    agent_obj = client.server.load_agent(agent_id=agent_state.id)
 
 
 def test_summarize_messages_inplace():
@@ -118,7 +118,7 @@ def test_auto_summarize():
 
             # check if the summarize message is inside the messages
             assert isinstance(client, LocalClient), "Test only works with LocalClient"
-            agent_obj = client.server._get_or_load_agent(agent_id=agent_state.id)
+            agent_obj = client.server.load_agent(agent_id=agent_state.id)
             if summarize_message_exists(agent_obj._messages):
                 break
 

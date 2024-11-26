@@ -105,7 +105,7 @@ def run_nested_kv_task(config: LettaConfig, letta_client: Letta, kv_dict, user_m
     )
 
     # get agent
-    agent = letta_client.server._get_or_load_agent(user_id, agent_state.id)
+    agent = letta_client.server.load_agent(user_id, agent_state.id)
     agent.functions_python["archival_memory_search"] = archival_memory_text_search
 
     # insert into archival

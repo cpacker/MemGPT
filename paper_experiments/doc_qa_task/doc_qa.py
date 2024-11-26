@@ -201,7 +201,7 @@ def generate_docqa_response(
     print(f"Attaching archival memory with {archival_memory.size()} passages")
 
     # override the agent's archival memory with table containing wikipedia embeddings
-    letta_client.server._get_or_load_agent(user_id, agent_state.id).persistence_manager.archival_memory.storage = archival_memory
+    letta_client.server.load_agent(user_id, agent_state.id).persistence_manager.archival_memory.storage = archival_memory
     print("Loaded agent")
 
     ## sanity check: before experiment (agent should have source passages)
