@@ -180,6 +180,19 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         """Handle database errors and raise appropriate custom exceptions."""
         orig = e.orig  # Extract the original error from the DBAPIError
         error_code = None
+        error_message = str(orig) if orig else str(e)
+        logger.info(f"Handling DBAPIError: {error_message}")
+
+        # Handle SQLite-specific errors
+        if "UNIQUE constraint failed" in error_message:
+            raise UniqueConstraintViolationError(
+                f"A unique constraint was violated for {cls.__name__}. Check your input for duplicates: {e}"
+            ) from e
+
+        if "FOREIGN KEY constraint failed" in error_message:
+            raise ForeignKeyConstraintViolationError(
+                f"A foreign key constraint was violated for {cls.__name__}. Check your input for missing or invalid references: {e}"
+            ) from e
 
         # For psycopg2
         if hasattr(orig, "pgcode"):

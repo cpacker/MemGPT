@@ -1,7 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field, model_validator
-from typing_extensions import Self
+from pydantic import BaseModel, Field
 
 from letta.schemas.letta_base import LettaBase
 
@@ -28,13 +27,14 @@ class BaseBlock(LettaBase, validate_assignment=True):
     description: Optional[str] = Field(None, description="Description of the block.")
     metadata_: Optional[dict] = Field({}, description="Metadata of the block.")
 
-    @model_validator(mode="after")
-    def verify_char_limit(self) -> Self:
-        if len(self.value) > self.limit:
-            error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self.value)}) - {str(self)}."
-            raise ValueError(error_msg)
-
-        return self
+    # @model_validator(mode="after")
+    # def verify_char_limit(self) -> Self:
+    #
+    #     if len(self.value) > self.limit:
+    #         error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self.value)}) - {str(self)}."
+    #         raise ValueError(error_msg)
+    #
+    #     return self
 
     # def __len__(self):
     #     return len(self.value)
