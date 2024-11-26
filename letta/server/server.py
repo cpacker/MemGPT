@@ -3,6 +3,7 @@ import os
 import traceback
 import warnings
 from abc import abstractmethod
+from asyncio import Lock
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
@@ -79,6 +80,7 @@ from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
 from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.services.organization_manager import OrganizationManager
+from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
@@ -231,6 +233,9 @@ class SyncServer(Server):
 
         self.credentials = LettaCredentials.load()
 
+        # Locks
+        self.send_message_lock = Lock()
+
         # Initialize the metadata store
         config = LettaConfig.load()
         if settings.letta_pg_uri_no_default:
@@ -251,6 +256,9 @@ class SyncServer(Server):
         self.agents_tags_manager = AgentsTagsManager()
         self.blocks_agents_manager = BlocksAgentsManager()
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
+
+        # Managers that interface with parallelism
+        self.per_agent_lock_manager = PerAgentLockManager()
 
         # Make default user and org
         if init_with_default_org_and_user:
@@ -925,7 +933,7 @@ class SyncServer(Server):
             logger.exception(e)
             try:
                 if agent:
-                    self.ms.delete_agent(agent_id=agent.agent_state.id)
+                    self.ms.delete_agent(agent_id=agent.agent_state.id, per_agent_lock_manager=self.per_agent_lock_manager)
             except Exception as delete_e:
                 logger.exception(f"Failed to delete_agent:\n{delete_e}")
             raise e
@@ -1522,7 +1530,7 @@ class SyncServer(Server):
 
         # Next, attempt to delete it from the actual database
         try:
-            self.ms.delete_agent(agent_id=agent_id)
+            self.ms.delete_agent(agent_id=agent_id, per_agent_lock_manager=self.per_agent_lock_manager)
         except Exception as e:
             logger.exception(f"Failed to delete agent {agent_id} via ID with:\n{str(e)}")
             raise ValueError(f"Failed to delete agent {agent_id} in database")

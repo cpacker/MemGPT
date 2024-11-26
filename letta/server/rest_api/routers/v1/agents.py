@@ -475,19 +475,21 @@ async def send_message(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    result = await send_message_to_agent(
-        server=server,
-        agent_id=agent_id,
-        user_id=actor.id,
-        messages=request.messages,
-        stream_steps=request.stream_steps,
-        stream_tokens=request.stream_tokens,
-        return_message_object=request.return_message_object,
-        # Support for AssistantMessage
-        use_assistant_message=request.use_assistant_message,
-        assistant_message_function_name=request.assistant_message_function_name,
-        assistant_message_function_kwarg=request.assistant_message_function_kwarg,
-    )
+    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
+    async with agent_lock:
+        result = await send_message_to_agent(
+            server=server,
+            agent_id=agent_id,
+            user_id=actor.id,
+            messages=request.messages,
+            stream_steps=request.stream_steps,
+            stream_tokens=request.stream_tokens,
+            return_message_object=request.return_message_object,
+            # Support for AssistantMessage
+            use_assistant_message=request.use_assistant_message,
+            assistant_message_function_name=request.assistant_message_function_name,
+            assistant_message_function_kwarg=request.assistant_message_function_kwarg,
+        )
     return result
 
 
