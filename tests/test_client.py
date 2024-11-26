@@ -40,7 +40,7 @@ def run_server():
 
 
 @pytest.fixture(
-    params=[{"server": True}],  # whether to use REST API server
+    params=[{"server": True}, {"server": False}],  # whether to use REST API server
     scope="module",
 )
 def client(request):
@@ -309,10 +309,12 @@ def test_messages(client: Union[LocalClient, RESTClient], agent: AgentState):
 
 
 @pytest.mark.asyncio
-async def test_send_message_parallel(client: Union[LocalClient, RESTClient], agent: AgentState):
+async def test_send_message_parallel(client: Union[LocalClient, RESTClient], agent: AgentState, request):
     """
     Test that sending two messages in parallel does not error.
     """
+    if not isinstance(client, RESTClient):
+        pytest.skip("This test only runs when the server is enabled")
 
     # Define a coroutine for sending a message using asyncio.to_thread for synchronous calls
     async def send_message_task(message: str):
