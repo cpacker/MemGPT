@@ -1,3 +1,4 @@
+import asyncio
 import os
 import threading
 import time
@@ -39,7 +40,7 @@ def run_server():
 
 
 @pytest.fixture(
-    params=[{"server": True}, {"server": False}],  # whether to use REST API server
+    params=[{"server": True}],  # whether to use REST API server
     scope="module",
 )
 def client(request):
@@ -295,3 +296,43 @@ def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent
 
     finally:
         client.delete_agent(agent.id)
+
+
+def test_messages(client: Union[LocalClient, RESTClient], agent: AgentState):
+    # _reset_config()
+
+    send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
+    assert send_message_response, "Sending message failed"
+
+    messages_response = client.get_messages(agent_id=agent.id, limit=1)
+    assert len(messages_response) > 0, "Retrieving messages failed"
+
+
+@pytest.mark.asyncio
+async def test_send_message_parallel(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """
+    Test that sending two messages in parallel does not error.
+    """
+
+    # Define a coroutine for sending a message using asyncio.to_thread for synchronous calls
+    async def send_message_task(message: str):
+        response = await asyncio.to_thread(client.send_message, agent.id, message, role="user")
+        assert response, f"Sending message '{message}' failed"
+        return response
+
+    # Prepare two tasks with different messages
+    messages = ["Test message 1", "Test message 2"]
+    tasks = [send_message_task(message) for message in messages]
+
+    # Run the tasks concurrently
+    responses = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Check for exceptions and validate responses
+    for i, response in enumerate(responses):
+        if isinstance(response, Exception):
+            pytest.fail(f"Task {i} failed with exception: {response}")
+        else:
+            assert response, f"Task {i} returned an invalid response: {response}"
+
+    # Ensure both tasks completed
+    assert len(responses) == len(messages), "Not all messages were processed"

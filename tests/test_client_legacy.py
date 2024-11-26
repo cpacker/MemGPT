@@ -223,16 +223,6 @@ def test_core_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
 
 
-def test_messages(client: Union[LocalClient, RESTClient], agent: AgentState):
-    # _reset_config()
-
-    send_message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
-    assert send_message_response, "Sending message failed"
-
-    messages_response = client.get_messages(agent_id=agent.id, limit=1)
-    assert len(messages_response) > 0, "Retrieving messages failed"
-
-
 def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: AgentState):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_streaming_send_message because LocalClient does not support streaming")
