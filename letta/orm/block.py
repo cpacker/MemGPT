@@ -10,7 +10,7 @@ from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import Human, Persona
 
 if TYPE_CHECKING:
-    from letta.orm.organization import Organization
+    from letta.orm import BlocksAgents, Organization
 
 
 class Block(OrganizationMixin, SqlalchemyBase):
@@ -35,6 +35,7 @@ class Block(OrganizationMixin, SqlalchemyBase):
 
     # relationships
     organization: Mapped[Optional["Organization"]] = relationship("Organization")
+    blocks_agents: Mapped[list["BlocksAgents"]] = relationship("BlocksAgents", back_populates="block", cascade="all, delete")
 
     def to_pydantic(self) -> Type:
         match self.label:

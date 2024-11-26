@@ -30,7 +30,7 @@ class BaseBlock(LettaBase, validate_assignment=True):
 
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
-        if len(self.value) > self.limit:
+        if self.value and len(self.value) > self.limit:
             error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self.value)}) - {str(self)}."
             raise ValueError(error_msg)
 
