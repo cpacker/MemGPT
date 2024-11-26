@@ -3,12 +3,12 @@ from typing import List, Optional, Union
 from letta.agent import Agent, save_agent
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
-from letta.schemas.agent import PersistedAgentState
+from letta.schemas.agent import AgentState
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import UsageStatistics
-from letta.schemas.tool import Tool
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
+from letta.services.block_manager import BlockManager
 
 
 def send_thinking_message(self: "Agent", message: str) -> Optional[str]:
@@ -43,15 +43,14 @@ class O1Agent(Agent):
     def __init__(
         self,
         interface: AgentInterface,
-        agent_state: PersistedAgentState,
+        agent_state: AgentState,
         user: User,
-        tools: List[Tool] = [],
+        block_manager: BlockManager,
         max_thinking_steps: int = 10,
         first_message_verify_mono: bool = False,
     ):
-        super().__init__(interface, agent_state, tools, user)
+        super().__init__(interface, agent_state, user, block_manager=block_manager)
         self.max_thinking_steps = max_thinking_steps
-        self.tools = tools
         self.first_message_verify_mono = first_message_verify_mono
 
     def step(
