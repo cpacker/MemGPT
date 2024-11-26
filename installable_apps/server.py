@@ -1,13 +1,13 @@
+from typing import TYPE_CHECKING
 from uvicorn import Server, Config
 from time import sleep
 import threading
 from contextlib import contextmanager
-from letta.server.rest_api.app import app
-from letta.server.constants import REST_DEFAULT_PORT
+
+if TYPE_CHECKING:
+    from fastapi import WSGIApplication
 
 class ThreadedServer(Server):
-    #def install_signal_handlers(self):
-    #    pass
 
     @contextmanager
     def run_in_thread(self):
@@ -22,6 +22,10 @@ class ThreadedServer(Server):
             thread.join()
 
     @classmethod
-    def get_configured_server(cls):
-        config = Config(app, host="localhost", port=REST_DEFAULT_PORT, log_level="info")
+    def get_configured_server(cls,
+                              app: "WSGIApplication",
+                              port: int,
+                              host: str,
+                              log_level: str = "info") -> "ThreadedServer":
+        config = Config(app, host=host, port=port, log_level="info")
         return cls(config=config)
