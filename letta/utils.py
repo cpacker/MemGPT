@@ -1,6 +1,7 @@
 import copy
 import difflib
 import hashlib
+import inspect
 import io
 import json
 import os
@@ -14,7 +15,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from typing import List, Union, _GenericAlias
+from typing import List, Union, _GenericAlias, get_type_hints
 from urllib.parse import urljoin, urlparse
 
 import demjson3 as demjson
@@ -520,26 +521,26 @@ def is_optional_type(hint):
 def enforce_types(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        ## Get type hints, excluding the return type hint
-        # hints = {k: v for k, v in get_type_hints(func).items() if k != "return"}
+        # Get type hints, excluding the return type hint
+        hints = {k: v for k, v in get_type_hints(func).items() if k != "return"}
 
-        ## Get the function's argument names
-        # arg_names = inspect.getfullargspec(func).args
+        # Get the function's argument names
+        arg_names = inspect.getfullargspec(func).args
 
-        ## Pair each argument with its corresponding type hint
-        # args_with_hints = dict(zip(arg_names[1:], args[1:]))  # Skipping 'self'
+        # Pair each argument with its corresponding type hint
+        args_with_hints = dict(zip(arg_names[1:], args[1:]))  # Skipping 'self'
 
-        ## Check types of arguments
-        # for arg_name, arg_value in args_with_hints.items():
-        #    hint = hints.get(arg_name)
-        #    if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
-        #        raise ValueError(f"Argument {arg_name} does not match type {hint}")
+        # Check types of arguments
+        for arg_name, arg_value in args_with_hints.items():
+            hint = hints.get(arg_name)
+            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
+                raise ValueError(f"Argument {arg_name} does not match type {hint}")
 
-        ## Check types of keyword arguments
-        # for arg_name, arg_value in kwargs.items():
-        #    hint = hints.get(arg_name)
-        #    if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
-        #        raise ValueError(f"Argument {arg_name} does not match type {hint}")
+        # Check types of keyword arguments
+        for arg_name, arg_value in kwargs.items():
+            hint = hints.get(arg_name)
+            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
+                raise ValueError(f"Argument {arg_name} does not match type {hint}")
 
         return func(*args, **kwargs)
 

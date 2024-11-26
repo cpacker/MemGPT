@@ -1091,10 +1091,7 @@ class SyncServer(Server):
         tools = [self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=user) for tool_name in agent_state.tool_names]
 
         # get `Source` objects
-        sources = [
-            self.source_manager.get_source_by_id(source_id=source_id, actor=user)
-            for source_id in self.list_attached_sources(agent_id=agent_id)
-        ]
+        sources = self.list_attached_sources(agent_id=agent_id)
 
         # get the tags
         tags = self.agents_tags_manager.get_tags_for_agent(agent_id=agent_id, actor=user)
