@@ -1,13 +1,13 @@
 import os
 from typing import List, Optional
 
-from letta.orm import BlocksAgents as BlocksAgentsModel
 from letta.orm.block import Block as BlockModel
 from letta.orm.errors import NoResultFound
 from letta.schemas.block import Block
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate, Human, Persona
 from letta.schemas.user import User as PydanticUser
+from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.utils import enforce_types, list_human_files, list_persona_files
 
 
@@ -39,6 +39,14 @@ class BlockManager:
     @enforce_types
     def update_block(self, block_id: str, block_update: BlockUpdate, actor: PydanticUser) -> PydanticBlock:
         """Update a block by its ID with the given BlockUpdate object."""
+        # TODO: REMOVE THIS ONCE AGENT IS ON ORM -> Update blocks_agents
+        blocks_agents_manager = BlocksAgentsManager()
+        agent_ids = []
+        if block_update.label:
+            agent_ids = blocks_agents_manager.list_agent_ids_with_block(block_id=block_id)
+            for agent_id in agent_ids:
+                blocks_agents_manager.remove_block_with_id_from_agent(agent_id=agent_id, block_id=block_id)
+
         with self.session_maker() as session:
             # Update block
             block = BlockModel.read(db_session=session, identifier=block_id, actor=actor)
@@ -47,13 +55,12 @@ class BlockManager:
                 setattr(block, key, value)
             block.update(db_session=session, actor=actor)
 
-            # TODO: REMOVE THIS ONCE AGENT IS ON ORM -> Update blocks_agents
-            if block_update.label:
-                blocks_agents_record = BlocksAgentsModel.read(db_session=session, block_id=block_id)
-                setattr(blocks_agents_record, "block_label", block_update.label)
-                blocks_agents_record.update(db_session=session)
+        # TODO: REMOVE THIS ONCE AGENT IS ON ORM -> Update blocks_agents
+        if block_update.label:
+            for agent_id in agent_ids:
+                blocks_agents_manager.add_block_to_agent(agent_id=agent_id, block_id=block_id, block_label=block_update.label)
 
-            return block.to_pydantic()
+        return block.to_pydantic()
 
     @enforce_types
     def delete_block(self, block_id: str, actor: PydanticUser) -> PydanticBlock:
