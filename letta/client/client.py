@@ -980,6 +980,8 @@ class RESTClient(AbstractClient):
                 raise ValueError(f"Failed to send message: {response.text}")
             response = LettaResponse(**response.json())
 
+            print("RESPONSE", response.messages)
+
             # simplify messages
             # if not include_full_message:
             #     messages = []
