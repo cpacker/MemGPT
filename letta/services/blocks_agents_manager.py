@@ -71,10 +71,17 @@ class BlocksAgentsManager:
 
     @enforce_types
     def list_block_ids_for_agent(self, agent_id: str) -> List[str]:
-        """List all blocks associated with a specific agent."""
+        """List all block ids associated with a specific agent."""
         with self.session_maker() as session:
             blocks_agents_record = BlocksAgentsModel.list(db_session=session, agent_id=agent_id)
             return [record.block_id for record in blocks_agents_record]
+
+    @enforce_types
+    def list_block_labels_for_agent(self, agent_id: str) -> List[str]:
+        """List all block labels associated with a specific agent."""
+        with self.session_maker() as session:
+            blocks_agents_record = BlocksAgentsModel.list(db_session=session, agent_id=agent_id)
+            return [record.block_label for record in blocks_agents_record]
 
     @enforce_types
     def list_agent_ids_with_block(self, block_id: str) -> List[str]:

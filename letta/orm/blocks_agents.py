@@ -1,5 +1,5 @@
 from sqlalchemy import ForeignKey, ForeignKeyConstraint, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.blocks_agents import BlocksAgents as PydanticBlocksAgents
@@ -27,3 +27,6 @@ class BlocksAgents(SqlalchemyBase):
     agent_id: Mapped[str] = mapped_column(String, ForeignKey("agents.id"), primary_key=True)
     block_id: Mapped[str] = mapped_column(String, primary_key=True)
     block_label: Mapped[str] = mapped_column(String, primary_key=True)
+
+    # relationships
+    block: Mapped["Block"] = relationship("Block", back_populates="blocks_agents")
