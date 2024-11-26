@@ -925,7 +925,6 @@ def test_default_e2b_settings_sandbox_config(server: SyncServer, default_user):
 
     # Assertions
     assert e2b_config.timeout == 5 * 60
-    assert e2b_config.template
     assert e2b_config.template == tool_settings.e2b_sandbox_template_id
 
 

@@ -4,7 +4,6 @@ from sqlalchemy import JSON, BigInteger, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.constants import CORE_MEMORY_BLOCK_CHAR_LIMIT
-from letta.log import get_logger
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.block import Block as PydanticBlock
@@ -12,9 +11,6 @@ from letta.schemas.block import Human, Persona
 
 if TYPE_CHECKING:
     from letta.orm import BlocksAgents, Organization
-
-
-logger = get_logger(__name__)
 
 
 class Block(OrganizationMixin, SqlalchemyBase):
