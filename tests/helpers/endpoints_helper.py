@@ -104,8 +104,10 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str) -> ChatComplet
     cleanup(client=client, agent_uuid=agent_uuid)
     agent_state = setup_agent(client, filename)
 
-    tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tools]
-    agent = Agent(interface=None, tools=tools, agent_state=agent_state, user=client.user)
+    tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tool_names]
+    full_agent_state = client.get_agent(agent_state.id)
+    # agent = Agent(interface=None, tools=tools, agent_state=agent_state, user=client.user)
+    agent = Agent(agent_state=full_agent_state, interface=None, block_manager=client.server.block_manager, user=client.user)
 
     response = create(
         llm_config=agent_state.llm_config,

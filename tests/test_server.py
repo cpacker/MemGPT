@@ -566,13 +566,13 @@ def test_load_agent_with_nonexistent_tool_names_does_not_error(server: SyncServe
     )
 
     # Check that the tools in agent_state do NOT include the fake name
-    assert fake_tool_name not in agent_state.tools
-    assert set(BASE_TOOLS).issubset(set(agent_state.tools))
+    assert fake_tool_name not in agent_state.tool_names
+    assert set(BASE_TOOLS).issubset(set(agent_state.tool_names))
 
     # Load the agent from the database and check that it doesn't error / tools are correct
     saved_tools = server.get_tools_from_agent(agent_id=agent_state.id, user_id=user_id)
-    assert fake_tool_name not in agent_state.tools
-    assert set(BASE_TOOLS).issubset(set(agent_state.tools))
+    assert fake_tool_name not in agent_state.tool_names
+    assert set(BASE_TOOLS).issubset(set(agent_state.tools_names))
 
     # cleanup
     server.delete_agent(user_id, agent_state.id)
