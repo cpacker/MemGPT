@@ -51,7 +51,6 @@ def test_summarizer(config_filename):
         agent_state=full_agent_state,
         first_message_verify_mono=False,
         user=client.user,
-        block_manager=client.server.block_manager,
     )
 
     # Make conversation
