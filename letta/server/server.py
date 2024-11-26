@@ -403,7 +403,7 @@ class SyncServer(Server):
         agent_state = self.get_agent(agent_id=agent_id)
         actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
-        interface = self.default_interface_factory()
+        interface = interface or self.default_interface_factory()
         if agent_state.agent_type == AgentType.memgpt_agent:
             return Agent(agent_state=agent_state, interface=interface, user=actor)
         else:
