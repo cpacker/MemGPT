@@ -576,7 +576,7 @@ class SyncServer(Server):
         elif command.lower() == "memory":
             ret_str = (
                 f"\nDumping memory contents:\n"
-                + f"\n{str(letta_agent.memory)}"
+                + f"\n{str(letta_agent.agent_state.memory)}"
                 + f"\n{str(letta_agent.persistence_manager.archival_memory)}"
                 + f"\n{str(letta_agent.persistence_manager.recall_memory)}"
             )
@@ -1840,6 +1840,7 @@ class SyncServer(Server):
             raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
         # get connection to data source storage
         source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+        assert data_source, f"Data source with id={source_id} or name={source_name} does not exist"
 
         # load agent
         agent = self.load_agent(agent_id=agent_id)
