@@ -911,13 +911,9 @@ class SyncServer(Server):
             description=request.description,
             metadata_=request.metadata_,
         )
-        print("PERSISTED", agent_state)
-        print()
-        print("TOOL RULES", agent_state.tool_rules)
         # TODO: move this to agent ORM
         # this saves the agent ID and state into the DB
         self.ms.create_agent(agent_state)
-        print("created")
 
         # Note: mappings (e.g. tags, blocks) are created after the agent is persisted
         # TODO: add source mappings here as well
@@ -931,17 +927,12 @@ class SyncServer(Server):
         for block in blocks:
             # this links the created block to the agent
             self.blocks_agents_manager.add_block_to_agent(block_id=block.id, agent_id=agent_state.id, block_label=block.label)
-            print("created mapping", block.id, agent_state.id, block.label)
 
         # create an agent to instantiate the initial messages
         agent = self._initialize_agent(agent_id=agent_state.id, actor=actor, initial_message_sequence=request.initial_message_sequence)
 
-        print("BEFORE SAVE", agent.agent_state.tool_rules)
-
         # persist the agent state (containing initialized messages)
         save_agent(agent, self.ms)
-
-        print("AFTER SAVE", agent.agent_state.tool_rules)
 
         # retrieve the full agent data: this reconstructs all the sources, tools, memory object, etc.
         in_memory_agent_state = self.get_agent(agent_state.id)
