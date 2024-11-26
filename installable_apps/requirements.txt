@@ -1,8 +1,6 @@
-letta
+setuptools==68.2.2 # letta pinned - and anything newer than 70 builds a broken wheel
+letta==0.5.5 # this is also the version of the installer
 pgserver~=0.1.4
-py2app~=0.28.8
 pystray
 pillow
 darkdetect
-cutelog
-#py2exe - not currently supporting 3.12 TODO upgrade or downgrade
