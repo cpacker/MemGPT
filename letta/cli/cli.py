@@ -320,7 +320,6 @@ def run(
             # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
             first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             user=client.user,
-            block_manager=client.server.block_manager,
         )
         save_agent(agent=letta_agent, ms=ms)
         typer.secho(f"🎉 Created new agent '{letta_agent.agent_state.name}' (id={letta_agent.agent_state.id})", fg=typer.colors.GREEN)
