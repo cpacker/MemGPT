@@ -254,7 +254,6 @@ class SyncServer(Server):
         self.block_manager = BlockManager()
         self.source_manager = SourceManager()
         self.agents_tags_manager = AgentsTagsManager()
-        self.blocks_agents_manager = BlocksAgentsManager()
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.blocks_agents_manager = BlocksAgentsManager()
 
@@ -454,7 +453,7 @@ class SyncServer(Server):
     #        logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
     #        raise
 
-    # def load_agent(self, agent_id: str, caching: bool = True) -> Agent:
+    # def _get_or_load_agent(self, agent_id: str, caching: bool = True) -> Agent:
     #    """Check if the agent is in-memory, then load"""
 
     #    # Gets the agent state
@@ -505,7 +504,7 @@ class SyncServer(Server):
         try:
 
             # Get the agent object (loaded in memory)
-            # letta_agent = self.load_agent(agent_id=agent_id)
+            # letta_agent = self._get_or_load_agent(agent_id=agent_id)
             letta_agent = self.load_agent(agent_id=agent_id)
             if letta_agent is None:
                 raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
