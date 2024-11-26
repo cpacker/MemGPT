@@ -3,6 +3,7 @@ import os
 import traceback
 import warnings
 from abc import abstractmethod
+from asyncio import Lock
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
@@ -230,6 +231,9 @@ class SyncServer(Server):
         self.default_interface_factory = default_interface_factory
 
         self.credentials = LettaCredentials.load()
+
+        # Locks
+        self.send_message_lock = Lock()
 
         # Initialize the metadata store
         config = LettaConfig.load()
