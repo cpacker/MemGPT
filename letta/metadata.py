@@ -25,6 +25,7 @@ from letta.schemas.tool_rule import (
     ToolRule,
 )
 from letta.schemas.user import User
+from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.settings import settings
 from letta.utils import enforce_types, get_utc_time, printd
 
@@ -383,7 +384,11 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def delete_agent(self, agent_id: str):
+    def delete_agent(self, agent_id: str, per_agent_lock_manager: PerAgentLockManager):
+        # TODO: Remove this once Agent is on the ORM
+        # TODO: To prevent unbounded growth
+        per_agent_lock_manager.clear_lock(agent_id)
+
         with self.session_maker() as session:
 
             # delete agents

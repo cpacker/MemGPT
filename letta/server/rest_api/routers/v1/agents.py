@@ -475,7 +475,8 @@ async def send_message(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    async with server.send_message_lock:
+    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
+    async with agent_lock:
         result = await send_message_to_agent(
             server=server,
             agent_id=agent_id,
