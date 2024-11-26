@@ -9,22 +9,43 @@ from letta.server.constants import REST_DEFAULT_PORT
 from server import ThreadedServer
 from logserver.main import app as log_app
 from tray import Tray
+from installable_logger import get_logger
 
-pgdata = settings.letta_dir / "pgdata"
-pgdata.mkdir(parents=True, exist_ok=True)
+logger = get_logger(__name__)
 
-database = pgserver.get_server(pgdata)
-# create pg vector extension
-#database.psql('CREATE EXTENSION IF NOT EXISTS pg_vector;')
+def initialize_database():
+    """Initialize the postgres binary database"""
+    # create the pgdata
+    logger.info("Initializing database...")
+    pgdata = settings.letta_dir / "pgdata"
+    pgdata.mkdir(parents=True, exist_ok=True)
 
-# feed database URI parts to the application
-settings.pg_uri = database.get_uri()
-# start the servers
+    try:
+        database = pgserver.get_server(pgdata)
+        # create pg vector extension
+        database.psql('CREATE EXTENSION IF NOT EXISTS vector')
+        logger.info("Database initialized at %s", pgdata)
+    except Exception as e:
+        logger.error("Database initialization failed: %s", e)
+        raise e
+    logger.debug("Configuring app with databsase uri...")
+    # feed database URI parts to the application
+    settings.pg_uri = database.get_uri()
+    logger.debug("Database URI: %s configured in settings", settings.pg_uri)
 
-app_server = ThreadedServer.get_configured_server(letta_app, host="localhost", port=REST_DEFAULT_PORT)
-log_server = ThreadedServer.get_configured_server(log_app, host="localhost", port=13774)
-with app_server.run_in_thread():
-    with log_server.run_in_thread():
-        tray = Tray()
-        webbrowser.open("https://app.letta.com")
-        tray.create()
+def run_servers():
+    """launch letta and letta logs"""
+    app_server = ThreadedServer.get_configured_server(letta_app, host="localhost", port=REST_DEFAULT_PORT)
+    log_server = ThreadedServer.get_configured_server(log_app, host="localhost", port=13774)
+    with app_server.run_in_thread():
+        logger.info("App server started")
+        with log_server.run_in_thread():
+            logger.info("Log server started")
+            tray = Tray()
+            logger.info("Tray created")
+            webbrowser.open("https://app.letta.com")
+            tray.create()
+
+## execute
+initialize_database()
+run_servers()
