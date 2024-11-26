@@ -241,9 +241,6 @@ class Agent(BaseAgent):
         # blocks: List[Block],
         agent_state: AgentState,  # in-memory representation of the agent state (read from multiple tables)
         user: User,
-        # state managers (TODO: add agent manager)
-        block_manager: BlockManager,
-        # memory: Memory,
         # extras
         messages_total: Optional[int] = None,  # TODO remove?
         first_message_verify_mono: bool = True,  # TODO move to config?
@@ -284,7 +281,7 @@ class Agent(BaseAgent):
         self.model = self.agent_state.llm_config.model
 
         # state managers
-        self.block_manager = block_manager
+        self.block_manager = BlockManager()
 
         # Initialize the memory object
         # self.memory = Memory(blocks)

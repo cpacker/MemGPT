@@ -71,6 +71,7 @@ from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
+from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
@@ -259,6 +260,7 @@ class SyncServer(Server):
         self.source_manager = SourceManager()
         self.agents_tags_manager = AgentsTagsManager()
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
+        self.blocks_agents_manager = BlocksAgentsManager()
 
         # Managers that interface with parallelism
         self.per_agent_lock_manager = PerAgentLockManager()
@@ -387,14 +389,12 @@ class SyncServer(Server):
                 agent_state=agent_state,
                 user=actor,
                 initial_message_sequence=initial_message_sequence,
-                block_manager=self.block_manager,
             )
         elif agent_state.agent_type == AgentType.o1_agent:
             agent = O1Agent(
                 interface=interface,
                 agent_state=agent_state,
                 user=actor,
-                block_manager=self.block_manager,
             )
         return agent
 
@@ -405,9 +405,9 @@ class SyncServer(Server):
 
         interface = self.default_interface_factory()
         if agent_state.agent_type == AgentType.memgpt_agent:
-            return Agent(agent_state=agent_state, interface=interface, user=actor, block_manager=self.block_manager)
+            return Agent(agent_state=agent_state, interface=interface, user=actor)
         else:
-            return O1Agent(agent_state=agent_state, interface=interface, user=actor, block_manager=self.block_manager)
+            return O1Agent(agent_state=agent_state, interface=interface, user=actor)
 
     # def _load_agent(self, agent_id: str, actor: User, interface: Union[AgentInterface, None] = None) -> Agent:
     #    """Loads a saved agent into memory (if it doesn't exist, throw an error)"""
