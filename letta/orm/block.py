@@ -37,7 +37,6 @@ class Block(OrganizationMixin, SqlalchemyBase):
     organization: Mapped[Optional["Organization"]] = relationship("Organization")
 
     def to_pydantic(self) -> Type:
-        print("LIMIT", self.limit)
         match self.label:
             case "human":
                 Schema = Human

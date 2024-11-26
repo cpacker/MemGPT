@@ -396,7 +396,6 @@ class Agent(BaseAgent):
             modified (bool): whether the memory was updated
         """
         if self.agent_state.memory.compile() != new_memory.compile():
-            print("CHANGE IN MEMORY")
             # update the blocks (LRW) in the DB
             for label in self.agent_state.memory.list_block_labels():
                 updated_value = new_memory.get_block(label).value
@@ -406,7 +405,6 @@ class Agent(BaseAgent):
                     block = self.block_manager.update_block(
                         block_id=block_id, block_update=BlockUpdate(value=updated_value), actor=self.user
                     )
-                    print("Updated", block.id, block.value)
 
             # refresh memory from DB (using block ids)
             self.agent_state.memory = Memory(
@@ -419,7 +417,6 @@ class Agent(BaseAgent):
             self.rebuild_system_prompt()
 
             return True
-        print("MEMORY IS SAME")
         return False
 
     def execute_tool_and_persist_state(self, function_name, function_to_call, function_args):
@@ -428,8 +425,6 @@ class Agent(BaseAgent):
         Note: only some agent state modifications will be persisted, such as data in the AgentState ORM and block data
         """
         # TODO: add agent manager here
-        print("ORIGINAL MEMORY")
-        print(self.agent_state.memory.compile())
         orig_memory_str = self.agent_state.memory.compile()
 
         # TODO: need to have an AgentState object that actually has full access to the block data
@@ -441,16 +436,19 @@ class Agent(BaseAgent):
         else:
             # execute tool in a sandbox
             # TODO: allow agent_state to specify which sandbox to execute tools in
+            print("CALLED TOOL", function_name)
             sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
                 agent_state=self.agent_state.__deepcopy__()
             )
+            print("finish sandbox")
             function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
-            print("POST TOOL", function_name)
-            print(updated_agent_state.memory.compile())
+            print("here")
             assert orig_memory_str == self.agent_state.memory.compile(), "Memory should not be modified in a sandbox tool"
-            assert updated_agent_state.memory.compile() != self.agent_state.memory.compile(), "Memory should be modified in a sandbox tool"
+            print("updated_agent_state")
             self.update_memory_if_change(updated_agent_state.memory)
+            print("done")
 
+        print("returning", function_response)
         return function_response
 
     @property
@@ -783,7 +781,6 @@ class Agent(BaseAgent):
             # Failure case 3: function failed during execution
             # NOTE: the msg_obj associated with the "Running " message is the prior assistant message, not the function/tool role message
             #       this is because the function/tool role message is only created once the function/tool has executed/returned
-            print("calling tool")
             self.interface.function_message(f"Running {function_name}({function_args})", msg_obj=messages[-1])
             try:
                 spec = inspect.getfullargspec(function_to_call).annotations
@@ -794,6 +791,7 @@ class Agent(BaseAgent):
 
                 # handle tool execution (sandbox) and state updates
                 function_response = self.execute_tool_and_persist_state(function_name, function_to_call, function_args)
+                print("response", function_response)
                 # if function_name in BASE_TOOLS:
                 #    function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                 #    function_response = function_to_call(**function_args)
@@ -811,6 +809,8 @@ class Agent(BaseAgent):
 
                 #        # rebuild memory
                 #        self.rebuild_memory()
+
+                print("FINAL FUNCTION NAME", function_name)
 
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow
@@ -887,6 +887,7 @@ class Agent(BaseAgent):
         self.rebuild_system_prompt()
 
         # Update ToolRulesSolver state with last called function
+        print("CALLED FUNCTION", function_name)
         self.tool_rules_solver.update_tool_usage(function_name)
         # Update heartbeat request according to provided tool rules
         if self.tool_rules_solver.has_children_tools(function_name):
