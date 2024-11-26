@@ -147,10 +147,12 @@ class Memory(BaseModel, validate_assignment=True):
         #    raise KeyError(f"Block field {label} does not exist (available sections = {', '.join(list(self.memory.keys()))})")
         # else:
         #    return self.memory[label]
+        keys = []
         for block in self.blocks:
             if block.label == label:
                 return block
-        raise KeyError(f"Block field {label} does not exist (available sections = {', '.join(list(self.memory.keys()))})")
+            keys.append(block.label)
+        raise KeyError(f"Block field {label} does not exist (available sections = {', '.join(keys)})")
 
     def get_blocks(self) -> List[Block]:
         """Return a list of the blocks held inside the memory object"""
