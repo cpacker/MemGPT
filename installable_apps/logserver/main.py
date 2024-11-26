@@ -1,5 +1,6 @@
 from pathlib import Path
 from fastapi import FastAPI, WebSocket, Request
+from fastapi.responses import JSONResponse
 from fastapi.templating import Jinja2Templates
 import asyncio
 
@@ -28,6 +29,12 @@ async def log_reader(n=5):
                 log_line = {"content": line, "color": "green"}
             log_lines.append(log_line)
         return log_lines
+
+@app.get("/log")
+async def rest_endpoint_log():
+    """used to debug log_reader on the fly"""
+    logs = await log_reader(30)
+    return JSONResponse(logs)
 
 @app.websocket("/ws/log")
 async def websocket_endpoint_log(websocket: WebSocket):
