@@ -550,16 +550,16 @@ class Agent(BaseAgent):
                     stream_interface=self.interface,
                 )
 
-                # This is not retryable, hence RuntimeError v.s. ValueError
-                if response.choices[0].finish_reason == "length":
-                    raise RuntimeError("Finish reason was length (maximum context length)")
-
                 # These bottom two are retryable
                 if len(response.choices) == 0 or response.choices[0] is None:
                     raise ValueError(f"API call returned an empty message: {response}")
 
                 if response.choices[0].finish_reason not in ["stop", "function_call", "tool_calls"]:
                     raise ValueError(f"Bad finish reason from API: {response.choices[0].finish_reason}")
+
+                # This is not retryable, hence RuntimeError v.s. ValueError
+                if response.choices[0].finish_reason == "length":
+                    raise RuntimeError("Finish reason was length (maximum context length)")
 
                 return response
 
