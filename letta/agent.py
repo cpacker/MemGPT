@@ -555,11 +555,11 @@ class Agent(BaseAgent):
                     raise ValueError(f"API call returned an empty message: {response}")
 
                 if response.choices[0].finish_reason not in ["stop", "function_call", "tool_calls"]:
-                    raise ValueError(f"Bad finish reason from API: {response.choices[0].finish_reason}")
-
-                # This is not retryable, hence RuntimeError v.s. ValueError
-                if response.choices[0].finish_reason == "length":
-                    raise RuntimeError("Finish reason was length (maximum context length)")
+                    if response.choices[0].finish_reason == "length":
+                        # This is not retryable, hence RuntimeError v.s. ValueError
+                        raise RuntimeError("Finish reason was length (maximum context length)")
+                    else:
+                        raise ValueError(f"Bad finish reason from API: {response.choices[0].finish_reason}")
 
                 return response
 
