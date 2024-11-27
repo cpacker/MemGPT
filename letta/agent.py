@@ -1586,6 +1586,7 @@ class Agent(BaseAgent):
         """Retry / regenerate the last message"""
 
         self.pop_until_user()
+        print("UPDATED MESSAGE ID", [m.id for m in self._messages])
         user_message = self.pop_message(count=1)[0]
         assert user_message.text is not None, "User message text is None"
         step_response = self.step_user_message(user_message_str=user_message.text)

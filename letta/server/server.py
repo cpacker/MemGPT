@@ -528,6 +528,9 @@ class SyncServer(Server):
                 skip_verify=True,
             )
 
+            # save agent after step
+            save_agent(letta_agent, self.ms)
+
         except Exception as e:
             logger.error(f"Error in server._step: {e}")
             print(traceback.print_exc())
@@ -1468,6 +1471,10 @@ class SyncServer(Server):
         # Insert into archival memory
         passage_ids = letta_agent.persistence_manager.archival_memory.insert(memory_string=memory_contents, return_ids=True)
 
+        # Update the agent
+        # TODO: should this update the system prompt?
+        save_agent(letta_agent, self.ms)
+
         # TODO: this is gross, fix
         return [letta_agent.persistence_manager.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
 
@@ -1943,6 +1950,7 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
         message = letta_agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        save_agent(letta_agent, self.ms)
         return message
 
     def update_agent_message(self, agent_id: str, request: UpdateMessage) -> Message:
@@ -1950,25 +1958,33 @@ class SyncServer(Server):
 
         # Get the current message
         letta_agent = self.load_agent(agent_id=agent_id)
-        return letta_agent.update_message(request=request)
+        response = letta_agent.update_message(request=request)
+        save_agent(letta_agent, self.ms)
+        return response
 
     def rewrite_agent_message(self, agent_id: str, new_text: str) -> Message:
 
         # Get the current message
         letta_agent = self.load_agent(agent_id=agent_id)
-        return letta_agent.rewrite_message(new_text=new_text)
+        response = letta_agent.rewrite_message(new_text=new_text)
+        save_agent(letta_agent, self.ms)
+        return response
 
     def rethink_agent_message(self, agent_id: str, new_thought: str) -> Message:
 
         # Get the current message
         letta_agent = self.load_agent(agent_id=agent_id)
-        return letta_agent.rethink_message(new_thought=new_thought)
+        response = letta_agent.rethink_message(new_thought=new_thought)
+        save_agent(letta_agent, self.ms)
+        return response
 
     def retry_agent_message(self, agent_id: str) -> List[Message]:
 
         # Get the current message
         letta_agent = self.load_agent(agent_id=agent_id)
-        return letta_agent.retry_message()
+        response = letta_agent.retry_message()
+        save_agent(letta_agent, self.ms)
+        return response
 
     def get_user_or_default(self, user_id: Optional[str]) -> User:
         """Get the user object for user_id if it exists, otherwise return the default user object"""
@@ -2047,6 +2063,7 @@ class SyncServer(Server):
 
         # get agent memory
         memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        save_agent(memory.agent_state, self.ms)
         return memory
 
     def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
@@ -2055,6 +2072,7 @@ class SyncServer(Server):
 
         # get agent memory
         memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        save_agent(memory.agent_state, self.ms)
         return memory
 
     def update_agent_memory_limit(self, user_id: str, agent_id: str, block_label: str, limit: int) -> Memory:
@@ -2065,6 +2083,7 @@ class SyncServer(Server):
         )
         # get agent memory
         memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        save_agent(memory.agent_state, self.ms)
         return memory
 
     def upate_block(self, user_id: str, block_id: str, block_update: BlockUpdate) -> Block:
