@@ -5,6 +5,8 @@ from textwrap import dedent  # remove indentation
 from types import ModuleType
 from typing import Dict, List, Optional
 
+from pydantic import BaseModel, Field
+
 from letta.constants import CLI_WARNING_PREFIX
 from letta.errors import LettaToolCreateError
 from letta.functions.schema_generator import generate_schema
@@ -14,18 +16,40 @@ def derive_openai_json_schema(source_code: str, name: Optional[str] = None) -> d
     # auto-generate openai schema
     try:
         # Define a custom environment with necessary imports
-        env = {"Optional": Optional, "List": List, "Dict": Dict}  # Add any other required imports here
-
+        env = {
+            # Add any other required imports here
+            "Optional": Optional,
+            "List": List,
+            "Dict": Dict,
+            # Pydantic
+            "BaseModel": BaseModel,
+            "Field": Field,
+        }
         env.update(globals())
-        exec(source_code, env)
+
+        try:
+            exec(source_code, env)
+        except Exception as e:
+            raise LettaToolCreateError(f"Error interpreting source code: {str(e)}")
 
         # get available functions
         functions = [f for f in env if callable(env[f])]
+        if not functions:
+            raise LettaToolCreateError("No callable functions found in source code")
 
         # TODO: not sure if this always works
         func = env[functions[-1]]
-        json_schema = generate_schema(func, name=name)
+
+        try:
+            json_schema = generate_schema(func, name=name)
+        except Exception as e:
+            raise LettaToolCreateError(f"Failed to generate schema: {str(e)}") from e
+
         return json_schema
+
+    except LettaToolCreateError:
+        raise
+
     except Exception as e:
         raise LettaToolCreateError(f"Failed to derive JSON schema from source code: {e}")
 
