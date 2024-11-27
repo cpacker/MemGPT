@@ -62,7 +62,7 @@ class LettaBase(BaseModel):
     @classmethod
     def _id_example(cls, prefix: str):
         """generates an example id for a given prefix"""
-        return [prefix + "-123e4567-e89b-12d3-a456-426614174000"]
+        return f"{prefix}-123e4567-e89b-12d3-a456-426614174000"
 
     @classmethod
     def _id_description(cls, prefix: str):
