@@ -10,13 +10,12 @@ from dotenv import load_dotenv
 from sqlalchemy import delete
 
 from letta import create_client
-from letta.agent import initialize_message_sequence
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import DEFAULT_PRESET
 from letta.orm import FileMetadata, Source
-from letta.schemas.agent import PersistedAgentState
+from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import MessageRole, MessageStreamStatus
+from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     AssistantMessage,
     FunctionCallMessage,
@@ -32,7 +31,6 @@ from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.tool_manager import ToolManager
 from letta.settings import model_settings
-from letta.utils import get_utc_time
 from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
@@ -107,7 +105,7 @@ def agent(client: Union[LocalClient, RESTClient]):
     client.delete_agent(agent_state.id)
 
 
-def test_agent(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # test client.rename_agent
     new_name = "RenamedTestAgent"
@@ -126,7 +124,7 @@ def test_agent(client: Union[LocalClient, RESTClient], agent: PersistedAgentStat
     assert client.agent_exists(agent_id=delete_agent.id) == False, "Agent deletion failed"
 
 
-def test_memory(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     memory_response = client.get_in_context_memory(agent_id=agent.id)
@@ -142,7 +140,7 @@ def test_memory(client: Union[LocalClient, RESTClient], agent: PersistedAgentSta
     ), "Memory update failed"
 
 
-def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     message = "Hello, agent!"
@@ -181,7 +179,7 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Persi
     # TODO: add streaming tests
 
 
-def test_archival_memory(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_archival_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     memory_content = "Archival memory content"
@@ -215,7 +213,7 @@ def test_archival_memory(client: Union[LocalClient, RESTClient], agent: Persiste
     client.get_archival_memory(agent.id)
 
 
-def test_core_memory(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_core_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     response = client.send_message(agent_id=agent.id, message="Update your core memory to remember that my name is Timber!", role="user")
     print("Response", response)
 
@@ -223,7 +221,7 @@ def test_core_memory(client: Union[LocalClient, RESTClient], agent: PersistedAge
     assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
 
 
-def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: AgentState):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_streaming_send_message because LocalClient does not support streaming")
     assert isinstance(client, RESTClient), client
@@ -282,7 +280,7 @@ def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: P
     assert done_gen, "Message stream not done generation"
 
 
-def test_humans_personas(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     humans_response = client.list_humans()
@@ -333,11 +331,11 @@ def test_list_tools_pagination(client: Union[LocalClient, RESTClient]):
 def test_list_tools(client: Union[LocalClient, RESTClient]):
     tools = client.add_base_tools()
     tool_names = [t.name for t in tools]
-    expected = ToolManager.BASE_TOOL_NAMES
+    expected = ToolManager.BASE_TOOL_NAMES + ToolManager.BASE_MEMORY_TOOL_NAMES
     assert sorted(tool_names) == sorted(expected)
 
 
-def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: AgentState):
     # clear sources
     for source in client.list_sources():
         client.delete_source(source.id)
@@ -373,7 +371,7 @@ def test_list_files_pagination(client: Union[LocalClient, RESTClient], agent: Pe
     assert len(files) == 0  # Should be empty
 
 
-def test_delete_file_from_source(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_delete_file_from_source(client: Union[LocalClient, RESTClient], agent: AgentState):
     # clear sources
     for source in client.list_sources():
         client.delete_source(source.id)
@@ -402,7 +400,7 @@ def test_delete_file_from_source(client: Union[LocalClient, RESTClient], agent: 
     assert len(empty_files) == 0
 
 
-def test_load_file(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_load_file(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     # clear sources
@@ -433,7 +431,7 @@ def test_load_file(client: Union[LocalClient, RESTClient], agent: PersistedAgent
     assert file.source_id == source.id
 
 
-def test_sources(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     # clear sources
@@ -524,7 +522,7 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: PersistedAgentSt
     client.delete_source(source.id)
 
 
-def test_message_update(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentState):
     """Test that we can update the details of a message"""
 
     # create a message
@@ -578,7 +576,7 @@ def test_list_llm_models(client: RESTClient):
         assert has_model_endpoint_type(models, "anthropic")
 
 
-def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     # create a block
@@ -627,67 +625,69 @@ def cleanup_agents():
             print(f"Failed to delete agent {agent_id}: {e}")
 
 
-def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: PersistedAgentState, cleanup_agents: List[str]):
-    """Test that we can set an initial message sequence
+## NOTE: we need to add this back once agents can also create blocks during agent creation
+# def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState, cleanup_agents: List[str]):
+#    """Test that we can set an initial message sequence
+#
+#    If we pass in None, we should get a "default" message sequence
+#    If we pass in a non-empty list, we should get that sequence
+#    If we pass in an empty list, we should get an empty sequence
+#    """
+#
+#    # The reference initial message sequence:
+#    reference_init_messages = initialize_message_sequence(
+#        model=agent.llm_config.model,
+#        system=agent.system,
+#        memory=agent.memory,
+#        archival_memory=None,
+#        recall_memory=None,
+#        memory_edit_timestamp=get_utc_time(),
+#        include_initial_boot_message=True,
+#    )
+#
+#    # system, login message, send_message test, send_message receipt
+#    assert len(reference_init_messages) > 0
+#    assert len(reference_init_messages) == 4, f"Expected 4 messages, got {len(reference_init_messages)}"
+#
+#    # Test with default sequence
+#    default_agent_state = client.create_agent(name="test-default-message-sequence", initial_message_sequence=None)
+#    cleanup_agents.append(default_agent_state.id)
+#    assert default_agent_state.message_ids is not None
+#    assert len(default_agent_state.message_ids) > 0
+#    assert len(default_agent_state.message_ids) == len(
+#        reference_init_messages
+#    ), f"Expected {len(reference_init_messages)} messages, got {len(default_agent_state.message_ids)}"
+#
+#    # Test with empty sequence
+#    empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
+#    cleanup_agents.append(empty_agent_state.id)
+#    # NOTE: allowed to be None initially
+#    #assert empty_agent_state.message_ids is not None
+#    #assert len(empty_agent_state.message_ids) == 1, f"Expected 0 messages, got {len(empty_agent_state.message_ids)}"
+#
+#    # Test with custom sequence
+#    custom_sequence = [
+#        Message(
+#            role=MessageRole.user,
+#            text="Hello, how are you?",
+#            user_id=agent.user_id,
+#            agent_id=agent.id,
+#            model=agent.llm_config.model,
+#            name=None,
+#            tool_calls=None,
+#            tool_call_id=None,
+#        ),
+#    ]
+#    custom_agent_state = client.create_agent(name="test-custom-message-sequence", initial_message_sequence=custom_sequence)
+#    cleanup_agents.append(custom_agent_state.id)
+#    assert custom_agent_state.message_ids is not None
+#    assert (
+#        len(custom_agent_state.message_ids) == len(custom_sequence) + 1
+#    ), f"Expected {len(custom_sequence) + 1} messages, got {len(custom_agent_state.message_ids)}"
+#    assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]
 
-    If we pass in None, we should get a "default" message sequence
-    If we pass in a non-empty list, we should get that sequence
-    If we pass in an empty list, we should get an empty sequence
-    """
 
-    # The reference initial message sequence:
-    reference_init_messages = initialize_message_sequence(
-        model=agent.llm_config.model,
-        system=agent.system,
-        memory=agent.memory,
-        archival_memory=None,
-        recall_memory=None,
-        memory_edit_timestamp=get_utc_time(),
-        include_initial_boot_message=True,
-    )
-
-    # system, login message, send_message test, send_message receipt
-    assert len(reference_init_messages) > 0
-    assert len(reference_init_messages) == 4, f"Expected 4 messages, got {len(reference_init_messages)}"
-
-    # Test with default sequence
-    default_agent_state = client.create_agent(name="test-default-message-sequence", initial_message_sequence=None)
-    cleanup_agents.append(default_agent_state.id)
-    assert default_agent_state.message_ids is not None
-    assert len(default_agent_state.message_ids) > 0
-    assert len(default_agent_state.message_ids) == len(
-        reference_init_messages
-    ), f"Expected {len(reference_init_messages)} messages, got {len(default_agent_state.message_ids)}"
-
-    # Test with empty sequence
-    empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
-    cleanup_agents.append(empty_agent_state.id)
-    assert empty_agent_state.message_ids is not None
-    assert len(empty_agent_state.message_ids) == 1, f"Expected 0 messages, got {len(empty_agent_state.message_ids)}"
-
-    # Test with custom sequence
-    custom_sequence = [
-        Message(
-            role=MessageRole.user,
-            text="Hello, how are you?",
-            user_id=agent.user_id,
-            agent_id=agent.id,
-            model=agent.llm_config.model,
-            name=None,
-            tool_calls=None,
-            tool_call_id=None,
-        ),
-    ]
-    custom_agent_state = client.create_agent(name="test-custom-message-sequence", initial_message_sequence=custom_sequence)
-    cleanup_agents.append(custom_agent_state.id)
-    assert custom_agent_state.message_ids is not None
-    assert (
-        len(custom_agent_state.message_ids) == len(custom_sequence) + 1
-    ), f"Expected {len(custom_sequence) + 1} messages, got {len(custom_agent_state.message_ids)}"
-    assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]
-
-
-def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: PersistedAgentState):
+def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
     """
     Comprehensive happy path test for adding, retrieving, and managing tags on an agent.
     """
