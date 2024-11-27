@@ -2063,7 +2063,6 @@ class SyncServer(Server):
 
         # get agent memory
         memory = self.load_agent(agent_id=agent_id).agent_state.memory
-        save_agent(memory.agent_state, self.ms)
         return memory
 
     def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
@@ -2072,7 +2071,6 @@ class SyncServer(Server):
 
         # get agent memory
         memory = self.load_agent(agent_id=agent_id).agent_state.memory
-        save_agent(memory.agent_state, self.ms)
         return memory
 
     def update_agent_memory_limit(self, user_id: str, agent_id: str, block_label: str, limit: int) -> Memory:
@@ -2083,7 +2081,6 @@ class SyncServer(Server):
         )
         # get agent memory
         memory = self.load_agent(agent_id=agent_id).agent_state.memory
-        save_agent(memory.agent_state, self.ms)
         return memory
 
     def upate_block(self, user_id: str, block_id: str, block_update: BlockUpdate) -> Block:
