@@ -223,26 +223,74 @@ def pydantic_model_to_json_schema(model: Type[BaseModel]) -> dict:
 
     def clean_property(prop: dict) -> dict:
         """Clean up a property schema to match desired format"""
+
+        if "description" not in prop:
+            raise ValueError(f"Property {prop} lacks a 'description' key")
+
         return {
             "type": "str" if prop["type"] == "string" else prop["type"],
             "description": prop["description"],
         }
 
-    def clean_schema(schema_part: dict) -> dict:
-        properties = {}
-        for name, prop in schema_part["properties"].items():
-            if "items" in prop:  # Handle arrays
-                properties[name] = {"type": "array", "items": clean_schema(prop["items"])}
-            else:
-                properties[name] = clean_property(prop)
+    def resolve_ref(ref: str, schema: dict) -> dict:
+        """Resolve a $ref reference in the schema"""
+        if not ref.startswith("#/$defs/"):
+            raise ValueError(f"Unexpected reference format: {ref}")
 
-        return {
-            "type": "object",
-            "properties": properties,
-            "required": schema_part.get("required", []),
-        }
+        model_name = ref.split("/")[-1]
+        if model_name not in schema.get("$defs", {}):
+            raise ValueError(f"Reference {model_name} not found in schema definitions")
 
-    return clean_schema(schema)
+        return schema["$defs"][model_name]
+
+    def clean_schema(schema_part: dict, full_schema: dict) -> dict:
+        """Clean up a schema part, handling references and nested structures"""
+        # Handle $ref
+        if "$ref" in schema_part:
+            schema_part = resolve_ref(schema_part["$ref"], full_schema)
+
+        if "type" not in schema_part:
+            raise ValueError(f"Schema part lacks a 'type' key: {schema_part}")
+
+        # Handle array type
+        if schema_part["type"] == "array":
+            items_schema = schema_part["items"]
+            if "$ref" in items_schema:
+                items_schema = resolve_ref(items_schema["$ref"], full_schema)
+            return {"type": "array", "items": clean_schema(items_schema, full_schema), "description": schema_part.get("description", "")}
+
+        # Handle object type
+        if schema_part["type"] == "object":
+            if "properties" not in schema_part:
+                raise ValueError(f"Object schema lacks 'properties' key: {schema_part}")
+
+            properties = {}
+            for name, prop in schema_part["properties"].items():
+                if "items" in prop:  # Handle arrays
+                    if "description" not in prop:
+                        raise ValueError(f"Property {prop} lacks a 'description' key")
+                    properties[name] = {
+                        "type": "array",
+                        "items": clean_schema(prop["items"], full_schema),
+                        "description": prop["description"],
+                    }
+                else:
+                    properties[name] = clean_property(prop)
+
+            pydantic_model_schema_dict = {
+                "type": "object",
+                "properties": properties,
+                "required": schema_part.get("required", []),
+            }
+            if "description" in schema_part:
+                pydantic_model_schema_dict["description"] = schema_part["description"]
+
+            return pydantic_model_schema_dict
+
+        # Handle primitive types
+        return clean_property(schema_part)
+
+    return clean_schema(schema_part=schema, full_schema=schema)
 
 
 def generate_schema(function, name: Optional[str] = None, description: Optional[str] = None) -> dict:
@@ -289,14 +337,16 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
             and not get_origin(param.annotation)
             and issubclass(param.annotation, BaseModel)
         ):
+            print("Generating schema for pydantic model:", param.annotation)
             # Extract the properties from the pydantic model
-            # schema["parameters"]["properties"][param.name] = pydantic_model_to_open_ai(param.annotation)
-            schema["parameters"]["properties"] = pydantic_model_to_json_schema(param.annotation)
+            schema["parameters"]["properties"][param.name] = pydantic_model_to_json_schema(param.annotation)
+            schema["parameters"]["properties"][param.name]["description"] = param_doc.description
 
         # Otherwise, we convert the Python typing to JSON schema types
         # NOTE: important - if a dict or list, the internal type can be a Pydantic model itself
         #                   however in that
         else:
+            print("Generating schema for non-pydantic model:", param.annotation)
             # Grab the description for the parameter from the extended docstring
             # If it doesn't exist, we should raise an error
             param_doc = next((d for d in docstring.params if d.arg_name == param.name), None)
