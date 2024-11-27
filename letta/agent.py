@@ -430,7 +430,12 @@ class Agent(BaseAgent):
         except Exception as e:
             # Need to catch error here, or else trunction wont happen
             # TODO: modify to function execution error
-            raise ValueError(f"Error executing tool {function_name}: {e}")
+            from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
+
+            error_msg = f"Error executing tool {function_name}: {e}"
+            if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
+                error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
+            raise ValueError(error_msg)
 
         return function_response
 

@@ -124,6 +124,10 @@ def create(
     """Return response to chat completion with backoff"""
     from letta.utils import printd
 
+    # print("LLM API CALL _____________--------")
+    # for message in messages:
+    #    from pprint import pprint
+    #    pprint(message.text)
     # Count the tokens first, if there's an overflow exit early by throwing an error up the stack
     # NOTE: we want to include a specific substring in the error message to trigger summarization
     messages_oai_format = [m.to_openai_dict() for m in messages]

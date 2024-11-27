@@ -129,6 +129,9 @@ MESSAGE_SUMMARY_REQUEST_ACK = "Understood, I will respond with a summary of the 
 # These serve as in-context examples of how to use functions / what user messages look like
 MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST = 3
 
+# Maximum length of an error message
+MAX_ERROR_MESSAGE_CHAR_LIMIT = 500
+
 # Default memory limits
 CORE_MEMORY_PERSONA_CHAR_LIMIT: int = 5000
 CORE_MEMORY_HUMAN_CHAR_LIMIT: int = 5000

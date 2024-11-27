@@ -564,12 +564,10 @@ class RESTClient(AbstractClient):
 
         # create and link blocks
         for block in memory.get_blocks():
-            print("Lookups block id", block.id)
             if not self.get_block(block.id):
                 # note: this does not update existing blocks
                 # WARNING: this resets the block ID - this method is a hack for backwards compat, should eventually use CreateBlock not Memory
                 block = self.create_block(label=block.label, value=block.value, limit=block.limit)
-            print("block exists", self.get_block(block.id))
             self.link_agent_memory_block(agent_id=agent_state.id, block_id=block.id)
 
         # refresh and return agent
@@ -973,8 +971,6 @@ class RESTClient(AbstractClient):
                 raise ValueError(f"Failed to send message: {response.text}")
             response = LettaResponse(**response.json())
 
-            print("RESPONSE", response.messages)
-
             # simplify messages
             # if not include_full_message:
             #     messages = []
@@ -1024,7 +1020,6 @@ class RESTClient(AbstractClient):
         return Block(**response.json())
 
     def get_block(self, block_id: str) -> Block:
-        print("data", self.base_url, block_id, self.headers)
         response = requests.get(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", headers=self.headers)
         if response.status_code == 404:
             return None
@@ -2152,7 +2147,6 @@ class LocalClient(AbstractClient):
         for block in memory.get_blocks():
             self.server.block_manager.create_or_update_block(block, actor=user)
             self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_state.id, block_id=block.id)
-            print("BLOCK LIMI", self.get_block(block.id).limit)
 
         # TODO: get full agent state
         return self.server.get_agent(agent_state.id)
