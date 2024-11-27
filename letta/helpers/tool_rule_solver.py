@@ -35,13 +35,6 @@ class ToolRulesSolver(BaseModel):
     def __init__(self, tool_rules: List[BaseToolRule], **kwargs):
         super().__init__(**kwargs)
         # Separate the provided tool rules into init, standard, and terminal categories
-        # for rule in tool_rules:
-        #    if isinstance(rule, InitToolRule):
-        #        self.init_tool_rules.append(rule)
-        #    elif isinstance(rule, ChildToolRule):
-        #        self.tool_rules.append(rule)
-        #    elif isinstance(rule, TerminalToolRule):
-        #        self.terminal_tool_rules.append(rule)
         for rule in tool_rules:
             if rule.type == ToolRuleType.run_first:
                 self.init_tool_rules.append(rule)

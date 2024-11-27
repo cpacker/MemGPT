@@ -30,7 +30,7 @@ from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.orm import User
 from letta.persistence_manager import LocalStateManager
-from letta.schemas.agent import AgentState, AgentStepResponse, PersistedAgentState
+from letta.schemas.agent import AgentState, AgentStepResponse
 from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole
@@ -227,7 +227,7 @@ class BaseAgent(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def update_state(self) -> PersistedAgentState:
+    def update_state(self) -> AgentState:
         raise NotImplementedError
 
 
@@ -267,14 +267,6 @@ class Agent(BaseAgent):
         if agent_state.tool_rules is None:
             agent_state.tool_rules = []
 
-        ## Define the rule to add
-        # send_message_terminal_rule = TerminalToolRule(tool_name="send_message")
-        ## Check if an equivalent rule is already present
-        # if not any(
-        #    isinstance(rule, TerminalToolRule) and rule.tool_name == send_message_terminal_rule.tool_name for rule in agent_state.tool_rules
-        # ):
-        #    agent_state.tool_rules.append(send_message_terminal_rule)
-
         self.tool_rules_solver = ToolRulesSolver(tool_rules=agent_state.tool_rules)
 
         # gpt-4, gpt-3.5-turbo, ...
@@ -282,11 +274,6 @@ class Agent(BaseAgent):
 
         # state managers
         self.block_manager = BlockManager()
-
-        # Initialize the memory object
-        # self.memory = Memory(blocks)
-        # assert isinstance(self.memory, Memory), f"Memory object is not of type Memory: {type(self.memory)}"
-        # printd("Initialized memory object", self.memory.compile())
 
         # Interface must implement:
         # - internal_monologue
@@ -785,24 +772,8 @@ class Agent(BaseAgent):
 
                 # handle tool execution (sandbox) and state updates
                 function_response = self.execute_tool_and_persist_state(function_name, function_to_call, function_args)
-                # if function_name in BASE_TOOLS:
-                #    function_args["self"] = self  # need to attach self to arg since it's dynamically linked
-                #    function_response = function_to_call(**function_args)
-                # else:
-                #    # execute tool in a sandbox
-                #    # TODO: allow agent_state to specify which sandbox to execute tools in
-                #    sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
-                #        agent_state=self.agent_state
-                #    )
-                #    function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
-                #    # update agent state
-                #    if self.agent_state != updated_agent_state and updated_agent_state is not None:
-                #        self.agent_state = updated_agent_state
-                #        self.memory = self.agent_state.memory  # TODO: don't duplicate
 
-                #        # rebuild memory
-                #        self.rebuild_memory()
-
+                # handle trunction
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow
                     truncate = False
@@ -995,17 +966,6 @@ class Agent(BaseAgent):
                 blocks=[self.block_manager.get_block_by_id(block.id, actor=self.user) for block in self.agent_state.memory.get_blocks()]
             )  # read blocks from DB
             self.update_memory_if_change(current_persisted_memory)
-            # TODO: ensure we're passing in metadata store from all surfaces
-            # if ms is not None:
-            #    should_update = False
-            #    for block in self.agent_state.memory.to_dict()["memory"].values():
-            #        if not block.get("template", False):
-            #            should_update = True
-            #    if should_update:
-            #        # TODO: the force=True can be optimized away
-            #        # once we ensure we're correctly comparing whether in-memory core
-            #        # data is different than persisted core data.
-            #        self.rebuild_memory(force=True, ms=ms)
 
             # Step 1: add user message
             if isinstance(messages, Message):
@@ -1288,30 +1248,6 @@ class Agent(BaseAgent):
         new_messages = [new_system_message_obj] + self._messages[1:]  # swap index 0 (system)
         self._messages = new_messages
 
-    # def update_memory_blocks_from_db(self):
-    #    for block in self.memory.to_dict()["memory"].values():
-    #        if block.get("templates", False):
-    #            # we don't expect to update shared memory blocks that
-    #            # are templates. this is something we could update in the
-    #            # future if we expect templates to change often.
-    #            continue
-    #        block_id = block.get("id")
-
-    #        # TODO: This is really hacky and we should probably figure out how to
-    #        db_block = BlockManager().get_block_by_id(block_id=block_id, actor=self.user)
-    #        if db_block is None:
-    #            # this case covers if someone has deleted a shared block by interacting
-    #            # with some other agent.
-    #            # in that case we should remove this shared block from the agent currently being
-    #            # evaluated.
-    #            printd(f"removing block: {block_id=}")
-    #            continue
-    #        if not isinstance(db_block.value, str):
-    #            printd(f"skipping block update, unexpected value: {block_id=}")
-    #            continue
-    #        # TODO: we may want to update which columns we're updating from shared memory e.g. the limit
-    #        self.memory.update_block_value(label=block.get("label", ""), value=db_block.value)
-
     def rebuild_system_prompt(self, force=False, update_timestamp=True):
         """Rebuilds the system message with the latest memory object and any shared memory block updates"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
@@ -1382,7 +1318,7 @@ class Agent(BaseAgent):
         # TODO: refactor
         raise NotImplementedError
 
-    def update_state(self) -> PersistedAgentState:
+    def update_state(self) -> AgentState:
         # TODO: this should be removed and self._messages should be moved into self.agent_state.in_context_messages
         message_ids = [msg.id for msg in self._messages]
 
@@ -1694,23 +1630,6 @@ def save_agent(agent: Agent, ms: MetadataStore):
         ms.update_agent(persisted_agent_state)
     else:
         ms.create_agent(persisted_agent_state)
-
-
-# def save_agent_memory(agent: Agent):
-#    """
-#    Save agent memory to metadata store. Memory is a collection of blocks and each block is persisted to the block table.
-#
-#    NOTE: we are assuming agent.update_state has already been called.
-#    """
-#
-#    for block_dict in agent.memory.to_dict()["memory"].values():
-#        # TODO: block creation should happen in one place to enforce these sort of constraints consistently.
-#        block = Block(**block_dict)
-#        # FIXME: should we expect for block values to be None? If not, we need to figure out why that is
-#        # the case in some tests, if so we should relax the DB constraint.
-#        if block.value is None:
-#            block.value = ""
-#        BlockManager().create_or_update_block(block, actor=agent.user)
 
 
 def strip_name_field_from_user_message(user_message_text: str) -> Tuple[str, Optional[str]]:
