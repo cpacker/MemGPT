@@ -1,4 +1,5 @@
 import asyncio
+import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
@@ -553,11 +554,11 @@ async def send_message_to_agent(
         # Disable token streaming if not OpenAI
         # TODO: cleanup this logic
         llm_config = letta_agent.agent_state.llm_config
-        if stream_steps and (llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in llm_config.model_endpoint):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Token streaming is only supported for models with type 'openai' or `inference.memgpt.ai` in the model_endpoint: agent has endpoint type {llm_config.model_endpoint_type} and {llm_config.model_endpoint}.",
+        if stream_tokens and (llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in llm_config.model_endpoint):
+            warnings.warn(
+                "Token streaming is only supported for models with type 'openai' or `inference.memgpt.ai` in the model_endpoint: agent has endpoint type {llm_config.model_endpoint_type} and {llm_config.model_endpoint}. Setting stream_tokens to False."
             )
+            stream_tokens = False
 
         # Create a new interface per request
         letta_agent.interface = StreamingServerInterface()
