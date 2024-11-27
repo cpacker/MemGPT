@@ -3,20 +3,18 @@ import inspect
 import os
 from textwrap import dedent  # remove indentation
 from types import ModuleType
-from typing import Optional, List
+from typing import List, Optional
 
 from letta.constants import CLI_WARNING_PREFIX
 from letta.functions.schema_generator import generate_schema
 
 
 def derive_openai_json_schema(source_code: str, name: Optional[str] = None) -> dict:
+    pass
     # auto-generate openai schema
     try:
         # Define a custom environment with necessary imports
-        env = {
-            "Optional": Optional,  # Add any other required imports here
-            "List": List
-        }
+        env = {"Optional": Optional, "List": List}  # Add any other required imports here
 
         env.update(globals())
         exec(source_code, env)
@@ -29,7 +27,8 @@ def derive_openai_json_schema(source_code: str, name: Optional[str] = None) -> d
         json_schema = generate_schema(func, name=name)
         return json_schema
     except Exception as e:
-        raise RuntimeError(f"Failed to execute source code: {e}")
+        print(source_code)
+        raise RuntimeError(f"Failed to execute source code for tool: {e}")
 
 
 def parse_source_code(func) -> str:

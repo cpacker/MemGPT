@@ -495,6 +495,7 @@ class SyncServer(Server):
         user_id: str,
         agent_id: str,
         input_messages: Union[Message, List[Message]],
+        interface: Union[AgentInterface, None] = None,  # needed to getting responses
         # timestamp: Optional[datetime],
     ) -> LettaUsageStatistics:
         """Send the input message through the agent"""
@@ -511,7 +512,7 @@ class SyncServer(Server):
 
             # Get the agent object (loaded in memory)
             # letta_agent = self._get_or_load_agent(agent_id=agent_id)
-            letta_agent = self.load_agent(agent_id=agent_id)
+            letta_agent = self.load_agent(agent_id=agent_id, interface=interface)
             if letta_agent is None:
                 raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
@@ -777,6 +778,7 @@ class SyncServer(Server):
         # whether or not to wrap user and system message as MemGPT-style stringified JSON
         wrap_user_message: bool = True,
         wrap_system_message: bool = True,
+        interface: Union[AgentInterface, None] = None,  # needed to getting responses
     ) -> LettaUsageStatistics:
         """Send a list of messages to the agent
 
@@ -829,7 +831,8 @@ class SyncServer(Server):
             raise ValueError(f"All messages must be of type Message or MessageCreate, got {[type(message) for message in messages]}")
 
         # Run the agent state forward
-        return self._step(user_id=user_id, agent_id=agent_id, input_messages=message_objects)
+        print("INPUT MESSAGES", message_objects)
+        return self._step(user_id=user_id, agent_id=agent_id, input_messages=message_objects, interface=interface)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
