@@ -56,7 +56,7 @@ class LettaUser(HttpUser):
     @task(1)
     def send_message(self):
         messages = [MessageCreate(role=MessageRole("user"), text="hello")]
-        request = LettaRequest(messages=messages, stream_steps=False, stream_tokens=False, return_message_object=False)
+        request = LettaRequest(messages=messages)
 
         with self.client.post(
             f"/v1/agents/{self.agent_id}/messages", json=request.model_dump(), headers=self.client.headers, catch_response=True

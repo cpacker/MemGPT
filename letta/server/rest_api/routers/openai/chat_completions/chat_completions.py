@@ -68,7 +68,6 @@ async def create_chat_completion(
             stream_tokens=True,
             # Turn on ChatCompletion mode (eg remaps send_message to content)
             chat_completion_mode=True,
-            return_message_object=False,
         )
 
     else:
@@ -86,7 +85,6 @@ async def create_chat_completion(
             # Turn streaming OFF
             stream_steps=False,
             stream_tokens=False,
-            return_message_object=False,
         )
         # print(response_messages)
 

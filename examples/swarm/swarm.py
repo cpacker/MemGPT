@@ -76,9 +76,9 @@ class Swarm:
             # print(self.client.get_agent(agent_id).tools)
             # TODO: implement with sending multiple messages
             if len(history) == 0:
-                response = self.client.send_message(agent_id=agent_id, message=message, role="user", include_full_message=True)
+                response = self.client.send_message(agent_id=agent_id, message=message, role="user")
             else:
-                response = self.client.send_messages(agent_id=agent_id, messages=history, include_full_message=True)
+                response = self.client.send_messages(agent_id=agent_id, messages=history)
 
             # update history
             history += response.messages

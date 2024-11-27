@@ -318,7 +318,7 @@ async def test_send_message_parallel(client: Union[LocalClient, RESTClient], age
 
     # Define a coroutine for sending a message using asyncio.to_thread for synchronous calls
     async def send_message_task(message: str):
-        response = await asyncio.to_thread(client.send_message, agent.id, message, role="user")
+        response = await asyncio.to_thread(client.send_message, agent_id=agent.id, message=message, role="user")
         assert response, f"Sending message '{message}' failed"
         return response
 

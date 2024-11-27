@@ -161,7 +161,6 @@ def list_messages(
         before=before_uuid,
         order_by="created_at",
         reverse=reverse,
-        return_message_object=True,
     )
     assert isinstance(json_messages, List)
     assert all([isinstance(message, Message) for message in json_messages])

@@ -11,7 +11,7 @@ from letta.constants import MAX_PAUSE_HEARTBEATS
 # If the function fails, throw an exception
 
 
-def send_message(self: Agent, message: str) -> Optional[str]:
+def send_message(self: "Agent", message: str) -> Optional[str]:
     """
     Sends a message to the human user.
 
