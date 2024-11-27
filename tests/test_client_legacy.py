@@ -143,26 +143,10 @@ def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
 
 
 def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: AgentState):
-    # _reset_config()
-
-    message = "Hello, agent!"
-    print("Sending message", message)
-    response = client.user_message(agent_id=agent.id, message=message, include_full_message=True)
-    # Check the types coming back
-    assert all([isinstance(m, Message) for m in response.messages]), "All messages should be Message"
-
-    print("Response", response)
-    assert isinstance(response.usage, LettaUsageStatistics)
-    assert response.usage.step_count == 1
-    assert response.usage.total_tokens > 0
-    assert response.usage.completion_tokens > 0
-    assert isinstance(response.messages[0], Message)
-    print(response.messages)
-
-    # test that it also works with LettaMessage
+    # test that it is a LettaMessage
     message = "Hello again, agent!"
     print("Sending message", message)
-    response = client.user_message(agent_id=agent.id, message=message, include_full_message=False)
+    response = client.user_message(agent_id=agent.id, message=message)
     assert all([isinstance(m, LettaMessage) for m in response.messages]), "All messages should be LettaMessages"
 
     # We should also check that the types were cast properly
@@ -528,10 +512,10 @@ def test_message_update(client: Union[LocalClient, RESTClient], agent: AgentStat
     """Test that we can update the details of a message"""
 
     # create a message
-    message_response = client.send_message(agent_id=agent.id, message="Test message", role="user", include_full_message=True)
+    message_response = client.send_message(agent_id=agent.id, message="Test message", role="user")
     print("Messages=", message_response)
     assert isinstance(message_response, LettaResponse)
-    assert isinstance(message_response.messages[-1], Message)
+    assert isinstance(message_response.messages[-1], FunctionReturn)
     message = message_response.messages[-1]
 
     new_text = "This exact string would never show up in the message???"

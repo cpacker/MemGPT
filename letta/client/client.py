@@ -154,11 +154,10 @@ class AbstractClient(object):
         stream: Optional[bool] = False,
         stream_steps: bool = False,
         stream_tokens: bool = False,
-        include_full_message: Optional[bool] = False,
     ) -> LettaResponse:
         raise NotImplementedError
 
-    def user_message(self, agent_id: str, message: str, include_full_message: Optional[bool] = False) -> LettaResponse:
+    def user_message(self, agent_id: str, message: str) -> LettaResponse:
         raise NotImplementedError
 
     def create_human(self, name: str, text: str) -> Human:
@@ -839,7 +838,7 @@ class RESTClient(AbstractClient):
 
     # agent interactions
 
-    def user_message(self, agent_id: str, message: str, include_full_message: Optional[bool] = False) -> LettaResponse:
+    def user_message(self, agent_id: str, message: str) -> LettaResponse:
         """
         Send a message to an agent as a user
 
@@ -850,7 +849,7 @@ class RESTClient(AbstractClient):
         Returns:
             response (LettaResponse): Response from the agent
         """
-        return self.send_message(agent_id, message, role="user", include_full_message=include_full_message)
+        return self.send_message(agent_id, message, role="user")
 
     def save(self):
         raise NotImplementedError
@@ -937,13 +936,13 @@ class RESTClient(AbstractClient):
 
     def send_message(
         self,
-        agent_id: str,
         message: str,
         role: str,
+        agent_id: Optional[str] = None,
         name: Optional[str] = None,
+        stream: Optional[bool] = False,
         stream_steps: bool = False,
         stream_tokens: bool = False,
-        include_full_message: bool = False,
     ) -> Union[LettaResponse, Generator[LettaStreamingResponse, None, None]]:
         """
         Send a message to an agent
@@ -968,8 +967,7 @@ class RESTClient(AbstractClient):
         if stream_tokens or stream_steps:
             from letta.client.streaming import _sse_post
 
-            request.return_message_object = False
-            return _sse_post(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages", request.model_dump(), self.headers)
+            return _sse_post(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages/stream", request.model_dump(), self.headers)
         else:
             response = requests.post(
                 f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers
@@ -2245,7 +2243,6 @@ class LocalClient(AbstractClient):
         self,
         agent_id: str,
         messages: List[Union[Message | MessageCreate]],
-        include_full_message: Optional[bool] = False,
     ):
         """
         Send pre-packed messages to an agent.
@@ -2266,12 +2263,9 @@ class LocalClient(AbstractClient):
 
         # format messages
         messages = self.interface.to_list()
-        if include_full_message:
-            letta_messages = messages
-        else:
-            letta_messages = []
-            for m in messages:
-                letta_messages += m.to_letta_message()
+        letta_messages = []
+        for m in messages:
+            letta_messages += m.to_letta_message()
 
         return LettaResponse(messages=letta_messages, usage=usage)
 
@@ -2284,7 +2278,6 @@ class LocalClient(AbstractClient):
         agent_name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
-        include_full_message: Optional[bool] = False,
     ) -> LettaResponse:
         """
         Send a message to an agent
@@ -2333,16 +2326,13 @@ class LocalClient(AbstractClient):
 
         # format messages
         messages = self.interface.to_list()
-        if include_full_message:
-            letta_messages = messages
-        else:
-            letta_messages = []
-            for m in messages:
-                letta_messages += m.to_letta_message()
+        letta_messages = []
+        for m in messages:
+            letta_messages += m.to_letta_message()
 
         return LettaResponse(messages=letta_messages, usage=usage)
 
-    def user_message(self, agent_id: str, message: str, include_full_message: Optional[bool] = False) -> LettaResponse:
+    def user_message(self, agent_id: str, message: str) -> LettaResponse:
         """
         Send a message to an agent as a user
 
@@ -2354,7 +2344,7 @@ class LocalClient(AbstractClient):
             response (LettaResponse): Response from the agent
         """
         self.interface.clear()
-        return self.send_message(role="user", agent_id=agent_id, message=message, include_full_message=include_full_message)
+        return self.send_message(role="user", agent_id=agent_id, message=message)
 
     def run_command(self, agent_id: str, command: str) -> LettaResponse:
         """
@@ -2946,7 +2936,6 @@ class LocalClient(AbstractClient):
             after=after,
             limit=limit,
             reverse=True,
-            return_message_object=True,
         )
 
     def list_blocks(self, label: Optional[str] = None, templates_only: Optional[bool] = True) -> List[Block]:

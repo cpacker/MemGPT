@@ -271,7 +271,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self,
         multi_step=True,
         # Related to if we want to try and pass back the AssistantMessage as a special case function
-        use_assistant_message=False,
         assistant_message_tool_name=DEFAULT_MESSAGE_TOOL,
         assistant_message_tool_kwarg=DEFAULT_MESSAGE_TOOL_KWARG,
         # Related to if we expect inner_thoughts to be in the kwargs
@@ -300,7 +299,7 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
         self.multi_step_gen_indicator = MessageStreamStatus.done_generation
 
         # Support for AssistantMessage
-        self.use_assistant_message = use_assistant_message
+        self.use_assistant_message = False  # TODO: Remove this
         self.assistant_message_tool_name = assistant_message_tool_name
         self.assistant_message_tool_kwarg = assistant_message_tool_kwarg
 
@@ -497,9 +496,6 @@ class StreamingServerInterface(AgentChunkStreamingInterface):
                     )
 
             elif self.inner_thoughts_in_kwargs and tool_call.function:
-                if self.use_assistant_message:
-                    raise NotImplementedError("inner_thoughts_in_kwargs with use_assistant_message not yet supported")
-
                 processed_chunk = None
 
                 if tool_call.function.name:

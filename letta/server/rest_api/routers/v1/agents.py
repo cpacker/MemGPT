@@ -31,7 +31,6 @@ from letta.schemas.tool import Tool
 from letta.server.rest_api.interface import StreamingServerInterface
 from letta.server.rest_api.utils import get_letta_server, sse_async_generator
 from letta.server.server import SyncServer
-from letta.utils import deduplicate
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
 
@@ -408,11 +407,11 @@ def get_agent_messages(
     ),
     assistant_message_tool_name: str = Query(
         DEFAULT_MESSAGE_TOOL,
-        description="[Only applicable if use_assistant_message is True] The name of the designated message tool.",
+        description="The name of the designated message tool.",
     ),
     assistant_message_tool_kwarg: str = Query(
         DEFAULT_MESSAGE_TOOL_KWARG,
-        description="[Only applicable if use_assistant_message is True] The name of the message argument in the designated message tool.",
+        description="The name of the message argument in the designated message tool.",
     ),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -427,8 +426,6 @@ def get_agent_messages(
         before=before,
         limit=limit,
         reverse=True,
-        return_message_object=msg_object,
-        use_assistant_message=use_assistant_message,
         assistant_message_tool_name=assistant_message_tool_name,
         assistant_message_tool_kwarg=assistant_message_tool_kwarg,
     )
@@ -474,7 +471,6 @@ async def send_message(
             messages=request.messages,
             stream_steps=False,
             stream_tokens=False,
-            return_message_object=False,
             # Support for AssistantMessage
             assistant_message_tool_name=request.assistant_message_tool_name,
             assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
@@ -517,7 +513,6 @@ async def send_message_streaming(
             messages=request.messages,
             stream_steps=True,
             stream_tokens=request.stream_tokens,
-            return_message_object=False,
             # Support for AssistantMessage
             assistant_message_tool_name=request.assistant_message_tool_name,
             assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
@@ -535,11 +530,9 @@ async def send_message_to_agent(
     stream_steps: bool,
     stream_tokens: bool,
     # related to whether or not we return `LettaMessage`s or `Message`s
-    return_message_object: bool,  # Should be True for Python Client, False for REST API
     chat_completion_mode: bool = False,
     timestamp: Optional[datetime] = None,
     # Support for AssistantMessage
-    use_assistant_message: bool = False,
     assistant_message_tool_name: str = DEFAULT_MESSAGE_TOOL,
     assistant_message_tool_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
 ) -> Union[StreamingResponse, LettaResponse]:
@@ -584,7 +577,6 @@ async def send_message_to_agent(
         # streaming_interface.function_call_legacy_mode = stream
 
         # Allow AssistantMessage is desired by client
-        streaming_interface.use_assistant_message = use_assistant_message
         streaming_interface.assistant_message_tool_name = assistant_message_tool_name
         streaming_interface.assistant_message_tool_kwarg = assistant_message_tool_kwarg
 
@@ -605,10 +597,6 @@ async def send_message_to_agent(
         )
 
         if stream_steps:
-            if return_message_object:
-                # TODO implement returning `Message`s in a stream, not just `LettaMessage` format
-                raise NotImplementedError
-
             # return a stream
             return StreamingResponse(
                 sse_async_generator(
@@ -638,14 +626,7 @@ async def send_message_to_agent(
             # If we want to convert these to Message, we can use the attached IDs
             # NOTE: we will need to de-duplicate the Messsage IDs though (since Assistant->Inner+Func_Call)
             # TODO: eventually update the interface to use `Message` and `MessageChunk` (new) inside the deque instead
-            if return_message_object:
-                message_ids = [m.id for m in filtered_stream]
-                message_ids = deduplicate(message_ids)
-                message_objs = [server.get_agent_message(agent_id=agent_id, message_id=m_id) for m_id in message_ids]
-                message_objs = [m for m in message_objs if m is not None]
-                return LettaResponse(messages=message_objs, usage=usage)
-            else:
-                return LettaResponse(messages=filtered_stream, usage=usage)
+            return LettaResponse(messages=filtered_stream, usage=usage)
 
     except HTTPException:
         raise

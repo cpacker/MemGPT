@@ -13,11 +13,11 @@ class LettaRequest(BaseModel):
 
     assistant_message_tool_name: str = Field(
         default=DEFAULT_MESSAGE_TOOL,
-        description="[Only applicable if use_assistant_message is True] The name of the designated message tool.",
+        description="The name of the designated message tool.",
     )
     assistant_message_tool_kwarg: str = Field(
         default=DEFAULT_MESSAGE_TOOL_KWARG,
-        description="[Only applicable if use_assistant_message is True] The name of the message argument in the designated message tool.",
+        description="The name of the message argument in the designated message tool.",
     )
 
 
