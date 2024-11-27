@@ -9,13 +9,13 @@ from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.block import Block, BlockCreate, BlockLabelUpdate, BlockLimitUpdate
 from letta.schemas.enums import MessageStreamStatus
-from letta.schemas.letta_message import (
-    LegacyLettaMessage,
-    LettaMessage,
-    LettaMessageUnion,
-)
+from letta.schemas.letta_message import LegacyLettaMessage, LettaMessage
 from letta.schemas.letta_request import LettaRequest
-from letta.schemas.letta_response import LettaResponse
+from letta.schemas.letta_response import (
+    LettaMessageListResponse,
+    LettaResponse,
+    MessageListResponse,
+)
 from letta.schemas.memory import (
     ArchivalMemorySummary,
     BasicBlockMemory,
@@ -394,7 +394,11 @@ def delete_agent_archival_memory(
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Memory id={memory_id} successfully deleted"})
 
 
-@router.get("/{agent_id}/messages", response_model=Union[List[Message], List[LettaMessageUnion]], operation_id="list_agent_messages")
+@router.get(
+    "/{agent_id}/messages",
+    response_model=Union[MessageListResponse, LettaMessageListResponse],
+    operation_id="list_agent_messages",
+)
 def get_agent_messages(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
@@ -456,8 +460,14 @@ def update_message(
         200: {
             "description": "Successful response",
             "content": {
-                "application/json": {"$ref": "#/components/schemas/LettaResponse"},  # Use model_json_schema() instead of model directly
-                "text/event-stream": {"description": "Server-Sent Events stream"},
+                "application/json": {
+                    "schema": {
+                        "$ref": "#/components/schemas/LettaResponse",
+                    },
+                },
+                "text/event-stream": {
+                    "description": "Server-Sent Events stream",
+                },
             },
         }
     },
