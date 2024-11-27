@@ -206,7 +206,6 @@ class AgentModel(Base):
 
     # state (context compilation)
     message_ids = Column(JSON)
-    # memory_block_ids = Column(JSON)
     system = Column(String)
 
     # configs
@@ -234,8 +233,6 @@ class AgentModel(Base):
             created_at=self.created_at,
             description=self.description,
             message_ids=self.message_ids,
-            # memory=Memory.load(self.memory),  # load dictionary
-            # memory_block_ids=self.memory_block_ids,
             system=self.system,
             tool_names=self.tool_names,
             tool_rules=self.tool_rules,
@@ -244,7 +241,6 @@ class AgentModel(Base):
             embedding_config=self.embedding_config,
             metadata_=self.metadata_,
         )
-        # assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
         return agent_state
 
 

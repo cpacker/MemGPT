@@ -30,8 +30,6 @@ class ToolRulesSolver(BaseModel):
     )
     last_tool_name: Optional[str] = Field(None, description="The most recent tool used, updated with each tool call.")
 
-    called: int = 0
-
     def __init__(self, tool_rules: List[BaseToolRule], **kwargs):
         super().__init__(**kwargs)
         # Separate the provided tool rules into init, standard, and terminal categories
@@ -47,19 +45,12 @@ class ToolRulesSolver(BaseModel):
         if not self.validate_tool_rules():
             raise ToolRuleValidationError("Tool rules contain cycles, which are not allowed in a valid configuration.")
 
-        self.called = 0
-
     def update_tool_usage(self, tool_name: str):
         """Update the internal state to track the last tool called."""
         self.last_tool_name = tool_name
 
     def get_allowed_tool_names(self, error_on_empty: bool = False) -> List[str]:
         """Get a list of tool names allowed based on the last tool called."""
-        print("LAST TOOL", self.last_tool_name, self.init_tool_rules)
-        if self.called > 0:
-            print(self.called)
-            # raise ValueError
-        self.called += 1
         if self.last_tool_name is None:
             # Use initial tool rules if no tool has been called yet
             return [rule.tool_name for rule in self.init_tool_rules]

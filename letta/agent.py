@@ -235,10 +235,6 @@ class Agent(BaseAgent):
     def __init__(
         self,
         interface: Optional[Union[AgentInterface, StreamingRefreshCLIInterface]],
-        # agents can be created from providing agent_state
-        # agent_state: AgentState,
-        # tools: List[Tool],
-        # blocks: List[Block],
         agent_state: AgentState,  # in-memory representation of the agent state (read from multiple tables)
         user: User,
         # extras
@@ -1256,15 +1252,6 @@ class Agent(BaseAgent):
     def rebuild_system_prompt(self, force=False, update_timestamp=True):
         """Rebuilds the system message with the latest memory object and any shared memory block updates"""
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
-
-        ## NOTE: This is a hacky way to check if the memory has changed
-        # memory_repr = self.memory.compile()
-        # if not force and memory_repr == curr_system_message["content"][-(len(memory_repr)) :]:
-        #    printd(f"Memory has not changed, not rebuilding system")
-        #    return
-
-        # if ms:
-        #    self.update_memory_blocks_from_db()
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False

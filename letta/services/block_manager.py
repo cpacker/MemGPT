@@ -49,11 +49,6 @@ class BlockManager:
             # Update block
             block = BlockModel.read(db_session=session, identifier=block_id, actor=actor)
             update_data = block_update.model_dump(exclude_unset=True, exclude_none=True)
-            # try:
-            #    validate_block_model = Block(**update_data.items())
-            # except Exception as e:
-            #    # invalid pydantic model
-            #    raise ValueError(f"Failed to create pydantic model: {e}")
             for key, value in update_data.items():
                 setattr(block, key, value)
             try:

@@ -79,7 +79,6 @@ class AbstractClient(object):
         agent_type: Optional[AgentType] = AgentType.memgpt_agent,
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
-        # memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
         memory=None,
         system: Optional[str] = None,
         tools: Optional[List[str]] = None,
@@ -535,7 +534,6 @@ class RESTClient(AbstractClient):
             name=name,
             description=description,
             metadata_=metadata,
-            # memory=memory,
             memory_blocks=[],
             tools=tool_names,
             tool_rules=tool_rules,
@@ -1846,9 +1844,6 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to remove agent memory block: {response.text}")
         return Memory(**response.json())
 
-    # def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
-    #    return self.server.update_agent_memory_limit(user_id=self.user_id, agent_id=agent_id, block_label=block_label, limit=limit)
-
     def get_agent_memory_blocks(self, agent_id: str) -> List[Block]:
         """
         Get all the blocks in the agent's core memory
@@ -2049,12 +2044,11 @@ class LocalClient(AbstractClient):
         llm_config: LLMConfig = None,
         # memory
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
-        # TODO: eventually move to passing memory blocks
+        # TODO: change to this when we are ready to migrate all the tests/examples (matches the REST API)
         # memory_blocks=[
         #    {"label": "human", "value": get_human_text(DEFAULT_HUMAN), "limit": 5000},
         #    {"label": "persona", "value": get_persona_text(DEFAULT_PERSONA), "limit": 5000},
         # ],
-        # memory_tools = BASE_MEMORY_TOOLS,
         # system
         system: Optional[str] = None,
         # tools
@@ -2089,14 +2083,6 @@ class LocalClient(AbstractClient):
         if name and self.agent_exists(agent_name=name):
             raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
 
-        # pack blocks into pydantic models to ensure valid format
-        # blocks = {
-        #    CreateBlock(**block) for block in memory_blocks
-        # }
-
-        # NOTE: this is a temporary fix until we decide to break the python client na dupdate our examples
-        # blocks = [CreateBlock(value=block.value, limit=block.limit, label=block.label) for block in memory.get_blocks()]
-
         # construct list of tools
         tool_names = []
         if tools:
@@ -2104,15 +2090,6 @@ class LocalClient(AbstractClient):
         if include_base_tools:
             tool_names += BASE_TOOLS
             tool_names += BASE_MEMORY_TOOLS
-
-        # TODO: make sure these are added server-side
-        ## add memory tools
-        # memory_functions = get_memory_functions(memory)
-        # for func_name, func in memory_functions.items():
-        #    tool = self.create_tool(func, name=func_name, tags=["memory", "letta-base"])
-        #    tool_names.append(tool.name)
-
-        # self.interface.clear()
 
         # check if default configs are provided
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
@@ -2140,6 +2117,7 @@ class LocalClient(AbstractClient):
             actor=self.user,
         )
 
+        # TODO: remove when we fully migrate to block creation CreateAgent model
         # Link additional blocks to the agent (block ids created on the client)
         # This needs to happen since the create agent does not allow passing in blocks which have already been persisted and have an ID
         # So we create the agent and then link the blocks afterwards
@@ -3336,9 +3314,6 @@ class LocalClient(AbstractClient):
             memory (Memory): The updated memory
         """
         return self.server.unlink_block_from_agent_memory(user_id=self.user_id, agent_id=agent_id, block_label=block_label)
-
-    # def update_agent_memory_limit(self, agent_id: str, block_label: str, limit: int) -> Memory:
-    #    return self.server.update_agent_memory_limit(user_id=self.user_id, agent_id=agent_id, block_label=block_label, limit=limit)
 
     def get_agent_memory_blocks(self, agent_id: str) -> List[Block]:
         """

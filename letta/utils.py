@@ -517,7 +517,6 @@ def is_optional_type(hint):
     return False
 
 
-# TODO: remove this code
 def enforce_types(func):
     @wraps(func)
     def wrapper(*args, **kwargs):

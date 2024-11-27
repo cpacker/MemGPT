@@ -80,21 +80,6 @@ from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
 from letta.utils import create_random_username, json_dumps, json_loads
 
-# from letta.data_types import (
-#    AgentState,
-#    EmbeddingConfig,
-#    LLMConfig,
-#    Message,
-#    Preset,
-#    Source,
-#    Token,
-#    User,
-# )
-
-
-# from letta.llm_api_tools import openai_get_model_list, azure_openai_get_model_list, smart_urljoin
-
-
 logger = get_logger(__name__)
 
 
@@ -134,10 +119,11 @@ class Server(object):
     @abstractmethod
     def create_agent(
         self,
-        user_id: str,
-        agent_config: Union[dict, PersistedAgentState],
-        interface: Union[AgentInterface, None],
-    ) -> str:
+        request: CreateAgent,
+        actor: User,
+        # interface
+        interface: Union[AgentInterface, None] = None,
+    ) -> AgentState:
         """Create a new agent using a config"""
         raise NotImplementedError
 
@@ -377,27 +363,6 @@ class SyncServer(Server):
             }
         )
 
-    # def _initialize_agent(
-    #    self, agent_id: str, actor: User, initial_message_sequence: List[Message], interface: Union[AgentInterface, None] = None
-    # ) -> Agent:
-    #    """Initialize an agent object with a sequence of messages"""
-
-    #    agent_state = self.get_agent(agent_id=agent_id)
-    #    if agent_state.agent_type == AgentType.memgpt_agent:
-    #        agent = Agent(
-    #            interface=interface,
-    #            agent_state=agent_state,
-    #            user=actor,
-    #            initial_message_sequence=initial_message_sequence,
-    #        )
-    #    elif agent_state.agent_type == AgentType.o1_agent:
-    #        agent = O1Agent(
-    #            interface=interface,
-    #            agent_state=agent_state,
-    #            user=actor,
-    #        )
-    #    return agent
-
     def load_agent(self, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Updated method to load agents from persisted storage"""
         agent_state = self.get_agent(agent_id=agent_id)
@@ -408,87 +373,6 @@ class SyncServer(Server):
             return Agent(agent_state=agent_state, interface=interface, user=actor)
         else:
             return O1Agent(agent_state=agent_state, interface=interface, user=actor)
-
-    # def _load_agent(self, agent_id: str, actor: User, interface: Union[AgentInterface, None] = None) -> Agent:
-    #    """Loads a saved agent into memory (if it doesn't exist, throw an error)"""
-    #    assert isinstance(agent_id, str), agent_id
-    #    user_id = actor.id
-
-    #    # If an interface isn't specified, use the default
-    #    if interface is None:
-    #        interface = self.default_interface_factory()
-
-    #    try:
-    #        logger.debug(f"Grabbing agent user_id={user_id} agent_id={agent_id} from database")
-    #        agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
-    #        if not agent_state:
-    #            logger.exception(f"agent_id {agent_id} does not exist")
-    #            raise ValueError(f"agent_id {agent_id} does not exist")
-
-    #        # Instantiate an agent object using the state retrieved
-    #        logger.debug(f"Creating an agent object")
-    #        tool_objs = []
-    #        for name in agent_state.tools:
-    #            # TODO: This should be a hard failure, but for migration reasons, we patch it for now
-    #            tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
-    #            if tool_obj:
-    #                tool_obj = self.tool_manager.get_tool_by_name(tool_name=name, actor=actor)
-    #                tool_objs.append(tool_obj)
-    #            else:
-    #                warnings.warn(f"Tried to retrieve a tool with name {name} from the agent_state, but does not exist in tool db.")
-
-    #        # set agent_state tools to only the names of the available tools
-    #        agent_state.tools = [t.name for t in tool_objs]
-
-    #        # Make sure the memory is a memory object
-    #        assert isinstance(agent_state.memory, Memory)
-
-    #        if agent_state.agent_type == AgentType.memgpt_agent:
-    #            letta_agent = Agent(agent_state=agent_state, interface=interface, tools=tool_objs, user=actor, block_manager=self.block_manager)
-    #        elif agent_state.agent_type == AgentType.o1_agent:
-    #            letta_agent = O1Agent(agent_state=agent_state, interface=interface, tools=tool_objs, user=actor, block_manager=self.block_manager)
-    #        else:
-    #            raise NotImplementedError("Not a supported agent type")
-
-    #        # Add the agent to the in-memory store and return its reference
-    #        logger.debug(f"Adding agent to the agent cache: user_id={user_id}, agent_id={agent_id}")
-    #        self._add_agent(user_id=user_id, agent_id=agent_id, agent_obj=letta_agent)
-    #        return letta_agent
-
-    #    except Exception as e:
-    #        logger.exception(f"Error occurred while trying to get agent {agent_id}:\n{e}")
-    #        raise
-
-    # def _get_or_load_agent(self, agent_id: str, caching: bool = True) -> Agent:
-    #    """Check if the agent is in-memory, then load"""
-
-    #    # Gets the agent state
-    #    agent_state = self.ms.get_agent(agent_id=agent_id)
-    #    if not agent_state:
-    #        raise ValueError(f"Agent does not exist")
-    #    user_id = agent_state.user_id
-    #    actor = self.user_manager.get_user_by_id(user_id)
-
-    #    logger.debug(f"Checking for agent user_id={user_id} agent_id={agent_id}")
-    #    if caching:
-    #        # TODO: consider disabling loading cached agents due to potential concurrency issues
-    #        letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
-    #        if not letta_agent:
-    #            logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
-    #            letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
-    #    else:
-    #        # This breaks unit tests in test_local_client.py
-    #        letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
-
-    #    # letta_agent = self._get_agent(user_id=user_id, agent_id=agent_id)
-    #    # if not letta_agent:
-    #    # logger.debug(f"Agent not loaded, loading agent user_id={user_id} agent_id={agent_id}")
-
-    #    # NOTE: no longer caching, always forcing a lot from the database
-    #    # Loads the agent objects
-    #    # letta_agent = self._load_agent(agent_id=agent_id, actor=actor)
-
-    #    return letta_agent
 
     def _step(
         self,
@@ -853,7 +737,7 @@ class SyncServer(Server):
         actor: User,
         # interface
         interface: Union[AgentInterface, None] = None,
-    ) -> PersistedAgentState:
+    ) -> AgentState:
         """Create a new agent using a config"""
         user_id = actor.id
         if self.user_manager.get_user_by_id(user_id=user_id) is None:

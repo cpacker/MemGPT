@@ -11,7 +11,6 @@ from letta.functions.schema_generator import generate_schema
 
 
 def derive_openai_json_schema(source_code: str, name: Optional[str] = None) -> dict:
-    pass
     # auto-generate openai schema
     try:
         # Define a custom environment with necessary imports

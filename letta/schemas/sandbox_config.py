@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
-from letta.schemas.agent import PersistedAgentState
+from letta.schemas.agent import AgentState
 from letta.schemas.letta_base import LettaBase, OrmMetadataBase
 
 
@@ -17,7 +17,7 @@ class SandboxType(str, Enum):
 
 class SandboxRunResult(BaseModel):
     func_return: Optional[Any] = Field(None, description="The function return object")
-    agent_state: Optional[PersistedAgentState] = Field(None, description="The agent state")
+    agent_state: Optional[AgentState] = Field(None, description="The agent state")
     stdout: Optional[List[str]] = Field(None, description="Captured stdout (e.g. prints, logs) from the function invocation")
     sandbox_config_fingerprint: str = Field(None, description="The fingerprint of the config for the sandbox")
 

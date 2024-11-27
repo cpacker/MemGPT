@@ -76,7 +76,6 @@ def setup_agent(
     config.save()
 
     memory = ChatMemory(human=memory_human_str, persona=memory_persona_str)
-    print("tool rules", [r.model_dump() for r in tool_rules] if tool_rules else None)
     agent_state = client.create_agent(
         name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config, memory=memory, tools=tools, tool_rules=tool_rules
     )
@@ -106,7 +105,6 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str) -> ChatComplet
 
     tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tool_names]
     full_agent_state = client.get_agent(agent_state.id)
-    # agent = Agent(interface=None, tools=tools, agent_state=agent_state, user=client.user)
     agent = Agent(agent_state=full_agent_state, interface=None, user=client.user)
 
     response = create(

@@ -44,23 +44,12 @@ class PersistedAgentState(BaseAgent, validate_assignment=True):
     # in-context memory
     message_ids: Optional[List[str]] = Field(default=None, description="The ids of the messages in the agent's in-context memory.")
 
-    # DEPRECATE: too confusing and redundant with blocks table
-    # memory: Memory = Field(default_factory=Memory, description="The in-context memory of the agent.")
-
-    # memory
-    # memory_block_ids: List[str] = Field(
-    #    ..., description="The ids of the memory blocks in the agent's in-context memory."
-    # )  # TODO: mapping table?
-
     # tools
     # TODO: move to ORM mapping
     tool_names: List[str] = Field(..., description="The tools used by the agent.")
 
     # tool rules
     tool_rules: Optional[List[ToolRule]] = Field(default=None, description="The list of tool rules.")
-
-    # tags
-    # tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
 
     # system prompt
     system: str = Field(..., description="The system prompt used by the agent.")
@@ -114,21 +103,10 @@ class AgentState(PersistedAgentState):
         return PersistedAgentState(**data)
 
 
-# class AgentStateResponse(PersistedAgentState):
-#    # additional data we pass back when getting agent state
-#    # this is also returned if you call .get_agent(agent_id)
-#    # NOTE: this is what actually gets passed around internall
-#    sources: List[Source]
-#    memory_blocks: List[Block]
-#    tools: List[Tool]
-
-
 class CreateAgent(BaseAgent):  #
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
-
-    # memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
 
     # memory creation
     memory_blocks: List[CreateBlock] = Field(
@@ -187,8 +165,6 @@ class UpdateAgentState(BaseAgent):
 
     # TODO: determine if these should be editable via this schema?
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
-
-    # memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
 
 
 class AgentStepResponse(BaseModel):

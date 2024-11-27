@@ -239,8 +239,6 @@ class Message(BaseMessage):
         else:
             raise ValueError(self.role)
 
-        print("letta messages", messages)
-
         return messages
 
     @staticmethod
