@@ -133,8 +133,8 @@ def test_memory(client: Union[LocalClient, RESTClient], agent: PersistedAgentSta
     print("MEMORY", memory_response.compile())
 
     updated_memory = {"human": "Updated human memory", "persona": "Updated persona memory"}
-    client.update_in_context_memory(agent_id=agent.id, section="human", value=updated_memory["human"])
-    client.update_in_context_memory(agent_id=agent.id, section="persona", value=updated_memory["persona"])
+    client.update_agent_memory_block(agent_id=agent.id, label="human", value=updated_memory["human"])
+    client.update_agent_memory_block(agent_id=agent.id, label="persona", value=updated_memory["persona"])
     updated_memory_response = client.get_in_context_memory(agent_id=agent.id)
     assert (
         updated_memory_response.get_block("human").value == updated_memory["human"]

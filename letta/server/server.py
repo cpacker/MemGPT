@@ -1305,13 +1305,13 @@ class SyncServer(Server):
 
         if tags is None:
             agents_states = self.ms.list_agents(user_id=user_id)
-            return agents_states
+            agent_ids = [agent.id for agent in agents_states]
         else:
             agent_ids = []
             for tag in tags:
                 agent_ids += self.agents_tags_manager.get_agents_by_tag(tag=tag, actor=user)
 
-            return [self.get_agent(agent_id=agent_id) for agent_id in agent_ids]
+        return [self.get_agent(agent_id=agent_id) for agent_id in agent_ids]
 
     # convert name->id
 
