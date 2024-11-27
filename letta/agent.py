@@ -132,7 +132,6 @@ def compile_system_message(
             archival_memory=archival_memory,
             recall_memory=recall_memory,
         )
-        assert len(in_context_memory.compile()) > 0
         full_memory_string = memory_metadata_string + "\n" + in_context_memory.compile()
 
         # Add to the variables list to inject
