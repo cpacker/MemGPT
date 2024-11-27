@@ -964,12 +964,7 @@ class RESTClient(AbstractClient):
         # TODO: figure out how to handle stream_steps and stream_tokens
 
         # When streaming steps is True, stream_tokens must be False
-        request = LettaRequest(
-            messages=messages,
-            stream_steps=stream_steps,
-            stream_tokens=stream_tokens,
-            return_message_object=include_full_message,
-        )
+        request = LettaRequest(messages=messages)
         if stream_tokens or stream_steps:
             from letta.client.streaming import _sse_post
 

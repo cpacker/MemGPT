@@ -14,7 +14,7 @@ from letta.schemas.letta_message import (
     LettaMessage,
     LettaMessageUnion,
 )
-from letta.schemas.letta_request import LettaRequest
+from letta.schemas.letta_request import LettaRequest, LettaStreamingRequest
 from letta.schemas.letta_response import LettaResponse
 from letta.schemas.memory import (
     ArchivalMemorySummary,
@@ -406,11 +406,11 @@ def get_agent_messages(
         False,
         description="[Only applicable if msg_object is False] If true, returns AssistantMessage objects when the agent calls a designated message tool. If false, return FunctionCallMessage objects for all tool calls.",
     ),
-    assistant_message_function_name: str = Query(
+    assistant_message_tool_name: str = Query(
         DEFAULT_MESSAGE_TOOL,
         description="[Only applicable if use_assistant_message is True] The name of the designated message tool.",
     ),
-    assistant_message_function_kwarg: str = Query(
+    assistant_message_tool_kwarg: str = Query(
         DEFAULT_MESSAGE_TOOL_KWARG,
         description="[Only applicable if use_assistant_message is True] The name of the message argument in the designated message tool.",
     ),
@@ -429,8 +429,8 @@ def get_agent_messages(
         reverse=True,
         return_message_object=msg_object,
         use_assistant_message=use_assistant_message,
-        assistant_message_function_name=assistant_message_function_name,
-        assistant_message_function_kwarg=assistant_message_function_kwarg,
+        assistant_message_tool_name=assistant_message_tool_name,
+        assistant_message_tool_kwarg=assistant_message_tool_kwarg,
     )
 
 
@@ -450,17 +450,8 @@ def update_message(
 
 @router.post(
     "/{agent_id}/messages",
-    response_model=None,
+    response_model=LettaResponse,
     operation_id="create_agent_message",
-    responses={
-        200: {
-            "description": "Successful response",
-            "content": {
-                "application/json": {"$ref": "#/components/schemas/LettaResponse"},  # Use model_json_schema() instead of model directly
-                "text/event-stream": {"description": "Server-Sent Events stream"},
-            },
-        }
-    },
 )
 async def send_message(
     agent_id: str,
@@ -471,7 +462,6 @@ async def send_message(
     """
     Process a user message and return the agent's response.
     This endpoint accepts a message from a user and processes it through the agent.
-    It can optionally stream the response if 'stream_steps' or 'stream_tokens' is set to True.
     """
     actor = server.get_user_or_default(user_id=user_id)
 
@@ -482,15 +472,57 @@ async def send_message(
             agent_id=agent_id,
             user_id=actor.id,
             messages=request.messages,
-            stream_steps=request.stream_steps,
-            stream_tokens=request.stream_tokens,
-            return_message_object=request.return_message_object,
+            stream_steps=False,
+            stream_tokens=False,
+            return_message_object=False,
             # Support for AssistantMessage
-            use_assistant_message=request.use_assistant_message,
-            assistant_message_function_name=request.assistant_message_function_name,
-            assistant_message_function_kwarg=request.assistant_message_function_kwarg,
+            assistant_message_tool_name=request.assistant_message_tool_name,
+            assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
         )
-    return result
+        return result
+
+
+@router.post(
+    "/{agent_id}/messages/stream",
+    response_model=None,
+    operation_id="create_agent_message",
+    responses={
+        200: {
+            "description": "Successful response",
+            "content": {
+                "text/event-stream": {"description": "Server-Sent Events stream"},
+            },
+        }
+    },
+)
+async def send_message_streaming(
+    agent_id: str,
+    server: SyncServer = Depends(get_letta_server),
+    request: LettaStreamingRequest = Body(...),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Process a user message and return the agent's response.
+    This endpoint accepts a message from a user and processes it through the agent.
+    It will stream the steps of the response always, and stream the tokens if 'stream_tokens' is set to True.
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+
+    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
+    async with agent_lock:
+        result = await send_message_to_agent(
+            server=server,
+            agent_id=agent_id,
+            user_id=actor.id,
+            messages=request.messages,
+            stream_steps=True,
+            stream_tokens=request.stream_tokens,
+            return_message_object=False,
+            # Support for AssistantMessage
+            assistant_message_tool_name=request.assistant_message_tool_name,
+            assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
+        )
+        return result
 
 
 # TODO: move this into server.py?
@@ -508,8 +540,8 @@ async def send_message_to_agent(
     timestamp: Optional[datetime] = None,
     # Support for AssistantMessage
     use_assistant_message: bool = False,
-    assistant_message_function_name: str = DEFAULT_MESSAGE_TOOL,
-    assistant_message_function_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
+    assistant_message_tool_name: str = DEFAULT_MESSAGE_TOOL,
+    assistant_message_tool_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
 ) -> Union[StreamingResponse, LettaResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
 
@@ -551,8 +583,8 @@ async def send_message_to_agent(
 
         # Allow AssistantMessage is desired by client
         streaming_interface.use_assistant_message = use_assistant_message
-        streaming_interface.assistant_message_function_name = assistant_message_function_name
-        streaming_interface.assistant_message_function_kwarg = assistant_message_function_kwarg
+        streaming_interface.assistant_message_tool_name = assistant_message_tool_name
+        streaming_interface.assistant_message_tool_kwarg = assistant_message_tool_kwarg
 
         # Related to JSON buffer reader
         streaming_interface.inner_thoughts_in_kwargs = (

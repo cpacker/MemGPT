@@ -1355,8 +1355,8 @@ class SyncServer(Server):
         reverse: Optional[bool] = False,
         return_message_object: bool = True,
         use_assistant_message: bool = False,
-        assistant_message_function_name: str = constants.DEFAULT_MESSAGE_TOOL,
-        assistant_message_function_kwarg: str = constants.DEFAULT_MESSAGE_TOOL_KWARG,
+        assistant_message_tool_name: str = constants.DEFAULT_MESSAGE_TOOL,
+        assistant_message_tool_kwarg: str = constants.DEFAULT_MESSAGE_TOOL_KWARG,
     ) -> Union[List[Message], List[LettaMessage]]:
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -1381,8 +1381,8 @@ class SyncServer(Server):
                     for m in records
                     for msg in m.to_letta_message(
                         assistant_message=use_assistant_message,
-                        assistant_message_function_name=assistant_message_function_name,
-                        assistant_message_function_kwarg=assistant_message_function_kwarg,
+                        assistant_message_tool_name=assistant_message_tool_name,
+                        assistant_message_tool_kwarg=assistant_message_tool_kwarg,
                     )[::-1]
                 ]
             else:
@@ -1391,8 +1391,8 @@ class SyncServer(Server):
                     for m in records
                     for msg in m.to_letta_message(
                         assistant_message=use_assistant_message,
-                        assistant_message_function_name=assistant_message_function_name,
-                        assistant_message_function_kwarg=assistant_message_function_kwarg,
+                        assistant_message_tool_name=assistant_message_tool_name,
+                        assistant_message_tool_kwarg=assistant_message_tool_kwarg,
                     )
                 ]
 
