@@ -43,7 +43,7 @@ def type_to_json_schema_type(py_type) -> dict:
 
     # Handle array types
     origin = get_origin(py_type)
-    if origin in (list, List):
+    if py_type == list or origin in (list, List):
         args = get_args(py_type)
 
         if args and inspect.isclass(args[0]) and issubclass(args[0], BaseModel):
@@ -61,7 +61,7 @@ def type_to_json_schema_type(py_type) -> dict:
         }
 
     # Handle object types
-    if origin in (dict, Dict):
+    if py_type == dict or origin in (dict, Dict):
         args = get_args(py_type)
         if not args:
             # Generic dict without type arguments
@@ -374,7 +374,7 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
                 schema["parameters"]["properties"][param.name] = param_generated_schema
 
         # If the parameter doesn't have a default value, it is required (so we need to add it to the required list)
-        if param.default == inspect.Parameter.empty:
+        if param.default == inspect.Parameter.empty and not is_optional(param.annotation):
             schema["parameters"]["required"].append(param.name)
 
         # TODO what's going on here?

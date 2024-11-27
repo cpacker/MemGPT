@@ -71,3 +71,9 @@ def test_derive_openai_json_schema():
 
     print("==== TESTING more complex example where the arg is a nested pydantic model ====")
     _run_schema_test("nested_pydantic_as_arg_example", "create_task_plan")
+
+    print("==== TESTING simple function with no args ====")
+    _run_schema_test("simple_d20", "roll_d20")
+
+    print("==== TESTING complex function with many args ====")
+    _run_schema_test("all_python_complex", "check_order_status")
