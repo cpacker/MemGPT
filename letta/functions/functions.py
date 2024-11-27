@@ -28,24 +28,24 @@ def derive_openai_json_schema(source_code: str, name: Optional[str] = None) -> d
         }
         env.update(globals())
 
-        print("About to execute source code...")  # Debug print
+        # print("About to execute source code...")
         exec(source_code, env)
-        print("Source code executed successfully")  # Debug print
+        # print("Source code executed successfully")
 
         functions = [f for f in env if callable(env[f]) and not f.startswith("__")]
         if not functions:
             raise LettaToolCreateError("No callable functions found in source code")
 
-        print(f"Found functions: {functions}")  # Debug print
+        # print(f"Found functions: {functions}")
         func = env[functions[-1]]
 
         if not hasattr(func, "__doc__") or not func.__doc__:
             raise LettaToolCreateError(f"Function {func.__name__} missing docstring")
 
-        print("About to generate schema...")  # Debug print
+        # print("About to generate schema...")
         try:
             schema = generate_schema(func, name=name)
-            print("Schema generated successfully")  # Debug print
+            # print("Schema generated successfully")
             return schema
         except TypeError as e:
             raise LettaToolCreateError(f"Type error in schema generation: {str(e)}")

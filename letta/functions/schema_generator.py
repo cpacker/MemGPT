@@ -337,7 +337,7 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
             and not get_origin(param.annotation)
             and issubclass(param.annotation, BaseModel)
         ):
-            print("Generating schema for pydantic model:", param.annotation)
+            # print("Generating schema for pydantic model:", param.annotation)
             # Extract the properties from the pydantic model
             schema["parameters"]["properties"][param.name] = pydantic_model_to_json_schema(param.annotation)
             schema["parameters"]["properties"][param.name]["description"] = param_doc.description
@@ -346,7 +346,7 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
         # NOTE: important - if a dict or list, the internal type can be a Pydantic model itself
         #                   however in that
         else:
-            print("Generating schema for non-pydantic model:", param.annotation)
+            # print("Generating schema for non-pydantic model:", param.annotation)
             # Grab the description for the parameter from the extended docstring
             # If it doesn't exist, we should raise an error
             param_doc = next((d for d in docstring.params if d.arg_name == param.name), None)
