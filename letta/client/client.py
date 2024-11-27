@@ -25,7 +25,6 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus, MessageRole
 from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
-from letta.schemas.letta_message import LettaMessage
 from letta.schemas.letta_request import LettaRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
@@ -915,7 +914,7 @@ class RESTClient(AbstractClient):
 
     def get_messages(
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
-    ) -> List[LettaMessage]:
+    ) -> List[Message]:
         """
         Get messages from an agent with pagination.
 
@@ -926,14 +925,14 @@ class RESTClient(AbstractClient):
             limit (int): Limit number of messages
 
         Returns:
-            messages (List[LettaMessage]): List of messages
+            messages (List[Message]): List of messages
         """
 
         params = {"before": before, "after": after, "limit": limit, "msg_object": True}
         response = requests.get(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages", params=params, headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to get messages: {response.text}")
-        return [LettaMessage(**message) for message in response.json()]
+        return [Message(**message) for message in response.json()]
 
     def send_message(
         self,

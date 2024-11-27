@@ -401,10 +401,6 @@ def get_agent_messages(
     limit: int = Query(10, description="Maximum number of messages to retrieve."),
     msg_object: bool = Query(False, description="If true, returns Message objects. If false, return LettaMessage objects."),
     # Flags to support the use of AssistantMessage message types
-    use_assistant_message: bool = Query(
-        False,
-        description="[Only applicable if msg_object is False] If true, returns AssistantMessage objects when the agent calls a designated message tool. If false, return FunctionCallMessage objects for all tool calls.",
-    ),
     assistant_message_tool_name: str = Query(
         DEFAULT_MESSAGE_TOOL,
         description="The name of the designated message tool.",
@@ -426,6 +422,7 @@ def get_agent_messages(
         before=before,
         limit=limit,
         reverse=True,
+        return_message_object=msg_object,
         assistant_message_tool_name=assistant_message_tool_name,
         assistant_message_tool_kwarg=assistant_message_tool_kwarg,
     )

@@ -1,11 +1,21 @@
 import json
 import uuid
+import warnings
 
 import pytest
 
 import letta.utils as utils
 from letta.constants import BASE_TOOLS
 from letta.schemas.enums import MessageRole
+from letta.schemas.letta_message import (
+    FunctionCallMessage,
+    FunctionReturn,
+    InternalMonologue,
+    LettaMessage,
+    SystemMessage,
+    UserMessage,
+)
+from letta.schemas.message import Message
 from letta.schemas.user import User
 
 from .test_managers import DEFAULT_EMBEDDING_CONFIG
@@ -387,3 +397,165 @@ def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
 
     # test that another user in the same org can delete the agent
     server.delete_agent(another_user.id, agent_state.id)
+
+
+def _test_get_messages_letta_format(
+    server,
+    user_id,
+    agent_id,
+    reverse=False,
+):
+    """Reverse is off by default, the GET goes in chronological order"""
+
+    messages = server.get_agent_recall_cursor(
+        user_id=user_id,
+        agent_id=agent_id,
+        limit=1000,
+        reverse=reverse,
+        return_message_object=True,
+    )
+    # messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000)
+    assert all(isinstance(m, Message) for m in messages)
+
+    letta_messages = server.get_agent_recall_cursor(
+        user_id=user_id,
+        agent_id=agent_id,
+        limit=1000,
+        reverse=reverse,
+        return_message_object=False,
+    )
+    # letta_messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000, return_message_object=False)
+    assert all(isinstance(m, LettaMessage) for m in letta_messages)
+
+    # Loop through `messages` while also looping through `letta_messages`
+    # Each message in `messages` should have 1+ corresponding messages in `letta_messages`
+    # If role of message (in `messages`) is `assistant`,
+    # then there should be two messages in `letta_messages`, one which is type InternalMonologue and one which is type FunctionCallMessage.
+    # If role of message (in `messages`) is `user`, then there should be one message in `letta_messages` which is type UserMessage.
+    # If role of message (in `messages`) is `system`, then there should be one message in `letta_messages` which is type SystemMessage.
+    # If role of message (in `messages`) is `tool`, then there should be one message in `letta_messages` which is type FunctionReturn.
+
+    print("MESSAGES (obj):")
+    for i, m in enumerate(messages):
+        # print(m)
+        print(f"{i}: {m.role}, {m.text[:50]}...")
+        # print(m.role)
+
+    print("MEMGPT_MESSAGES:")
+    for i, m in enumerate(letta_messages):
+        print(f"{i}: {type(m)} ...{str(m)[-50:]}")
+
+    # Collect system messages and their texts
+    system_messages = [m for m in messages if m.role == MessageRole.system]
+    system_texts = [m.text for m in system_messages]
+
+    # If there are multiple system messages, print the diff
+    if len(system_messages) > 1:
+        print("Differences between system messages:")
+        for i in range(len(system_texts) - 1):
+            for j in range(i + 1, len(system_texts)):
+                import difflib
+
+                diff = difflib.unified_diff(
+                    system_texts[i].splitlines(),
+                    system_texts[j].splitlines(),
+                    fromfile=f"System Message {i+1}",
+                    tofile=f"System Message {j+1}",
+                    lineterm="",
+                )
+                print("\n".join(diff))
+    else:
+        print("There is only one or no system message.")
+
+    letta_message_index = 0
+    for i, message in enumerate(messages):
+        assert isinstance(message, Message)
+
+        print(f"\n\nmessage {i}: {message.role}, {message.text[:50] if message.text else 'null'}")
+        while letta_message_index < len(letta_messages):
+            letta_message = letta_messages[letta_message_index]
+            print(f"letta_message {letta_message_index}: {str(letta_message)[:50]}")
+
+            if message.role == MessageRole.assistant:
+                print(f"i={i}, M=assistant, MM={type(letta_message)}")
+
+                # If reverse, function call will come first
+                if reverse:
+
+                    # If there are multiple tool calls, we should have multiple back to back FunctionCallMessages
+                    if message.tool_calls is not None:
+                        for tool_call in message.tool_calls:
+
+                            # Try to parse the tool call args
+                            try:
+                                json.loads(tool_call.function.arguments)
+                            except:
+                                warnings.warn(f"Function call arguments are not valid JSON: {tool_call.function.arguments}")
+
+                            assert isinstance(letta_message, FunctionCallMessage)
+                            letta_message_index += 1
+                            letta_message = letta_messages[letta_message_index]
+
+                    if message.text is not None:
+                        assert isinstance(letta_message, InternalMonologue)
+                        letta_message_index += 1
+                        letta_message = letta_messages[letta_message_index]
+                    else:
+                        # If there's no inner thoughts then there needs to be a tool call
+                        assert message.tool_calls is not None
+
+                else:
+
+                    if message.text is not None:
+                        assert isinstance(letta_message, InternalMonologue)
+                        letta_message_index += 1
+                        letta_message = letta_messages[letta_message_index]
+                    else:
+                        # If there's no inner thoughts then there needs to be a tool call
+                        assert message.tool_calls is not None
+
+                    # If there are multiple tool calls, we should have multiple back to back FunctionCallMessages
+                    if message.tool_calls is not None:
+                        for tool_call in message.tool_calls:
+
+                            # Try to parse the tool call args
+                            try:
+                                json.loads(tool_call.function.arguments)
+                            except:
+                                warnings.warn(f"Function call arguments are not valid JSON: {tool_call.function.arguments}")
+
+                            assert isinstance(letta_message, FunctionCallMessage)
+                            assert tool_call.function.name == letta_message.function_call.name
+                            assert tool_call.function.arguments == letta_message.function_call.arguments
+                            letta_message_index += 1
+                            letta_message = letta_messages[letta_message_index]
+
+            elif message.role == MessageRole.user:
+                print(f"i={i}, M=user, MM={type(letta_message)}")
+                assert isinstance(letta_message, UserMessage)
+                assert message.text == letta_message.message
+                letta_message_index += 1
+
+            elif message.role == MessageRole.system:
+                print(f"i={i}, M=system, MM={type(letta_message)}")
+                assert isinstance(letta_message, SystemMessage)
+                assert message.text == letta_message.message
+                letta_message_index += 1
+
+            elif message.role == MessageRole.tool:
+                print(f"i={i}, M=tool, MM={type(letta_message)}")
+                assert isinstance(letta_message, FunctionReturn)
+                # Check the the value in `text` is the same
+                assert message.text == letta_message.function_return
+                letta_message_index += 1
+
+            else:
+                raise ValueError(f"Unexpected message role: {message.role}")
+
+            # Move to the next message in the original messages list
+            break
+
+
+def test_get_messages_letta_format(server, user_id, agent_id):
+    for reverse in [False, True]:
+        _test_get_messages_letta_format(server, user_id, agent_id, reverse=reverse)
