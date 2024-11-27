@@ -58,23 +58,30 @@ class ToolExecutionSandbox:
         Returns:
             Tuple[Any, Optional[AgentState]]: Tuple containing (tool_result, agent_state)
         """
-        if tool_settings.e2b_api_key:
-            logger.info(f"Using e2b sandbox to execute {self.tool_name}")
-            code = self.generate_execution_script(agent_state=agent_state)
-            result = self.run_e2b_sandbox(code=code)
-        else:
-            logger.info(f"Using local sandbox to execute {self.tool_name}")
-            code = self.generate_execution_script(agent_state=agent_state)
-            result = self.run_local_dir_sandbox(code=code)
 
-        # Log out any stdout from the tool run
-        logger.info(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n")
-        for log_line in result.stdout:
-            logger.info(f"{log_line}")
-        logger.info(f"Ending stdout log from tool run.")
+        print("CALL RUN")
+        try:
+            if tool_settings.e2b_api_key:
+                logger.info(f"Using e2b sandbox to execute {self.tool_name}")
+                code = self.generate_execution_script(agent_state=agent_state)
+                result = self.run_e2b_sandbox(code=code)
+            else:
+                logger.info(f"Using local sandbox to execute {self.tool_name}")
+                code = self.generate_execution_script(agent_state=agent_state)
+                result = self.run_local_dir_sandbox(code=code)
 
-        # Return result
-        return result
+            # Log out any stdout from the tool run
+            logger.info(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n")
+            for log_line in result.stdout:
+                logger.info(f"{log_line}")
+            logger.info(f"Ending stdout log from tool run.")
+
+            print("SANDBOX RESULT", result.func_return)
+
+            # Return result
+            return result
+        except Exception as e:
+            error_msg = f"Tool sandbox execution error: {e}"
 
     # local sandbox specific functions
     from contextlib import contextmanager

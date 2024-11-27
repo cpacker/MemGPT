@@ -426,19 +426,24 @@ class Agent(BaseAgent):
 
         # TODO: need to have an AgentState object that actually has full access to the block data
         # this is because the sandbox tools need to be able to access block.value to edit this data
-        if function_name in BASE_TOOLS:
-            # base tools are allowed to access the `Agent` object and run on the database
-            function_args["self"] = self  # need to attach self to arg since it's dynamically linked
-            function_response = function_to_call(**function_args)
-        else:
-            # execute tool in a sandbox
-            # TODO: allow agent_state to specify which sandbox to execute tools in
-            sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
-                agent_state=self.agent_state.__deepcopy__()
-            )
-            function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
-            assert orig_memory_str == self.agent_state.memory.compile(), "Memory should not be modified in a sandbox tool"
-            self.update_memory_if_change(updated_agent_state.memory)
+        try:
+            if function_name in BASE_TOOLS:
+                # base tools are allowed to access the `Agent` object and run on the database
+                function_args["self"] = self  # need to attach self to arg since it's dynamically linked
+                function_response = function_to_call(**function_args)
+            else:
+                # execute tool in a sandbox
+                # TODO: allow agent_state to specify which sandbox to execute tools in
+                sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
+                    agent_state=self.agent_state.__deepcopy__()
+                )
+                function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
+                assert orig_memory_str == self.agent_state.memory.compile(), "Memory should not be modified in a sandbox tool"
+                self.update_memory_if_change(updated_agent_state.memory)
+        except Exception as e:
+            # Need to catch error here, or else trunction wont happen
+            # TODO: modify to function execution error
+            raise ValueError(f"Error executing tool {function_name}: {e}")
 
         return function_response
 
@@ -590,7 +595,6 @@ class Agent(BaseAgent):
             allowed_functions = [func for func in self.functions if func["name"] in allowed_tool_names]
 
         try:
-            print("tools", function_call, [f["name"] for f in allowed_functions])
             response = create(
                 # agent_state=self.agent_state,
                 llm_config=self.agent_state.llm_config,
@@ -782,7 +786,6 @@ class Agent(BaseAgent):
 
                 # handle tool execution (sandbox) and state updates
                 function_response = self.execute_tool_and_persist_state(function_name, function_to_call, function_args)
-                print("response", function_response)
                 # if function_name in BASE_TOOLS:
                 #    function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                 #    function_response = function_to_call(**function_args)
@@ -800,8 +803,6 @@ class Agent(BaseAgent):
 
                 #        # rebuild memory
                 #        self.rebuild_memory()
-
-                print("FINAL FUNCTION NAME", function_name)
 
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
                     # with certain functions we rely on the paging mechanism to handle overflow
@@ -878,7 +879,6 @@ class Agent(BaseAgent):
         self.rebuild_system_prompt()
 
         # Update ToolRulesSolver state with last called function
-        print("CALLED FUNCTION", function_name)
         self.tool_rules_solver.update_tool_usage(function_name)
         # Update heartbeat request according to provided tool rules
         if self.tool_rules_solver.has_children_tools(function_name):

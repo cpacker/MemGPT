@@ -55,6 +55,23 @@ def run_server():
     start_server(debug=True)
 
 
+@pytest.fixture
+def mock_e2b_api_key_none():
+    from letta.settings import tool_settings
+
+    # Store the original value of e2b_api_key
+    original_api_key = tool_settings.e2b_api_key
+
+    # Set e2b_api_key to None
+    tool_settings.e2b_api_key = None
+
+    # Yield control to the test
+    yield
+
+    # Restore the original value of e2b_api_key
+    tool_settings.e2b_api_key = original_api_key
+
+
 # Fixture to create clients with different configurations
 @pytest.fixture(
     # params=[{"server": True}, {"server": False}],  # whether to use REST API server
@@ -105,7 +122,7 @@ def agent(client: Union[LocalClient, RESTClient]):
     client.delete_agent(agent_state.id)
 
 
-def test_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_agent(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # test client.rename_agent
     new_name = "RenamedTestAgent"
@@ -124,7 +141,7 @@ def test_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert client.agent_exists(agent_id=delete_agent.id) == False, "Agent deletion failed"
 
 
-def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_memory(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     memory_response = client.get_in_context_memory(agent_id=agent.id)
@@ -140,7 +157,7 @@ def test_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     ), "Memory update failed"
 
 
-def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_agent_interactions(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     message = "Hello, agent!"
@@ -179,7 +196,7 @@ def test_agent_interactions(client: Union[LocalClient, RESTClient], agent: Agent
     # TODO: add streaming tests
 
 
-def test_archival_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_archival_memory(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     memory_content = "Archival memory content"
