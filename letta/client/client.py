@@ -2262,12 +2262,7 @@ class LocalClient(AbstractClient):
             self.save()
 
         # format messages
-        messages = self.interface.to_list()
-        letta_messages = []
-        for m in messages:
-            letta_messages += m.to_letta_message()
-
-        return LettaResponse(messages=letta_messages, usage=usage)
+        return LettaResponse(messages=messages, usage=usage)
 
     def send_message(
         self,

@@ -173,23 +173,13 @@ def test_get_recall_memory(server, org_id, user_id, agent_id):
     messages_2[-1].id
     messages_3 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=1000)
     messages_3[-1].id
-    assert messages_3[-1].date >= messages_3[0].date
+    assert messages_3[-1].created_at >= messages_3[0].created_at
     assert len(messages_3) == len(messages_1) + len(messages_2)
     messages_4 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, before=cursor1)
     assert len(messages_4) == 1
 
     # test in-context message ids
-    all_messages = server.get_agent_messages(agent_id=agent_id, start=0, count=1000)
     in_context_ids = server.get_in_context_message_ids(agent_id=agent_id)
-    # TODO: doesn't pass since recall memory also logs all system message changess
-    # print("IN CONTEXT:", [m.text for m in server.get_in_context_messages(agent_id=agent_id)])
-    # print("ALL:", [m.text for m in all_messages])
-    # print()
-    # for message in all_messages:
-    #    if message.id not in in_context_ids:
-    #        print("NOT IN CONTEXT:", message.id, message.created_at, message.text[-100:])
-    #        print()
-    # assert len(in_context_ids) == len(messages_3)
     message_ids = [m.id for m in messages_3]
     for message_id in in_context_ids:
         assert message_id in message_ids, f"{message_id} not in {message_ids}"
