@@ -1,7 +1,7 @@
 import html
 import json
 import re
-from typing import Union
+from typing import List, Union
 
 from pydantic import BaseModel, Field
 
@@ -23,7 +23,7 @@ class LettaResponse(BaseModel):
         usage (LettaUsageStatistics): The usage statistics
     """
 
-    messages: Union[LettaMessageUnion] = Field(..., description="The messages returned by the agent.")
+    messages: List[LettaMessageUnion] = Field(..., description="The messages returned by the agent.")
     usage: LettaUsageStatistics = Field(..., description="The usage statistics of the agent.")
 
     def __str__(self):
