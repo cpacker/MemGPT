@@ -377,26 +377,26 @@ class SyncServer(Server):
             }
         )
 
-    def _initialize_agent(
-        self, agent_id: str, actor: User, initial_message_sequence: List[Message], interface: Union[AgentInterface, None] = None
-    ) -> Agent:
-        """Initialize an agent object with a sequence of messages"""
+    # def _initialize_agent(
+    #    self, agent_id: str, actor: User, initial_message_sequence: List[Message], interface: Union[AgentInterface, None] = None
+    # ) -> Agent:
+    #    """Initialize an agent object with a sequence of messages"""
 
-        agent_state = self.get_agent(agent_id=agent_id)
-        if agent_state.agent_type == AgentType.memgpt_agent:
-            agent = Agent(
-                interface=interface,
-                agent_state=agent_state,
-                user=actor,
-                initial_message_sequence=initial_message_sequence,
-            )
-        elif agent_state.agent_type == AgentType.o1_agent:
-            agent = O1Agent(
-                interface=interface,
-                agent_state=agent_state,
-                user=actor,
-            )
-        return agent
+    #    agent_state = self.get_agent(agent_id=agent_id)
+    #    if agent_state.agent_type == AgentType.memgpt_agent:
+    #        agent = Agent(
+    #            interface=interface,
+    #            agent_state=agent_state,
+    #            user=actor,
+    #            initial_message_sequence=initial_message_sequence,
+    #        )
+    #    elif agent_state.agent_type == AgentType.o1_agent:
+    #        agent = O1Agent(
+    #            interface=interface,
+    #            agent_state=agent_state,
+    #            user=actor,
+    #        )
+    #    return agent
 
     def load_agent(self, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Updated method to load agents from persisted storage"""
@@ -937,11 +937,13 @@ class SyncServer(Server):
             # this links the created block to the agent
             self.blocks_agents_manager.add_block_to_agent(block_id=block.id, agent_id=agent_state.id, block_label=block.label)
 
+        print("linked blocks", blocks, [b.value for b in blocks])
+
         # create an agent to instantiate the initial messages
-        agent = self._initialize_agent(agent_id=agent_state.id, actor=actor, initial_message_sequence=request.initial_message_sequence)
+        # agent = self._initialize_agent(agent_id=agent_state.id, actor=actor, initial_message_sequence=request.initial_message_sequence)
 
         # persist the agent state (containing initialized messages)
-        save_agent(agent, self.ms)
+        # save_agent(agent, self.ms)
 
         # retrieve the full agent data: this reconstructs all the sources, tools, memory object, etc.
         in_memory_agent_state = self.get_agent(agent_state.id)

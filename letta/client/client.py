@@ -2185,6 +2185,7 @@ class LocalClient(AbstractClient):
                 metadata_=metadata,
                 # memory=memory,
                 memory_blocks=[],
+                # memory_blocks = memory.get_blocks(),
                 # memory_tools=memory_tools,
                 tools=tool_names,
                 tool_rules=tool_rules,

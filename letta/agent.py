@@ -132,6 +132,7 @@ def compile_system_message(
             archival_memory=archival_memory,
             recall_memory=recall_memory,
         )
+        assert len(in_context_memory.compile()) > 0
         full_memory_string = memory_metadata_string + "\n" + in_context_memory.compile()
 
         # Add to the variables list to inject
@@ -433,19 +434,13 @@ class Agent(BaseAgent):
         else:
             # execute tool in a sandbox
             # TODO: allow agent_state to specify which sandbox to execute tools in
-            print("CALLED TOOL", function_name)
             sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
                 agent_state=self.agent_state.__deepcopy__()
             )
-            print("finish sandbox")
             function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
-            print("here")
             assert orig_memory_str == self.agent_state.memory.compile(), "Memory should not be modified in a sandbox tool"
-            print("updated_agent_state")
             self.update_memory_if_change(updated_agent_state.memory)
-            print("done")
 
-        print("returning", function_response)
         return function_response
 
     @property

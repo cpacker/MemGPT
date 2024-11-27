@@ -215,6 +215,8 @@ def check_agent_recall_chat_memory(filename: str) -> LettaResponse:
     human_name = "BananaBoy"
     agent_state = setup_agent(client, filename, memory_human_str=f"My name is {human_name}")
 
+    print("MEMORY", agent_state.memory.get_block("human").value)
+
     response = client.user_message(agent_id=agent_state.id, message="Repeat my name back to me.")
 
     # Basic checks
