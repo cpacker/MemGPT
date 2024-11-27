@@ -30,7 +30,7 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.tool_manager import ToolManager
-from letta.settings import model_settings
+from letta.settings import model_settings, tool_settings
 from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
@@ -57,8 +57,6 @@ def run_server():
 
 @pytest.fixture
 def mock_e2b_api_key_none():
-    from letta.settings import tool_settings
-
     # Store the original value of e2b_api_key
     original_api_key = tool_settings.e2b_api_key
 
@@ -230,7 +228,7 @@ def test_archival_memory(mock_e2b_api_key_none, client: Union[LocalClient, RESTC
     client.get_archival_memory(agent.id)
 
 
-def test_core_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_core_memory(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
     response = client.send_message(agent_id=agent.id, message="Update your core memory to remember that my name is Timber!", role="user")
     print("Response", response)
 
@@ -238,7 +236,7 @@ def test_core_memory(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
 
 
-def test_streaming_send_message(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_streaming_send_message(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_streaming_send_message because LocalClient does not support streaming")
     assert isinstance(client, RESTClient), client

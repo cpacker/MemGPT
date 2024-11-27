@@ -473,9 +473,8 @@ class Agent(BaseAgent):
                     exec(tool.source_code, env)
                 self.functions_python[tool.json_schema["name"]] = env[tool.json_schema["name"]]
                 self.functions.append(tool.json_schema)
-            except Exception as e:
+            except Exception:
                 warnings.warn(f"WARNING: tool {tool.name} failed to link")
-                print(e)
         assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
     def _load_messages_from_recall(self, message_ids: List[str]) -> List[Message]:
@@ -1580,7 +1579,6 @@ class Agent(BaseAgent):
         """Retry / regenerate the last message"""
 
         self.pop_until_user()
-        print("UPDATED MESSAGE ID", [m.id for m in self._messages])
         user_message = self.pop_message(count=1)[0]
         assert user_message.text is not None, "User message text is None"
         step_response = self.step_user_message(user_message_str=user_message.text)
