@@ -68,6 +68,8 @@ def test_agent(client: LocalClient):
     client.update_agent(agent_state_test.id, system=new_system_prompt)
     assert client.get_agent(agent_state_test.id).system == new_system_prompt
 
+    response = client.user_message(agent_id=agent_state_test.id, message="Hello")
+    agent_state = client.get_agent(agent_state_test.id)
     assert isinstance(agent_state.memory, Memory)
     # update agent: message_ids
     old_message_ids = agent_state.message_ids
