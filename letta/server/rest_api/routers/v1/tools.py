@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
+from letta.errors import LettaToolCreateError
 from letta.orm.errors import UniqueConstraintViolationError
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
 from letta.server.rest_api.utils import get_letta_server
@@ -14,12 +15,13 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 def delete_tool(
     tool_id: str,
     server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Delete a tool by name
     """
-    # actor = server.get_user_or_default(user_id=user_id)
-    server.tool_manager.delete_tool(tool_id=tool_id)
+    actor = server.get_user_or_default(user_id=user_id)
+    server.tool_manager.delete_tool_by_id(tool_id=tool_id, actor=actor)
 
 
 @router.get("/{tool_id}", response_model=Tool, operation_id="get_tool")
@@ -91,7 +93,16 @@ def create_tool(
     except UniqueConstraintViolationError as e:
         # Log or print the full exception here for debugging
         print(f"Error occurred: {e}")
-        raise HTTPException(status_code=409, detail=str(e))
+        clean_error_message = f"Tool with name {request.name} already exists."
+        raise HTTPException(status_code=409, detail=clean_error_message)
+    except LettaToolCreateError as e:
+        # HTTP 400 == Bad Request
+        print(f"Error occurred during tool creation: {e}")
+        # print the full stack trace
+        import traceback
+
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         # Catch other unexpected errors and raise an internal server error
         print(f"Unexpected error occurred: {e}")

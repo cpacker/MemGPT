@@ -131,11 +131,12 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
         else:
             # Add parameter details to the schema
             param_doc = next((d for d in docstring.params if d.arg_name == param.name), None)
-            schema["parameters"]["properties"][param.name] = {
-                # "type": "string" if param.annotation == str else str(param.annotation),
-                "type": type_to_json_schema_type(param.annotation) if param.annotation != inspect.Parameter.empty else "string",
-                "description": param_doc.description,
-            }
+            if param_doc:
+                schema["parameters"]["properties"][param.name] = {
+                    # "type": "string" if param.annotation == str else str(param.annotation),
+                    "type": type_to_json_schema_type(param.annotation) if param.annotation != inspect.Parameter.empty else "string",
+                    "description": param_doc.description,
+                }
         if param.default == inspect.Parameter.empty:
             schema["parameters"]["required"].append(param.name)
 
