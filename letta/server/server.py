@@ -958,7 +958,12 @@ class SyncServer(Server):
         # get `Memory` object by getting the linked block IDs and fetching the blocks, then putting that into a `Memory` object
         # this is the "in memory" representation of the in-context memory
         block_ids = self.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id)
-        memory = Memory(blocks=[self.block_manager.get_block_by_id(block_id=block_id, actor=user) for block_id in block_ids])
+        blocks = []
+        for block_id in block_ids:
+            block = self.block_manager.get_block_by_id(block_id=block_id, actor=user)
+            assert block, f"Block with ID {block_id} does not exist"
+            blocks.append(block)
+        memory = Memory(blocks=blocks)
 
         # get `Tool` objects
         tools = [self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=user) for tool_name in agent_state.tool_names]
