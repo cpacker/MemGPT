@@ -11,15 +11,15 @@
           "type": "object",
             "properties": {
               "name": {
-                "type": "str",
+                "type": "string",
                 "description": "Name of the step."
               },
               "key": {
-                "type": "str",
+                "type": "string",
                 "description": "Unique identifier for the step."
               },
               "description": {
-                "type": "str",
+                "type": "string",
                 "description": "An exhaustic description of what this step is trying to achieve and accomplish."
               }
             },

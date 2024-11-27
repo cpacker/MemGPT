@@ -228,7 +228,7 @@ def pydantic_model_to_json_schema(model: Type[BaseModel]) -> dict:
             raise ValueError(f"Property {prop} lacks a 'description' key")
 
         return {
-            "type": "str" if prop["type"] == "string" else prop["type"],
+            "type": "string" if prop["type"] == "string" else prop["type"],
             "description": prop["description"],
         }
 
