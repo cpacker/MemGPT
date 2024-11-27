@@ -591,7 +591,7 @@ def test_list_llm_models(client: RESTClient):
         assert has_model_endpoint_type(models, "anthropic")
 
 
-def test_shared_blocks(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_shared_blocks(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
     # _reset_config()
 
     # create a block
