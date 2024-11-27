@@ -564,8 +564,10 @@ async def send_message_to_agent(
         # TODO: cleanup this logic
         llm_config = letta_agent.agent_state.llm_config
         if llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in llm_config.model_endpoint:
-            print("Warning: token streaming is only supported for OpenAI models. Setting to False.")
-            stream_tokens = False
+            raise HTTPException(
+                status_code=400,
+                detail=f"Token streaming is only supported for models with type 'openai': agent has endpoint type {llm_config.model_endpoint_type}.",
+            )
 
         # Create a new interface per request
         letta_agent.interface = StreamingServerInterface()
