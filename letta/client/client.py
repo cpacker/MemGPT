@@ -849,7 +849,7 @@ class RESTClient(AbstractClient):
         Returns:
             response (LettaResponse): Response from the agent
         """
-        return self.send_message(agent_id, message, role="user")
+        return self.send_message(agent_id=agent_id, message=message, role="user")
 
     def save(self):
         raise NotImplementedError
