@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
+from letta.errors import LettaToolCreateError
 from letta.orm.errors import UniqueConstraintViolationError
 from letta.schemas.tool import Tool, ToolCreate, ToolUpdate
 from letta.server.rest_api.utils import get_letta_server
@@ -92,7 +93,16 @@ def create_tool(
     except UniqueConstraintViolationError as e:
         # Log or print the full exception here for debugging
         print(f"Error occurred: {e}")
-        raise HTTPException(status_code=409, detail=str(e))
+        clean_error_message = f"Tool with name {request.name} already exists."
+        raise HTTPException(status_code=409, detail=clean_error_message)
+    except LettaToolCreateError as e:
+        # HTTP 400 == Bad Request
+        print(f"Error occurred during tool creation: {e}")
+        # print the full stack trace
+        import traceback
+
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         # Catch other unexpected errors and raise an internal server error
         print(f"Unexpected error occurred: {e}")
