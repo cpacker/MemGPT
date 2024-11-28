@@ -93,3 +93,8 @@ def test_derive_openai_json_schema():
 
     print("==== TESTING complex function with many args ====")
     _run_schema_test("all_python_complex", "check_order_status", expect_structured_output_fail=True)
+
+    print("==== TESTING complex function with many args and no dict ====")
+    # TODO we should properly cast Optionals into union nulls
+    # Currently, we just disregard all Optional types on the conversion path
+    _run_schema_test("all_python_complex_nodict", "check_order_status")

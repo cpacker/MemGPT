@@ -58,7 +58,7 @@ def _convert_to_structured_output_helper(property: dict) -> dict:
         return property_dict
 
 
-def convert_to_structured_output(openai_function: dict) -> dict:
+def convert_to_structured_output(openai_function: dict, allow_optional: bool = False) -> dict:
     """Convert function call objects to structured output objects
 
     See: https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
@@ -108,8 +108,18 @@ def convert_to_structured_output(openai_function: dict) -> dict:
         if "enum" in details:
             structured_output["parameters"]["properties"][param]["enum"] = details["enum"]
 
-    # Add all properties to required list
-    structured_output["parameters"]["required"] = list(structured_output["parameters"]["properties"].keys())
+    if not allow_optional:
+        # Add all properties to required list
+        structured_output["parameters"]["required"] = list(structured_output["parameters"]["properties"].keys())
+
+    else:
+        # See what parameters exist that aren't required
+        # Those are implied "optional" types
+        # For those types, turn each of them into a union type with "null"
+        # e.g.
+        # "type": "string" -> "type": ["string", "null"]
+        # TODO
+        raise NotImplementedError
 
     return structured_output
 
