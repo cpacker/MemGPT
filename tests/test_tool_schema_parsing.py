@@ -1,10 +1,8 @@
 import json
 import os
 
-# from letta.functions.schema_generator import generate_schema
 from letta.functions.functions import derive_openai_json_schema
-
-# from .test_tool_schema_parsing_files.list_of_pydantic_example import create_task_plan
+from letta.llm_api.helpers import convert_to_structured_output
 
 
 def _clean_diff(d1, d2):
@@ -62,11 +60,21 @@ def _run_schema_test(schema_name: str, desired_function_name: str):
 
     _compare_schemas(schema, expected_schema)
 
+    # Convert to structured output and compare
+    structured_output = convert_to_structured_output(schema)
+    with open(os.path.join(os.path.dirname(__file__), f"test_tool_schema_parsing_files/{schema_name}_so.json"), "r") as file:
+        expected_structured_output = json.load(file)
+
+    _compare_schemas(structured_output, expected_structured_output, strip_heartbeat=False)
+
 
 def test_derive_openai_json_schema():
     """Test that the schema generator works across a variety of example source code inputs."""
 
     print("==== TESTING basic example where the arg is a pydantic model ====")
+    _run_schema_test("pydantic_as_single_arg_example", "create_step")
+
+    print("==== TESTING basic example where the arg is a list of pydantic models ====")
     _run_schema_test("list_of_pydantic_example", "create_task_plan")
 
     print("==== TESTING more complex example where the arg is a nested pydantic model ====")
