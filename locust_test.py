@@ -4,7 +4,7 @@ import string
 from locust import HttpUser, between, task
 
 from letta.constants import BASE_TOOLS, DEFAULT_HUMAN, DEFAULT_PERSONA
-from letta.schemas.agent import AgentState, CreateAgent
+from letta.schemas.agent import CreateAgent, PersistedAgentState
 from letta.schemas.letta_request import LettaRequest
 from letta.schemas.letta_response import LettaResponse
 from letta.schemas.memory import ChatMemory
@@ -49,14 +49,14 @@ class LettaUser(HttpUser):
                 response.failure(f"Failed to create agent: {response.text}")
 
             response_json = response.json()
-            agent_state = AgentState(**response_json)
+            agent_state = PersistedAgentState(**response_json)
             self.agent_id = agent_state.id
             print("Created agent", self.agent_id, agent_state.name)
 
     @task(1)
     def send_message(self):
         messages = [MessageCreate(role=MessageRole("user"), text="hello")]
-        request = LettaRequest(messages=messages, stream_steps=False, stream_tokens=False, return_message_object=False)
+        request = LettaRequest(messages=messages)
 
         with self.client.post(
             f"/v1/agents/{self.agent_id}/messages", json=request.model_dump(), headers=self.client.headers, catch_response=True

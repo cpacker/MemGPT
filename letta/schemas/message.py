@@ -134,8 +134,8 @@ class Message(BaseMessage):
     def to_letta_message(
         self,
         assistant_message: bool = False,
-        assistant_message_function_name: str = DEFAULT_MESSAGE_TOOL,
-        assistant_message_function_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
+        assistant_message_tool_name: str = DEFAULT_MESSAGE_TOOL,
+        assistant_message_tool_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
     ) -> List[LettaMessage]:
         """Convert message object (in DB format) to the style used by the original Letta API"""
 
@@ -156,7 +156,7 @@ class Message(BaseMessage):
                 for tool_call in self.tool_calls:
                     # If we're supporting using assistant message,
                     # then we want to treat certain function calls as a special case
-                    if assistant_message and tool_call.function.name == assistant_message_function_name:
+                    if assistant_message and tool_call.function.name == assistant_message_tool_name:
                         # We need to unpack the actual message contents from the function call
                         try:
                             func_args = json.loads(tool_call.function.arguments)

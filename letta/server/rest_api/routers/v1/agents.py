@@ -1,24 +1,28 @@
 import asyncio
+import warnings
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, status
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
-from letta.schemas.block import Block, BlockCreate, BlockLabelUpdate, BlockLimitUpdate
+from letta.schemas.block import (  # , BlockLabelUpdate, BlockLimitUpdate
+    Block,
+    BlockUpdate,
+    CreateBlock,
+)
 from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
     LettaMessage,
     LettaMessageUnion,
 )
-from letta.schemas.letta_request import LettaRequest
+from letta.schemas.letta_request import LettaRequest, LettaStreamingRequest
 from letta.schemas.letta_response import LettaResponse
 from letta.schemas.memory import (
     ArchivalMemorySummary,
-    BasicBlockMemory,
     ContextWindowOverview,
     CreateArchivalMemory,
     Memory,
@@ -31,7 +35,6 @@ from letta.schemas.tool import Tool
 from letta.server.rest_api.interface import StreamingServerInterface
 from letta.server.rest_api.utils import get_letta_server, sse_async_generator
 from letta.server.server import SyncServer
-from letta.utils import deduplicate
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
 
@@ -83,13 +86,6 @@ def create_agent(
     Create a new agent with the specified configuration.
     """
     actor = server.get_user_or_default(user_id=user_id)
-    agent.user_id = actor.id
-    # TODO: sarah make general
-    # TODO: eventually remove this
-    assert agent.memory is not None  # TODO: dont force this, can be None (use default human/person)
-    blocks = agent.memory.get_blocks()
-    agent.memory = BasicBlockMemory(blocks=blocks)
-
     return server.create_agent(agent, actor=actor)
 
 
@@ -196,6 +192,7 @@ def get_agent_in_context_messages(
     return server.get_in_context_messages(agent_id=agent_id)
 
 
+# TODO: remove? can also get with agent blocks
 @router.get("/{agent_id}/memory", response_model=Memory, operation_id="get_agent_memory")
 def get_agent_memory(
     agent_id: str,
@@ -209,47 +206,40 @@ def get_agent_memory(
     return server.get_agent_memory(agent_id=agent_id)
 
 
-@router.patch("/{agent_id}/memory", response_model=Memory, operation_id="update_agent_memory")
-def update_agent_memory(
+@router.get("/{agent_id}/memory/block/{block_label}", response_model=Block, operation_id="get_agent_memory_block")
+def get_agent_memory_block(
     agent_id: str,
-    request: Dict = Body(...),
+    block_label: str,
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
-    Update the core memory of a specific agent.
-        This endpoint accepts new memory contents (labels as keys, and values as values) and updates the core memory of the agent identified by the user ID and agent ID.
-    This endpoint accepts new memory contents to update the core memory of the agent.
-    This endpoint only supports modifying existing blocks; it does not support deleting/unlinking or creating/linking blocks.
+    Retrieve a memory block from an agent.
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    memory = server.update_agent_core_memory(user_id=actor.id, agent_id=agent_id, new_memory_contents=request)
-    return memory
+    block_id = server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=block_label)
+    return server.block_manager.get_block_by_id(block_id, actor=actor)
 
 
-@router.patch("/{agent_id}/memory/label", response_model=Memory, operation_id="update_agent_memory_label")
-def update_agent_memory_label(
+@router.get("/{agent_id}/memory/block", response_model=List[Block], operation_id="get_agent_memory_blocks")
+def get_agent_memory_blocks(
     agent_id: str,
-    update_label: BlockLabelUpdate = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
-    Update the label of a block in an agent's memory.
+    Retrieve the memory blocks of a specific agent.
     """
     actor = server.get_user_or_default(user_id=user_id)
-
-    memory = server.update_agent_memory_label(
-        user_id=actor.id, agent_id=agent_id, current_block_label=update_label.current_label, new_block_label=update_label.new_label
-    )
-    return memory
+    block_ids = server.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id)
+    return [server.block_manager.get_block_by_id(block_id, actor=actor) for block_id in block_ids]
 
 
 @router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
 def add_agent_memory_block(
     agent_id: str,
-    create_block: BlockCreate = Body(...),
+    create_block: CreateBlock = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -268,7 +258,7 @@ def add_agent_memory_block(
     return updated_memory
 
 
-@router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block")
+@router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block_by_label")
 def remove_agent_memory_block(
     agent_id: str,
     # TODO should this be block_id, or the label?
@@ -288,25 +278,24 @@ def remove_agent_memory_block(
     return updated_memory
 
 
-@router.patch("/{agent_id}/memory/limit", response_model=Memory, operation_id="update_agent_memory_limit")
-def update_agent_memory_limit(
+@router.patch("/{agent_id}/memory/block/{block_label}", response_model=Block, operation_id="update_agent_memory_block_by_label")
+def update_agent_memory_block(
     agent_id: str,
-    update_label: BlockLimitUpdate = Body(...),
+    block_label: str,
+    update_block: BlockUpdate = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
-    Update the limit of a block in an agent's memory.
+    Removes a memory block from an agent by unlnking it. If the block is not linked to any other agent, it is deleted.
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    memory = server.update_agent_memory_limit(
-        user_id=actor.id,
-        agent_id=agent_id,
-        block_label=update_label.label,
-        limit=update_label.limit,
-    )
-    return memory
+    # get the block_id from the label
+    block_id = server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=block_label)
+
+    # update the block
+    return server.block_manager.update_block(block_id=block_id, block_update=update_block, actor=actor)
 
 
 @router.get("/{agent_id}/memory/recall", response_model=RecallMemorySummary, operation_id="get_agent_recall_memory_summary")
@@ -402,17 +391,13 @@ def get_agent_messages(
     limit: int = Query(10, description="Maximum number of messages to retrieve."),
     msg_object: bool = Query(False, description="If true, returns Message objects. If false, return LettaMessage objects."),
     # Flags to support the use of AssistantMessage message types
-    use_assistant_message: bool = Query(
-        False,
-        description="[Only applicable if msg_object is False] If true, returns AssistantMessage objects when the agent calls a designated message tool. If false, return FunctionCallMessage objects for all tool calls.",
-    ),
-    assistant_message_function_name: str = Query(
+    assistant_message_tool_name: str = Query(
         DEFAULT_MESSAGE_TOOL,
-        description="[Only applicable if use_assistant_message is True] The name of the designated message tool.",
+        description="The name of the designated message tool.",
     ),
-    assistant_message_function_kwarg: str = Query(
+    assistant_message_tool_kwarg: str = Query(
         DEFAULT_MESSAGE_TOOL_KWARG,
-        description="[Only applicable if use_assistant_message is True] The name of the message argument in the designated message tool.",
+        description="The name of the message argument in the designated message tool.",
     ),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -428,9 +413,8 @@ def get_agent_messages(
         limit=limit,
         reverse=True,
         return_message_object=msg_object,
-        use_assistant_message=use_assistant_message,
-        assistant_message_function_name=assistant_message_function_name,
-        assistant_message_function_kwarg=assistant_message_function_kwarg,
+        assistant_message_tool_name=assistant_message_tool_name,
+        assistant_message_tool_kwarg=assistant_message_tool_kwarg,
     )
 
 
@@ -450,17 +434,8 @@ def update_message(
 
 @router.post(
     "/{agent_id}/messages",
-    response_model=None,
+    response_model=LettaResponse,
     operation_id="create_agent_message",
-    responses={
-        200: {
-            "description": "Successful response",
-            "content": {
-                "application/json": {"$ref": "#/components/schemas/LettaResponse"},  # Use model_json_schema() instead of model directly
-                "text/event-stream": {"description": "Server-Sent Events stream"},
-            },
-        }
-    },
 )
 async def send_message(
     agent_id: str,
@@ -471,7 +446,6 @@ async def send_message(
     """
     Process a user message and return the agent's response.
     This endpoint accepts a message from a user and processes it through the agent.
-    It can optionally stream the response if 'stream_steps' or 'stream_tokens' is set to True.
     """
     actor = server.get_user_or_default(user_id=user_id)
 
@@ -482,15 +456,55 @@ async def send_message(
             agent_id=agent_id,
             user_id=actor.id,
             messages=request.messages,
-            stream_steps=request.stream_steps,
-            stream_tokens=request.stream_tokens,
-            return_message_object=request.return_message_object,
+            stream_steps=False,
+            stream_tokens=False,
             # Support for AssistantMessage
-            use_assistant_message=request.use_assistant_message,
-            assistant_message_function_name=request.assistant_message_function_name,
-            assistant_message_function_kwarg=request.assistant_message_function_kwarg,
+            assistant_message_tool_name=request.assistant_message_tool_name,
+            assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
         )
-    return result
+        return result
+
+
+@router.post(
+    "/{agent_id}/messages/stream",
+    response_model=None,
+    operation_id="create_agent_message",
+    responses={
+        200: {
+            "description": "Successful response",
+            "content": {
+                "text/event-stream": {"description": "Server-Sent Events stream"},
+            },
+        }
+    },
+)
+async def send_message_streaming(
+    agent_id: str,
+    server: SyncServer = Depends(get_letta_server),
+    request: LettaStreamingRequest = Body(...),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+):
+    """
+    Process a user message and return the agent's response.
+    This endpoint accepts a message from a user and processes it through the agent.
+    It will stream the steps of the response always, and stream the tokens if 'stream_tokens' is set to True.
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+
+    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
+    async with agent_lock:
+        result = await send_message_to_agent(
+            server=server,
+            agent_id=agent_id,
+            user_id=actor.id,
+            messages=request.messages,
+            stream_steps=True,
+            stream_tokens=request.stream_tokens,
+            # Support for AssistantMessage
+            assistant_message_tool_name=request.assistant_message_tool_name,
+            assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
+        )
+        return result
 
 
 # TODO: move this into server.py?
@@ -503,13 +517,11 @@ async def send_message_to_agent(
     stream_steps: bool,
     stream_tokens: bool,
     # related to whether or not we return `LettaMessage`s or `Message`s
-    return_message_object: bool,  # Should be True for Python Client, False for REST API
     chat_completion_mode: bool = False,
     timestamp: Optional[datetime] = None,
     # Support for AssistantMessage
-    use_assistant_message: bool = False,
-    assistant_message_function_name: str = DEFAULT_MESSAGE_TOOL,
-    assistant_message_function_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
+    assistant_message_tool_name: str = DEFAULT_MESSAGE_TOOL,
+    assistant_message_tool_kwarg: str = DEFAULT_MESSAGE_TOOL_KWARG,
 ) -> Union[StreamingResponse, LettaResponse]:
     """Split off into a separate function so that it can be imported in the /chat/completion proxy."""
 
@@ -526,13 +538,16 @@ async def send_message_to_agent(
 
         # Get the generator object off of the agent's streaming interface
         # This will be attached to the POST SSE request used under-the-hood
-        letta_agent = server._get_or_load_agent(agent_id=agent_id)
+        # letta_agent = server.load_agent(agent_id=agent_id)
+        letta_agent = server.load_agent(agent_id=agent_id)
 
         # Disable token streaming if not OpenAI
         # TODO: cleanup this logic
         llm_config = letta_agent.agent_state.llm_config
-        if llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in llm_config.model_endpoint:
-            print("Warning: token streaming is only supported for OpenAI models. Setting to False.")
+        if stream_tokens and (llm_config.model_endpoint_type != "openai" or "inference.memgpt.ai" in llm_config.model_endpoint):
+            warnings.warn(
+                "Token streaming is only supported for models with type 'openai' or `inference.memgpt.ai` in the model_endpoint: agent has endpoint type {llm_config.model_endpoint_type} and {llm_config.model_endpoint}. Setting stream_tokens to False."
+            )
             stream_tokens = False
 
         # Create a new interface per request
@@ -550,9 +565,8 @@ async def send_message_to_agent(
         # streaming_interface.function_call_legacy_mode = stream
 
         # Allow AssistantMessage is desired by client
-        streaming_interface.use_assistant_message = use_assistant_message
-        streaming_interface.assistant_message_function_name = assistant_message_function_name
-        streaming_interface.assistant_message_function_kwarg = assistant_message_function_kwarg
+        streaming_interface.assistant_message_tool_name = assistant_message_tool_name
+        streaming_interface.assistant_message_tool_kwarg = assistant_message_tool_kwarg
 
         # Related to JSON buffer reader
         streaming_interface.inner_thoughts_in_kwargs = (
@@ -567,14 +581,11 @@ async def send_message_to_agent(
                 user_id=user_id,
                 agent_id=agent_id,
                 messages=messages,
+                interface=streaming_interface,
             )
         )
 
         if stream_steps:
-            if return_message_object:
-                # TODO implement returning `Message`s in a stream, not just `LettaMessage` format
-                raise NotImplementedError
-
             # return a stream
             return StreamingResponse(
                 sse_async_generator(
@@ -604,14 +615,7 @@ async def send_message_to_agent(
             # If we want to convert these to Message, we can use the attached IDs
             # NOTE: we will need to de-duplicate the Messsage IDs though (since Assistant->Inner+Func_Call)
             # TODO: eventually update the interface to use `Message` and `MessageChunk` (new) inside the deque instead
-            if return_message_object:
-                message_ids = [m.id for m in filtered_stream]
-                message_ids = deduplicate(message_ids)
-                message_objs = [server.get_agent_message(agent_id=agent_id, message_id=m_id) for m_id in message_ids]
-                message_objs = [m for m in message_objs if m is not None]
-                return LettaResponse(messages=message_objs, usage=usage)
-            else:
-                return LettaResponse(messages=filtered_stream, usage=usage)
+            return LettaResponse(messages=filtered_stream, usage=usage)
 
     except HTTPException:
         raise

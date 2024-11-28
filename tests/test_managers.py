@@ -22,11 +22,10 @@ from letta.orm.errors import (
 )
 from letta.schemas.agent import CreateAgent
 from letta.schemas.block import Block as PydanticBlock
-from letta.schemas.block import BlockUpdate
+from letta.schemas.block import BlockUpdate, CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.file import FileMetadata as PydanticFileMetadata
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.memory import ChatMemory
 from letta.schemas.organization import Organization as PydanticOrganization
 from letta.schemas.sandbox_config import (
     E2BSandboxConfig,
@@ -120,10 +119,8 @@ def sarah_agent(server: SyncServer, default_user, default_organization):
     agent_state = server.create_agent(
         request=CreateAgent(
             name="sarah_agent",
-            memory=ChatMemory(
-                human="Charles",
-                persona="I am a helpful assistant",
-            ),
+            # memory_blocks=[CreateBlock(label="human", value="Charles"), CreateBlock(label="persona", value="I am a helpful assistant")],
+            memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
@@ -138,10 +135,7 @@ def charles_agent(server: SyncServer, default_user, default_organization):
     agent_state = server.create_agent(
         request=CreateAgent(
             name="charles_agent",
-            memory=ChatMemory(
-                human="Sarah",
-                persona="I am a helpful assistant",
-            ),
+            memory_blocks=[CreateBlock(label="human", value="Charles"), CreateBlock(label="persona", value="I am a helpful assistant")],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),

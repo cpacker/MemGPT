@@ -2,15 +2,18 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
+from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import UsageStatistics
-from letta.schemas.tool_rule import BaseToolRule
+from letta.schemas.source import Source
+from letta.schemas.tool import Tool
+from letta.schemas.tool_rule import ToolRule
 
 
 class BaseAgent(LettaBase, validate_assignment=True):
@@ -32,7 +35,38 @@ class AgentType(str, Enum):
     o1_agent = "o1_agent"
 
 
-class AgentState(BaseAgent, validate_assignment=True):
+class PersistedAgentState(BaseAgent, validate_assignment=True):
+    # NOTE: this has been changed to represent the data stored in the ORM, NOT what is passed around internally or returned to the user
+    id: str = BaseAgent.generate_id_field()
+    name: str = Field(..., description="The name of the agent.")
+    created_at: datetime = Field(..., description="The datetime the agent was created.", default_factory=datetime.now)
+
+    # in-context memory
+    message_ids: Optional[List[str]] = Field(default=None, description="The ids of the messages in the agent's in-context memory.")
+
+    # tools
+    # TODO: move to ORM mapping
+    tool_names: List[str] = Field(..., description="The tools used by the agent.")
+
+    # tool rules
+    tool_rules: Optional[List[ToolRule]] = Field(default=None, description="The list of tool rules.")
+
+    # system prompt
+    system: str = Field(..., description="The system prompt used by the agent.")
+
+    # agent configuration
+    agent_type: AgentType = Field(..., description="The type of agent.")
+
+    # llm information
+    llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
+    embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
+
+    class Config:
+        arbitrary_types_allowed = True
+        validate_assignment = True
+
+
+class AgentState(PersistedAgentState):
     """
     Representation of an agent's state. This is the state of the agent at a given time, and is persisted in the DB backend. The state has all the information needed to recreate a persisted agent.
 
@@ -49,68 +83,40 @@ class AgentState(BaseAgent, validate_assignment=True):
 
     """
 
-    id: str = BaseAgent.generate_id_field()
-    name: str = Field(..., description="The name of the agent.")
-    created_at: datetime = Field(..., description="The datetime the agent was created.", default_factory=datetime.now)
+    # NOTE: this is what is returned to the client and also what is used to initialize `Agent`
 
-    # in-context memory
-    message_ids: Optional[List[str]] = Field(default=None, description="The ids of the messages in the agent's in-context memory.")
+    # This is an object representing the in-process state of a running `Agent`
+    # Field in this object can be theoretically edited by tools, and will be persisted by the ORM
+    memory: Memory = Field(..., description="The in-context memory of the agent.")
+    tools: List[Tool] = Field(..., description="The tools used by the agent.")
+    sources: List[Source] = Field(..., description="The sources used by the agent.")
+    tags: List[str] = Field(..., description="The tags associated with the agent.")
+    # TODO: add in context message objects
 
-    memory: Memory = Field(default_factory=Memory, description="The in-context memory of the agent.")
-
-    # tools
-    tools: List[str] = Field(..., description="The tools used by the agent.")
-
-    # tool rules
-    tool_rules: Optional[List[BaseToolRule]] = Field(default=None, description="The list of tool rules.")
-
-    # tags
-    tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
-
-    # system prompt
-    system: str = Field(..., description="The system prompt used by the agent.")
-
-    # agent configuration
-    agent_type: AgentType = Field(..., description="The type of agent.")
-
-    # llm information
-    llm_config: LLMConfig = Field(..., description="The LLM configuration used by the agent.")
-    embedding_config: EmbeddingConfig = Field(..., description="The embedding configuration used by the agent.")
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        self._internal_memory = self.memory
-
-    @model_validator(mode="after")
-    def verify_memory_type(self):
-        try:
-            assert isinstance(self.memory, Memory)
-        except Exception as e:
-            raise e
-        return self
-
-    @property
-    def memory(self) -> Memory:
-        return self._internal_memory
-
-    @memory.setter
-    def memory(self, value):
-        if not isinstance(value, Memory):
-            raise TypeError(f"Expected Memory, got {type(value).__name__}")
-        self._internal_memory = value
-
-    class Config:
-        arbitrary_types_allowed = True
-        validate_assignment = True
+    def to_persisted_agent_state(self) -> PersistedAgentState:
+        # turn back into persisted agent
+        data = self.model_dump()
+        del data["memory"]
+        del data["tools"]
+        del data["sources"]
+        del data["tags"]
+        return PersistedAgentState(**data)
 
 
-class CreateAgent(BaseAgent):
+class CreateAgent(BaseAgent):  #
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
-    memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
+
+    # memory creation
+    memory_blocks: List[CreateBlock] = Field(
+        # [CreateHuman(), CreatePersona()], description="The blocks to create in the agent's in-context memory."
+        ...,
+        description="The blocks to create in the agent's in-context memory.",
+    )
+
     tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
-    tool_rules: Optional[List[BaseToolRule]] = Field(None, description="The tool rules governing the agent.")
+    tool_rules: Optional[List[ToolRule]] = Field(None, description="The tool rules governing the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     agent_type: Optional[AgentType] = Field(None, description="The type of agent.")
@@ -151,7 +157,7 @@ class CreateAgent(BaseAgent):
 class UpdateAgentState(BaseAgent):
     id: str = Field(..., description="The id of the agent.")
     name: Optional[str] = Field(None, description="The name of the agent.")
-    tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
+    tool_names: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
@@ -159,7 +165,6 @@ class UpdateAgentState(BaseAgent):
 
     # TODO: determine if these should be editable via this schema?
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
-    memory: Optional[Memory] = Field(None, description="The in-context memory of the agent.")
 
 
 class AgentStepResponse(BaseModel):

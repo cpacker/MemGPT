@@ -38,6 +38,8 @@ DEFAULT_PRESET = "memgpt_chat"
 
 # Base tools that cannot be edited, as they access agent state directly
 BASE_TOOLS = ["send_message", "conversation_search", "conversation_search_date", "archival_memory_insert", "archival_memory_search"]
+# Base memory tools CAN be edited, and are added by default by the server
+BASE_MEMORY_TOOLS = ["core_memory_append", "core_memory_replace"]
 
 # The name of the tool used to send message to the user
 # May not be relevant in cases where the agent has multiple ways to message to user (send_imessage, send_discord_mesasge, ...)
@@ -126,6 +128,9 @@ MESSAGE_SUMMARY_REQUEST_ACK = "Understood, I will respond with a summary of the 
 # Even when summarizing, we want to keep a handful of recent messages
 # These serve as in-context examples of how to use functions / what user messages look like
 MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST = 3
+
+# Maximum length of an error message
+MAX_ERROR_MESSAGE_CHAR_LIMIT = 500
 
 # Default memory limits
 CORE_MEMORY_PERSONA_CHAR_LIMIT: int = 5000

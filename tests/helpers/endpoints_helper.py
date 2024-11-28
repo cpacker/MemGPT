@@ -103,8 +103,9 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str) -> ChatComplet
     cleanup(client=client, agent_uuid=agent_uuid)
     agent_state = setup_agent(client, filename)
 
-    tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tools]
-    agent = Agent(interface=None, tools=tools, agent_state=agent_state, user=client.user)
+    tools = [client.get_tool(client.get_tool_id(name=name)) for name in agent_state.tool_names]
+    full_agent_state = client.get_agent(agent_state.id)
+    agent = Agent(agent_state=full_agent_state, interface=None, user=client.user)
 
     response = create(
         llm_config=agent_state.llm_config,
@@ -169,7 +170,8 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
     # Set up client
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
-    tool = client.load_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    # tool = client.load_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    tool = client.load_composio_tool(action=Action.WEBTOOL_SCRAPE_WEBSITE_CONTENT)
     tool_name = tool.name
 
     # Set up persona for tool usage
@@ -210,6 +212,8 @@ def check_agent_recall_chat_memory(filename: str) -> LettaResponse:
 
     human_name = "BananaBoy"
     agent_state = setup_agent(client, filename, memory_human_str=f"My name is {human_name}")
+
+    print("MEMORY", agent_state.memory.get_block("human").value)
 
     response = client.user_message(agent_id=agent_state.id, message="Repeat my name back to me.")
 
@@ -332,7 +336,7 @@ def check_agent_summarize_memory_simple(filename: str) -> LettaResponse:
     client.user_message(agent_id=agent_state.id, message="Does the number 42 ring a bell?")
 
     # Summarize
-    agent = client.server._get_or_load_agent(agent_id=agent_state.id)
+    agent = client.server.load_agent(agent_id=agent_state.id)
     agent.summarize_messages_inplace()
     print(f"Summarization succeeded: messages[1] = \n\n{json_dumps(agent.messages[1])}\n")
 

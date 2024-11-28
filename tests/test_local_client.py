@@ -4,7 +4,7 @@ import pytest
 
 from letta import create_client
 from letta.client.client import LocalClient
-from letta.schemas.agent import AgentState
+from letta.schemas.agent import PersistedAgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
@@ -51,10 +51,10 @@ def test_agent(client: LocalClient):
     print("TOOLS", [t.name for t in tools])
     agent_state = client.get_agent(agent_state_test.id)
     assert agent_state.name == "test_agent2"
-    for block in agent_state.memory.to_dict()["memory"].values():
-        db_block = client.server.block_manager.get_block_by_id(block.get("id"), actor=client.user)
+    for block in agent_state.memory.blocks:
+        db_block = client.server.block_manager.get_block_by_id(block.id, actor=client.user)
         assert db_block is not None, "memory block not persisted on agent create"
-        assert db_block.value == block.get("value"), "persisted block data does not match in-memory data"
+        assert db_block.value == block.value, "persisted block data does not match in-memory data"
 
     assert isinstance(agent_state.memory, Memory)
     # update agent: name
@@ -68,6 +68,8 @@ def test_agent(client: LocalClient):
     client.update_agent(agent_state_test.id, system=new_system_prompt)
     assert client.get_agent(agent_state_test.id).system == new_system_prompt
 
+    response = client.user_message(agent_id=agent_state_test.id, message="Hello")
+    agent_state = client.get_agent(agent_state_test.id)
     assert isinstance(agent_state.memory, Memory)
     # update agent: message_ids
     old_message_ids = agent_state.message_ids
@@ -79,10 +81,10 @@ def test_agent(client: LocalClient):
     assert isinstance(agent_state.memory, Memory)
     # update agent: tools
     tool_to_delete = "send_message"
-    assert tool_to_delete in agent_state.tools
-    new_agent_tools = [t_name for t_name in agent_state.tools if t_name != tool_to_delete]
+    assert tool_to_delete in agent_state.tool_names
+    new_agent_tools = [t_name for t_name in agent_state.tool_names if t_name != tool_to_delete]
     client.update_agent(agent_state_test.id, tools=new_agent_tools)
-    assert client.get_agent(agent_state_test.id).tools == new_agent_tools
+    assert client.get_agent(agent_state_test.id).tool_names == new_agent_tools
 
     assert isinstance(agent_state.memory, Memory)
     # update agent: memory
@@ -92,7 +94,10 @@ def test_agent(client: LocalClient):
     assert agent_state.memory.get_block("human").value != new_human
     assert agent_state.memory.get_block("persona").value != new_persona
 
-    client.update_agent(agent_state_test.id, memory=new_memory)
+    # client.update_agent(agent_state_test.id, memory=new_memory)
+    # update blocks:
+    client.update_agent_memory_block(agent_state_test.id, label="human", value=new_human)
+    client.update_agent_memory_block(agent_state_test.id, label="persona", value=new_persona)
     assert client.get_agent(agent_state_test.id).memory.get_block("human").value == new_human
     assert client.get_agent(agent_state_test.id).memory.get_block("persona").value == new_persona
 
@@ -181,11 +186,6 @@ def test_agent_with_shared_blocks(client: LocalClient):
         )
         assert isinstance(first_agent_state_test.memory, Memory)
 
-        first_blocks_dict = first_agent_state_test.memory.to_dict()["memory"]
-        assert persona_block.id == first_blocks_dict.get("persona", {}).get("id")
-        assert human_block.id == first_blocks_dict.get("human", {}).get("id")
-        client.update_in_context_memory(first_agent_state_test.id, section="human", value="I'm an analyst therapist.")
-
         # when this agent is created with the shared block references this agent's in-memory blocks should
         # have this latest value set by the other agent.
         second_agent_state_test = client.create_agent(
@@ -194,11 +194,21 @@ def test_agent_with_shared_blocks(client: LocalClient):
             description="This is a test agent using shared memory blocks",
         )
 
+        first_memory = first_agent_state_test.memory
+        assert persona_block.id == first_memory.get_block("persona").id
+        assert human_block.id == first_memory.get_block("human").id
+        client.update_agent_memory_block(first_agent_state_test.id, label="human", value="I'm an analyst therapist.")
+        print("Updated human block value:", client.get_agent_memory_block(first_agent_state_test.id, label="human").value)
+
+        # refresh agent state
+        second_agent_state_test = client.get_agent(second_agent_state_test.id)
+
         assert isinstance(second_agent_state_test.memory, Memory)
-        second_blocks_dict = second_agent_state_test.memory.to_dict()["memory"]
-        assert persona_block.id == second_blocks_dict.get("persona", {}).get("id")
-        assert human_block.id == second_blocks_dict.get("human", {}).get("id")
-        assert second_blocks_dict.get("human", {}).get("value") == "I'm an analyst therapist."
+        second_memory = second_agent_state_test.memory
+        assert persona_block.id == second_memory.get_block("persona").id
+        assert human_block.id == second_memory.get_block("human").id
+        # assert second_blocks_dict.get("human", {}).get("value") == "I'm an analyst therapist."
+        assert second_memory.get_block("human").value == "I'm an analyst therapist."
 
     finally:
         if first_agent_state_test:
@@ -207,7 +217,7 @@ def test_agent_with_shared_blocks(client: LocalClient):
             client.delete_agent(second_agent_state_test.id)
 
 
-def test_memory(client: LocalClient, agent: AgentState):
+def test_memory(client: LocalClient, agent: PersistedAgentState):
     # get agent memory
     original_memory = client.get_in_context_memory(agent.id)
     assert original_memory is not None
@@ -220,7 +230,7 @@ def test_memory(client: LocalClient, agent: AgentState):
     assert updated_memory.get_block("human").value != original_memory_value  # check if the memory has been updated
 
 
-def test_archival_memory(client: LocalClient, agent: AgentState):
+def test_archival_memory(client: LocalClient, agent: PersistedAgentState):
     """Test functions for interacting with archival memory store"""
 
     # add archival memory
@@ -235,7 +245,7 @@ def test_archival_memory(client: LocalClient, agent: AgentState):
     client.delete_archival_memory(agent.id, passage.id)
 
 
-def test_recall_memory(client: LocalClient, agent: AgentState):
+def test_recall_memory(client: LocalClient, agent: PersistedAgentState):
     """Test functions for interacting with recall memory store"""
 
     # send message to the agent
@@ -390,13 +400,9 @@ def test_shared_blocks_without_send_message(client: LocalClient):
         memory=memory,
     )
 
-    agent_1.memory.update_block_value(label="shared_memory", value="I am no longer an [empty] memory")
-
     block_id = agent_1.memory.get_block("shared_memory").id
-    client.update_block(block_id, text="I am no longer an [empty] memory")
-    client.update_agent(agent_id=agent_1.id, memory=agent_1.memory)
+    client.update_block(block_id, value="I am no longer an [empty] memory")
     agent_1 = client.get_agent(agent_1.id)
     agent_2 = client.get_agent(agent_2.id)
-    client.update_agent(agent_id=agent_2.id, memory=agent_2.memory)
     assert agent_1.memory.get_block("shared_memory").value == "I am no longer an [empty] memory"
     assert agent_2.memory.get_block("shared_memory").value == "I am no longer an [empty] memory"
