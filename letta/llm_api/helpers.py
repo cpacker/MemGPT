@@ -82,6 +82,9 @@ def convert_to_structured_output(openai_function: dict) -> dict:
         description = details["description"]
 
         if param_type == "object":
+            if "properties" not in details:
+                # Structured outputs requires the properties on dicts be specified ahead of time
+                raise ValueError(f"Property {param} of type object is missing properties")
             structured_output["parameters"]["properties"][param] = {
                 "type": "object",
                 "description": description,
