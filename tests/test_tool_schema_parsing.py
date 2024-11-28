@@ -144,23 +144,6 @@ def _openai_payload(model: str, schema: dict, structured_output: bool):
         print(f"Error: {e}")
         raise e
 
-    # response = openai_chat_completions_request(
-    #     url="https://api.openai.com/v1",
-    #     api_key=oai_key,
-    #     chat_completion_request=ChatCompletionRequest(
-    #         model=model,
-    #         messages=[
-    #             SystemMessage(content=system_prompt),
-    #         ],
-    #     ),
-    #     tools=[
-    #         Tool(
-    #             name=model,
-    #             function=schema,
-    #         )
-    #     ],
-    # )
-
 
 def _load_schema_from_source_filename(filename: str) -> dict:
     with open(os.path.join(os.path.dirname(__file__), f"test_tool_schema_parsing_files/{filename}.py"), "r") as file:
@@ -169,10 +152,10 @@ def _load_schema_from_source_filename(filename: str) -> dict:
     return derive_openai_json_schema(source_code)
 
 
-# @pytest.mark.parametrize("openai_model", ["gpt-4", "gpt-4o", "gpt-4o-mini"])
-# @pytest.mark.parametrize("structured_output", [True, False])
-@pytest.mark.parametrize("openai_model", ["gpt-4o-mini"])
-@pytest.mark.parametrize("structured_output", [True])
+# @pytest.mark.parametrize("openai_model", ["gpt-4o-mini"])
+# @pytest.mark.parametrize("structured_output", [True])
+@pytest.mark.parametrize("openai_model", ["gpt-4", "gpt-4o"])
+@pytest.mark.parametrize("structured_output", [True, False])
 def test_valid_schemas_via_openai(openai_model: str, structured_output: bool):
     """Test that we can send the schemas to OpenAI and get a tool call back."""
 
@@ -184,5 +167,12 @@ def test_valid_schemas_via_openai(openai_model: str, structured_output: bool):
         "all_python_complex",
         "all_python_complex_nodict",
     ]:
+        print(f"==== TESTING OPENAI PAYLOAD FOR {openai_model} + {filename} ====")
         schema = _load_schema_from_source_filename(filename)
-        _openai_payload(openai_model, schema, structured_output)
+
+        # We should expect the all_python_complex one to fail when structured_output=True
+        if filename == "all_python_complex" and structured_output:
+            with pytest.raises(ValueError):
+                _openai_payload(openai_model, schema, structured_output)
+        else:
+            _openai_payload(openai_model, schema, structured_output)

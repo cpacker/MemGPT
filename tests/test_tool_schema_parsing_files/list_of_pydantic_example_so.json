@@ -24,6 +24,7 @@
                   "description": "An exhaustic description of what this step is trying to achieve and accomplish."
                 }
               },
+              "additionalProperties": false,
               "required": ["name", "key", "description"]
           }
         }

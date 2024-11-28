@@ -31,6 +31,7 @@ def _convert_to_structured_output_helper(property: dict) -> dict:
         property_dict = {
             "type": "object",
             "properties": {k: _convert_to_structured_output_helper(v) for k, v in properties.items()},
+            "additionalProperties": False,
             "required": list(properties.keys()),
         }
         if param_description is not None:
@@ -69,7 +70,12 @@ def convert_to_structured_output(openai_function: dict, allow_optional: bool = F
         "name": openai_function["name"],
         "description": description,
         "strict": True,
-        "parameters": {"type": "object", "properties": {}, "additionalProperties": False, "required": []},
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+            "required": [],
+        },
     }
 
     # This code needs to be able to handle nested properties
@@ -89,6 +95,7 @@ def convert_to_structured_output(openai_function: dict, allow_optional: bool = F
                 "type": "object",
                 "description": description,
                 "properties": {k: _convert_to_structured_output_helper(v) for k, v in details["properties"].items()},
+                "additionalProperties": False,
                 "required": list(details["properties"].keys()),
             }
 
