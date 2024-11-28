@@ -3,27 +3,21 @@
 import os
 import secrets
 import warnings
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from sqlalchemy import JSON, Column, DateTime, Index, String, TypeDecorator
 from sqlalchemy.sql import func
 
 from letta.config import LettaConfig
 from letta.orm.base import Base
-from letta.schemas.agent import AgentState
+from letta.schemas.agent import PersistedAgentState
 from letta.schemas.api_key import APIKey
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import JobStatus
+from letta.schemas.enums import JobStatus, ToolRuleType
 from letta.schemas.job import Job
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.memory import Memory
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
-from letta.schemas.tool_rule import (
-    BaseToolRule,
-    InitToolRule,
-    TerminalToolRule,
-    ToolRule,
-)
+from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
 from letta.schemas.user import User
 from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.settings import settings
@@ -165,28 +159,35 @@ class ToolRulesColumn(TypeDecorator):
     def load_dialect_impl(self, dialect):
         return dialect.type_descriptor(JSON())
 
-    def process_bind_param(self, value: List[BaseToolRule], dialect):
+    def process_bind_param(self, value, dialect):
         """Convert a list of ToolRules to JSON-serializable format."""
         if value:
-            return [rule.model_dump() for rule in value]
+            data = [rule.model_dump() for rule in value]
+            for d in data:
+                d["type"] = d["type"].value
+
+            for d in data:
+                assert not (d["type"] == "ToolRule" and "children" not in d), "ToolRule does not have children field"
+            return data
         return value
 
-    def process_result_value(self, value, dialect) -> List[BaseToolRule]:
+    def process_result_value(self, value, dialect) -> List[Union[ChildToolRule, InitToolRule, TerminalToolRule]]:
         """Convert JSON back to a list of ToolRules."""
         if value:
             return [self.deserialize_tool_rule(rule_data) for rule_data in value]
         return value
 
     @staticmethod
-    def deserialize_tool_rule(data: dict) -> BaseToolRule:
+    def deserialize_tool_rule(data: dict) -> Union[ChildToolRule, InitToolRule, TerminalToolRule]:
         """Deserialize a dictionary to the appropriate ToolRule subclass based on the 'type'."""
-        rule_type = data.get("type")  # Remove 'type' field if it exists since it is a class var
-        if rule_type == "InitToolRule":
+        rule_type = ToolRuleType(data.get("type"))  # Remove 'type' field if it exists since it is a class var
+        if rule_type == ToolRuleType.run_first:
             return InitToolRule(**data)
-        elif rule_type == "TerminalToolRule":
+        elif rule_type == ToolRuleType.exit_loop:
             return TerminalToolRule(**data)
-        elif rule_type == "ToolRule":
-            return ToolRule(**data)
+        elif rule_type == ToolRuleType.constrain_child_tools:
+            rule = ChildToolRule(**data)
+            return rule
         else:
             raise ValueError(f"Unknown tool rule type: {rule_type}")
 
@@ -205,7 +206,6 @@ class AgentModel(Base):
 
     # state (context compilation)
     message_ids = Column(JSON)
-    memory = Column(JSON)
     system = Column(String)
 
     # configs
@@ -217,7 +217,7 @@ class AgentModel(Base):
     metadata_ = Column(JSON)
 
     # tools
-    tools = Column(JSON)
+    tool_names = Column(JSON)
     tool_rules = Column(ToolRulesColumn)
 
     Index(__tablename__ + "_idx_user", user_id),
@@ -225,24 +225,22 @@ class AgentModel(Base):
     def __repr__(self) -> str:
         return f"<Agent(id='{self.id}', name='{self.name}')>"
 
-    def to_record(self) -> AgentState:
-        agent_state = AgentState(
+    def to_record(self) -> PersistedAgentState:
+        agent_state = PersistedAgentState(
             id=self.id,
             user_id=self.user_id,
             name=self.name,
             created_at=self.created_at,
             description=self.description,
             message_ids=self.message_ids,
-            memory=Memory.load(self.memory),  # load dictionary
             system=self.system,
-            tools=self.tools,
+            tool_names=self.tool_names,
             tool_rules=self.tool_rules,
             agent_type=self.agent_type,
             llm_config=self.llm_config,
             embedding_config=self.embedding_config,
             metadata_=self.metadata_,
         )
-        assert isinstance(agent_state.memory, Memory), f"Memory object is not of type Memory: {type(agent_state.memory)}"
         return agent_state
 
 
@@ -347,18 +345,18 @@ class MetadataStore:
             return tokens
 
     @enforce_types
-    def create_agent(self, agent: AgentState):
+    def create_agent(self, agent: PersistedAgentState):
         # insert into agent table
         # make sure agent.name does not already exist for user user_id
         with self.session_maker() as session:
             if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
                 raise ValueError(f"Agent with name {agent.name} already exists")
             fields = vars(agent)
-            fields["memory"] = agent.memory.to_dict()
-            if "_internal_memory" in fields:
-                del fields["_internal_memory"]
-            else:
-                warnings.warn(f"Agent {agent.id} has no _internal_memory field")
+            # fields["memory"] = agent.memory.to_dict()
+            # if "_internal_memory" in fields:
+            #    del fields["_internal_memory"]
+            # else:
+            #    warnings.warn(f"Agent {agent.id} has no _internal_memory field")
             if "tags" in fields:
                 del fields["tags"]
             else:
@@ -367,15 +365,15 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def update_agent(self, agent: AgentState):
+    def update_agent(self, agent: PersistedAgentState):
         with self.session_maker() as session:
             fields = vars(agent)
-            if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
-                fields["memory"] = agent.memory.to_dict()
-            if "_internal_memory" in fields:
-                del fields["_internal_memory"]
-            else:
-                warnings.warn(f"Agent {agent.id} has no _internal_memory field")
+            # if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
+            #    fields["memory"] = agent.memory.to_dict()
+            # if "_internal_memory" in fields:
+            #    del fields["_internal_memory"]
+            # else:
+            #    warnings.warn(f"Agent {agent.id} has no _internal_memory field")
             if "tags" in fields:
                 del fields["tags"]
             else:
@@ -400,7 +398,7 @@ class MetadataStore:
             session.commit()
 
     @enforce_types
-    def list_agents(self, user_id: str) -> List[AgentState]:
+    def list_agents(self, user_id: str) -> List[PersistedAgentState]:
         with self.session_maker() as session:
             results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()
             return [r.to_record() for r in results]
@@ -408,7 +406,7 @@ class MetadataStore:
     @enforce_types
     def get_agent(
         self, agent_id: Optional[str] = None, agent_name: Optional[str] = None, user_id: Optional[str] = None
-    ) -> Optional[AgentState]:
+    ) -> Optional[PersistedAgentState]:
         with self.session_maker() as session:
             if agent_id:
                 results = session.query(AgentModel).filter(AgentModel.id == agent_id).all()

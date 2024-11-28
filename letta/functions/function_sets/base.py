@@ -172,3 +172,40 @@ def archival_memory_search(self: Agent, query: str, page: Optional[int] = 0) -> 
         results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}" for d in results]
         results_str = f"{results_pref} {json_dumps(results_formatted)}"
     return results_str
+
+
+def core_memory_append(agent_state: "AgentState", label: str, content: str) -> Optional[str]:  # type: ignore
+    """
+    Append to the contents of core memory.
+
+    Args:
+        label (str): Section of the memory to be edited (persona or human).
+        content (str): Content to write to the memory. All unicode (including emojis) are supported.
+
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
+    current_value = str(agent_state.memory.get_block(label).value)
+    new_value = current_value + "\n" + str(content)
+    agent_state.memory.update_block_value(label=label, value=new_value)
+    return None
+
+
+def core_memory_replace(agent_state: "AgentState", label: str, old_content: str, new_content: str) -> Optional[str]:  # type: ignore
+    """
+    Replace the contents of core memory. To delete memories, use an empty string for new_content.
+
+    Args:
+        label (str): Section of the memory to be edited (persona or human).
+        old_content (str): String to replace. Must be an exact match.
+        new_content (str): Content to write to the memory. All unicode (including emojis) are supported.
+
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
+    current_value = str(agent_state.memory.get_block(label).value)
+    if old_content not in current_value:
+        raise ValueError(f"Old content '{old_content}' not found in memory block '{label}'")
+    new_value = current_value.replace(str(old_content), str(new_content))
+    agent_state.memory.update_block_value(label=label, value=new_value)
+    return None

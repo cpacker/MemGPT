@@ -12,7 +12,7 @@ from sqlalchemy import delete
 from letta import LocalClient, RESTClient, create_client
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.agent import AgentState
-from letta.schemas.block import BlockCreate
+from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.sandbox_config import LocalSandboxConfig, SandboxType
@@ -199,7 +199,7 @@ def test_update_agent_memory_label(client: Union[LocalClient, RESTClient], agent
         example_new_label = "example_new_label"
         assert example_new_label not in current_labels
 
-        client.update_agent_memory_label(agent_id=agent.id, current_label=example_label, new_label=example_new_label)
+        client.update_agent_memory_block_label(agent_id=agent.id, current_label=example_label, new_label=example_new_label)
 
         updated_agent = client.get_agent(agent_id=agent.id)
         assert example_new_label in updated_agent.memory.list_block_labels()
@@ -222,7 +222,7 @@ def test_add_remove_agent_memory_block(client: Union[LocalClient, RESTClient], a
         # Link a new memory block
         client.add_agent_memory_block(
             agent_id=agent.id,
-            create_block=BlockCreate(
+            create_block=CreateBlock(
                 label=example_new_label,
                 value=example_new_value,
                 limit=1000,
@@ -284,12 +284,12 @@ def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent
 
         # We expect this to throw a value error
         with pytest.raises(ValueError):
-            client.update_agent_memory_limit(agent_id=agent.id, block_label=example_label, limit=example_new_limit)
+            client.update_agent_memory_block(agent_id=agent.id, label=example_label, limit=example_new_limit)
 
         # Now try the same thing with a higher limit
         example_new_limit = current_block_length + 10000
         assert example_new_limit > current_block_length
-        client.update_agent_memory_limit(agent_id=agent.id, block_label=example_label, limit=example_new_limit)
+        client.update_agent_memory_block(agent_id=agent.id, label=example_label, limit=example_new_limit)
 
         updated_agent = client.get_agent(agent_id=agent.id)
         assert example_new_limit == updated_agent.memory.get_block(label=example_label).limit

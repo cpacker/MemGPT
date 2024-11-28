@@ -24,6 +24,7 @@ class ToolManager:
         "archival_memory_insert",
         "archival_memory_search",
     ]
+    BASE_MEMORY_TOOL_NAMES = ["core_memory_append", "core_memory_replace"]
 
     def __init__(self):
         # Fetching the db_context similarly as in OrganizationManager
@@ -155,7 +156,7 @@ class ToolManager:
         # create tool in db
         tools = []
         for name, schema in functions_to_schema.items():
-            if name in self.BASE_TOOL_NAMES:
+            if name in self.BASE_TOOL_NAMES + self.BASE_MEMORY_TOOL_NAMES:
                 # print([str(inspect.getsource(line)) for line in schema["imports"]])
                 source_code = inspect.getsource(schema["python_function"])
                 tags = [module_name]

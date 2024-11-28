@@ -20,7 +20,7 @@
 #    else:
 #        client2 = Letta(quickstart="letta_hosted", user_id=test_user_id)
 #    print(f"\n\n[3] CREATING CLIENT2, LOADING AGENT {test_agent_state.id}!")
-#    client2_agent_obj = client2.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
+#    client2_agent_obj = client2.server.load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
 #    client2_agent_state = client2_agent_obj.update_state()
 #    print(f"[3] LOADED AGENT! AGENT {client2_agent_state.id}\n\tmessages={client2_agent_state.state['messages']}")
 #
@@ -45,7 +45,7 @@
 #        client3 = Letta(quickstart="openai", user_id=test_user_id)
 #    else:
 #        client3 = Letta(quickstart="letta_hosted", user_id=test_user_id)
-#    client3_agent_obj = client3.server._get_or_load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
+#    client3_agent_obj = client3.server.load_agent(user_id=test_user_id, agent_id=test_agent_state.id)
 #    client3_agent_state = client3_agent_obj.update_state()
 #
 #    check_state_equivalence(vars(test_agent_state_post_message), vars(client3_agent_state))

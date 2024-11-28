@@ -117,7 +117,7 @@ def create_message(
         tool_call_id=None,
         name=None,
     )
-    agent = server._get_or_load_agent(agent_id=agent_id)
+    agent = server.load_agent(agent_id=agent_id)
     # add message to agent
     agent._append_to_messages([message])
 
@@ -246,7 +246,7 @@ def create_run(
     # TODO: add request.instructions as a message?
     agent_id = thread_id
     # TODO: override preset of agent with request.assistant_id
-    agent = server._get_or_load_agent(agent_id=agent_id)
+    agent = server.load_agent(agent_id=agent_id)
     agent.inner_step(messages=[])  # already has messages added
     run_id = str(uuid.uuid4())
     create_time = int(get_utc_time().timestamp())

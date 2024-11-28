@@ -45,7 +45,7 @@ agent_state = client.create_agent(
         TerminalToolRule(tool_name="send_message"),
     ],
 )
-print(f"Created agent with name {agent_state.name} with tools {agent_state.tools}")
+print(f"Created agent with name {agent_state.name} with tools {agent_state.tool_names}")
 
 # Message an agent
 response = client.send_message(agent_id=agent_state.id, role="user", message="roll a dice")

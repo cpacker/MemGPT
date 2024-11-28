@@ -219,7 +219,7 @@ def run(
         )
 
         # create agent
-        tools = [server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=client.user) for tool_name in agent_state.tools]
+        tools = [server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=client.user) for tool_name in agent_state.tool_names]
         letta_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools, user=client.user)
 
     else:  # create new agent
@@ -311,13 +311,11 @@ def run(
             metadata=metadata,
         )
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
-        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tools])}", fg=typer.colors.WHITE)
-        tools = [server.tool_manager.get_tool_by_name(tool_name, actor=client.user) for tool_name in agent_state.tools]
+        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tool_names])}", fg=typer.colors.WHITE)
 
         letta_agent = Agent(
             interface=interface(),
-            agent_state=agent_state,
-            tools=tools,
+            agent_state=client.get_agent(agent_state.id),
             # gpt-3.5-turbo tends to omit inner monologue, relax this requirement for now
             first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             user=client.user,

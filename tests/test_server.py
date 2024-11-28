@@ -25,6 +25,7 @@ from letta.config import LettaConfig
 from letta.schemas.agent import CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
+from letta.schemas.message import Message
 from letta.schemas.memory import ChatMemory
 from letta.schemas.source import Source
 from letta.server.server import SyncServer
@@ -74,10 +75,7 @@ def agent_id(server, user_id):
         request=CreateAgent(
             name="test_agent",
             tools=BASE_TOOLS,
-            memory=ChatMemory(
-                human="Sarah",
-                persona="I am a helpful assistant",
-            ),
+            memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
@@ -134,9 +132,8 @@ def test_load_data(server, user_id, agent_id):
     connector = DummyDataConnector(archival_memories)
     server.load_data(user_id, connector, source.name)
 
-
-@pytest.mark.order(3)
-def test_attach_source_to_agent(server, user_id, agent_id):
+    # @pytest.mark.order(3)
+    # def test_attach_source_to_agent(server, user_id, agent_id):
     # check archival memory size
     passages_before = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=10000)
     assert len(passages_before) == 0
@@ -245,7 +242,7 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
 
     # Grab the raw Agent object
-    letta_agent = server._get_or_load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -256,7 +253,7 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     server.rethink_agent_message(agent_id=agent_id, new_thought=new_thought)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server._get_or_load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -273,7 +270,7 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     server.rewrite_agent_message(agent_id=agent_id, new_text=new_text)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server._get_or_load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -284,7 +281,7 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     server.retry_agent_message(agent_id=agent_id)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server._get_or_load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -345,10 +342,7 @@ def test_load_agent_with_nonexistent_tool_names_does_not_error(server: SyncServe
         request=CreateAgent(
             name="nonexistent_tools_agent",
             tools=tools,
-            memory=ChatMemory(
-                human="Sarah",
-                persona="I am a helpful assistant",
-            ),
+            memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
@@ -356,13 +350,13 @@ def test_load_agent_with_nonexistent_tool_names_does_not_error(server: SyncServe
     )
 
     # Check that the tools in agent_state do NOT include the fake name
-    assert fake_tool_name not in agent_state.tools
-    assert set(BASE_TOOLS).issubset(set(agent_state.tools))
+    assert fake_tool_name not in agent_state.tool_names
+    assert set(BASE_TOOLS).issubset(set(agent_state.tool_names))
 
     # Load the agent from the database and check that it doesn't error / tools are correct
     saved_tools = server.get_tools_from_agent(agent_id=agent_state.id, user_id=user_id)
-    assert fake_tool_name not in agent_state.tools
-    assert set(BASE_TOOLS).issubset(set(agent_state.tools))
+    assert fake_tool_name not in agent_state.tool_names
+    assert set(BASE_TOOLS).issubset(set(agent_state.tool_names))
 
     # cleanup
     server.delete_agent(user_id, agent_state.id)
@@ -372,10 +366,7 @@ def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
     agent_state = server.create_agent(
         request=CreateAgent(
             name="nonexistent_tools_agent",
-            memory=ChatMemory(
-                human="Sarah",
-                persona="I am a helpful assistant",
-            ),
+            memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),

@@ -125,6 +125,8 @@ class ChromaStorageConnector(StorageConnector):
         ids, filters = self.get_filters(filters)
         if self.collection.count() == 0:
             return []
+        if ids == []:
+            ids = None
         if limit:
             results = self.collection.get(ids=ids, include=self.include, where=filters, limit=limit)
         else:

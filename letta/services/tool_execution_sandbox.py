@@ -154,7 +154,7 @@ class ToolExecutionSandbox:
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         execution = sbx.run_code(code, envs=env_vars)
         if execution.error is not None:
-            raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}. Generated code: \n\n{code}")
+            raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}")
         elif len(execution.results) == 0:
             return None
         else:

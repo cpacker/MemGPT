@@ -29,10 +29,8 @@ class BlockManager:
             self.update_block(block.id, update_data, actor)
         else:
             with self.session_maker() as session:
-                # Always write the organization_id
-                block.organization_id = actor.organization_id
                 data = block.model_dump(exclude_none=True)
-                block = BlockModel(**data)
+                block = BlockModel(**data, organization_id=actor.organization_id)
                 block.create(session, actor=actor)
             return block.to_pydantic()
 
@@ -53,6 +51,11 @@ class BlockManager:
             update_data = block_update.model_dump(exclude_unset=True, exclude_none=True)
             for key, value in update_data.items():
                 setattr(block, key, value)
+            try:
+                block.to_pydantic()
+            except Exception as e:
+                # invalid pydantic model
+                raise ValueError(f"Failed to create pydantic model: {e}")
             block.update(db_session=session, actor=actor)
 
         # TODO: REMOVE THIS ONCE AGENT IS ON ORM -> Update blocks_agents

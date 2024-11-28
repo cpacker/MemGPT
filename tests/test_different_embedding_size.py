@@ -66,7 +66,7 @@
 #
 #    # openai: add passages
 #    passages, openai_embeddings = generate_passages(client.user, openai_agent)
-#    openai_agent_run = client.server._get_or_load_agent(user_id=client.user.id, agent_id=openai_agent.id)
+#    openai_agent_run = client.server.load_agent(user_id=client.user.id, agent_id=openai_agent.id)
 #    openai_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 #
 #    # create client
@@ -84,7 +84,7 @@
 #
 #    # hosted: add passages
 #    passages, hosted_embeddings = generate_passages(client.user, hosted_agent)
-#    hosted_agent_run = client.server._get_or_load_agent(user_id=client.user.id, agent_id=hosted_agent.id)
+#    hosted_agent_run = client.server.load_agent(user_id=client.user.id, agent_id=hosted_agent.id)
 #    hosted_agent_run.persistence_manager.archival_memory.storage.insert_many(passages)
 #
 #    # test passage dimentionality

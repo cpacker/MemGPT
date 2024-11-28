@@ -1,11 +1,14 @@
 import uuid
 from typing import List
 
+import pytest
+
 from letta import create_client
 from letta.client.client import LocalClient
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
+from letta.settings import tool_settings
 
 from .utils import wipe_config
 
@@ -16,6 +19,21 @@ agent_obj = None
 
 # TODO: these tests should include looping through LLM providers, since behavior may vary across providers
 # TODO: these tests should add function calls into the summarized message sequence:W
+
+
+@pytest.fixture
+def mock_e2b_api_key_none():
+    # Store the original value of e2b_api_key
+    original_api_key = tool_settings.e2b_api_key
+
+    # Set e2b_api_key to None
+    tool_settings.e2b_api_key = None
+
+    # Yield control to the test
+    yield
+
+    # Restore the original value of e2b_api_key
+    tool_settings.e2b_api_key = original_api_key
 
 
 def create_test_agent():
@@ -33,10 +51,10 @@ def create_test_agent():
     )
 
     global agent_obj
-    agent_obj = client.server._get_or_load_agent(agent_id=agent_state.id)
+    agent_obj = client.server.load_agent(agent_id=agent_state.id)
 
 
-def test_summarize_messages_inplace():
+def test_summarize_messages_inplace(mock_e2b_api_key_none):
     """Test summarization via sending the summarize CLI command or via a direct call to the agent object"""
     global client
     global agent_obj
@@ -73,12 +91,15 @@ def test_summarize_messages_inplace():
     assert response is not None and len(response) > 0
     print(f"test_summarize: response={response}")
 
+    # reload agent object
+    agent_obj = client.server.load_agent(agent_id=agent_obj.agent_state.id)
+
     agent_obj.summarize_messages_inplace()
     print(f"Summarization succeeded: messages[1] = \n{agent_obj.messages[1]}")
     # response = client.run_command(agent_id=agent_obj.agent_state.id, command="summarize")
 
 
-def test_auto_summarize():
+def test_auto_summarize(mock_e2b_api_key_none):
     """Test that the summarizer triggers by itself"""
     client = create_client()
     client.set_default_llm_config(LLMConfig.default_config("gpt-4"))
@@ -86,7 +107,7 @@ def test_auto_summarize():
 
     small_context_llm_config = LLMConfig.default_config("gpt-4")
     # default system prompt + funcs lead to ~2300 tokens, after one message it's at 2523 tokens
-    SMALL_CONTEXT_WINDOW = 3000
+    SMALL_CONTEXT_WINDOW = 4000
     small_context_llm_config.context_window = SMALL_CONTEXT_WINDOW
 
     agent_state = client.create_agent(
@@ -98,7 +119,7 @@ def test_auto_summarize():
 
         def summarize_message_exists(messages: List[Message]) -> bool:
             for message in messages:
-                if message.text and "have been hidden from view due to conversation memory constraints" in message.text:
+                if message.text and "The following is a summary of the previous" in message.text:
                     print(f"Summarize message found after {message_count} messages: \n {message.text}")
                     return True
             return False
@@ -114,11 +135,12 @@ def test_auto_summarize():
             )
             message_count += 1
 
-            print(f"Message {message_count}: \n\n{response.messages}")
+            print(f"Message {message_count}: \n\n{response.messages}" + "--------------------------------")
 
             # check if the summarize message is inside the messages
             assert isinstance(client, LocalClient), "Test only works with LocalClient"
-            agent_obj = client.server._get_or_load_agent(agent_id=agent_state.id)
+            agent_obj = client.server.load_agent(agent_id=agent_state.id)
+            print("SUMMARY", summarize_message_exists(agent_obj._messages))
             if summarize_message_exists(agent_obj._messages):
                 break
 
