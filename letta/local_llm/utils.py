@@ -121,7 +121,7 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
                                 function_tokens += 3
                                 function_tokens += len(encoding.encode(o))
                         else:
-                            print(f"Warning: not supported field {field}")
+                            warnings.warn(f"num_tokens_from_functions: Unsupported field {field} in function {function}")
                 function_tokens += 11
 
         num_tokens += function_tokens
