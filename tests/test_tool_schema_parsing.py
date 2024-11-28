@@ -4,7 +4,7 @@ import os
 import pytest
 
 from letta.functions.functions import derive_openai_json_schema
-from letta.llm_api.helpers import convert_to_structured_output
+from letta.llm_api.helpers import convert_to_structured_output, make_post_request
 
 
 def _clean_diff(d1, d2):
@@ -98,3 +98,91 @@ def test_derive_openai_json_schema():
     # TODO we should properly cast Optionals into union nulls
     # Currently, we just disregard all Optional types on the conversion path
     _run_schema_test("all_python_complex_nodict", "check_order_status")
+
+
+def _openai_payload(model: str, schema: dict, structured_output: bool):
+    """Create an OpenAI payload with a tool call.
+
+    Raw version of openai_chat_completions_request w/o pydantic models
+    """
+
+    if structured_output:
+        tool_schema = convert_to_structured_output(schema)
+    else:
+        tool_schema = schema
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    assert api_key is not None, "OPENAI_API_KEY must be set"
+
+    # Simple system prompt to encourage the LLM to jump directly to a tool call
+    system_prompt = "You job is to test the tool that you've been provided. Don't ask for any clarification on the args, just come up with some dummy data and try executing the tool."
+
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    data = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+        ],
+        "tools": [
+            {
+                "type": "function",
+                "function": tool_schema,
+            }
+        ],
+        "tool_choice": "auto",  # TODO force the tool call on the one we want
+        # NOTE: disabled for simplicity
+        "parallel_tool_calls": False,
+    }
+
+    print("Request:\n", json.dumps(data, indent=2))
+
+    try:
+        make_post_request(url, headers, data)
+    except Exception as e:
+        print(f"Request failed, tool_schema=\n{json.dumps(tool_schema, indent=2)}")
+        print(f"Error: {e}")
+        raise e
+
+    # response = openai_chat_completions_request(
+    #     url="https://api.openai.com/v1",
+    #     api_key=oai_key,
+    #     chat_completion_request=ChatCompletionRequest(
+    #         model=model,
+    #         messages=[
+    #             SystemMessage(content=system_prompt),
+    #         ],
+    #     ),
+    #     tools=[
+    #         Tool(
+    #             name=model,
+    #             function=schema,
+    #         )
+    #     ],
+    # )
+
+
+def _load_schema_from_source_filename(filename: str) -> dict:
+    with open(os.path.join(os.path.dirname(__file__), f"test_tool_schema_parsing_files/{filename}.py"), "r") as file:
+        source_code = file.read()
+
+    return derive_openai_json_schema(source_code)
+
+
+# @pytest.mark.parametrize("openai_model", ["gpt-4", "gpt-4o", "gpt-4o-mini"])
+# @pytest.mark.parametrize("structured_output", [True, False])
+@pytest.mark.parametrize("openai_model", ["gpt-4o-mini"])
+@pytest.mark.parametrize("structured_output", [True])
+def test_valid_schemas_via_openai(openai_model: str, structured_output: bool):
+    """Test that we can send the schemas to OpenAI and get a tool call back."""
+
+    for filename in [
+        "pydantic_as_single_arg_example",
+        "list_of_pydantic_example",
+        "nested_pydantic_as_arg_example",
+        "simple_d20",
+        "all_python_complex",
+        "all_python_complex_nodict",
+    ]:
+        schema = _load_schema_from_source_filename(filename)
+        _openai_payload(openai_model, schema, structured_output)
