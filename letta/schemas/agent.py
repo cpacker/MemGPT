@@ -9,7 +9,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
-from letta.schemas.message import Message
+from letta.schemas.message import Message, MessageCreate
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool
@@ -124,7 +124,7 @@ class CreateAgent(BaseAgent):  #
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
     # Note: if this is None, then we'll populate with the standard "more human than human" initial message sequence
     # If the client wants to make this empty, then the client can set the arg to an empty list
-    initial_message_sequence: Optional[List[Message]] = Field(
+    initial_message_sequence: Optional[List[MessageCreate]] = Field(
         None, description="The initial set of messages to put in the agent's in-context memory."
     )
 
