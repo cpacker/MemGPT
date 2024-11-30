@@ -1,0 +1,35 @@
+{
+    "name": "check_order_status",
+    "description": "Check the status for an order number (integer value).",
+    "strict": true,
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "order_number": {
+            "type": "integer",
+            "description": "The order number to check on."
+        },
+        "customer_name": {
+            "type": "string",
+            "description": "The name of the customer who placed the order."
+        },
+        "related_tickets": {
+            "type": "array",
+            "description": "A list of ticket numbers related to the order.",
+            "items": {
+                "type": "string"
+            }
+        },
+        "severity": {
+            "type": "number",
+            "description": "The severity of the request (between 0 and 1)."
+        },
+        "metadata": {
+            "type": "string",
+            "description": "Additional metadata about the order."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["order_number", "customer_name", "related_tickets", "severity", "metadata"]
+    }
+  }

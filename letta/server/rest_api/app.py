@@ -134,7 +134,7 @@ def create_application() -> "FastAPI":
 
     if "--ade" in sys.argv:
         settings.cors_origins.append("https://app.letta.com")
-        print(f"▶ View using ADE at: https://app.letta.com/local-project/agents")
+        print(f"▶ View using ADE at: https://app.letta.com/development-servers/local/dashboard")
 
     if "--secure" in sys.argv:
         print(f"▶ Using secure mode with password: {random_password}")
