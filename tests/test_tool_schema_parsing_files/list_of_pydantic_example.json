@@ -1,0 +1,32 @@
+{
+  "name": "create_task_plan",
+  "description": "Creates a task plan for the current task.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "steps": {
+        "type": "array",
+        "description": "List of steps to add to the task plan.",
+        "items": {
+          "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the step."
+              },
+              "key": {
+                "type": "string",
+                "description": "Unique identifier for the step."
+              },
+              "description": {
+                "type": "string",
+                "description": "An exhaustic description of what this step is trying to achieve and accomplish."
+              }
+            },
+            "required": ["name", "key", "description"]
+        }
+      }
+    },
+    "required": ["steps"]
+  }
+}

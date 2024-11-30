@@ -1,0 +1,11 @@
+{
+  "name": "roll_d20",
+  "description": "Simulate the roll of a 20-sided die (d20).",
+  "strict": true,
+  "parameters": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false,
+    "required": []
+  }
+}
