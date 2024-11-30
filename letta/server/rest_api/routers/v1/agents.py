@@ -113,13 +113,13 @@ def get_tools_from_agent(
     # TODO: this should be removed since the agent will return all the data as well
     actor = server.get_user_or_default(user_id=user_id)
 
-    agent_state = server.get_agent()
+    agent_state = server.get_agent(agent_id=agent_id)
     if not agent_state:
         raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
     tool_names = agent_state.tool_names
     tools = []
     for tool_name in tool_names:
-        tool = server.tool_manager.get_tool_by_name(tool_name)
+        tool = server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
         tools.append(tool)
 
     return tools
@@ -134,7 +134,7 @@ def add_tool_to_agent(
 ):
     """Add tools to an existing agent"""
     actor = server.get_user_or_default(user_id=user_id)
-    tool = server.tool_manager.get_tool_by_id(tool_id)
+    tool = server.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor)
 
     agent_state = server.get_agent_state(user_id=actor.id, agent_id=agent_id)
     if not agent_state:
@@ -153,7 +153,7 @@ def remove_tool_from_agent(
 ):
     """Add tools to an existing agent"""
     actor = server.get_user_or_default(user_id=user_id)
-    tool = server.tool_manager.get_tool_by_id(tool_id)
+    tool = server.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor)
 
     agent_state = server.get_agent_state(user_id=actor.id, agent_id=agent_id)
     if not agent_state:
