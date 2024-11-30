@@ -949,18 +949,22 @@ class SyncServer(Server):
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
 
-    # def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
-    #    """Get tools from an existing agent"""
+    def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
+        """Get tools from an existing agent"""
+        # TODO deprecate or remove duplicate code in FastAPI route
 
-    #    if self.user_manager.get_user_by_id(user_id=user_id) is None:
-    #        raise ValueError(f"User user_id={user_id} does not exist")
-    #    if self.ms.get_agent(agent_id=agent_id) is None:
-    #        raise ValueError(f"Agent agent_id={agent_id} does not exist")
-    #
+        actor = self.get_user_or_default(user_id=user_id)
 
-    #    # Get the agent object (loaded in memory)
-    #    letta_agent = self.load_agent(agent_id=agent_id)
-    #    return letta_agent.agent_state.tools
+        agent_state = self.get_agent(agent_id=agent_id)
+        if not agent_state:
+            raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
+        tool_names = agent_state.tool_names
+        tools = []
+        for tool_name in tool_names:
+            tool = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+            tools.append(tool)
+
+        return tools
 
     def add_tool_to_agent(
         self,
