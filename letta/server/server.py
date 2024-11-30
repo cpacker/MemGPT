@@ -370,9 +370,13 @@ class SyncServer(Server):
 
         interface = interface or self.default_interface_factory()
         if agent_state.agent_type == AgentType.memgpt_agent:
-            return Agent(agent_state=agent_state, interface=interface, user=actor)
+            agent = Agent(agent_state=agent_state, interface=interface, user=actor)
         else:
-            return O1Agent(agent_state=agent_state, interface=interface, user=actor)
+            agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+
+        # this is necessary to make sure initial message sequences on the first initialization are saved
+        save_agent(agent, self.ms)
+        return agent
 
     def _step(
         self,
@@ -945,16 +949,18 @@ class SyncServer(Server):
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
 
-    def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
-        """Get tools from an existing agent"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+    # def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
+    #    """Get tools from an existing agent"""
 
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
-        return letta_agent.agent_state.tools
+    #    if self.user_manager.get_user_by_id(user_id=user_id) is None:
+    #        raise ValueError(f"User user_id={user_id} does not exist")
+    #    if self.ms.get_agent(agent_id=agent_id) is None:
+    #        raise ValueError(f"Agent agent_id={agent_id} does not exist")
+    #
+
+    #    # Get the agent object (loaded in memory)
+    #    letta_agent = self.load_agent(agent_id=agent_id)
+    #    return letta_agent.agent_state.tools
 
     def add_tool_to_agent(
         self,

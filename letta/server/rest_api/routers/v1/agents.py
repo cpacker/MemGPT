@@ -63,7 +63,7 @@ def list_agents(
 
 
 @router.get("/{agent_id}/context", response_model=ContextWindowOverview, operation_id="get_agent_context_window")
-def get_agent_context_window(
+async def get_agent_context_window(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
@@ -72,8 +72,10 @@ def get_agent_context_window(
     Retrieve the context window of a specific agent.
     """
     actor = server.get_user_or_default(user_id=user_id)
-
-    return server.get_agent_context_window(user_id=actor.id, agent_id=agent_id)
+    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
+    async with agent_lock:
+        window = server.get_agent_context_window(user_id=actor.id, agent_id=agent_id)
+        return window
 
 
 @router.post("/", response_model=AgentState, operation_id="create_agent")
@@ -108,8 +110,19 @@ def get_tools_from_agent(
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """Get tools from an existing agent"""
+    # TODO: this should be removed since the agent will return all the data as well
     actor = server.get_user_or_default(user_id=user_id)
-    return server.get_tools_from_agent(agent_id=agent_id, user_id=actor.id)
+
+    agent_state = server.get_agent()
+    if not agent_state:
+        raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
+    tool_names = agent_state.tool_names
+    tools = []
+    for tool_name in tool_names:
+        tool = server.tool_manager.get_tool_by_name(tool_name)
+        tools.append(tool)
+
+    return tools
 
 
 @router.patch("/{agent_id}/add-tool/{tool_id}", response_model=AgentState, operation_id="add_tool_to_agent")
@@ -121,7 +134,14 @@ def add_tool_to_agent(
 ):
     """Add tools to an existing agent"""
     actor = server.get_user_or_default(user_id=user_id)
-    return server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
+    tool = server.tool_manager.get_tool_by_id(tool_id)
+
+    agent_state = server.get_agent_state(user_id=actor.id, agent_id=agent_id)
+    if not agent_state:
+        raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
+    update_request = UpdateAgentState(tools=agent_state.tool_names + [tool.name])
+    updated_agent_state = server.update_agent(request=update_request, actor=actor)
+    return updated_agent_state
 
 
 @router.patch("/{agent_id}/remove-tool/{tool_id}", response_model=AgentState, operation_id="remove_tool_from_agent")
@@ -133,7 +153,14 @@ def remove_tool_from_agent(
 ):
     """Add tools to an existing agent"""
     actor = server.get_user_or_default(user_id=user_id)
-    return server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
+    tool = server.tool_manager.get_tool_by_id(tool_id)
+
+    agent_state = server.get_agent_state(user_id=actor.id, agent_id=agent_id)
+    if not agent_state:
+        raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
+    update_request = UpdateAgentState(tools=[tool_name for tool_name in agent_state.tool_names if tool_name != tool.name])
+    updated_agent_state = server.update_agent(request=update_request, actor=actor)
+    return updated_agent_state
 
 
 @router.get("/{agent_id}", response_model=AgentState, operation_id="get_agent")
@@ -176,7 +203,7 @@ def get_agent_sources(
     """
     Get the sources associated with an agent.
     """
-
+    # TODO: this should not need the lock
     return server.list_attached_sources(agent_id)
 
 
@@ -188,13 +215,12 @@ def get_agent_in_context_messages(
     """
     Retrieve the messages in the context of a specific agent.
     """
-
     return server.get_in_context_messages(agent_id=agent_id)
 
 
 # TODO: remove? can also get with agent blocks
 @router.get("/{agent_id}/memory", response_model=Memory, operation_id="get_agent_memory")
-def get_agent_memory(
+async def get_agent_memory(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
 ):
@@ -202,8 +228,9 @@ def get_agent_memory(
     Retrieve the memory state of a specific agent.
     This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
     """
-
-    return server.get_agent_memory(agent_id=agent_id)
+    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
+    async with agent_lock:
+        return server.get_agent_memory(agent_id=agent_id)
 
 
 @router.get("/{agent_id}/memory/block/{block_label}", response_model=Block, operation_id="get_agent_memory_block")
@@ -217,7 +244,6 @@ def get_agent_memory_block(
     Retrieve a memory block from an agent.
     """
     actor = server.get_user_or_default(user_id=user_id)
-
     block_id = server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=block_label)
     return server.block_manager.get_block_by_id(block_id, actor=actor)
 
@@ -299,31 +325,33 @@ def update_agent_memory_block(
 
 
 @router.get("/{agent_id}/memory/recall", response_model=RecallMemorySummary, operation_id="get_agent_recall_memory_summary")
-def get_agent_recall_memory_summary(
+async def get_agent_recall_memory_summary(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
 ):
     """
     Retrieve the summary of the recall memory of a specific agent.
     """
-
-    return server.get_recall_memory_summary(agent_id=agent_id)
+    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
+    async with agent_lock:
+        return server.get_recall_memory_summary(agent_id=agent_id)
 
 
 @router.get("/{agent_id}/memory/archival", response_model=ArchivalMemorySummary, operation_id="get_agent_archival_memory_summary")
-def get_agent_archival_memory_summary(
+async def get_agent_archival_memory_summary(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
 ):
     """
     Retrieve the summary of the archival memory of a specific agent.
     """
-
-    return server.get_archival_memory_summary(agent_id=agent_id)
+    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
+    async with agent_lock:
+        return server.get_archival_memory_summary(agent_id=agent_id)
 
 
 @router.get("/{agent_id}/archival", response_model=List[Passage], operation_id="list_agent_archival_memory")
-def get_agent_archival_memory(
+async def get_agent_archival_memory(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
     after: Optional[int] = Query(None, description="Unique ID of the memory to start the query range at."),
@@ -339,14 +367,15 @@ def get_agent_archival_memory(
     # TODO need to add support for non-postgres here
     # chroma will throw:
     #     raise ValueError("Cannot run get_all_cursor with chroma")
-
-    return server.get_agent_archival_cursor(
-        user_id=actor.id,
-        agent_id=agent_id,
-        after=after,
-        before=before,
-        limit=limit,
-    )
+    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
+    async with agent_lock:
+        return server.get_agent_archival_cursor(
+            user_id=actor.id,
+            agent_id=agent_id,
+            after=after,
+            before=before,
+            limit=limit,
+        )
 
 
 @router.post("/{agent_id}/archival", response_model=List[Passage], operation_id="create_agent_archival_memory")

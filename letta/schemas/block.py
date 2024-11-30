@@ -28,9 +28,6 @@ class BaseBlock(LettaBase, validate_assignment=True):
     description: Optional[str] = Field(None, description="Description of the block.")
     metadata_: Optional[dict] = Field({}, description="Metadata of the block.")
 
-    # def __len__(self):
-    #     return len(self.value)
-
     class Config:
         extra = "ignore"  # Ignores extra fields
 
@@ -88,30 +85,11 @@ class Persona(Block):
     label: str = "persona"
 
 
-# class CreateBlock(BaseBlock):
-#    """Create a block"""
-#
-#    is_template: bool = True
-#    label: str = Field(..., description="Label of the block.")
-
-
 class BlockLabelUpdate(BaseModel):
     """Update the label of a block"""
 
     current_label: str = Field(..., description="Current label of the block.")
     new_label: str = Field(..., description="New label of the block.")
-
-
-# class CreatePersona(CreateBlock):
-#    """Create a persona block"""
-#
-#    label: str = "persona"
-#
-#
-# class CreateHuman(CreateBlock):
-#    """Create a human block"""
-#
-#    label: str = "human"
 
 
 class BlockUpdate(BaseBlock):
@@ -131,18 +109,6 @@ class BlockLimitUpdate(BaseModel):
     limit: int = Field(..., description="New limit of the block.")
 
 
-# class UpdatePersona(BlockUpdate):
-#    """Update a persona block"""
-#
-#    label: str = "persona"
-#
-#
-# class UpdateHuman(BlockUpdate):
-#    """Update a human block"""
-#
-#    label: str = "human"
-
-
 class CreateBlock(BaseBlock):
     """Create a block"""
 
@@ -153,6 +119,23 @@ class CreateBlock(BaseBlock):
     # block templates
     is_template: bool = False
     template_name: Optional[str] = Field(None, description="Name of the block if it is a template.", alias="name")
+
+
+class UpdateBlock(BaseBlock):
+    """Update a block"""
+
+    label: Optional[str] = Field(None, description="Label of the block.")
+    limit: Optional[int] = Field(None, description="Character limit of the block.")
+    value: Optional[str] = Field(None, description="Value of the block.")
+
+
+class UpdateAgentBlock:
+
+    label: str = Field(..., description="The label of the block.")
+    block: UpdateBlock = Field(..., description="The block to update in the agent's in-context memory.")
+
+
+# Updating agent blocks: List[UpdateAgentBlock]
 
 
 class CreateHuman(CreateBlock):

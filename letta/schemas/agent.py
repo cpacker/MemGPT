@@ -128,6 +128,9 @@ class CreateAgent(BaseAgent):  #
         None, description="The initial set of messages to put in the agent's in-context memory."
     )
 
+    # whether to include default tools
+    include_default_tools: Optional[bool] = Field(True, description="Whether to include default tools in the agent.")
+
     @field_validator("name")
     @classmethod
     def validate_name(cls, name: str) -> str:
@@ -162,6 +165,9 @@ class UpdateAgentState(BaseAgent):
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
+
+    # update blocks
+    memory_blocks: Optional[List[CreateBlock]] = Field(None, description="The blocks to create in the agent's in-context memory.")
 
     # TODO: determine if these should be editable via this schema?
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")

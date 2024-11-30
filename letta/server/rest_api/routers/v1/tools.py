@@ -70,7 +70,9 @@ def list_tools(
     """
     try:
         actor = server.get_user_or_default(user_id=user_id)
-        return server.tool_manager.list_tools(actor=actor, cursor=cursor, limit=limit)
+        tools = server.tool_manager.list_tools(actor=actor, cursor=cursor, limit=limit)
+        print("done listing tools")
+        return tools
     except Exception as e:
         # Log or print the full exception here for debugging
         print(f"Error occurred: {e}")
