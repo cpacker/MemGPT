@@ -2125,7 +2125,6 @@ class LocalClient(AbstractClient):
         for block in memory.get_blocks():
             self.server.block_manager.create_or_update_block(block, actor=user)
             self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_state.id, block_id=block.id)
-            print("LINKING BLOCK", block.label, block.value)
 
         # TODO: get full agent state
         return self.server.get_agent(agent_state.id)
