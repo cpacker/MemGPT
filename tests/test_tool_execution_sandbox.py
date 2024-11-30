@@ -277,18 +277,26 @@ def test_local_sandbox_env(mock_e2b_api_key_none, get_env_tool, test_user):
 
 
 @pytest.mark.local_sandbox
-def test_local_sandbox_e2e_composio_star_github(mock_e2b_api_key_none, check_composio_key_set, composio_github_star_tool, test_user):
+def test_local_sandbox_e2e_composio_star_github(
+    mock_e2b_api_key_none,
+    check_composio_key_set,
+    composio_github_star_tool,
+    test_user,
+):
     # Add the composio key
     manager = SandboxConfigManager(tool_settings)
     config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=test_user)
 
+    assert tool_settings.composio_api_key is not None, "Missing composio key! Cannot execute this test."
     manager.create_sandbox_env_var(
-        SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value=tool_settings.composio_api_key),
+        SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value=tool_settings.composio_api_key, description=None),
         sandbox_config_id=config.id,
         actor=test_user,
     )
 
     result = ToolExecutionSandbox(composio_github_star_tool.name, {"owner": "letta-ai", "repo": "letta"}, user_id=test_user.id).run()
+    assert result is not None, "Result should not be None"
+    assert result.func_return is not None, f"func_return should not be None = result:\n{result}"
     assert result.func_return["details"] == "Action executed successfully"
 
 
