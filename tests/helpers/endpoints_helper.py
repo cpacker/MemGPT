@@ -211,7 +211,7 @@ def check_agent_recall_chat_memory(filename: str) -> LettaResponse:
     cleanup(client=client, agent_uuid=agent_uuid)
 
     human_name = "BananaBoy"
-    agent_state = setup_agent(client, filename, memory_human_str=f"My name is {human_name}")
+    agent_state = setup_agent(client, filename, memory_human_str=f"The human's name is {human_name}. That is all I know about them so far.")
 
     print("MEMORY", agent_state.memory.get_block("human").value)
 
