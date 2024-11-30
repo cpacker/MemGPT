@@ -305,6 +305,8 @@ class Agent(BaseAgent):
             printd(f"Agent.__init__ :: creating, state={agent_state.message_ids}")
             assert self.agent_state.id is not None and self.agent_state.user_id is not None
 
+            print("INITIALIZE MESSAGE SEQUENCE", self.agent_state.memory.get_blocks())
+
             # Generate a sequence of initial messages to put in the buffer
             init_messages = initialize_message_sequence(
                 model=self.model,

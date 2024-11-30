@@ -1725,7 +1725,7 @@ class SyncServer(Server):
         self.blocks_agents_manager.add_block_to_agent(agent_id, block_id, block_label=block.label)
 
         # get agent memory
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        memory = self.get_agent(agent_id=agent_id).memory
         return memory
 
     def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
@@ -1733,7 +1733,7 @@ class SyncServer(Server):
         self.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=agent_id, block_label=block_label)
 
         # get agent memory
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        memory = self.get_agent(agent_id=agent_id).memory
         return memory
 
     def update_agent_memory_limit(self, user_id: str, agent_id: str, block_label: str, limit: int) -> Memory:
@@ -1743,7 +1743,7 @@ class SyncServer(Server):
             block_id=block.id, block_update=BlockUpdate(limit=limit), actor=self.user_manager.get_user_by_id(user_id=user_id)
         )
         # get agent memory
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        memory = self.get_agent(agent_id=agent_id).memory
         return memory
 
     def upate_block(self, user_id: str, block_id: str, block_update: BlockUpdate) -> Block:
