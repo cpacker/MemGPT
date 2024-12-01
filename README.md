@@ -44,24 +44,24 @@ The two main ways to install Letta are through **pypi** (`pip`) or via **Docker*
 
 ### Step 1 - Install Letta using `pip`
 ```sh
-$ pip install -U letta
+pip install -U letta
 ```
 
 ### Step 2 - Set your environment variables for your chosen LLM / embedding providers
 ```sh
-$ export OPENAI_API_KEY=sk-...
+export OPENAI_API_KEY=sk-...
 ```
 
 For Ollama (see our full [documentation](https://docs.letta.com/install) for examples of how to set up various providers):
 ```sh
-$ export OLLAMA_BASE_URL=http://localhost:11434
+export OLLAMA_BASE_URL=http://localhost:11434
 ```
 
 ### Step 3 - Run the Letta CLI
 
 You can create agents and chat with them via the Letta CLI tool (`letta run`):
 ```sh
-$ letta run
+letta run
 ```
 ```
 🧬 Creating new agent...
@@ -94,7 +94,7 @@ Hit enter to begin (will request first Letta message)
 
 You can start the Letta API server with `letta server` (see the full API reference [here](https://docs.letta.com/api-reference)):
 ```sh
-$ letta server
+letta server
 ```
 ```
 Initializing database...
