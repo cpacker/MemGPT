@@ -8,8 +8,6 @@ import sys
 import tempfile
 from typing import Any, Optional
 
-from e2b_code_interpreter import Execution as E2BExecution
-
 from letta.log import get_logger
 from letta.schemas.agent import AgentState
 from letta.schemas.sandbox_config import SandboxConfig, SandboxRunResult, SandboxType
@@ -171,7 +169,7 @@ class ToolExecutionSandbox:
                 sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
 
-    def parse_exception_from_e2b_execution(self, e2b_execution: E2BExecution) -> Exception:
+    def parse_exception_from_e2b_execution(self, e2b_execution: "Execution") -> Exception:
         builtins_dict = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
         # Dynamically fetch the exception class from builtins, defaulting to Exception if not found
         exception_class = builtins_dict.get(e2b_execution.error.name, Exception)
