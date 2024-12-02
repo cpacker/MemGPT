@@ -182,6 +182,7 @@ def create_application() -> "FastAPI":
         # Tool.load_default_tools(get_db_session())
 
         generate_openapi_schema(app)
+        # always migrate now that we have a default in-memory postgres
 
     @app.on_event("shutdown")
     def on_shutdown():
