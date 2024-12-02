@@ -2,7 +2,6 @@
 
 import os
 import secrets
-import warnings
 from typing import List, Optional, Union
 
 from sqlalchemy import JSON, Column, DateTime, Index, String, TypeDecorator
@@ -359,8 +358,8 @@ class MetadataStore:
             #    warnings.warn(f"Agent {agent.id} has no _internal_memory field")
             if "tags" in fields:
                 del fields["tags"]
-            else:
-                warnings.warn(f"Agent {agent.id} has no tags field")
+            # else:
+            # warnings.warn(f"Agent {agent.id} has no tags field")
             session.add(AgentModel(**fields))
             session.commit()
 
@@ -376,8 +375,8 @@ class MetadataStore:
             #    warnings.warn(f"Agent {agent.id} has no _internal_memory field")
             if "tags" in fields:
                 del fields["tags"]
-            else:
-                warnings.warn(f"Agent {agent.id} has no tags field")
+            # else:
+            # warnings.warn(f"Agent {agent.id} has no tags field")
             session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
             session.commit()
 

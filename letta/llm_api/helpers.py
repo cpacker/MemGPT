@@ -11,7 +11,55 @@ from letta.schemas.openai.chat_completion_response import ChatCompletionResponse
 from letta.utils import json_dumps, printd
 
 
-def convert_to_structured_output(openai_function: dict) -> dict:
+def _convert_to_structured_output_helper(property: dict) -> dict:
+    """Convert a single JSON schema property to structured output format (recursive)"""
+
+    if "type" not in property:
+        raise ValueError(f"Property {property} is missing a type")
+    param_type = property["type"]
+
+    if "description" not in property:
+        # raise ValueError(f"Property {property} is missing a description")
+        param_description = None
+    else:
+        param_description = property["description"]
+
+    if param_type == "object":
+        if "properties" not in property:
+            raise ValueError(f"Property {property} of type object is missing properties")
+        properties = property["properties"]
+        property_dict = {
+            "type": "object",
+            "properties": {k: _convert_to_structured_output_helper(v) for k, v in properties.items()},
+            "additionalProperties": False,
+            "required": list(properties.keys()),
+        }
+        if param_description is not None:
+            property_dict["description"] = param_description
+        return property_dict
+
+    elif param_type == "array":
+        if "items" not in property:
+            raise ValueError(f"Property {property} of type array is missing items")
+        items = property["items"]
+        property_dict = {
+            "type": "array",
+            "items": _convert_to_structured_output_helper(items),
+        }
+        if param_description is not None:
+            property_dict["description"] = param_description
+        return property_dict
+
+    else:
+        property_dict = {
+            "type": param_type,  # simple type
+        }
+        if param_description is not None:
+            property_dict["description"] = param_description
+        return property_dict
+
+
+def convert_to_structured_output(openai_function: dict, allow_optional: bool = False) -> dict:
     """Convert function call objects to structured output objects
 
     See: https://platform.openai.com/docs/guides/structured-outputs/supported-schemas
@@ -22,17 +70,63 @@ def convert_to_structured_output(openai_function: dict) -> dict:
         "name": openai_function["name"],
         "description": description,
         "strict": True,
-        "parameters": {"type": "object", "properties": {}, "additionalProperties": False, "required": []},
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+            "required": [],
+        },
     }
 
+    # This code needs to be able to handle nested properties
+    # For example, the param details may have "type" + "description",
+    # but if "type" is "object" we expected "properties", where each property has details
+    # and if "type" is "array" we expect "items": <type>
     for param, details in openai_function["parameters"]["properties"].items():
-        structured_output["parameters"]["properties"][param] = {"type": details["type"], "description": details["description"]}
+
+        param_type = details["type"]
+        description = details["description"]
+
+        if param_type == "object":
+            if "properties" not in details:
+                # Structured outputs requires the properties on dicts be specified ahead of time
+                raise ValueError(f"Property {param} of type object is missing properties")
+            structured_output["parameters"]["properties"][param] = {
+                "type": "object",
+                "description": description,
+                "properties": {k: _convert_to_structured_output_helper(v) for k, v in details["properties"].items()},
+                "additionalProperties": False,
+                "required": list(details["properties"].keys()),
+            }
+
+        elif param_type == "array":
+            structured_output["parameters"]["properties"][param] = {
+                "type": "array",
+                "description": description,
+                "items": _convert_to_structured_output_helper(details["items"]),
+            }
+
+        else:
+            structured_output["parameters"]["properties"][param] = {
+                "type": param_type,  # simple type
+                "description": description,
+            }
 
         if "enum" in details:
             structured_output["parameters"]["properties"][param]["enum"] = details["enum"]
 
-    # Add all properties to required list
-    structured_output["parameters"]["required"] = list(structured_output["parameters"]["properties"].keys())
+    if not allow_optional:
+        # Add all properties to required list
+        structured_output["parameters"]["required"] = list(structured_output["parameters"]["properties"].keys())
+
+    else:
+        # See what parameters exist that aren't required
+        # Those are implied "optional" types
+        # For those types, turn each of them into a union type with "null"
+        # e.g.
+        # "type": "string" -> "type": ["string", "null"]
+        # TODO
+        raise NotImplementedError
 
     return structured_output
 

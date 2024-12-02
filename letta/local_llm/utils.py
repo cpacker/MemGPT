@@ -88,7 +88,9 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
     try:
         encoding = tiktoken.encoding_for_model(model)
     except KeyError:
-        warnings.warn("Warning: model not found. Using cl100k_base encoding.")
+        from letta.utils import printd
+
+        printd(f"Warning: model not found. Using cl100k_base encoding.")
         encoding = tiktoken.get_encoding("cl100k_base")
 
     num_tokens = 0
@@ -121,7 +123,7 @@ def num_tokens_from_functions(functions: List[dict], model: str = "gpt-4"):
                                 function_tokens += 3
                                 function_tokens += len(encoding.encode(o))
                         else:
-                            print(f"Warning: not supported field {field}")
+                            warnings.warn(f"num_tokens_from_functions: Unsupported field {field} in function {function}")
                 function_tokens += 11
 
         num_tokens += function_tokens
@@ -215,8 +217,10 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
         # print("Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
         return num_tokens_from_messages(messages, model="gpt-4-0613")
     else:
-        warnings.warn(
-            f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
+        from letta.utils import printd
+
+        printd(
+            f"num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."
         )
         return num_tokens_from_messages(messages, model="gpt-4-0613")
         # raise NotImplementedError(
