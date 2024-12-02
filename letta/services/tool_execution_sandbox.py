@@ -59,19 +59,19 @@ class ToolExecutionSandbox:
             Tuple[Any, Optional[AgentState]]: Tuple containing (tool_result, agent_state)
         """
         if tool_settings.e2b_api_key:
-            logger.info(f"Using e2b sandbox to execute {self.tool_name}")
+            logger.debug(f"Using e2b sandbox to execute {self.tool_name}")
             code = self.generate_execution_script(agent_state=agent_state)
             result = self.run_e2b_sandbox(code=code)
         else:
-            logger.info(f"Using local sandbox to execute {self.tool_name}")
+            logger.debug(f"Using local sandbox to execute {self.tool_name}")
             code = self.generate_execution_script(agent_state=agent_state)
             result = self.run_local_dir_sandbox(code=code)
 
         # Log out any stdout from the tool run
-        logger.info(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n")
+        logger.debug(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n")
         for log_line in result.stdout:
-            logger.info(f"{log_line}")
-        logger.info(f"Ending stdout log from tool run.")
+            logger.debug(f"{log_line}")
+        logger.debug(f"Ending stdout log from tool run.")
 
         # Return result
         return result
