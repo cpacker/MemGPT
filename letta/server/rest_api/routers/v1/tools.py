@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+from composio.client.collections import AppModel
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
 from letta.errors import LettaToolCreateError
@@ -156,3 +157,37 @@ def add_base_tools(
     """
     actor = server.get_user_or_default(user_id=user_id)
     return server.tool_manager.add_base_tools(actor=actor)
+
+
+# Specific routes for Composio
+
+
+@router.get("/composio/apps", response_model=List[AppModel], operation_id="list_composio_apps")
+def list_composio_apps(server: SyncServer = Depends(get_letta_server)):
+    """
+    Get a list of all Composio apps
+    """
+    return server.get_composio_apps()
+
+
+@router.get("/composio/apps/{composio_app_name}/tools", response_model=List[Tool], operation_id="list_composio_tools_by_app")
+def list_composio_tools_by_app(
+    composio_app_name: str,
+    server: SyncServer = Depends(get_letta_server),
+):
+    """
+    Get a list of all Composio tools for a specific app
+    """
+
+
+@router.post("/composio/{tool_name}", response_model=Tool, operation_id="add_composio_tool")
+def add_composio_tool(
+    tool_name: str,
+    server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    """
+    Add a new Composio tool by name
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+    # Logic to add a composio tool will go here
