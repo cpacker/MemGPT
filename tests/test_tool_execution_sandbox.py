@@ -244,21 +244,25 @@ def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_us
 
 
 @pytest.mark.local_sandbox
-def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, test_user):
+def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, test_user, agent_state):
     args = {}
-
-    client = create_client()
-    agent_state = client.create_agent(
-        memory=ChatMemory(persona="This is the persona", human="This is the human"),
-        embedding_config=EmbeddingConfig.default_config(provider="openai"),
-        llm_config=LLMConfig.default_config(model_name="gpt-4"),
-    )
-
     # Run again to get actual response
     sandbox = ToolExecutionSandbox(clear_core_memory.name, args, user_id=test_user.id)
     result = sandbox.run(agent_state=agent_state)
     assert result.agent_state.memory.get_block("human").value == ""
     assert result.agent_state.memory.get_block("persona").value == ""
+    assert result.func_return is None
+
+
+@pytest.mark.local_sandbox
+def test_local_sandbox_core_memory_replace(mock_e2b_api_key_none, core_memory_replace_tool, test_user, agent_state):
+    new_name = "Matt"
+    args = {"label": "human", "old_content": "Chad", "new_content": new_name}
+    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
+
+    # run the sandbox
+    result = sandbox.run(agent_state=agent_state)
+    assert new_name in result.agent_state.memory.get_block("human").value
     assert result.func_return is None
 
 
