@@ -219,7 +219,7 @@ def run(
         )
 
         # create agent
-        tools = [server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=client.user) for tool_name in agent_state.tool_names]
+        tools = (server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=client.user) for tool_name in agent_state.tool_names)
         agent_state.tools = tools
         letta_agent = Agent(agent_state=agent_state, interface=interface(), user=client.user)
 
@@ -370,5 +370,5 @@ def delete_agent(
 def version():
     import letta
 
-    print(letta.__version__)
+    # print(letta.__version__)
     return letta.__version__
