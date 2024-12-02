@@ -134,7 +134,8 @@ class ToolExecutionSandbox:
                 sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
         except Exception as e:
-            raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+            logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+            raise e
         finally:
             # Clean up the temp file and restore stdout
             sys.stdout = old_stdout
