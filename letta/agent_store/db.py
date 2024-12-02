@@ -214,9 +214,9 @@ class SQLStorageConnector(StorageConnector):
     def get_all_cursor(
         self,
         filters: Optional[Dict] = {},
-        after: str = None,
-        before: str = None,
-        limit: Optional[int] = 1000,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+        limit: int = 1000,
         order_by: str = "created_at",
         reverse: bool = False,
     ):
