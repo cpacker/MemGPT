@@ -26,7 +26,6 @@ from letta.schemas.agent import CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
-from letta.schemas.memory import ChatMemory
 from letta.schemas.source import Source
 from letta.server.server import SyncServer
 
@@ -540,3 +539,15 @@ def _test_get_messages_letta_format(
 def test_get_messages_letta_format(server, user_id, agent_id):
     for reverse in [False, True]:
         _test_get_messages_letta_format(server, user_id, agent_id, reverse=reverse)
+
+
+def test_composio_client_simple(server):
+    apps = server.get_composio_apps()
+    # Assert there's some amount of apps returned
+    assert len(apps) > 0
+
+    app = apps[0]
+    actions = server.get_composio_actions_from_app_name(composio_app_name=app.name)
+
+    # Assert there's some amount of actions
+    assert len(actions) > 0

@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+from composio.client.collections import ActionModel, AppModel
 from fastapi import APIRouter, Body, Depends, Header, HTTPException
 
 from letta.errors import LettaToolCreateError
@@ -156,3 +157,39 @@ def add_base_tools(
     """
     actor = server.get_user_or_default(user_id=user_id)
     return server.tool_manager.add_base_tools(actor=actor)
+
+
+# Specific routes for Composio
+
+
+@router.get("/composio/apps", response_model=List[AppModel], operation_id="list_composio_apps")
+def list_composio_apps(server: SyncServer = Depends(get_letta_server)):
+    """
+    Get a list of all Composio apps
+    """
+    return server.get_composio_apps()
+
+
+@router.get("/composio/apps/{composio_app_name}/actions", response_model=List[ActionModel], operation_id="list_composio_actions_by_app")
+def list_composio_actions_by_app(
+    composio_app_name: str,
+    server: SyncServer = Depends(get_letta_server),
+):
+    """
+    Get a list of all Composio actions for a specific app
+    """
+    return server.get_composio_actions_from_app_name(composio_app_name=composio_app_name)
+
+
+@router.post("/composio/{composio_action_name}", response_model=Tool, operation_id="add_composio_tool")
+def add_composio_tool(
+    composio_action_name: str,
+    server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    """
+    Add a new Composio tool by action name (Composio refers to each tool as an `Action`)
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+    tool_create = ToolCreate.from_composio(action=composio_action_name)
+    return server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=actor)
