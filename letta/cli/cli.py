@@ -220,7 +220,8 @@ def run(
 
         # create agent
         tools = [server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=client.user) for tool_name in agent_state.tool_names]
-        letta_agent = Agent(agent_state=agent_state, interface=interface(), tools=tools, user=client.user)
+        agent_state.tools = tools
+        letta_agent = Agent(agent_state=agent_state, interface=interface(), user=client.user)
 
     else:  # create new agent
         # create new agent config: override defaults with args if provided
