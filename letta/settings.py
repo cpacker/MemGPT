@@ -103,9 +103,10 @@ class Settings(BaseSettings):
         database = pgserver.get_server(pgdata)
 
         # create pg vector extension
-        database.psql('CREATE EXTENSION IF NOT EXISTS vector')
+        database.psql("CREATE EXTENSION IF NOT EXISTS vector")
 
         return database.get_uri()
+
 
 class TestSettings(Settings):
     model_config = SettingsConfigDict(env_prefix="letta_test_")
