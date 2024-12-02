@@ -9,4 +9,5 @@ then
 fi
 
 # generate OpenAPI schema
+poetry run alembic upgrade head
 poetry run python -c 'from letta.server.rest_api.app import app, generate_openapi_schema; generate_openapi_schema(app);'

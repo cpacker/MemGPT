@@ -25,6 +25,9 @@ jobs:
         poetry-version: "1.8.2"
         install-args: "-E dev -E external-tools"
 
+    - name: Migrate database
+      run: poetry run alembic upgrade head
+
     - name: Test first message contains expected function call and inner monologue
       id: test_first_message
       env:

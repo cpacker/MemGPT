@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import pgserver
 
 from letta.local_llm.constants import DEFAULT_WRAPPER_NAME
 
@@ -86,18 +87,25 @@ class Settings(BaseSettings):
         elif self.pg_db and self.pg_user and self.pg_password and self.pg_host and self.pg_port:
             return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
         else:
-            return f"postgresql+pg8000://letta:letta@localhost:5432/letta"
+            # start the pg binary. This is the default in-memory postgres that replaces SQLite/Chroma
+            self.pg_uri = self.launch_pg_binary()
+            return self.pg_uri
 
-    # add this property to avoid being returned the default
-    # reference: https://github.com/cpacker/Letta/issues/1362
     @property
     def letta_pg_uri_no_default(self) -> str:
-        if self.pg_uri:
-            return self.pg_uri
-        elif self.pg_db and self.pg_user and self.pg_password and self.pg_host and self.pg_port:
-            return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
-        else:
-            return None
+        """DEPRECATED: now that we have a default in-memory postgres, this is the same as letta_pg_uri"""
+        return self.letta_pg_uri
+
+    def launch_pg_binary(self) -> "str":
+        pgdata = settings.letta_dir / "pgdata"
+        pgdata.mkdir(parents=True, exist_ok=True)
+
+        database = pgserver.get_server(pgdata)
+
+        # create pg vector extension
+        database.psql("CREATE EXTENSION IF NOT EXISTS vector")
+
+        return database.get_uri()
 
 
 class TestSettings(Settings):

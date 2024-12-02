@@ -388,6 +388,7 @@ __pycache__/
 develop-eggs/
 downloads/
 eggs#letta/letta-server:0.3.7
+installable_apps/.eggs
 MANIFEST
 
 # PyInstaller
