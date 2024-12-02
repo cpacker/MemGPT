@@ -37,10 +37,7 @@ def get_source(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    source = server.source_manager.get_source_by_id(source_id=source_id, actor=actor)
-    if not source:
-        raise HTTPException(status_code=404, detail=f"Source with id={source_id} not found.")
-    return source
+    return server.source_manager.get_source_by_id(source_id=source_id, actor=actor)
 
 
 @router.get("/name/{source_name}", response_model=str, operation_id="get_source_id_by_name")
@@ -55,8 +52,6 @@ def get_source_id_by_name(
     actor = server.get_user_or_default(user_id=user_id)
 
     source = server.source_manager.get_source_by_name(source_name=source_name, actor=actor)
-    if not source:
-        raise HTTPException(status_code=404, detail=f"Source with name={source_name} not found.")
     return source.id
 
 
@@ -99,8 +94,6 @@ def update_source(
     Update the name or documentation of an existing data source.
     """
     actor = server.get_user_or_default(user_id=user_id)
-    if not server.source_manager.get_source_by_id(source_id=source_id, actor=actor):
-        raise HTTPException(status_code=404, detail=f"Source with id={source_id} does not exist.")
     return server.source_manager.update_source(source_id=source_id, source_update=source, actor=actor)
 
 
