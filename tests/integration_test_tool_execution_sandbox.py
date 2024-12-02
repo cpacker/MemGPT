@@ -10,8 +10,6 @@ from sqlalchemy import delete
 
 from letta import create_client
 from letta.functions.function_sets.base import core_memory_replace
-from letta.functions.functions import parse_source_code
-from letta.functions.schema_generator import generate_schema
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -34,6 +32,7 @@ from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
 from letta.settings import tool_settings
+from tests.helpers.utils import create_tool_from_func
 
 # Constants
 namespace = uuid.NAMESPACE_DNS
@@ -212,18 +211,6 @@ def agent_state():
         llm_config=LLMConfig.default_config(model_name="gpt-4"),
     )
     yield agent_state
-
-
-# Utility functions
-def create_tool_from_func(func: callable):
-    return Tool(
-        name=func.__name__,
-        description="",
-        source_type="python",
-        tags=[],
-        source_code=parse_source_code(func),
-        json_schema=generate_schema(func, None),
-    )
 
 
 # Local sandbox tests

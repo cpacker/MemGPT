@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from composio.client import Composio
-from composio.client.collections import AppModel
+from composio.client.collections import ActionModel, AppModel
 from fastapi import HTTPException
 
 import letta.constants as constants
@@ -1769,4 +1769,6 @@ class SyncServer(Server):
 
         return apps_with_actions
 
-    # def get_com
+    def get_composio_actions_from_app_name(self, composio_app_name: str) -> List["ActionModel"]:
+        actions = self.composio_client.actions.get(apps=[composio_app_name])
+        return actions
