@@ -68,6 +68,9 @@ jobs:
           poetry-version: "1.8.2"
           install-args: "-E dev -E ollama"
 
+      - name: Migrate database
+        run: poetry run alembic upgrade head
+
       - name: Test LLM Endpoint
         run: |
           set -e
