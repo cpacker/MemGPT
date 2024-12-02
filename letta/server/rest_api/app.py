@@ -183,7 +183,7 @@ def create_application() -> "FastAPI":
 
         import alembic.config
 
-        alembic.config.main(["migrate", "head"])
+        alembic.config.main(["upgrade", "head"])
 
         generate_openapi_schema(app)
         # always migrate now that we have a default in-memory postgres
