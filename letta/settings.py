@@ -88,8 +88,8 @@ class Settings(BaseSettings):
             return f"postgresql+pg8000://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_db}"
         else:
             # start the pg binary. This is the default in-memory postgres that replaces SQLite/Chroma
-            db = self.launch_pg_binary()
-            return db.uri
+            db_uri = self.launch_pg_binary()
+            return db_uri
 
     @property
     def letta_pg_uri_no_default(self) -> str:
