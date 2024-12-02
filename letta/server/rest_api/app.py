@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -103,7 +104,7 @@ def generate_password():
     return secrets.token_urlsafe(16)
 
 
-random_password = generate_password()
+random_password = os.getenv("LETTA_SERVER_PASSWORD") or generate_password()
 
 
 class CheckPasswordMiddleware(BaseHTTPMiddleware):
