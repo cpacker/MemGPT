@@ -391,6 +391,17 @@ def test_e2b_sandbox_core_memory_replace(check_e2b_key_is_set, core_memory_repla
 
 
 @pytest.mark.e2b_sandbox
+def test_e2b_sandbox_core_memory_replace_errors(check_e2b_key_is_set, core_memory_replace_tool, test_user, agent_state):
+    nonexistent_name = "Alexander Wang"
+    args = {"label": "human", "old_content": nonexistent_name, "new_content": "Matt"}
+    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
+
+    # run the sandbox
+    with pytest.raises(ValueError, match=f"Old content '{nonexistent_name}' not found in memory block 'human'"):
+        sandbox.run(agent_state=agent_state)
+
+
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_env_tool, test_user):
     manager = SandboxConfigManager(tool_settings)
     config_create = SandboxConfigCreate(config=E2BSandboxConfig().model_dump())
