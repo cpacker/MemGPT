@@ -375,6 +375,18 @@ def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test
 
 
 @pytest.mark.e2b_sandbox
+def test_e2b_sandbox_core_memory_replace(check_e2b_key_is_set, core_memory_replace_tool, test_user, agent_state):
+    new_name = "Matt"
+    args = {"label": "human", "old_content": "Chad", "new_content": new_name}
+    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
+
+    # run the sandbox
+    result = sandbox.run(agent_state=agent_state)
+    assert new_name in result.agent_state.memory.get_block("human").value
+    assert result.func_return is None
+
+
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_inject_env_var_existing_sandbox(check_e2b_key_is_set, get_env_tool, test_user):
     manager = SandboxConfigManager(tool_settings)
     config_create = SandboxConfigCreate(config=E2BSandboxConfig().model_dump())
