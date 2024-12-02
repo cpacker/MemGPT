@@ -132,7 +132,8 @@ class ToolExecutionSandbox:
                 sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
         except Exception as e:
-            raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+            logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+            raise e
         finally:
             # Clean up the temp file and restore stdout
             sys.stdout = old_stdout
@@ -154,7 +155,9 @@ class ToolExecutionSandbox:
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         execution = sbx.run_code(code, envs=env_vars)
         if execution.error is not None:
-            raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}")
+            logger.error(f"Executing tool {self.tool_name} failed with {execution.error}")
+            # Raise a concise exception as this gets returned to the LLM
+            raise self.parse_exception_from_e2b_execution(execution)
         elif len(execution.results) == 0:
             return None
         else:
@@ -165,6 +168,12 @@ class ToolExecutionSandbox:
                 stdout=execution.logs.stdout + execution.logs.stderr,
                 sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
+
+    def parse_exception_from_e2b_execution(self, e2b_execution: "Execution") -> Exception:
+        builtins_dict = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+        # Dynamically fetch the exception class from builtins, defaulting to Exception if not found
+        exception_class = builtins_dict.get(e2b_execution.error.name, Exception)
+        return exception_class(e2b_execution.error.value)
 
     def get_running_e2b_sandbox_with_same_state(self, sandbox_config: SandboxConfig) -> Optional["Sandbox"]:
         from e2b_code_interpreter import Sandbox

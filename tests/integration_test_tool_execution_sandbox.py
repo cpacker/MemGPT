@@ -266,6 +266,17 @@ def test_local_sandbox_core_memory_replace(mock_e2b_api_key_none, core_memory_re
     assert result.func_return is None
 
 
+@pytest.mark.e2b_sandbox
+def test_local_sandbox_core_memory_replace_errors(mock_e2b_api_key_none, core_memory_replace_tool, test_user, agent_state):
+    nonexistent_name = "Alexander Wang"
+    args = {"label": "human", "old_content": nonexistent_name, "new_content": "Matt"}
+    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
+
+    # run the sandbox
+    with pytest.raises(ValueError, match=f"Old content '{nonexistent_name}' not found in memory block 'human'"):
+        sandbox.run(agent_state=agent_state)
+
+
 @pytest.mark.local_sandbox
 def test_local_sandbox_with_list_rv(mock_e2b_api_key_none, list_tool, test_user):
     sandbox = ToolExecutionSandbox(list_tool.name, {}, user_id=test_user.id)
@@ -388,6 +399,17 @@ def test_e2b_sandbox_core_memory_replace(check_e2b_key_is_set, core_memory_repla
     result = sandbox.run(agent_state=agent_state)
     assert new_name in result.agent_state.memory.get_block("human").value
     assert result.func_return is None
+
+
+@pytest.mark.e2b_sandbox
+def test_e2b_sandbox_core_memory_replace_errors(check_e2b_key_is_set, core_memory_replace_tool, test_user, agent_state):
+    nonexistent_name = "Alexander Wang"
+    args = {"label": "human", "old_content": nonexistent_name, "new_content": "Matt"}
+    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
+
+    # run the sandbox
+    with pytest.raises(ValueError, match=f"Old content '{nonexistent_name}' not found in memory block 'human'"):
+        sandbox.run(agent_state=agent_state)
 
 
 @pytest.mark.e2b_sandbox
