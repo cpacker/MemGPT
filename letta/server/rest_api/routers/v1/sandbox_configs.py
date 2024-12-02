@@ -8,6 +8,7 @@ from letta.schemas.sandbox_config import SandboxEnvironmentVariable as PydanticE
 from letta.schemas.sandbox_config import (
     SandboxEnvironmentVariableCreate,
     SandboxEnvironmentVariableUpdate,
+    SandboxType,
 )
 from letta.server.rest_api.utils import get_letta_server, get_user_id
 from letta.server.server import SyncServer
@@ -27,6 +28,24 @@ def create_sandbox_config(
     actor = server.get_user_or_default(user_id=user_id)
 
     return server.sandbox_config_manager.create_or_update_sandbox_config(config_create, actor)
+
+
+@router.post("/e2b/default", response_model=PydanticSandboxConfig)
+def create_default_e2b_sandbox_config(
+    server: SyncServer = Depends(get_letta_server),
+    user_id: str = Depends(get_user_id),
+):
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=actor)
+
+
+@router.post("/local/default", response_model=PydanticSandboxConfig)
+def create_default_local_sandbox_config(
+    server: SyncServer = Depends(get_letta_server),
+    user_id: str = Depends(get_user_id),
+):
+    actor = server.get_user_or_default(user_id=user_id)
+    return server.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=actor)
 
 
 @router.patch("/{sandbox_config_id}", response_model=PydanticSandboxConfig)
