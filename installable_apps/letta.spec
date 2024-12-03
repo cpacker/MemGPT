@@ -11,7 +11,10 @@ a = Analysis(
         ('venv/lib/python3.12/site-packages/letta/humans/examples', 'letta/humans/examples'),
         ('venv/lib/python3.12/site-packages/letta/personas/examples', 'letta/personas/examples'),
         ('venv/lib/python3.12/site-packages/letta/prompts/system', 'letta/prompts/system'),
-        ('venv/lib/python3.12/site-packages/letta/functions/function_sets', 'letta/functions/function_sets')
+        ('venv/lib/python3.12/site-packages/letta/functions/function_sets', 'letta/functions/function_sets'),
+        ('assets','assets'),
+        ('logserver/templates','logserver/templates'),
+
     ],
     hiddenimports=[],
     hookspath=[],
