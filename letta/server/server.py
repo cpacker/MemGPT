@@ -372,14 +372,16 @@ class SyncServer(Server):
 
     def load_agent(self, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Updated method to load agents from persisted storage"""
-        agent_state = self.get_agent(agent_id=agent_id)
-        actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+        agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
+        with agent_lock:
+            agent_state = self.get_agent(agent_id=agent_id)
+            actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
-        interface = interface or self.default_interface_factory()
-        if agent_state.agent_type == AgentType.memgpt_agent:
-            return Agent(agent_state=agent_state, interface=interface, user=actor)
-        else:
-            return O1Agent(agent_state=agent_state, interface=interface, user=actor)
+            interface = interface or self.default_interface_factory()
+            if agent_state.agent_type == AgentType.memgpt_agent:
+                return Agent(agent_state=agent_state, interface=interface, user=actor)
+            else:
+                return O1Agent(agent_state=agent_state, interface=interface, user=actor)
 
     def _step(
         self,
