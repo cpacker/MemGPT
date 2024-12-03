@@ -379,9 +379,13 @@ class SyncServer(Server):
 
             interface = interface or self.default_interface_factory()
             if agent_state.agent_type == AgentType.memgpt_agent:
-                return Agent(agent_state=agent_state, interface=interface, user=actor)
+                agent = Agent(agent_state=agent_state, interface=interface, user=actor)
             else:
-                return O1Agent(agent_state=agent_state, interface=interface, user=actor)
+                agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+
+            # Persist to agent
+            save_agent(agent, self.ms)
+            return agent
 
     def _step(
         self,
