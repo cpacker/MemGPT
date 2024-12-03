@@ -1760,7 +1760,7 @@ class SyncServer(Server):
                 return block
         return None
 
-      def run_tool(self, tool_id: str, tool_args: str, user_id: str) -> FunctionReturn:
+    def run_tool(self, tool_id: str, tool_args: str, user_id: str) -> FunctionReturn:
         """Run a tool using the sandbox and return the result"""
 
         try:
