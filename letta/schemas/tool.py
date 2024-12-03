@@ -201,3 +201,15 @@ class ToolUpdate(LettaBase):
     class Config:
         extra = "ignore"  # Allows extra fields without validation errors
         # TODO: Remove this, and clean usage of ToolUpdate everywhere else
+
+
+class ToolRun(LettaBase):
+    id: str = Field(..., description="The ID of the tool to run.")
+    args: str = Field(..., description="The arguments to pass to the tool (as stringified JSON).")
+
+
+class ToolRunFromSource(LettaBase):
+    args: str = Field(..., description="The arguments to pass to the tool (as stringified JSON).")
+    name: Optional[str] = Field(..., description="The name of the tool to run.")
+    source_code: str = Field(None, description="The source code of the function.")
+    source_type: Optional[str] = Field(None, description="The type of the source code.")
