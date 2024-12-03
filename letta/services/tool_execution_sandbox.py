@@ -11,6 +11,7 @@ from typing import Any, Optional
 from letta.log import get_logger
 from letta.schemas.agent import AgentState
 from letta.schemas.sandbox_config import SandboxConfig, SandboxRunResult, SandboxType
+from letta.schemas.tool import Tool
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -27,7 +28,7 @@ class ToolExecutionSandbox:
     # We make this a long random string to avoid collisions with any variables in the user's code
     LOCAL_SANDBOX_RESULT_VAR_NAME = "result_ZQqiequkcFwRwwGQMqkt"
 
-    def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False):
+    def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False, tool_object: Optional[Tool] = None):
         self.tool_name = tool_name
         self.args = args
 
@@ -36,14 +37,18 @@ class ToolExecutionSandbox:
         # agent_state is the state of the agent that invoked this run
         self.user = UserManager().get_user_by_id(user_id=user_id)
 
-        # Get the tool
-        # TODO: So in theory, it's possible this retrieves a tool not provisioned to the agent
-        # TODO: That would probably imply that agent_state is incorrectly configured
-        self.tool = ToolManager().get_tool_by_name(tool_name=tool_name, actor=self.user)
-        if not self.tool:
-            raise ValueError(
-                f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
-            )
+        # If a tool object is provided, we use it directly, otherwise pull via name
+        if tool_object is not None:
+            self.tool = tool_object
+        else:
+            # Get the tool via name
+            # TODO: So in theory, it's possible this retrieves a tool not provisioned to the agent
+            # TODO: That would probably imply that agent_state is incorrectly configured
+            self.tool = ToolManager().get_tool_by_name(tool_name=tool_name, actor=self.user)
+            if not self.tool:
+                raise ValueError(
+                    f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
+                )
 
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.force_recreate = force_recreate

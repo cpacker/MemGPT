@@ -26,7 +26,6 @@ from letta.schemas.agent import CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
-from letta.schemas.memory import ChatMemory
 from letta.schemas.source import Source
 from letta.server.server import SyncServer
 
@@ -540,3 +539,57 @@ def _test_get_messages_letta_format(
 def test_get_messages_letta_format(server, user_id, agent_id):
     for reverse in [False, True]:
         _test_get_messages_letta_format(server, user_id, agent_id, reverse=reverse)
+
+
+EXAMPLE_TOOL_SOURCE = '''
+def ingest(message: str):
+    """
+    Ingest a message into the system.
+
+    Args:
+        message (str): The message to ingest into the system.
+
+    Returns:
+        str: The result of ingesting the message.
+    """
+    return f"Ingested message {message}"
+
+'''
+
+
+def test_tool_run(server, user_id, agent_id):
+    """Test that the server can run tools"""
+
+    result = server.run_tool_from_source(
+        user_id=user_id,
+        tool_source=EXAMPLE_TOOL_SOURCE,
+        tool_source_type="python",
+        tool_args=json.dumps({"message": "Hello, world!"}),
+        # tool_name="ingest",
+    )
+    print(result)
+    assert result.status == "success"
+    assert result.function_return == "Ingested message Hello, world!", result.function_return
+
+    result = server.run_tool_from_source(
+        user_id=user_id,
+        tool_source=EXAMPLE_TOOL_SOURCE,
+        tool_source_type="python",
+        tool_args=json.dumps({"message": "Well well well"}),
+        # tool_name="ingest",
+    )
+    print(result)
+    assert result.status == "success"
+    assert result.function_return == "Ingested message Well well well", result.function_return
+
+    result = server.run_tool_from_source(
+        user_id=user_id,
+        tool_source=EXAMPLE_TOOL_SOURCE,
+        tool_source_type="python",
+        tool_args=json.dumps({"bad_arg": "oh no"}),
+        # tool_name="ingest",
+    )
+    print(result)
+    assert result.status == "error"
+    assert "Error" in result.function_return, result.function_return
+    assert "missing 1 required positional argument" in result.function_return, result.function_return

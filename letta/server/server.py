@@ -1798,3 +1798,61 @@ class SyncServer(Server):
                 status="error",
                 function_return=error_msg,
             )
+
+    def run_tool_from_source(
+        self,
+        user_id: str,
+        tool_args: str,
+        tool_source: str,
+        tool_source_type: Optional[str] = None,
+        tool_name: Optional[str] = None,
+    ) -> FunctionReturn:
+        """Run a tool from source code"""
+
+        try:
+            tool_args_dict = json.loads(tool_args)
+        except json.JSONDecodeError:
+            raise ValueError("Invalid JSON string for tool_args")
+
+        if tool_source_type is not None and tool_source_type != "python":
+            raise ValueError("Only Python source code is supported at this time")
+
+        # NOTE: we're creating a floating Tool object and NOT persiting to DB
+        tool = Tool(
+            name=tool_name,
+            source_code=tool_source,
+        )
+        assert tool.name is not None, "Failed to create tool object"
+
+        # TODO eventually allow using agent state in tools
+        agent_state = None
+
+        # Next, attempt to run the tool with the sandbox
+        try:
+            sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id, tool_object=tool).run(agent_state=agent_state)
+            if sandbox_run_result is None:
+                raise ValueError(f"Tool with id {tool.id} returned execution with None")
+            function_response = str(sandbox_run_result.func_return)
+
+            return FunctionReturn(
+                id="null",
+                function_call_id="null",
+                date=get_utc_time(),
+                status="success",
+                function_return=function_response,
+            )
+        except Exception as e:
+            # same as agent.py
+            from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
+
+            error_msg = f"Error executing tool {tool.name}: {e}"
+            if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
+                error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
+
+            return FunctionReturn(
+                id="null",
+                function_call_id="null",
+                date=get_utc_time(),
+                status="error",
+                function_return=error_msg,
+            )

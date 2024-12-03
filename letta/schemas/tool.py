@@ -204,5 +204,12 @@ class ToolUpdate(LettaBase):
 
 
 class ToolRun(LettaBase):
-    tool_id: str = Field(..., description="The ID of the tool to run.")
-    tool_args: str = Field(..., description="The arguments to pass to the tool (as stringified JSON).")
+    id: str = Field(..., description="The ID of the tool to run.")
+    args: str = Field(..., description="The arguments to pass to the tool (as stringified JSON).")
+
+
+class ToolRunFromSource(LettaBase):
+    args: str = Field(..., description="The arguments to pass to the tool (as stringified JSON).")
+    name: Optional[str] = Field(..., description="The name of the tool to run.")
+    source_code: str = Field(None, description="The source code of the function.")
+    source_type: Optional[str] = Field(None, description="The type of the source code.")
