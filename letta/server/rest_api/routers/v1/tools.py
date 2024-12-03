@@ -175,7 +175,7 @@ def add_base_tools(
 #     return server.run_tool(tool_id=request.tool_id, tool_args=request.tool_args, user_id=actor.id)
 
 
-@router.post("/run", response_model=FunctionReturn, operation_id="run_tool_from_source")
+@router.post("/simulate-tool", response_model=FunctionReturn, operation_id="run_tool_from_source")
 def run_tool_from_source(
     server: SyncServer = Depends(get_letta_server),
     request: ToolRunFromSource = Body(...),
