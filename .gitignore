@@ -396,7 +396,7 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
-!*/installable_apps/letta.spec
+!installable_apps/letta.spec
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
