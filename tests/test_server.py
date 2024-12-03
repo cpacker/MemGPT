@@ -655,3 +655,15 @@ def test_tool_run(server, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == str(None), result.function_return
+
+
+def test_composio_client_simple(server):
+    apps = server.get_composio_apps()
+    # Assert there's some amount of apps returned
+    assert len(apps) > 0
+
+    app = apps[0]
+    actions = server.get_composio_actions_from_app_name(composio_app_name=app.name)
+
+    # Assert there's some amount of actions
+    assert len(actions) > 0

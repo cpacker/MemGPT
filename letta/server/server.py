@@ -8,6 +8,8 @@ from asyncio import Lock
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
+from composio.client import Composio
+from composio.client.collections import ActionModel, AppModel
 from fastapi import HTTPException
 
 import letta.constants as constants
@@ -228,6 +230,11 @@ class SyncServer(Server):
 
         # Locks
         self.send_message_lock = Lock()
+
+        # Composio
+        self.composio_client = None
+        if tool_settings.composio_api_key:
+            self.composio_client = Composio(api_key=tool_settings.composio_api_key)
 
         # Initialize the metadata store
         config = LettaConfig.load()
@@ -1753,7 +1760,7 @@ class SyncServer(Server):
                 return block
         return None
 
-    def run_tool(self, tool_id: str, tool_args: str, user_id: str) -> FunctionReturn:
+      def run_tool(self, tool_id: str, tool_args: str, user_id: str) -> FunctionReturn:
         """Run a tool using the sandbox and return the result"""
 
         try:
@@ -1856,3 +1863,18 @@ class SyncServer(Server):
                 status="error",
                 function_return=error_msg,
             )
+
+    # Composio wrappers
+    def get_composio_apps(self) -> List["AppModel"]:
+        """Get a list of all Composio apps with actions"""
+        apps = self.composio_client.apps.get()
+        apps_with_actions = []
+        for app in apps:
+            if app.meta["actionsCount"] > 0:
+                apps_with_actions.append(app)
+
+        return apps_with_actions
+
+    def get_composio_actions_from_app_name(self, composio_app_name: str) -> List["ActionModel"]:
+        actions = self.composio_client.actions.get(apps=[composio_app_name])
+        return actions
