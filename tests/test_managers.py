@@ -3,21 +3,46 @@ from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
-from letta.orm import Block, FileMetadata, Organization, Source, Tool, User
+from letta.metadata import AgentModel
+from letta.orm import (
+    Block,
+    BlocksAgents,
+    FileMetadata,
+    Organization,
+    SandboxConfig,
+    SandboxEnvironmentVariable,
+    Source,
+    Tool,
+    User,
+)
+from letta.orm.agents_tags import AgentsTags
+from letta.orm.errors import (
+    ForeignKeyConstraintViolationError,
+    UniqueConstraintViolationError,
+)
 from letta.schemas.agent import CreateAgent
 from letta.schemas.block import Block as PydanticBlock
-from letta.schemas.block import BlockUpdate
+from letta.schemas.block import BlockUpdate, CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.file import FileMetadata as PydanticFileMetadata
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.memory import ChatMemory
 from letta.schemas.organization import Organization as PydanticOrganization
+from letta.schemas.sandbox_config import (
+    E2BSandboxConfig,
+    LocalSandboxConfig,
+    SandboxConfigCreate,
+    SandboxConfigUpdate,
+    SandboxEnvironmentVariableCreate,
+    SandboxEnvironmentVariableUpdate,
+    SandboxType,
+)
 from letta.schemas.source import Source as PydanticSource
 from letta.schemas.source import SourceUpdate
 from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolUpdate
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
+from letta.settings import tool_settings
 
 utils.DEBUG = True
 from letta.config import LettaConfig
@@ -41,10 +66,15 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(BlocksAgents))
+        session.execute(delete(AgentsTags))
+        session.execute(delete(SandboxEnvironmentVariable))
+        session.execute(delete(SandboxConfig))
         session.execute(delete(Block))
         session.execute(delete(FileMetadata))
         session.execute(delete(Source))
         session.execute(delete(Tool))  # Clear all records from the Tool table
+        session.execute(delete(AgentModel))
         session.execute(delete(User))  # Clear all records from the user table
         session.execute(delete(Organization))  # Clear all records from the organization table
         session.commit()  # Commit the deletion
@@ -89,18 +119,14 @@ def sarah_agent(server: SyncServer, default_user, default_organization):
     agent_state = server.create_agent(
         request=CreateAgent(
             name="sarah_agent",
-            memory=ChatMemory(
-                human="Charles",
-                persona="I am a helpful assistant",
-            ),
+            # memory_blocks=[CreateBlock(label="human", value="Charles"), CreateBlock(label="persona", value="I am a helpful assistant")],
+            memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
         actor=default_user,
     )
     yield agent_state
-
-    server.delete_agent(user_id=default_user.id, agent_id=agent_state.id)
 
 
 @pytest.fixture
@@ -109,10 +135,7 @@ def charles_agent(server: SyncServer, default_user, default_organization):
     agent_state = server.create_agent(
         request=CreateAgent(
             name="charles_agent",
-            memory=ChatMemory(
-                human="Sarah",
-                persona="I am a helpful assistant",
-            ),
+            memory_blocks=[CreateBlock(label="human", value="Charles"), CreateBlock(label="persona", value="I am a helpful assistant")],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
@@ -120,11 +143,9 @@ def charles_agent(server: SyncServer, default_user, default_organization):
     )
     yield agent_state
 
-    server.delete_agent(user_id=default_user.id, agent_id=agent_state.id)
-
 
 @pytest.fixture
-def tool_fixture(server: SyncServer, default_user, default_organization):
+def print_tool(server: SyncServer, default_user, default_organization):
     """Fixture to create a tool with default settings and clean up after the test."""
 
     def print_tool(message: str):
@@ -153,8 +174,60 @@ def tool_fixture(server: SyncServer, default_user, default_organization):
 
     tool = server.tool_manager.create_tool(tool, actor=default_user)
 
-    # Yield the created tool, organization, and user for use in tests
-    yield {"tool": tool}
+    # Yield the created tool
+    yield tool
+
+
+@pytest.fixture
+def sandbox_config_fixture(server: SyncServer, default_user):
+    sandbox_config_create = SandboxConfigCreate(
+        config=E2BSandboxConfig(),
+    )
+    created_config = server.sandbox_config_manager.create_or_update_sandbox_config(sandbox_config_create, actor=default_user)
+    yield created_config
+
+
+@pytest.fixture
+def sandbox_env_var_fixture(server: SyncServer, sandbox_config_fixture, default_user):
+    env_var_create = SandboxEnvironmentVariableCreate(
+        key="SAMPLE_VAR",
+        value="sample_value",
+        description="A sample environment variable for testing.",
+    )
+    created_env_var = server.sandbox_config_manager.create_sandbox_env_var(
+        env_var_create, sandbox_config_id=sandbox_config_fixture.id, actor=default_user
+    )
+    yield created_env_var
+
+
+@pytest.fixture
+def default_block(server: SyncServer, default_user):
+    """Fixture to create and return a default block."""
+    block_manager = BlockManager()
+    block_data = PydanticBlock(
+        label="default_label",
+        value="Default Block Content",
+        description="A default test block",
+        limit=1000,
+        metadata_={"type": "test"},
+    )
+    block = block_manager.create_or_update_block(block_data, actor=default_user)
+    yield block
+
+
+@pytest.fixture
+def other_block(server: SyncServer, default_user):
+    """Fixture to create and return another block."""
+    block_manager = BlockManager()
+    block_data = PydanticBlock(
+        label="other_label",
+        value="Other Block Content",
+        description="Another test block",
+        limit=500,
+        metadata_={"type": "test"},
+    )
+    block = block_manager.create_or_update_block(block_data, actor=default_user)
+    yield block
 
 
 @pytest.fixture(scope="module")
@@ -264,76 +337,75 @@ def test_update_user(server: SyncServer):
 
 
 # ======================================================================================================================
-# Tool Manager Tests
+# ToolManager Tests
 # ======================================================================================================================
-def test_create_tool(server: SyncServer, tool_fixture, default_user, default_organization):
-    tool = tool_fixture["tool"]
-
+def test_create_tool(server: SyncServer, print_tool, default_user, default_organization):
     # Assertions to ensure the created tool matches the expected values
-    assert tool.created_by_id == default_user.id
-    assert tool.organization_id == default_organization.id
+    assert print_tool.created_by_id == default_user.id
+    assert print_tool.organization_id == default_organization.id
 
 
-def test_get_tool_by_id(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
+def test_create_tool_duplicate_name(server: SyncServer, print_tool, default_user, default_organization):
+    data = print_tool.model_dump(exclude=["id"])
+    tool = PydanticTool(**data)
 
+    with pytest.raises(UniqueConstraintViolationError):
+        server.tool_manager.create_tool(tool, actor=default_user)
+
+
+def test_get_tool_by_id(server: SyncServer, print_tool, default_user):
     # Fetch the tool by ID using the manager method
-    fetched_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    fetched_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     # Assertions to check if the fetched tool matches the created tool
-    assert fetched_tool.id == tool.id
-    assert fetched_tool.name == tool.name
-    assert fetched_tool.description == tool.description
-    assert fetched_tool.tags == tool.tags
-    assert fetched_tool.source_code == tool.source_code
-    assert fetched_tool.source_type == tool.source_type
+    assert fetched_tool.id == print_tool.id
+    assert fetched_tool.name == print_tool.name
+    assert fetched_tool.description == print_tool.description
+    assert fetched_tool.tags == print_tool.tags
+    assert fetched_tool.source_code == print_tool.source_code
+    assert fetched_tool.source_type == print_tool.source_type
 
 
-def test_get_tool_with_actor(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
-
-    # Fetch the tool by name and organization ID
-    fetched_tool = server.tool_manager.get_tool_by_name(tool.name, actor=default_user)
+def test_get_tool_with_actor(server: SyncServer, print_tool, default_user):
+    # Fetch the print_tool by name and organization ID
+    fetched_tool = server.tool_manager.get_tool_by_name(print_tool.name, actor=default_user)
 
     # Assertions to check if the fetched tool matches the created tool
-    assert fetched_tool.id == tool.id
-    assert fetched_tool.name == tool.name
+    assert fetched_tool.id == print_tool.id
+    assert fetched_tool.name == print_tool.name
     assert fetched_tool.created_by_id == default_user.id
-    assert fetched_tool.description == tool.description
-    assert fetched_tool.tags == tool.tags
-    assert fetched_tool.source_code == tool.source_code
-    assert fetched_tool.source_type == tool.source_type
+    assert fetched_tool.description == print_tool.description
+    assert fetched_tool.tags == print_tool.tags
+    assert fetched_tool.source_code == print_tool.source_code
+    assert fetched_tool.source_type == print_tool.source_type
 
 
-def test_list_tools(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
-
+def test_list_tools(server: SyncServer, print_tool, default_user):
     # List tools (should include the one created by the fixture)
     tools = server.tool_manager.list_tools(actor=default_user)
 
     # Assertions to check that the created tool is listed
     assert len(tools) == 1
-    assert any(t.id == tool.id for t in tools)
+    assert any(t.id == print_tool.id for t in tools)
 
 
-def test_update_tool_by_id(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
+def test_update_tool_by_id(server: SyncServer, print_tool, default_user):
     updated_description = "updated_description"
 
-    # Create a ToolUpdate object to modify the tool's description
+    # Create a ToolUpdate object to modify the print_tool's description
     tool_update = ToolUpdate(description=updated_description)
 
     # Update the tool using the manager method
-    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=default_user)
+    server.tool_manager.update_tool_by_id(print_tool.id, tool_update, actor=default_user)
 
     # Fetch the updated tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    updated_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     # Assertions to check if the update was successful
     assert updated_tool.description == updated_description
 
 
-def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, tool_fixture, default_user):
+def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, print_tool, default_user):
     def counter_tool(counter: int):
         """
         Args:
@@ -348,8 +420,7 @@ def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, t
         return True
 
     # Test begins
-    tool = tool_fixture["tool"]
-    og_json_schema = tool.json_schema
+    og_json_schema = print_tool.json_schema
 
     source_code = parse_source_code(counter_tool)
 
@@ -357,10 +428,10 @@ def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, t
     tool_update = ToolUpdate(source_code=source_code)
 
     # Update the tool using the manager method
-    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=default_user)
+    server.tool_manager.update_tool_by_id(print_tool.id, tool_update, actor=default_user)
 
     # Fetch the updated tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    updated_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     # Assertions to check if the update was successful, and json_schema is updated as well
     assert updated_tool.source_code == source_code
@@ -370,7 +441,7 @@ def test_update_tool_source_code_refreshes_schema_and_name(server: SyncServer, t
     assert updated_tool.json_schema == new_schema
 
 
-def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_fixture, default_user):
+def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, print_tool, default_user):
     def counter_tool(counter: int):
         """
         Args:
@@ -385,8 +456,7 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_
         return True
 
     # Test begins
-    tool = tool_fixture["tool"]
-    og_json_schema = tool.json_schema
+    og_json_schema = print_tool.json_schema
 
     source_code = parse_source_code(counter_tool)
     name = "counter_tool"
@@ -395,10 +465,10 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_
     tool_update = ToolUpdate(name=name, source_code=source_code)
 
     # Update the tool using the manager method
-    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=default_user)
+    server.tool_manager.update_tool_by_id(print_tool.id, tool_update, actor=default_user)
 
     # Fetch the updated tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    updated_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     # Assertions to check if the update was successful, and json_schema is updated as well
     assert updated_tool.source_code == source_code
@@ -409,29 +479,26 @@ def test_update_tool_source_code_refreshes_schema_only(server: SyncServer, tool_
     assert updated_tool.name == name
 
 
-def test_update_tool_multi_user(server: SyncServer, tool_fixture, default_user, other_user):
-    tool = tool_fixture["tool"]
+def test_update_tool_multi_user(server: SyncServer, print_tool, default_user, other_user):
     updated_description = "updated_description"
 
-    # Create a ToolUpdate object to modify the tool's description
+    # Create a ToolUpdate object to modify the print_tool's description
     tool_update = ToolUpdate(description=updated_description)
 
-    # Update the tool using the manager method, but WITH THE OTHER USER'S ID!
-    server.tool_manager.update_tool_by_id(tool.id, tool_update, actor=other_user)
+    # Update the print_tool using the manager method, but WITH THE OTHER USER'S ID!
+    server.tool_manager.update_tool_by_id(print_tool.id, tool_update, actor=other_user)
 
     # Check that the created_by and last_updated_by fields are correct
-    # Fetch the updated tool to verify the changes
-    updated_tool = server.tool_manager.get_tool_by_id(tool.id, actor=default_user)
+    # Fetch the updated print_tool to verify the changes
+    updated_tool = server.tool_manager.get_tool_by_id(print_tool.id, actor=default_user)
 
     assert updated_tool.last_updated_by_id == other_user.id
     assert updated_tool.created_by_id == default_user.id
 
 
-def test_delete_tool_by_id(server: SyncServer, tool_fixture, default_user):
-    tool = tool_fixture["tool"]
-
-    # Delete the tool using the manager method
-    server.tool_manager.delete_tool_by_id(tool.id, actor=default_user)
+def test_delete_tool_by_id(server: SyncServer, print_tool, default_user):
+    # Delete the print_tool using the manager method
+    server.tool_manager.delete_tool_by_id(print_tool.id, actor=default_user)
 
     tools = server.tool_manager.list_tools(actor=default_user)
     assert len(tools) == 0
@@ -500,6 +567,29 @@ def test_update_block(server: SyncServer, default_user):
 
     # Assertions to verify the update
     assert updated_block.value == "Updated Content"
+    assert updated_block.description == "Updated description"
+
+
+def test_update_block_limit(server: SyncServer, default_user):
+
+    block_manager = BlockManager()
+    block = block_manager.create_or_update_block(PydanticBlock(label="persona", value="Original Content"), actor=default_user)
+
+    limit = len("Updated Content") * 2000
+    update_data = BlockUpdate(value="Updated Content" * 2000, description="Updated description", limit=limit)
+
+    # Check that a large block fails
+    try:
+        block_manager.update_block(block_id=block.id, block_update=update_data, actor=default_user)
+        assert False
+    except Exception:
+        pass
+
+    block_manager.update_block(block_id=block.id, block_update=update_data, actor=default_user)
+    # Retrieve the updated block
+    updated_block = block_manager.get_blocks(actor=default_user, id=block.id)[0]
+    # Assertions to verify the update
+    assert updated_block.value == "Updated Content" * 2000
     assert updated_block.description == "Updated description"
 
 
@@ -806,3 +896,248 @@ def test_get_agents_by_tag(server: SyncServer, sarah_agent, charles_agent, defau
     assert sarah_agent.id not in agent_ids
     assert charles_agent.id in agent_ids
     assert len(agent_ids) == 1
+
+
+# ======================================================================================================================
+# SandboxConfigManager Tests - Sandbox Configs
+# ======================================================================================================================
+def test_create_or_update_sandbox_config(server: SyncServer, default_user):
+    sandbox_config_create = SandboxConfigCreate(
+        config=E2BSandboxConfig(),
+    )
+    created_config = server.sandbox_config_manager.create_or_update_sandbox_config(sandbox_config_create, actor=default_user)
+
+    # Assertions
+    assert created_config.type == SandboxType.E2B
+    assert created_config.get_e2b_config() == sandbox_config_create.config
+    assert created_config.organization_id == default_user.organization_id
+
+
+def test_default_e2b_settings_sandbox_config(server: SyncServer, default_user):
+    created_config = server.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=default_user)
+    e2b_config = created_config.get_e2b_config()
+
+    # Assertions
+    assert e2b_config.timeout == 5 * 60
+    assert e2b_config.template == tool_settings.e2b_sandbox_template_id
+
+
+def test_update_existing_sandbox_config(server: SyncServer, sandbox_config_fixture, default_user):
+    update_data = SandboxConfigUpdate(config=E2BSandboxConfig(template="template_2", timeout=120))
+    updated_config = server.sandbox_config_manager.update_sandbox_config(sandbox_config_fixture.id, update_data, actor=default_user)
+
+    # Assertions
+    assert updated_config.config["template"] == "template_2"
+    assert updated_config.config["timeout"] == 120
+
+
+def test_delete_sandbox_config(server: SyncServer, sandbox_config_fixture, default_user):
+    deleted_config = server.sandbox_config_manager.delete_sandbox_config(sandbox_config_fixture.id, actor=default_user)
+
+    # Assertions to verify deletion
+    assert deleted_config.id == sandbox_config_fixture.id
+
+    # Verify it no longer exists
+    config_list = server.sandbox_config_manager.list_sandbox_configs(actor=default_user)
+    assert sandbox_config_fixture.id not in [config.id for config in config_list]
+
+
+def test_get_sandbox_config_by_type(server: SyncServer, sandbox_config_fixture, default_user):
+    retrieved_config = server.sandbox_config_manager.get_sandbox_config_by_type(sandbox_config_fixture.type, actor=default_user)
+
+    # Assertions to verify correct retrieval
+    assert retrieved_config.id == sandbox_config_fixture.id
+    assert retrieved_config.type == sandbox_config_fixture.type
+
+
+def test_list_sandbox_configs(server: SyncServer, default_user):
+    # Creating multiple sandbox configs
+    config_a = SandboxConfigCreate(
+        config=E2BSandboxConfig(),
+    )
+    config_b = SandboxConfigCreate(
+        config=LocalSandboxConfig(sandbox_dir=""),
+    )
+    server.sandbox_config_manager.create_or_update_sandbox_config(config_a, actor=default_user)
+    server.sandbox_config_manager.create_or_update_sandbox_config(config_b, actor=default_user)
+
+    # List configs without pagination
+    configs = server.sandbox_config_manager.list_sandbox_configs(actor=default_user)
+    assert len(configs) >= 2
+
+    # List configs with pagination
+    paginated_configs = server.sandbox_config_manager.list_sandbox_configs(actor=default_user, limit=1)
+    assert len(paginated_configs) == 1
+
+    next_page = server.sandbox_config_manager.list_sandbox_configs(actor=default_user, cursor=paginated_configs[-1].id, limit=1)
+    assert len(next_page) == 1
+    assert next_page[0].id != paginated_configs[0].id
+
+
+# ======================================================================================================================
+# SandboxConfigManager Tests - Environment Variables
+# ======================================================================================================================
+def test_create_sandbox_env_var(server: SyncServer, sandbox_config_fixture, default_user):
+    env_var_create = SandboxEnvironmentVariableCreate(key="TEST_VAR", value="test_value", description="A test environment variable.")
+    created_env_var = server.sandbox_config_manager.create_sandbox_env_var(
+        env_var_create, sandbox_config_id=sandbox_config_fixture.id, actor=default_user
+    )
+
+    # Assertions
+    assert created_env_var.key == env_var_create.key
+    assert created_env_var.value == env_var_create.value
+    assert created_env_var.organization_id == default_user.organization_id
+
+
+def test_update_sandbox_env_var(server: SyncServer, sandbox_env_var_fixture, default_user):
+    update_data = SandboxEnvironmentVariableUpdate(value="updated_value")
+    updated_env_var = server.sandbox_config_manager.update_sandbox_env_var(sandbox_env_var_fixture.id, update_data, actor=default_user)
+
+    # Assertions
+    assert updated_env_var.value == "updated_value"
+    assert updated_env_var.id == sandbox_env_var_fixture.id
+
+
+def test_delete_sandbox_env_var(server: SyncServer, sandbox_config_fixture, sandbox_env_var_fixture, default_user):
+    deleted_env_var = server.sandbox_config_manager.delete_sandbox_env_var(sandbox_env_var_fixture.id, actor=default_user)
+
+    # Assertions to verify deletion
+    assert deleted_env_var.id == sandbox_env_var_fixture.id
+
+    # Verify it no longer exists
+    env_vars = server.sandbox_config_manager.list_sandbox_env_vars(sandbox_config_id=sandbox_config_fixture.id, actor=default_user)
+    assert sandbox_env_var_fixture.id not in [env_var.id for env_var in env_vars]
+
+
+def test_list_sandbox_env_vars(server: SyncServer, sandbox_config_fixture, default_user):
+    # Creating multiple environment variables
+    env_var_create_a = SandboxEnvironmentVariableCreate(key="VAR1", value="value1")
+    env_var_create_b = SandboxEnvironmentVariableCreate(key="VAR2", value="value2")
+    server.sandbox_config_manager.create_sandbox_env_var(env_var_create_a, sandbox_config_id=sandbox_config_fixture.id, actor=default_user)
+    server.sandbox_config_manager.create_sandbox_env_var(env_var_create_b, sandbox_config_id=sandbox_config_fixture.id, actor=default_user)
+
+    # List env vars without pagination
+    env_vars = server.sandbox_config_manager.list_sandbox_env_vars(sandbox_config_id=sandbox_config_fixture.id, actor=default_user)
+    assert len(env_vars) >= 2
+
+    # List env vars with pagination
+    paginated_env_vars = server.sandbox_config_manager.list_sandbox_env_vars(
+        sandbox_config_id=sandbox_config_fixture.id, actor=default_user, limit=1
+    )
+    assert len(paginated_env_vars) == 1
+
+    next_page = server.sandbox_config_manager.list_sandbox_env_vars(
+        sandbox_config_id=sandbox_config_fixture.id, actor=default_user, cursor=paginated_env_vars[-1].id, limit=1
+    )
+    assert len(next_page) == 1
+    assert next_page[0].id != paginated_env_vars[0].id
+
+
+def test_get_sandbox_env_var_by_key(server: SyncServer, sandbox_env_var_fixture, default_user):
+    retrieved_env_var = server.sandbox_config_manager.get_sandbox_env_var_by_key_and_sandbox_config_id(
+        sandbox_env_var_fixture.key, sandbox_env_var_fixture.sandbox_config_id, actor=default_user
+    )
+
+    # Assertions to verify correct retrieval
+    assert retrieved_env_var.id == sandbox_env_var_fixture.id
+    assert retrieved_env_var.key == sandbox_env_var_fixture.key
+
+
+# ======================================================================================================================
+# BlocksAgentsManager Tests
+# ======================================================================================================================
+def test_add_block_to_agent(server, sarah_agent, default_user, default_block):
+    block_association = server.blocks_agents_manager.add_block_to_agent(
+        agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label
+    )
+
+    assert block_association.agent_id == sarah_agent.id
+    assert block_association.block_id == default_block.id
+    assert block_association.block_label == default_block.label
+
+
+def test_change_label_on_block_reflects_in_block_agents_table(server, sarah_agent, default_user, default_block):
+    # Add the block
+    block_association = server.blocks_agents_manager.add_block_to_agent(
+        agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label
+    )
+    assert block_association.block_label == default_block.label
+
+    # Change the block label
+    new_label = "banana"
+    block = server.block_manager.update_block(block_id=default_block.id, block_update=BlockUpdate(label=new_label), actor=default_user)
+    assert block.label == new_label
+
+    # Get the association
+    labels = server.blocks_agents_manager.list_block_labels_for_agent(agent_id=sarah_agent.id)
+    assert new_label in labels
+    assert default_block.label not in labels
+
+
+def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
+    with pytest.raises(ForeignKeyConstraintViolationError):
+        server.blocks_agents_manager.add_block_to_agent(
+            agent_id=sarah_agent.id, block_id="nonexistent_block", block_label="nonexistent_label"
+        )
+
+
+def test_add_block_to_agent_duplicate_label(server, sarah_agent, default_user, default_block, other_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+    with pytest.warns(UserWarning, match=f"Block label '{default_block.label}' already exists for agent '{sarah_agent.id}'"):
+        server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=default_block.label)
+
+
+def test_remove_block_with_label_from_agent(server, sarah_agent, default_user, default_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+    removed_block = server.blocks_agents_manager.remove_block_with_label_from_agent(
+        agent_id=sarah_agent.id, block_label=default_block.label
+    )
+
+    assert removed_block.block_label == default_block.label
+    assert removed_block.block_id == default_block.id
+    assert removed_block.agent_id == sarah_agent.id
+
+    with pytest.raises(ValueError, match=f"Block label '{default_block.label}' not found for agent '{sarah_agent.id}'"):
+        server.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=sarah_agent.id, block_label=default_block.label)
+
+
+def test_update_block_id_for_agent(server, sarah_agent, default_user, default_block, other_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+    updated_block = server.blocks_agents_manager.update_block_id_for_agent(
+        agent_id=sarah_agent.id, block_label=default_block.label, new_block_id=other_block.id
+    )
+
+    assert updated_block.block_id == other_block.id
+    assert updated_block.block_label == default_block.label
+    assert updated_block.agent_id == sarah_agent.id
+
+
+def test_list_block_ids_for_agent(server, sarah_agent, default_user, default_block, other_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=other_block.label)
+
+    retrieved_block_ids = server.blocks_agents_manager.list_block_ids_for_agent(agent_id=sarah_agent.id)
+
+    assert set(retrieved_block_ids) == {default_block.id, other_block.id}
+
+
+def test_list_agent_ids_with_block(server, sarah_agent, charles_agent, default_user, default_block):
+    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+    server.blocks_agents_manager.add_block_to_agent(agent_id=charles_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+    agent_ids = server.blocks_agents_manager.list_agent_ids_with_block(block_id=default_block.id)
+
+    assert sarah_agent.id in agent_ids
+    assert charles_agent.id in agent_ids
+    assert len(agent_ids) == 2
+
+
+def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user, default_block):
+    block_manager = BlockManager()
+    block_manager.delete_block(block_id=default_block.id, actor=default_user)
+
+    with pytest.raises(ForeignKeyConstraintViolationError):
+        server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)

@@ -18,6 +18,7 @@ from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
+from letta.utils import sanitize_filename
 
 # These can be forward refs, but because Fastapi needs them at runtime the must be imported normally
 
@@ -170,7 +171,7 @@ def upload_file_to_source(
     server.ms.create_job(job)
 
     # create background task
-    background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, job_id=job.id, file=file, bytes=bytes)
+    background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, file=file, job_id=job.id, bytes=bytes)
 
     # return job information
     job = server.ms.get_job(job_id=job_id)
@@ -227,10 +228,15 @@ def delete_file_from_source(
 
 
 def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):
-    # write the file to a temporary directory (deleted after the context manager exits)
+    # Create a temporary directory (deleted after the context manager exits)
     with tempfile.TemporaryDirectory() as tmpdirname:
-        file_path = os.path.join(str(tmpdirname), str(file.filename))
+        # Sanitize the filename
+        sanitized_filename = sanitize_filename(file.filename)
+        file_path = os.path.join(tmpdirname, sanitized_filename)
+
+        # Write the file to the sanitized path
         with open(file_path, "wb") as buffer:
             buffer.write(bytes)
 
+        # Pass the file to load_file_to_source
         server.load_file_to_source(source_id, file_path, job_id)

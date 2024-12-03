@@ -1,16 +1,13 @@
 from typing import Dict, List, Optional
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
+from letta.functions.functions import derive_openai_json_schema
 from letta.functions.helpers import (
     generate_composio_tool_wrapper,
-    generate_crewai_tool_wrapper,
     generate_langchain_tool_wrapper,
 )
-from letta.functions.schema_generator import (
-    generate_schema_from_args_schema_v1,
-    generate_schema_from_args_schema_v2,
-)
+from letta.functions.schema_generator import generate_schema_from_args_schema_v2
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.openai.chat_completions import ToolCall
 
@@ -47,6 +44,29 @@ class Tool(BaseTool):
     # metadata fields
     created_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
     last_updated_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
+
+    @model_validator(mode="after")
+    def populate_missing_fields(self):
+        """
+        Populate missing fields: name, description, and json_schema.
+        """
+        # Derive JSON schema if not provided
+        if not self.json_schema:
+            self.json_schema = derive_openai_json_schema(source_code=self.source_code)
+
+        # Derive name from the JSON schema if not provided
+        if not self.name:
+            # TODO: This in theory could error, but name should always be on json_schema
+            # TODO: Make JSON schema a typed pydantic object
+            self.name = self.json_schema.get("name")
+
+        # Derive description from the JSON schema if not provided
+        if not self.description:
+            # TODO: This in theory could error, but description should always be on json_schema
+            # TODO: Make JSON schema a typed pydantic object
+            self.description = self.json_schema.get("description")
+
+        return self
 
     def to_dict(self):
         """
@@ -132,37 +152,7 @@ class ToolCreate(LettaBase):
         tags = ["langchain"]
         # NOTE: langchain tools may come from different packages
         wrapper_func_name, wrapper_function_str = generate_langchain_tool_wrapper(langchain_tool, additional_imports_module_attr_map)
-        json_schema = generate_schema_from_args_schema_v1(langchain_tool.args_schema, name=wrapper_func_name, description=description)
-
-        return cls(
-            name=wrapper_func_name,
-            description=description,
-            source_type=source_type,
-            tags=tags,
-            source_code=wrapper_function_str,
-            json_schema=json_schema,
-        )
-
-    @classmethod
-    def from_crewai(
-        cls,
-        crewai_tool: "CrewAIBaseTool",
-        additional_imports_module_attr_map: dict[str, str] = None,
-    ) -> "ToolCreate":
-        """
-        Class method to create an instance of Tool from a crewAI BaseTool object.
-
-        Args:
-            crewai_tool (CrewAIBaseTool): An instance of a crewAI BaseTool (BaseTool from crewai)
-
-        Returns:
-            Tool: A Letta Tool initialized with attributes derived from the provided crewAI BaseTool object.
-        """
-        description = crewai_tool.description
-        source_type = "python"
-        tags = ["crew-ai"]
-        wrapper_func_name, wrapper_function_str = generate_crewai_tool_wrapper(crewai_tool, additional_imports_module_attr_map)
-        json_schema = generate_schema_from_args_schema_v1(crewai_tool.args_schema, name=wrapper_func_name, description=description)
+        json_schema = generate_schema_from_args_schema_v2(langchain_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
             name=wrapper_func_name,
@@ -184,15 +174,6 @@ class ToolCreate(LettaBase):
         )
 
         return [wikipedia_tool]
-
-    @classmethod
-    def load_default_crewai_tools(cls) -> List["ToolCreate"]:
-        # For now, we only support scrape website tool
-        from crewai_tools import ScrapeWebsiteTool
-
-        web_scrape_tool = ToolCreate.from_crewai(ScrapeWebsiteTool())
-
-        return [web_scrape_tool]
 
     @classmethod
     def load_default_composio_tools(cls) -> List["ToolCreate"]:
@@ -220,3 +201,15 @@ class ToolUpdate(LettaBase):
     class Config:
         extra = "ignore"  # Allows extra fields without validation errors
         # TODO: Remove this, and clean usage of ToolUpdate everywhere else
+
+
+class ToolRun(LettaBase):
+    id: str = Field(..., description="The ID of the tool to run.")
+    args: str = Field(..., description="The arguments to pass to the tool (as stringified JSON).")
+
+
+class ToolRunFromSource(LettaBase):
+    args: str = Field(..., description="The arguments to pass to the tool (as stringified JSON).")
+    name: Optional[str] = Field(..., description="The name of the tool to run.")
+    source_code: str = Field(None, description="The source code of the function.")
+    source_type: Optional[str] = Field(None, description="The type of the source code.")

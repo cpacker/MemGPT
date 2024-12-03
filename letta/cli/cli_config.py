@@ -136,7 +136,7 @@ def add_tool(
     func = eval(func_def.name)
 
     # 4. Add or update the tool
-    tool = client.create_tool(func=func, name=name, tags=tags, update=update)
+    tool = client.create_or_update_tool(func=func, name=name, tags=tags, update=update)
     print(f"Tool {tool.name} added successfully")
 
 

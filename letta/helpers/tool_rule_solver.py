@@ -2,11 +2,12 @@ from typing import Dict, List, Optional, Set
 
 from pydantic import BaseModel, Field
 
+from letta.schemas.enums import ToolRuleType
 from letta.schemas.tool_rule import (
     BaseToolRule,
+    ChildToolRule,
     InitToolRule,
     TerminalToolRule,
-    ToolRule,
 )
 
 
@@ -21,7 +22,7 @@ class ToolRulesSolver(BaseModel):
     init_tool_rules: List[InitToolRule] = Field(
         default_factory=list, description="Initial tool rules to be used at the start of tool execution."
     )
-    tool_rules: List[ToolRule] = Field(
+    tool_rules: List[ChildToolRule] = Field(
         default_factory=list, description="Standard tool rules for controlling execution sequence and allowed transitions."
     )
     terminal_tool_rules: List[TerminalToolRule] = Field(
@@ -33,11 +34,11 @@ class ToolRulesSolver(BaseModel):
         super().__init__(**kwargs)
         # Separate the provided tool rules into init, standard, and terminal categories
         for rule in tool_rules:
-            if isinstance(rule, InitToolRule):
+            if rule.type == ToolRuleType.run_first:
                 self.init_tool_rules.append(rule)
-            elif isinstance(rule, ToolRule):
+            elif rule.type == ToolRuleType.constrain_child_tools:
                 self.tool_rules.append(rule)
-            elif isinstance(rule, TerminalToolRule):
+            elif rule.type == ToolRuleType.exit_loop:
                 self.terminal_tool_rules.append(rule)
 
         # Validate the tool rules to ensure they form a DAG

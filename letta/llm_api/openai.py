@@ -477,7 +477,10 @@ def openai_chat_completions_request_stream(
     if "tools" in data:
         for tool in data["tools"]:
             # tool["strict"] = True
-            tool["function"] = convert_to_structured_output(tool["function"])
+            try:
+                tool["function"] = convert_to_structured_output(tool["function"])
+            except ValueError as e:
+                warnings.warn(f"Failed to convert tool function to structured output, tool={tool}, error={e}")
 
     # print(f"\n\n\n\nData[tools]: {json.dumps(data['tools'], indent=2)}")
 
@@ -533,7 +536,10 @@ def openai_chat_completions_request(
 
     if "tools" in data:
         for tool in data["tools"]:
-            tool["function"] = convert_to_structured_output(tool["function"])
+            try:
+                tool["function"] = convert_to_structured_output(tool["function"])
+            except ValueError as e:
+                warnings.warn(f"Failed to convert tool function to structured output, tool={tool}, error={e}")
 
     response_json = make_post_request(url, headers, data)
     return ChatCompletionResponse(**response_json)

@@ -10,6 +10,18 @@ class LettaError(Exception):
     """Base class for all Letta related errors."""
 
 
+class LettaToolCreateError(LettaError):
+    """Error raised when a tool cannot be created."""
+
+    default_error_message = "Error creating tool."
+
+    def __init__(self, message=None):
+        if message is None:
+            message = self.default_error_message
+        self.message = message
+        super().__init__(self.message)
+
+
 class LLMError(LettaError):
     pass
 

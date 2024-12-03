@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from logging import getLogger
 from typing import Optional
 from uuid import UUID
@@ -62,7 +63,7 @@ class LettaBase(BaseModel):
     @classmethod
     def _id_example(cls, prefix: str):
         """generates an example id for a given prefix"""
-        return [prefix + "-123e4567-e89b-12d3-a456-426614174000"]
+        return f"{prefix}-123e4567-e89b-12d3-a456-426614174000"
 
     @classmethod
     def _id_description(cls, prefix: str):
@@ -77,6 +78,14 @@ class LettaBase(BaseModel):
         """
         _ = values  # for SCA
         if isinstance(v, UUID):
-            logger.warning("Bare UUIDs are deprecated, please use the full prefixed id!")
+            logger.warning(f"Bare UUIDs are deprecated, please use the full prefixed id ({cls.__id_prefix__})!")
             return f"{cls.__id_prefix__}-{v}"
         return v
+
+
+class OrmMetadataBase(LettaBase):
+    # metadata fields
+    created_by_id: Optional[str] = Field(None, description="The id of the user that made this object.")
+    last_updated_by_id: Optional[str] = Field(None, description="The id of the user that made this object.")
+    created_at: Optional[datetime] = Field(None, description="The timestamp when the object was created.")
+    updated_at: Optional[datetime] = Field(None, description="The timestamp when the object was last updated.")

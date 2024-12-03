@@ -2,6 +2,7 @@ name: Together Llama 3.1 70b Capabilities Test
 
 env:
   TOGETHER_API_KEY: ${{ secrets.TOGETHER_API_KEY }}
+  COMPOSIO_API_KEY: ${{ secrets.COMPOSIO_API_KEY }}
 
 on:
   push:

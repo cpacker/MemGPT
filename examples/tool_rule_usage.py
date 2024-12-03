@@ -3,7 +3,7 @@ import uuid
 
 from letta import create_client
 from letta.schemas.letta_message import FunctionCallMessage
-from letta.schemas.tool_rule import InitToolRule, TerminalToolRule, ToolRule
+from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
 from tests.helpers.endpoints_helper import (
     assert_invoked_send_message_with_keyword,
     setup_agent,
@@ -31,14 +31,14 @@ config_file = os.path.join(llm_config_dir, "openai-gpt-4o.json")
 """Contrived tools for this test case"""
 
 
-def first_secret_word(self: "Agent"):
+def first_secret_word():
     """
     Call this to retrieve the first secret word, which you will need for the second_secret_word function.
     """
     return "v0iq020i0g"
 
 
-def second_secret_word(self: "Agent", prev_secret_word: str):
+def second_secret_word(prev_secret_word: str):
     """
     Call this to retrieve the second secret word, which you will need for the third_secret_word function. If you get the word wrong, this function will error.
 
@@ -51,7 +51,7 @@ def second_secret_word(self: "Agent", prev_secret_word: str):
     return "4rwp2b4gxq"
 
 
-def third_secret_word(self: "Agent", prev_secret_word: str):
+def third_secret_word(prev_secret_word: str):
     """
     Call this to retrieve the third secret word, which you will need for the fourth_secret_word function. If you get the word wrong, this function will error.
 
@@ -64,7 +64,7 @@ def third_secret_word(self: "Agent", prev_secret_word: str):
     return "hj2hwibbqm"
 
 
-def fourth_secret_word(self: "Agent", prev_secret_word: str):
+def fourth_secret_word(prev_secret_word: str):
     """
     Call this to retrieve the last secret word, which you will need to output in a send_message later. If you get the word wrong, this function will error.
 
@@ -77,7 +77,7 @@ def fourth_secret_word(self: "Agent", prev_secret_word: str):
     return "banana"
 
 
-def auto_error(self: "Agent"):
+def auto_error():
     """
     If you call this function, it will throw an error automatically.
     """
@@ -93,17 +93,17 @@ def main():
     functions = [first_secret_word, second_secret_word, third_secret_word, fourth_secret_word, auto_error]
     tools = []
     for func in functions:
-        tool = client.create_tool(func)
+        tool = client.create_or_update_tool(func)
         tools.append(tool)
     tool_names = [t.name for t in tools[:-1]]
 
     # 3. Create the tool rules. It must be called in this order, or there will be an error thrown.
     tool_rules = [
         InitToolRule(tool_name="first_secret_word"),
-        ToolRule(tool_name="first_secret_word", children=["second_secret_word"]),
-        ToolRule(tool_name="second_secret_word", children=["third_secret_word"]),
-        ToolRule(tool_name="third_secret_word", children=["fourth_secret_word"]),
-        ToolRule(tool_name="fourth_secret_word", children=["send_message"]),
+        ChildToolRule(tool_name="first_secret_word", children=["second_secret_word"]),
+        ChildToolRule(tool_name="second_secret_word", children=["third_secret_word"]),
+        ChildToolRule(tool_name="third_secret_word", children=["fourth_secret_word"]),
+        ChildToolRule(tool_name="fourth_secret_word", children=["send_message"]),
         TerminalToolRule(tool_name="send_message"),
     ]
 

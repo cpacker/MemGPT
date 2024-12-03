@@ -22,7 +22,7 @@ services:
       retries: 5
   letta_server:
     image: letta/letta:latest
-    hostname: letta
+    hostname: letta-server
     depends_on:
       letta_db:
         condition: service_healthy
@@ -49,9 +49,9 @@ services:
       - VLLM_API_BASE=${VLLM_API_BASE}
       - OPENLLM_AUTH_TYPE=${OPENLLM_AUTH_TYPE}
       - OPENLLM_API_KEY=${OPENLLM_API_KEY}
-   #volumes:
-      #- ./configs/server_config.yaml:/root/.letta/config # config file
-      #- ~/.letta/credentials:/root/.letta/credentials # credentials file
+    #volumes:
+    #- ./configs/server_config.yaml:/root/.letta/config # config file
+    #- ~/.letta/credentials:/root/.letta/credentials # credentials file
   letta_nginx:
     hostname: letta-nginx
     image: nginx:stable-alpine3.17-slim

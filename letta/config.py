@@ -16,7 +16,7 @@ from letta.constants import (
     LETTA_DIR,
 )
 from letta.log import get_logger
-from letta.schemas.agent import AgentState
+from letta.schemas.agent import PersistedAgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 
@@ -434,7 +434,7 @@ class AgentConfig:
             json.dump(vars(self), f, indent=4)
 
     def to_agent_state(self):
-        return AgentState(
+        return PersistedAgentState(
             name=self.name,
             preset=self.preset,
             persona=self.persona,

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
 from letta.schemas.letta_base import LettaBase
@@ -28,16 +28,19 @@ class BaseBlock(LettaBase, validate_assignment=True):
     description: Optional[str] = Field(None, description="Description of the block.")
     metadata_: Optional[dict] = Field({}, description="Metadata of the block.")
 
+    # def __len__(self):
+    #     return len(self.value)
+
+    class Config:
+        extra = "ignore"  # Ignores extra fields
+
     @model_validator(mode="after")
     def verify_char_limit(self) -> Self:
-        if len(self.value) > self.limit:
+        if self.value and len(self.value) > self.limit:
             error_msg = f"Edit failed: Exceeds {self.limit} character limit (requested {len(self.value)}) - {str(self)}."
             raise ValueError(error_msg)
 
         return self
-
-    # def __len__(self):
-    #     return len(self.value)
 
     def __setattr__(self, name, value):
         """Run validation if self.value is updated"""
@@ -45,9 +48,6 @@ class BaseBlock(LettaBase, validate_assignment=True):
         if name == "value":
             # run validation
             self.__class__.model_validate(self.model_dump(exclude_unset=True))
-
-    class Config:
-        extra = "ignore"  # Ignores extra fields
 
 
 class Block(BaseBlock):
@@ -88,23 +88,30 @@ class Persona(Block):
     label: str = "persona"
 
 
-class BlockCreate(BaseBlock):
-    """Create a block"""
-
-    is_template: bool = True
-    label: str = Field(..., description="Label of the block.")
-
-
-class CreatePersona(BlockCreate):
-    """Create a persona block"""
-
-    label: str = "persona"
+# class CreateBlock(BaseBlock):
+#    """Create a block"""
+#
+#    is_template: bool = True
+#    label: str = Field(..., description="Label of the block.")
 
 
-class CreateHuman(BlockCreate):
-    """Create a human block"""
+class BlockLabelUpdate(BaseModel):
+    """Update the label of a block"""
 
-    label: str = "human"
+    current_label: str = Field(..., description="Current label of the block.")
+    new_label: str = Field(..., description="New label of the block.")
+
+
+# class CreatePersona(CreateBlock):
+#    """Create a persona block"""
+#
+#    label: str = "persona"
+#
+#
+# class CreateHuman(CreateBlock):
+#    """Create a human block"""
+#
+#    label: str = "human"
 
 
 class BlockUpdate(BaseBlock):
@@ -117,13 +124,64 @@ class BlockUpdate(BaseBlock):
         extra = "ignore"  # Ignores extra fields
 
 
-class UpdatePersona(BlockUpdate):
-    """Update a persona block"""
+class BlockLimitUpdate(BaseModel):
+    """Update the limit of a block"""
+
+    label: str = Field(..., description="Label of the block.")
+    limit: int = Field(..., description="New limit of the block.")
+
+
+# class UpdatePersona(BlockUpdate):
+#    """Update a persona block"""
+#
+#    label: str = "persona"
+#
+#
+# class UpdateHuman(BlockUpdate):
+#    """Update a human block"""
+#
+#    label: str = "human"
+
+
+class CreateBlock(BaseBlock):
+    """Create a block"""
+
+    label: str = Field(..., description="Label of the block.")
+    limit: int = Field(2000, description="Character limit of the block.")
+    value: str = Field(..., description="Value of the block.")
+
+    # block templates
+    is_template: bool = False
+    template_name: Optional[str] = Field(None, description="Name of the block if it is a template.", alias="name")
+
+
+class CreateHuman(CreateBlock):
+    """Create a human block"""
+
+    label: str = "human"
+
+
+class CreatePersona(CreateBlock):
+    """Create a persona block"""
 
     label: str = "persona"
 
 
-class UpdateHuman(BlockUpdate):
-    """Update a human block"""
+class CreateBlockTemplate(CreateBlock):
+    """Create a block template"""
 
+    is_template: bool = True
+
+
+class CreateHumanBlockTemplate(CreateHuman):
+    """Create a human block template"""
+
+    is_template: bool = True
     label: str = "human"
+
+
+class CreatePersonaBlockTemplate(CreatePersona):
+    """Create a persona block template"""
+
+    is_template: bool = True
+    label: str = "persona"

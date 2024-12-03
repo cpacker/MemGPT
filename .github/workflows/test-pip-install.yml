@@ -1,0 +1,23 @@
+name: Test Package Installation
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  test-install:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]  # Adjust Python versions as needed
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install package with extras
+      run: pip install '.[external-tools,postgres,dev,server,ollama]'  # Replace 'all' with the key that includes all extras
+
+    - name: Check package installation
+      run: pip list  # Or any other command to verify successful installation

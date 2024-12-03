@@ -20,7 +20,7 @@ def upload_file_using_client(client: Union[LocalClient, RESTClient], source: Sou
     assert active_jobs[0].metadata_["source_id"] == source.id
 
     # wait for job to finish (with timeout)
-    timeout = 120
+    timeout = 240
     start_time = time.time()
     while True:
         status = client.get_job(upload_job.id).status

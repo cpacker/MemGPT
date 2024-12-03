@@ -1,17 +1,21 @@
 from typing import TYPE_CHECKING, List, Literal, Optional, Type
 
 from sqlalchemy import String, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Mapped, mapped_column
 
 from letta.log import get_logger
 from letta.orm.base import Base, CommonSqlalchemyMetaMixins
-from letta.orm.errors import NoResultFound
+from letta.orm.errors import (
+    ForeignKeyConstraintViolationError,
+    NoResultFound,
+    UniqueConstraintViolationError,
+)
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
     from sqlalchemy.orm import Session
 
-    # from letta.orm.user import User
 
 logger = get_logger(__name__)
 
@@ -28,6 +32,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         cls, *, db_session: "Session", cursor: Optional[str] = None, limit: Optional[int] = 50, **kwargs
     ) -> List[Type["SqlalchemyBase"]]:
         """List records with optional cursor (for pagination) and limit."""
+        logger.debug(f"Listing {cls.__name__} with kwarg filters {kwargs}")
         with db_session as session:
             # Start with the base query filtered by kwargs
             query = select(cls).filter_by(**kwargs)
@@ -67,6 +72,8 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         Raises:
             NoResultFound: if the object is not found
         """
+        logger.debug(f"Reading {cls.__name__} with ID: {identifier} with actor={actor}")
+
         # Start the query
         query = select(cls)
         # Collect query conditions for better error reporting
@@ -96,16 +103,22 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         raise NoResultFound(f"{cls.__name__} not found with {conditions_str}")
 
     def create(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+        logger.debug(f"Creating {self.__class__.__name__} with ID: {self.id} with actor={actor}")
+
         if actor:
             self._set_created_and_updated_by_fields(actor.id)
-
-        with db_session as session:
-            session.add(self)
-            session.commit()
-            session.refresh(self)
-            return self
+        try:
+            with db_session as session:
+                session.add(self)
+                session.commit()
+                session.refresh(self)
+                return self
+        except DBAPIError as e:
+            self._handle_dbapi_error(e)
 
     def delete(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+        logger.debug(f"Soft deleting {self.__class__.__name__} with ID: {self.id} with actor={actor}")
+
         if actor:
             self._set_created_and_updated_by_fields(actor.id)
 
@@ -114,8 +127,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
     def hard_delete(self, db_session: "Session", actor: Optional["User"] = None) -> None:
         """Permanently removes the record from the database."""
-        if actor:
-            logger.info(f"User {actor.id} requested hard deletion of {self.__class__.__name__} with ID {self.id}")
+        logger.debug(f"Hard deleting {self.__class__.__name__} with ID: {self.id} with actor={actor}")
 
         with db_session as session:
             try:
@@ -129,6 +141,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
                 logger.info(f"{self.__class__.__name__} with ID {self.id} successfully hard deleted")
 
     def update(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+        logger.debug(f"Updating {self.__class__.__name__} with ID: {self.id} with actor={actor}")
         if actor:
             self._set_created_and_updated_by_fields(actor.id)
 
@@ -161,6 +174,51 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         if not org_id:
             raise ValueError(f"object {actor} has no organization accessor")
         return query.where(cls.organization_id == org_id, cls.is_deleted == False)
+
+    @classmethod
+    def _handle_dbapi_error(cls, e: DBAPIError):
+        """Handle database errors and raise appropriate custom exceptions."""
+        orig = e.orig  # Extract the original error from the DBAPIError
+        error_code = None
+        error_message = str(orig) if orig else str(e)
+        logger.info(f"Handling DBAPIError: {error_message}")
+
+        # Handle SQLite-specific errors
+        if "UNIQUE constraint failed" in error_message:
+            raise UniqueConstraintViolationError(
+                f"A unique constraint was violated for {cls.__name__}. Check your input for duplicates: {e}"
+            ) from e
+
+        if "FOREIGN KEY constraint failed" in error_message:
+            raise ForeignKeyConstraintViolationError(
+                f"A foreign key constraint was violated for {cls.__name__}. Check your input for missing or invalid references: {e}"
+            ) from e
+
+        # For psycopg2
+        if hasattr(orig, "pgcode"):
+            error_code = orig.pgcode
+        # For pg8000
+        elif hasattr(orig, "args") and len(orig.args) > 0:
+            # The first argument contains the error details as a dictionary
+            err_dict = orig.args[0]
+            if isinstance(err_dict, dict):
+                error_code = err_dict.get("C")  # 'C' is the error code field
+        logger.info(f"Extracted error_code: {error_code}")
+
+        # Handle unique constraint violations
+        if error_code == "23505":
+            raise UniqueConstraintViolationError(
+                f"A unique constraint was violated for {cls.__name__}. Check your input for duplicates: {e}"
+            ) from e
+
+        # Handle foreign key violations
+        if error_code == "23503":
+            raise ForeignKeyConstraintViolationError(
+                f"A foreign key constraint was violated for {cls.__name__}. Check your input for missing or invalid references: {e}"
+            ) from e
+
+        # Re-raise for other unhandled DBAPI errors
+        raise
 
     @property
     def __pydantic_model__(self) -> Type["BaseModel"]:

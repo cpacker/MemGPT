@@ -24,6 +24,7 @@ class ToolManager:
         "archival_memory_insert",
         "archival_memory_search",
     ]
+    BASE_MEMORY_TOOL_NAMES = ["core_memory_append", "core_memory_replace"]
 
     def __init__(self):
         # Fetching the db_context similarly as in OrganizationManager
@@ -35,13 +36,8 @@ class ToolManager:
     def create_or_update_tool(self, pydantic_tool: PydanticTool, actor: PydanticUser) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
         # Derive json_schema
-        derived_json_schema = pydantic_tool.json_schema or derive_openai_json_schema(source_code=pydantic_tool.source_code)
-        derived_name = pydantic_tool.name or derived_json_schema["name"]
-
-        try:
-            # NOTE: We use the organization id here
-            # This is important, because even if it's a different user, adding the same tool to the org should not happen
-            tool = self.get_tool_by_name(tool_name=derived_name, actor=actor)
+        tool = self.get_tool_by_name(tool_name=pydantic_tool.name, actor=actor)
+        if tool:
             # Put to dict and remove fields that should not be reset
             update_data = pydantic_tool.model_dump(exclude={"module"}, exclude_unset=True, exclude_none=True)
             # Remove redundant update fields
@@ -54,9 +50,7 @@ class ToolManager:
                 printd(
                     f"`create_or_update_tool` was called with user_id={actor.id}, organization_id={actor.organization_id}, name={pydantic_tool.name}, but found existing tool with nothing to update."
                 )
-        except NoResultFound:
-            pydantic_tool.json_schema = derived_json_schema
-            pydantic_tool.name = derived_name
+        else:
             tool = self.create_tool(pydantic_tool, actor=actor)
 
         return tool
@@ -64,18 +58,15 @@ class ToolManager:
     @enforce_types
     def create_tool(self, pydantic_tool: PydanticTool, actor: PydanticUser) -> PydanticTool:
         """Create a new tool based on the ToolCreate schema."""
-        # Create the tool
         with self.session_maker() as session:
             # Set the organization id at the ORM layer
             pydantic_tool.organization_id = actor.organization_id
+            # Auto-generate description if not provided
+            if pydantic_tool.description is None:
+                pydantic_tool.description = pydantic_tool.json_schema.get("description", None)
             tool_data = pydantic_tool.model_dump()
             tool = ToolModel(**tool_data)
-            # The description is most likely auto-generated via the json_schema,
-            # so copy it over into the top-level description field
-            if tool.description is None:
-                tool.description = tool.json_schema.get("description", None)
-            tool.create(session, actor=actor)
-
+            tool.create(session, actor=actor)  # Re-raise other database-related errors
         return tool.to_pydantic()
 
     @enforce_types
@@ -88,11 +79,14 @@ class ToolManager:
             return tool.to_pydantic()
 
     @enforce_types
-    def get_tool_by_name(self, tool_name: str, actor: PydanticUser):
+    def get_tool_by_name(self, tool_name: str, actor: PydanticUser) -> Optional[PydanticTool]:
         """Retrieve a tool by its name and a user. We derive the organization from the user, and retrieve that tool."""
-        with self.session_maker() as session:
-            tool = ToolModel.read(db_session=session, name=tool_name, actor=actor)
-            return tool.to_pydantic()
+        try:
+            with self.session_maker() as session:
+                tool = ToolModel.read(db_session=session, name=tool_name, actor=actor)
+                return tool.to_pydantic()
+        except NoResultFound:
+            return None
 
     @enforce_types
     def list_tools(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[PydanticTool]:
@@ -162,7 +156,7 @@ class ToolManager:
         # create tool in db
         tools = []
         for name, schema in functions_to_schema.items():
-            if name in self.BASE_TOOL_NAMES:
+            if name in self.BASE_TOOL_NAMES + self.BASE_MEMORY_TOOL_NAMES:
                 # print([str(inspect.getsource(line)) for line in schema["imports"]])
                 source_code = inspect.getsource(schema["python_function"])
                 tags = [module_name]
