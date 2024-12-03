@@ -72,7 +72,7 @@ class CommonVector(TypeDecorator):
 class MessageModel(Base):
     """Defines data model for storing Message objects"""
 
-    __tablename__ = "messages"
+    __tablename__ = "messages_legacy"
     __table_args__ = {"extend_existing": True}
 
     # Assuming message_id is the primary key
@@ -135,7 +135,7 @@ class MessageModel(Base):
 class PassageModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
-    __tablename__ = "passages"
+    __tablename__ = "passages_legacy"
     __table_args__ = {"extend_existing": True}
 
     # Assuming passage_id is the primary key

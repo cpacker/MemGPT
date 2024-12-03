@@ -78,6 +78,8 @@ from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
+from letta.services.message_manager import MessageManager
+from letta.services.message_manager import PassageManager
 from letta.utils import create_random_username, json_dumps, json_loads
 
 logger = get_logger(__name__)
@@ -247,6 +249,8 @@ class SyncServer(Server):
         self.agents_tags_manager = AgentsTagsManager()
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.blocks_agents_manager = BlocksAgentsManager()
+        self.message_manager = MessageManager()
+        self.passage_manager = PassageManager()
 
         # Managers that interface with parallelism
         self.per_agent_lock_manager = PerAgentLockManager()
