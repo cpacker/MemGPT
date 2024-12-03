@@ -1,3 +1,5 @@
+import json
+
 from letta import BasicBlockMemory
 from letta.client.client import Block, create_client
 from letta.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
@@ -11,6 +13,7 @@ from letta.prompts import gpt_system
 from letta.schemas.agent import AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
+from letta.schemas.message import MessageCreate
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.utils import get_human_text, get_persona_text
 
@@ -92,6 +95,62 @@ def test_chat_offline_memory():
     assert (
         offline_memory_agent.memory.get_block("chat_agent_human_new").value == conversation_agent.memory.get_block("chat_agent_human").value
     )
+
+
+def test_simple_colors():
+    client = create_client()
+    assert client is not None
+
+    conversation_human_block = Block(name="chat_agent_human", label="chat_agent_human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
+    conversation_persona_block = Block(
+        name="chat_agent_persona", label="chat_agent_persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000
+    )
+    offline_rethink_memory = Block(name="rethink_memory_block", label="rethink_memory_block", value="[empty]", limit=2000)
+    conversation_memory = BasicBlockMemory(blocks=[conversation_persona_block, conversation_human_block, offline_rethink_memory])
+
+    client = create_client()
+    chat_only_agent = client.create_agent(
+        name="conversation_agent",
+        agent_type=AgentType.chat_only_agent,
+        llm_config=LLMConfig.default_config("gpt-4o-mini"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        tools=["send_message"],
+        memory=conversation_memory,
+        include_base_tools=False,
+        include_memory_tools=False,
+    )
+
+    interaction = [
+        {"role": "assistant", "content": "Here are two colors: Pink and Turquoise. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Turquoise."},
+        {"role": "assistant", "content": "Here are two colors: Turquoise and Silver. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Silver."},
+        {"role": "assistant", "content": "Here are two colors: Burgundy and Lavender. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Lavender."},
+        {"role": "assistant", "content": "Here are two colors: Lavender and Amber. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Lavender."},
+        {"role": "assistant", "content": "Here are two colors: Lime and Burgundy. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Lime."},
+        {"role": "assistant", "content": "Here are two colors: Amber and Silver. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Amber."},
+        {"role": "assistant", "content": "Here are two colors: Pink and Amber. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Amber."},
+        {"role": "assistant", "content": "Here are two colors: Pink and Lavender. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Lavender."},
+        {"role": "assistant", "content": "Here are two colors: Burgundy and Azure. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Burgundy."},
+        {"role": "assistant", "content": "Here are two colors: Silver and Charcoal. Please pick the one you like best."},
+        {"role": "user", "content": "I prefer Charcoal."},
+        {"role": "user", "content": "What would I prefere between Lime and Turquoise? Answer with only the color name."},
+    ]
+    # messages = [MessageCreate(role=turn["role"], text=turn["content"]) for interaction in interactions for turn in interaction]
+    messages = [MessageCreate(role=turn["role"], text=turn["content"]) for turn in interaction]
+    assert chat_only_agent is not None
+    assert chat_only_agent.memory.list_block_labels() == ["chat_agent_persona", "chat_agent_human", "rethink_memory_block"]
+    response = client.send_messages(agent_id=chat_only_agent.id, messages=messages)
+    chat_only_agent = client.get_agent(agent_id=chat_only_agent.id)
+    print(chat_only_agent.memory)
+    assert json.loads(response.messages[1].function_call.arguments)["message"] == "Lime"
 
 
 def test_ripple_edit():

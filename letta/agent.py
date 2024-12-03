@@ -1211,13 +1211,13 @@ class Agent(BaseAgent):
 
     def update_memory_blocks_from_db(self):
         for block in self.memory.to_dict()["memory"].values():
-            '''
+            """
             if block.get("templates", False):
                 # we don't expect to update shared memory blocks that
                 # are templates. this is something we could update in the
                 # future if we expect templates to change often.
                 continue
-            '''
+            """
             block_id = block.get("id")
 
             # TODO: This is really hacky and we should probably figure out how to

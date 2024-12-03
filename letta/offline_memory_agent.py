@@ -76,8 +76,8 @@ def rethink_memory_convo(self, new_memory: str, target_block_label: Optional[str
         self.memory.update_block_value(label=target_block_label, value=new_memory)
         block_id = self.memory.get_block(target_block_label).id
         client.update_block(block_id, text=new_memory)
-        #client.update_agent(agent_id=self.agent_state.id, memory=self.agent_state.memory)
-        #_ = client.get_agent(self.agent_state.id)
+        # client.update_agent(agent_id=self.agent_state.id, memory=self.agent_state.memory)
+        # _ = client.get_agent(self.agent_state.id)
 
     print(f"Rethinking memory for block {target_block_label} with new memory: {new_memory} from block {source_block_label}")
     return None
@@ -113,6 +113,16 @@ def rethink_memory(self, new_memory: str, target_block_label: Optional[str], sou
 
 
 def finish_rethinking_memory(self) -> Optional[str]:
+    """
+    This function is called when the agent is done rethinking the memory.
+
+    Returns:
+        Optional[str]: None is always returned as this function does not produce a response.
+    """
+    return None
+
+
+def finish_rethinking_memory_convo(self) -> Optional[str]:
     """
     This function is called when the agent is done rethinking the memory.
 
@@ -164,7 +174,9 @@ class OfflineMemoryAgent(Agent):
         **kwargs,
     ) -> LettaUsageStatistics:
         """Go through what is currently in memory core memory and integrate information."""
+        import pdb
 
+        pdb.set_trace()
         next_input_message = messages if isinstance(messages, list) else [messages]
         counter = 0
         total_usage = UsageStatistics()
