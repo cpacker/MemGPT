@@ -557,6 +557,32 @@ def ingest(message: str):
 '''
 
 
+EXAMPLE_TOOL_SOURCE_WITH_DISTRACTOR = '''
+def util_do_nothing():
+    """
+    A util function that does nothing.
+
+    Returns:
+        str: Dummy output.
+    """
+    print("I'm a distractor")
+
+def ingest(message: str):
+    """
+    Ingest a message into the system.
+
+    Args:
+        message (str): The message to ingest into the system.
+
+    Returns:
+        str: The result of ingesting the message.
+    """
+    util_do_nothing()
+    return f"Ingested message {message}"
+
+'''
+
+
 def test_tool_run(server, user_id, agent_id):
     """Test that the server can run tools"""
 
@@ -593,3 +619,39 @@ def test_tool_run(server, user_id, agent_id):
     assert result.status == "error"
     assert "Error" in result.function_return, result.function_return
     assert "missing 1 required positional argument" in result.function_return, result.function_return
+
+    # Test that we can still pull the tool out by default (pulls that last tool in the source)
+    result = server.run_tool_from_source(
+        user_id=user_id,
+        tool_source=EXAMPLE_TOOL_SOURCE_WITH_DISTRACTOR,
+        tool_source_type="python",
+        tool_args=json.dumps({"message": "Well well well"}),
+        # tool_name="ingest",
+    )
+    print(result)
+    assert result.status == "success"
+    assert result.function_return == "Ingested message Well well well", result.function_return
+
+    # Test that we can pull the tool out by name
+    result = server.run_tool_from_source(
+        user_id=user_id,
+        tool_source=EXAMPLE_TOOL_SOURCE_WITH_DISTRACTOR,
+        tool_source_type="python",
+        tool_args=json.dumps({"message": "Well well well"}),
+        tool_name="ingest",
+    )
+    print(result)
+    assert result.status == "success"
+    assert result.function_return == "Ingested message Well well well", result.function_return
+
+    # Test that we can pull a different tool out by name
+    result = server.run_tool_from_source(
+        user_id=user_id,
+        tool_source=EXAMPLE_TOOL_SOURCE_WITH_DISTRACTOR,
+        tool_source_type="python",
+        tool_args=json.dumps({}),
+        tool_name="util_do_nothing",
+    )
+    print(result)
+    assert result.status == "success"
+    assert result.function_return == str(None), result.function_return
