@@ -84,7 +84,6 @@ class AbstractClient(object):
         tools: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
-        include_memory_tools: Optional[bool] = True,
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
         tags: Optional[List[str]] = None,
@@ -497,7 +496,6 @@ class RESTClient(AbstractClient):
         tools: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
-        include_memory_tools: Optional[bool] = True,
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
@@ -514,7 +512,6 @@ class RESTClient(AbstractClient):
             system (str): System configuration
             tools (List[str]): List of tools
             include_base_tools (bool): Include base tools
-            include_memory_tools (bool): Include memory tools
             metadata (Dict): Metadata
             description (str): Description
             tags (List[str]): Tags for filtering agents
@@ -2058,7 +2055,6 @@ class LocalClient(AbstractClient):
         tools: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
-        include_memory_tools: Optional[bool] = True,
         # metadata
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
         description: Optional[str] = None,
@@ -2076,7 +2072,6 @@ class LocalClient(AbstractClient):
             tools (List[str]): List of tools
             tool_rules (Optional[List[BaseToolRule]]): List of tool rules
             include_base_tools (bool): Include base tools
-            include_memory_tools (bool): Include memory tools
             metadata (Dict): Metadata
             description (str): Description
             tags (List[str]): Tags for filtering agents
@@ -2111,7 +2106,6 @@ class LocalClient(AbstractClient):
                 # memory_blocks = memory.get_blocks(),
                 # memory_tools=memory_tools,
                 tools=tool_names,
-                include_memory_tools=include_memory_tools,
                 tool_rules=tool_rules,
                 system=system,
                 agent_type=agent_type,

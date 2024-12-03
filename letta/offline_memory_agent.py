@@ -11,7 +11,7 @@ from letta.schemas.tool import Tool
 from letta.schemas.usage import LettaUsageStatistics
 
 
-def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[str]:
+def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) -> Optional[str]:
     """
     Called if and only when user says the word "trigger_rethink_memory". It will trigger the re-evaluation of the memory.
 
@@ -25,11 +25,11 @@ def trigger_rethink_memory(self: "Agent", message: Optional[str]) -> Optional[st
     agents = client.list_agents()
     for agent in agents:
         if agent.agent_type == "offline_memory_agent":
-            client.get_agent(agent.id)
+            # client.get_agent(agent.id)
             client.user_message(agent_id=agent.id, message=message)
 
 
-def trigger_rethink_memory_convo(self: "Agent", message: Optional[str]) -> Optional[str]:
+def trigger_rethink_memory_convo(agent_state: "AgentState", message: Optional[str]) -> Optional[str]:
     """
     Called if and only when user says the word "trigger_rethink_memory". It will trigger the re-evaluation of the memory.
 
@@ -40,10 +40,10 @@ def trigger_rethink_memory_convo(self: "Agent", message: Optional[str]) -> Optio
     from letta import create_client
 
     client = create_client()
-    recent_convo = "".join([str(message) for message in self.messages])[-2000:]  # TODO: make a better representation of the convo history
-    self.memory.update_block_value(label="conversation_block", value=recent_convo)
-    client.update_block(self.memory.get_block("conversation_block").id, text=recent_convo)
-    client.update_agent(agent_id=self.agent_state.id, memory=self.memory)
+    recent_convo = "".join([str(message) for message in agent_state.messages])[-2000:]  # TODO: make a better representation of the convo history
+    agent_state.memory.update_block_value(label="conversation_block", value=recent_convo)
+    client.update_block(agent_state.memory.get_block("conversation_block").id, text=recent_convo)
+    # client.update_agent(agent_id=agent_state.agent_state.id, memory=agent_state.memory)
 
     client = create_client()
     agents = client.list_agents()
@@ -53,7 +53,7 @@ def trigger_rethink_memory_convo(self: "Agent", message: Optional[str]) -> Optio
             client.user_message(agent_id=agent.id, message=message)
 
 
-def rethink_memory_convo(self, new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:
+def rethink_memory_convo(agent_state: "AgentState", new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:
     """
     Re-evaluate the memory in block_name, integrating new and updated facts.
     Replace outdated information with the most likely truths, avoiding redundancy with original memories.
@@ -67,15 +67,15 @@ def rethink_memory_convo(self, new_memory: str, target_block_label: Optional[str
         Optional[str]: None is always returned as this function does not produce a response.
     """
 
-    from letta import create_client
+    # from letta import create_client
 
-    client = create_client()
+    # client = create_client()
     if target_block_label is not None:
-        if self.memory.get_block(target_block_label) is None:
-            self.memory.create_block(label=target_block_label, value=new_memory)
-        self.memory.update_block_value(label=target_block_label, value=new_memory)
-        block_id = self.memory.get_block(target_block_label).id
-        client.update_block(block_id, text=new_memory)
+        if agent_state.memory.get_block(target_block_label) is None:
+            agent_state.memory.create_block(label=target_block_label, value=new_memory)
+        agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
+        # block_id = agent_state.memory.get_block(target_block_label).id
+        # client.update_block(block_id, text=new_memory)
         # client.update_agent(agent_id=self.agent_state.id, memory=self.agent_state.memory)
         # _ = client.get_agent(self.agent_state.id)
 
@@ -83,7 +83,7 @@ def rethink_memory_convo(self, new_memory: str, target_block_label: Optional[str
     return None
 
 
-def rethink_memory(self, new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:
+def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:
     """
     Re-evaluate the memory in block_name, integrating new and updated facts.
     Replace outdated information with the most likely truths, avoiding redundancy with original memories.
@@ -101,18 +101,18 @@ def rethink_memory(self, new_memory: str, target_block_label: Optional[str], sou
 
     client = create_client()
     if target_block_label is not None:
-        if self.memory.get_block(target_block_label) is None:
-            self.memory.create_block(label=target_block_label, value=new_memory)
-        self.memory.update_block_value(label=target_block_label, value=new_memory)
-        block_id = self.memory.get_block(target_block_label).id
-        client.update_block(block_id, text=new_memory)
-        client.update_agent(agent_id=self.agent_state.id, memory=self.agent_state.memory)
+        if agent_state.memory.get_block(target_block_label) is None:
+            agent_state.memory.create_block(label=target_block_label, value=new_memory)
+        agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
+        # block_id = agent_state.memory.get_block(target_block_label).id
+        # client.update_block(block_id, text=new_memory)
+        # client.update_agent(agent_id=agent_state.id, memory=self.agent_state.memory)
 
     print(f"Rethinking memory for block {target_block_label} with new memory: {new_memory} from block {source_block_label}")
     return None
 
 
-def finish_rethinking_memory(self) -> Optional[str]:
+def finish_rethinking_memory(agent_state: "AgentState") -> Optional[str]:
     """
     This function is called when the agent is done rethinking the memory.
 
@@ -122,7 +122,7 @@ def finish_rethinking_memory(self) -> Optional[str]:
     return None
 
 
-def finish_rethinking_memory_convo(self) -> Optional[str]:
+def finish_rethinking_memory_convo(agent_state: "AgentState") -> Optional[str]:
     """
     This function is called when the agent is done rethinking the memory.
 
@@ -134,17 +134,17 @@ def finish_rethinking_memory_convo(self) -> Optional[str]:
     client = create_client()
     agents = client.list_agents()
 
-    self.memory.update_block_value("chat_agent_human", self.memory.get_block("chat_agent_human_new").value)
-    self.memory.update_block_value("chat_agent_persona", self.memory.get_block("chat_agent_persona_new").value)
+    agent_state.memory.update_block_value("chat_agent_human", agent_state.memory.get_block("chat_agent_human_new").value)
+    agent_state.memory.update_block_value("chat_agent_persona", agent_state.memory.get_block("chat_agent_persona_new").value)
     for agent in agents:
         if agent.name == "conversation_agent":
-            agent.memory.update_block_value(label="chat_agent_human", value=self.memory.get_block("chat_agent_human_new").value)
-            agent.memory.update_block_value(label="chat_agent_persona", value=self.memory.get_block("chat_agent_persona_new").value)
+            agent.memory.update_block_value(label="chat_agent_human", value=agent_state.memory.get_block("chat_agent_human_new").value)
+            agent.memory.update_block_value(label="chat_agent_persona", value=agent_state.memory.get_block("chat_agent_persona_new").value)
 
             chat_persona_block = agent.memory.get_block("chat_agent_persona")
             chat_human_block = agent.memory.get_block("chat_agent_human")
-            client.update_block(chat_persona_block.id, text=self.memory.get_block("chat_agent_persona_new").value)
-            client.update_block(chat_human_block.id, text=self.memory.get_block("chat_agent_human_new").value)
+            client.update_block(chat_persona_block.id, text=agent_state.memory.get_block("chat_agent_persona_new").value)
+            client.update_block(chat_human_block.id, text=agent_state.memory.get_block("chat_agent_human_new").value)
             agent = client.get_agent(agent.id)
 
     return None
@@ -174,9 +174,6 @@ class OfflineMemoryAgent(Agent):
         **kwargs,
     ) -> LettaUsageStatistics:
         """Go through what is currently in memory core memory and integrate information."""
-        import pdb
-
-        pdb.set_trace()
         next_input_message = messages if isinstance(messages, list) else [messages]
         counter = 0
         total_usage = UsageStatistics()

@@ -1,5 +1,7 @@
 import json
 
+from regex import W
+
 from letta import BasicBlockMemory
 from letta.client.client import Block, create_client
 from letta.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
@@ -156,6 +158,7 @@ def test_simple_colors():
 def test_ripple_edit():
     client = create_client()
     assert client is not None
+    print('test')
 
     trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
 
@@ -193,12 +196,13 @@ def test_ripple_edit():
         include_base_tools=False,
     )
     assert conversation_agent is not None
-    assert conversation_agent.memory.list_block_labels() == [
+
+    assert set(conversation_agent.memory.list_block_labels()) == set([
         "persona",
         "human",
         "fact_block",
         "rethink_memory_block",
-    ]
+    ])
 
     rethink_memory_tool = client.create_tool(rethink_memory)
     finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
@@ -214,11 +218,12 @@ def test_ripple_edit():
         include_base_tools=False,
     )
     assert offline_memory_agent is not None
-    assert offline_memory_agent.memory.list_block_labels() == ["persona", "human", "fact_block", "rethink_memory_block"]
+    assert set(offline_memory_agent.memory.list_block_labels())== set(["persona", "human", "fact_block", "rethink_memory_block"])
     _ = client.user_message(
         agent_id=conversation_agent.id, message="[trigger_rethink_memory]: Messi has now moved to playing for Inter Miami"
     )
     offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
+
     assert offline_memory_agent.memory.get_block("rethink_memory_block").value != "[empty]"
     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
     assert conversation_agent.memory.get_block("rethink_memory_block").value != "[empty]"
