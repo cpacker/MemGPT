@@ -372,14 +372,20 @@ class SyncServer(Server):
 
     def load_agent(self, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Updated method to load agents from persisted storage"""
-        agent_state = self.get_agent(agent_id=agent_id)
-        actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+        agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
+        with agent_lock:
+            agent_state = self.get_agent(agent_id=agent_id)
+            actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
-        interface = interface or self.default_interface_factory()
-        if agent_state.agent_type == AgentType.memgpt_agent:
-            return Agent(agent_state=agent_state, interface=interface, user=actor)
-        else:
-            return O1Agent(agent_state=agent_state, interface=interface, user=actor)
+            interface = interface or self.default_interface_factory()
+            if agent_state.agent_type == AgentType.memgpt_agent:
+                agent = Agent(agent_state=agent_state, interface=interface, user=actor)
+            else:
+                agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+
+            # Persist to agent
+            save_agent(agent, self.ms)
+            return agent
 
     def _step(
         self,
@@ -1722,7 +1728,7 @@ class SyncServer(Server):
         self.blocks_agents_manager.add_block_to_agent(agent_id, block_id, block_label=block.label)
 
         # get agent memory
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        memory = self.get_agent(agent_id=agent_id).memory
         return memory
 
     def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
@@ -1730,7 +1736,7 @@ class SyncServer(Server):
         self.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=agent_id, block_label=block_label)
 
         # get agent memory
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        memory = self.get_agent(agent_id=agent_id).memory
         return memory
 
     def update_agent_memory_limit(self, user_id: str, agent_id: str, block_label: str, limit: int) -> Memory:
@@ -1740,7 +1746,7 @@ class SyncServer(Server):
             block_id=block.id, block_update=BlockUpdate(limit=limit), actor=self.user_manager.get_user_by_id(user_id=user_id)
         )
         # get agent memory
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        memory = self.get_agent(agent_id=agent_id).memory
         return memory
 
     def upate_block(self, user_id: str, block_id: str, block_update: BlockUpdate) -> Block:

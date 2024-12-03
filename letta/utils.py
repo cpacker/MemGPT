@@ -1015,13 +1015,6 @@ def get_persona_text(name: str, enforce_limit=True):
     raise ValueError(f"Persona {name}.txt not found")
 
 
-def get_human_text(name: str):
-    for file_path in list_human_files():
-        file = os.path.basename(file_path)
-        if f"{name}.txt" == file or name == file:
-            return open(file_path, "r", encoding="utf-8").read().strip()
-
-
 def get_schema_diff(schema_a, schema_b):
     # Assuming f_schema and linked_function['json_schema'] are your JSON schemas
     f_schema_json = json_dumps(schema_a)
