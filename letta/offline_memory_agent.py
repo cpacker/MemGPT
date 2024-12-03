@@ -155,13 +155,12 @@ class OfflineMemoryAgent(Agent):
         self,
         interface: AgentInterface,
         agent_state: AgentState,
-        tools: List[Tool] = [],
+        user: User = None,
+        # extras
         first_message_verify_mono: bool = False,
         max_memory_rethinks: int = 10,
-        user: User = None,
     ):
-        super().__init__(interface, agent_state, tools, user)
-        self.tools = tools
+        super().__init__(interface, agent_state, user)
         self.first_message_verify_mono = first_message_verify_mono
         self.max_memory_rethinks = max_memory_rethinks
 
