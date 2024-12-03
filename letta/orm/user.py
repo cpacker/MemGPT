@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -20,6 +20,8 @@ class User(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="users")
+    messages: Mapped[List["Message"]] = relationship("Message", back_populates="user")
+    passages: Mapped[List["Passage"]] = relationship("Passage", back_populates="user")
 
     # TODO: Add this back later potentially
     # agents: Mapped[List["Agent"]] = relationship(

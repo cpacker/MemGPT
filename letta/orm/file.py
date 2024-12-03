@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List
 
 from sqlalchemy import Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -27,3 +27,4 @@ class FileMetadata(SqlalchemyBase, OrganizationMixin, SourceMixin):
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="files", lazy="selectin")
     source: Mapped["Source"] = relationship("Source", back_populates="files", lazy="selectin")
+    passages: Mapped[List["Passage"]] = relationship("Passage", back_populates="file", lazy="selectin")

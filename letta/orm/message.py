@@ -8,6 +8,7 @@ import base64
 
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.orm.mixins import UserMixin, AgentMixin, FileMixin
+from letta.schemas.tool import Tool as PydanticTool
 
 if TYPE_CHECKING:
     from letta.orm.user import User
@@ -40,7 +41,8 @@ class Message(SqlalchemyBase, UserMixin, AgentMixin):
     """Defines data model for storing Message objects"""
     __tablename__ = "messages"
     __table_args__ = {"extend_existing": True}
-
+    __pydantic_model__ = PydanticTool
+    
     id: Mapped[str] = mapped_column(primary_key=True, doc="Unique message identifier")
     role: Mapped[str] = mapped_column(doc="Message role (user/assistant/system/tool)")
     text: Mapped[Optional[str]] = mapped_column(nullable=True, doc="Message content")
@@ -52,7 +54,7 @@ class Message(SqlalchemyBase, UserMixin, AgentMixin):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="messages", lazy="selectin")
-    agent: Mapped["Agent"] = relationship("Agent", back_populates="messages", lazy="selectin")
+    # agent: Mapped["Agent"] = relationship("Agent", back_populates="messages", lazy="selectin")
 
     __table_args__ = (
         Index("message_idx_user", "user_id", "agent_id"),
@@ -62,6 +64,7 @@ class Passage(SqlalchemyBase, UserMixin, AgentMixin, FileMixin):
     """Defines data model for storing Passages"""
     __tablename__ = "passages"
     __table_args__ = {"extend_existing": True}
+    __pydantic_model__ = PydanticTool
 
     id: Mapped[str] = mapped_column(primary_key=True, doc="Unique passage identifier")
     text: Mapped[str] = mapped_column(doc="Passage text content")
@@ -73,8 +76,7 @@ class Passage(SqlalchemyBase, UserMixin, AgentMixin, FileMixin):
 
     # Relationships
     user: Mapped["User"] = relationship("User", back_populates="passages", lazy="selectin")
-    agent: Mapped[Optional["Agent"]] = relationship("Agent", back_populates="passages", lazy="selectin")
-    file: Mapped[Optional["File"]] = relationship("File", back_populates="passages", lazy="selectin")
+    file: Mapped[Optional["FileMetadata"]] = relationship("FileMetadata", back_populates="passages", lazy="selectin")
 
     __table_args__ = (
         Index("passage_idx_user", "user_id", "agent_id", "file_id"),
