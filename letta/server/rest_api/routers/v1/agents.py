@@ -154,7 +154,7 @@ def get_agent_state(
     return server.get_agent_state(user_id=actor.id, agent_id=agent_id)
 
 
-@router.delete("/{agent_id}", response_model=None, operation_id="delete_agent")
+@router.delete("/{agent_id}", response_model=AgentState, operation_id="delete_agent")
 def delete_agent(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
@@ -388,6 +388,7 @@ def get_agent_messages(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
     before: Optional[str] = Query(None, description="Message before which to retrieve the returned messages."),
+    after: Optional[str] = Query(None, description="Message before which to retrieve the returned messages."),
     limit: int = Query(10, description="Maximum number of messages to retrieve."),
     msg_object: bool = Query(False, description="If true, returns Message objects. If false, return LettaMessage objects."),
     # Flags to support the use of AssistantMessage message types
@@ -410,6 +411,7 @@ def get_agent_messages(
         user_id=actor.id,
         agent_id=agent_id,
         before=before,
+        after=after,
         limit=limit,
         reverse=True,
         return_message_object=msg_object,
