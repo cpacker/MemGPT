@@ -8,6 +8,7 @@ a = Analysis(
         ('venv/lib/python3.12/site-packages/pgserver/pginstall', 'pgserver/pginstall')
     ],
     datas=[
+        ('venv/lib/python3.12/site-packages/letta/server/static_files', 'letta/server/static_files'),
         ('venv/lib/python3.12/site-packages/letta/humans/examples', 'letta/humans/examples'),
         ('venv/lib/python3.12/site-packages/letta/personas/examples', 'letta/personas/examples'),
         ('venv/lib/python3.12/site-packages/letta/prompts/system', 'letta/prompts/system'),
@@ -29,26 +30,27 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    a.binaries,
+    a.datas,
     [],
-    exclude_binaries=True,
     name='letta',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    console=False,
+    upx_exclude=[],
+    runtime_tmpdir=None,
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=['assets/letta.icns'],
 )
-coll = COLLECT(
+app = BUNDLE(
     exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='letta',
+    name='letta.app',
+    icon='assets/letta.icns',
+    bundle_identifier='com.letta.app',
 )
