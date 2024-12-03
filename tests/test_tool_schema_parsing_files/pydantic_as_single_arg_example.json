@@ -1,0 +1,29 @@
+{
+  "name": "create_step",
+  "description": "Creates a step for the current task.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "step": {
+        "type": "object",
+        "description": "A step to add to the task plan.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the step."
+          },
+          "key": {
+            "type": "string",
+            "description": "Unique identifier for the step."
+          },
+          "description": {
+            "type": "string",
+            "description": "An exhaustic description of what this step is trying to achieve and accomplish."
+          }
+        },
+        "required": ["name", "key", "description"]
+      }
+    },
+    "required": ["step"]
+  }
+}

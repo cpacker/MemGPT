@@ -9,6 +9,7 @@ from composio import Action
 from sqlalchemy import delete
 
 from letta import create_client
+from letta.functions.function_sets.base import core_memory_replace
 from letta.functions.functions import parse_source_code
 from letta.functions.schema_generator import generate_schema
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
@@ -195,6 +196,24 @@ def clear_core_memory(test_user):
     yield tool
 
 
+@pytest.fixture
+def core_memory_replace_tool(test_user):
+    tool = create_tool_from_func(core_memory_replace)
+    tool = ToolManager().create_or_update_tool(tool, test_user)
+    yield tool
+
+
+@pytest.fixture
+def agent_state():
+    client = create_client()
+    agent_state = client.create_agent(
+        memory=ChatMemory(persona="This is the persona", human="My name is Chad"),
+        embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        llm_config=LLMConfig.default_config(model_name="gpt-4"),
+    )
+    yield agent_state
+
+
 # Utility functions
 def create_tool_from_func(func: callable):
     return Tool(
@@ -225,21 +244,25 @@ def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_us
 
 
 @pytest.mark.local_sandbox
-def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, test_user):
+def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, test_user, agent_state):
     args = {}
-
-    client = create_client()
-    agent_state = client.create_agent(
-        memory=ChatMemory(persona="This is the persona", human="This is the human"),
-        embedding_config=EmbeddingConfig.default_config(provider="openai"),
-        llm_config=LLMConfig.default_config(model_name="gpt-4"),
-    )
-
     # Run again to get actual response
     sandbox = ToolExecutionSandbox(clear_core_memory.name, args, user_id=test_user.id)
     result = sandbox.run(agent_state=agent_state)
     assert result.agent_state.memory.get_block("human").value == ""
     assert result.agent_state.memory.get_block("persona").value == ""
+    assert result.func_return is None
+
+
+@pytest.mark.local_sandbox
+def test_local_sandbox_core_memory_replace(mock_e2b_api_key_none, core_memory_replace_tool, test_user, agent_state):
+    new_name = "Matt"
+    args = {"label": "human", "old_content": "Chad", "new_content": new_name}
+    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
+
+    # run the sandbox
+    result = sandbox.run(agent_state=agent_state)
+    assert new_name in result.agent_state.memory.get_block("human").value
     assert result.func_return is None
 
 
@@ -345,21 +368,25 @@ def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_u
 
 
 @pytest.mark.e2b_sandbox
-def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test_user):
+def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test_user, agent_state):
     sandbox = ToolExecutionSandbox(clear_core_memory.name, {}, user_id=test_user.id)
-
-    # create an agent
-    client = create_client()
-    agent_state = client.create_agent(
-        memory=ChatMemory(persona="This is the persona", human="This is the human"),
-        embedding_config=EmbeddingConfig.default_config(provider="openai"),
-        llm_config=LLMConfig.default_config(model_name="gpt-4"),
-    )
 
     # run the sandbox
     result = sandbox.run(agent_state=agent_state)
     assert result.agent_state.memory.get_block("human").value == ""
     assert result.agent_state.memory.get_block("persona").value == ""
+    assert result.func_return is None
+
+
+@pytest.mark.e2b_sandbox
+def test_e2b_sandbox_core_memory_replace(check_e2b_key_is_set, core_memory_replace_tool, test_user, agent_state):
+    new_name = "Matt"
+    args = {"label": "human", "old_content": "Chad", "new_content": new_name}
+    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
+
+    # run the sandbox
+    result = sandbox.run(agent_state=agent_state)
+    assert new_name in result.agent_state.memory.get_block("human").value
     assert result.func_return is None
 
 

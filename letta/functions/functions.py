@@ -11,23 +11,54 @@ from letta.functions.schema_generator import generate_schema
 
 
 def derive_openai_json_schema(source_code: str, name: Optional[str] = None) -> dict:
-    # auto-generate openai schema
+    """Derives the OpenAI JSON schema for a given function source code.
+
+    First, attempts to execute the source code in a custom environment with only the necessary imports.
+    Then, it generates the schema from the function's docstring and signature.
+    """
     try:
         # Define a custom environment with necessary imports
-        env = {"Optional": Optional, "List": List, "Dict": Dict}  # Add any other required imports here
-
+        env = {
+            "Optional": Optional,
+            "List": List,
+            "Dict": Dict,
+            # To support Pydantic models
+            # "BaseModel": BaseModel,
+            # "Field": Field,
+        }
         env.update(globals())
+
+        # print("About to execute source code...")
         exec(source_code, env)
+        # print("Source code executed successfully")
 
-        # get available functions
-        functions = [f for f in env if callable(env[f])]
+        functions = [f for f in env if callable(env[f]) and not f.startswith("__")]
+        if not functions:
+            raise LettaToolCreateError("No callable functions found in source code")
 
-        # TODO: not sure if this always works
+        # print(f"Found functions: {functions}")
         func = env[functions[-1]]
-        json_schema = generate_schema(func, name=name)
-        return json_schema
+
+        if not hasattr(func, "__doc__") or not func.__doc__:
+            raise LettaToolCreateError(f"Function {func.__name__} missing docstring")
+
+        # print("About to generate schema...")
+        try:
+            schema = generate_schema(func, name=name)
+            # print("Schema generated successfully")
+            return schema
+        except TypeError as e:
+            raise LettaToolCreateError(f"Type error in schema generation: {str(e)}")
+        except ValueError as e:
+            raise LettaToolCreateError(f"Value error in schema generation: {str(e)}")
+        except Exception as e:
+            raise LettaToolCreateError(f"Unexpected error in schema generation: {str(e)}")
+
     except Exception as e:
-        raise LettaToolCreateError(f"Failed to derive JSON schema from source code: {e}")
+        import traceback
+
+        traceback.print_exc()
+        raise LettaToolCreateError(f"Schema generation failed: {str(e)}") from e
 
 
 def parse_source_code(func) -> str:

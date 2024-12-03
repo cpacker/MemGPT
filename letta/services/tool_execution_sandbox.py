@@ -59,19 +59,19 @@ class ToolExecutionSandbox:
             Tuple[Any, Optional[AgentState]]: Tuple containing (tool_result, agent_state)
         """
         if tool_settings.e2b_api_key:
-            logger.info(f"Using e2b sandbox to execute {self.tool_name}")
+            logger.debug(f"Using e2b sandbox to execute {self.tool_name}")
             code = self.generate_execution_script(agent_state=agent_state)
             result = self.run_e2b_sandbox(code=code)
         else:
-            logger.info(f"Using local sandbox to execute {self.tool_name}")
+            logger.debug(f"Using local sandbox to execute {self.tool_name}")
             code = self.generate_execution_script(agent_state=agent_state)
             result = self.run_local_dir_sandbox(code=code)
 
         # Log out any stdout from the tool run
-        logger.info(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n")
+        logger.debug(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n")
         for log_line in result.stdout:
-            logger.info(f"{log_line}")
-        logger.info(f"Ending stdout log from tool run.")
+            logger.debug(f"{log_line}")
+        logger.debug(f"Ending stdout log from tool run.")
 
         # Return result
         return result
@@ -276,6 +276,25 @@ class ToolExecutionSandbox:
 
         return code
 
+    def _convert_param_to_value(self, param_type: str, raw_value: str) -> str:
+
+        if param_type == "string":
+            value = '"' + raw_value + '"'
+
+        elif param_type == "integer" or param_type == "boolean" or param_type == "number":
+            value = raw_value
+
+        elif param_type == "array":
+            value = raw_value
+
+        elif param_type == "object":
+            value = raw_value
+
+        else:
+            raise TypeError(f"Unsupported type: {param_type}, raw_value={raw_value}")
+
+        return str(value)
+
     def initialize_param(self, name: str, raw_value: str) -> str:
         params = self.tool.json_schema["parameters"]["properties"]
         spec = params.get(name)
@@ -287,14 +306,9 @@ class ToolExecutionSandbox:
         if param_type is None and spec.get("parameters"):
             param_type = spec["parameters"].get("type")
 
-        if param_type == "string":
-            value = '"' + raw_value + '"'
-        elif param_type == "integer" or param_type == "boolean":
-            value = raw_value
-        else:
-            raise TypeError(f"unsupported type: {param_type}")
+        value = self._convert_param_to_value(param_type, raw_value)
 
-        return name + " = " + str(value) + "\n"
+        return name + " = " + value + "\n"
 
     def invoke_function_call(self, inject_agent_state: bool) -> str:
         """
