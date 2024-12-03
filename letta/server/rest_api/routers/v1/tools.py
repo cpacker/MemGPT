@@ -6,7 +6,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from letta.errors import LettaToolCreateError
 from letta.orm.errors import UniqueConstraintViolationError
 from letta.schemas.letta_message import FunctionReturn
-from letta.schemas.tool import Tool, ToolCreate, ToolRun, ToolRunFromSource, ToolUpdate
+from letta.schemas.tool import Tool, ToolCreate, ToolRunFromSource, ToolUpdate
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
 
@@ -160,18 +160,19 @@ def add_base_tools(
     return server.tool_manager.add_base_tools(actor=actor)
 
 
-@router.post("/{tool_id}/run", response_model=FunctionReturn, operation_id="run_tool")
-def run_tool(
-    server: SyncServer = Depends(get_letta_server),
-    request: ToolRun = Body(...),
-    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
-):
-    """
-    Run an existing tool on provided arguments
-    """
-    actor = server.get_user_or_default(user_id=user_id)
+# NOTE: can re-enable if needed
+# @router.post("/{tool_id}/run", response_model=FunctionReturn, operation_id="run_tool")
+# def run_tool(
+#     server: SyncServer = Depends(get_letta_server),
+#     request: ToolRun = Body(...),
+#     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+# ):
+#     """
+#     Run an existing tool on provided arguments
+#     """
+#     actor = server.get_user_or_default(user_id=user_id)
 
-    return server.run_tool(tool_id=request.tool_id, tool_args=request.tool_args, user_id=actor.id)
+#     return server.run_tool(tool_id=request.tool_id, tool_args=request.tool_args, user_id=actor.id)
 
 
 @router.post("/run", response_model=FunctionReturn, operation_id="run_tool_from_source")

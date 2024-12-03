@@ -1760,51 +1760,51 @@ class SyncServer(Server):
                 return block
         return None
 
-    def run_tool(self, tool_id: str, tool_args: str, user_id: str) -> FunctionReturn:
-        """Run a tool using the sandbox and return the result"""
+    # def run_tool(self, tool_id: str, tool_args: str, user_id: str) -> FunctionReturn:
+    #     """Run a tool using the sandbox and return the result"""
 
-        try:
-            tool_args_dict = json.loads(tool_args)
-        except json.JSONDecodeError:
-            raise ValueError("Invalid JSON string for tool_args")
+    #     try:
+    #         tool_args_dict = json.loads(tool_args)
+    #     except json.JSONDecodeError:
+    #         raise ValueError("Invalid JSON string for tool_args")
 
-        # Get the tool by ID
-        user = self.user_manager.get_user_by_id(user_id=user_id)
-        tool = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=user)
-        if tool.name is None:
-            raise ValueError(f"Tool with id {tool_id} does not have a name")
+    #     # Get the tool by ID
+    #     user = self.user_manager.get_user_by_id(user_id=user_id)
+    #     tool = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=user)
+    #     if tool.name is None:
+    #         raise ValueError(f"Tool with id {tool_id} does not have a name")
 
-        # TODO eventually allow using agent state in tools
-        agent_state = None
+    #     # TODO eventually allow using agent state in tools
+    #     agent_state = None
 
-        try:
-            sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id).run(agent_state=agent_state)
-            if sandbox_run_result is None:
-                raise ValueError(f"Tool with id {tool_id} returned execution with None")
-            function_response = str(sandbox_run_result.func_return)
+    #     try:
+    #         sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id).run(agent_state=agent_state)
+    #         if sandbox_run_result is None:
+    #             raise ValueError(f"Tool with id {tool_id} returned execution with None")
+    #         function_response = str(sandbox_run_result.func_return)
 
-            return FunctionReturn(
-                id="null",
-                function_call_id="null",
-                date=get_utc_time(),
-                status="success",
-                function_return=function_response,
-            )
-        except Exception as e:
-            # same as agent.py
-            from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
+    #         return FunctionReturn(
+    #             id="null",
+    #             function_call_id="null",
+    #             date=get_utc_time(),
+    #             status="success",
+    #             function_return=function_response,
+    #         )
+    #     except Exception as e:
+    #         # same as agent.py
+    #         from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
 
-            error_msg = f"Error executing tool {tool.name}: {e}"
-            if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
-                error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
+    #         error_msg = f"Error executing tool {tool.name}: {e}"
+    #         if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
+    #             error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
 
-            return FunctionReturn(
-                id="null",
-                function_call_id="null",
-                date=get_utc_time(),
-                status="error",
-                function_return=error_msg,
-            )
+    #         return FunctionReturn(
+    #             id="null",
+    #             function_call_id="null",
+    #             date=get_utc_time(),
+    #             status="error",
+    #             function_return=error_msg,
+    #         )
 
     def run_tool_from_source(
         self,
