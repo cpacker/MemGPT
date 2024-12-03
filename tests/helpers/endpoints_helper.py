@@ -211,11 +211,8 @@ def check_agent_recall_chat_memory(filename: str) -> LettaResponse:
     cleanup(client=client, agent_uuid=agent_uuid)
 
     human_name = "BananaBoy"
-    agent_state = setup_agent(client, filename, memory_human_str=f"My name is {human_name}")
-
-    print("MEMORY", agent_state.memory.get_block("human").value)
-
-    response = client.user_message(agent_id=agent_state.id, message="Repeat my name back to me.")
+    agent_state = setup_agent(client, filename, memory_human_str=f"The human's name is {human_name}. That is all I know about them so far.")
+    response = client.user_message(agent_id=agent_state.id, message="Repeat my name back to me. It should be in your core memory.")
 
     # Basic checks
     assert_sanity_checks(response)
