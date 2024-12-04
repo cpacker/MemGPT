@@ -3,6 +3,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
 from letta.orm.errors import NoResultFound
+from letta.schemas.enums import JobStatus
 from letta.schemas.job import Job
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
@@ -41,7 +42,7 @@ def list_active_jobs(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    return server.list_active_jobs(user_id=actor.id)
+    return server.job_manager.list_jobs(actor=actor, statuses=[JobStatus.created, JobStatus.running])
 
 
 @router.get("/{job_id}", response_model=Job, operation_id="get_job")

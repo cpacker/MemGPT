@@ -2883,7 +2883,7 @@ class LocalClient(AbstractClient):
         return self.server.job_manager.list_jobs(actor=self.user)
 
     def list_active_jobs(self):
-        return self.server.list_active_jobs(user_id=self.user_id)
+        return self.server.job_manager.list_jobs(actor=self.user, statuses=[JobStatus.created, JobStatus.running])
 
     def create_source(self, name: str, embedding_config: Optional[EmbeddingConfig] = None) -> Source:
         """

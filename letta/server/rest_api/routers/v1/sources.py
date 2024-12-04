@@ -16,6 +16,7 @@ from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source, SourceCreate, SourceUpdate
+from letta.schemas.user import User
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
 from letta.utils import sanitize_filename
@@ -178,10 +179,11 @@ def upload_file_to_source(
     server.job_manager.create_job(job, actor=actor)
 
     # create background task
-    background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, file=file, job_id=job.id, bytes=bytes)
+    background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, file=file, job_id=job.id, bytes=bytes, actor=actor)
 
     # return job information
-    job = server.ms.get_job(job_id=job_id)
+    # Is this necessary? Can we just return the job from create_job?
+    job = server.job_manager.get_job_by_id(job_id=job_id, actor=actor)
     assert job is not None, "Job not found"
     return job
 
@@ -234,7 +236,7 @@ def delete_file_from_source(
         raise HTTPException(status_code=404, detail=f"File with id={file_id} not found.")
 
 
-def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes):
+def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, file: UploadFile, bytes: bytes, actor: User):
     # Create a temporary directory (deleted after the context manager exits)
     with tempfile.TemporaryDirectory() as tmpdirname:
         # Sanitize the filename
@@ -246,4 +248,4 @@ def load_file_to_source_async(server: SyncServer, source_id: str, job_id: str, f
             buffer.write(bytes)
 
         # Pass the file to load_file_to_source
-        server.load_file_to_source(source_id, file_path, job_id)
+        server.load_file_to_source(source_id, file_path, job_id, actor)

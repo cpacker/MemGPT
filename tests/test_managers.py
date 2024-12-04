@@ -1319,9 +1319,9 @@ def test_list_jobs_by_status(server: SyncServer, default_user):
     server.job_manager.create_job(job_data_completed, actor=default_user)
 
     # List jobs filtered by status
-    created_jobs = server.job_manager.list_jobs(actor=default_user, status=JobStatus.created)
-    in_progress_jobs = server.job_manager.list_jobs(actor=default_user, status=JobStatus.running)
-    completed_jobs = server.job_manager.list_jobs(actor=default_user, status=JobStatus.completed)
+    created_jobs = server.job_manager.list_jobs(actor=default_user, statuses=[JobStatus.created])
+    in_progress_jobs = server.job_manager.list_jobs(actor=default_user, statuses=[JobStatus.running])
+    completed_jobs = server.job_manager.list_jobs(actor=default_user, statuses=[JobStatus.completed])
 
     # Assertions
     assert len(created_jobs) == 1

@@ -33,3 +33,6 @@ class Job(JobBase):
 
 class JobUpdate(JobBase):
     status: Optional[JobStatus] = Field(None, description="The status of the job.")
+
+    class Config:
+        extra = "ignore"  # Ignores extra fields

@@ -58,15 +58,15 @@ class JobManager:
 
     @enforce_types
     def list_jobs(
-        self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50, status: Optional[JobStatus] = None
+        self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50, statuses: Optional[List[JobStatus]] = None
     ) -> List[PydanticJob]:
         """List all jobs with optional pagination and status filter."""
         with self.session_maker() as session:
             filter_kwargs = {"user_id": actor.id}
 
             # Add status filter if provided
-            if status:
-                filter_kwargs["status"] = status
+            if statuses:
+                filter_kwargs["status"] = statuses
 
             jobs = JobModel.list(
                 db_session=session,
