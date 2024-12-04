@@ -3,6 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
+from letta.constants import CORE_MEMORY_BLOCK_CHAR_LIMIT
 from letta.schemas.letta_base import LettaBase
 
 # block of the LLM context
@@ -15,7 +16,7 @@ class BaseBlock(LettaBase, validate_assignment=True):
 
     # data value
     value: str = Field(..., description="Value of the block.")
-    limit: int = Field(2000, description="Character limit of the block.")
+    limit: int = Field(CORE_MEMORY_BLOCK_CHAR_LIMIT, description="Character limit of the block.")
 
     # template data (optional)
     template_name: Optional[str] = Field(None, description="Name of the block if it is a template.", alias="name")
@@ -117,7 +118,7 @@ class BlockLabelUpdate(BaseModel):
 class BlockUpdate(BaseBlock):
     """Update a block"""
 
-    limit: Optional[int] = Field(2000, description="Character limit of the block.")
+    limit: Optional[int] = Field(CORE_MEMORY_BLOCK_CHAR_LIMIT, description="Character limit of the block.")
     value: Optional[str] = Field(None, description="Value of the block.")
 
     class Config:
@@ -147,7 +148,7 @@ class CreateBlock(BaseBlock):
     """Create a block"""
 
     label: str = Field(..., description="Label of the block.")
-    limit: int = Field(2000, description="Character limit of the block.")
+    limit: int = Field(CORE_MEMORY_BLOCK_CHAR_LIMIT, description="Character limit of the block.")
     value: str = Field(..., description="Value of the block.")
 
     # block templates
