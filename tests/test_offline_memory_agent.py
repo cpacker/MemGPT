@@ -3,11 +3,14 @@ import json
 from regex import W
 
 from letta import BasicBlockMemory
+from letta import offline_memory_agent
 from letta.client.client import Block, create_client
 from letta.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.offline_memory_agent import (
-    finish_rethinking_memory,
     rethink_memory,
+    finish_rethinking_memory,
+    rethink_memory_convo,
+    finish_rethinking_memory_convo,
     trigger_rethink_memory,
     trigger_rethink_memory_convo,
 )
@@ -229,6 +232,11 @@ def test_ripple_edit():
 
 
 def test_chat_only_agent():
+    client = create_client()
+
+    rethink_memory = client.create_tool(rethink_memory_convo)
+    finish_rethinking_memory = client.create_tool(finish_rethinking_memory_convo)
+
     conversation_human_block = Block(name="chat_agent_human", label="chat_agent_human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
     conversation_persona_block = Block(
         name="chat_agent_persona", label="chat_agent_persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000
@@ -244,6 +252,7 @@ def test_chat_only_agent():
         tools=["send_message"],
         memory=conversation_memory,
         include_base_tools=False,
+        metadata = {"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]}
     )
     assert chat_only_agent is not None
     assert set(chat_only_agent.memory.list_block_labels()) == set(["chat_agent_persona", "chat_agent_human"])

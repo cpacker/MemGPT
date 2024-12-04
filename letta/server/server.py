@@ -808,6 +808,19 @@ class SyncServer(Server):
                     warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
         # reset the request.tools to only valid tools
         request.tools = [t.name for t in tool_objs]
+        import pdb; pdb.set_trace()
+        
+        '''
+        if request.async_memory_tools:
+            for tool_name in request.async_memory_tools:
+                tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+                if tool_obj:
+                    tool_objs.append(tool_obj)
+                else:
+                    warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
+        # reset the request.tools to only valid tools
+        request.async_memory_tools = [t.name for t in tool_objs]
+        '''
 
         # get the user
         logger.debug(f"Attempting to find user: {user_id}")
@@ -820,6 +833,7 @@ class SyncServer(Server):
             name=request.name,
             user_id=user_id,
             tool_names=request.tools if request.tools else [],
+            # async_memory_tool_names=request.async_memory_tools if request.async_memory_tools else [],
             tool_rules=request.tool_rules,
             agent_type=request.agent_type or AgentType.memgpt_agent,
             llm_config=request.llm_config,
