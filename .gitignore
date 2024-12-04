@@ -1020,4 +1020,4 @@ memgpy/pytest.ini
 **/**/pytest_cache
 
 ## ignore venvs
-venv/
+tests/test_tool_sandbox/restaurant_management_system/venv
