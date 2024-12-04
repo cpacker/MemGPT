@@ -1,0 +1,57 @@
+name: Check for new print statements
+on:
+  pull_request:
+    paths:
+      - '**.py'
+
+jobs:
+  check-print-statements:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Check for new print statements
+        run: |
+          # Get the files changed in this PR
+          git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} > changed_files.txt
+
+          # Filter for only Python files
+          grep "\.py$" changed_files.txt > python_files.txt || true
+
+          # Initialize error flag
+          ERROR=0
+
+          # Check each changed Python file
+          while IFS= read -r file; do
+            if [ -f "$file" ]; then
+              echo "Checking $file for new print statements..."
+
+              # Get diff and look for added lines containing print statements
+              NEW_PRINTS=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.sha }} "$file" | \
+                          grep "^+" | \
+                          grep -v "^+++" | \
+                          grep "print(" || true)
+
+              if [ ! -z "$NEW_PRINTS" ]; then
+                echo "❌ Found new print statements in $file:"
+                echo "$NEW_PRINTS"
+                ERROR=1
+              fi
+            fi
+          done < python_files.txt
+
+          # Exit with error if print statements were found
+          if [ $ERROR -eq 1 ]; then
+            echo "::error::New print statements were found in the changes"
+            exit 1
+          fi
+
+          echo "✅ No new print statements found"

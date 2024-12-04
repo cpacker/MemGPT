@@ -434,6 +434,7 @@ class RESTClient(AbstractClient):
         debug: bool = False,
         default_llm_config: Optional[LLMConfig] = None,
         default_embedding_config: Optional[EmbeddingConfig] = None,
+        headers: Optional[Dict] = None,
     ):
         """
         Initializes a new instance of Client class.
@@ -442,12 +443,16 @@ class RESTClient(AbstractClient):
             auto_save (bool): Whether to automatically save changes.
             user_id (str): The user ID.
             debug (bool): Whether to print debug information.
-            default
+            default_llm_config (Optional[LLMConfig]): The default LLM configuration.
+            default_embedding_config (Optional[EmbeddingConfig]): The default embedding configuration.
+            headers (Optional[Dict]): The additional headers for the REST API.
         """
         super().__init__(debug=debug)
         self.base_url = base_url
         self.api_prefix = api_prefix
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
+        if headers:
+            self.headers.update(headers)
         self._default_llm_config = default_llm_config
         self._default_embedding_config = default_embedding_config
 

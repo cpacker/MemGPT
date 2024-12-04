@@ -186,13 +186,27 @@ def run_tool_from_source(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    return server.run_tool_from_source(
-        tool_source=request.source_code,
-        tool_source_type=request.source_type,
-        tool_args=request.args,
-        tool_name=request.name,
-        user_id=actor.id,
-    )
+    try:
+        return server.run_tool_from_source(
+            tool_source=request.source_code,
+            tool_source_type=request.source_type,
+            tool_args=request.args,
+            tool_name=request.name,
+            user_id=actor.id,
+        )
+    except LettaToolCreateError as e:
+        # HTTP 400 == Bad Request
+        print(f"Error occurred during tool creation: {e}")
+        # print the full stack trace
+        import traceback
+
+        print(traceback.format_exc())
+        raise HTTPException(status_code=400, detail=str(e))
+
+    except Exception as e:
+        # Catch other unexpected errors and raise an internal server error
+        print(f"Unexpected error occurred: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
 
 # Specific routes for Composio
