@@ -819,7 +819,6 @@ class SyncServer(Server):
             name=request.name,
             user_id=user_id,
             tool_names=request.tools if request.tools else [],
-            # async_memory_tool_names=request.async_memory_tools if request.async_memory_tools else [],
             tool_rules=request.tool_rules,
             agent_type=request.agent_type or AgentType.memgpt_agent,
             llm_config=request.llm_config,
