@@ -404,6 +404,5 @@ def test_shared_blocks_without_send_message(client: LocalClient):
     client.update_block(block_id, value="I am no longer an [empty] memory")
     agent_1 = client.get_agent(agent_1.id)
     agent_2 = client.get_agent(agent_2.id)
-
     assert agent_1.memory.get_block("shared_memory").value == "I am no longer an [empty] memory"
     assert agent_2.memory.get_block("shared_memory").value == "I am no longer an [empty] memory"

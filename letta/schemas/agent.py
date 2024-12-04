@@ -45,7 +45,6 @@ class PersistedAgentState(BaseAgent, validate_assignment=True):
 
     # in-context memory
     message_ids: Optional[List[str]] = Field(default=None, description="The ids of the messages in the agent's in-context memory.")
-
     # tools
     # TODO: move to ORM mapping
     tool_names: List[str] = Field(..., description="The tools used by the agent.")

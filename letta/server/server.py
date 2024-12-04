@@ -435,7 +435,6 @@ class SyncServer(Server):
                 ms=self.ms,
                 skip_verify=True,
             )
-            # save_agent(letta_agent, self.ms)
 
             # save agent after step
             save_agent(letta_agent, self.ms)
