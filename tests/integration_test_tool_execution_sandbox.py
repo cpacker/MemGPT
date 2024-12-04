@@ -164,6 +164,26 @@ def get_env_tool(test_user):
 
 
 @pytest.fixture
+def get_warning_tool(test_user):
+    def warn_hello_world() -> str:
+        """
+        Simple function that warns hello world.
+
+        Returns:
+            str: hello world
+        """
+        import warnings
+
+        msg = "Hello World"
+        warnings.warn(msg)
+        return msg
+
+    tool = create_tool_from_func(warn_hello_world)
+    tool = ToolManager().create_or_update_tool(tool, test_user)
+    yield tool
+
+
+@pytest.fixture
 def list_tool(test_user):
     def create_list():
         """Simple function that returns a list"""
@@ -347,6 +367,22 @@ def test_local_sandbox_external_codebase(mock_e2b_api_key_none, external_codebas
     # Assert that the function return is correct
     assert result.func_return == "Price Adjustments:\nBurger: $8.99 -> $9.89\nFries: $2.99 -> $3.29\nSoda: $1.99 -> $2.19"
     assert "Hello World" in result.stdout[0]
+
+
+@pytest.mark.local_sandbox
+def test_local_sandbox_with_venv_and_warnings_does_not_error(mock_e2b_api_key_none, get_warning_tool, test_user):
+    # Make the external codebase the sandbox config
+    manager = SandboxConfigManager(tool_settings)
+
+    # Set the sandbox to be within the external codebase path and use a venv
+    external_codebase_path = str(Path(__file__).parent / "test_tool_sandbox" / "restaurant_management_system")
+    local_sandbox_config = LocalSandboxConfig(sandbox_dir=external_codebase_path, use_venv=True)
+    config_create = SandboxConfigCreate(config=local_sandbox_config.model_dump())
+    manager.create_or_update_sandbox_config(sandbox_config_create=config_create, actor=test_user)
+
+    sandbox = ToolExecutionSandbox(get_warning_tool.name, {}, user_id=test_user.id)
+    result = sandbox.run()
+    assert result.func_return == "Hello World"
 
 
 # E2B sandbox tests
