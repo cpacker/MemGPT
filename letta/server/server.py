@@ -1255,7 +1255,7 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        cursor, records = letta_agent.persistence_manager.recall_memory.storage.get_all_cursor(
+        cursor, records = letta_agent.recall_memory.message_manager.get_all_cursor(
             after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
         )
 

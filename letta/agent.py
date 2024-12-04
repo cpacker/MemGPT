@@ -27,7 +27,7 @@ from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
 from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
-from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
+from letta.memory import ArchivalMemory, RecallMemory, BaseRecallMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.orm import User
 from letta.persistence_manager import LocalStateManager
@@ -282,7 +282,8 @@ class Agent(BaseAgent):
         self.interface = interface
 
         # Create the persistence manager object based on the AgentState info
-        self.persistence_manager = LocalStateManager(agent_state=self.agent_state)
+        self.persistence_manager = LocalStateManager(agent_state)
+        self.recall_memory = BaseRecallMemory(agent_state)
 
         # State needed for heartbeat pausing
         self.pause_heartbeats_start = None
@@ -472,7 +473,7 @@ class Agent(BaseAgent):
         # Pull the message objects from the database
         message_objs = []
         for msg_id in message_ids:
-            msg_obj = self.persistence_manager.recall_memory.storage.get(msg_id)
+            msg_obj = self.recall_memory.message_manager.get_message_by_id(msg_id)
             if msg_obj:
                 if isinstance(msg_obj, Message):
                     message_objs.append(msg_obj)
@@ -529,7 +530,7 @@ class Agent(BaseAgent):
         """Wrapper around self.messages.prepend to allow additional calls to a state/persistence manager"""
         assert all([isinstance(msg, Message) for msg in added_messages])
 
-        self.persistence_manager.prepend_to_messages(added_messages)
+        self.recall_memory.insert_many([m for m in added_messages])
 
         new_messages = [self._messages[0]] + added_messages + self._messages[1:]  # prepend (no system)
         self._messages = new_messages
@@ -539,7 +540,7 @@ class Agent(BaseAgent):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
         assert all([isinstance(msg, Message) for msg in added_messages])
 
-        self.persistence_manager.append_to_messages(added_messages)
+        self.recall_memory.insert_many([m for m in added_messages])
 
         # strip extra metadata if it exists
         # for msg in added_messages:
@@ -1245,7 +1246,7 @@ class Agent(BaseAgent):
         assert new_system_message_obj.role == "system", new_system_message_obj
         assert self._messages[0].role == "system", self._messages
 
-        self.persistence_manager.swap_system_message(new_system_message_obj)
+        self.recall_memory.insert(new_system_message_obj)
 
         new_messages = [new_system_message_obj] + self._messages[1:]  # swap index 0 (system)
         self._messages = new_messages
@@ -1268,7 +1269,7 @@ class Agent(BaseAgent):
             in_context_memory=self.agent_state.memory,
             in_context_memory_last_edit=memory_edit_timestamp,
             archival_memory=self.persistence_manager.archival_memory,
-            recall_memory=self.persistence_manager.recall_memory,
+            recall_memory=self.recall_memory,
             user_defined_variables=None,
             append_icm_if_missing=True,
         )
@@ -1376,7 +1377,7 @@ class Agent(BaseAgent):
     def update_message(self, request: UpdateMessage) -> Message:
         """Update the details of a message associated with an agent"""
 
-        message = self.persistence_manager.recall_memory.storage.get(id=request.id)
+        message = self.recall_memory.message_manager.get_message_by_id(id=request.id)
         if message is None:
             raise ValueError(f"Message with id {request.id} not found")
         assert isinstance(message, Message), f"Message is not a Message object: {type(message)}"
@@ -1397,10 +1398,10 @@ class Agent(BaseAgent):
             message.tool_call_id = request.tool_call_id
 
         # Save the updated message
-        self.persistence_manager.recall_memory.storage.update(record=message)
+        self.recall_memory.message_manager.update_message_by_id(message_id=message.id, message=message)
 
         # Return the updated message
-        updated_message = self.persistence_manager.recall_memory.storage.get(id=message.id)
+        updated_message = self.recall_memory.message_manager.get_message_by_id(id=message.id)
         if updated_message is None:
             raise ValueError(f"Error persisting message - message with id {request.id} not found")
         return updated_message
@@ -1480,7 +1481,7 @@ class Agent(BaseAgent):
                 deleted_message = self._messages.pop()
                 # then also remove it from recall storage
                 try:
-                    self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+                    self.recall_memory.message_manager.delete(filters={"id": deleted_message.id})
                     popped_messages.append(deleted_message)
                 except Exception as e:
                     warnings.warn(f"Error deleting message {deleted_message.id} from recall memory: {e}")
@@ -1554,11 +1555,11 @@ class Agent(BaseAgent):
             )
 
         num_archival_memory = self.persistence_manager.archival_memory.storage.size()
-        num_recall_memory = self.persistence_manager.recall_memory.storage.size()
+        num_recall_memory = self.recall_memory.size()
         external_memory_summary = compile_memory_metadata_block(
             memory_edit_timestamp=get_utc_time(),  # dummy timestamp
             archival_memory=self.persistence_manager.archival_memory,
-            recall_memory=self.persistence_manager.recall_memory,
+            recall_memory=self.recall_memory,
         )
         num_tokens_external_memory_summary = count_tokens(external_memory_summary)
 

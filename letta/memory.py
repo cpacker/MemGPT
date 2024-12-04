@@ -11,6 +11,7 @@ from letta.schemas.enums import MessageRole
 from letta.schemas.memory import Memory
 from letta.schemas.message import Message
 from letta.schemas.passage import Passage
+from letta.services.message_manager import MessageManager
 from letta.utils import (
     count_tokens,
     extract_date_from_timestamp,
@@ -268,37 +269,37 @@ class BaseRecallMemory(RecallMemory):
         self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
 
         # create storage backend
-        self.storage = StorageConnector.get_recall_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
+        self.message_manager = MessageManager()
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
     def get_all(self, start=0, count=None):
         start = 0 if start is None else int(start)
         count = 0 if count is None else int(count)
-        results = self.storage.get_all(start, count)
+        results = self.message_manager.get_all(start, count)
         results_json = [message.to_openai_dict() for message in results]
         return results_json, len(results)
 
     def text_search(self, query_string, count=None, start=None):
         start = 0 if start is None else int(start)
         count = 0 if count is None else int(count)
-        results = self.storage.query_text(query_string, count, start)
+        results = self.message_manager.query_text(query_string, count, start)
         results_json = [message.to_openai_dict_search_results() for message in results]
         return results_json, len(results)
 
     def date_search(self, start_date, end_date, count=None, start=None):
         start = 0 if start is None else int(start)
         count = 0 if count is None else int(count)
-        results = self.storage.query_date(start_date, end_date, count, start)
+        results = self.message_manager.query_date(start_date, end_date, count, start)
         results_json = [message.to_openai_dict_search_results() for message in results]
         return results_json, len(results)
 
     def compile(self) -> str:
-        total = self.storage.size()
-        system_count = self.storage.size(filters={"role": "system"})
-        user_count = self.storage.size(filters={"role": "user"})
-        assistant_count = self.storage.size(filters={"role": "assistant"})
-        function_count = self.storage.size(filters={"role": "function"})
+        total = self.message_manager.size()
+        system_count = self.message_manager.size(filters={"role": "system"})
+        user_count = self.message_manager.size(filters={"role": "user"})
+        assistant_count = self.message_manager.size(filters={"role": "assistant"})
+        function_count = self.message_manager.size(filters={"role": "function"})
         other_count = total - (system_count + user_count + assistant_count + function_count)
 
         memory_str = (
@@ -313,16 +314,17 @@ class BaseRecallMemory(RecallMemory):
         return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
 
     def insert(self, message: Message):
-        self.storage.insert(message)
+        self.message_manager.create_message(message)
 
     def insert_many(self, messages: List[Message]):
-        self.storage.insert_many(messages)
+        self.message_manager.create_many_messages(messages)
 
     def save(self):
-        self.storage.save()
+        # NOTE: is this supposed to do anything?
+        self.message_manager.save()
 
     def __len__(self):
-        return self.storage.size()
+        return self.message_manager.size()
 
     def count(self) -> int:
         return len(self)

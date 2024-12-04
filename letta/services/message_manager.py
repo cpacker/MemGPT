@@ -170,6 +170,90 @@ class MessageManager:
             return [msg.to_pydantic() for msg in results]
 
     @enforce_types
+    def get_all_cursor(
+        self,
+        filters: Optional[Dict] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
+        limit: Optional[int] = 1000,
+        order_by: str = "created_at",
+        reverse: bool = False,
+    ) -> Tuple[Optional[str], List[PydanticMessage]]:
+        """Get all messages with cursor-based pagination.
+
+        Args:
+            filters: Optional dictionary of filters to apply
+            after: Return records after this cursor (exclusive)
+            before: Return records before this cursor (exclusive)
+            limit: Maximum number of records to return
+            order_by: Field to sort by
+            reverse: If True, sort in descending order
+
+        Returns:
+            Tuple of (next_cursor, list of messages)
+        """
+        from sqlalchemy import desc, asc, or_, and_
+
+        with self.session_maker() as session:
+            query = session.query(MessageModel)
+
+            # Apply filters if provided
+            if filters:
+                for field, value in filters.items():
+                    query = query.filter(getattr(MessageModel, field) == value)
+
+            # Sort by the specified field and ID as tiebreaker
+            if reverse:
+                query = query.order_by(desc(getattr(MessageModel, order_by)), asc(MessageModel.id))
+            else:
+                query = query.order_by(asc(getattr(MessageModel, order_by)), asc(MessageModel.id))
+
+            # Handle cursor-based pagination
+            if after:
+                after_msg = self.get_message_by_id(after)
+                if after_msg:
+                    after_value = getattr(after_msg, order_by)
+                    sort_exp = getattr(MessageModel, order_by) > after_value
+                    query = query.filter(
+                        or_(
+                            sort_exp,
+                            and_(
+                                getattr(MessageModel, order_by) == after_value,
+                                MessageModel.id > after
+                            )
+                        )
+                    )
+
+            if before:
+                before_msg = self.get_message_by_id(before)
+                if before_msg:
+                    before_value = getattr(before_msg, order_by)
+                    sort_exp = getattr(MessageModel, order_by) < before_value
+                    query = query.filter(
+                        or_(
+                            sort_exp,
+                            and_(
+                                getattr(MessageModel, order_by) == before_value,
+                                MessageModel.id < before
+                            )
+                        )
+                    )
+
+            # Get records with limit
+            if limit:
+                query = query.limit(limit)
+
+            results = query.all()
+
+            if not results:
+                return None, []
+
+            messages = [msg.to_pydantic() for msg in results]
+            next_cursor = results[-1].id
+
+            return next_cursor, messages
+
+    @enforce_types
     def size(self, filters: Optional[Dict] = None) -> int:
         """Get the total count of messages with optional filters."""
         with self.session_maker() as session:

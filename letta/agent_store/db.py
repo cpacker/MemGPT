@@ -100,7 +100,7 @@ class MessageModel(Base):
 
     # Add a datetime column, with default value as the current time
     created_at = Column(DateTime(timezone=True))
-    Index("message_idx_user", user_id, agent_id),
+    Index("message_idx_user_legacy", user_id, agent_id),
 
     def __repr__(self):
         return f"<Message(message_id='{self.id}', text='{self.text}')>"
@@ -161,7 +161,7 @@ class PassageModel(Base):
     # Add a datetime column, with default value as the current time
     created_at = Column(DateTime(timezone=True))
 
-    Index("passage_idx_user", user_id, agent_id, file_id),
+    Index("passage_idx_user_legacy", user_id, agent_id, file_id),
 
     def __repr__(self):
         return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
