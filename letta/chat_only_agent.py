@@ -25,14 +25,14 @@ class ChatOnlyAgent(Agent):
         user: User,
         first_message_verify_mono: bool = False,
         always_rethink_memory: bool = True,
-        chat_specific_memory: bool = True,
+        recent_convo_limit: int = 2000,
     ):
         super().__init__(interface, agent_state, user)
 
         self.first_message_verify_mono = first_message_verify_mono
         self.always_rethink_memory = always_rethink_memory
         self.offline_memory_agent = None
-        self.chat_specific_memory = (chat_specific_memory,)
+        self.recent_convo_limit = recent_convo_limit
 
     def step(
         self,
@@ -70,9 +70,8 @@ class ChatOnlyAgent(Agent):
                     name="chat_agent_persona_new", label="chat_agent_persona_new", value=conversation_persona_block.value, limit=2000
                 )
 
-                conversation_block_limit = 2000
-                recent_convo = "".join([str(message) for message in self.messages[3:]])[-conversation_block_limit:]
-                conversation_messages_block = Block(name="conversation_block", label="conversation_block", value=recent_convo, limit=2000)
+                recent_convo = "".join([str(message) for message in self.messages[3:]])[-self.recent_convo_limit:]
+                conversation_messages_block = Block(name="conversation_block", label="conversation_block", value=recent_convo, limit=self.recent_convo_limit)
 
                 offline_memory = BasicBlockMemory(
                     blocks=[
