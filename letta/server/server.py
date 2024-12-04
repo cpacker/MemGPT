@@ -383,19 +383,19 @@ class SyncServer(Server):
 
             interface = interface or self.default_interface_factory()
             if agent_state.agent_type == AgentType.memgpt_agent:
-                letta_agent = Agent(agent_state=agent_state, interface=interface, user=actor)
+                agent = Agent(agent_state=agent_state, interface=interface, user=actor)
             elif agent_state.agent_type == AgentType.o1_agent:
-                letta_agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+                agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
             elif agent_state.agent_type == AgentType.offline_memory_agent:
-                letta_agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, user=actor)
+                agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, user=actor)
             elif agent_state.agent_type == AgentType.chat_only_agent:
-                letta_agent = ChatOnlyAgent(agent_state=agent_state, interface=interface, user=actor)
+                agent = ChatOnlyAgent(agent_state=agent_state, interface=interface, user=actor)
             else: 
                 raise ValueError(f"Invalid agent type {agent_state.agent_type}")
 
             # Persist to agent
-            save_agent(letta_agent, self.ms)
-            return letta_agent
+            save_agent(agent, self.ms)
+            return agent 
 
     def _step(
         self,
