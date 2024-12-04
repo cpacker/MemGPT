@@ -14,6 +14,7 @@ from letta.orm import (
     Source,
     Tool,
     User,
+    Message
 )
 from letta.orm.agents_tags import AgentsTags
 from letta.orm.errors import (
@@ -40,6 +41,7 @@ from letta.schemas.source import Source as PydanticSource
 from letta.schemas.source import SourceUpdate
 from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolUpdate
+from letta.schemas.message import Message as PydanticMessage
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
 from letta.settings import tool_settings
@@ -77,6 +79,7 @@ def clear_tables(server: SyncServer):
         session.execute(delete(AgentModel))
         session.execute(delete(User))  # Clear all records from the user table
         session.execute(delete(Organization))  # Clear all records from the organization table
+        session.execute(delete(Message))  # Clear all records from the message table
         session.commit()  # Commit the deletion
 
 
@@ -177,6 +180,31 @@ def print_tool(server: SyncServer, default_user, default_organization):
     # Yield the created tool
     yield tool
 
+@pytest.fixture
+def print_message(server: SyncServer, default_user, sarah_agent):
+    """Fixture to create a tool with default settings and clean up after the test."""
+
+    def print_message(message: str):
+        """
+        Args:
+            message (str): The message to print.
+
+        Returns:
+            str: The message that was printed.
+        """
+        print(message)
+        return message
+
+    # Set up message 
+    message = PydanticMessage(
+        user_id=default_user.id,
+        agent_id=sarah_agent.id,
+        role="user",
+        text="Hello, world!",
+    )
+
+    msg = server.message_manager.create_message(message)
+    yield msg
 
 @pytest.fixture
 def sandbox_config_fixture(server: SyncServer, default_user):
@@ -503,6 +531,201 @@ def test_delete_tool_by_id(server: SyncServer, print_tool, default_user):
     tools = server.tool_manager.list_tools(actor=default_user)
     assert len(tools) == 0
 
+# ======================================================================================================================
+# Message Manager Tests
+# ======================================================================================================================
+
+def test_message_create(server: SyncServer, print_message):
+    """Test creating a message using print_message fixture"""
+    assert print_message.id is not None
+    assert print_message.text == "Hello, world!"
+    assert print_message.role == "user"
+    
+    # Verify we can retrieve it
+    retrieved = server.message_manager.get_message_by_id(print_message.id)
+    assert retrieved is not None
+    assert retrieved.id == print_message.id
+    assert retrieved.text == print_message.text
+    assert retrieved.role == print_message.role
+
+def test_message_get_by_id(server: SyncServer, print_message):
+    """Test retrieving a message by ID"""
+    retrieved = server.message_manager.get_message_by_id(print_message.id)
+    assert retrieved is not None
+    assert retrieved.id == print_message.id
+    assert retrieved.text == print_message.text
+
+def test_message_update(server: SyncServer, print_message):
+    """Test updating a message"""
+    new_text = "Updated text"
+    print_message.text = new_text
+    updated = server.message_manager.update_message_by_id(print_message.id, print_message)
+    assert updated is not None
+    assert updated.text == new_text
+    retrieved = server.message_manager.get_message_by_id(print_message.id)
+    assert retrieved.text == new_text
+
+def test_message_delete(server: SyncServer, print_message):
+    """Test deleting a message"""
+    success = server.message_manager.delete_message_by_id(print_message.id)
+    assert success is True
+    retrieved = server.message_manager.get_message_by_id(print_message.id)
+    assert retrieved is None
+
+def test_message_list(server: SyncServer, print_message):
+    """Test listing messages with pagination"""
+    # Create additional messages
+    messages = [
+        PydanticMessage(
+            user_id=print_message.user_id,
+            agent_id=print_message.agent_id,
+            role="assistant",
+            text=f"Message {i}"
+        )
+        for i in range(4)  # Create 4 more messages (total 5 with print_message)
+    ]
+    server.message_manager.create_many_messages(messages)
+    
+    # Test pagination
+    first_page = server.message_manager.list_messages(
+        user_id=print_message.user_id,
+        agent_id=print_message.agent_id,
+        limit=3
+    )
+    assert len(first_page) == 3
+    
+    # Get next page using cursor
+    second_page = server.message_manager.list_messages(
+        user_id=print_message.user_id,
+        agent_id=print_message.agent_id,
+        cursor=first_page[-1].id,
+        limit=3
+    )
+    assert len(second_page) == 2  # Should get remaining 2 messages
+
+def test_message_query_date_range(server: SyncServer, print_message):
+    """Test querying messages within a date range"""
+    from datetime import datetime, timedelta
+    
+    base_message = print_message
+    now = datetime.utcnow()
+    print("now", now)
+
+    # Create messages with different timestamps
+    messages = [
+        PydanticMessage(
+            user_id=base_message.user_id,
+            agent_id=base_message.agent_id,
+            role=base_message.role,
+            text=f"Message {i}",
+            created_at=now - timedelta(days=i+1)
+        )
+        for i in range(4)  # Create 4 more messages
+    ]
+    server.message_manager.create_many_messages(messages)
+    total_messages = server.message_manager.size()
+    assert total_messages == 5
+    
+    # Query last 4 days
+    results = server.message_manager.query_date_range(
+        user_id=base_message.user_id,
+        start_date=now - timedelta(days=4),
+        end_date=now
+    )
+    assert len(results) == total_messages  # Should get messages from print_message and days 0-4
+    
+    # Query last 3 days
+    results = server.message_manager.query_date_range(
+        user_id=base_message.user_id,
+        start_date=now - timedelta(days=3),
+        end_date=now
+    )
+    assert len(results) == 4  # Should get messages from print_message and days 0-3
+
+    # Query last 2 days
+    results = server.message_manager.query_date_range(
+        user_id=base_message.user_id,
+        start_date=now - timedelta(days=2),
+        end_date=now
+    )
+    assert len(results) == 3  # Should get messages from print_message and day 0-2
+
+    # Query last 1 day
+    results = server.message_manager.query_date_range(
+        user_id=base_message.user_id,
+        start_date=now - timedelta(days=1),
+        end_date=now
+    )
+    assert len(results) == 2  # Should get messages from print_message and day 0-1
+
+    print(results)
+    
+    # Query today
+    results = server.message_manager.query_date_range(
+        user_id=base_message.user_id,
+        start_date=now,
+        end_date=now
+    )
+    assert len(results) == 1  # Should get messages from print_message
+
+def test_message_query_text(server: SyncServer, print_message):
+    """Test searching messages by text content"""
+    base_message = print_message
+    messages = [
+        PydanticMessage(
+            user_id=base_message.user_id,
+            agent_id=base_message.agent_id,
+            role=base_message.role,
+            text=text
+        )
+        for text in ["Test message", "Another hello", "Something else"]
+    ]
+    server.message_manager.create_many_messages(messages)
+    
+    # Search for messages containing "hello" (base_message has "Hello, world!")
+    results = server.message_manager.query_text(
+        user_id=base_message.user_id,
+        query_text="hello"
+    )
+    assert len(results) == 2
+    assert all("hello" in msg.text.lower() for msg in results)
+
+    # Search for messages containing "test"
+    results = server.message_manager.query_text(
+        user_id=base_message.user_id,
+        query_text="test"
+    )
+    assert len(results) == 1
+    assert all("test" in msg.text.lower() for msg in results)
+
+    # Search for messages containing "letta"
+    results = server.message_manager.query_text(
+        user_id=base_message.user_id,
+        query_text="letta"
+    )
+    assert len(results) == 0
+
+def test_message_size(server: SyncServer, print_message):
+    """Test counting messages with filters"""
+    base_message = print_message
+    messages = [
+        PydanticMessage(
+            user_id=base_message.user_id,
+            agent_id=base_message.agent_id,
+            role=role,
+            text=f"Message {i}"
+        )
+        for i, role in enumerate(["assistant", "system", "user"])
+    ]
+    server.message_manager.create_many_messages(messages)
+    
+    # Count total messages (3 new + 1 from print_message)
+    total = server.message_manager.size()
+    assert total == 4
+    
+    # Count user messages (1 from print_message + 1 from new messages)
+    user_count = server.message_manager.size(filters={"role": "user"})
+    assert user_count == 2
 
 # ======================================================================================================================
 # Block Manager Tests

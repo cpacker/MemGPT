@@ -31,9 +31,12 @@ class MessageManager:
             msg.create(session)
             return msg.to_pydantic()
 
-    @enforce_types
     def create_many_messages(self, messages: List[PydanticMessage]) -> List[PydanticMessage]:
         """Create multiple messages."""
+
+        # Can't use enforce_types here, so manually check
+        assert all(isinstance(msg, PydanticMessage) for msg in messages)
+
         with self.session_maker() as session:
             msg_models = [MessageModel(**msg.model_dump()) for msg in messages]
             for msg in msg_models:
@@ -93,11 +96,11 @@ class MessageManager:
             if agent_id:
                 filters["agent_id"] = agent_id
             results = MessageModel.list(
-                db_session=session, 
-                cursor=cursor,
-                limit=limit,
-                filters=filters
-            )
+                        db_session=session, 
+                        cursor=cursor,
+                        limit=limit,
+                        **filters
+                      )
             return [msg.to_pydantic() for msg in results]
 
     @enforce_types
@@ -105,33 +108,51 @@ class MessageManager:
                         agent_id: Optional[str] = None, limit: Optional[int] = 50) -> List[PydanticMessage]:
         """Query messages within a date range."""
         with self.session_maker() as session:
-            filters = {
-                "user_id": user_id,
-                "created_at_gte": start_date,
-                "created_at_lte": end_date
-            }
+            # If start_date equals end_date, add a small buffer to include messages created at that exact time
+            if start_date.date() == end_date.date():
+                start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            query = (
+                session.query(MessageModel)
+                .filter(MessageModel.user_id == user_id)
+                .filter(MessageModel.created_at >= start_date)
+                .filter(MessageModel.created_at <= end_date)
+                .filter(MessageModel.role != "system")
+                .filter(MessageModel.role != "tool")
+            )
+            
             if agent_id:
-                filters["agent_id"] = agent_id
-            results = MessageModel.list(db_session=session, limit=limit, filters=filters)
+                query = query.filter(MessageModel.agent_id == agent_id)
+                
+            if limit:
+                query = query.limit(limit)
+                
+            results = query.all()
             return [msg.to_pydantic() for msg in results]
 
     @enforce_types
     def query_text(self, user_id: str, query_text: str, agent_id: Optional[str] = None,
                   limit: Optional[int] = 50) -> List[PydanticMessage]:
         """Search messages by text content."""
+        from sqlalchemy import func
+        
         with self.session_maker() as session:
-            filters = {
-                "user_id": user_id,
-                "text_contains": query_text.lower()
-            }
-            if agent_id:
-                filters["agent_id"] = agent_id
-            results = MessageModel.list(
-                db_session=session, 
-                limit=limit, 
-                cursor=cursor, 
-                filters=filters
+            query = (
+                session.query(MessageModel)
+                .filter(MessageModel.user_id == user_id)
+                .filter(func.lower(MessageModel.text).contains(func.lower(query_text)))
+                .filter(MessageModel.role != "system")
+                .filter(MessageModel.role != "tool")
             )
+            
+            if agent_id:
+                query = query.filter(MessageModel.agent_id == agent_id)
+                
+            if limit:
+                query = query.limit(limit)
+                
+            results = query.all()
             return [msg.to_pydantic() for msg in results]
 
     @enforce_types
@@ -140,10 +161,10 @@ class MessageManager:
         with self.session_maker() as session:
             query = session.query(MessageModel)
             
-            if start is not None:
-                query = query.offset(start)
-            if count is not None:
-                query = query.limit(count)
+            if cursor is not None:
+                query = query.offset(cursor)
+            if limit is not None:
+                query = query.limit(limit)
                 
             results = query.all()
             return [msg.to_pydantic() for msg in results]
