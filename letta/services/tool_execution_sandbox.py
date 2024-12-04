@@ -159,6 +159,8 @@ class ToolExecutionSandbox:
         # Set up env for venv
         env["VIRTUAL_ENV"] = venv_path
         env["PATH"] = os.path.join(venv_path, "bin") + ":" + env["PATH"]
+        # Suppress all warnings
+        env["PYTHONWARNINGS"] = "ignore"
 
         # Execute the code in a restricted subprocess
         try:
