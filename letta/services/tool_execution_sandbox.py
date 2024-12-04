@@ -268,9 +268,6 @@ class ToolExecutionSandbox:
         for param in self.args:
             code += self.initialize_param(param, self.args[param])
 
-        print("CODE")
-        print(code)
-
         if "agent_state" in self.parse_function_arguments(self.tool.source_code, self.tool.name):
             inject_agent_state = True
         else:
