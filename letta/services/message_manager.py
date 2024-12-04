@@ -3,9 +3,8 @@ from datetime import datetime
 from letta.orm.errors import NoResultFound
 from letta.utils import enforce_types
 
-from letta.orm.message import Message as MessageModel, Passage as PassageModel
+from letta.orm.message import Message as MessageModel
 from letta.schemas.message import Message as PydanticMessage
-from letta.schemas.passage import Passage as PydanticPassage
 
 class MessageManager:
     """Manager class to handle business logic related to Messages."""
@@ -42,24 +41,44 @@ class MessageManager:
             return [msg.to_pydantic() for msg in msg_models]
 
     @enforce_types
-    def update_message(self, message_id: str, **kwargs) -> Optional[PydanticMessage]:
-        """Update a message."""
+    def update_message_by_id(self, message_id: str, message: PydanticMessage) -> Optional[PydanticMessage]:
+        """
+        Updates an existing record in the database with values from the provided record object.
+
+        Replaces db.py:SQLLiteStorageConnector.update() 
+        """
+        if not message_id:
+            raise ValueError("Message ID must be provided.")
+
         with self.session_maker() as session:
             try:
+                # Fetch existing message from database
                 msg = MessageModel.read(db_session=session, identifier=message_id)
-                for key, value in kwargs.items():
-                    setattr(msg, key, value)
+                if not msg:
+                    raise ValueError(f"Message with id {message_id} does not exist.")
+
+                # Update the database record with values from the provided record
+                for column in MessageModel.__table__.columns:
+                    column_name = column.name
+                    if hasattr(message, column_name):
+                        new_value = getattr(message, column_name)
+                        setattr(msg, column_name, new_value)
+
+                # Commit changes
                 msg.update(session)
                 return msg.to_pydantic()
             except NoResultFound:
                 return None
 
     @enforce_types
-    def delete_message(self, message_id: str) -> bool:
+    def delete_message_by_id(self, message_id: str) -> bool:
         """Delete a message."""
         with self.session_maker() as session:
             try:
-                msg = MessageModel.read(db_session=session, identifier=message_id)
+                msg = MessageModel.read(
+                    db_session=session, 
+                    identifier=message_id
+                )
                 msg.hard_delete(session)
                 return True
             except NoResultFound:
@@ -73,7 +92,12 @@ class MessageManager:
             filters = {"user_id": user_id}
             if agent_id:
                 filters["agent_id"] = agent_id
-            results = MessageModel.list(db_session=session, cursor=cursor, limit=limit, filters=filters)
+            results = MessageModel.list(
+                db_session=session, 
+                cursor=cursor,
+                limit=limit,
+                filters=filters
+            )
             return [msg.to_pydantic() for msg in results]
 
     @enforce_types
@@ -102,78 +126,38 @@ class MessageManager:
             }
             if agent_id:
                 filters["agent_id"] = agent_id
-            results = MessageModel.list(db_session=session, limit=limit, filters=filters)
+            results = MessageModel.list(
+                db_session=session, 
+                limit=limit, 
+                cursor=cursor, 
+                filters=filters
+            )
             return [msg.to_pydantic() for msg in results]
 
-
-class PassageManager:
-    """Manager class to handle business logic related to Passages."""
-
-    def __init__(self):
-        from letta.server.server import db_context
-        self.session_maker = db_context
+    @enforce_types
+    def get_all(self, cursor: Optional[str] = None, limit: Optional[int] = None) -> List[PydanticMessage]:
+        """Get all messages with optional pagination."""
+        with self.session_maker() as session:
+            query = session.query(MessageModel)
+            
+            if start is not None:
+                query = query.offset(start)
+            if count is not None:
+                query = query.limit(count)
+                
+            results = query.all()
+            return [msg.to_pydantic() for msg in results]
 
     @enforce_types
-    def get_passage_by_id(self, passage_id: str) -> Optional[PydanticPassage]:
-        """Fetch a passage by ID."""
+    def size(self, filters: Optional[Dict] = None) -> int:
+        """Get the total count of messages with optional filters."""
         with self.session_maker() as session:
-            try:
-                passage = PassageModel.read(db_session=session, identifier=passage_id)
-                return passage.to_pydantic()
-            except NoResultFound:
-                return None
-
-    @enforce_types
-    def create_passage(self, pydantic_passage: PydanticPassage) -> PydanticPassage:
-        """Create a new passage."""
-        with self.session_maker() as session:
-            passage = PassageModel(**pydantic_passage.model_dump())
-            passage.create(session)
-            return passage.to_pydantic()
-
-    @enforce_types
-    def create_many_passages(self, passages: List[PydanticPassage]) -> List[PydanticPassage]:
-        """Create multiple passages."""
-        with self.session_maker() as session:
-            passage_models = [PassageModel(**p.model_dump()) for p in passages]
-            for passage in passage_models:
-                passage.create(session)
-            return [p.to_pydantic() for p in passage_models]
-
-    @enforce_types
-    def update_passage(self, passage_id: str, **kwargs) -> Optional[PydanticPassage]:
-        """Update a passage."""
-        with self.session_maker() as session:
-            try:
-                passage = PassageModel.read(db_session=session, identifier=passage_id)
-                for key, value in kwargs.items():
-                    setattr(passage, key, value)
-                passage.update(session)
-                return passage.to_pydantic()
-            except NoResultFound:
-                return None
-
-    @enforce_types
-    def delete_passage(self, passage_id: str) -> bool:
-        """Delete a passage."""
-        with self.session_maker() as session:
-            try:
-                passage = PassageModel.read(db_session=session, identifier=passage_id)
-                passage.hard_delete(session)
-                return True
-            except NoResultFound:
-                return False
-
-    @enforce_types
-    def list_passages(self, user_id: str, agent_id: Optional[str] = None, 
-                     file_id: Optional[str] = None, cursor: Optional[str] = None, 
-                     limit: Optional[int] = 50) -> List[PydanticPassage]:
-        """List passages with pagination."""
-        with self.session_maker() as session:
-            filters = {"user_id": user_id}
-            if agent_id:
-                filters["agent_id"] = agent_id
-            if file_id:
-                filters["file_id"] = file_id
-            results = PassageModel.list(db_session=session, cursor=cursor, limit=limit, filters=filters)
-            return [p.to_pydantic() for p in results]
+            query = session.query(MessageModel)
+            
+            if filters:
+                for key, value in filters.items():
+                    query = query.filter(
+                        getattr(MessageModel, key) == value
+                    )
+            
+            return query.count()

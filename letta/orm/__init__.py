@@ -7,3 +7,4 @@ from letta.orm.sandbox_config import SandboxConfig, SandboxEnvironmentVariable
 from letta.orm.source import Source
 from letta.orm.tool import Tool
 from letta.orm.user import User
+from letta.orm.message import Message
