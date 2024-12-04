@@ -371,4 +371,5 @@ def version():
     import letta
 
     print(letta.__version__)
+    print("dummy")
     return letta.__version__
