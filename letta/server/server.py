@@ -75,6 +75,7 @@ from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
 from letta.services.blocks_agents_manager import BlocksAgentsManager
+from letta.services.message_manager import MessageManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
@@ -82,7 +83,6 @@ from letta.services.source_manager import SourceManager
 from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
-from letta.services.message_manager import MessageManager
 from letta.utils import create_random_username, get_utc_time, json_dumps, json_loads
 
 logger = get_logger(__name__)
@@ -1363,13 +1363,19 @@ class SyncServer(Server):
         self.agents_tags_manager.delete_all_tags_from_agent(agent_id=agent_id, actor=actor)
         self.blocks_agents_manager.remove_all_agent_blocks(agent_id=agent_id)
 
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
         # Verify that the agent exists and belongs to the org of the user
         agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
-        if not agent_state:
+        if agent_state is None:
             raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
+
+        # TODO: Delete all messages associated with the agent
+        # import ipdb;ipdb.set_trace()
+        # m1 = self.message_manager.list_messages(actor.id, agent_state.id)
+        # if agent_state.message_ids:
+        #     for message_id in agent_state.message_ids:
+        #         self.message_manager.delete_message_by_id(message_id)
+        # m2 = self.message_manager.list_messages(actor.id, agent_state.id)
+        # ipdb.set_trace()
 
         agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
         if agent_state_user.organization_id != actor.organization_id:

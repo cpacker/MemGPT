@@ -40,7 +40,7 @@ def run_server():
 
 
 @pytest.fixture(
-    params=[{"server": False}],  # whether to use REST API server
+    params=[{"server": False}, {"server": True}],  # whether to use REST API server
     scope="module",
 )
 def client(request):
