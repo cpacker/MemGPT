@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from sqlalchemy import delete
 
@@ -60,6 +62,8 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
     azure_version=None,
     azure_deployment=None,
 )
+
+using_sqlite = not bool(os.getenv("LETTA_PG_URI"))
 
 
 @pytest.fixture(autouse=True)
@@ -1074,6 +1078,7 @@ def test_change_label_on_block_reflects_in_block_agents_table(server, sarah_agen
     assert default_block.label not in labels
 
 
+@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
 def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
     with pytest.raises(ForeignKeyConstraintViolationError):
         server.blocks_agents_manager.add_block_to_agent(
@@ -1135,6 +1140,7 @@ def test_list_agent_ids_with_block(server, sarah_agent, charles_agent, default_u
     assert len(agent_ids) == 2
 
 
+@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
 def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user, default_block):
     block_manager = BlockManager()
     block_manager.delete_block(block_id=default_block.id, actor=default_user)
