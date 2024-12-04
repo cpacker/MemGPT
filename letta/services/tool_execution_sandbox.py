@@ -11,6 +11,7 @@ from typing import Any, Optional
 from letta.log import get_logger
 from letta.schemas.agent import AgentState
 from letta.schemas.sandbox_config import SandboxConfig, SandboxRunResult, SandboxType
+from letta.schemas.tool import Tool
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -27,7 +28,7 @@ class ToolExecutionSandbox:
     # We make this a long random string to avoid collisions with any variables in the user's code
     LOCAL_SANDBOX_RESULT_VAR_NAME = "result_ZQqiequkcFwRwwGQMqkt"
 
-    def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False):
+    def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False, tool_object: Optional[Tool] = None):
         self.tool_name = tool_name
         self.args = args
 
@@ -36,14 +37,18 @@ class ToolExecutionSandbox:
         # agent_state is the state of the agent that invoked this run
         self.user = UserManager().get_user_by_id(user_id=user_id)
 
-        # Get the tool
-        # TODO: So in theory, it's possible this retrieves a tool not provisioned to the agent
-        # TODO: That would probably imply that agent_state is incorrectly configured
-        self.tool = ToolManager().get_tool_by_name(tool_name=tool_name, actor=self.user)
-        if not self.tool:
-            raise ValueError(
-                f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
-            )
+        # If a tool object is provided, we use it directly, otherwise pull via name
+        if tool_object is not None:
+            self.tool = tool_object
+        else:
+            # Get the tool via name
+            # TODO: So in theory, it's possible this retrieves a tool not provisioned to the agent
+            # TODO: That would probably imply that agent_state is incorrectly configured
+            self.tool = ToolManager().get_tool_by_name(tool_name=tool_name, actor=self.user)
+            if not self.tool:
+                raise ValueError(
+                    f"Agent attempted to invoke tool {self.tool_name} that does not exist for organization {self.user.organization_id}"
+                )
 
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.force_recreate = force_recreate
@@ -132,7 +137,8 @@ class ToolExecutionSandbox:
                 sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
         except Exception as e:
-            raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+            logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+            raise e
         finally:
             # Clean up the temp file and restore stdout
             sys.stdout = old_stdout
@@ -154,7 +160,9 @@ class ToolExecutionSandbox:
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         execution = sbx.run_code(code, envs=env_vars)
         if execution.error is not None:
-            raise Exception(f"Executing tool {self.tool_name} failed with {execution.error}")
+            logger.error(f"Executing tool {self.tool_name} failed with {execution.error}")
+            # Raise a concise exception as this gets returned to the LLM
+            raise self.parse_exception_from_e2b_execution(execution)
         elif len(execution.results) == 0:
             return None
         else:
@@ -165,6 +173,12 @@ class ToolExecutionSandbox:
                 stdout=execution.logs.stdout + execution.logs.stderr,
                 sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
+
+    def parse_exception_from_e2b_execution(self, e2b_execution: "Execution") -> Exception:
+        builtins_dict = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+        # Dynamically fetch the exception class from builtins, defaulting to Exception if not found
+        exception_class = builtins_dict.get(e2b_execution.error.name, Exception)
+        return exception_class(e2b_execution.error.value)
 
     def get_running_e2b_sandbox_with_same_state(self, sandbox_config: SandboxConfig) -> Optional["Sandbox"]:
         from e2b_code_interpreter import Sandbox
@@ -273,13 +287,12 @@ class ToolExecutionSandbox:
             f"{self.LOCAL_SANDBOX_RESULT_VAR_NAME} = base64.b64encode(pickle.dumps({self.LOCAL_SANDBOX_RESULT_VAR_NAME})).decode('utf-8')\n"
         )
         code += f"{self.LOCAL_SANDBOX_RESULT_VAR_NAME}\n"
-
         return code
 
     def _convert_param_to_value(self, param_type: str, raw_value: str) -> str:
 
         if param_type == "string":
-            value = '"' + raw_value + '"'
+            value = "pickle.loads(" + str(pickle.dumps(raw_value)) + ")"
 
         elif param_type == "integer" or param_type == "boolean" or param_type == "number":
             value = raw_value
@@ -292,7 +305,6 @@ class ToolExecutionSandbox:
 
         else:
             raise TypeError(f"Unsupported type: {param_type}, raw_value={raw_value}")
-
         return str(value)
 
     def initialize_param(self, name: str, raw_value: str) -> str:

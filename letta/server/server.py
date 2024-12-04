@@ -1,4 +1,5 @@
 # inspecting tools
+import json
 import os
 import traceback
 import warnings
@@ -7,6 +8,8 @@ from asyncio import Lock
 from datetime import datetime
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
+from composio.client import Composio
+from composio.client.collections import ActionModel, AppModel
 from fastapi import HTTPException
 
 import letta.constants as constants
@@ -54,7 +57,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 # openai schemas
 from letta.schemas.enums import JobStatus
 from letta.schemas.job import Job
-from letta.schemas.letta_message import LettaMessage
+from letta.schemas.letta_message import FunctionReturn, LettaMessage
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import (
     ArchivalMemorySummary,
@@ -76,10 +79,11 @@ from letta.services.organization_manager import OrganizationManager
 from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
+from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
 from letta.services.message_manager import MessageManager
-from letta.utils import create_random_username, json_dumps, json_loads
+from letta.utils import create_random_username, get_utc_time, json_dumps, json_loads
 
 logger = get_logger(__name__)
 
@@ -228,6 +232,11 @@ class SyncServer(Server):
         # Locks
         self.send_message_lock = Lock()
 
+        # Composio
+        self.composio_client = None
+        if tool_settings.composio_api_key:
+            self.composio_client = Composio(api_key=tool_settings.composio_api_key)
+
         # Initialize the metadata store
         config = LettaConfig.load()
         if settings.letta_pg_uri_no_default:
@@ -367,14 +376,20 @@ class SyncServer(Server):
 
     def load_agent(self, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Updated method to load agents from persisted storage"""
-        agent_state = self.get_agent(agent_id=agent_id)
-        actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+        agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
+        with agent_lock:
+            agent_state = self.get_agent(agent_id=agent_id)
+            actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
-        interface = interface or self.default_interface_factory()
-        if agent_state.agent_type == AgentType.memgpt_agent:
-            return Agent(agent_state=agent_state, interface=interface, user=actor)
-        else:
-            return O1Agent(agent_state=agent_state, interface=interface, user=actor)
+            interface = interface or self.default_interface_factory()
+            if agent_state.agent_type == AgentType.memgpt_agent:
+                agent = Agent(agent_state=agent_state, interface=interface, user=actor)
+            else:
+                agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+
+            # Persist to agent
+            save_agent(agent, self.ms)
+            return agent
 
     def _step(
         self,
@@ -1717,7 +1732,7 @@ class SyncServer(Server):
         self.blocks_agents_manager.add_block_to_agent(agent_id, block_id, block_label=block.label)
 
         # get agent memory
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        memory = self.get_agent(agent_id=agent_id).memory
         return memory
 
     def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
@@ -1725,7 +1740,7 @@ class SyncServer(Server):
         self.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=agent_id, block_label=block_label)
 
         # get agent memory
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        memory = self.get_agent(agent_id=agent_id).memory
         return memory
 
     def update_agent_memory_limit(self, user_id: str, agent_id: str, block_label: str, limit: int) -> Memory:
@@ -1735,7 +1750,7 @@ class SyncServer(Server):
             block_id=block.id, block_update=BlockUpdate(limit=limit), actor=self.user_manager.get_user_by_id(user_id=user_id)
         )
         # get agent memory
-        memory = self.load_agent(agent_id=agent_id).agent_state.memory
+        memory = self.get_agent(agent_id=agent_id).memory
         return memory
 
     def upate_block(self, user_id: str, block_id: str, block_update: BlockUpdate) -> Block:
@@ -1752,3 +1767,122 @@ class SyncServer(Server):
             if block.label == label:
                 return block
         return None
+
+    # def run_tool(self, tool_id: str, tool_args: str, user_id: str) -> FunctionReturn:
+    #     """Run a tool using the sandbox and return the result"""
+
+    #     try:
+    #         tool_args_dict = json.loads(tool_args)
+    #     except json.JSONDecodeError:
+    #         raise ValueError("Invalid JSON string for tool_args")
+
+    #     # Get the tool by ID
+    #     user = self.user_manager.get_user_by_id(user_id=user_id)
+    #     tool = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=user)
+    #     if tool.name is None:
+    #         raise ValueError(f"Tool with id {tool_id} does not have a name")
+
+    #     # TODO eventually allow using agent state in tools
+    #     agent_state = None
+
+    #     try:
+    #         sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id).run(agent_state=agent_state)
+    #         if sandbox_run_result is None:
+    #             raise ValueError(f"Tool with id {tool_id} returned execution with None")
+    #         function_response = str(sandbox_run_result.func_return)
+
+    #         return FunctionReturn(
+    #             id="null",
+    #             function_call_id="null",
+    #             date=get_utc_time(),
+    #             status="success",
+    #             function_return=function_response,
+    #         )
+    #     except Exception as e:
+    #         # same as agent.py
+    #         from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
+
+    #         error_msg = f"Error executing tool {tool.name}: {e}"
+    #         if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
+    #             error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
+
+    #         return FunctionReturn(
+    #             id="null",
+    #             function_call_id="null",
+    #             date=get_utc_time(),
+    #             status="error",
+    #             function_return=error_msg,
+    #         )
+
+    def run_tool_from_source(
+        self,
+        user_id: str,
+        tool_args: str,
+        tool_source: str,
+        tool_source_type: Optional[str] = None,
+        tool_name: Optional[str] = None,
+    ) -> FunctionReturn:
+        """Run a tool from source code"""
+
+        try:
+            tool_args_dict = json.loads(tool_args)
+        except json.JSONDecodeError:
+            raise ValueError("Invalid JSON string for tool_args")
+
+        if tool_source_type is not None and tool_source_type != "python":
+            raise ValueError("Only Python source code is supported at this time")
+
+        # NOTE: we're creating a floating Tool object and NOT persiting to DB
+        tool = Tool(
+            name=tool_name,
+            source_code=tool_source,
+        )
+        assert tool.name is not None, "Failed to create tool object"
+
+        # TODO eventually allow using agent state in tools
+        agent_state = None
+
+        # Next, attempt to run the tool with the sandbox
+        try:
+            sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id, tool_object=tool).run(agent_state=agent_state)
+            if sandbox_run_result is None:
+                raise ValueError(f"Tool with id {tool.id} returned execution with None")
+            function_response = str(sandbox_run_result.func_return)
+
+            return FunctionReturn(
+                id="null",
+                function_call_id="null",
+                date=get_utc_time(),
+                status="success",
+                function_return=function_response,
+            )
+        except Exception as e:
+            # same as agent.py
+            from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
+
+            error_msg = f"Error executing tool {tool.name}: {e}"
+            if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
+                error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
+
+            return FunctionReturn(
+                id="null",
+                function_call_id="null",
+                date=get_utc_time(),
+                status="error",
+                function_return=error_msg,
+            )
+
+    # Composio wrappers
+    def get_composio_apps(self) -> List["AppModel"]:
+        """Get a list of all Composio apps with actions"""
+        apps = self.composio_client.apps.get()
+        apps_with_actions = []
+        for app in apps:
+            if app.meta["actionsCount"] > 0:
+                apps_with_actions.append(app)
+
+        return apps_with_actions
+
+    def get_composio_actions_from_app_name(self, composio_app_name: str) -> List["ActionModel"]:
+        actions = self.composio_client.actions.get(apps=[composio_app_name])
+        return actions

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "letta"
-version = "0.5.4"
+version = "0.6.0"
 packages = [
     {include = "letta"}
 ]
@@ -66,8 +66,8 @@ llama-index = "^0.11.9"
 llama-index-embeddings-openai = "^0.2.5"
 llama-index-embeddings-ollama = "^0.3.1"
 wikipedia = {version = "^1.4.0", optional = true}
-composio-langchain = {version = "^0.5.28", optional = true}
-composio-core = {version = "^0.5.34", optional = true}
+composio-langchain = "^0.5.28"
+composio-core = "^0.5.34"
 alembic = "^1.13.3"
 pyhumps = "^3.8.0"
 psycopg2 = "^2.9.10"
@@ -87,9 +87,9 @@ autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
 cloud-tool-sandbox = ["e2b-code-interpreter"]
-external-tools = ["docker", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
+external-tools = ["docker", "langchain", "wikipedia", "langchain-community"]
 tests = ["wikipedia"]
-all = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2", "pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "websockets", "fastapi", "uvicorn", "llama-index-embeddings-ollama", "docker", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain", "locust"]
+all = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2", "pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "websockets", "fastapi", "uvicorn", "llama-index-embeddings-ollama", "docker", "langchain", "wikipedia", "langchain-community", "locust"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"

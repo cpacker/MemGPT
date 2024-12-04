@@ -10,7 +10,12 @@ import letta.utils as utils
 from letta import create_client
 from letta.agent import Agent, save_agent
 from letta.config import LettaConfig
-from letta.constants import CLI_WARNING_PREFIX, LETTA_DIR, MIN_CONTEXT_WINDOW
+from letta.constants import (
+    CLI_WARNING_PREFIX,
+    CORE_MEMORY_BLOCK_CHAR_LIMIT,
+    LETTA_DIR,
+    MIN_CONTEXT_WINDOW,
+)
 from letta.local_llm.constants import ASSISTANT_MESSAGE_CLI_SYMBOL
 from letta.log import get_logger
 from letta.metadata import MetadataStore
@@ -91,7 +96,7 @@ def run(
     ] = None,
     core_memory_limit: Annotated[
         Optional[int], typer.Option(help="The character limit to each core-memory section (human/persona).")
-    ] = 2000,
+    ] = CORE_MEMORY_BLOCK_CHAR_LIMIT,
     # other
     first: Annotated[bool, typer.Option(help="Use --first to send the first message in the sequence")] = False,
     strip_ui: Annotated[bool, typer.Option(help="Remove all the bells and whistles in CLI output (helpful for testing)")] = False,
