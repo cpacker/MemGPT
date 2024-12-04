@@ -27,13 +27,11 @@ from tqdm import tqdm
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
-from letta.metadata import EmbeddingConfigColumn, ToolCallColumn
+from letta.metadata import EmbeddingConfigColumn
 from letta.orm.base import Base
 from letta.orm.file import FileMetadata as FileMetadataModel
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
-from letta.schemas.message import Message
-from letta.schemas.openai.chat_completions import ToolCall
 from letta.schemas.passage import Passage
 from letta.settings import settings
 
@@ -69,73 +67,10 @@ class CommonVector(TypeDecorator):
         return np.frombuffer(value, dtype=np.float32)
 
 
-class MessageModel(Base):
-    """Defines data model for storing Message objects"""
-
-    __tablename__ = "messages_legacy"
-    __table_args__ = {"extend_existing": True}
-
-    # Assuming message_id is the primary key
-    id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
-    agent_id = Column(String, nullable=False)
-
-    # openai info
-    role = Column(String, nullable=False)
-    text = Column(String)  # optional: can be null if function call
-    model = Column(String)  # optional: can be null if LLM backend doesn't require specifying
-    name = Column(String)  # optional: multi-agent only
-
-    # tool call request info
-    # if role == "assistant", this MAY be specified
-    # if role != "assistant", this must be null
-    # TODO align with OpenAI spec of multiple tool calls
-    # tool_calls = Column(ToolCallColumn)
-    tool_calls = Column(ToolCallColumn)
-
-    # tool call response info
-    # if role == "tool", then this must be specified
-    # if role != "tool", this must be null
-    tool_call_id = Column(String)
-
-    # Add a datetime column, with default value as the current time
-    created_at = Column(DateTime(timezone=True))
-    Index("message_idx_user_legacy", user_id, agent_id),
-
-    def __repr__(self):
-        return f"<Message(message_id='{self.id}', text='{self.text}')>"
-
-    def to_record(self):
-        # calls = (
-        #    [ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls]
-        #    if self.tool_calls
-        #    else None
-        # )
-        # if calls:
-        #    assert isinstance(calls[0], ToolCall)
-        if self.tool_calls and len(self.tool_calls) > 0:
-            assert isinstance(self.tool_calls[0], ToolCall), type(self.tool_calls[0])
-            for tool in self.tool_calls:
-                assert isinstance(tool, ToolCall), type(tool)
-        return Message(
-            user_id=self.user_id,
-            agent_id=self.agent_id,
-            role=self.role,
-            name=self.name,
-            text=self.text,
-            model=self.model,
-            # tool_calls=[ToolCall(id=tool_call["id"], function=ToolCallFunction(**tool_call["function"])) for tool_call in self.tool_calls] if self.tool_calls else None,
-            tool_calls=self.tool_calls,
-            tool_call_id=self.tool_call_id,
-            created_at=self.created_at,
-            id=self.id,
-        )
-
-
 class PassageModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
-    __tablename__ = "passages_legacy"
+    __tablename__ = "passages"
     __table_args__ = {"extend_existing": True}
 
     # Assuming passage_id is the primary key
@@ -161,7 +96,7 @@ class PassageModel(Base):
     # Add a datetime column, with default value as the current time
     created_at = Column(DateTime(timezone=True))
 
-    Index("passage_idx_user_legacy", user_id, agent_id, file_id),
+    Index("passage_idx_user", user_id, agent_id, file_id),
 
     def __repr__(self):
         return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
@@ -367,11 +302,6 @@ class PostgresStorageConnector(SQLStorageConnector):
             self.db_model = PassageModel
             if self.config.archival_storage_uri is None:
                 raise ValueError(f"Must specify archival_storage_uri in config {self.config.config_path}")
-        elif table_type == TableType.RECALL_MEMORY:
-            self.uri = self.config.recall_storage_uri
-            self.db_model = MessageModel
-            if self.config.recall_storage_uri is None:
-                raise ValueError(f"Must specify recall_storage_uri in config {self.config.config_path}")
         elif table_type == TableType.FILES:
             self.uri = self.config.metadata_storage_uri
             self.db_model = FileMetadataModel
@@ -490,12 +420,6 @@ class SQLLiteStorageConnector(SQLStorageConnector):
         # get storage URI
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             raise ValueError(f"Table type {table_type} not implemented")
-        elif table_type == TableType.RECALL_MEMORY:
-            # TODO: eventually implement URI option
-            self.path = self.config.recall_storage_path
-            if self.path is None:
-                raise ValueError(f"Must specify recall_storage_path in config.")
-            self.db_model = MessageModel
         elif table_type == TableType.FILES:
             self.path = self.config.metadata_storage_path
             if self.path is None:

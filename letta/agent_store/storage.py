@@ -110,11 +110,6 @@ class StorageConnector:
             from letta.agent_store.qdrant import QdrantStorageConnector
 
             return QdrantStorageConnector(table_type, config, user_id, agent_id)
-        # TODO: add back
-        # elif storage_type == "lancedb":
-        #    from letta.agent_store.db import LanceDBConnector
-
-        #    return LanceDBConnector(agent_config=agent_config, table_type=table_type)
 
         elif storage_type == "sqlite":
             from letta.agent_store.db import SQLLiteStorageConnector
