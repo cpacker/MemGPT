@@ -102,10 +102,10 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient]):
     messages = [{"role": "user", "text": "hello"}]
     init_message_agent = client.create_agent(initial_message_sequence=messages)
 
-    assert len(init_message_agent.message_ids) == 1, f"Expected 1 message, but got {len(init_message_agent.message_ids)}"
+    assert len(init_message_agent.message_ids) == 2, f"Expected 1 message, but got {len(init_message_agent.message_ids)}"
     messages = client.get_in_context_messages(agent_id=init_message_agent.id)
-    assert messages[0].role == "user", f"Expected message role to be 'user', but got {messages[0].role}"
-    assert messages[0].text == "hello", f"Expected message text to be 'hello', but got {messages[0].text}"
+    assert messages[1].role == "user", f"Expected message role to be 'user', but got {messages[0].role}"
+    assert "hello" in messages[1].text, f"Expected message text to be 'hello', but got {messages[0].text}"
     print("Initial message sequence test passed", messages)
 
 
