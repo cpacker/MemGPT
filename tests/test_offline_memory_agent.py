@@ -1,7 +1,5 @@
 import json
 
-from regex import W
-
 from letta import BasicBlockMemory
 from letta import offline_memory_agent
 from letta.client.client import Block, create_client

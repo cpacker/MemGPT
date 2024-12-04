@@ -209,7 +209,6 @@ def agent_state():
         memory=ChatMemory(persona="This is the persona", human="My name is Chad"),
         embedding_config=EmbeddingConfig.default_config(provider="openai"),
         llm_config=LLMConfig.default_config(model_name="gpt-4"),
-        tools=["rethink_memory_convo"],
     )
     yield agent_state
 
