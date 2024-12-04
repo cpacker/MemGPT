@@ -158,8 +158,6 @@ def test_simple_colors():
 def test_ripple_edit():
     client = create_client()
     assert client is not None
-    print('test')
-
     trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
 
     conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
@@ -219,9 +217,10 @@ def test_ripple_edit():
     )
     assert offline_memory_agent is not None
     assert set(offline_memory_agent.memory.list_block_labels())== set(["persona", "human", "fact_block", "rethink_memory_block"])
-    _ = client.user_message(
+    response = client.user_message(
         agent_id=conversation_agent.id, message="[trigger_rethink_memory]: Messi has now moved to playing for Inter Miami"
     )
+    print(response)
     offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
 
     assert offline_memory_agent.memory.get_block("rethink_memory_block").value != "[empty]"
@@ -245,10 +244,9 @@ def test_chat_only_agent():
         tools=["send_message"],
         memory=conversation_memory,
         include_base_tools=False,
-        include_memory_tools=False,
     )
     assert chat_only_agent is not None
-    assert chat_only_agent.memory.list_block_labels() == ["chat_agent_persona", "chat_agent_human"]
+    assert set(chat_only_agent.memory.list_block_labels()) == set(["chat_agent_persona", "chat_agent_human"])
 
     for message in ["hello", "my name is not chad, my name is swoodily"]:
         client.send_message(agent_id=chat_only_agent.id, message=message, role="user")

@@ -29,13 +29,11 @@ class ChatOnlyAgent(Agent):
         interface: AgentInterface,
         agent_state: AgentState,
         user: User,
-        tools: List[Tool] = [],
         first_message_verify_mono: bool = False,
         always_rethink_memory: bool = True,
-        chat_specific_memory: bool = False,
+        chat_specific_memory: bool = True,
     ):
-        super().__init__(interface, agent_state, tools, user)
-        self.tools = tools
+        super().__init__(interface, agent_state, user)
         self.first_message_verify_mono = first_message_verify_mono
         self.always_rethink_memory = always_rethink_memory
         self.offline_memory_agent = None
@@ -74,9 +72,9 @@ class ChatOnlyAgent(Agent):
                     limit=2000,
                 )
 
-                offline_rethink_memory = self.memory.get_block("rethink_memory_block")
+                offline_rethink_memory = self.agent_state.memory.get_block("rethink_memory_block")
                 # offline_human_block = Block(name="chat_agent_human", label="chat_agent_human", value=DEFAULT_HUMAN, limit=2000)
-                offline_human_block = self.memory.get_block("chat_agent_human")
+                offline_human_block = self.agent_state.memory.get_block("chat_agent_human")
 
                 conversation_messages_block = Block(name="conversation_block", label="conversation_block", value="", limit=2000)
 
@@ -107,8 +105,8 @@ class ChatOnlyAgent(Agent):
                 conversation_block_limit = 2000
                 recent_convo = "".join([str(message) for message in self.messages[3:]])[-conversation_block_limit:]
                 self.offline_memory_agent.memory.update_block_value(label="conversation_block", value=recent_convo)
-                block_id = self.offline_memory_agent.memory.get_block("conversation_block").id
-                client.update_block(block_id, text=recent_convo)
+                # block_id = self.offline_memory_agent.memory.get_block("conversation_block").id
+                # client.update_block(block_id, text=recent_convo)
                 client.update_agent(agent_id=self.offline_memory_agent.id, memory=self.offline_memory_agent.memory)
                 client.get_agent(self.offline_memory_agent.id)
                 client.send_message(agent_id=self.offline_memory_agent.id, message="Reorganize the memory", role="user")
@@ -120,14 +118,14 @@ class ChatOnlyAgent(Agent):
 
             def dispatch_rethink_memory_agent_chat():
                 from letta.client.client import create_client
-
+                import pdb; pdb.set_trace()
                 client = create_client()
                 if self.offline_memory_agent:
                     client.delete_agent(agent_id=self.offline_memory_agent.id)
                     self.offline_memory_agent = None
 
-                conversation_human_block = self.memory.get_block("chat_agent_human")
-                conversation_persona_block = self.memory.get_block("chat_agent_persona")
+                conversation_human_block = self.agent_state.memory.get_block("chat_agent_human")
+                conversation_persona_block = self.agent_state.memory.get_block("chat_agent_persona")
                 offline_persona_block = Block(
                     name="offline_memory_persona",
                     label="offline_memory_persona",
@@ -171,12 +169,12 @@ class ChatOnlyAgent(Agent):
                 recent_convo = "".join([str(message) for message in self.messages[3:]])[-conversation_block_limit:]
                 self.offline_memory_agent.memory.update_block_value(label="conversation_block", value=recent_convo)
                 block_id = self.offline_memory_agent.memory.get_block("conversation_block").id
-                client.update_block(block_id, text=recent_convo)
-                client.update_agent(agent_id=self.offline_memory_agent.id, memory=self.offline_memory_agent.memory)
-                client.get_agent(self.offline_memory_agent.id)
+                # client.update_block(block_id, text=recent_convo)
+                # client.update_agent(agent_id=self.offline_memory_agent.id, memory=self.offline_memory_agent.memory)
+                # client.get_agent(self.offline_memory_agent.id)
                 client.send_message(agent_id=self.offline_memory_agent.id, message="Reorganize the memory", role="user")
                 client.delete_agent(agent_id=self.offline_memory_agent.id)
-                self.update_memory_blocks_from_db()
+                #self.update_memory_blocks_from_db()
                 # client.get_agent(self.agent_state.id)
                 # client.update_agent(agent_id=self.agent_state.id, memory=self.agent_state.memory)
                 self.offline_memory_agent = None
