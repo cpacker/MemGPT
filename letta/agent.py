@@ -349,7 +349,10 @@ class Agent(BaseAgent):
             # Cast the messages to actual Message objects to be synced to the DB
             init_messages_objs = []
             for msg in init_messages:
+                print("ADD INIT MESSAGE", msg)
                 init_messages_objs.append(msg)
+            for msg in init_messages_objs:
+                assert isinstance(msg, Message), f"Message object is not of type Message: {type(msg)}"
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
 
             # Put the messages inside the message buffer
@@ -499,6 +502,8 @@ class Agent(BaseAgent):
         """Set the messages in the buffer to the message IDs list"""
 
         message_objs = self._load_messages_from_recall(message_ids=message_ids)
+
+        print("INITIAL LOADED MESSAGES FROM RECALL", [m for m in message_objs])
 
         # set the objects in the buffer
         self._messages = message_objs
