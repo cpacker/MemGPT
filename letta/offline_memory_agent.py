@@ -18,12 +18,10 @@ def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) ->
 
     """
     from letta import create_client
-
     client = create_client()
     agents = client.list_agents()
     for agent in agents:
         if agent.agent_type == "offline_memory_agent":
-            # client.get_agent(agent.id)
             client.user_message(agent_id=agent.id, message=message)
 
 
@@ -42,14 +40,11 @@ def trigger_rethink_memory_convo(agent_state: "AgentState", message: Optional[st
         -2000:
     ]  # TODO: make a better representation of the convo history
     agent_state.memory.update_block_value(label="conversation_block", value=recent_convo)
-    client.update_block(agent_state.memory.get_block("conversation_block").id, text=recent_convo)
-    # client.update_agent(agent_id=agent_state.agent_state.id, memory=agent_state.memory)
 
     client = create_client()
     agents = client.list_agents()
     for agent in agents:
         if agent.agent_type == "offline_memory_agent":
-            client.get_agent(agent.id)
             client.user_message(agent_id=agent.id, message=message)
 
 
@@ -86,18 +81,10 @@ def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_labe
         Optional[str]: None is always returned as this function does not produce a response.
     """
 
-    from letta import create_client
-
-    create_client()
     if target_block_label is not None:
         if agent_state.memory.get_block(target_block_label) is None:
             agent_state.memory.create_block(label=target_block_label, value=new_memory)
         agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
-        # block_id = agent_state.memory.get_block(target_block_label).id
-        # client.update_block(block_id, text=new_memory)
-        # client.update_agent(agent_id=agent_state.id, memory=self.agent_state.memory)
-
-    print(f"Rethinking memory for block {target_block_label} with new memory: {new_memory} from block {source_block_label}")
     return None
 
 
