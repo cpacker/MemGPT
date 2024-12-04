@@ -45,7 +45,7 @@ class MessageManager:
         # Can't use enforce_types here, so manually check
         assert all(isinstance(msg, PydanticMessage) for msg in messages)
 
-        with self.session_maker() as session:
+        with self.session_maker() as session:# return list(session.execute(query).scalars())
             # Set user_id for each message
             for msg in messages:
                 msg.user_id = actor.id
@@ -126,7 +126,6 @@ class MessageManager:
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: Optional[int] = 50,
-        reverse: bool = False,
         filters: Optional[Dict] = None,
         query_text: Optional[str] = None,
     ) -> List[PydanticMessage]:
@@ -137,7 +136,6 @@ class MessageManager:
             start_date: Filter records created after this date
             end_date: Filter records created before this date
             limit: Maximum number of records to return
-            reverse: If True, sort in descending order
             filters: Additional filters to apply
             query_text: Optional text to search for in message content
             
@@ -151,7 +149,6 @@ class MessageManager:
                 start_date=start_date,
                 end_date=end_date,
                 limit=limit,
-                reverse=reverse,
                 query_text=query_text,
                 user_id=actor.id,
                 **(filters or {})

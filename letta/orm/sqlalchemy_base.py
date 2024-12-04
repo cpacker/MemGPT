@@ -54,7 +54,6 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         limit: Optional[int] = 50,
-        reverse: bool = False,
         query_text: Optional[str] = None,
         **kwargs
     ) -> Union[List[Type["SqlalchemyBase"]], Tuple[Optional[str], List[Type["SqlalchemyBase"]]]]:
@@ -66,7 +65,6 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             start_date: Filter records created after this date
             end_date: Filter records created before this date
             limit: Maximum number of records to return
-            reverse: If True, sort in descending order
             query_text: Optional text to search for in message content
             **kwargs: Additional filters to apply
             
@@ -76,7 +74,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         """
         logger.debug(f"Listing {cls.__name__} with kwarg filters {kwargs}")
         with db_session as session:
-            query = session.query(cls).filter_by(**kwargs)
+            query = select(cls).filter_by(**kwargs)
 
             # Handle date range filtering
             if start_date and end_date and hasattr(cls, "created_at"):
@@ -95,37 +93,22 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             if hasattr(cls, "role"):
                 query = query.filter(cls.role != "system")
                 query = query.filter(cls.role != "tool")
-
-            # Handle cursor-based pagination
-            if reverse:
-                query = query.order_by(desc(cls.created_at))
-            else:
-                query = query.order_by(asc(cls.created_at))
                 
+            # Handle cursor-based pagination
             if cursor:
-                cursor_record = cls.get(db_session=db_session, id=cursor)
-                if cursor_record:
-                    if reverse:
-                        query = query.filter(cls.created_at < cursor_record.created_at)
-                    else:
-                        query = query.filter(cls.created_at > cursor_record.created_at)
-
+                query = query.where(cls.id > cursor)
+            
             # Apply text search
             if query_text:
                 query = query.filter(func.lower(cls.text).contains(func.lower(query_text)))
 
-            # Handle soft deletes if the class has the 'is_deleted' attribute
+            # Handle ordering 
+            query = query.order_by(cls.id).limit(limit)
+
+            # # Handle soft deletes if the class has the 'is_deleted' attribute
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
 
-            # Apply limit
-            if limit:
-                query = query.limit(limit)
-
-
-            results = list(query.all())
-
-            # Return format depends on pagination type
             return list(session.execute(query).scalars())
 
     @classmethod
@@ -135,7 +118,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         identifier: Optional[str] = None,
         actor: Optional["User"] = None,
         access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
-        access_type: Optional[str] = None,
+        access_type: str = "organization",
         **kwargs,
     ) -> Type["SqlalchemyBase"]:
         """The primary accessor for an ORM record.
@@ -235,7 +218,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         query: "Select",
         actor: "User",
         access: List[Literal["read", "write", "admin"]],
-        access_type: str,
+        access_type: str = "organization",
     ) -> "Select":
         """applies a WHERE clause restricting results to the given actor and access level
         Args:

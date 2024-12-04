@@ -641,7 +641,7 @@ def test_message_listing_cursor(server: SyncServer, print_message, default_user)
 
     # Make sure there are 5 messages
     assert server.message_manager.size(actor=default_user) == 5
-    
+
     # Get first page
     first_page = server.message_manager.list_messages(actor=default_user, limit=3)
     assert len(first_page) == 3
@@ -700,21 +700,6 @@ def test_message_listing_date_range_filtering(server: SyncServer, print_message,
         limit=10
     )
     assert len(date_results) > 0
-
-def test_message_listing_reverse_ordering(server: SyncServer, print_message, default_user):
-    """Test reverse chronological ordering of messages"""
-    create_test_messages(server, print_message, default_user)
-    
-    reverse_results = server.message_manager.list_messages(
-        actor=default_user,
-        limit=10,
-        reverse=True
-    )
-    assert len(reverse_results) == 5
-
-    # Verify reverse chronological order
-    for i in range(len(reverse_results) - 1):
-        assert reverse_results[i].created_at >= reverse_results[i + 1].created_at
 
 
 
