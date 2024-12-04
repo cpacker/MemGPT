@@ -3,7 +3,6 @@ from typing import List, Optional, Union
 
 from letta.agent import Agent
 
-# from letta.client.client import create_client
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
@@ -28,7 +27,6 @@ class ChatOnlyAgent(Agent):
         recent_convo_limit: int = 2000,
     ):
         super().__init__(interface, agent_state, user)
-
         self.first_message_verify_mono = first_message_verify_mono
         self.always_rethink_memory = always_rethink_memory
         self.offline_memory_agent = None
