@@ -1876,7 +1876,8 @@ class SyncServer(Server):
         apps = self.composio_client.apps.get()
         apps_with_actions = []
         for app in apps:
-            if app.meta["actionsCount"] > 0:
+            # A bit of hacky logic until composio patches this
+            if app.meta["actionsCount"] > 0 and not app.name.lower().endswith("_beta"):
                 apps_with_actions.append(app)
 
         return apps_with_actions
