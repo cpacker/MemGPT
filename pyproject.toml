@@ -87,9 +87,9 @@ autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
 cloud-tool-sandbox = ["e2b-code-interpreter"]
-external-tools = ["docker", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain"]
+external-tools = ["docker", "langchain", "wikipedia", "langchain-community"]
 tests = ["wikipedia"]
-all = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2", "pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "websockets", "fastapi", "uvicorn", "llama-index-embeddings-ollama", "docker", "langchain", "wikipedia", "langchain-community", "composio-core", "composio-langchain", "locust"]
+all = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2", "pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "websockets", "fastapi", "uvicorn", "llama-index-embeddings-ollama", "docker", "langchain", "wikipedia", "langchain-community", "locust"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
