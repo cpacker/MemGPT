@@ -10,6 +10,7 @@ from letta.orm import (
     Block,
     BlocksAgents,
     FileMetadata,
+    Job,
     Organization,
     SandboxConfig,
     SandboxEnvironmentVariable,
@@ -74,6 +75,7 @@ using_sqlite = not bool(os.getenv("LETTA_PG_URI"))
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(Job))
         session.execute(delete(BlocksAgents))
         session.execute(delete(AgentsTags))
         session.execute(delete(SandboxEnvironmentVariable))
@@ -1274,7 +1276,7 @@ def test_get_job_not_found(server: SyncServer, default_user):
 def test_delete_job_not_found(server: SyncServer, default_user):
     """Test deleting a non-existent job."""
     non_existent_job_id = "nonexistent-id"
-    with pytest.raises(ValueError):
+    with pytest.raises(NoResultFound):
         server.job_manager.delete_job_by_id(non_existent_job_id, actor=default_user)
 
 
@@ -1294,3 +1296,39 @@ def test_list_jobs_pagination(server: SyncServer, default_user):
     # Assertions to check pagination
     assert len(jobs) == 5
     assert all(job.user_id == default_user.id for job in jobs)
+
+
+def test_list_jobs_by_status(server: SyncServer, default_user):
+    """Test listing jobs filtered by status."""
+    # Create multiple jobs with different statuses
+    job_data_created = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test-created"},
+    )
+    job_data_in_progress = PydanticJob(
+        status=JobStatus.running,
+        metadata_={"type": "test-running"},
+    )
+    job_data_completed = PydanticJob(
+        status=JobStatus.completed,
+        metadata_={"type": "test-completed"},
+    )
+
+    server.job_manager.create_job(job_data_created, actor=default_user)
+    server.job_manager.create_job(job_data_in_progress, actor=default_user)
+    server.job_manager.create_job(job_data_completed, actor=default_user)
+
+    # List jobs filtered by status
+    created_jobs = server.job_manager.list_jobs(actor=default_user, status=JobStatus.created)
+    in_progress_jobs = server.job_manager.list_jobs(actor=default_user, status=JobStatus.running)
+    completed_jobs = server.job_manager.list_jobs(actor=default_user, status=JobStatus.completed)
+
+    # Assertions
+    assert len(created_jobs) == 1
+    assert created_jobs[0].metadata_["type"] == job_data_created.metadata_["type"]
+
+    assert len(in_progress_jobs) == 1
+    assert in_progress_jobs[0].metadata_["type"] == job_data_in_progress.metadata_["type"]
+
+    assert len(completed_jobs) == 1
+    assert completed_jobs[0].metadata_["type"] == job_data_completed.metadata_["type"]

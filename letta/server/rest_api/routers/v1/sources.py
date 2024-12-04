@@ -175,7 +175,7 @@ def upload_file_to_source(
         completed_at=None,
     )
     job_id = job.id
-    server.ms.create_job(job)
+    server.job_manager.create_job(job, actor=actor)
 
     # create background task
     background_tasks.add_task(load_file_to_source_async, server, source_id=source.id, file=file, job_id=job.id, bytes=bytes)

@@ -6,7 +6,7 @@ import warnings
 from abc import abstractmethod
 from asyncio import Lock
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 from composio.client import Composio
 from composio.client.collections import ActionModel, AppModel
@@ -1470,24 +1470,6 @@ class SyncServer(Server):
         passage_store.delete({"source_id": source_id})
 
         # TODO: delete data from agent passage stores (?)
-
-    def create_job(self, user_id: str, metadata: Optional[Dict] = None) -> Job:
-        """Create a new job"""
-        job = Job(
-            user_id=user_id,
-            status=JobStatus.created,
-            metadata_=metadata,
-        )
-        self.ms.create_job(job)
-        return job
-
-    def delete_job(self, job_id: str):
-        """Delete a job"""
-        self.ms.delete_job(job_id)
-
-    def get_job(self, job_id: str) -> Job:
-        """Get a job"""
-        return self.ms.get_job(job_id)
 
     def list_jobs(self, user_id: str) -> List[Job]:
         """List all jobs for a user"""

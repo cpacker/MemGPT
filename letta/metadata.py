@@ -258,31 +258,6 @@ class AgentSourceMappingModel(Base):
         return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
 
 
-class JobModel(Base):
-    __tablename__ = "jobs_legacy"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    user_id = Column(String)
-    status = Column(String, default=JobStatus.pending)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    completed_at = Column(DateTime(timezone=True), onupdate=func.now())
-    metadata_ = Column(JSON)
-
-    def __repr__(self) -> str:
-        return f"<Job(id='{self.id}', status='{self.status}')>"
-
-    def to_record(self):
-        return Job(
-            id=self.id,
-            user_id=self.user_id,
-            status=self.status,
-            created_at=self.created_at,
-            completed_at=self.completed_at,
-            metadata_=self.metadata_,
-        )
-
-
 class MetadataStore:
     uri: Optional[str] = None
 
@@ -454,12 +429,6 @@ class MetadataStore:
             session.query(AgentSourceMappingModel).filter(
                 AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
             ).delete()
-            session.commit()
-
-    @enforce_types
-    def create_job(self, job: Job):
-        with self.session_maker() as session:
-            session.add(JobModel(**vars(job)))
             session.commit()
 
     def delete_job(self, job_id: str):

@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 
+from letta.orm.errors import NoResultFound
 from letta.schemas.job import Job
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
@@ -21,12 +22,11 @@ def list_jobs(
     actor = server.get_user_or_default(user_id=user_id)
 
     # TODO: add filtering by status
-    jobs = server.list_jobs(user_id=actor.id)
+    jobs = server.job_manager.list_jobs(actor=actor)
 
-    # TODO: eventually use ORM
-    # results = session.query(JobModel).filter(JobModel.user_id == user_id, JobModel.metadata_["source_id"].astext == sourced_id).all()
     if source_id:
         # can't be in the ORM since we have source_id stored in the metadata_
+        # TODO: Probably change this
         jobs = [job for job in jobs if job.metadata_.get("source_id") == source_id]
     return jobs
 
@@ -47,26 +47,33 @@ def list_active_jobs(
 @router.get("/{job_id}", response_model=Job, operation_id="get_job")
 def get_job(
     job_id: str,
+    user_id: Optional[str] = Header(None, alias="user_id"),
     server: "SyncServer" = Depends(get_letta_server),
 ):
     """
     Get the status of a job.
     """
+    actor = server.get_user_or_default(user_id=user_id)
 
-    return server.get_job(job_id=job_id)
+    try:
+        return server.job_manager.get_job_by_id(job_id=job_id, actor=actor)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Job not found")
 
 
 @router.delete("/{job_id}", response_model=Job, operation_id="delete_job")
 def delete_job(
     job_id: str,
+    user_id: Optional[str] = Header(None, alias="user_id"),
     server: "SyncServer" = Depends(get_letta_server),
 ):
     """
     Delete a job by its job_id.
     """
-    job = server.get_job(job_id=job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
+    actor = server.get_user_or_default(user_id=user_id)
 
-    server.delete_job(job_id=job_id)
-    return job
+    try:
+        job = server.job_manager.delete_job_by_id(job_id=job_id, actor=actor)
+        return job
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Job not found")

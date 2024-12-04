@@ -1,6 +1,5 @@
 from typing import List, Optional
 
-from letta.orm.errors import NoResultFound
 from letta.orm.job import Job as JobModel
 from letta.schemas.enums import JobStatus
 from letta.schemas.job import Job as PydanticJob
@@ -34,7 +33,7 @@ class JobManager:
         """Update a job by its ID with the given JobUpdate object."""
         with self.session_maker() as session:
             # Fetch the job by ID
-            job = JobModel.read(db_session=session, identifier=job_id, actor=actor)
+            job = JobModel.read(db_session=session, identifier=job_id)  # TODO: Add this later , actor=actor)
 
             # Update job attributes with only the fields that were explicitly set
             update_data = job_update.model_dump(exclude_unset=True, exclude_none=True)
@@ -47,34 +46,40 @@ class JobManager:
                 setattr(job, key, value)
 
             # Save the updated job to the database
-            return job.update(db_session=session, actor=actor)
+            return job.update(db_session=session)  # TODO: Add this later , actor=actor)
 
     @enforce_types
     def get_job_by_id(self, job_id: str, actor: PydanticUser) -> PydanticJob:
         """Fetch a job by its ID."""
         with self.session_maker() as session:
             # Retrieve job by ID using the Job model's read method
-            job = JobModel.read(db_session=session, identifier=job_id, actor=actor)
+            job = JobModel.read(db_session=session, identifier=job_id)  # TODO: Add this later , actor=actor)
             return job.to_pydantic()
 
     @enforce_types
-    def list_jobs(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[PydanticJob]:
-        """List all jobs with optional pagination using cursor and limit."""
+    def list_jobs(
+        self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50, status: Optional[JobStatus] = None
+    ) -> List[PydanticJob]:
+        """List all jobs with optional pagination and status filter."""
         with self.session_maker() as session:
+            filter_kwargs = {"user_id": actor.id}
+
+            # Add status filter if provided
+            if status:
+                filter_kwargs["status"] = status
+
             jobs = JobModel.list(
                 db_session=session,
                 cursor=cursor,
                 limit=limit,
-                user_id=actor.id,
+                **filter_kwargs,
             )
             return [job.to_pydantic() for job in jobs]
 
     @enforce_types
-    def delete_job_by_id(self, job_id: str, actor: PydanticUser) -> None:
+    def delete_job_by_id(self, job_id: str, actor: PydanticUser) -> PydanticJob:
         """Delete a job by its ID."""
         with self.session_maker() as session:
-            try:
-                job = JobModel.read(db_session=session, identifier=job_id, actor=actor)
-                job.delete(db_session=session, actor=actor)
-            except NoResultFound:
-                raise ValueError(f"Job with id {job_id} not found.")
+            job = JobModel.read(db_session=session, identifier=job_id)  # TODO: Add this later , actor=actor)
+            job.hard_delete(db_session=session)  # TODO: Add this later , actor=actor)
+            return job.to_pydantic()
