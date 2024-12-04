@@ -3,7 +3,6 @@ import base64
 import io
 import os
 import pickle
-import re
 import runpy
 import sys
 import tempfile
@@ -269,6 +268,9 @@ class ToolExecutionSandbox:
         for param in self.args:
             code += self.initialize_param(param, self.args[param])
 
+        print("CODE")
+        print(code)
+
         if "agent_state" in self.parse_function_arguments(self.tool.source_code, self.tool.name):
             inject_agent_state = True
         else:
@@ -293,7 +295,9 @@ class ToolExecutionSandbox:
     def _convert_param_to_value(self, param_type: str, raw_value: str) -> str:
 
         if param_type == "string":
-            value = '"' + re.escape(raw_value) + '"'
+            # value = '"' + re.escape(raw_value) + '"'
+            print(pickle.dumps(raw_value))
+            value = "pickle.loads(" + str(pickle.dumps(raw_value)) + ")"
 
         elif param_type == "integer" or param_type == "boolean" or param_type == "number":
             value = raw_value
