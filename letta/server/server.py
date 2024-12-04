@@ -374,6 +374,22 @@ class SyncServer(Server):
             }
         )
 
+    def initialize_agent(self, agent_id, interface: Union[AgentInterface, None] = None, initial_message_sequence=None) -> Agent:
+        """Initialize an agent from the database"""
+        agent_state = self.get_agent(agent_id=agent_id)
+        actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+
+        interface = interface or self.default_interface_factory()
+        if agent_state.agent_type == AgentType.memgpt_agent:
+            agent = Agent(agent_state=agent_state, interface=interface, user=actor, initial_message_sequence=initial_message_sequence)
+        else:
+            assert initial_message_sequence is None, f"Initial message sequence is not supported for O1Agents"
+            agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+
+        # Persist to agent
+        save_agent(agent, self.ms)
+        return agent
+
     def load_agent(self, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Updated method to load agents from persisted storage"""
         agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
@@ -386,6 +402,9 @@ class SyncServer(Server):
                 agent = Agent(agent_state=agent_state, interface=interface, user=actor)
             else:
                 agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+
+            # Rebuild the system prompt - may be linked to new blocks now
+            agent.rebuild_system_prompt()
 
             # Persist to agent
             save_agent(agent, self.ms)
@@ -804,8 +823,6 @@ class SyncServer(Server):
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
-        # TODO: create the message objects (NOTE: do this after we migrate to `CreateMessage`)
-
         # created and persist the agent state in the DB
         agent_state = PersistedAgentState(
             name=request.name,
@@ -823,6 +840,31 @@ class SyncServer(Server):
         # TODO: move this to agent ORM
         # this saves the agent ID and state into the DB
         self.ms.create_agent(agent_state)
+
+        # create the agent object
+        if request.initial_message_sequence:
+            # init_messages = [Message(user_id=user_id, agent_id=agent_state.id, role=message.role, text=message.text) for message in request.initial_message_sequence]
+            init_messages = []
+            for message in request.initial_message_sequence:
+
+                if message.role == MessageRole.user:
+                    packed_message = system.package_user_message(
+                        user_message=message.text,
+                    )
+                elif message.role == MessageRole.system:
+                    packed_message = system.package_system_message(
+                        system_message=message.text,
+                    )
+                else:
+                    raise ValueError(f"Invalid message role: {message.role}")
+
+                init_messages.append(Message(role=message.role, text=packed_message, user_id=user_id, agent_id=agent_state.id))
+            # init_messages = [Message.dict_to_message(user_id=user_id, agent_id=agent_state.id, openai_message_dict=message.model_dump()) for message in request.initial_message_sequence]
+        else:
+            init_messages = None
+
+        # initialize the agent (generates initial message list with system prompt)
+        self.initialize_agent(agent_id=agent_state.id, interface=interface, initial_message_sequence=init_messages)
 
         # Note: mappings (e.g. tags, blocks) are created after the agent is persisted
         # TODO: add source mappings here as well
