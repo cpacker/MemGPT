@@ -3,6 +3,7 @@ import base64
 import io
 import os
 import pickle
+import re
 import runpy
 import sys
 import tempfile
@@ -287,13 +288,12 @@ class ToolExecutionSandbox:
             f"{self.LOCAL_SANDBOX_RESULT_VAR_NAME} = base64.b64encode(pickle.dumps({self.LOCAL_SANDBOX_RESULT_VAR_NAME})).decode('utf-8')\n"
         )
         code += f"{self.LOCAL_SANDBOX_RESULT_VAR_NAME}\n"
-
         return code
 
     def _convert_param_to_value(self, param_type: str, raw_value: str) -> str:
 
         if param_type == "string":
-            value = '"' + raw_value + '"'
+            value = '"' + re.escape(raw_value) + '"'
 
         elif param_type == "integer" or param_type == "boolean" or param_type == "number":
             value = raw_value
@@ -306,7 +306,6 @@ class ToolExecutionSandbox:
 
         else:
             raise TypeError(f"Unsupported type: {param_type}, raw_value={raw_value}")
-
         return str(value)
 
     def initialize_param(self, name: str, raw_value: str) -> str:
