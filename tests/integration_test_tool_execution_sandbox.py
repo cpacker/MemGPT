@@ -389,6 +389,18 @@ def test_e2b_sandbox_core_memory_replace(check_e2b_key_is_set, core_memory_repla
 
 
 @pytest.mark.e2b_sandbox
+def test_e2b_sandbox_escape_strings_in_args(check_e2b_key_is_set, core_memory_replace_tool, test_user, agent_state):
+    new_name = "Matt"
+    args = {"label": "human", "old_content": "Chad", "new_content": new_name + "\n"}
+    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
+
+    # run the sandbox
+    result = sandbox.run(agent_state=agent_state)
+    assert new_name in result.agent_state.memory.get_block("human").value
+    assert result.func_return is None
+
+
+@pytest.mark.e2b_sandbox
 def test_e2b_sandbox_core_memory_replace_errors(check_e2b_key_is_set, core_memory_replace_tool, test_user, agent_state):
     nonexistent_name = "Alexander Wang"
     args = {"label": "human", "old_content": nonexistent_name, "new_content": "Matt"}
