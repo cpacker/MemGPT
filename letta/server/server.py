@@ -377,13 +377,12 @@ class SyncServer(Server):
         agent_state = self.get_agent(agent_id=agent_id)
         actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
-        print("FIRST AGENT LOAD", initial_message_sequence)
-
         interface = interface or self.default_interface_factory()
         if agent_state.agent_type == AgentType.memgpt_agent:
             agent = Agent(agent_state=agent_state, interface=interface, user=actor, initial_message_sequence=initial_message_sequence)
         else:
-            agent = O1Agent(agent_state=agent_state, interface=interface, user=actor, initial_message_sequence=initial_message_sequence)
+            assert initial_message_sequence is None, f"Initial message sequence is not supported for O1Agents"
+            agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
 
         # Persist to agent
         save_agent(agent, self.ms)
@@ -766,23 +765,6 @@ class SyncServer(Server):
                 command = command[1:]  # strip the prefix
         return self._command(user_id=user_id, agent_id=agent_id, command=command)
 
-    def create_message(self, request: MessageCreate, agent_id: str, actor: User) -> Message:
-        """Create a message in the agent's recall memory store"""
-        # TODO: remove after message refactor is completed
-        from letta.agent_store.storage import StorageConnector, TableType
-
-        # create storage backend
-        self.storage = StorageConnector.get_storage_connector(TableType.RECALL_MEMORY, self.config, actor.id, agent_id)
-        message = Message(
-            user_id=actor.id,
-            text=request.text,
-            agent_id=agent_id,
-            role=request.role,
-            name=request.name,
-        )
-        self.storage.insert(message)
-        return message
-
     def create_agent(
         self,
         request: CreateAgent,
@@ -853,19 +835,6 @@ class SyncServer(Server):
             description=request.description,
             metadata_=request.metadata_,
         )
-        ## create the message objects
-        # if request.initial_message_sequence:
-        #    init_message_ids = []
-        #    for message_create in request.initial_message_sequence:
-        #        message = self.create_message(request=message_create, agent_id=agent_state.id, actor=actor)
-        #        init_message_ids.append(message.id)
-        # else:
-        #    # use default message initialization
-        #    init_message_ids = None
-
-        ## update the in-context message ids
-        # agent_state.message_ids = init_message_ids
-
         # TODO: move this to agent ORM
         # this saves the agent ID and state into the DB
         self.ms.create_agent(agent_state)
@@ -891,6 +860,8 @@ class SyncServer(Server):
             # init_messages = [Message.dict_to_message(user_id=user_id, agent_id=agent_state.id, openai_message_dict=message.model_dump()) for message in request.initial_message_sequence]
         else:
             init_messages = None
+
+        # initialize the agent (generates initial message list with system prompt)
         self.initialize_agent(agent_id=agent_state.id, interface=interface, initial_message_sequence=init_messages)
 
         # Note: mappings (e.g. tags, blocks) are created after the agent is persisted
