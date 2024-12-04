@@ -259,7 +259,7 @@ class AgentSourceMappingModel(Base):
 
 
 class JobModel(Base):
-    __tablename__ = "jobs"
+    __tablename__ = "jobs_legacy"
     __table_args__ = {"extend_existing": True}
 
     id = Column(String, primary_key=True)
