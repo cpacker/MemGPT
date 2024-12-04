@@ -292,8 +292,6 @@ class ToolExecutionSandbox:
     def _convert_param_to_value(self, param_type: str, raw_value: str) -> str:
 
         if param_type == "string":
-            # value = '"' + re.escape(raw_value) + '"'
-            print(pickle.dumps(raw_value))
             value = "pickle.loads(" + str(pickle.dumps(raw_value)) + ")"
 
         elif param_type == "integer" or param_type == "boolean" or param_type == "number":
