@@ -2058,7 +2058,6 @@ class LocalClient(AbstractClient):
         system: Optional[str] = None,
         # tools
         tools: Optional[List[str]] = None,
-        offline_memory_tools: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
@@ -2112,7 +2111,6 @@ class LocalClient(AbstractClient):
                 # memory_blocks = memory.get_blocks(),
                 # memory_tools=memory_tools,
                 tools=tool_names,
-                # async_memory_tools=offline_memory_tools,
                 tool_rules=tool_rules,
                 system=system,
                 agent_type=agent_type,

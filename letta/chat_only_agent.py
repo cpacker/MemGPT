@@ -2,27 +2,19 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Union
 
 from letta.agent import Agent
+
 # from letta.client.client import create_client
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
-from letta.offline_memory_agent import (
-    finish_rethinking_memory,
-    finish_rethinking_memory_convo,
-    rethink_memory,
-    rethink_memory_convo,
-)
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentState, AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, Block
 from letta.schemas.message import Message
-from letta.schemas.tool import Tool
-from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
 from letta.utils import get_persona_text
-
 
 
 class ChatOnlyAgent(Agent):
@@ -34,16 +26,13 @@ class ChatOnlyAgent(Agent):
         first_message_verify_mono: bool = False,
         always_rethink_memory: bool = True,
         chat_specific_memory: bool = True,
-        async_memory_tools: List[Tool] = [],
     ):
         super().__init__(interface, agent_state, user)
 
-        from letta.client.client import create_client
-        client = create_client()
         self.first_message_verify_mono = first_message_verify_mono
         self.always_rethink_memory = always_rethink_memory
         self.offline_memory_agent = None
-        self.chat_specific_memory = chat_specific_memory,
+        self.chat_specific_memory = (chat_specific_memory,)
 
     def step(
         self,
@@ -57,9 +46,10 @@ class ChatOnlyAgent(Agent):
         letta_statistics = super().step(messages=messages, chaining=chaining, max_chaining_steps=max_chaining_steps, ms=ms, **kwargs)
 
         if self.always_rethink_memory:
+
             def generate_offline_memory_agent():
-                import pdb; pdb.set_trace()
                 from letta.client.client import create_client
+
                 client = create_client()
                 if self.offline_memory_agent:
                     client.delete_agent(agent_id=self.offline_memory_agent.id)
@@ -110,7 +100,6 @@ class ChatOnlyAgent(Agent):
                 client.delete_agent(agent_id=self.offline_memory_agent.id)
                 self.offline_memory_agent = None
 
-            # Run the rethink_memory function in a separate thread
             with ThreadPoolExecutor(max_workers=1) as executor:
                 executor.submit(generate_offline_memory_agent)
 

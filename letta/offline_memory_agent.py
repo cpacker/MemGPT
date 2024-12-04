@@ -1,18 +1,15 @@
 from typing import List, Optional, Union
-from venv import create
 
-from letta.agent import AgentState
-from letta.agent import Agent, save_agent
+from letta.agent import Agent, AgentState, save_agent
 from letta.interface import AgentInterface
 from letta.metadata import MetadataStore
 from letta.orm import User
 from letta.schemas.message import Message
 from letta.schemas.openai.chat_completion_response import UsageStatistics
-from letta.schemas.tool import Tool
 from letta.schemas.usage import LettaUsageStatistics
 
 
-def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) -> Optional[str]: # type: ignore
+def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) -> Optional[str]:  # type: ignore
     """
     Called if and only when user says the word trigger_rethink_memory". It will trigger the re-evaluation of the memory.
 
@@ -30,7 +27,7 @@ def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) ->
             client.user_message(agent_id=agent.id, message=message)
 
 
-def trigger_rethink_memory_convo(agent_state: "AgentState", message: Optional[str]) -> Optional[str]: # type: ignore
+def trigger_rethink_memory_convo(agent_state: "AgentState", message: Optional[str]) -> Optional[str]:  # type: ignore
     """
     Called if and only when user says the word "trigger_rethink_memory". It will trigger the re-evaluation of the memory.
 
@@ -41,7 +38,9 @@ def trigger_rethink_memory_convo(agent_state: "AgentState", message: Optional[st
     from letta import create_client
 
     client = create_client()
-    recent_convo = "".join([str(message) for message in agent_state.messages])[-2000:]  # TODO: make a better representation of the convo history
+    recent_convo = "".join([str(message) for message in agent_state.messages])[
+        -2000:
+    ]  # TODO: make a better representation of the convo history
     agent_state.memory.update_block_value(label="conversation_block", value=recent_convo)
     client.update_block(agent_state.memory.get_block("conversation_block").id, text=recent_convo)
     # client.update_agent(agent_id=agent_state.agent_state.id, memory=agent_state.memory)
@@ -53,7 +52,8 @@ def trigger_rethink_memory_convo(agent_state: "AgentState", message: Optional[st
             client.get_agent(agent.id)
             client.user_message(agent_id=agent.id, message=message)
 
-def rethink_memory_convo(agent_state: "AgentState", new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]: # type: ignore
+
+def rethink_memory_convo(agent_state: "AgentState", new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:  # type: ignore
     """
     Re-evaluate the memory in block_name, integrating new and updated facts. Replace outdated information with the most likely truths, avoiding redundancy with original memories. Ensure consistency with other memory blocks.
 
@@ -72,7 +72,7 @@ def rethink_memory_convo(agent_state: "AgentState", new_memory: str, target_bloc
     return None
 
 
-def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]: # type: ignore
+def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:  # type: ignore
     """
     Re-evaluate the memory in block_name, integrating new and updated facts.
     Replace outdated information with the most likely truths, avoiding redundancy with original memories.
@@ -88,7 +88,7 @@ def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_labe
 
     from letta import create_client
 
-    client = create_client()
+    create_client()
     if target_block_label is not None:
         if agent_state.memory.get_block(target_block_label) is None:
             agent_state.memory.create_block(label=target_block_label, value=new_memory)
@@ -101,7 +101,7 @@ def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_labe
     return None
 
 
-def finish_rethinking_memory(agent_state: "AgentState") -> Optional[str]: # type: ignore
+def finish_rethinking_memory(agent_state: "AgentState") -> Optional[str]:  # type: ignore
     """
     This function is called when the agent is done rethinking the memory.
 
@@ -111,7 +111,7 @@ def finish_rethinking_memory(agent_state: "AgentState") -> Optional[str]: # type
     return None
 
 
-def finish_rethinking_memory_convo(agent_state: "AgentState") -> Optional[str]: # type: ignore
+def finish_rethinking_memory_convo(agent_state: "AgentState") -> Optional[str]:  # type: ignore
     """
     This function is called when the agent is done rethinking the memory.
 
