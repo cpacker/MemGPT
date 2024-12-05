@@ -840,6 +840,9 @@ class SyncServer(Server):
         )
         # TODO: move this to agent ORM
         # this saves the agent ID and state into the DB
+        import ipdb
+
+        ipdb.set_trace()
         self.ms.create_agent(agent_state)
 
         # create the agent object
@@ -1196,7 +1199,7 @@ class SyncServer(Server):
             # need to access persistence manager for additional messages
 
             # get messages using message manager
-            page = letta_agent.message_manager.list_messages(
+            page = letta_agent.message_manager.list_user_messages(
                 actor=self.default_user,
                 cursor=start,
                 limit=count,
@@ -1314,7 +1317,7 @@ class SyncServer(Server):
 
         # iterate over records
         # TODO: Check "order_by", "order"
-        records = letta_agent.message_manager.list_messages(
+        records = letta_agent.message_manager.list_user_messages(
             actor=self.default_user,
             cursor=cursor,
             limit=limit,
@@ -1414,14 +1417,10 @@ class SyncServer(Server):
         if agent_state is None:
             raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
 
-        # TODO: Delete all messages associated with the agent
-        # import ipdb;ipdb.set_trace()
-        # m1 = self.message_manager.list_messages(actor.id, agent_state.id)
-        # if agent_state.message_ids:
-        #     for message_id in agent_state.message_ids:
-        #         self.message_manager.delete_message_by_id(message_id)
-        # m2 = self.message_manager.list_messages(actor.id, agent_state.id)
-        # ipdb.set_trace()
+        # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM MODEL
+        messages = self.message_manager.list_messages(actor, filters={"agent_id": agent_state.id})
+        for message in messages:
+            self.message_manager.delete_message_by_id(message.id)
 
         agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
         if agent_state_user.organization_id != actor.organization_id:

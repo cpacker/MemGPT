@@ -6,6 +6,7 @@ import pytest
 
 import letta.utils as utils
 from letta.constants import BASE_TOOLS
+from letta.metadata import AgentModel
 from letta.schemas.enums import MessageRole
 from letta.schemas.letta_message import (
     FunctionCallMessage,
@@ -362,6 +363,21 @@ def test_load_agent_with_nonexistent_tool_names_does_not_error(server: SyncServe
 
 
 def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
+    import ipdb
+
+    ipdb.set_trace()
+    with server.organization_manager.session_maker() as session:
+        from sqlalchemy import delete
+
+        from letta.orm import Message as MessageModel
+
+        session.execute(delete(MessageModel))
+        session.execute(delete(AgentModel))
+
+    import ipdb
+
+    ipdb.set_trace()
+
     agent_state = server.create_agent(
         request=CreateAgent(
             name="nonexistent_tools_agent",

@@ -1,6 +1,7 @@
+from datetime import datetime, timedelta
+
 import pytest
 from sqlalchemy import delete
-from datetime import datetime, timedelta
 
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
@@ -539,6 +540,7 @@ def test_delete_tool_by_id(server: SyncServer, print_tool, default_user):
 # Message Manager Tests
 # ======================================================================================================================
 
+
 def test_message_create(server: SyncServer, print_message, default_user):
     """Test creating a message using print_message fixture"""
     assert print_message.id is not None
@@ -547,7 +549,7 @@ def test_message_create(server: SyncServer, print_message, default_user):
 
     # Verify we can retrieve it
     retrieved = server.message_manager.get_message_by_id(
-        print_message.id, 
+        print_message.id,
         actor=default_user,
     )
     assert retrieved is not None
@@ -555,12 +557,14 @@ def test_message_create(server: SyncServer, print_message, default_user):
     assert retrieved.text == print_message.text
     assert retrieved.role == print_message.role
 
+
 def test_message_get_by_id(server: SyncServer, print_message, default_user):
     """Test retrieving a message by ID"""
     retrieved = server.message_manager.get_message_by_id(print_message.id, actor=default_user)
     assert retrieved is not None
     assert retrieved.id == print_message.id
     assert retrieved.text == print_message.text
+
 
 def test_message_update(server: SyncServer, print_message, default_user):
     """Test updating a message"""
@@ -572,69 +576,64 @@ def test_message_update(server: SyncServer, print_message, default_user):
     retrieved = server.message_manager.get_message_by_id(print_message.id, actor=default_user)
     assert retrieved.text == new_text
 
+
 def test_message_delete(server: SyncServer, print_message, default_user):
     """Test deleting a message"""
     server.message_manager.delete_message_by_id(print_message.id, actor=default_user)
     retrieved = server.message_manager.get_message_by_id(print_message.id, actor=default_user)
     assert retrieved is None
 
+
 def test_message_size(server: SyncServer, print_message, default_user):
     """Test counting messages with filters"""
     base_message = print_message
-    
+
     # Create additional test messages
     messages = [
-        PydanticMessage(
-            user_id=default_user.id,
-            agent_id=base_message.agent_id,
-            role=base_message.role,
-            text=f"Test message {i}"
-        )
+        PydanticMessage(user_id=default_user.id, agent_id=base_message.agent_id, role=base_message.role, text=f"Test message {i}")
         for i in range(4)
     ]
     server.message_manager.create_many_messages(messages, actor=default_user)
-    
+
     # Test total count
     total = server.message_manager.size(actor=default_user)
     assert total == 6  # login message + base message + 4 test messages
-    # TODO: change login message to be a system not user message 
-    
+    # TODO: change login message to be a system not user message
+
     # Test count with agent filter
     agent_count = server.message_manager.size(actor=default_user, filters={"agent_id": base_message.agent_id})
     assert agent_count == 6
-    
+
     # Test count with user filter
     user_count = server.message_manager.size(actor=default_user, filters={"user_id": base_message.user_id})
     assert user_count == 6
-    
+
     # Test count with role filter
     role_count = server.message_manager.size(actor=default_user, filters={"role": base_message.role})
     assert role_count == 6
-    
+
     # Test count with non-existent filter
     empty_count = server.message_manager.size(actor=default_user, filters={"agent_id": "non-existent"})
     assert empty_count == 0
 
+
 def create_test_messages(server: SyncServer, base_message: PydanticMessage, default_user) -> list[PydanticMessage]:
     """Helper function to create test messages for all tests"""
     messages = [
-        PydanticMessage(
-            user_id=base_message.user_id,
-            agent_id=base_message.agent_id,
-            role=base_message.role,
-            text=f"Test message {i}"
-        )
+        PydanticMessage(user_id=base_message.user_id, agent_id=base_message.agent_id, role=base_message.role, text=f"Test message {i}")
         for i in range(4)
     ]
     server.message_manager.create_many_messages(messages, actor=default_user)
     return messages
 
+
 def test_message_listing_basic(server: SyncServer, print_message, default_user):
     """Test basic message listing with limit"""
     create_test_messages(server, print_message, default_user)
-    
-    results = server.message_manager.list_messages(limit=3, actor=default_user)
+
+    results = server.message_manager.list_user_messages(limit=3, actor=default_user)
     assert len(results) == 3
+
 
 def test_message_listing_cursor(server: SyncServer, print_message, default_user):
     """Test cursor-based pagination functionality"""
@@ -644,61 +643,46 @@ def test_message_listing_cursor(server: SyncServer, print_message, default_user)
     assert server.message_manager.size(actor=default_user) == 6
 
     # Get first page
-    first_page = server.message_manager.list_messages(actor=default_user, limit=3)
+    first_page = server.message_manager.list_user_messages(actor=default_user, limit=3)
     assert len(first_page) == 3
-    
+
     last_id_on_first_page = first_page[-1].id
 
     # Get second page
-    second_page = server.message_manager.list_messages(
-        actor=default_user,
-        cursor=last_id_on_first_page,
-        limit=3
-    )
+    second_page = server.message_manager.list_user_messages(actor=default_user, cursor=last_id_on_first_page, limit=3)
     assert len(second_page) == 3  # Should have 2 remaining messages
     assert all(r1.id != r2.id for r1 in first_page for r2 in second_page)
+
 
 def test_message_listing_filtering(server: SyncServer, print_message, default_user):
     """Test filtering messages by agent ID"""
     create_test_messages(server, print_message, default_user)
-    
-    agent_results = server.message_manager.list_messages(
-        actor=default_user,
-        limit=10
-    )
+
+    agent_results = server.message_manager.list_user_messages(actor=default_user, limit=10)
     assert len(agent_results) == 6  # login message + base message + 4 test messages
     assert all(msg.agent_id == print_message.agent_id for msg in agent_results)
+
 
 def test_message_listing_text_search(server: SyncServer, print_message, default_user):
     """Test searching messages by text content"""
     create_test_messages(server, print_message, default_user)
-    
-    search_results = server.message_manager.list_messages(
-        actor=default_user,
-        query_text="Test message",
-        limit=10
-    )
+
+    search_results = server.message_manager.list_user_messages(actor=default_user, query_text="Test message", limit=10)
     assert len(search_results) == 4
     assert all("Test message" in msg.text for msg in search_results)
 
     # Test no results
-    search_results = server.message_manager.list_messages(
-        actor=default_user,
-        query_text="Letta",
-        limit=10
-    )
+    search_results = server.message_manager.list_user_messages(actor=default_user, query_text="Letta", limit=10)
     assert len(search_results) == 0
+
 
 def test_message_listing_date_range_filtering(server: SyncServer, print_message, default_user):
     """Test filtering messages by date range"""
     create_test_messages(server, print_message, default_user)
     now = datetime.utcnow()
-    
-    date_results = server.message_manager.list_messages(
-        actor=default_user,
-        start_date=now - timedelta(minutes=1),
-        end_date=now + timedelta(minutes=1),
-        limit=10
+
+    date_results = server.message_manager.list_user_messages(
+        actor=default_user, start_date=now - timedelta(minutes=1), end_date=now + timedelta(minutes=1), limit=10
     )
     assert len(date_results) > 0
 
