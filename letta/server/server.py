@@ -395,6 +395,10 @@ class SyncServer(Server):
         agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
         with agent_lock:
             agent_state = self.get_agent(agent_id=agent_id)
+            if agent_state is None:
+                raise ValueError(f"Agent (agent_id={agent_id}) does not exist")
+            elif agent_state.user_id is None:
+                raise ValueError(f"Agent (agent_id={agent_id}) does not have a user_id")
             actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
             interface = interface or self.default_interface_factory()
@@ -882,7 +886,7 @@ class SyncServer(Server):
         in_memory_agent_state = self.get_agent(agent_state.id)
         return in_memory_agent_state
 
-    def get_agent(self, agent_id: str) -> AgentState:
+    def get_agent(self, agent_id: str) -> Optional[AgentState]:
         """
         Retrieve the full agent state from the DB.
         This gathers data accross multiple tables to provide the full state of an agent, which is passed into the `Agent` object for creation.
@@ -893,6 +897,8 @@ class SyncServer(Server):
         if agent_state is None:
             # agent does not exist
             return None
+        if agent_state.user_id is None:
+            raise ValueError(f"Agent {agent_id} does not have a user_id")
         user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
         # construct the in-memory, full agent state - this gather data stored in different tables but that needs to be passed to `Agent`
