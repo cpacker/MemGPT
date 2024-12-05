@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import JSON
+from sqlalchemy import JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.mixins import UserMixin
@@ -21,7 +21,7 @@ class Job(SqlalchemyBase, UserMixin):
     __tablename__ = "jobs"
     __pydantic_model__ = PydanticJob
 
-    status: Mapped[JobStatus] = mapped_column(default=JobStatus.created, doc="The current status of the job.")
+    status: Mapped[JobStatus] = mapped_column(String, default=JobStatus.created, doc="The current status of the job.")
     completed_at: Mapped[Optional[datetime]] = mapped_column(nullable=True, doc="The unix timestamp of when the job was completed.")
     metadata_: Mapped[Optional[dict]] = mapped_column(JSON, default=lambda: {}, doc="The metadata of the job.")
 
