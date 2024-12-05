@@ -1271,7 +1271,16 @@ class Agent(BaseAgent):
         note: we're guaranteed to start to have a drifting count for recall memory (in the statistics), but that's an OK tradeoff I think
         (otherwise we're gonna generate a new message object each time a message gets sent to the agent)
         """
+
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
+
+        # note: we only update the system prompt if the core memory is changed
+        # this means that the archival/recall memory statistics may be someout out of date
+        curr_memory_str = self.agent_state.memory.compile()
+        if curr_memory_str in curr_system_message["content"] and not force:
+            # NOTE: could this cause issues if a block is removed? (substring match would still work)
+            printd(f"Memory hasn't changed, skipping system prompt rebuild")
+            return
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False
