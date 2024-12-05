@@ -8,6 +8,29 @@ from letta.constants import LETTA_DIR
 
 SUPPORTED_AUTH_TYPES = ["bearer_token", "api_key"]
 
+PROVIDERS_FEALDS = {
+            "openai": "auth_type",
+            "openai": "key",
+    
+            "azure": "auth_type",
+            "azure": "key",
+            "azure": "version", 
+            "azure":"endpoint",
+            "azure": "deployment", 
+            "azure":"embedding_version",
+            "azure": "embedding_deployment",
+    
+            "google_ai": "key",
+    
+            "anthropic": "key",
+    
+            "cohere": "key",
+    
+            "groq": "key",
+    
+            "openllm": "auth_type", 
+            "openllm": "key",
+        }
 
 @dataclass
 class LettaCredentials:
@@ -53,84 +76,42 @@ class LettaCredentials:
         config = configparser.ConfigParser()
 
         # allow overriding with env variables
-        if os.getenv("MEMGPT_CREDENTIALS_PATH"):
-            credentials_path = os.getenv("MEMGPT_CREDENTIALS_PATH")
-        else:
+        
+        credentials_path = os.getenv("MEMGPT_CREDENTIALS_PATH")
+        if not credentials_path:
             credentials_path = LettaCredentials.credentials_path
 
-        if os.path.exists(credentials_path):
-            # read existing credentials
-            config.read(credentials_path)
-            config_dict = {
-                # openai
-                "openai_auth_type": get_field(config, "openai", "auth_type"),
-                "openai_key": get_field(config, "openai", "key"),
-                # azure
-                "azure_auth_type": get_field(config, "azure", "auth_type"),
-                "azure_key": get_field(config, "azure", "key"),
-                "azure_version": get_field(config, "azure", "version"),
-                "azure_endpoint": get_field(config, "azure", "endpoint"),
-                "azure_deployment": get_field(config, "azure", "deployment"),
-                "azure_embedding_version": get_field(config, "azure", "embedding_version"),
-                "azure_embedding_endpoint": get_field(config, "azure", "embedding_endpoint"),
-                "azure_embedding_deployment": get_field(config, "azure", "embedding_deployment"),
-                # gemini
-                "google_ai_key": get_field(config, "google_ai", "key"),
-                # "google_ai_service_endpoint": get_field(config, "google_ai", "service_endpoint"),
-                # anthropic
-                "anthropic_key": get_field(config, "anthropic", "key"),
-                # cohere
-                "cohere_key": get_field(config, "cohere", "key"),
-                # groq
-                "groq_key": get_field(config, "groq", "key"),
-                # open llm
-                "openllm_auth_type": get_field(config, "openllm", "auth_type"),
-                "openllm_key": get_field(config, "openllm", "key"),
-                # path
-                "credentials_path": credentials_path,
-            }
-            config_dict = {k: v for k, v in config_dict.items() if v is not None}
-            return cls(**config_dict)
+        if not os.path.exists(credentials_path):
 
-        # create new config
-        config = cls(credentials_path=credentials_path)
-        config.save()  # save updated config
-        return config
+            # create new config
+            config = cls(credentials_path=credentials_path)
+            config.save()  # save updated config
+            return config
+            
+        # read existing credentials
+        config.read(credentials_path)
+
+        config_dict = {}
+        for provider, field_name in PROVIDERS_FEALDS.items():
+            value = get_field(config, provider, field_name)
+            if value is not None:
+                config_dict[f"{provider}_{field_name}"] = value
+                    
+        config_dict["credentials_path"] = credentials_path,
+        return cls(**config_dict)
+
 
     def save(self):
         pass
 
         config = configparser.ConfigParser()
         # openai config
-        set_field(config, "openai", "auth_type", self.openai_auth_type)
-        set_field(config, "openai", "key", self.openai_key)
 
-        # azure config
-        set_field(config, "azure", "auth_type", self.azure_auth_type)
-        set_field(config, "azure", "key", self.azure_key)
-        set_field(config, "azure", "version", self.azure_version)
-        set_field(config, "azure", "endpoint", self.azure_endpoint)
-        set_field(config, "azure", "deployment", self.azure_deployment)
-        set_field(config, "azure", "embedding_version", self.azure_embedding_version)
-        set_field(config, "azure", "embedding_endpoint", self.azure_embedding_endpoint)
-        set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)
-
-        # gemini
-        set_field(config, "google_ai", "key", self.google_ai_key)
-        # set_field(config, "google_ai", "service_endpoint", self.google_ai_service_endpoint)
-
-        # anthropic
-        set_field(config, "anthropic", "key", self.anthropic_key)
-
-        # cohere
-        set_field(config, "cohere", "key", self.cohere_key)
-
-        # groq
-        set_field(config, "groq", "key", self.groq_key)
-
-        # openllm config
-        set_field(config, "openllm", "auth_type", self.openllm_auth_type)
-        set_field(config, "openllm", "key", self.openllm_key)
+        for provider, field_name in PROVIDERS_FEALDS.items():
+            set_field(
+                config, provider, field_name, 
+                self.__getattribute__(f"{provider}_{field_name}")
+            )
 
         if not os.path.exists(LETTA_DIR):
             os.makedirs(LETTA_DIR, exist_ok=True)
