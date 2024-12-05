@@ -27,6 +27,7 @@ from letta.schemas.letta_message import (
 )
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
+from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
@@ -102,10 +103,7 @@ def agent(client: Union[LocalClient, RESTClient]):
     yield agent_state
 
     # delete agent
-    try:
-        client.delete_agent(agent_state.id)
-    except:
-        pass
+    client.delete_agent(agent_state.id)
 
 
 def test_agent(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
@@ -601,7 +599,7 @@ def test_shared_blocks(mock_e2b_api_key_none, client: Union[LocalClient, RESTCli
 
 
 @pytest.fixture
-def cleanup_agents():
+def cleanup_agents(client):
     created_agents = []
     yield created_agents
     # Cleanup will run even if test fails
@@ -622,14 +620,6 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     """
     from letta.agent import initialize_message_sequence
     from letta.utils import get_utc_time
-
-    # Clean up all agents beforehand
-    # TODO: This is a patch, and should be done properly before every test
-    for agent in client.list_agents():
-        try:
-            client.delete_agent(agent.id)
-        except:
-            continue
 
     actor = UserManager().get_user_by_id(agent.user_id)
 
@@ -660,24 +650,8 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     # Test with empty sequence
     empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
     cleanup_agents.append(empty_agent_state.id)
-    # NOTE: allowed to be None initially
-    # assert empty_agent_state.message_ids is not None
-    # assert len(empty_agent_state.message_ids) == 1, f"Expected 0 messages, got {len(empty_agent_state.message_ids)}"
 
-    # Test with custom sequence
-    # custom_sequence = [
-    #    Message(
-    #        role=MessageRole.user,
-    #        text="Hello, how are you?",
-    #        user_id=agent.user_id,
-    #        agent_id=agent.id,
-    #        model=agent.llm_config.model,
-    #        name=None,
-    #        tool_calls=None,
-    #        tool_call_id=None,
-    #    ),
-    # ]
-    custom_sequence = [{"text": "Hello, how are you?", "role": "user"}]
+    custom_sequence = [Message(**{"text": "Hello, how are you?", "role": "user"})]
     custom_agent_state = client.create_agent(name="test-custom-message-sequence", initial_message_sequence=custom_sequence)
     cleanup_agents.append(custom_agent_state.id)
     assert custom_agent_state.message_ids is not None
@@ -686,7 +660,7 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     ), f"Expected {len(custom_sequence) + 1} messages, got {len(custom_agent_state.message_ids)}"
     # assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]
     # shoule be contained in second message (after system message)
-    assert custom_sequence[0]["text"] in client.get_in_context_messages(custom_agent_state.id)[1].text
+    assert custom_sequence[0].text in client.get_in_context_messages(custom_agent_state.id)[1].text
 
 
 def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
