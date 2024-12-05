@@ -1,8 +1,8 @@
-"""Migration messages to the orm
+"""Migrate message to orm
 
-Revision ID: a99483f30249
+Revision ID: 95badb46fdf9
 Revises: 3c683a662c82
-Create Date: 2024-12-05 13:26:18.467574
+Create Date: 2024-12-05 14:02:04.163150
 
 """
 
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a99483f30249"
+revision: str = "95badb46fdf9"
 down_revision: Union[str, None] = "3c683a662c82"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -26,18 +26,7 @@ def upgrade() -> None:
     op.add_column("messages", sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("FALSE"), nullable=False))
     op.add_column("messages", sa.Column("_created_by_id", sa.String(), nullable=True))
     op.add_column("messages", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
-    op.add_column("messages", sa.Column("organization_id", sa.String(), nullable=True))
-    # Populate `organization_id` based on `user_id`
-    # Use a raw SQL query to update the organization_id
-    op.execute(
-        """
-        UPDATE messages
-        SET organization_id = users.organization_id
-        FROM users
-        WHERE messages.user_id = users.id
-    """
-    )
-    op.alter_column("messages", "organization_id", nullable=False)
+    op.add_column("messages", sa.Column("organization_id", sa.String(), nullable=False))
     op.alter_column("messages", "tool_calls", existing_type=postgresql.JSON(astext_type=sa.Text()), nullable=False)
     op.alter_column("messages", "created_at", existing_type=postgresql.TIMESTAMP(timezone=True), nullable=False)
     op.drop_index("message_idx_user", table_name="messages")

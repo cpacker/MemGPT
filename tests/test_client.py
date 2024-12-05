@@ -16,7 +16,6 @@ from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.sandbox_config import LocalSandboxConfig, SandboxType
-from letta.settings import tool_settings
 from letta.utils import create_random_username
 
 # Constants
@@ -81,21 +80,6 @@ def clear_tables():
         session.execute(delete(SandboxEnvironmentVariable))
         session.execute(delete(SandboxConfig))
         session.commit()
-
-
-@pytest.fixture
-def mock_e2b_api_key_none():
-    # Store the original value of e2b_api_key
-    original_api_key = tool_settings.e2b_api_key
-
-    # Set e2b_api_key to None
-    tool_settings.e2b_api_key = None
-
-    # Yield control to the test
-    yield
-
-    # Restore the original value of e2b_api_key
-    tool_settings.e2b_api_key = original_api_key
 
 
 def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]):

@@ -583,7 +583,7 @@ def ingest(message: str):
 '''
 
 
-def test_tool_run(server, user_id, agent_id):
+def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     """Test that the server can run tools"""
 
     result = server.run_tool_from_source(

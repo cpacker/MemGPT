@@ -29,7 +29,7 @@ from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.tool_manager import ToolManager
-from letta.settings import model_settings, tool_settings
+from letta.settings import model_settings
 from tests.helpers.client_helper import upload_file_using_client
 
 # from tests.utils import create_config
@@ -52,21 +52,6 @@ def run_server():
 
     print("Starting server...")
     start_server(debug=True)
-
-
-@pytest.fixture
-def mock_e2b_api_key_none():
-    # Store the original value of e2b_api_key
-    original_api_key = tool_settings.e2b_api_key
-
-    # Set e2b_api_key to None
-    tool_settings.e2b_api_key = None
-
-    # Yield control to the test
-    yield
-
-    # Restore the original value of e2b_api_key
-    tool_settings.e2b_api_key = original_api_key
 
 
 # Fixture to create clients with different configurations
