@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING, List, Literal, Optional, Tuple, Type, Union
 
 from sqlalchemy import String, asc, func, select
@@ -19,6 +20,11 @@ if TYPE_CHECKING:
 
 
 logger = get_logger(__name__)
+
+
+class AccessType(str, Enum):
+    ORGANIZATION = "organization"
+    USER = "user"
 
 
 class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
@@ -122,7 +128,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         identifier: Optional[str] = None,
         actor: Optional["User"] = None,
         access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
-        access_type: str = "organization",
+        access_type: AccessType = AccessType.ORGANIZATION,
         **kwargs,
     ) -> Type["SqlalchemyBase"]:
         """The primary accessor for an ORM record.
@@ -222,7 +228,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         query: "Select",
         actor: "User",
         access: List[Literal["read", "write", "admin"]],
-        access_type: str = "organization",
+        access_type: AccessType = AccessType.ORGANIZATION,
     ) -> "Select":
         """applies a WHERE clause restricting results to the given actor and access level
         Args:
@@ -236,12 +242,12 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             the sqlalchemy select statement restricted to the given access.
         """
         del access  # entrypoint for row-level permissions. Defaults to "same org as the actor, all permissions" at the moment
-        if access_type == "organization":
+        if access_type == AccessType.ORGANIZATION:
             org_id = getattr(actor, "organization_id", None)
             if not org_id:
                 raise ValueError(f"object {actor} has no organization accessor")
             return query.where(cls.organization_id == org_id, cls.is_deleted == False)
-        elif access_type == "user":
+        elif access_type == AccessType.USER:
             user_id = getattr(actor, "id", None)
             if not user_id:
                 raise ValueError(f"object {actor} has no user accessor")
