@@ -185,11 +185,6 @@ def run_tool_from_source(
     Attempt to build a tool from source, then run it on the provided arguments
     """
     actor = server.get_user_or_default(user_id=user_id)
-    print(request)
-    import json
-
-    request.args = json.dumps(json.loads(request.args)["data"])
-    print(request)
 
     try:
         return server.run_tool_from_source(
