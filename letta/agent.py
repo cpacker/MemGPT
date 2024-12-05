@@ -1253,7 +1253,24 @@ class Agent(BaseAgent):
         self._messages = new_messages
 
     def rebuild_system_prompt(self, force=False, update_timestamp=True):
-        """Rebuilds the system message with the latest memory object and any shared memory block updates"""
+        """Rebuilds the system message with the latest memory object and any shared memory block updates
+
+        Updates to core memory blocks should trigger a "rebuild", which itself will create a new message object
+
+        Updates to the memory header should *not* trigger a rebuild, since that will simply flood recall storage with excess messages
+
+        TODO modify this code to:
+
+        if force == True, run `compile_system_message`
+        else, check for a diff between the current and new MEMORY CONTENTS
+
+        how? walk through the memory blocks label by label and compare values.
+        or, run .compile on both memory objects and comprae the results.
+
+        if there's no diff, do NOT update the system message
+        note: we're guaranteed to start to have a drifting count for recall memory (in the statistics), but that's an OK tradeoff I think
+        (otherwise we're gonna generate a new message object each time a message gets sent to the agent)
+        """
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
