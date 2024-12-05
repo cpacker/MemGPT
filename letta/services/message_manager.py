@@ -86,7 +86,7 @@ class MessageManager:
                     identifier=message_id,
                     actor=actor,
                 )
-                msg.delete(session, actor=actor)
+                msg.hard_delete(session, actor=actor)
             except NoResultFound:
                 raise ValueError(f"Message with id {message_id} not found.")
 

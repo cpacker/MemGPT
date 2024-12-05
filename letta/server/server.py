@@ -1411,9 +1411,9 @@ class SyncServer(Server):
             raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
 
         # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM MODEL
-        messages = self.message_manager.list_messages(actor, filters={"agent_id": agent_state.id})
+        messages = self.message_manager.list_messages(filters={"agent_id": agent_state.id})
         for message in messages:
-            self.message_manager.delete_message_by_id(message.id)
+            self.message_manager.delete_message_by_id(message.id, actor=actor)
 
         agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
         if agent_state_user.organization_id != actor.organization_id:
