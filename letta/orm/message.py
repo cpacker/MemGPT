@@ -26,7 +26,7 @@ class Message(SqlalchemyBase, UserMixin, AgentMixin):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     # Relationships
-    user: Mapped["User"] = relationship("User", back_populates="messages", lazy="selectin")
+    user: Mapped["User"] = relationship("User", back_populates="messages", lazy="selectin", cascade="all, delete")
     # TODO: Add in after Agent ORM is created
     # agent: Mapped["Agent"] = relationship("Agent", back_populates="messages", lazy="selectin")
 

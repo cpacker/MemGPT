@@ -510,7 +510,7 @@ class SyncServer(Server):
                 f"\nDumping memory contents:\n"
                 + f"\n{str(letta_agent.agent_state.memory)}"
                 + f"\n{str(letta_agent.persistence_manager.archival_memory)}"
-                + f"\n{str(letta_agent.memory_manager)}"
+                + f"\n{str(letta_agent.message_manager)}"
             )
             return ret_str
 
