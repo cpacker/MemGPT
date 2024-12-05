@@ -32,6 +32,9 @@ class UserManager:
                 raise ValueError(f"No organization with {org_id} exists in the organization table.")
 
             # Try to retrieve the user
+            import ipdb
+
+            ipdb.set_trace()
             try:
                 user = UserModel.read(db_session=session, identifier=self.DEFAULT_USER_ID)
             except NoResultFound:
