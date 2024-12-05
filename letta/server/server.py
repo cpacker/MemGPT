@@ -414,7 +414,7 @@ class SyncServer(Server):
                 agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, user=actor)
             elif agent_state.agent_type == AgentType.chat_only_agent:
                 agent = ChatOnlyAgent(agent_state=agent_state, interface=interface, user=actor)
-            else: 
+            else:
                 raise ValueError(f"Invalid agent type {agent_state.agent_type}")
 
             # Rebuild the system prompt - may be linked to new blocks now
@@ -422,7 +422,7 @@ class SyncServer(Server):
 
             # Persist to agent
             save_agent(agent, self.ms)
-            return agent 
+            return agent
 
     def _step(
         self,
@@ -870,7 +870,7 @@ class SyncServer(Server):
                 else:
                     raise ValueError(f"Invalid message role: {message.role}")
 
-                init_messages.append(Message(role=message.role, text=packed_message, user_id=user_id, agent_id=agent_state.id))
+                init_messages.append(Message(role=message.role, text=packed_message, agent_id=agent_state.id))
             # init_messages = [Message.dict_to_message(user_id=user_id, agent_id=agent_state.id, openai_message_dict=message.model_dump()) for message in request.initial_message_sequence]
         else:
             init_messages = None
@@ -1350,7 +1350,7 @@ class SyncServer(Server):
             records = records[::-1]
 
         return records
-      
+
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
 

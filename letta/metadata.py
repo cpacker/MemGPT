@@ -288,8 +288,7 @@ class MetadataStore:
         # make sure agent.name does not already exist for user user_id
         with self.session_maker() as session:
             if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
-                # raise ValueError(f"Agent with name {agent.name} already exists")
-                session.query(AgentModel).filter(AgentModel.name == agent.name).delete()
+                raise ValueError(f"Agent with name {agent.name} already exists")
             fields = vars(agent)
             # fields["memory"] = agent.memory.to_dict()
             # if "_internal_memory" in fields:

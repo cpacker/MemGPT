@@ -29,6 +29,7 @@ from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.tool_manager import ToolManager
+from letta.services.user_manager import UserManager
 from letta.settings import model_settings
 from tests.helpers.client_helper import upload_file_using_client
 
@@ -101,7 +102,10 @@ def agent(client: Union[LocalClient, RESTClient]):
     yield agent_state
 
     # delete agent
-    client.delete_agent(agent_state.id)
+    try:
+        client.delete_agent(agent_state.id)
+    except:
+        pass
 
 
 def test_agent(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
@@ -619,15 +623,25 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     from letta.agent import initialize_message_sequence
     from letta.utils import get_utc_time
 
+    # Clean up all agents beforehand
+    # TODO: This is a patch, and should be done properly before every test
+    for agent in client.list_agents():
+        try:
+            client.delete_agent(agent.id)
+        except:
+            continue
+
+    actor = UserManager().get_user_by_id(agent.user_id)
+
     # The reference initial message sequence:
     reference_init_messages = initialize_message_sequence(
         model=agent.llm_config.model,
         system=agent.system,
         memory=agent.memory,
         archival_memory=None,
-        recall_memory=None,
         memory_edit_timestamp=get_utc_time(),
         include_initial_boot_message=True,
+        actor=actor,
     )
 
     # system, login message, send_message test, send_message receipt
