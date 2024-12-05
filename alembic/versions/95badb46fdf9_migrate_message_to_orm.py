@@ -26,7 +26,18 @@ def upgrade() -> None:
     op.add_column("messages", sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("FALSE"), nullable=False))
     op.add_column("messages", sa.Column("_created_by_id", sa.String(), nullable=True))
     op.add_column("messages", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
-    op.add_column("messages", sa.Column("organization_id", sa.String(), nullable=False))
+    op.add_column("messages", sa.Column("organization_id", sa.String(), nullable=True))
+    # Populate `organization_id` based on `user_id`
+    # Use a raw SQL query to update the organization_id
+    op.execute(
+        """
+        UPDATE messages
+        SET organization_id = users.organization_id
+        FROM users
+        WHERE messages.user_id = users.id
+    """
+    )
+    op.alter_column("messages", "organization_id", nullable=False)
     op.alter_column("messages", "tool_calls", existing_type=postgresql.JSON(astext_type=sa.Text()), nullable=False)
     op.alter_column("messages", "created_at", existing_type=postgresql.TIMESTAMP(timezone=True), nullable=False)
     op.drop_index("message_idx_user", table_name="messages")

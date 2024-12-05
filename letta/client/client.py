@@ -3050,7 +3050,7 @@ class LocalClient(AbstractClient):
             passages (List[Passage]): List of passages
         """
 
-        return self.server.get_agent_archival_cursor(user_id=self.user_id, agent_id=agent_id, cursor=cursor, limit=limit)
+        return self.server.get_agent_archival_cursor(user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit)
 
     # recall memory
 

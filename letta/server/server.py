@@ -726,7 +726,6 @@ class SyncServer(Server):
                 # Create the Message object
                 message_objects.append(
                     Message(
-                        user_id=user_id,
                         agent_id=agent_id,
                         role=message.role,
                         text=message.text,
