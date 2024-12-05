@@ -1,6 +1,6 @@
 import configparser
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 from letta.config import get_field, set_field
@@ -11,6 +11,28 @@ SUPPORTED_AUTH_TYPES = ["bearer_token", "api_key"]
 
 @dataclass
 class LettaCredentials:
+    # key_roller functionality with backward compatability
+    def __getattribute__(self, prop: str):
+        # exclude processing of all fields except fields with keys
+        value = super().__getattribute__(prop)
+        if value is None or prop.endswith("_key"):
+            return value
+
+        # the key field stores comma-separated keys
+        keys = [key for key in value.split(",")]
+        # calculating the current key number
+        number = self._key_nums.get(prop, 0)
+        number = number + 1 if number + 1 < len(keys) else 0
+        self._key_nums[prop] = number
+        # key issuance
+        if len(keys):
+            return keys[number]
+        return None
+
+    def _get_keys(self, key_name):
+        return super().__getattribute__(key_name)
+
+    _key_nums: dict[str, int] = field(default_factory=dict)
     # credentials for Letta
     credentials_path: str = os.path.join(LETTA_DIR, "credentials")
 
@@ -103,11 +125,11 @@ class LettaCredentials:
         config = configparser.ConfigParser()
         # openai config
         set_field(config, "openai", "auth_type", self.openai_auth_type)
-        set_field(config, "openai", "key", self.openai_key)
+        set_field(config, "openai", "key", self._get_keys("openai_key"))
 
         # azure config
         set_field(config, "azure", "auth_type", self.azure_auth_type)
-        set_field(config, "azure", "key", self.azure_key)
+        set_field(config, "azure", "key", self._get_keys("azure_key"))
         set_field(config, "azure", "version", self.azure_version)
         set_field(config, "azure", "endpoint", self.azure_endpoint)
         set_field(config, "azure", "deployment", self.azure_deployment)
@@ -116,21 +138,21 @@ class LettaCredentials:
         set_field(config, "azure", "embedding_deployment", self.azure_embedding_deployment)
 
         # gemini
-        set_field(config, "google_ai", "key", self.google_ai_key)
+        set_field(config, "google_ai", "key", self._get_keys("google_ai_key"))
         # set_field(config, "google_ai", "service_endpoint", self.google_ai_service_endpoint)
 
         # anthropic
-        set_field(config, "anthropic", "key", self.anthropic_key)
+        set_field(config, "anthropic", "key", self._get_keys("anthropic_key"))
 
         # cohere
-        set_field(config, "cohere", "key", self.cohere_key)
+        set_field(config, "cohere", "key", self._get_keys("cohere_key"))
 
         # groq
-        set_field(config, "groq", "key", self.groq_key)
+        set_field(config, "groq", "key", self._get_keys("groq_key"))
 
         # openllm config
         set_field(config, "openllm", "auth_type", self.openllm_auth_type)
-        set_field(config, "openllm", "key", self.openllm_key)
+        set_field(config, "openllm", "key", self._get_keys("openllm_key"))
 
         if not os.path.exists(LETTA_DIR):
             os.makedirs(LETTA_DIR, exist_ok=True)
