@@ -12,15 +12,14 @@ from letta.orm.base import Base
 from letta.schemas.agent import PersistedAgentState
 from letta.schemas.api_key import APIKey
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import JobStatus, ToolRuleType
-from letta.schemas.job import Job
+from letta.schemas.enums import ToolRuleType
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
 from letta.schemas.user import User
 from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.settings import settings
-from letta.utils import enforce_types, get_utc_time, printd
+from letta.utils import enforce_types, printd
 
 
 class LLMConfigColumn(TypeDecorator):
@@ -258,31 +257,6 @@ class AgentSourceMappingModel(Base):
         return f"<AgentSourceMapping(user_id='{self.user_id}', agent_id='{self.agent_id}', source_id='{self.source_id}')>"
 
 
-class JobModel(Base):
-    __tablename__ = "jobs"
-    __table_args__ = {"extend_existing": True}
-
-    id = Column(String, primary_key=True)
-    user_id = Column(String)
-    status = Column(String, default=JobStatus.pending)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    completed_at = Column(DateTime(timezone=True), onupdate=func.now())
-    metadata_ = Column(JSON)
-
-    def __repr__(self) -> str:
-        return f"<Job(id='{self.id}', status='{self.status}')>"
-
-    def to_record(self):
-        return Job(
-            id=self.id,
-            user_id=self.user_id,
-            status=self.status,
-            created_at=self.created_at,
-            completed_at=self.completed_at,
-            metadata_=self.metadata_,
-        )
-
-
 class MetadataStore:
     uri: Optional[str] = None
 
@@ -454,41 +428,4 @@ class MetadataStore:
             session.query(AgentSourceMappingModel).filter(
                 AgentSourceMappingModel.agent_id == agent_id, AgentSourceMappingModel.source_id == source_id
             ).delete()
-            session.commit()
-
-    @enforce_types
-    def create_job(self, job: Job):
-        with self.session_maker() as session:
-            session.add(JobModel(**vars(job)))
-            session.commit()
-
-    def delete_job(self, job_id: str):
-        with self.session_maker() as session:
-            session.query(JobModel).filter(JobModel.id == job_id).delete()
-            session.commit()
-
-    def get_job(self, job_id: str) -> Optional[Job]:
-        with self.session_maker() as session:
-            results = session.query(JobModel).filter(JobModel.id == job_id).all()
-            if len(results) == 0:
-                return None
-            assert len(results) == 1, f"Expected 1 result, got {len(results)}"
-            return results[0].to_record()
-
-    def list_jobs(self, user_id: str) -> List[Job]:
-        with self.session_maker() as session:
-            results = session.query(JobModel).filter(JobModel.user_id == user_id).all()
-            return [r.to_record() for r in results]
-
-    def update_job(self, job: Job) -> Job:
-        with self.session_maker() as session:
-            session.query(JobModel).filter(JobModel.id == job.id).update(vars(job))
-            session.commit()
-        return Job
-
-    def update_job_status(self, job_id: str, status: JobStatus):
-        with self.session_maker() as session:
-            session.query(JobModel).filter(JobModel.id == job_id).update({"status": status})
-            if status == JobStatus.COMPLETED:
-                session.query(JobModel).filter(JobModel.id == job_id).update({"completed_at": get_utc_time()})
             session.commit()

@@ -15,7 +15,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from typing import List, Union, _GenericAlias, get_type_hints
+from typing import List, Union, _GenericAlias, get_args, get_origin, get_type_hints
 from urllib.parse import urljoin, urlparse
 
 import demjson3 as demjson
@@ -529,16 +529,32 @@ def enforce_types(func):
         # Pair each argument with its corresponding type hint
         args_with_hints = dict(zip(arg_names[1:], args[1:]))  # Skipping 'self'
 
+        # Function to check if a value matches a given type hint
+        def matches_type(value, hint):
+            origin = get_origin(hint)
+            args = get_args(hint)
+
+            if origin is list and isinstance(value, list):  # Handle List[T]
+                element_type = args[0] if args else None
+                return all(isinstance(v, element_type) for v in value) if element_type else True
+            elif origin is Union and type(None) in args:  # Handle Optional[T]
+                non_none_type = next(arg for arg in args if arg is not type(None))
+                return value is None or matches_type(value, non_none_type)
+            elif origin:  # Handle other generics like Dict, Tuple, etc.
+                return isinstance(value, origin)
+            else:  # Handle non-generic types
+                return isinstance(value, hint)
+
         # Check types of arguments
         for arg_name, arg_value in args_with_hints.items():
             hint = hints.get(arg_name)
-            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
+            if hint and not matches_type(arg_value, hint):
                 raise ValueError(f"Argument {arg_name} does not match type {hint}")
 
         # Check types of keyword arguments
         for arg_name, arg_value in kwargs.items():
             hint = hints.get(arg_name)
-            if hint and not isinstance(arg_value, hint) and not (is_optional_type(hint) and arg_value is None):
+            if hint and not matches_type(arg_value, hint):
                 raise ValueError(f"Argument {arg_name} does not match type {hint}")
 
         return func(*args, **kwargs)

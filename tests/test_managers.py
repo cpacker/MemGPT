@@ -10,6 +10,7 @@ from letta.orm import (
     Block,
     BlocksAgents,
     FileMetadata,
+    Job,
     Organization,
     SandboxConfig,
     SandboxEnvironmentVariable,
@@ -20,13 +21,17 @@ from letta.orm import (
 from letta.orm.agents_tags import AgentsTags
 from letta.orm.errors import (
     ForeignKeyConstraintViolationError,
+    NoResultFound,
     UniqueConstraintViolationError,
 )
 from letta.schemas.agent import CreateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate, CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.enums import JobStatus
 from letta.schemas.file import FileMetadata as PydanticFileMetadata
+from letta.schemas.job import Job as PydanticJob
+from letta.schemas.job import JobUpdate
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.organization import Organization as PydanticOrganization
 from letta.schemas.sandbox_config import (
@@ -70,6 +75,7 @@ using_sqlite = not bool(os.getenv("LETTA_PG_URI"))
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(Job))
         session.execute(delete(BlocksAgents))
         session.execute(delete(AgentsTags))
         session.execute(delete(SandboxEnvironmentVariable))
@@ -1147,3 +1153,182 @@ def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user
 
     with pytest.raises(ForeignKeyConstraintViolationError):
         server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+
+# ======================================================================================================================
+# JobManager Tests
+# ======================================================================================================================
+
+
+def test_create_job(server: SyncServer, default_user):
+    """Test creating a job."""
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Assertions to ensure the created job matches the expected values
+    assert created_job.user_id == default_user.id
+    assert created_job.status == JobStatus.created
+    assert created_job.metadata_ == {"type": "test"}
+
+
+def test_get_job_by_id(server: SyncServer, default_user):
+    """Test fetching a job by ID."""
+    # Create a job
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Fetch the job by ID
+    fetched_job = server.job_manager.get_job_by_id(created_job.id, actor=default_user)
+
+    # Assertions to ensure the fetched job matches the created job
+    assert fetched_job.id == created_job.id
+    assert fetched_job.status == JobStatus.created
+    assert fetched_job.metadata_ == {"type": "test"}
+
+
+def test_list_jobs(server: SyncServer, default_user):
+    """Test listing jobs."""
+    # Create multiple jobs
+    for i in range(3):
+        job_data = PydanticJob(
+            status=JobStatus.created,
+            metadata_={"type": f"test-{i}"},
+        )
+        server.job_manager.create_job(job_data, actor=default_user)
+
+    # List jobs
+    jobs = server.job_manager.list_jobs(actor=default_user)
+
+    # Assertions to check that the created jobs are listed
+    assert len(jobs) == 3
+    assert all(job.user_id == default_user.id for job in jobs)
+    assert all(job.metadata_["type"].startswith("test") for job in jobs)
+
+
+def test_update_job_by_id(server: SyncServer, default_user):
+    """Test updating a job by its ID."""
+    # Create a job
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Update the job
+    update_data = JobUpdate(status=JobStatus.completed, metadata_={"type": "updated"})
+    updated_job = server.job_manager.update_job_by_id(created_job.id, update_data, actor=default_user)
+
+    # Assertions to ensure the job was updated
+    assert updated_job.status == JobStatus.completed
+    assert updated_job.metadata_ == {"type": "updated"}
+    assert updated_job.completed_at is not None
+
+
+def test_delete_job_by_id(server: SyncServer, default_user):
+    """Test deleting a job by its ID."""
+    # Create a job
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Delete the job
+    server.job_manager.delete_job_by_id(created_job.id, actor=default_user)
+
+    # List jobs to ensure the job was deleted
+    jobs = server.job_manager.list_jobs(actor=default_user)
+    assert len(jobs) == 0
+
+
+def test_update_job_auto_complete(server: SyncServer, default_user):
+    """Test that updating a job's status to 'completed' automatically sets completed_at."""
+    # Create a job
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Update the job's status to 'completed'
+    update_data = JobUpdate(status=JobStatus.completed)
+    updated_job = server.job_manager.update_job_by_id(created_job.id, update_data, actor=default_user)
+
+    # Assertions to check that completed_at was set
+    assert updated_job.status == JobStatus.completed
+    assert updated_job.completed_at is not None
+
+
+def test_get_job_not_found(server: SyncServer, default_user):
+    """Test fetching a non-existent job."""
+    non_existent_job_id = "nonexistent-id"
+    with pytest.raises(NoResultFound):
+        server.job_manager.get_job_by_id(non_existent_job_id, actor=default_user)
+
+
+def test_delete_job_not_found(server: SyncServer, default_user):
+    """Test deleting a non-existent job."""
+    non_existent_job_id = "nonexistent-id"
+    with pytest.raises(NoResultFound):
+        server.job_manager.delete_job_by_id(non_existent_job_id, actor=default_user)
+
+
+def test_list_jobs_pagination(server: SyncServer, default_user):
+    """Test listing jobs with pagination."""
+    # Create multiple jobs
+    for i in range(10):
+        job_data = PydanticJob(
+            status=JobStatus.created,
+            metadata_={"type": f"test-{i}"},
+        )
+        server.job_manager.create_job(job_data, actor=default_user)
+
+    # List jobs with a limit
+    jobs = server.job_manager.list_jobs(actor=default_user, limit=5)
+
+    # Assertions to check pagination
+    assert len(jobs) == 5
+    assert all(job.user_id == default_user.id for job in jobs)
+
+
+def test_list_jobs_by_status(server: SyncServer, default_user):
+    """Test listing jobs filtered by status."""
+    # Create multiple jobs with different statuses
+    job_data_created = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test-created"},
+    )
+    job_data_in_progress = PydanticJob(
+        status=JobStatus.running,
+        metadata_={"type": "test-running"},
+    )
+    job_data_completed = PydanticJob(
+        status=JobStatus.completed,
+        metadata_={"type": "test-completed"},
+    )
+
+    server.job_manager.create_job(job_data_created, actor=default_user)
+    server.job_manager.create_job(job_data_in_progress, actor=default_user)
+    server.job_manager.create_job(job_data_completed, actor=default_user)
+
+    # List jobs filtered by status
+    created_jobs = server.job_manager.list_jobs(actor=default_user, statuses=[JobStatus.created])
+    in_progress_jobs = server.job_manager.list_jobs(actor=default_user, statuses=[JobStatus.running])
+    completed_jobs = server.job_manager.list_jobs(actor=default_user, statuses=[JobStatus.completed])
+
+    # Assertions
+    assert len(created_jobs) == 1
+    assert created_jobs[0].metadata_["type"] == job_data_created.metadata_["type"]
+
+    assert len(in_progress_jobs) == 1
+    assert in_progress_jobs[0].metadata_["type"] == job_data_in_progress.metadata_["type"]
+
+    assert len(completed_jobs) == 1
+    assert completed_jobs[0].metadata_["type"] == job_data_completed.metadata_["type"]

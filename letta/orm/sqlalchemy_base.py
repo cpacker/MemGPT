@@ -31,24 +31,43 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     def list(
         cls, *, db_session: "Session", cursor: Optional[str] = None, limit: Optional[int] = 50, **kwargs
     ) -> List[Type["SqlalchemyBase"]]:
-        """List records with optional cursor (for pagination) and limit."""
-        logger.debug(f"Listing {cls.__name__} with kwarg filters {kwargs}")
-        with db_session as session:
-            # Start with the base query filtered by kwargs
-            query = select(cls).filter_by(**kwargs)
+        """
+        List records with optional cursor (for pagination), limit, and automatic filtering.
 
-            # Add a cursor condition if provided
+        Args:
+            db_session: The database session to use.
+            cursor: Optional ID to start pagination from.
+            limit: Maximum number of records to return.
+            **kwargs: Filters passed as equality conditions or iterable for IN filtering.
+
+        Returns:
+            A list of model instances matching the filters.
+        """
+        logger.debug(f"Listing {cls.__name__} with filters {kwargs}")
+        with db_session as session:
+            # Start with a base query
+            query = select(cls)
+
+            # Apply filtering logic
+            for key, value in kwargs.items():
+                column = getattr(cls, key)
+                if isinstance(value, (list, tuple, set)):  # Check for iterables
+                    query = query.where(column.in_(value))
+                else:  # Single value for equality filtering
+                    query = query.where(column == value)
+
+            # Apply cursor for pagination
             if cursor:
                 query = query.where(cls.id > cursor)
-
-            # Add a limit to the query if provided
-            query = query.order_by(cls.id).limit(limit)
 
             # Handle soft deletes if the class has the 'is_deleted' attribute
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
 
-            # Execute the query and return the results as a list of model instances
+            # Add ordering and limit
+            query = query.order_by(cls.id).limit(limit)
+
+            # Execute the query and return results as model instances
             return list(session.execute(query).scalars())
 
     @classmethod
