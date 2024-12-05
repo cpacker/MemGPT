@@ -18,6 +18,7 @@ import letta.system as system
 from letta.agent import Agent, save_agent
 from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
+from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -27,6 +28,7 @@ from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.metadata import MetadataStore
 from letta.o1_agent import O1Agent
+from letta.offline_memory_agent import OfflineMemoryAgent
 from letta.orm import Base
 from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
@@ -397,20 +399,30 @@ class SyncServer(Server):
         agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
         with agent_lock:
             agent_state = self.get_agent(agent_id=agent_id)
+            if agent_state is None:
+                raise ValueError(f"Agent (agent_id={agent_id}) does not exist")
+            elif agent_state.user_id is None:
+                raise ValueError(f"Agent (agent_id={agent_id}) does not have a user_id")
             actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
             interface = interface or self.default_interface_factory()
             if agent_state.agent_type == AgentType.memgpt_agent:
                 agent = Agent(agent_state=agent_state, interface=interface, user=actor)
-            else:
+            elif agent_state.agent_type == AgentType.o1_agent:
                 agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+            elif agent_state.agent_type == AgentType.offline_memory_agent:
+                agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, user=actor)
+            elif agent_state.agent_type == AgentType.chat_only_agent:
+                agent = ChatOnlyAgent(agent_state=agent_state, interface=interface, user=actor)
+            else: 
+                raise ValueError(f"Invalid agent type {agent_state.agent_type}")
 
             # Rebuild the system prompt - may be linked to new blocks now
             agent.rebuild_system_prompt()
 
             # Persist to agent
             save_agent(agent, self.ms)
-            return agent
+            return agent 
 
     def _step(
         self,
@@ -792,6 +804,10 @@ class SyncServer(Server):
                 request.system = gpt_system.get_system_text("memgpt_chat")
             elif request.agent_type == AgentType.o1_agent:
                 request.system = gpt_system.get_system_text("memgpt_modified_o1")
+            elif request.agent_type == AgentType.offline_memory_agent:
+                request.system = gpt_system.get_system_text("memgpt_offline_memory")
+            elif request.agent_type == AgentType.chat_only_agent:
+                request.system = gpt_system.get_system_text("memgpt_convo_only")
             else:
                 raise ValueError(f"Invalid agent type: {request.agent_type}")
 
@@ -878,7 +894,7 @@ class SyncServer(Server):
         in_memory_agent_state = self.get_agent(agent_state.id)
         return in_memory_agent_state
 
-    def get_agent(self, agent_id: str) -> AgentState:
+    def get_agent(self, agent_id: str) -> Optional[AgentState]:
         """
         Retrieve the full agent state from the DB.
         This gathers data accross multiple tables to provide the full state of an agent, which is passed into the `Agent` object for creation.
@@ -889,6 +905,8 @@ class SyncServer(Server):
         if agent_state is None:
             # agent does not exist
             return None
+        if agent_state.user_id is None:
+            raise ValueError(f"Agent {agent_id} does not have a user_id")
         user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
         # construct the in-memory, full agent state - this gather data stored in different tables but that needs to be passed to `Agent`
@@ -1332,7 +1350,7 @@ class SyncServer(Server):
             records = records[::-1]
 
         return records
-
+      
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
 

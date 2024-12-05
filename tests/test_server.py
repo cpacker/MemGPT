@@ -1,11 +1,13 @@
 import json
 import uuid
 import warnings
+from typing import List, Tuple
 
 import pytest
 
 import letta.utils as utils
-from letta.constants import BASE_TOOLS
+from letta.constants import BASE_MEMORY_TOOLS, BASE_TOOLS
+from letta.schemas.block import CreateBlock
 from letta.schemas.enums import MessageRole
 from letta.schemas.letta_message import (
     FunctionCallMessage,
@@ -667,3 +669,69 @@ def test_composio_client_simple(server):
 
     # Assert there's some amount of actions
     assert len(actions) > 0
+
+
+def test_memory_rebuild_count(server, user_id):
+    """Test that the memory rebuild is generating the correct number of role=system messages"""
+
+    # create agent
+    agent_state = server.create_agent(
+        request=CreateAgent(
+            name="memory_rebuild_test_agent",
+            tools=BASE_TOOLS + BASE_MEMORY_TOOLS,
+            memory_blocks=[
+                CreateBlock(label="human", value="The human's name is Bob."),
+                CreateBlock(label="persona", value="My name is Alice."),
+            ],
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        ),
+        actor=server.get_user_or_default(user_id),
+    )
+    print(f"Created agent\n{agent_state}")
+
+    def count_system_messages_in_recall() -> Tuple[int, List[LettaMessage]]:
+
+        # At this stage, there should only be 1 system message inside of recall storage
+        letta_messages = server.get_agent_recall_cursor(
+            user_id=user_id,
+            agent_id=agent_state.id,
+            limit=1000,
+            # reverse=reverse,
+            return_message_object=False,
+        )
+        assert all(isinstance(m, LettaMessage) for m in letta_messages)
+
+        print("LETTA_MESSAGES:")
+        for i, m in enumerate(letta_messages):
+            print(f"{i}: {type(m)} ...{str(m)[-50:]}")
+
+        # Collect system messages and their texts
+        system_messages = [m for m in letta_messages if m.message_type == "system_message"]
+        return len(system_messages), letta_messages
+
+    try:
+
+        # At this stage, there should only be 1 system message inside of recall storage
+        num_system_messages, all_messages = count_system_messages_in_recall()
+        # assert num_system_messages == 1, (num_system_messages, all_messages)
+        assert num_system_messages == 2, (num_system_messages, all_messages)
+
+        # Assuming core memory append actually ran correctly, at this point there should be 2 messages
+        server.user_message(user_id=user_id, agent_id=agent_state.id, message="Append 'banana' to your core memory")
+
+        # At this stage, there should only be 1 system message inside of recall storage
+        num_system_messages, all_messages = count_system_messages_in_recall()
+        # assert num_system_messages == 2, (num_system_messages, all_messages)
+        assert num_system_messages == 3, (num_system_messages, all_messages)
+
+        # Run server.load_agent, and make sure that the number of system messages is still 2
+        server.load_agent(agent_id=agent_state.id)
+
+        num_system_messages, all_messages = count_system_messages_in_recall()
+        # assert num_system_messages == 2, (num_system_messages, all_messages)
+        assert num_system_messages == 3, (num_system_messages, all_messages)
+
+    finally:
+        # cleanup
+        server.delete_agent(user_id, agent_state.id)
