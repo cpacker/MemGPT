@@ -96,11 +96,6 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             elif end_date and hasattr(cls, "created_at"):
                 query = query.filter(cls.created_at <= end_date)
 
-            # Handle role filters if the model has them
-            if hasattr(cls, "role"):
-                query = query.filter(cls.role != "system")
-                query = query.filter(cls.role != "tool")
-
             # Handle cursor-based pagination
             if cursor:
                 query = query.where(cls.id > cursor)

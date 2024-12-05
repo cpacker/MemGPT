@@ -104,18 +104,50 @@ class MessageManager:
             except NoResultFound:
                 raise ValueError(f"Message with id {message_id} not found.")
 
+    def _get_excluded_roles(self, include_system_messages: bool = False, include_tool_messages: bool = False) -> List[str]:
+        """Helper method to get list of roles to exclude based on include flags.
+        
+        Args:
+            include_system_messages: If True, don't exclude system messages
+            include_tool_messages: If True, don't exclude tool messages
+            
+        Returns:
+            List of role names to exclude
+        """
+        excluded_roles = []
+        if not include_system_messages:
+            excluded_roles.append("system")
+        if not include_tool_messages:
+            excluded_roles.append("tool")
+        return excluded_roles
+
     @enforce_types
-    def size(self, actor: PydanticUser, filters: Optional[Dict] = None) -> int:
-        """Get the total count of messages with optional filters."""
+    def size(
+        self, 
+        actor: PydanticUser, 
+        filters: Optional[Dict] = None,
+        only_user_messages: bool = True,
+    ) -> int:
+        """Get the total count of messages with optional filters.
+        
+        Args:
+            actor: The user requesting the count
+            filters: Additional filters to apply
+            only_user_messages: If True, only count user messages
+        """
         with self.session_maker() as session:
             query = session.query(MessageModel).filter(MessageModel.user_id == actor.id)
             
+            # Handle role exclusions
+            if only_user_messages:
+                query = query.filter(MessageModel.role == "user")
+
+            # Add any additional filters
             if filters:
                 for key, value in filters.items():
-                    query = query.filter(
-                        getattr(MessageModel, key) == value
-                    )
+                    query = query.filter(getattr(MessageModel, key) == value)
             
+            # import ipdb;ipdb.set_trace()
             return query.count()
 
     @enforce_types
@@ -128,6 +160,7 @@ class MessageManager:
         limit: Optional[int] = 50,
         filters: Optional[Dict] = None,
         query_text: Optional[str] = None,
+        only_user_messages: bool = True,
     ) -> List[PydanticMessage]:
         """List messages with flexible filtering and pagination options.
         
@@ -138,11 +171,21 @@ class MessageManager:
             limit: Maximum number of records to return
             filters: Additional filters to apply
             query_text: Optional text to search for in message content
+            only_user_messages: If True, include only user messages in results
             
         Returns:
             List[PydanticMessage] - List of messages matching the criteria
         """
         with self.session_maker() as session:
+            # Start with base filters
+            message_filters = {"user_id": actor.id}
+            if only_user_messages:
+                message_filters["role"] = "user"
+            
+            # Add any additional filters
+            if filters:
+                message_filters.update(filters)
+
             results = MessageModel.list(
                 db_session=session,
                 cursor=cursor,
@@ -150,8 +193,7 @@ class MessageManager:
                 end_date=end_date,
                 limit=limit,
                 query_text=query_text,
-                user_id=actor.id,
-                **(filters or {})
+                **message_filters
             )
 
             return [msg.to_pydantic() for msg in results]
