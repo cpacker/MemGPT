@@ -7,7 +7,7 @@ from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.user import User as PydanticUser
 
 if TYPE_CHECKING:
-    from letta.orm import Job, Message, Organization
+    from letta.orm import Job, Organization
 
 
 class User(SqlalchemyBase, OrganizationMixin):
@@ -20,7 +20,6 @@ class User(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="users")
-    messages: Mapped[List["Message"]] = relationship("Message", back_populates="user", cascade="all, delete-orphan")
     jobs: Mapped[List["Job"]] = relationship("Job", back_populates="user", doc="the jobs associated with this user.")
 
     # TODO: Add this back later potentially

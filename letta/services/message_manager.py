@@ -21,7 +21,7 @@ class MessageManager:
         """Fetch a message by ID."""
         with self.session_maker() as session:
             try:
-                message = MessageModel.read(db_session=session, identifier=message_id, actor=actor, access_type="user")
+                message = MessageModel.read(db_session=session, identifier=message_id, actor=actor)
                 return message.to_pydantic()
             except NoResultFound:
                 return None
@@ -30,26 +30,17 @@ class MessageManager:
     def create_message(self, pydantic_msg: PydanticMessage, actor: PydanticUser) -> PydanticMessage:
         """Create a new message."""
         with self.session_maker() as session:
-            pydantic_msg.user_id = actor.id
+            # Set the organization id of the Pydantic message
+            pydantic_msg.organization_id = actor.organization_id
             msg_data = pydantic_msg.model_dump()
             msg = MessageModel(**msg_data)
             msg.create(session, actor=actor)  # Persist to database
             return msg.to_pydantic()
 
-    def create_many_messages(self, messages: List[PydanticMessage], actor: PydanticUser) -> List[PydanticMessage]:
+    @enforce_types
+    def create_many_messages(self, pydantic_msgs: List[PydanticMessage], actor: PydanticUser) -> List[PydanticMessage]:
         """Create multiple messages."""
-
-        # Can't use enforce_types here, so manually check
-        assert all(isinstance(msg, PydanticMessage) for msg in messages)
-
-        with self.session_maker() as session:  # return list(session.execute(query).scalars())
-            # Set user_id for each message
-            for msg in messages:
-                msg.user_id = actor.id
-            msg_models = [MessageModel(**msg.model_dump()) for msg in messages]
-            for msg in msg_models:
-                msg.create(session, actor=actor)
-            return [msg.to_pydantic() for msg in msg_models]
+        return [self.create_message(m, actor=actor) for m in pydantic_msgs]
 
     @enforce_types
     def update_message_by_id(self, message_id: str, message: PydanticMessage, actor: PydanticUser) -> Optional[PydanticMessage]:
@@ -68,7 +59,6 @@ class MessageManager:
                     db_session=session,
                     identifier=message_id,
                     actor=actor,
-                    access_type="user",
                 )
                 if not msg:
                     raise ValueError(f"Message with id {message_id} does not exist.")
@@ -95,7 +85,6 @@ class MessageManager:
                     db_session=session,
                     identifier=message_id,
                     actor=actor,
-                    access_type="user",
                 )
                 msg.delete(session, actor=actor)
             except NoResultFound:
@@ -134,7 +123,7 @@ class MessageManager:
             only_user_messages: If True, only count user messages
         """
         with self.session_maker() as session:
-            query = session.query(MessageModel).filter(MessageModel.user_id == actor.id)
+            query = session.query(MessageModel).filter(MessageModel.organization_id == actor.organization_id)
 
             # Handle role exclusions
             if only_user_messages:
@@ -150,7 +139,7 @@ class MessageManager:
     @enforce_types
     def list_user_messages(
         self,
-        actor: PydanticUser,
+        actor: Optional[PydanticUser] = None,
         cursor: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
@@ -189,7 +178,7 @@ class MessageManager:
     @enforce_types
     def list_messages(
         self,
-        actor: PydanticUser,
+        actor: Optional[PydanticUser] = None,
         cursor: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
@@ -212,7 +201,9 @@ class MessageManager:
         """
         with self.session_maker() as session:
             # Start with base filters
-            message_filters = {"user_id": actor.id}
+            message_filters = {}
+            if actor:
+                message_filters = {"organization_id": actor.organization_id}
             if filters:
                 message_filters.update(filters)
 

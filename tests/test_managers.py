@@ -186,21 +186,9 @@ def print_tool(server: SyncServer, default_user, default_organization):
 @pytest.fixture
 def print_message(server: SyncServer, default_user, sarah_agent):
     """Fixture to create a tool with default settings and clean up after the test."""
-
-    def print_message(message: str):
-        """
-        Args:
-            message (str): The message to print.
-
-        Returns:
-            str: The message that was printed.
-        """
-        print(message)
-        return message
-
     # Set up message
     message = PydanticMessage(
-        user_id=default_user.id,
+        organization_id=default_user.organization_id,
         agent_id=sarah_agent.id,
         role="user",
         text="Hello, world!",
@@ -590,7 +578,9 @@ def test_message_size(server: SyncServer, print_message, default_user):
 
     # Create additional test messages
     messages = [
-        PydanticMessage(user_id=default_user.id, agent_id=base_message.agent_id, role=base_message.role, text=f"Test message {i}")
+        PydanticMessage(
+            organization_id=default_user.organization_id, agent_id=base_message.agent_id, role=base_message.role, text=f"Test message {i}"
+        )
         for i in range(4)
     ]
     server.message_manager.create_many_messages(messages, actor=default_user)
@@ -605,7 +595,7 @@ def test_message_size(server: SyncServer, print_message, default_user):
     assert agent_count == 6
 
     # Test count with user filter
-    user_count = server.message_manager.size(actor=default_user, filters={"user_id": base_message.user_id})
+    user_count = server.message_manager.size(actor=default_user, filters={"organization_id": base_message.organization_id})
     assert user_count == 6
 
     # Test count with role filter
@@ -620,7 +610,9 @@ def test_message_size(server: SyncServer, print_message, default_user):
 def create_test_messages(server: SyncServer, base_message: PydanticMessage, default_user) -> list[PydanticMessage]:
     """Helper function to create test messages for all tests"""
     messages = [
-        PydanticMessage(user_id=base_message.user_id, agent_id=base_message.agent_id, role=base_message.role, text=f"Test message {i}")
+        PydanticMessage(
+            organization_id=default_user.organization_id, agent_id=base_message.agent_id, role=base_message.role, text=f"Test message {i}"
+        )
         for i in range(4)
     ]
     server.message_manager.create_many_messages(messages, actor=default_user)

@@ -612,7 +612,6 @@ class SyncServer(Server):
             # Convert to a Message object
             if timestamp:
                 message = Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     role="user",
                     text=packaged_user_message,
@@ -620,7 +619,6 @@ class SyncServer(Server):
                 )
             else:
                 message = Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     role="user",
                     text=packaged_user_message,
@@ -659,7 +657,6 @@ class SyncServer(Server):
 
             if timestamp:
                 message = Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     role="system",
                     text=packaged_system_message,
@@ -667,7 +664,6 @@ class SyncServer(Server):
                 )
             else:
                 message = Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     role="system",
                     text=packaged_system_message,
@@ -840,9 +836,6 @@ class SyncServer(Server):
         )
         # TODO: move this to agent ORM
         # this saves the agent ID and state into the DB
-        import ipdb
-
-        ipdb.set_trace()
         self.ms.create_agent(agent_state)
 
         # create the agent object
