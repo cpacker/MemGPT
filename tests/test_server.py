@@ -3,21 +3,9 @@ import uuid
 import warnings
 
 import pytest
-from sqlalchemy import delete
 
 import letta.utils as utils
 from letta.constants import BASE_TOOLS
-from letta.metadata import AgentModel
-from letta.orm import (
-    AgentsTags,
-    Block,
-    BlocksAgents,
-    FileMetadata,
-    Organization,
-    SandboxConfig,
-    SandboxEnvironmentVariable,
-    Tool,
-)
 from letta.schemas.enums import MessageRole
 from letta.schemas.letta_message import (
     FunctionCallMessage,
@@ -41,25 +29,6 @@ from letta.schemas.source import Source
 from letta.server.server import SyncServer
 
 from .utils import DummyDataConnector
-
-
-@pytest.fixture(autouse=True)
-def clear_tables(server: SyncServer):
-    """Fixture to clear the organization table before each test."""
-    with server.organization_manager.session_maker() as session:
-        session.execute(delete(Message))
-        session.execute(delete(BlocksAgents))
-        session.execute(delete(AgentsTags))
-        session.execute(delete(SandboxEnvironmentVariable))
-        session.execute(delete(SandboxConfig))
-        session.execute(delete(Block))
-        session.execute(delete(FileMetadata))
-        session.execute(delete(Source))
-        session.execute(delete(Tool))  # Clear all records from the Tool table
-        session.execute(delete(AgentModel))
-        session.execute(delete(User))  # Clear all records from the user table
-        session.execute(delete(Organization))  # Clear all records from the organization table
-        session.commit()  # Commit the deletion
 
 
 @pytest.fixture(scope="module")
