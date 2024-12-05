@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-import sentry_sdk
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -126,6 +125,8 @@ def create_application() -> "FastAPI":
     print(f"\n[[ Letta server // v{__version__} ]]")
 
     if (os.getenv("SENTRY_DSN") is not None) and (os.getenv("SENTRY_DSN") != ""):
+        import sentry_sdk
+
         sentry_sdk.init(
             dsn=os.getenv("SENTRY_DSN"),
             traces_sample_rate=1.0,
