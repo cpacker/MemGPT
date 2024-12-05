@@ -6,7 +6,7 @@ import warnings
 from abc import abstractmethod
 from asyncio import Lock
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 from composio.client import Composio
 from composio.client.collections import ActionModel, AppModel
@@ -56,7 +56,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from letta.schemas.enums import JobStatus
-from letta.schemas.job import Job
+from letta.schemas.job import Job, JobUpdate
 from letta.schemas.letta_message import FunctionReturn, LettaMessage
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import (
@@ -75,6 +75,7 @@ from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
 from letta.services.blocks_agents_manager import BlocksAgentsManager
+from letta.services.job_manager import JobManager
 from letta.services.message_manager import MessageManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.per_agent_lock_manager import PerAgentLockManager
@@ -258,6 +259,7 @@ class SyncServer(Server):
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.blocks_agents_manager = BlocksAgentsManager()
         self.message_manager = MessageManager()
+        self.job_manager = JobManager()
 
         # Managers that interface with parallelism
         self.per_agent_lock_manager = PerAgentLockManager()
@@ -374,6 +376,22 @@ class SyncServer(Server):
             }
         )
 
+    def initialize_agent(self, agent_id, interface: Union[AgentInterface, None] = None, initial_message_sequence=None) -> Agent:
+        """Initialize an agent from the database"""
+        agent_state = self.get_agent(agent_id=agent_id)
+        actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+
+        interface = interface or self.default_interface_factory()
+        if agent_state.agent_type == AgentType.memgpt_agent:
+            agent = Agent(agent_state=agent_state, interface=interface, user=actor, initial_message_sequence=initial_message_sequence)
+        else:
+            assert initial_message_sequence is None, f"Initial message sequence is not supported for O1Agents"
+            agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+
+        # Persist to agent
+        save_agent(agent, self.ms)
+        return agent
+
     def load_agent(self, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Updated method to load agents from persisted storage"""
         agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
@@ -386,6 +404,9 @@ class SyncServer(Server):
                 agent = Agent(agent_state=agent_state, interface=interface, user=actor)
             else:
                 agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+
+            # Rebuild the system prompt - may be linked to new blocks now
+            agent.rebuild_system_prompt()
 
             # Persist to agent
             save_agent(agent, self.ms)
@@ -804,8 +825,6 @@ class SyncServer(Server):
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
-        # TODO: create the message objects (NOTE: do this after we migrate to `CreateMessage`)
-
         # created and persist the agent state in the DB
         agent_state = PersistedAgentState(
             name=request.name,
@@ -823,6 +842,31 @@ class SyncServer(Server):
         # TODO: move this to agent ORM
         # this saves the agent ID and state into the DB
         self.ms.create_agent(agent_state)
+
+        # create the agent object
+        if request.initial_message_sequence:
+            # init_messages = [Message(user_id=user_id, agent_id=agent_state.id, role=message.role, text=message.text) for message in request.initial_message_sequence]
+            init_messages = []
+            for message in request.initial_message_sequence:
+
+                if message.role == MessageRole.user:
+                    packed_message = system.package_user_message(
+                        user_message=message.text,
+                    )
+                elif message.role == MessageRole.system:
+                    packed_message = system.package_system_message(
+                        system_message=message.text,
+                    )
+                else:
+                    raise ValueError(f"Invalid message role: {message.role}")
+
+                init_messages.append(Message(role=message.role, text=packed_message, user_id=user_id, agent_id=agent_state.id))
+            # init_messages = [Message.dict_to_message(user_id=user_id, agent_id=agent_state.id, openai_message_dict=message.model_dump()) for message in request.initial_message_sequence]
+        else:
+            init_messages = None
+
+        # initialize the agent (generates initial message list with system prompt)
+        self.initialize_agent(agent_id=agent_state.id, interface=interface, initial_message_sequence=init_messages)
 
         # Note: mappings (e.g. tags, blocks) are created after the agent is persisted
         # TODO: add source mappings here as well
@@ -1273,8 +1317,8 @@ class SyncServer(Server):
         # TODO: Check "order_by", "order"
         records = letta_agent.message_manager.list_messages(
             actor=self.default_user,
-            cursor=cursor, 
-            limit=limit, 
+            cursor=cursor,
+            limit=limit,
         )
 
         assert all(isinstance(m, Message) for m in records)
@@ -1438,39 +1482,12 @@ class SyncServer(Server):
 
         # TODO: delete data from agent passage stores (?)
 
-    def create_job(self, user_id: str, metadata: Optional[Dict] = None) -> Job:
-        """Create a new job"""
-        job = Job(
-            user_id=user_id,
-            status=JobStatus.created,
-            metadata_=metadata,
-        )
-        self.ms.create_job(job)
-        return job
-
-    def delete_job(self, job_id: str):
-        """Delete a job"""
-        self.ms.delete_job(job_id)
-
-    def get_job(self, job_id: str) -> Job:
-        """Get a job"""
-        return self.ms.get_job(job_id)
-
-    def list_jobs(self, user_id: str) -> List[Job]:
-        """List all jobs for a user"""
-        return self.ms.list_jobs(user_id=user_id)
-
-    def list_active_jobs(self, user_id: str) -> List[Job]:
-        """List all active jobs for a user"""
-        jobs = self.ms.list_jobs(user_id=user_id)
-        return [job for job in jobs if job.status in [JobStatus.created, JobStatus.running]]
-
-    def load_file_to_source(self, source_id: str, file_path: str, job_id: str) -> Job:
+    def load_file_to_source(self, source_id: str, file_path: str, job_id: str, actor: User) -> Job:
 
         # update job
-        job = self.ms.get_job(job_id)
+        job = self.job_manager.get_job_by_id(job_id, actor=actor)
         job.status = JobStatus.running
-        self.ms.update_job(job)
+        self.job_manager.update_job_by_id(job_id=job_id, job_update=JobUpdate(**job.model_dump()), actor=actor)
 
         # try:
         from letta.data_sources.connectors import DirectoryConnector
@@ -1478,23 +1495,12 @@ class SyncServer(Server):
         source = self.source_manager.get_source_by_id(source_id=source_id)
         connector = DirectoryConnector(input_files=[file_path])
         num_passages, num_documents = self.load_data(user_id=source.created_by_id, source_name=source.name, connector=connector)
-        # except Exception as e:
-        #    # job failed with error
-        #    error = str(e)
-        #    print(error)
-        #    job.status = JobStatus.failed
-        #    job.metadata_["error"] = error
-        #    self.ms.update_job(job)
-        #    # TODO: delete any associated passages/files?
-
-        #    # return failed job
-        #    return job
 
         # update job status
         job.status = JobStatus.completed
         job.metadata_["num_passages"] = num_passages
         job.metadata_["num_documents"] = num_documents
-        self.ms.update_job(job)
+        self.job_manager.update_job_by_id(job_id=job_id, job_update=JobUpdate(**job.model_dump()), actor=actor)
 
         return job
 

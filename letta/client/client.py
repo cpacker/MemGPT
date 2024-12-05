@@ -2859,8 +2859,12 @@ class LocalClient(AbstractClient):
         Returns:
             job (Job): Data loading job including job status and metadata
         """
-        metadata_ = {"type": "embedding", "filename": filename, "source_id": source_id}
-        job = self.server.create_job(user_id=self.user_id, metadata=metadata_)
+        job = Job(
+            user_id=self.user_id,
+            status=JobStatus.created,
+            metadata_={"type": "embedding", "filename": filename, "source_id": source_id},
+        )
+        job = self.server.job_manager.create_job(pydantic_job=job, actor=self.user)
 
         # TODO: implement blocking vs. non-blocking
         self.server.load_file_to_source(source_id=source_id, file_path=filename, job_id=job.id)
@@ -2870,16 +2874,16 @@ class LocalClient(AbstractClient):
         self.server.source_manager.delete_file(file_id, actor=self.user)
 
     def get_job(self, job_id: str):
-        return self.server.get_job(job_id=job_id)
+        return self.server.job_manager.get_job_by_id(job_id=job_id, actor=self.user)
 
     def delete_job(self, job_id: str):
-        return self.server.delete_job(job_id)
+        return self.server.job_manager.delete_job(job_id=job_id, actor=self.user)
 
     def list_jobs(self):
-        return self.server.list_jobs(user_id=self.user_id)
+        return self.server.job_manager.list_jobs(actor=self.user)
 
     def list_active_jobs(self):
-        return self.server.list_active_jobs(user_id=self.user_id)
+        return self.server.job_manager.list_jobs(actor=self.user, statuses=[JobStatus.created, JobStatus.running])
 
     def create_source(self, name: str, embedding_config: Optional[EmbeddingConfig] = None) -> Source:
         """
@@ -3050,9 +3054,7 @@ class LocalClient(AbstractClient):
 
     # recall memory
 
-    def get_messages(
-        self, agent_id: str, cursor: Optional[str] = None, limit: Optional[int] = 1000
-    ) -> List[Message]:
+    def get_messages(self, agent_id: str, cursor: Optional[str] = None, limit: Optional[int] = 1000) -> List[Message]:
         """
         Get messages from an agent with pagination.
 

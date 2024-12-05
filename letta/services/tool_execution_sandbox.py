@@ -159,6 +159,8 @@ class ToolExecutionSandbox:
         # Set up env for venv
         env["VIRTUAL_ENV"] = venv_path
         env["PATH"] = os.path.join(venv_path, "bin") + ":" + env["PATH"]
+        # Suppress all warnings
+        env["PYTHONWARNINGS"] = "ignore"
 
         # Execute the code in a restricted subprocess
         try:
@@ -170,9 +172,31 @@ class ToolExecutionSandbox:
                 capture_output=True,
                 text=True,
             )
-            if result.stderr:
-                logger.error(f"Sandbox execution error: {result.stderr}")
-                raise RuntimeError(f"Sandbox execution error: {result.stderr}")
+
+            # Handle error with optimistic error parsing from the string
+            # This is very brittle, so we fall back to a RuntimeError if parsing fails
+            if result.returncode != 0:
+                # Log the error
+                logger.error(f"Sandbox execution error:\n{result.stderr}")
+
+                # Parse and raise the actual error from stderr
+                tb_lines = result.stderr.strip().splitlines()
+                exception_line = tb_lines[-1]  # The last line contains the exception
+
+                try:
+                    # Split exception type and message
+                    exception_type, exception_message = exception_line.split(": ", 1)
+                    exception_type = exception_type.strip()
+                    exception_message = exception_message.strip()
+
+                    # Dynamically raise the exception
+                    exception_class = eval(exception_type)  # Look up the exception type
+
+                except Exception:
+                    # Fallback to RuntimeError if parsing fails
+                    raise RuntimeError(result.stderr)
+
+                raise exception_class(exception_message)
 
             func_result, stdout = self.parse_out_function_results_markers(result.stdout)
             func_return, agent_state = self.parse_best_effort(func_result)
@@ -182,9 +206,11 @@ class ToolExecutionSandbox:
         except subprocess.TimeoutExpired:
             raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Executing tool {self.tool_name} has process error: {e}")
+            logger.error(f"Executing tool {self.tool_name} has process error: {e}")
+            raise e
         except Exception as e:
-            raise RuntimeError(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+            logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
+            raise e
 
     def run_local_dir_sandbox_runpy(
         self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str, old_stdout: TextIO

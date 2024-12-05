@@ -164,6 +164,43 @@ def get_env_tool(test_user):
 
 
 @pytest.fixture
+def get_warning_tool(test_user):
+    def warn_hello_world() -> str:
+        """
+        Simple function that warns hello world.
+
+        Returns:
+            str: hello world
+        """
+        import warnings
+
+        msg = "Hello World"
+        warnings.warn(msg)
+        return msg
+
+    tool = create_tool_from_func(warn_hello_world)
+    tool = ToolManager().create_or_update_tool(tool, test_user)
+    yield tool
+
+
+@pytest.fixture
+def always_err_tool(test_user):
+    def error() -> str:
+        """
+        Simple function that errors
+
+        Returns:
+            str: not important
+        """
+        # Raise a unusual error so we know it's from this function
+        raise ZeroDivisionError("This is an intentionally weird division!")
+
+    tool = create_tool_from_func(error)
+    tool = ToolManager().create_or_update_tool(tool, test_user)
+    yield tool
+
+
+@pytest.fixture
 def list_tool(test_user):
     def create_list():
         """Simple function that returns a list"""
@@ -222,6 +259,33 @@ def agent_state():
         llm_config=LLMConfig.default_config(model_name="gpt-4"),
     )
     yield agent_state
+
+
+@pytest.fixture
+def custom_test_sandbox_config(test_user):
+    """
+    Fixture to create a consistent local sandbox configuration for tests.
+
+    Args:
+        test_user: The test user to be used for creating the sandbox configuration.
+
+    Returns:
+        A tuple containing the SandboxConfigManager and the created sandbox configuration.
+    """
+    # Create the SandboxConfigManager
+    manager = SandboxConfigManager(tool_settings)
+
+    # Set the sandbox to be within the external codebase path and use a venv
+    external_codebase_path = str(Path(__file__).parent / "test_tool_sandbox" / "restaurant_management_system")
+    local_sandbox_config = LocalSandboxConfig(sandbox_dir=external_codebase_path, use_venv=True)
+
+    # Create the sandbox configuration
+    config_create = SandboxConfigCreate(config=local_sandbox_config.model_dump())
+
+    # Create or update the sandbox configuration
+    manager.create_or_update_sandbox_config(sandbox_config_create=config_create, actor=test_user)
+
+    return manager, local_sandbox_config
 
 
 # Local sandbox tests
@@ -327,16 +391,7 @@ def test_local_sandbox_e2e_composio_star_github(mock_e2b_api_key_none, check_com
 
 
 @pytest.mark.local_sandbox
-def test_local_sandbox_external_codebase(mock_e2b_api_key_none, external_codebase_tool, test_user):
-    # Make the external codebase the sandbox config
-    manager = SandboxConfigManager(tool_settings)
-
-    # Set the sandbox to be within the external codebase path and use a venv
-    external_codebase_path = str(Path(__file__).parent / "test_tool_sandbox" / "restaurant_management_system")
-    local_sandbox_config = LocalSandboxConfig(sandbox_dir=external_codebase_path, use_venv=True)
-    config_create = SandboxConfigCreate(config=local_sandbox_config.model_dump())
-    manager.create_or_update_sandbox_config(sandbox_config_create=config_create, actor=test_user)
-
+def test_local_sandbox_external_codebase(mock_e2b_api_key_none, custom_test_sandbox_config, external_codebase_tool, test_user):
     # Set the args
     args = {"percentage": 10}
 
@@ -347,6 +402,24 @@ def test_local_sandbox_external_codebase(mock_e2b_api_key_none, external_codebas
     # Assert that the function return is correct
     assert result.func_return == "Price Adjustments:\nBurger: $8.99 -> $9.89\nFries: $2.99 -> $3.29\nSoda: $1.99 -> $2.19"
     assert "Hello World" in result.stdout[0]
+
+
+@pytest.mark.local_sandbox
+def test_local_sandbox_with_venv_and_warnings_does_not_error(
+    mock_e2b_api_key_none, custom_test_sandbox_config, get_warning_tool, test_user
+):
+    sandbox = ToolExecutionSandbox(get_warning_tool.name, {}, user_id=test_user.id)
+    result = sandbox.run()
+    assert result.func_return == "Hello World"
+
+
+@pytest.mark.e2b_sandbox
+def test_local_sandbox_with_venv_errors(mock_e2b_api_key_none, custom_test_sandbox_config, always_err_tool, test_user):
+    sandbox = ToolExecutionSandbox(always_err_tool.name, {}, user_id=test_user.id)
+
+    # run the sandbox
+    with pytest.raises(ZeroDivisionError, match="This is an intentionally weird division!"):
+        sandbox.run()
 
 
 # E2B sandbox tests

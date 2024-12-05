@@ -27,7 +27,7 @@ from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
 from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
-from letta.memory import ArchivalMemory, RecallMemory, BaseRecallMemory, summarize_messages
+from letta.memory import ArchivalMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.orm import User
 from letta.persistence_manager import LocalStateManager
@@ -360,6 +360,8 @@ class Agent(BaseAgent):
             init_messages_objs = []
             for msg in init_messages:
                 init_messages_objs.append(msg)
+            for msg in init_messages_objs:
+                assert isinstance(msg, Message), f"Message object is not of type Message: {type(msg)}"
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
 
             # Put the messages inside the message buffer

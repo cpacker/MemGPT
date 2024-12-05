@@ -1,10 +1,9 @@
-from typing import TYPE_CHECKING, List, Literal, Optional, Type, Union, Tuple
 from datetime import datetime
+from typing import TYPE_CHECKING, List, Literal, Optional, Tuple, Type, Union
 
-from sqlalchemy import Column, String, DateTime, Boolean, func, asc, desc, select, or_, and_
+from sqlalchemy import String, asc, func, select
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm import Session, Mapped, mapped_column
-from sqlalchemy.sql import or_, and_
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from letta.log import get_logger
 from letta.orm.base import Base, CommonSqlalchemyMetaMixins
@@ -32,11 +31,11 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     @classmethod
     def get(cls, *, db_session: Session, id: str) -> Optional["SqlalchemyBase"]:
         """Get a record by ID.
-        
+
         Args:
             db_session: SQLAlchemy session
             id: Record ID to retrieve
-            
+
         Returns:
             Optional[SqlalchemyBase]: The record if found, None otherwise
         """
@@ -55,10 +54,10 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         end_date: Optional[datetime] = None,
         limit: Optional[int] = 50,
         query_text: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> Union[List[Type["SqlalchemyBase"]], Tuple[Optional[str], List[Type["SqlalchemyBase"]]]]:
         """List records with advanced filtering and pagination options.
-        
+
         Args:
             db_session: SQLAlchemy session
             cursor: Cursor-based pagination - return records after this ID (exclusive)
@@ -67,14 +66,22 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             limit: Maximum number of records to return
             query_text: Optional text to search for in message content
             **kwargs: Additional filters to apply
-            
+
         Returns:
             If using cursor-based pagination (after/before): Tuple[Optional[str], List[records]]
             Otherwise: List[records]
         """
         logger.debug(f"Listing {cls.__name__} with kwarg filters {kwargs}")
         with db_session as session:
-            query = select(cls).filter_by(**kwargs)
+            query = select(cls)
+
+            # Apply filtering logic
+            for key, value in kwargs.items():
+                column = getattr(cls, key)
+                if isinstance(value, (list, tuple, set)):  # Check for iterables
+                    query = query.where(column.in_(value))
+                else:  # Single value for equality filtering
+                    query = query.where(column == value)
 
             # Handle date range filtering
             if start_date and end_date and hasattr(cls, "created_at"):
@@ -93,11 +100,11 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             if hasattr(cls, "role"):
                 query = query.filter(cls.role != "system")
                 query = query.filter(cls.role != "tool")
-                
+
             # Handle cursor-based pagination
             if cursor:
                 query = query.where(cls.id > cursor)
-            
+
             # Apply text search
             if query_text:
                 query = query.filter(func.lower(cls.text).contains(func.lower(query_text)))
@@ -111,7 +118,6 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             # Handle soft deletes if the class has the 'is_deleted' attribute
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
-
             return list(session.execute(query).scalars())
 
     @classmethod
