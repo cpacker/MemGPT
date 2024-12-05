@@ -102,10 +102,13 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             if query_text:
                 query = query.filter(func.lower(cls.text).contains(func.lower(query_text)))
 
-            # Handle ordering 
-            query = query.order_by(cls.id).limit(limit)
+            # Handle ordering (defaults are ascending, "created_at")
+            # Priorities:
+            #   1. cursor-based pagination
+            #   2. Date
+            query = query.order_by(cls.id).order_by(asc(cls.created_at)).limit(limit)
 
-            # # Handle soft deletes if the class has the 'is_deleted' attribute
+            # Handle soft deletes if the class has the 'is_deleted' attribute
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
 

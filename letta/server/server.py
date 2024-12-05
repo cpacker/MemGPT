@@ -489,7 +489,7 @@ class SyncServer(Server):
                 f"\nDumping memory contents:\n"
                 + f"\n{str(letta_agent.agent_state.memory)}"
                 + f"\n{str(letta_agent.persistence_manager.archival_memory)}"
-                + f"\n{str(letta_agent.persistence_manager.recall_memory)}"
+                + f"\n{str(letta_agent.memory_manager)}"
             )
             return ret_str
 
@@ -1102,7 +1102,7 @@ class SyncServer(Server):
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
-        return RecallMemorySummary(size=len(agent.persistence_manager.recall_memory))
+        return RecallMemorySummary(size=len(agent.message_manager))
 
     def get_in_context_message_ids(self, agent_id: str) -> List[str]:
         """Get the message ids of the in-context messages in the agent's memory"""
@@ -1120,7 +1120,7 @@ class SyncServer(Server):
         """Get a single message from the agent's memory"""
         # Get the agent object (loaded in memory)
         agent = self.load_agent(agent_id=agent_id)
-        message = agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        message = agent.message_manager.get_message_by_id(id=message_id, actor=self.default_user)
         return message
 
     def get_agent_messages(
@@ -1151,14 +1151,15 @@ class SyncServer(Server):
 
         else:
             # need to access persistence manager for additional messages
-            db_iterator = letta_agent.persistence_manager.recall_memory.storage.get_all_paginated(page_size=count, offset=start)
 
-            # get a single page of messages
-            # TODO: handle stop iteration
-            page = next(db_iterator, [])
+            # get messages using message manager
+            page = letta_agent.message_manager.list_messages(
+                actor=self.default_user,
+                cursor=start,
+                limit=count,
+            )
 
-            # return messages in reverse chronological order
-            messages = sorted(page, key=lambda x: x.created_at, reverse=True)
+            messages = page
             assert all(isinstance(m, Message) for m in messages)
 
             ## Convert to json
@@ -1251,8 +1252,7 @@ class SyncServer(Server):
         self,
         user_id: str,
         agent_id: str,
-        after: Optional[str] = None,
-        before: Optional[str] = None,
+        cursor: Optional[str] = None,
         limit: Optional[int] = 100,
         order_by: Optional[str] = "created_at",
         order: Optional[str] = "asc",
@@ -1270,8 +1270,11 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        cursor, records = letta_agent.recall_memory.message_manager.get_all_cursor(
-            after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
+        # TODO: Check "order_by", "order"
+        records = letta_agent.message_manager.list_messages(
+            actor=self.default_user,
+            cursor=cursor, 
+            limit=limit, 
         )
 
         assert all(isinstance(m, Message) for m in records)
@@ -1643,7 +1646,7 @@ class SyncServer(Server):
         """Get a single message from the agent's memory"""
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
-        message = letta_agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        message = letta_agent.message_manager.get_message_by_id(id=message_id)
         save_agent(letta_agent, self.ms)
         return message
 
