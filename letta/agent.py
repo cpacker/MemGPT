@@ -350,6 +350,8 @@ class Agent(BaseAgent):
             init_messages_objs = []
             for msg in init_messages:
                 init_messages_objs.append(msg)
+            for msg in init_messages_objs:
+                assert isinstance(msg, Message), f"Message object is not of type Message: {type(msg)}"
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
 
             # Put the messages inside the message buffer

@@ -27,7 +27,6 @@ from letta.schemas.letta_message import (
 )
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.tool_manager import ToolManager
 from letta.settings import model_settings, tool_settings
@@ -624,66 +623,71 @@ def cleanup_agents():
             print(f"Failed to delete agent {agent_id}: {e}")
 
 
-## NOTE: we need to add this back once agents can also create blocks during agent creation
-# def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState, cleanup_agents: List[str]):
-#    """Test that we can set an initial message sequence
-#
-#    If we pass in None, we should get a "default" message sequence
-#    If we pass in a non-empty list, we should get that sequence
-#    If we pass in an empty list, we should get an empty sequence
-#    """
-#
-#    # The reference initial message sequence:
-#    reference_init_messages = initialize_message_sequence(
-#        model=agent.llm_config.model,
-#        system=agent.system,
-#        memory=agent.memory,
-#        archival_memory=None,
-#        recall_memory=None,
-#        memory_edit_timestamp=get_utc_time(),
-#        include_initial_boot_message=True,
-#    )
-#
-#    # system, login message, send_message test, send_message receipt
-#    assert len(reference_init_messages) > 0
-#    assert len(reference_init_messages) == 4, f"Expected 4 messages, got {len(reference_init_messages)}"
-#
-#    # Test with default sequence
-#    default_agent_state = client.create_agent(name="test-default-message-sequence", initial_message_sequence=None)
-#    cleanup_agents.append(default_agent_state.id)
-#    assert default_agent_state.message_ids is not None
-#    assert len(default_agent_state.message_ids) > 0
-#    assert len(default_agent_state.message_ids) == len(
-#        reference_init_messages
-#    ), f"Expected {len(reference_init_messages)} messages, got {len(default_agent_state.message_ids)}"
-#
-#    # Test with empty sequence
-#    empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
-#    cleanup_agents.append(empty_agent_state.id)
-#    # NOTE: allowed to be None initially
-#    #assert empty_agent_state.message_ids is not None
-#    #assert len(empty_agent_state.message_ids) == 1, f"Expected 0 messages, got {len(empty_agent_state.message_ids)}"
-#
-#    # Test with custom sequence
-#    custom_sequence = [
-#        Message(
-#            role=MessageRole.user,
-#            text="Hello, how are you?",
-#            user_id=agent.user_id,
-#            agent_id=agent.id,
-#            model=agent.llm_config.model,
-#            name=None,
-#            tool_calls=None,
-#            tool_call_id=None,
-#        ),
-#    ]
-#    custom_agent_state = client.create_agent(name="test-custom-message-sequence", initial_message_sequence=custom_sequence)
-#    cleanup_agents.append(custom_agent_state.id)
-#    assert custom_agent_state.message_ids is not None
-#    assert (
-#        len(custom_agent_state.message_ids) == len(custom_sequence) + 1
-#    ), f"Expected {len(custom_sequence) + 1} messages, got {len(custom_agent_state.message_ids)}"
-#    assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]
+# NOTE: we need to add this back once agents can also create blocks during agent creation
+def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState, cleanup_agents: List[str]):
+    """Test that we can set an initial message sequence
+
+    If we pass in None, we should get a "default" message sequence
+    If we pass in a non-empty list, we should get that sequence
+    If we pass in an empty list, we should get an empty sequence
+    """
+    from letta.agent import initialize_message_sequence
+    from letta.utils import get_utc_time
+
+    # The reference initial message sequence:
+    reference_init_messages = initialize_message_sequence(
+        model=agent.llm_config.model,
+        system=agent.system,
+        memory=agent.memory,
+        archival_memory=None,
+        recall_memory=None,
+        memory_edit_timestamp=get_utc_time(),
+        include_initial_boot_message=True,
+    )
+
+    # system, login message, send_message test, send_message receipt
+    assert len(reference_init_messages) > 0
+    assert len(reference_init_messages) == 4, f"Expected 4 messages, got {len(reference_init_messages)}"
+
+    # Test with default sequence
+    default_agent_state = client.create_agent(name="test-default-message-sequence", initial_message_sequence=None)
+    cleanup_agents.append(default_agent_state.id)
+    assert default_agent_state.message_ids is not None
+    assert len(default_agent_state.message_ids) > 0
+    assert len(default_agent_state.message_ids) == len(
+        reference_init_messages
+    ), f"Expected {len(reference_init_messages)} messages, got {len(default_agent_state.message_ids)}"
+
+    # Test with empty sequence
+    empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
+    cleanup_agents.append(empty_agent_state.id)
+    # NOTE: allowed to be None initially
+    # assert empty_agent_state.message_ids is not None
+    # assert len(empty_agent_state.message_ids) == 1, f"Expected 0 messages, got {len(empty_agent_state.message_ids)}"
+
+    # Test with custom sequence
+    # custom_sequence = [
+    #    Message(
+    #        role=MessageRole.user,
+    #        text="Hello, how are you?",
+    #        user_id=agent.user_id,
+    #        agent_id=agent.id,
+    #        model=agent.llm_config.model,
+    #        name=None,
+    #        tool_calls=None,
+    #        tool_call_id=None,
+    #    ),
+    # ]
+    custom_sequence = [{"text": "Hello, how are you?", "role": "user"}]
+    custom_agent_state = client.create_agent(name="test-custom-message-sequence", initial_message_sequence=custom_sequence)
+    cleanup_agents.append(custom_agent_state.id)
+    assert custom_agent_state.message_ids is not None
+    assert (
+        len(custom_agent_state.message_ids) == len(custom_sequence) + 1
+    ), f"Expected {len(custom_sequence) + 1} messages, got {len(custom_agent_state.message_ids)}"
+    # assert custom_agent_state.message_ids[1:] == [msg.id for msg in custom_sequence]
+    # shoule be contained in second message (after system message)
+    assert custom_sequence[0]["text"] in client.get_in_context_messages(custom_agent_state.id)[1].text
 
 
 def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
