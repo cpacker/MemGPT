@@ -1387,7 +1387,7 @@ class Agent(BaseAgent):
     def update_message(self, request: UpdateMessage) -> Message:
         """Update the details of a message associated with an agent"""
 
-        message = self.message_manager.get_message_by_id(id=request.id, actor=self.user)
+        message = self.message_manager.get_message_by_id(message_id=request.id, actor=self.user)
         if message is None:
             raise ValueError(f"Message with id {request.id} not found")
         assert isinstance(message, Message), f"Message is not a Message object: {type(message)}"
@@ -1411,7 +1411,7 @@ class Agent(BaseAgent):
         self.message_manager.update_message_by_id(message_id=message.id, message=message, actor=self.user)
 
         # Return the updated message
-        updated_message = self.message_manager.get_message_by_id(id=message.id, actor=self.user)
+        updated_message = self.message_manager.get_message_by_id(message_id=message.id, actor=self.user)
         if updated_message is None:
             raise ValueError(f"Error persisting message - message with id {request.id} not found")
         return updated_message
