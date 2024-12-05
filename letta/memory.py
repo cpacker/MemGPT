@@ -68,14 +68,12 @@ def summarize_messages(
             + message_sequence_to_summarize[cutoff:]
         )
 
-    dummy_user_id = agent_state.user_id
+    agent_state.user_id
     dummy_agent_id = agent_state.id
     message_sequence = []
-    message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role=MessageRole.system, text=summary_prompt))
-    message_sequence.append(
-        Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role=MessageRole.assistant, text=MESSAGE_SUMMARY_REQUEST_ACK)
-    )
-    message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role=MessageRole.user, text=summary_input))
+    message_sequence.append(Message(agent_id=dummy_agent_id, role=MessageRole.system, text=summary_prompt))
+    message_sequence.append(Message(agent_id=dummy_agent_id, role=MessageRole.assistant, text=MESSAGE_SUMMARY_REQUEST_ACK))
+    message_sequence.append(Message(agent_id=dummy_agent_id, role=MessageRole.user, text=summary_input))
 
     # TODO: We need to eventually have a separate LLM config for the summarizer LLM
     llm_config_no_inner_thoughts = agent_state.llm_config.model_copy(deep=True)
@@ -260,7 +258,6 @@ class BaseRecallMemory(RecallMemory):
         # If true, the pool of messages that can be queried are the automated summaries only
         # (generated when the conversation window needs to be shortened)
         self.restrict_search_to_summaries = restrict_search_to_summaries
-        from letta.agent_store.storage import StorageConnector
 
         self.agent_state = agent_state
 
