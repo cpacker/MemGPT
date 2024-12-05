@@ -15,9 +15,10 @@ PROVIDERS_FEALDS = {
             "azure": "auth_type",
             "azure": "key",
             "azure": "version", 
-            "azure":"endpoint",
+            "azure": "endpoint",
             "azure": "deployment", 
-            "azure":"embedding_version",
+            "azure": "embedding_version",
+            "azure": "embedding_endpoint",
             "azure": "embedding_deployment",
     
             "google_ai": "key",
