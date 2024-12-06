@@ -21,9 +21,7 @@ from letta.utils import get_human_text, get_persona_text
 @pytest.fixture(scope="module")
 def client():
     client = create_client()
-    assert client is not None
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
-    client.create_tool(trigger_rethink_memory)
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
     yield client
@@ -91,14 +89,12 @@ def test_ripple_edit(client, mock_e2b_api_key_none):
     )
     assert conversation_agent is not None
 
-    assert set(conversation_agent.memory.list_block_labels()) == set(
-        [
+    assert set(conversation_agent.memory.list_block_labels()) == { 
             "persona",
             "human",
             "fact_block",
             "rethink_memory_block",
-        ]
-    )
+    }
 
     rethink_memory_tool = client.create_tool(rethink_memory)
     finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
