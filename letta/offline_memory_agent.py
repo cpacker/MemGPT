@@ -61,7 +61,7 @@ def rethink_memory_convo(agent_state: "AgentState", new_memory: str, target_bloc
         Optional[str]: None is always returned as this function does not produce a response.
     """
     if target_block_label is not None:
-        if agent_state.memory.get_block(target_block_label) is None:
+        if target_block_label not in agent_state.memory.list_block_labels():
             agent_state.memory.create_block(label=target_block_label, value=new_memory)
         agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
     return None
@@ -82,7 +82,7 @@ def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_labe
     """
 
     if target_block_label is not None:
-        if agent_state.memory.get_block(target_block_label) is None:
+        if target_block_label not in agent_state.memory.list_block_labels():
             agent_state.memory.create_block(label=target_block_label, value=new_memory)
         agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
     return None
