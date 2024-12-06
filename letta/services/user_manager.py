@@ -71,7 +71,7 @@ class UserManager:
         with self.session_maker() as session:
             # Delete from user table
             user = UserModel.read(db_session=session, identifier=user_id)
-            user.delete(session)
+            user.hard_delete(session)
 
             # TODO: Integrate this via the ORM models for the Agent, Source, and AgentSourceMapping
             # Cascade delete for related models: Agent, Source, AgentSourceMapping

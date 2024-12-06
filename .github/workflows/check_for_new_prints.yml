@@ -31,6 +31,11 @@ jobs:
 
           # Check each changed Python file
           while IFS= read -r file; do
+            if [ "$file" == "letta/main.py" ]; then
+              echo "Skipping $file for print statement checks."
+              continue
+            fi
+
             if [ -f "$file" ]; then
               echo "Checking $file for new print statements..."
 

@@ -67,14 +67,12 @@ def summarize_messages(
             + message_sequence_to_summarize[cutoff:]
         )
 
-    dummy_user_id = agent_state.user_id
+    agent_state.user_id
     dummy_agent_id = agent_state.id
     message_sequence = []
-    message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role=MessageRole.system, text=summary_prompt))
-    message_sequence.append(
-        Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role=MessageRole.assistant, text=MESSAGE_SUMMARY_REQUEST_ACK)
-    )
-    message_sequence.append(Message(user_id=dummy_user_id, agent_id=dummy_agent_id, role=MessageRole.user, text=summary_input))
+    message_sequence.append(Message(agent_id=dummy_agent_id, role=MessageRole.system, text=summary_prompt))
+    message_sequence.append(Message(agent_id=dummy_agent_id, role=MessageRole.assistant, text=MESSAGE_SUMMARY_REQUEST_ACK))
+    message_sequence.append(Message(agent_id=dummy_agent_id, role=MessageRole.user, text=summary_input))
 
     # TODO: We need to eventually have a separate LLM config for the summarizer LLM
     llm_config_no_inner_thoughts = agent_state.llm_config.model_copy(deep=True)
@@ -250,82 +248,6 @@ class DummyRecallMemory(RecallMemory):
             return matches[start:], len(matches)
         else:
             return matches, len(matches)
-
-
-class BaseRecallMemory(RecallMemory):
-    """Recall memory based on base functions implemented by storage connectors"""
-
-    def __init__(self, agent_state, restrict_search_to_summaries=False):
-        # If true, the pool of messages that can be queried are the automated summaries only
-        # (generated when the conversation window needs to be shortened)
-        self.restrict_search_to_summaries = restrict_search_to_summaries
-        from letta.agent_store.storage import StorageConnector
-
-        self.agent_state = agent_state
-
-        # create embedding model
-        self.embed_model = embedding_model(agent_state.embedding_config)
-        self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
-
-        # create storage backend
-        self.storage = StorageConnector.get_recall_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
-        # TODO: have some mechanism for cleanup otherwise will lead to OOM
-        self.cache = {}
-
-    def get_all(self, start=0, count=None):
-        start = 0 if start is None else int(start)
-        count = 0 if count is None else int(count)
-        results = self.storage.get_all(start, count)
-        results_json = [message.to_openai_dict() for message in results]
-        return results_json, len(results)
-
-    def text_search(self, query_string, count=None, start=None):
-        start = 0 if start is None else int(start)
-        count = 0 if count is None else int(count)
-        results = self.storage.query_text(query_string, count, start)
-        results_json = [message.to_openai_dict_search_results() for message in results]
-        return results_json, len(results)
-
-    def date_search(self, start_date, end_date, count=None, start=None):
-        start = 0 if start is None else int(start)
-        count = 0 if count is None else int(count)
-        results = self.storage.query_date(start_date, end_date, count, start)
-        results_json = [message.to_openai_dict_search_results() for message in results]
-        return results_json, len(results)
-
-    def compile(self) -> str:
-        total = self.storage.size()
-        system_count = self.storage.size(filters={"role": "system"})
-        user_count = self.storage.size(filters={"role": "user"})
-        assistant_count = self.storage.size(filters={"role": "assistant"})
-        function_count = self.storage.size(filters={"role": "function"})
-        other_count = total - (system_count + user_count + assistant_count + function_count)
-
-        memory_str = (
-            f"Statistics:"
-            + f"\n{total} total messages"
-            + f"\n{system_count} system"
-            + f"\n{user_count} user"
-            + f"\n{assistant_count} assistant"
-            + f"\n{function_count} function"
-            + f"\n{other_count} other"
-        )
-        return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
-
-    def insert(self, message: Message):
-        self.storage.insert(message)
-
-    def insert_many(self, messages: List[Message]):
-        self.storage.insert_many(messages)
-
-    def save(self):
-        self.storage.save()
-
-    def __len__(self):
-        return self.storage.size()
-
-    def count(self) -> int:
-        return len(self)
 
 
 class EmbeddingArchivalMemory(ArchivalMemory):

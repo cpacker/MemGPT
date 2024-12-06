@@ -409,7 +409,7 @@ def get_agent_messages(
     return server.get_agent_recall_cursor(
         user_id=actor.id,
         agent_id=agent_id,
-        before=before,
+        cursor=before,
         limit=limit,
         reverse=True,
         return_message_object=msg_object,
@@ -465,7 +465,7 @@ async def send_message(
 @router.post(
     "/{agent_id}/messages/stream",
     response_model=None,
-    operation_id="create_agent_message",
+    operation_id="create_agent_message_stream",
     responses={
         200: {
             "description": "Successful response",

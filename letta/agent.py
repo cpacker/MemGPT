@@ -19,6 +19,7 @@ from letta.constants import (
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
+    O1_BASE_TOOLS,
     REQ_HEARTBEAT_MESSAGE,
 )
 from letta.errors import LLMError
@@ -27,10 +28,9 @@ from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
 from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
-from letta.memory import ArchivalMemory, RecallMemory, summarize_messages
+from letta.memory import ArchivalMemory, EmbeddingArchivalMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.orm import User
-from letta.persistence_manager import LocalStateManager
 from letta.schemas.agent import AgentState, AgentStepResponse
 from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -49,7 +49,9 @@ from letta.schemas.passage import Passage
 from letta.schemas.tool import Tool
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
+from letta.schemas.user import User as PydanticUser
 from letta.services.block_manager import BlockManager
+from letta.services.message_manager import MessageManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.user_manager import UserManager
@@ -80,9 +82,11 @@ from letta.utils import (
 
 
 def compile_memory_metadata_block(
+    actor: PydanticUser,
+    agent_id: str,
     memory_edit_timestamp: datetime.datetime,
     archival_memory: Optional[ArchivalMemory] = None,
-    recall_memory: Optional[RecallMemory] = None,
+    message_manager: Optional[MessageManager] = None,
 ) -> str:
     # Put the timestamp in the local timezone (mimicking get_local_time())
     timestamp_str = memory_edit_timestamp.astimezone().strftime("%Y-%m-%d %I:%M:%S %p %Z%z").strip()
@@ -91,7 +95,7 @@ def compile_memory_metadata_block(
     memory_metadata_block = "\n".join(
         [
             f"### Memory [last modified: {timestamp_str}]",
-            f"{recall_memory.count() if recall_memory else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
+            f"{message_manager.size(actor=actor, agent_id=agent_id) if message_manager else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
             f"{archival_memory.count() if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
             "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
         ]
@@ -101,10 +105,12 @@ def compile_memory_metadata_block(
 
 def compile_system_message(
     system_prompt: str,
+    agent_id: str,
     in_context_memory: Memory,
     in_context_memory_last_edit: datetime.datetime,  # TODO move this inside of BaseMemory?
+    actor: PydanticUser,
     archival_memory: Optional[ArchivalMemory] = None,
-    recall_memory: Optional[RecallMemory] = None,
+    message_manager: Optional[MessageManager] = None,
     user_defined_variables: Optional[dict] = None,
     append_icm_if_missing: bool = True,
     template_format: Literal["f-string", "mustache", "jinja2"] = "f-string",
@@ -129,9 +135,11 @@ def compile_system_message(
     else:
         # TODO should this all put into the memory.__repr__ function?
         memory_metadata_string = compile_memory_metadata_block(
+            actor=actor,
+            agent_id=agent_id,
             memory_edit_timestamp=in_context_memory_last_edit,
             archival_memory=archival_memory,
-            recall_memory=recall_memory,
+            message_manager=message_manager,
         )
         full_memory_string = memory_metadata_string + "\n" + in_context_memory.compile()
 
@@ -164,9 +172,11 @@ def compile_system_message(
 def initialize_message_sequence(
     model: str,
     system: str,
+    agent_id: str,
     memory: Memory,
+    actor: PydanticUser,
     archival_memory: Optional[ArchivalMemory] = None,
-    recall_memory: Optional[RecallMemory] = None,
+    message_manager: Optional[MessageManager] = None,
     memory_edit_timestamp: Optional[datetime.datetime] = None,
     include_initial_boot_message: bool = True,
 ) -> List[dict]:
@@ -177,11 +187,13 @@ def initialize_message_sequence(
     # system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory
     # )
     full_system_message = compile_system_message(
+        agent_id=agent_id,
         system_prompt=system,
         in_context_memory=memory,
         in_context_memory_last_edit=memory_edit_timestamp,
+        actor=actor,
         archival_memory=archival_memory,
-        recall_memory=recall_memory,
+        message_manager=message_manager,
         user_defined_variables=None,
         append_icm_if_missing=True,
     )
@@ -282,7 +294,8 @@ class Agent(BaseAgent):
         self.interface = interface
 
         # Create the persistence manager object based on the AgentState info
-        self.persistence_manager = LocalStateManager(agent_state=self.agent_state)
+        self.archival_memory = EmbeddingArchivalMemory(agent_state)
+        self.message_manager = MessageManager()
 
         # State needed for heartbeat pausing
         self.pause_heartbeats_start = None
@@ -309,9 +322,11 @@ class Agent(BaseAgent):
             init_messages = initialize_message_sequence(
                 model=self.model,
                 system=self.agent_state.system,
+                agent_id=self.agent_state.id,
                 memory=self.agent_state.memory,
+                actor=self.user,
                 archival_memory=None,
-                recall_memory=None,
+                message_manager=None,
                 memory_edit_timestamp=get_utc_time(),
                 include_initial_boot_message=True,
             )
@@ -333,8 +348,10 @@ class Agent(BaseAgent):
                     model=self.model,
                     system=self.agent_state.system,
                     memory=self.agent_state.memory,
+                    agent_id=self.agent_state.id,
+                    actor=self.user,
                     archival_memory=None,
-                    recall_memory=None,
+                    message_manager=None,
                     memory_edit_timestamp=get_utc_time(),
                     include_initial_boot_message=True,
                 )
@@ -356,7 +373,6 @@ class Agent(BaseAgent):
 
             # Put the messages inside the message buffer
             self.messages_total = 0
-            # self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
             self._append_to_messages(added_messages=init_messages_objs)
             self._validate_message_buffer_is_utc()
 
@@ -413,7 +429,10 @@ class Agent(BaseAgent):
         # TODO: need to have an AgentState object that actually has full access to the block data
         # this is because the sandbox tools need to be able to access block.value to edit this data
         try:
-            if function_name in BASE_TOOLS:
+            # TODO: This is NO BUENO
+            # TODO: Matching purely by names is extremely problematic, users can create tools with these names and run them in the agent loop
+            # TODO: We will have probably have to match the function strings exactly for safety
+            if function_name in BASE_TOOLS or function_name in O1_BASE_TOOLS:
                 # base tools are allowed to access the `Agent` object and run on the database
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                 function_response = function_to_call(**function_args)
@@ -474,7 +493,7 @@ class Agent(BaseAgent):
         # Pull the message objects from the database
         message_objs = []
         for msg_id in message_ids:
-            msg_obj = self.persistence_manager.recall_memory.storage.get(msg_id)
+            msg_obj = self.message_manager.get_message_by_id(msg_id, actor=self.user)
             if msg_obj:
                 if isinstance(msg_obj, Message):
                     message_objs.append(msg_obj)
@@ -522,16 +541,13 @@ class Agent(BaseAgent):
 
     def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
-        self.persistence_manager.trim_messages(num)
-
         new_messages = [self._messages[0]] + self._messages[num:]
         self._messages = new_messages
 
     def _prepend_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.prepend to allow additional calls to a state/persistence manager"""
         assert all([isinstance(msg, Message) for msg in added_messages])
-
-        self.persistence_manager.prepend_to_messages(added_messages)
+        self.message_manager.create_many_messages(added_messages, actor=self.user)
 
         new_messages = [self._messages[0]] + added_messages + self._messages[1:]  # prepend (no system)
         self._messages = new_messages
@@ -540,8 +556,7 @@ class Agent(BaseAgent):
     def _append_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
         assert all([isinstance(msg, Message) for msg in added_messages])
-
-        self.persistence_manager.append_to_messages(added_messages)
+        self.message_manager.create_many_messages(added_messages, actor=self.user)
 
         # strip extra metadata if it exists
         # for msg in added_messages:
@@ -885,7 +900,6 @@ class Agent(BaseAgent):
                 messages=next_input_message,
                 **kwargs,
             )
-            step_response.messages
             heartbeat_request = step_response.heartbeat_request
             function_failed = step_response.function_failed
             token_warning = step_response.in_context_memory_warning
@@ -1247,7 +1261,7 @@ class Agent(BaseAgent):
         assert new_system_message_obj.role == "system", new_system_message_obj
         assert self._messages[0].role == "system", self._messages
 
-        self.persistence_manager.swap_system_message(new_system_message_obj)
+        self.message_manager.create_message(new_system_message_obj, actor=self.user)
 
         new_messages = [new_system_message_obj] + self._messages[1:]  # swap index 0 (system)
         self._messages = new_messages
@@ -1280,11 +1294,13 @@ class Agent(BaseAgent):
 
         # update memory (TODO: potentially update recall/archival stats seperately)
         new_system_message_str = compile_system_message(
+            agent_id=self.agent_state.id,
             system_prompt=self.agent_state.system,
             in_context_memory=self.agent_state.memory,
             in_context_memory_last_edit=memory_edit_timestamp,
-            archival_memory=self.persistence_manager.archival_memory,
-            recall_memory=self.persistence_manager.recall_memory,
+            actor=self.user,
+            archival_memory=self.archival_memory,
+            message_manager=self.message_manager,
             user_defined_variables=None,
             append_icm_if_missing=True,
         )
@@ -1370,20 +1386,20 @@ class Agent(BaseAgent):
                 # passage.id = create_uuid_from_string(f"{source_id}_{str(passage.agent_id)}_{passage.text}")
 
             # insert into agent archival memory
-            self.persistence_manager.archival_memory.storage.insert_many(passages)
+            self.archival_memory.storage.insert_many(passages)
             all_passages += passages
 
         assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
 
         # save destination storage
-        self.persistence_manager.archival_memory.storage.save()
+        self.archival_memory.storage.save()
 
         # attach to agent
         source = SourceManager().get_source_by_id(source_id=source_id, actor=user)
         assert source is not None, f"Source {source_id} not found in metadata store"
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 
-        total_agent_passages = self.persistence_manager.archival_memory.storage.size()
+        total_agent_passages = self.archival_memory.storage.size()
 
         printd(
             f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
@@ -1392,7 +1408,7 @@ class Agent(BaseAgent):
     def update_message(self, request: UpdateMessage) -> Message:
         """Update the details of a message associated with an agent"""
 
-        message = self.persistence_manager.recall_memory.storage.get(id=request.id)
+        message = self.message_manager.get_message_by_id(message_id=request.id, actor=self.user)
         if message is None:
             raise ValueError(f"Message with id {request.id} not found")
         assert isinstance(message, Message), f"Message is not a Message object: {type(message)}"
@@ -1413,10 +1429,10 @@ class Agent(BaseAgent):
             message.tool_call_id = request.tool_call_id
 
         # Save the updated message
-        self.persistence_manager.recall_memory.storage.update(record=message)
+        self.message_manager.update_message_by_id(message_id=message.id, message=message, actor=self.user)
 
         # Return the updated message
-        updated_message = self.persistence_manager.recall_memory.storage.get(id=message.id)
+        updated_message = self.message_manager.get_message_by_id(message_id=message.id, actor=self.user)
         if updated_message is None:
             raise ValueError(f"Error persisting message - message with id {request.id} not found")
         return updated_message
@@ -1496,7 +1512,7 @@ class Agent(BaseAgent):
                 deleted_message = self._messages.pop()
                 # then also remove it from recall storage
                 try:
-                    self.persistence_manager.recall_memory.storage.delete(filters={"id": deleted_message.id})
+                    self.message_manager.delete_message_by_id(deleted_message.id, actor=self.user)
                     popped_messages.append(deleted_message)
                 except Exception as e:
                     warnings.warn(f"Error deleting message {deleted_message.id} from recall memory: {e}")
@@ -1522,7 +1538,6 @@ class Agent(BaseAgent):
 
     def retry_message(self) -> List[Message]:
         """Retry / regenerate the last message"""
-
         self.pop_until_user()
         user_message = self.pop_message(count=1)[0]
         assert user_message.text is not None, "User message text is None"
@@ -1569,12 +1584,14 @@ class Agent(BaseAgent):
                 num_tokens_from_messages(messages=messages_openai_format[1:], model=self.model) if len(messages_openai_format) > 1 else 0
             )
 
-        num_archival_memory = self.persistence_manager.archival_memory.storage.size()
-        num_recall_memory = self.persistence_manager.recall_memory.storage.size()
+        num_archival_memory = self.archival_memory.storage.size()
+        message_manager_size = self.message_manager.size(actor=self.user, agent_id=self.agent_state.id)
         external_memory_summary = compile_memory_metadata_block(
+            actor=self.user,
+            agent_id=self.agent_state.id,
             memory_edit_timestamp=get_utc_time(),  # dummy timestamp
-            archival_memory=self.persistence_manager.archival_memory,
-            recall_memory=self.persistence_manager.recall_memory,
+            archival_memory=self.archival_memory,
+            message_manager=self.message_manager,
         )
         num_tokens_external_memory_summary = count_tokens(external_memory_summary)
 
@@ -1600,7 +1617,7 @@ class Agent(BaseAgent):
             # context window breakdown (in messages)
             num_messages=len(self._messages),
             num_archival_memory=num_archival_memory,
-            num_recall_memory=num_recall_memory,
+            num_recall_memory=message_manager_size,
             num_tokens_external_memory_summary=num_tokens_external_memory_summary,
             # top-level information
             context_window_size_max=self.agent_state.llm_config.context_window,

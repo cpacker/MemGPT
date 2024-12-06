@@ -14,7 +14,6 @@ from letta.schemas.api_key import APIKey
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import ToolRuleType
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
 from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
 from letta.schemas.user import User
 from letta.services.per_agent_lock_manager import PerAgentLockManager
@@ -63,40 +62,6 @@ class EmbeddingConfigColumn(TypeDecorator):
     def process_result_value(self, value, dialect):
         if value:
             return EmbeddingConfig(**value)
-        return value
-
-
-class ToolCallColumn(TypeDecorator):
-
-    impl = JSON
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
-
-    def process_bind_param(self, value, dialect):
-        if value:
-            values = []
-            for v in value:
-                if isinstance(v, ToolCall):
-                    values.append(v.model_dump())
-                else:
-                    values.append(v)
-            return values
-
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value:
-            tools = []
-            for tool_value in value:
-                if "function" in tool_value:
-                    tool_call_function = ToolCallFunction(**tool_value["function"])
-                    del tool_value["function"]
-                else:
-                    tool_call_function = None
-                tools.append(ToolCall(function=tool_call_function, **tool_value))
-            return tools
         return value
 
 

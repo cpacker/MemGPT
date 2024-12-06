@@ -77,14 +77,15 @@ from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
 from letta.services.blocks_agents_manager import BlocksAgentsManager
-from letta.services.tools_agents_manager import ToolsAgentsManager
 from letta.services.job_manager import JobManager
+from letta.services.message_manager import MessageManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.tool_manager import ToolManager
+from letta.services.tools_agents_manager import ToolsAgentsManager
 from letta.services.user_manager import UserManager
 from letta.utils import create_random_username, get_utc_time, json_dumps, json_loads
 
@@ -260,6 +261,7 @@ class SyncServer(Server):
         self.agents_tags_manager = AgentsTagsManager()
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.blocks_agents_manager = BlocksAgentsManager()
+        self.message_manager = MessageManager()
         self.tools_agents_manager = ToolsAgentsManager()
         self.job_manager = JobManager()
 
@@ -414,7 +416,7 @@ class SyncServer(Server):
                 agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, user=actor)
             elif agent_state.agent_type == AgentType.chat_only_agent:
                 agent = ChatOnlyAgent(agent_state=agent_state, interface=interface, user=actor)
-            else: 
+            else:
                 raise ValueError(f"Invalid agent type {agent_state.agent_type}")
 
             # Rebuild the system prompt - may be linked to new blocks now
@@ -422,7 +424,7 @@ class SyncServer(Server):
 
             # Persist to agent
             save_agent(agent, self.ms)
-            return agent 
+            return agent
 
     def _step(
         self,
@@ -518,12 +520,7 @@ class SyncServer(Server):
             letta_agent.interface.print_messages_raw(letta_agent.messages)
 
         elif command.lower() == "memory":
-            ret_str = (
-                f"\nDumping memory contents:\n"
-                + f"\n{str(letta_agent.agent_state.memory)}"
-                + f"\n{str(letta_agent.persistence_manager.archival_memory)}"
-                + f"\n{str(letta_agent.persistence_manager.recall_memory)}"
-            )
+            ret_str = f"\nDumping memory contents:\n" + f"\n{str(letta_agent.agent_state.memory)}" + f"\n{str(letta_agent.archival_memory)}"
             return ret_str
 
         elif command.lower() == "pop" or command.lower().startswith("pop "):
@@ -625,7 +622,6 @@ class SyncServer(Server):
             # Convert to a Message object
             if timestamp:
                 message = Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     role="user",
                     text=packaged_user_message,
@@ -633,7 +629,6 @@ class SyncServer(Server):
                 )
             else:
                 message = Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     role="user",
                     text=packaged_user_message,
@@ -672,7 +667,6 @@ class SyncServer(Server):
 
             if timestamp:
                 message = Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     role="system",
                     text=packaged_system_message,
@@ -680,7 +674,6 @@ class SyncServer(Server):
                 )
             else:
                 message = Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     role="system",
                     text=packaged_system_message,
@@ -743,7 +736,6 @@ class SyncServer(Server):
                 # Create the Message object
                 message_objects.append(
                     Message(
-                        user_id=user_id,
                         agent_id=agent_id,
                         role=message.role,
                         text=message.text,
@@ -876,7 +868,7 @@ class SyncServer(Server):
                 else:
                     raise ValueError(f"Invalid message role: {message.role}")
 
-                init_messages.append(Message(role=message.role, text=packed_message, user_id=user_id, agent_id=agent_state.id))
+                init_messages.append(Message(role=message.role, text=packed_message, agent_id=agent_state.id))
             # init_messages = [Message.dict_to_message(user_id=user_id, agent_id=agent_state.id, openai_message_dict=message.model_dump()) for message in request.initial_message_sequence]
         else:
             init_messages = None
@@ -1160,11 +1152,11 @@ class SyncServer(Server):
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
-        return ArchivalMemorySummary(size=len(agent.persistence_manager.archival_memory))
+        return ArchivalMemorySummary(size=len(agent.archival_memory))
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
-        return RecallMemorySummary(size=len(agent.persistence_manager.recall_memory))
+        return RecallMemorySummary(size=len(agent.message_manager))
 
     def get_in_context_message_ids(self, agent_id: str) -> List[str]:
         """Get the message ids of the in-context messages in the agent's memory"""
@@ -1182,7 +1174,7 @@ class SyncServer(Server):
         """Get a single message from the agent's memory"""
         # Get the agent object (loaded in memory)
         agent = self.load_agent(agent_id=agent_id)
-        message = agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        message = agent.message_manager.get_message_by_id(id=message_id, actor=self.default_user)
         return message
 
     def get_agent_messages(
@@ -1213,14 +1205,16 @@ class SyncServer(Server):
 
         else:
             # need to access persistence manager for additional messages
-            db_iterator = letta_agent.persistence_manager.recall_memory.storage.get_all_paginated(page_size=count, offset=start)
 
-            # get a single page of messages
-            # TODO: handle stop iteration
-            page = next(db_iterator, [])
+            # get messages using message manager
+            page = letta_agent.message_manager.list_user_messages_for_agent(
+                agent_id=agent_id,
+                actor=self.default_user,
+                cursor=start,
+                limit=count,
+            )
 
-            # return messages in reverse chronological order
-            messages = sorted(page, key=lambda x: x.created_at, reverse=True)
+            messages = page
             assert all(isinstance(m, Message) for m in messages)
 
             ## Convert to json
@@ -1243,7 +1237,7 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        db_iterator = letta_agent.persistence_manager.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
+        db_iterator = letta_agent.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
 
         # get a single page of messages
         page = next(db_iterator, [])
@@ -1268,7 +1262,7 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over recorde
-        cursor, records = letta_agent.persistence_manager.archival_memory.storage.get_all_cursor(
+        cursor, records = letta_agent.archival_memory.storage.get_all_cursor(
             after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
         )
         return records
@@ -1283,14 +1277,14 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # Insert into archival memory
-        passage_ids = letta_agent.persistence_manager.archival_memory.insert(memory_string=memory_contents, return_ids=True)
+        passage_ids = letta_agent.archival_memory.insert(memory_string=memory_contents, return_ids=True)
 
         # Update the agent
         # TODO: should this update the system prompt?
         save_agent(letta_agent, self.ms)
 
         # TODO: this is gross, fix
-        return [letta_agent.persistence_manager.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
+        return [letta_agent.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
 
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
@@ -1305,7 +1299,7 @@ class SyncServer(Server):
 
         # Delete by ID
         # TODO check if it exists first, and throw error if not
-        letta_agent.persistence_manager.archival_memory.storage.delete({"id": memory_id})
+        letta_agent.archival_memory.storage.delete({"id": memory_id})
 
         # TODO: return archival memory
 
@@ -1313,17 +1307,15 @@ class SyncServer(Server):
         self,
         user_id: str,
         agent_id: str,
-        after: Optional[str] = None,
-        before: Optional[str] = None,
+        cursor: Optional[str] = None,
         limit: Optional[int] = 100,
-        order_by: Optional[str] = "created_at",
-        order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
         return_message_object: bool = True,
         assistant_message_tool_name: str = constants.DEFAULT_MESSAGE_TOOL,
         assistant_message_tool_kwarg: str = constants.DEFAULT_MESSAGE_TOOL_KWARG,
     ) -> Union[List[Message], List[LettaMessage]]:
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
+        actor = self.user_manager.get_user_by_id(user_id=user_id)
+        if actor is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1332,8 +1324,12 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        cursor, records = letta_agent.persistence_manager.recall_memory.storage.get_all_cursor(
-            after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
+        # TODO: Check "order_by", "order"
+        records = letta_agent.message_manager.list_messages_for_agent(
+            agent_id=agent_id,
+            actor=actor,
+            cursor=cursor,
+            limit=limit,
         )
 
         assert all(isinstance(m, Message) for m in records)
@@ -1353,7 +1349,7 @@ class SyncServer(Server):
             records = records[::-1]
 
         return records
-      
+
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
 
@@ -1425,19 +1421,25 @@ class SyncServer(Server):
         self.agents_tags_manager.delete_all_tags_from_agent(agent_id=agent_id, actor=actor)
         self.blocks_agents_manager.remove_all_agent_blocks(agent_id=agent_id)
 
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
         # Verify that the agent exists and belongs to the org of the user
         agent_state = self.ms.get_agent(agent_id=agent_id, user_id=user_id)
-        if not agent_state:
+        if agent_state is None:
             raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
 
-        agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
-        if agent_state_user.organization_id != actor.organization_id:
-            raise ValueError(
-                f"Could not authorize agent_id={agent_id} with user_id={user_id} because of differing organizations; agent_id was created in {agent_state_user.organization_id} while user belongs to {actor.organization_id}. How did they get the agent id?"
-            )
+        # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM MODEL
+        messages = self.message_manager.list_messages_for_agent(agent_id=agent_state.id)
+        for message in messages:
+            self.message_manager.delete_message_by_id(message.id, actor=actor)
+
+        # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM
+        try:
+            agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+            if agent_state_user.organization_id != actor.organization_id:
+                raise ValueError(
+                    f"Could not authorize agent_id={agent_id} with user_id={user_id} because of differing organizations; agent_id was created in {agent_state_user.organization_id} while user belongs to {actor.organization_id}. How did they get the agent id?"
+                )
+        except NoResultFound:
+            logger.error(f"Agent with id {agent_state.id} has nonexistent user {agent_state.user_id}")
 
         # First, if the agent is in the in-memory cache we should remove it
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
@@ -1582,7 +1584,7 @@ class SyncServer(Server):
 
         # delete all Passage objects with source_id==source_id from agent's archival memory
         agent = self.load_agent(agent_id=agent_id)
-        archival_memory = agent.persistence_manager.archival_memory
+        archival_memory = agent.archival_memory
         archival_memory.storage.delete({"source_id": source_id})
 
         # delete agent-source mapping
@@ -1661,7 +1663,7 @@ class SyncServer(Server):
         """Get a single message from the agent's memory"""
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
-        message = letta_agent.persistence_manager.recall_memory.storage.get(id=message_id)
+        message = letta_agent.message_manager.get_message_by_id(id=message_id)
         save_agent(letta_agent, self.ms)
         return message
 
@@ -1705,7 +1707,7 @@ class SyncServer(Server):
 
         try:
             return self.user_manager.get_user_by_id(user_id=user_id)
-        except ValueError:
+        except NoResultFound:
             raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
 
     def get_organization_or_default(self, org_id: Optional[str]) -> Organization:
@@ -1715,7 +1717,7 @@ class SyncServer(Server):
 
         try:
             return self.organization_manager.get_organization_by_id(org_id=org_id)
-        except ValueError:
+        except NoResultFound:
             raise HTTPException(status_code=404, detail=f"Organization with id {org_id} not found")
 
     def list_llm_models(self) -> List[LLMConfig]:

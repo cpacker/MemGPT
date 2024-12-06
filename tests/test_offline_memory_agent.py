@@ -1,30 +1,40 @@
-import json
+import pytest
 
 from letta import BasicBlockMemory
-from letta import offline_memory_agent
 from letta.client.client import Block, create_client
 from letta.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.offline_memory_agent import (
-    rethink_memory,
     finish_rethinking_memory,
-    rethink_memory_convo,
     finish_rethinking_memory_convo,
+    rethink_memory,
+    rethink_memory_convo,
     trigger_rethink_memory,
-    trigger_rethink_memory_convo,
 )
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.message import MessageCreate
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.utils import get_human_text, get_persona_text
 
 
-def test_ripple_edit():
+@pytest.fixture(scope="module")
+def client():
     client = create_client()
-    assert client is not None
-    trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+
+    yield client
+
+
+@pytest.fixture(autouse=True)
+def clear_agents(client):
+    for agent in client.list_agents():
+        client.delete_agent(agent.id)
+
+
+def test_ripple_edit(client, mock_e2b_api_key_none):
+    trigger_rethink_memory_tool = client.create_or_update_tool(trigger_rethink_memory)
 
     conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
     conversation_persona_block = Block(name="persona", label="persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
@@ -61,12 +71,7 @@ def test_ripple_edit():
     )
     assert conversation_agent is not None
 
-    assert set(conversation_agent.memory.list_block_labels()) == set([
-        "persona",
-        "human",
-        "fact_block",
-        "rethink_memory_block",
-    ])
+    assert set(conversation_agent.memory.list_block_labels()) == {"persona", "human", "fact_block", "rethink_memory_block"}
 
     rethink_memory_tool = client.create_tool(rethink_memory)
     finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
@@ -82,7 +87,7 @@ def test_ripple_edit():
         include_base_tools=False,
     )
     assert offline_memory_agent is not None
-    assert set(offline_memory_agent.memory.list_block_labels())== set(["persona", "human", "fact_block", "rethink_memory_block"])
+    assert set(offline_memory_agent.memory.list_block_labels()) == {"persona", "human", "fact_block", "rethink_memory_block"}
     response = client.user_message(
         agent_id=conversation_agent.id, message="[trigger_rethink_memory]: Messi has now moved to playing for Inter Miami"
     )
@@ -92,12 +97,14 @@ def test_ripple_edit():
     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
     assert conversation_agent.memory.get_block("rethink_memory_block").value != "[empty]"
 
+    # Clean up agent
+    client.create_agent(conversation_agent.id)
+    client.delete_agent(offline_memory_agent.id)
 
-def test_chat_only_agent():
-    client = create_client()
 
-    rethink_memory = client.create_tool(rethink_memory_convo)
-    finish_rethinking_memory = client.create_tool(finish_rethinking_memory_convo)
+def test_chat_only_agent(client, mock_e2b_api_key_none):
+    rethink_memory = client.create_or_update_tool(rethink_memory_convo)
+    finish_rethinking_memory = client.create_or_update_tool(finish_rethinking_memory_convo)
 
     conversation_human_block = Block(name="chat_agent_human", label="chat_agent_human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
     conversation_persona_block = Block(
@@ -114,10 +121,10 @@ def test_chat_only_agent():
         tools=["send_message"],
         memory=conversation_memory,
         include_base_tools=False,
-        metadata = {"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]}
+        metadata={"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]},
     )
     assert chat_only_agent is not None
-    assert set(chat_only_agent.memory.list_block_labels()) == set(["chat_agent_persona", "chat_agent_human"])
+    assert set(chat_only_agent.memory.list_block_labels()) == {"chat_agent_persona", "chat_agent_human"}
 
     for message in ["hello", "my name is not chad, my name is swoodily"]:
         client.send_message(agent_id=chat_only_agent.id, message=message, role="user")
@@ -125,3 +132,6 @@ def test_chat_only_agent():
 
     chat_only_agent = client.get_agent(agent_id=chat_only_agent.id)
     assert chat_only_agent.memory.get_block("chat_agent_human").value != get_human_text(DEFAULT_HUMAN)
+
+    # Clean up agent
+    client.delete_agent(chat_only_agent.id)
