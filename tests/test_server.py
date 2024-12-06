@@ -671,7 +671,7 @@ def test_composio_client_simple(server):
     assert len(actions) > 0
 
 
-def test_memory_rebuild_count(server, user_id):
+def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none):
     """Test that the memory rebuild is generating the correct number of role=system messages"""
 
     # create agent
@@ -711,7 +711,6 @@ def test_memory_rebuild_count(server, user_id):
         return len(system_messages), letta_messages
 
     try:
-
         # At this stage, there should only be 1 system message inside of recall storage
         num_system_messages, all_messages = count_system_messages_in_recall()
         # assert num_system_messages == 1, (num_system_messages, all_messages)

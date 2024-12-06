@@ -1327,7 +1327,7 @@ class SyncServer(Server):
 
         # iterate over records
         # TODO: Check "order_by", "order"
-        records = letta_agent.message_manager.list_user_messages(
+        records = letta_agent.message_manager.list_messages(
             actor=self.default_user,
             cursor=cursor,
             limit=limit,
