@@ -520,11 +520,7 @@ class SyncServer(Server):
             letta_agent.interface.print_messages_raw(letta_agent.messages)
 
         elif command.lower() == "memory":
-            ret_str = (
-                f"\nDumping memory contents:\n"
-                + f"\n{str(letta_agent.agent_state.memory)}"
-                + f"\n{str(letta_agent.persistence_manager.archival_memory)}"
-            )
+            ret_str = f"\nDumping memory contents:\n" + f"\n{str(letta_agent.agent_state.memory)}" + f"\n{str(letta_agent.archival_memory)}"
             return ret_str
 
         elif command.lower() == "pop" or command.lower().startswith("pop "):
@@ -1156,7 +1152,7 @@ class SyncServer(Server):
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
-        return ArchivalMemorySummary(size=len(agent.persistence_manager.archival_memory))
+        return ArchivalMemorySummary(size=len(agent.archival_memory))
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
@@ -1241,7 +1237,7 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        db_iterator = letta_agent.persistence_manager.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
+        db_iterator = letta_agent.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
 
         # get a single page of messages
         page = next(db_iterator, [])
@@ -1266,7 +1262,7 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over recorde
-        cursor, records = letta_agent.persistence_manager.archival_memory.storage.get_all_cursor(
+        cursor, records = letta_agent.archival_memory.storage.get_all_cursor(
             after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
         )
         return records
@@ -1281,14 +1277,14 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # Insert into archival memory
-        passage_ids = letta_agent.persistence_manager.archival_memory.insert(memory_string=memory_contents, return_ids=True)
+        passage_ids = letta_agent.archival_memory.insert(memory_string=memory_contents, return_ids=True)
 
         # Update the agent
         # TODO: should this update the system prompt?
         save_agent(letta_agent, self.ms)
 
         # TODO: this is gross, fix
-        return [letta_agent.persistence_manager.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
+        return [letta_agent.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
 
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
@@ -1303,7 +1299,7 @@ class SyncServer(Server):
 
         # Delete by ID
         # TODO check if it exists first, and throw error if not
-        letta_agent.persistence_manager.archival_memory.storage.delete({"id": memory_id})
+        letta_agent.archival_memory.storage.delete({"id": memory_id})
 
         # TODO: return archival memory
 
@@ -1584,7 +1580,7 @@ class SyncServer(Server):
 
         # delete all Passage objects with source_id==source_id from agent's archival memory
         agent = self.load_agent(agent_id=agent_id)
-        archival_memory = agent.persistence_manager.archival_memory
+        archival_memory = agent.archival_memory
         archival_memory.storage.delete({"source_id": source_id})
 
         # delete agent-source mapping

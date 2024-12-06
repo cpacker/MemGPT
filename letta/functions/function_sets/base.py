@@ -164,7 +164,7 @@ def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.persistence_manager.archival_memory.insert(content)
+    self.archival_memory.insert(content)
     return None
 
 
@@ -191,7 +191,7 @@ def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0) -
     except:
         raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results, total = self.persistence_manager.archival_memory.search(query, count=count, start=page * count)
+    results, total = self.archival_memory.search(query, count=count, start=page * count)
     num_pages = math.ceil(total / count) - 1  # 0 index
     if len(results) == 0:
         results_str = f"No results found."
