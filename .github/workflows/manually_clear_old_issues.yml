@@ -21,4 +21,5 @@ jobs:
           exempt-issue-labels: ""
           only-issue-labels: ""
           remove-stale-when-updated: true
+          operations-per-run: 1000
           repo-token: ${{ secrets.GITHUB_TOKEN }}
