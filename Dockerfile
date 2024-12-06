@@ -52,5 +52,6 @@ COPY ./alembic.ini /alembic.ini
 COPY ./alembic /alembic
 #COPY ./configs/server_config.yaml /root/.letta/config
 EXPOSE 8083
+EXPOSE 8283
 
 CMD ./letta/server/startup.sh
