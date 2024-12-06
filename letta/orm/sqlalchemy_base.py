@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, List, Literal, Optional, Tuple, Type, Union
+from typing import TYPE_CHECKING, List, Literal, Optional, Type
 
 from sqlalchemy import String, func, select
 from sqlalchemy.exc import DBAPIError
@@ -61,7 +61,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         limit: Optional[int] = 50,
         query_text: Optional[str] = None,
         **kwargs,
-    ) -> Union[List[Type["SqlalchemyBase"]], Tuple[Optional[str], List[Type["SqlalchemyBase"]]]]:
+    ) -> List[Type["SqlalchemyBase"]]:
         """List records with advanced filtering and pagination options."""
         if start_date and end_date and start_date > end_date:
             raise ValueError("start_date must be earlier than or equal to end_date")
