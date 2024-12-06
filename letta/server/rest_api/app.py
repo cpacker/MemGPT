@@ -124,6 +124,17 @@ def create_application() -> "FastAPI":
     # server = SyncServer(default_interface_factory=lambda: interface())
     print(f"\n[[ Letta server // v{__version__} ]]")
 
+    if (os.getenv("SENTRY_DSN") is not None) and (os.getenv("SENTRY_DSN") != ""):
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=os.getenv("SENTRY_DSN"),
+            traces_sample_rate=1.0,
+            _experiments={
+                "continuous_profiling_auto_start": True,
+            },
+        )
+
     app = FastAPI(
         swagger_ui_parameters={"docExpansion": "none"},
         # openapi_tags=TAGS_METADATA,
