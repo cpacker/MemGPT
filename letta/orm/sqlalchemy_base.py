@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, List, Literal, Optional, Tuple, Type, Union
 
-from sqlalchemy import String, asc, func, select
+from sqlalchemy import String, func, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
@@ -62,21 +62,10 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         query_text: Optional[str] = None,
         **kwargs,
     ) -> Union[List[Type["SqlalchemyBase"]], Tuple[Optional[str], List[Type["SqlalchemyBase"]]]]:
-        """List records with advanced filtering and pagination options.
+        """List records with advanced filtering and pagination options."""
+        if start_date and end_date and start_date > end_date:
+            raise ValueError("start_date must be earlier than or equal to end_date")
 
-        Args:
-            db_session: SQLAlchemy session
-            cursor: Cursor-based pagination - return records after this ID (exclusive)
-            start_date: Filter records created after this date
-            end_date: Filter records created before this date
-            limit: Maximum number of records to return
-            query_text: Optional text to search for in message content
-            **kwargs: Additional filters to apply
-
-        Returns:
-            If using cursor-based pagination (after/before): Tuple[Optional[str], List[records]]
-            Otherwise: List[records]
-        """
         logger.debug(f"Listing {cls.__name__} with kwarg filters {kwargs}")
         with db_session as session:
             query = select(cls)
@@ -84,25 +73,18 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             # Apply filtering logic
             for key, value in kwargs.items():
                 column = getattr(cls, key)
-                if isinstance(value, (list, tuple, set)):  # Check for iterables
+                if isinstance(value, (list, tuple, set)):
                     query = query.where(column.in_(value))
-                else:  # Single value for equality filtering
+                else:
                     query = query.where(column == value)
 
-            # Handle date range filtering
-            if start_date and end_date and hasattr(cls, "created_at"):
-                # If start_date equals end_date, add a small buffer to include records created at that exact time
-                if start_date.date() == end_date.date():
-                    start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                    end_date = end_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+            # Date range filtering
+            if start_date:
                 query = query.filter(cls.created_at >= start_date)
-                query = query.filter(cls.created_at <= end_date)
-            elif start_date and hasattr(cls, "created_at"):
-                query = query.filter(cls.created_at >= start_date)
-            elif end_date and hasattr(cls, "created_at"):
+            if end_date:
                 query = query.filter(cls.created_at <= end_date)
 
-            # Handle cursor-based pagination
+            # Cursor-based pagination
             if cursor:
                 query = query.where(cls.id > cursor)
 
@@ -110,15 +92,11 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             if query_text:
                 query = query.filter(func.lower(cls.text).contains(func.lower(query_text)))
 
-            # Handle ordering (defaults are ascending, "created_at")
-            # Priorities:
-            #   1. cursor-based pagination
-            #   2. Date
-            query = query.order_by(cls.id).order_by(asc(cls.created_at)).limit(limit)
-
-            # Handle soft deletes if the class has the 'is_deleted' attribute
+            # Handle ordering and soft deletes
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
+            query = query.order_by(cls.id).limit(limit)
+
             return list(session.execute(query).scalars())
 
     @classmethod
