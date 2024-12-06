@@ -53,7 +53,7 @@ jobs:
               message += '- `pyproject.toml` has been modified\n';
             }
 
-            message += '\nPlease review these changes carefully to ensure they are intended.';
+            message += '\nPlease review these changes carefully to ensure they are intended (cc @sarahwooders @cpacker).';
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,
