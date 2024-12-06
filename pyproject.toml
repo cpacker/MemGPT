@@ -15,7 +15,7 @@ readme = "README.md"
 letta = "letta.main:app"
 
 [tool.poetry.dependencies]
-python = "<3.13,>=3.10"
+python = "<4.0,>=3.10"
 typer = {extras = ["all"], version = "^0.9.0"}
 questionary = "^2.0.1"
 pytz = "^2023.3.post1"
@@ -39,7 +39,6 @@ sqlalchemy-json = "^0.7.0"
 fastapi = {version = "^0.104.1", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
 pydantic = ">=2.7.4,<2.10.0"
-pyautogen = {version = "0.2.22", optional = true}
 html2text = "^2020.1.16"
 docx2txt = "^0.8"
 sqlalchemy = "^2.0.25"
@@ -83,7 +82,6 @@ postgres = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2"]
 milvus = ["pymilvus"]
 dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "locust"]
 server = ["websockets", "fastapi", "uvicorn"]
-autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
 ollama = ["llama-index-embeddings-ollama"]
 cloud-tool-sandbox = ["e2b-code-interpreter"]
