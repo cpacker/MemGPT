@@ -44,38 +44,27 @@ class MessageManager:
         return [self.create_message(m, actor=actor) for m in pydantic_msgs]
 
     @enforce_types
-    def update_message_by_id(self, message_id: str, message: PydanticMessage, actor: PydanticUser) -> Optional[PydanticMessage]:
+    def update_message_by_id(self, message_id: str, message: PydanticMessage, actor: PydanticUser) -> PydanticMessage:
         """
         Updates an existing record in the database with values from the provided record object.
-
-        Replaces db.py:SQLLiteStorageConnector.update()
         """
-        if not message_id:
-            raise ValueError("Message ID must be provided.")
-
         with self.session_maker() as session:
-            try:
-                # Fetch existing message from database
-                msg = MessageModel.read(
-                    db_session=session,
-                    identifier=message_id,
-                    actor=actor,
-                )
-                if not msg:
-                    raise ValueError(f"Message with id {message_id} does not exist.")
+            # Fetch existing message from database
+            msg = MessageModel.read(
+                db_session=session,
+                identifier=message_id,
+                actor=actor,
+            )
 
-                # Update the database record with values from the provided record
-                for column in MessageModel.__table__.columns:
-                    column_name = column.name
-                    if hasattr(message, column_name):
-                        new_value = getattr(message, column_name)
-                        setattr(msg, column_name, new_value)
+            # Update the database record with values from the provided record
+            for column in MessageModel.__table__.columns:
+                column_name = column.name
+                if hasattr(message, column_name):
+                    new_value = getattr(message, column_name)
+                    setattr(msg, column_name, new_value)
 
-                # Commit changes
-                msg.update(session)
-                return msg.to_pydantic()
-            except NoResultFound:
-                return None
+            # Commit changes
+            return msg.update(db_session=session, actor=actor).to_pydantic()
 
     @enforce_types
     def delete_message_by_id(self, message_id: str, actor: PydanticUser) -> bool:
@@ -90,24 +79,6 @@ class MessageManager:
                 msg.hard_delete(session, actor=actor)
             except NoResultFound:
                 raise ValueError(f"Message with id {message_id} not found.")
-
-    @enforce_types
-    def _get_excluded_roles(self, include_system_messages: bool = False, include_tool_messages: bool = False) -> List[str]:
-        """Helper method to get list of roles to exclude based on include flags.
-
-        Args:
-            include_system_messages: If True, don't exclude system messages
-            include_tool_messages: If True, don't exclude tool messages
-
-        Returns:
-            List of role names to exclude
-        """
-        excluded_roles = []
-        if not include_system_messages:
-            excluded_roles.append("system")
-        if not include_tool_messages:
-            excluded_roles.append("tool")
-        return excluded_roles
 
     @enforce_types
     def size(
@@ -150,21 +121,20 @@ class MessageManager:
         Returns:
             List[PydanticMessage] - List of messages matching the criteria
         """
-        with self.session_maker() as session:
-            message_filters = {"role": "user"}
-            if filters:
-                message_filters.update(filters)
+        message_filters = {"role": "user"}
+        if filters:
+            message_filters.update(filters)
 
-            return self.list_messages_for_agent(
-                agent_id=agent_id,
-                actor=actor,
-                cursor=cursor,
-                start_date=start_date,
-                end_date=end_date,
-                limit=limit,
-                filters=message_filters,
-                query_text=query_text,
-            )
+        return self.list_messages_for_agent(
+            agent_id=agent_id,
+            actor=actor,
+            cursor=cursor,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            filters=message_filters,
+            query_text=query_text,
+        )
 
     @enforce_types
     def list_messages_for_agent(
