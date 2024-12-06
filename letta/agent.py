@@ -350,6 +350,8 @@ class Agent(BaseAgent):
             init_messages_objs = []
             for msg in init_messages:
                 init_messages_objs.append(msg)
+            for msg in init_messages_objs:
+                assert isinstance(msg, Message), f"Message object is not of type Message: {type(msg)}"
             assert all([isinstance(msg, Message) for msg in init_messages_objs]), (init_messages_objs, init_messages)
 
             # Put the messages inside the message buffer
@@ -1251,8 +1253,22 @@ class Agent(BaseAgent):
         self._messages = new_messages
 
     def rebuild_system_prompt(self, force=False, update_timestamp=True):
-        """Rebuilds the system message with the latest memory object and any shared memory block updates"""
+        """Rebuilds the system message with the latest memory object and any shared memory block updates
+
+        Updates to core memory blocks should trigger a "rebuild", which itself will create a new message object
+
+        Updates to the memory header should *not* trigger a rebuild, since that will simply flood recall storage with excess messages
+        """
+
         curr_system_message = self.messages[0]  # this is the system + memory bank, not just the system prompt
+
+        # note: we only update the system prompt if the core memory is changed
+        # this means that the archival/recall memory statistics may be someout out of date
+        curr_memory_str = self.agent_state.memory.compile()
+        if curr_memory_str in curr_system_message["content"] and not force:
+            # NOTE: could this cause issues if a block is removed? (substring match would still work)
+            printd(f"Memory hasn't changed, skipping system prompt rebuild")
+            return
 
         # If the memory didn't update, we probably don't want to update the timestamp inside
         # For example, if we're doing a system prompt swap, this should probably be False

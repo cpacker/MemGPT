@@ -6,7 +6,7 @@ import warnings
 from abc import abstractmethod
 from asyncio import Lock
 from datetime import datetime
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 from composio.client import Composio
 from composio.client.collections import ActionModel, AppModel
@@ -18,6 +18,7 @@ import letta.system as system
 from letta.agent import Agent, save_agent
 from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
+from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
 
@@ -27,6 +28,7 @@ from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
 from letta.metadata import MetadataStore
 from letta.o1_agent import O1Agent
+from letta.offline_memory_agent import OfflineMemoryAgent
 from letta.orm import Base
 from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
@@ -56,7 +58,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
 from letta.schemas.enums import JobStatus
-from letta.schemas.job import Job
+from letta.schemas.job import Job, JobUpdate
 from letta.schemas.letta_message import FunctionReturn, LettaMessage
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import (
@@ -75,6 +77,8 @@ from letta.schemas.user import User
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
 from letta.services.blocks_agents_manager import BlocksAgentsManager
+from letta.services.tools_agents_manager import ToolsAgentsManager
+from letta.services.job_manager import JobManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
@@ -256,6 +260,8 @@ class SyncServer(Server):
         self.agents_tags_manager = AgentsTagsManager()
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.blocks_agents_manager = BlocksAgentsManager()
+        self.tools_agents_manager = ToolsAgentsManager()
+        self.job_manager = JobManager()
 
         # Managers that interface with parallelism
         self.per_agent_lock_manager = PerAgentLockManager()
@@ -372,22 +378,51 @@ class SyncServer(Server):
             }
         )
 
+    def initialize_agent(self, agent_id, interface: Union[AgentInterface, None] = None, initial_message_sequence=None) -> Agent:
+        """Initialize an agent from the database"""
+        agent_state = self.get_agent(agent_id=agent_id)
+        actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+
+        interface = interface or self.default_interface_factory()
+        if agent_state.agent_type == AgentType.memgpt_agent:
+            agent = Agent(agent_state=agent_state, interface=interface, user=actor, initial_message_sequence=initial_message_sequence)
+        else:
+            assert initial_message_sequence is None, f"Initial message sequence is not supported for O1Agents"
+            agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+
+        # Persist to agent
+        save_agent(agent, self.ms)
+        return agent
+
     def load_agent(self, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
         """Updated method to load agents from persisted storage"""
         agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
         with agent_lock:
             agent_state = self.get_agent(agent_id=agent_id)
+            if agent_state is None:
+                raise ValueError(f"Agent (agent_id={agent_id}) does not exist")
+            elif agent_state.user_id is None:
+                raise ValueError(f"Agent (agent_id={agent_id}) does not have a user_id")
             actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
             interface = interface or self.default_interface_factory()
             if agent_state.agent_type == AgentType.memgpt_agent:
                 agent = Agent(agent_state=agent_state, interface=interface, user=actor)
-            else:
+            elif agent_state.agent_type == AgentType.o1_agent:
                 agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
+            elif agent_state.agent_type == AgentType.offline_memory_agent:
+                agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, user=actor)
+            elif agent_state.agent_type == AgentType.chat_only_agent:
+                agent = ChatOnlyAgent(agent_state=agent_state, interface=interface, user=actor)
+            else: 
+                raise ValueError(f"Invalid agent type {agent_state.agent_type}")
+
+            # Rebuild the system prompt - may be linked to new blocks now
+            agent.rebuild_system_prompt()
 
             # Persist to agent
             save_agent(agent, self.ms)
-            return agent
+            return agent 
 
     def _step(
         self,
@@ -775,6 +810,10 @@ class SyncServer(Server):
                 request.system = gpt_system.get_system_text("memgpt_chat")
             elif request.agent_type == AgentType.o1_agent:
                 request.system = gpt_system.get_system_text("memgpt_modified_o1")
+            elif request.agent_type == AgentType.offline_memory_agent:
+                request.system = gpt_system.get_system_text("memgpt_offline_memory")
+            elif request.agent_type == AgentType.chat_only_agent:
+                request.system = gpt_system.get_system_text("memgpt_convo_only")
             else:
                 raise ValueError(f"Invalid agent type: {request.agent_type}")
 
@@ -802,8 +841,6 @@ class SyncServer(Server):
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
-        # TODO: create the message objects (NOTE: do this after we migrate to `CreateMessage`)
-
         # created and persist the agent state in the DB
         agent_state = PersistedAgentState(
             name=request.name,
@@ -822,6 +859,31 @@ class SyncServer(Server):
         # this saves the agent ID and state into the DB
         self.ms.create_agent(agent_state)
 
+        # create the agent object
+        if request.initial_message_sequence:
+            # init_messages = [Message(user_id=user_id, agent_id=agent_state.id, role=message.role, text=message.text) for message in request.initial_message_sequence]
+            init_messages = []
+            for message in request.initial_message_sequence:
+
+                if message.role == MessageRole.user:
+                    packed_message = system.package_user_message(
+                        user_message=message.text,
+                    )
+                elif message.role == MessageRole.system:
+                    packed_message = system.package_system_message(
+                        system_message=message.text,
+                    )
+                else:
+                    raise ValueError(f"Invalid message role: {message.role}")
+
+                init_messages.append(Message(role=message.role, text=packed_message, user_id=user_id, agent_id=agent_state.id))
+            # init_messages = [Message.dict_to_message(user_id=user_id, agent_id=agent_state.id, openai_message_dict=message.model_dump()) for message in request.initial_message_sequence]
+        else:
+            init_messages = None
+
+        # initialize the agent (generates initial message list with system prompt)
+        self.initialize_agent(agent_id=agent_state.id, interface=interface, initial_message_sequence=init_messages)
+
         # Note: mappings (e.g. tags, blocks) are created after the agent is persisted
         # TODO: add source mappings here as well
 
@@ -838,7 +900,7 @@ class SyncServer(Server):
         in_memory_agent_state = self.get_agent(agent_state.id)
         return in_memory_agent_state
 
-    def get_agent(self, agent_id: str) -> AgentState:
+    def get_agent(self, agent_id: str) -> Optional[AgentState]:
         """
         Retrieve the full agent state from the DB.
         This gathers data accross multiple tables to provide the full state of an agent, which is passed into the `Agent` object for creation.
@@ -849,6 +911,8 @@ class SyncServer(Server):
         if agent_state is None:
             # agent does not exist
             return None
+        if agent_state.user_id is None:
+            raise ValueError(f"Agent {agent_id} does not have a user_id")
         user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
 
         # construct the in-memory, full agent state - this gather data stored in different tables but that needs to be passed to `Agent`
@@ -1289,7 +1353,7 @@ class SyncServer(Server):
             records = records[::-1]
 
         return records
-
+      
     def get_server_config(self, include_defaults: bool = False) -> dict:
         """Return the base config"""
 
@@ -1427,39 +1491,12 @@ class SyncServer(Server):
 
         # TODO: delete data from agent passage stores (?)
 
-    def create_job(self, user_id: str, metadata: Optional[Dict] = None) -> Job:
-        """Create a new job"""
-        job = Job(
-            user_id=user_id,
-            status=JobStatus.created,
-            metadata_=metadata,
-        )
-        self.ms.create_job(job)
-        return job
-
-    def delete_job(self, job_id: str):
-        """Delete a job"""
-        self.ms.delete_job(job_id)
-
-    def get_job(self, job_id: str) -> Job:
-        """Get a job"""
-        return self.ms.get_job(job_id)
-
-    def list_jobs(self, user_id: str) -> List[Job]:
-        """List all jobs for a user"""
-        return self.ms.list_jobs(user_id=user_id)
-
-    def list_active_jobs(self, user_id: str) -> List[Job]:
-        """List all active jobs for a user"""
-        jobs = self.ms.list_jobs(user_id=user_id)
-        return [job for job in jobs if job.status in [JobStatus.created, JobStatus.running]]
-
-    def load_file_to_source(self, source_id: str, file_path: str, job_id: str) -> Job:
+    def load_file_to_source(self, source_id: str, file_path: str, job_id: str, actor: User) -> Job:
 
         # update job
-        job = self.ms.get_job(job_id)
+        job = self.job_manager.get_job_by_id(job_id, actor=actor)
         job.status = JobStatus.running
-        self.ms.update_job(job)
+        self.job_manager.update_job_by_id(job_id=job_id, job_update=JobUpdate(**job.model_dump()), actor=actor)
 
         # try:
         from letta.data_sources.connectors import DirectoryConnector
@@ -1467,23 +1504,12 @@ class SyncServer(Server):
         source = self.source_manager.get_source_by_id(source_id=source_id)
         connector = DirectoryConnector(input_files=[file_path])
         num_passages, num_documents = self.load_data(user_id=source.created_by_id, source_name=source.name, connector=connector)
-        # except Exception as e:
-        #    # job failed with error
-        #    error = str(e)
-        #    print(error)
-        #    job.status = JobStatus.failed
-        #    job.metadata_["error"] = error
-        #    self.ms.update_job(job)
-        #    # TODO: delete any associated passages/files?
-
-        #    # return failed job
-        #    return job
 
         # update job status
         job.status = JobStatus.completed
         job.metadata_["num_passages"] = num_passages
         job.metadata_["num_documents"] = num_documents
-        self.ms.update_job(job)
+        self.job_manager.update_job_by_id(job_id=job_id, job_update=JobUpdate(**job.model_dump()), actor=actor)
 
         return job
 
@@ -1876,7 +1902,8 @@ class SyncServer(Server):
         apps = self.composio_client.apps.get()
         apps_with_actions = []
         for app in apps:
-            if app.meta["actionsCount"] > 0:
+            # A bit of hacky logic until composio patches this
+            if app.meta["actionsCount"] > 0 and not app.name.lower().endswith("_beta"):
                 apps_with_actions.append(app)
 
         return apps_with_actions

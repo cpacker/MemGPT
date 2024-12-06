@@ -551,6 +551,7 @@ tags
 [._]*.un~
 
 ### VisualStudioCode ###
+.vscode/
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
@@ -1018,3 +1019,6 @@ pgdata/
 letta/.pytest_cache/
 memgpy/pytest.ini
 **/**/pytest_cache
+
+## ignore venvs
+tests/test_tool_sandbox/restaurant_management_system/venv

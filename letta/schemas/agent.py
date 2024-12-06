@@ -9,7 +9,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
-from letta.schemas.message import Message
+from letta.schemas.message import Message, MessageCreate
 from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool
@@ -33,6 +33,8 @@ class AgentType(str, Enum):
     memgpt_agent = "memgpt_agent"
     split_thread_agent = "split_thread_agent"
     o1_agent = "o1_agent"
+    offline_memory_agent = "offline_memory_agent"
+    chat_only_agent = "chat_only_agent"
 
 
 class PersistedAgentState(BaseAgent, validate_assignment=True):
@@ -43,7 +45,6 @@ class PersistedAgentState(BaseAgent, validate_assignment=True):
 
     # in-context memory
     message_ids: Optional[List[str]] = Field(default=None, description="The ids of the messages in the agent's in-context memory.")
-
     # tools
     # TODO: move to ORM mapping
     tool_names: List[str] = Field(..., description="The tools used by the agent.")
@@ -107,7 +108,7 @@ class CreateAgent(BaseAgent):  #
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
-
+    
     # memory creation
     memory_blocks: List[CreateBlock] = Field(
         # [CreateHuman(), CreatePersona()], description="The blocks to create in the agent's in-context memory."
@@ -124,7 +125,7 @@ class CreateAgent(BaseAgent):  #
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
     # Note: if this is None, then we'll populate with the standard "more human than human" initial message sequence
     # If the client wants to make this empty, then the client can set the arg to an empty list
-    initial_message_sequence: Optional[List[Message]] = Field(
+    initial_message_sequence: Optional[List[MessageCreate]] = Field(
         None, description="The initial set of messages to put in the agent's in-context memory."
     )
 

@@ -1,4 +1,4 @@
-name: Check for new print statements
+name: Check for Print Statements
 on:
   pull_request:
     paths:
@@ -23,8 +23,8 @@ jobs:
           # Get the files changed in this PR
           git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} > changed_files.txt
 
-          # Filter for only Python files
-          grep "\.py$" changed_files.txt > python_files.txt || true
+          # Filter for only Python files, excluding tests directory
+          grep "\.py$" changed_files.txt | grep -v "^tests/" > python_files.txt || true
 
           # Initialize error flag
           ERROR=0

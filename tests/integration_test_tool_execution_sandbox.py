@@ -164,6 +164,43 @@ def get_env_tool(test_user):
 
 
 @pytest.fixture
+def get_warning_tool(test_user):
+    def warn_hello_world() -> str:
+        """
+        Simple function that warns hello world.
+
+        Returns:
+            str: hello world
+        """
+        import warnings
+
+        msg = "Hello World"
+        warnings.warn(msg)
+        return msg
+
+    tool = create_tool_from_func(warn_hello_world)
+    tool = ToolManager().create_or_update_tool(tool, test_user)
+    yield tool
+
+
+@pytest.fixture
+def always_err_tool(test_user):
+    def error() -> str:
+        """
+        Simple function that errors
+
+        Returns:
+            str: not important
+        """
+        # Raise a unusual error so we know it's from this function
+        raise ZeroDivisionError("This is an intentionally weird division!")
+
+    tool = create_tool_from_func(error)
+    tool = ToolManager().create_or_update_tool(tool, test_user)
+    yield tool
+
+
+@pytest.fixture
 def list_tool(test_user):
     def create_list():
         """Simple function that returns a list"""
@@ -184,7 +221,7 @@ def composio_github_star_tool(test_user):
 
 
 @pytest.fixture
-def clear_core_memory(test_user):
+def clear_core_memory_tool(test_user):
     def clear_memory(agent_state: AgentState):
         """Clear the core memory"""
         agent_state.memory.get_block("human").value = ""
@@ -203,6 +240,17 @@ def core_memory_replace_tool(test_user):
 
 
 @pytest.fixture
+def external_codebase_tool(test_user):
+    from tests.test_tool_sandbox.restaurant_management_system.adjust_menu_prices import (
+        adjust_menu_prices,
+    )
+
+    tool = create_tool_from_func(adjust_menu_prices)
+    tool = ToolManager().create_or_update_tool(tool, test_user)
+    yield tool
+
+
+@pytest.fixture
 def agent_state():
     client = create_client()
     agent_state = client.create_agent(
@@ -213,7 +261,36 @@ def agent_state():
     yield agent_state
 
 
+@pytest.fixture
+def custom_test_sandbox_config(test_user):
+    """
+    Fixture to create a consistent local sandbox configuration for tests.
+
+    Args:
+        test_user: The test user to be used for creating the sandbox configuration.
+
+    Returns:
+        A tuple containing the SandboxConfigManager and the created sandbox configuration.
+    """
+    # Create the SandboxConfigManager
+    manager = SandboxConfigManager(tool_settings)
+
+    # Set the sandbox to be within the external codebase path and use a venv
+    external_codebase_path = str(Path(__file__).parent / "test_tool_sandbox" / "restaurant_management_system")
+    local_sandbox_config = LocalSandboxConfig(sandbox_dir=external_codebase_path, use_venv=True)
+
+    # Create the sandbox configuration
+    config_create = SandboxConfigCreate(config=local_sandbox_config.model_dump())
+
+    # Create or update the sandbox configuration
+    manager.create_or_update_sandbox_config(sandbox_config_create=config_create, actor=test_user)
+
+    return manager, local_sandbox_config
+
+
 # Local sandbox tests
+
+
 @pytest.mark.local_sandbox
 def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_user):
     args = {"x": 10, "y": 5}
@@ -231,10 +308,10 @@ def test_local_sandbox_default(mock_e2b_api_key_none, add_integers_tool, test_us
 
 
 @pytest.mark.local_sandbox
-def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory, test_user, agent_state):
+def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory_tool, test_user, agent_state):
     args = {}
     # Run again to get actual response
-    sandbox = ToolExecutionSandbox(clear_core_memory.name, args, user_id=test_user.id)
+    sandbox = ToolExecutionSandbox(clear_core_memory_tool.name, args, user_id=test_user.id)
     result = sandbox.run(agent_state=agent_state)
     assert result.agent_state.memory.get_block("human").value == ""
     assert result.agent_state.memory.get_block("persona").value == ""
@@ -313,6 +390,38 @@ def test_local_sandbox_e2e_composio_star_github(mock_e2b_api_key_none, check_com
     assert result.func_return["details"] == "Action executed successfully"
 
 
+@pytest.mark.local_sandbox
+def test_local_sandbox_external_codebase(mock_e2b_api_key_none, custom_test_sandbox_config, external_codebase_tool, test_user):
+    # Set the args
+    args = {"percentage": 10}
+
+    # Run again to get actual response
+    sandbox = ToolExecutionSandbox(external_codebase_tool.name, args, user_id=test_user.id)
+    result = sandbox.run()
+
+    # Assert that the function return is correct
+    assert result.func_return == "Price Adjustments:\nBurger: $8.99 -> $9.89\nFries: $2.99 -> $3.29\nSoda: $1.99 -> $2.19"
+    assert "Hello World" in result.stdout[0]
+
+
+@pytest.mark.local_sandbox
+def test_local_sandbox_with_venv_and_warnings_does_not_error(
+    mock_e2b_api_key_none, custom_test_sandbox_config, get_warning_tool, test_user
+):
+    sandbox = ToolExecutionSandbox(get_warning_tool.name, {}, user_id=test_user.id)
+    result = sandbox.run()
+    assert result.func_return == "Hello World"
+
+
+@pytest.mark.e2b_sandbox
+def test_local_sandbox_with_venv_errors(mock_e2b_api_key_none, custom_test_sandbox_config, always_err_tool, test_user):
+    sandbox = ToolExecutionSandbox(always_err_tool.name, {}, user_id=test_user.id)
+
+    # run the sandbox
+    with pytest.raises(ZeroDivisionError, match="This is an intentionally weird division!"):
+        sandbox.run()
+
+
 # E2B sandbox tests
 
 
@@ -366,8 +475,8 @@ def test_e2b_sandbox_reuses_same_sandbox(check_e2b_key_is_set, list_tool, test_u
 
 
 @pytest.mark.e2b_sandbox
-def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory, test_user, agent_state):
-    sandbox = ToolExecutionSandbox(clear_core_memory.name, {}, user_id=test_user.id)
+def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory_tool, test_user, agent_state):
+    sandbox = ToolExecutionSandbox(clear_core_memory_tool.name, {}, user_id=test_user.id)
 
     # run the sandbox
     result = sandbox.run(agent_state=agent_state)
