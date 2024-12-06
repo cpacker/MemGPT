@@ -19,6 +19,7 @@ from letta.constants import (
     MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
     MESSAGE_SUMMARY_TRUNC_TOKEN_FRAC,
     MESSAGE_SUMMARY_WARNING_FRAC,
+    O1_BASE_TOOLS,
     REQ_HEARTBEAT_MESSAGE,
 )
 from letta.errors import LLMError
@@ -366,7 +367,6 @@ class Agent(BaseAgent):
 
             # Put the messages inside the message buffer
             self.messages_total = 0
-            # self._append_to_messages(added_messages=[cast(Message, msg) for msg in init_messages_objs if msg is not None])
             self._append_to_messages(added_messages=init_messages_objs)
             self._validate_message_buffer_is_utc()
 
@@ -423,7 +423,10 @@ class Agent(BaseAgent):
         # TODO: need to have an AgentState object that actually has full access to the block data
         # this is because the sandbox tools need to be able to access block.value to edit this data
         try:
-            if function_name in BASE_TOOLS:
+            # TODO: This is NO BUENO
+            # TODO: Matching purely by names is extremely problematic, users can create tools with these names and run them in the agent loop
+            # TODO: We will have probably have to match the function strings exactly for safety
+            if function_name in BASE_TOOLS or function_name in O1_BASE_TOOLS:
                 # base tools are allowed to access the `Agent` object and run on the database
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
                 function_response = function_to_call(**function_args)
@@ -540,7 +543,6 @@ class Agent(BaseAgent):
     def _prepend_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.prepend to allow additional calls to a state/persistence manager"""
         assert all([isinstance(msg, Message) for msg in added_messages])
-
         self.message_manager.create_many_messages(added_messages, actor=self.user)
 
         new_messages = [self._messages[0]] + added_messages + self._messages[1:]  # prepend (no system)
@@ -550,7 +552,6 @@ class Agent(BaseAgent):
     def _append_to_messages(self, added_messages: List[Message]):
         """Wrapper around self.messages.append to allow additional calls to a state/persistence manager"""
         assert all([isinstance(msg, Message) for msg in added_messages])
-
         self.message_manager.create_many_messages(added_messages, actor=self.user)
 
         # strip extra metadata if it exists
@@ -1027,10 +1028,13 @@ class Agent(BaseAgent):
             )
 
             # Step 6: extend the message history
+            # import ipdb;ipdb.set_trace()
             if len(messages) > 0:
                 all_new_messages = messages + all_response_messages
             else:
                 all_new_messages = all_response_messages
+            # import ipdb;
+            # ipdb.set_trace()
 
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response.usage.total_tokens
