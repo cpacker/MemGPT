@@ -18,7 +18,6 @@ def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) ->
 
     """
     from letta import create_client
-
     client = create_client()
     agents = client.list_agents()
     for agent in agents:
@@ -35,7 +34,6 @@ def trigger_rethink_memory_convo(agent_state: "AgentState", message: Optional[st
 
     """
     from letta import create_client
-
     client = create_client()
     recent_convo = "".join([str(message) for message in agent_state.messages])[
         -2000:
@@ -62,7 +60,6 @@ def rethink_memory_convo(agent_state: "AgentState", new_memory: str, target_bloc
         Optional[str]: None is always returned as this function does not produce a response.
     """
     from letta import create_client
-
     client = create_client()
     if target_block_label is not None:
         if target_block_label not in agent_state.memory.list_block_labels():
@@ -87,7 +84,6 @@ def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_labe
         Optional[str]: None is always returned as this function does not produce a response.
     """
     from letta import create_client
-
     client = create_client()
     if target_block_label is not None:
         if target_block_label not in agent_state.memory.list_block_labels():
@@ -96,6 +92,7 @@ def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_labe
         else:
             agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
     return None
+
 
 
 def finish_rethinking_memory(agent_state: "AgentState") -> Optional[str]:  # type: ignore

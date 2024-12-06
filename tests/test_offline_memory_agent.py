@@ -110,7 +110,7 @@ def test_ripple_edit(client, mock_e2b_api_key_none):
         include_base_tools=False,
     )
     assert offline_memory_agent is not None
-    assert set(offline_memory_agent.memory.list_block_labels()) == set(["persona", "human", "fact_block", "rethink_memory_block"])
+    assert set(offline_memory_agent.memory.list_block_labels()) == {"persona", "human", "fact_block", "rethink_memory_block"}
     response = client.user_message(
         agent_id=conversation_agent.id, message="[trigger_rethink_memory]: Messi has now moved to playing for Inter Miami"
     )
