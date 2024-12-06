@@ -465,7 +465,7 @@ async def send_message(
 @router.post(
     "/{agent_id}/messages/stream",
     response_model=None,
-    operation_id="create_agent_message",
+    operation_id="create_agent_message_stream",
     responses={
         200: {
             "description": "Successful response",
