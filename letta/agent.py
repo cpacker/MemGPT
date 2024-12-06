@@ -83,6 +83,7 @@ from letta.utils import (
 
 def compile_memory_metadata_block(
     actor: PydanticUser,
+    agent_id: str,
     memory_edit_timestamp: datetime.datetime,
     archival_memory: Optional[ArchivalMemory] = None,
     message_manager: Optional[MessageManager] = None,
@@ -94,7 +95,7 @@ def compile_memory_metadata_block(
     memory_metadata_block = "\n".join(
         [
             f"### Memory [last modified: {timestamp_str}]",
-            f"{message_manager.size(actor=actor) if message_manager else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
+            f"{message_manager.size(actor=actor, agent_id=agent_id) if message_manager else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
             f"{archival_memory.count() if archival_memory else 0} total memories you created are stored in archival memory (use functions to access them)",
             "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
         ]
@@ -104,6 +105,7 @@ def compile_memory_metadata_block(
 
 def compile_system_message(
     system_prompt: str,
+    agent_id: str,
     in_context_memory: Memory,
     in_context_memory_last_edit: datetime.datetime,  # TODO move this inside of BaseMemory?
     actor: PydanticUser,
@@ -134,6 +136,7 @@ def compile_system_message(
         # TODO should this all put into the memory.__repr__ function?
         memory_metadata_string = compile_memory_metadata_block(
             actor=actor,
+            agent_id=agent_id,
             memory_edit_timestamp=in_context_memory_last_edit,
             archival_memory=archival_memory,
             message_manager=message_manager,
@@ -169,6 +172,7 @@ def compile_system_message(
 def initialize_message_sequence(
     model: str,
     system: str,
+    agent_id: str,
     memory: Memory,
     actor: PydanticUser,
     archival_memory: Optional[ArchivalMemory] = None,
@@ -183,6 +187,7 @@ def initialize_message_sequence(
     # system, memory, memory_edit_timestamp, archival_memory=archival_memory, recall_memory=recall_memory
     # )
     full_system_message = compile_system_message(
+        agent_id=agent_id,
         system_prompt=system,
         in_context_memory=memory,
         in_context_memory_last_edit=memory_edit_timestamp,
@@ -317,6 +322,7 @@ class Agent(BaseAgent):
             init_messages = initialize_message_sequence(
                 model=self.model,
                 system=self.agent_state.system,
+                agent_id=self.agent_state.id,
                 memory=self.agent_state.memory,
                 actor=self.user,
                 archival_memory=None,
@@ -342,6 +348,7 @@ class Agent(BaseAgent):
                     model=self.model,
                     system=self.agent_state.system,
                     memory=self.agent_state.memory,
+                    agent_id=self.agent_state.id,
                     actor=self.user,
                     archival_memory=None,
                     message_manager=None,
@@ -1287,6 +1294,7 @@ class Agent(BaseAgent):
 
         # update memory (TODO: potentially update recall/archival stats seperately)
         new_system_message_str = compile_system_message(
+            agent_id=self.agent_state.id,
             system_prompt=self.agent_state.system,
             in_context_memory=self.agent_state.memory,
             in_context_memory_last_edit=memory_edit_timestamp,
@@ -1577,9 +1585,10 @@ class Agent(BaseAgent):
             )
 
         num_archival_memory = self.archival_memory.storage.size()
-        message_manager_size = self.message_manager.size(actor=self.user)
+        message_manager_size = self.message_manager.size(actor=self.user, agent_id=self.agent_state.id)
         external_memory_summary = compile_memory_metadata_block(
             actor=self.user,
+            agent_id=self.agent_state.id,
             memory_edit_timestamp=get_utc_time(),  # dummy timestamp
             archival_memory=self.archival_memory,
             message_manager=self.message_manager,

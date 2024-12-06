@@ -29,6 +29,7 @@ from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.usage import LettaUsageStatistics
+from letta.services.organization_manager import OrganizationManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
 from letta.settings import model_settings
@@ -104,6 +105,22 @@ def agent(client: Union[LocalClient, RESTClient]):
 
     # delete agent
     client.delete_agent(agent_state.id)
+
+
+@pytest.fixture
+def default_organization():
+    """Fixture to create and return the default organization."""
+    manager = OrganizationManager()
+    org = manager.create_default_organization()
+    yield org
+
+
+@pytest.fixture
+def default_user(default_organization):
+    """Fixture to create and return the default user within the default organization."""
+    manager = UserManager()
+    user = manager.create_default_user(org_id=default_organization.id)
+    yield user
 
 
 def test_agent(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
@@ -611,7 +628,7 @@ def cleanup_agents(client):
 
 
 # NOTE: we need to add this back once agents can also create blocks during agent creation
-def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState, cleanup_agents: List[str]):
+def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent: AgentState, cleanup_agents: List[str], default_user):
     """Test that we can set an initial message sequence
 
     If we pass in None, we should get a "default" message sequence
@@ -621,17 +638,16 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     from letta.agent import initialize_message_sequence
     from letta.utils import get_utc_time
 
-    actor = UserManager().get_user_by_id(agent.user_id)
-
     # The reference initial message sequence:
     reference_init_messages = initialize_message_sequence(
         model=agent.llm_config.model,
         system=agent.system,
+        agent_id=agent.id,
         memory=agent.memory,
         archival_memory=None,
         memory_edit_timestamp=get_utc_time(),
         include_initial_boot_message=True,
-        actor=actor,
+        actor=default_user,
     )
 
     # system, login message, send_message test, send_message receipt

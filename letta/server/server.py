@@ -1431,11 +1431,15 @@ class SyncServer(Server):
         for message in messages:
             self.message_manager.delete_message_by_id(message.id, actor=actor)
 
-        agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
-        if agent_state_user.organization_id != actor.organization_id:
-            raise ValueError(
-                f"Could not authorize agent_id={agent_id} with user_id={user_id} because of differing organizations; agent_id was created in {agent_state_user.organization_id} while user belongs to {actor.organization_id}. How did they get the agent id?"
-            )
+        # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM
+        try:
+            agent_state_user = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
+            if agent_state_user.organization_id != actor.organization_id:
+                raise ValueError(
+                    f"Could not authorize agent_id={agent_id} with user_id={user_id} because of differing organizations; agent_id was created in {agent_state_user.organization_id} while user belongs to {actor.organization_id}. How did they get the agent id?"
+                )
+        except NoResultFound:
+            logger.error(f"Agent with id {agent_state.id} has nonexistent user {agent_state.user_id}")
 
         # First, if the agent is in the in-memory cache we should remove it
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
@@ -1703,7 +1707,7 @@ class SyncServer(Server):
 
         try:
             return self.user_manager.get_user_by_id(user_id=user_id)
-        except ValueError:
+        except NoResultFound:
             raise HTTPException(status_code=404, detail=f"User with id {user_id} not found")
 
     def get_organization_or_default(self, org_id: Optional[str]) -> Organization:
@@ -1713,7 +1717,7 @@ class SyncServer(Server):
 
         try:
             return self.organization_manager.get_organization_by_id(org_id=org_id)
-        except ValueError:
+        except NoResultFound:
             raise HTTPException(status_code=404, detail=f"Organization with id {org_id} not found")
 
     def list_llm_models(self) -> List[LLMConfig]:
