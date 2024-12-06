@@ -12,6 +12,7 @@ from letta.schemas.memory import Memory
 from letta.schemas.message import Message
 from letta.schemas.passage import Passage
 from letta.services.message_manager import MessageManager
+from letta.services.user_manager import UserManager
 from letta.utils import (
     count_tokens,
     extract_date_from_timestamp,
@@ -260,6 +261,7 @@ class BaseRecallMemory(RecallMemory):
         self.restrict_search_to_summaries = restrict_search_to_summaries
 
         self.agent_state = agent_state
+        self.actor = UserManager().get_user_by_id
 
         # create embedding model
         self.embed_model = embedding_model(agent_state.embedding_config)

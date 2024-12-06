@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 from letta.orm.errors import NoResultFound
 from letta.orm.message import Message as MessageModel
+from letta.schemas.enums import MessageRole
 from letta.schemas.message import Message as PydanticMessage
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types
@@ -112,29 +113,16 @@ class MessageManager:
     def size(
         self,
         actor: PydanticUser,
-        filters: Optional[Dict] = None,
-        only_user_messages: bool = True,
+        role: Optional[MessageRole] = None,
     ) -> int:
         """Get the total count of messages with optional filters.
 
         Args:
             actor: The user requesting the count
-            filters: Additional filters to apply
-            only_user_messages: If True, only count user messages
+            role: The role of the message
         """
         with self.session_maker() as session:
-            query = session.query(MessageModel).filter(MessageModel.organization_id == actor.organization_id)
-
-            # Handle role exclusions
-            if only_user_messages:
-                query = query.filter(MessageModel.role == "user")
-
-            # Add any additional filters
-            if filters:
-                for key, value in filters.items():
-                    query = query.filter(getattr(MessageModel, key) == value)
-
-            return query.count()
+            return MessageModel.size(db_session=session, actor=actor, role=role)
 
     @enforce_types
     def list_user_messages_for_agent(
