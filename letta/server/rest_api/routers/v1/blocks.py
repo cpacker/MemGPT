@@ -76,7 +76,7 @@ def get_block(
         raise HTTPException(status_code=404, detail="Block not found")
 
 
-@router.patch("/{block_id}/attach", response_model=Block, operation_id="update_agent_memory_block")
+@router.patch("/{block_id}/attach", response_model=Block, operation_id="link_agent_memory_block")
 def link_agent_memory_block(
     block_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to attach the source to."),
@@ -96,7 +96,7 @@ def link_agent_memory_block(
     return block
 
 
-@router.patch("/{block_id}/detach", response_model=Memory, operation_id="update_agent_memory_block")
+@router.patch("/{block_id}/detach", response_model=Memory, operation_id="unlink_agent_memory_block")
 def unlink_agent_memory_block(
     block_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to attach the source to."),
