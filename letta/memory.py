@@ -11,8 +11,6 @@ from letta.schemas.enums import MessageRole
 from letta.schemas.memory import Memory
 from letta.schemas.message import Message
 from letta.schemas.passage import Passage
-from letta.services.message_manager import MessageManager
-from letta.services.user_manager import UserManager
 from letta.utils import (
     count_tokens,
     extract_date_from_timestamp,
@@ -250,83 +248,6 @@ class DummyRecallMemory(RecallMemory):
             return matches[start:], len(matches)
         else:
             return matches, len(matches)
-
-
-class BaseRecallMemory(RecallMemory):
-    """Recall memory based on base functions implemented by storage connectors"""
-
-    def __init__(self, agent_state, restrict_search_to_summaries=False):
-        # If true, the pool of messages that can be queried are the automated summaries only
-        # (generated when the conversation window needs to be shortened)
-        self.restrict_search_to_summaries = restrict_search_to_summaries
-
-        self.agent_state = agent_state
-        self.actor = UserManager().get_user_by_id
-
-        # create embedding model
-        self.embed_model = embedding_model(agent_state.embedding_config)
-        self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
-
-        # create storage backend
-        self.message_manager = MessageManager()
-        # TODO: have some mechanism for cleanup otherwise will lead to OOM
-        self.cache = {}
-
-    def get_all(self, start=0, count=None):
-        start = 0 if start is None else int(start)
-        count = 0 if count is None else int(count)
-        results = self.message_manager.get_all(start, count)
-        results_json = [message.to_openai_dict() for message in results]
-        return results_json, len(results)
-
-    def text_search(self, query_string, count=None, start=None):
-        start = 0 if start is None else int(start)
-        count = 0 if count is None else int(count)
-        results = self.message_manager.query_text(query_string, count, start)
-        results_json = [message.to_openai_dict_search_results() for message in results]
-        return results_json, len(results)
-
-    def date_search(self, start_date, end_date, count=None, start=None):
-        start = 0 if start is None else int(start)
-        count = 0 if count is None else int(count)
-        results = self.message_manager.query_date(start_date, end_date, count, start)
-        results_json = [message.to_openai_dict_search_results() for message in results]
-        return results_json, len(results)
-
-    def compile(self) -> str:
-        total = self.message_manager.size()
-        system_count = self.message_manager.size(filters={"role": "system"})
-        user_count = self.message_manager.size(filters={"role": "user"})
-        assistant_count = self.message_manager.size(filters={"role": "assistant"})
-        function_count = self.message_manager.size(filters={"role": "function"})
-        other_count = total - (system_count + user_count + assistant_count + function_count)
-
-        memory_str = (
-            f"Statistics:"
-            + f"\n{total} total messages"
-            + f"\n{system_count} system"
-            + f"\n{user_count} user"
-            + f"\n{assistant_count} assistant"
-            + f"\n{function_count} function"
-            + f"\n{other_count} other"
-        )
-        return f"\n### RECALL MEMORY ###" + f"\n{memory_str}"
-
-    def insert(self, message: Message):
-        self.message_manager.create_message(message)
-
-    def insert_many(self, messages: List[Message]):
-        self.message_manager.create_many_messages(messages)
-
-    def save(self):
-        # NOTE: is this supposed to do anything?
-        self.message_manager.save()
-
-    def __len__(self):
-        return self.message_manager.size()
-
-    def count(self) -> int:
-        return len(self)
 
 
 class EmbeddingArchivalMemory(ArchivalMemory):

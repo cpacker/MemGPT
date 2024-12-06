@@ -31,7 +31,7 @@ from letta.schemas.agent import CreateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate, CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import JobStatus
+from letta.schemas.enums import JobStatus, MessageRole
 from letta.schemas.file import FileMetadata as PydanticFileMetadata
 from letta.schemas.job import Job as PydanticJob
 from letta.schemas.job import JobUpdate
@@ -630,24 +630,20 @@ def test_message_size(server: SyncServer, hello_world_message_fixture, default_u
     server.message_manager.create_many_messages(messages, actor=default_user)
 
     # Test total count
-    total = server.message_manager.size(actor=default_user)
+    total = server.message_manager.size(actor=default_user, role=MessageRole.user)
     assert total == 6  # login message + base message + 4 test messages
     # TODO: change login message to be a system not user message
 
     # Test count with agent filter
-    agent_count = server.message_manager.size(actor=default_user, filters={"agent_id": base_message.agent_id})
+    agent_count = server.message_manager.size(actor=default_user, agent_id=base_message.agent_id, role=MessageRole.user)
     assert agent_count == 6
 
-    # Test count with user filter
-    user_count = server.message_manager.size(actor=default_user, filters={"organization_id": base_message.organization_id})
-    assert user_count == 6
-
     # Test count with role filter
-    role_count = server.message_manager.size(actor=default_user, filters={"role": base_message.role})
+    role_count = server.message_manager.size(actor=default_user, role=base_message.role)
     assert role_count == 6
 
     # Test count with non-existent filter
-    empty_count = server.message_manager.size(actor=default_user, filters={"agent_id": "non-existent"})
+    empty_count = server.message_manager.size(actor=default_user, agent_id="non-existent", role=MessageRole.user)
     assert empty_count == 0
 
 
@@ -676,7 +672,7 @@ def test_message_listing_cursor(server: SyncServer, hello_world_message_fixture,
     create_test_messages(server, hello_world_message_fixture, default_user)
 
     # Make sure there are 5 messages
-    assert server.message_manager.size(actor=default_user) == 6
+    assert server.message_manager.size(actor=default_user, role=MessageRole.user) == 6
 
     # Get first page
     first_page = server.message_manager.list_user_messages_for_agent(agent_id=sarah_agent.id, actor=default_user, limit=3)

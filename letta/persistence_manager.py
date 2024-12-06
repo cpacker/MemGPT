@@ -1,11 +1,9 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import List
 
-from letta.memory import BaseRecallMemory, EmbeddingArchivalMemory
+from letta.memory import EmbeddingArchivalMemory
 from letta.schemas.agent import AgentState
 from letta.schemas.memory import Memory
-from letta.schemas.message import Message
 from letta.utils import printd
 
 

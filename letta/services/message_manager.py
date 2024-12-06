@@ -114,6 +114,7 @@ class MessageManager:
         self,
         actor: PydanticUser,
         role: Optional[MessageRole] = None,
+        agent_id: Optional[str] = None,
     ) -> int:
         """Get the total count of messages with optional filters.
 
@@ -122,7 +123,7 @@ class MessageManager:
             role: The role of the message
         """
         with self.session_maker() as session:
-            return MessageModel.size(db_session=session, actor=actor, role=role)
+            return MessageModel.size(db_session=session, actor=actor, role=role, agent_id=agent_id)
 
     @enforce_types
     def list_user_messages_for_agent(
