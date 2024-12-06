@@ -122,7 +122,7 @@ class ToolManager:
                 tool.json_schema = new_schema
 
             # Save the updated tool to the database
-            return tool.update(db_session=session, actor=actor)
+            return tool.update(db_session=session, actor=actor).to_pydantic()
 
     @enforce_types
     def delete_tool_by_id(self, tool_id: str, actor: PydanticUser) -> None:

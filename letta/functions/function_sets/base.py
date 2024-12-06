@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from letta.agent import Agent
@@ -38,7 +39,7 @@ Returns:
 """
 
 
-def pause_heartbeats(self: Agent, minutes: int) -> Optional[str]:
+def pause_heartbeats(self: "Agent", minutes: int) -> Optional[str]:
     import datetime
 
     from letta.constants import MAX_PAUSE_HEARTBEATS
@@ -80,7 +81,15 @@ def conversation_search(self: "Agent", query: str, page: Optional[int] = 0) -> O
     except:
         raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results, total = self.persistence_manager.recall_memory.text_search(query, count=count, start=page * count)
+    # TODO: add paging by page number. currently cursor only works with strings.
+    # original: start=page * count
+    results = self.message_manager.list_user_messages_for_agent(
+        agent_id=self.agent_state.id,
+        actor=self.user,
+        query_text=query,
+        limit=count,
+    )
+    total = len(results)
     num_pages = math.ceil(total / count) - 1  # 0 index
     if len(results) == 0:
         results_str = f"No results found."
@@ -112,10 +121,29 @@ def conversation_search_date(self: "Agent", start_date: str, end_date: str, page
         page = 0
     try:
         page = int(page)
+        if page < 0:
+            raise ValueError
     except:
         raise ValueError(f"'page' argument must be an integer")
+
+    # Convert date strings to datetime objects
+    try:
+        start_datetime = datetime.strptime(start_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
+        end_datetime = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999)
+    except ValueError:
+        raise ValueError("Dates must be in the format 'YYYY-MM-DD'")
+
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results, total = self.persistence_manager.recall_memory.date_search(start_date, end_date, count=count, start=page * count)
+    results = self.message_manager.list_user_messages_for_agent(
+        # TODO: add paging by page number. currently cursor only works with strings.
+        agent_id=self.agent_state.id,
+        actor=self.user,
+        start_date=start_datetime,
+        end_date=end_datetime,
+        limit=count,
+        # start_date=start_date, end_date=end_date, limit=count, start=page * count
+    )
+    total = len(results)
     num_pages = math.ceil(total / count) - 1  # 0 index
     if len(results) == 0:
         results_str = f"No results found."
@@ -136,7 +164,7 @@ def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.persistence_manager.archival_memory.insert(content)
+    self.archival_memory.insert(content)
     return None
 
 
@@ -163,7 +191,7 @@ def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0) -
     except:
         raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results, total = self.persistence_manager.archival_memory.search(query, count=count, start=page * count)
+    results, total = self.archival_memory.search(query, count=count, start=page * count)
     num_pages = math.ceil(total / count) - 1  # 0 index
     if len(results) == 0:
         results_str = f"No results found."
