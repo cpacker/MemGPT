@@ -10,12 +10,14 @@ from letta.orm import (
     Block,
     BlocksAgents,
     FileMetadata,
+    Job,
     Message,
     Organization,
     SandboxConfig,
     SandboxEnvironmentVariable,
     Source,
     Tool,
+    ToolsAgents,
     User,
 )
 from letta.orm.agents_tags import AgentsTags
@@ -46,6 +48,7 @@ from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolUpdate
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
+from letta.services.tool_manager import ToolManager
 from letta.settings import tool_settings
 
 utils.DEBUG = True
@@ -71,6 +74,8 @@ def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
         session.execute(delete(Message))
+        session.execute(delete(Job))
+        session.execute(delete(ToolsAgents))  # Clear ToolsAgents first
         session.execute(delete(BlocksAgents))
         session.execute(delete(AgentsTags))
         session.execute(delete(SandboxEnvironmentVariable))
@@ -248,6 +253,38 @@ def other_block(server: SyncServer, default_user):
     )
     block = block_manager.create_or_update_block(block_data, actor=default_user)
     yield block
+
+
+@pytest.fixture
+def other_tool(server: SyncServer, default_user, default_organization):
+    def print_other_tool(message: str):
+        """
+        Args:
+            message (str): The message to print.
+
+        Returns:
+            str: The message that was printed.
+        """
+        print(message)
+        return message
+
+    # Set up tool details
+    source_code = parse_source_code(print_other_tool)
+    source_type = "python"
+    description = "other_tool_description"
+    tags = ["test"]
+
+    tool = PydanticTool(description=description, tags=tags, source_code=source_code, source_type=source_type)
+    derived_json_schema = derive_openai_json_schema(source_code=tool.source_code, name=tool.name)
+
+    derived_name = derived_json_schema["name"]
+    tool.json_schema = derived_json_schema
+    tool.name = derived_name
+
+    tool = server.tool_manager.create_tool(tool, actor=default_user)
+
+    # Yield the created tool
+    yield tool
 
 
 @pytest.fixture(scope="module")
@@ -1322,3 +1359,279 @@ def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user
 
     with pytest.raises(ForeignKeyConstraintViolationError):
         server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+
+
+# ======================================================================================================================
+# ToolsAgentsManager Tests
+# ======================================================================================================================
+def test_add_tool_to_agent(server, sarah_agent, default_user, print_tool):
+    tool_association = server.tools_agents_manager.add_tool_to_agent(
+        agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name
+    )
+
+    assert tool_association.agent_id == sarah_agent.id
+    assert tool_association.tool_id == print_tool.id
+    assert tool_association.tool_name == print_tool.name
+
+
+def test_change_name_on_tool_reflects_in_tool_agents_table(server, sarah_agent, default_user, print_tool):
+    # Add the tool
+    tool_association = server.tools_agents_manager.add_tool_to_agent(
+        agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name
+    )
+    assert tool_association.tool_name == print_tool.name
+
+    # Change the tool name
+    new_name = "banana"
+    tool = server.tool_manager.update_tool_by_id(tool_id=print_tool.id, tool_update=ToolUpdate(name=new_name), actor=default_user)
+    assert tool.name == new_name
+
+    # Get the association
+    names = server.tools_agents_manager.list_tool_names_for_agent(agent_id=sarah_agent.id)
+    assert new_name in names
+    assert print_tool.name not in names
+
+
+@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+def test_add_tool_to_agent_nonexistent_tool(server, sarah_agent, default_user):
+    with pytest.raises(ForeignKeyConstraintViolationError):
+        server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id="nonexistent_tool", tool_name="nonexistent_name")
+
+
+def test_add_tool_to_agent_duplicate_name(server, sarah_agent, default_user, print_tool, other_tool):
+    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+
+    with pytest.warns(UserWarning, match=f"Tool name '{print_tool.name}' already exists for agent '{sarah_agent.id}'"):
+        server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=other_tool.id, tool_name=print_tool.name)
+
+
+def test_remove_tool_with_name_from_agent(server, sarah_agent, default_user, print_tool):
+    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+
+    removed_tool = server.tools_agents_manager.remove_tool_with_name_from_agent(agent_id=sarah_agent.id, tool_name=print_tool.name)
+
+    assert removed_tool.tool_name == print_tool.name
+    assert removed_tool.tool_id == print_tool.id
+    assert removed_tool.agent_id == sarah_agent.id
+
+    with pytest.raises(ValueError, match=f"Tool name '{print_tool.name}' not found for agent '{sarah_agent.id}'"):
+        server.tools_agents_manager.remove_tool_with_name_from_agent(agent_id=sarah_agent.id, tool_name=print_tool.name)
+
+
+def test_list_tool_ids_for_agent(server, sarah_agent, default_user, print_tool, other_tool):
+    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=other_tool.id, tool_name=other_tool.name)
+
+    retrieved_tool_ids = server.tools_agents_manager.list_tool_ids_for_agent(agent_id=sarah_agent.id)
+
+    assert set(retrieved_tool_ids) == {print_tool.id, other_tool.id}
+
+
+def test_list_agent_ids_with_tool(server, sarah_agent, charles_agent, default_user, print_tool):
+    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+    server.tools_agents_manager.add_tool_to_agent(agent_id=charles_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+
+    agent_ids = server.tools_agents_manager.list_agent_ids_with_tool(tool_id=print_tool.id)
+
+    assert sarah_agent.id in agent_ids
+    assert charles_agent.id in agent_ids
+    assert len(agent_ids) == 2
+
+
+@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+def test_add_tool_to_agent_with_deleted_tool(server, sarah_agent, default_user, print_tool):
+    tool_manager = ToolManager()
+    tool_manager.delete_tool_by_id(tool_id=print_tool.id, actor=default_user)
+
+    with pytest.raises(ForeignKeyConstraintViolationError):
+        server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+
+
+def test_remove_all_agent_tools(server, sarah_agent, default_user, print_tool, other_tool):
+    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=other_tool.id, tool_name=other_tool.name)
+
+    server.tools_agents_manager.remove_all_agent_tools(agent_id=sarah_agent.id)
+
+    retrieved_tool_ids = server.tools_agents_manager.list_tool_ids_for_agent(agent_id=sarah_agent.id)
+
+    assert not retrieved_tool_ids
+
+
+# ======================================================================================================================
+# JobManager Tests
+# ======================================================================================================================
+
+
+def test_create_job(server: SyncServer, default_user):
+    """Test creating a job."""
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Assertions to ensure the created job matches the expected values
+    assert created_job.user_id == default_user.id
+    assert created_job.status == JobStatus.created
+    assert created_job.metadata_ == {"type": "test"}
+
+
+def test_get_job_by_id(server: SyncServer, default_user):
+    """Test fetching a job by ID."""
+    # Create a job
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Fetch the job by ID
+    fetched_job = server.job_manager.get_job_by_id(created_job.id, actor=default_user)
+
+    # Assertions to ensure the fetched job matches the created job
+    assert fetched_job.id == created_job.id
+    assert fetched_job.status == JobStatus.created
+    assert fetched_job.metadata_ == {"type": "test"}
+
+
+def test_list_jobs(server: SyncServer, default_user):
+    """Test listing jobs."""
+    # Create multiple jobs
+    for i in range(3):
+        job_data = PydanticJob(
+            status=JobStatus.created,
+            metadata_={"type": f"test-{i}"},
+        )
+        server.job_manager.create_job(job_data, actor=default_user)
+
+    # List jobs
+    jobs = server.job_manager.list_jobs(actor=default_user)
+
+    # Assertions to check that the created jobs are listed
+    assert len(jobs) == 3
+    assert all(job.user_id == default_user.id for job in jobs)
+    assert all(job.metadata_["type"].startswith("test") for job in jobs)
+
+
+def test_update_job_by_id(server: SyncServer, default_user):
+    """Test updating a job by its ID."""
+    # Create a job
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Update the job
+    update_data = JobUpdate(status=JobStatus.completed, metadata_={"type": "updated"})
+    updated_job = server.job_manager.update_job_by_id(created_job.id, update_data, actor=default_user)
+
+    # Assertions to ensure the job was updated
+    assert updated_job.status == JobStatus.completed
+    assert updated_job.metadata_ == {"type": "updated"}
+    assert updated_job.completed_at is not None
+
+
+def test_delete_job_by_id(server: SyncServer, default_user):
+    """Test deleting a job by its ID."""
+    # Create a job
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Delete the job
+    server.job_manager.delete_job_by_id(created_job.id, actor=default_user)
+
+    # List jobs to ensure the job was deleted
+    jobs = server.job_manager.list_jobs(actor=default_user)
+    assert len(jobs) == 0
+
+
+def test_update_job_auto_complete(server: SyncServer, default_user):
+    """Test that updating a job's status to 'completed' automatically sets completed_at."""
+    # Create a job
+    job_data = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test"},
+    )
+    created_job = server.job_manager.create_job(job_data, actor=default_user)
+
+    # Update the job's status to 'completed'
+    update_data = JobUpdate(status=JobStatus.completed)
+    updated_job = server.job_manager.update_job_by_id(created_job.id, update_data, actor=default_user)
+
+    # Assertions to check that completed_at was set
+    assert updated_job.status == JobStatus.completed
+    assert updated_job.completed_at is not None
+
+
+def test_get_job_not_found(server: SyncServer, default_user):
+    """Test fetching a non-existent job."""
+    non_existent_job_id = "nonexistent-id"
+    with pytest.raises(NoResultFound):
+        server.job_manager.get_job_by_id(non_existent_job_id, actor=default_user)
+
+
+def test_delete_job_not_found(server: SyncServer, default_user):
+    """Test deleting a non-existent job."""
+    non_existent_job_id = "nonexistent-id"
+    with pytest.raises(NoResultFound):
+        server.job_manager.delete_job_by_id(non_existent_job_id, actor=default_user)
+
+
+def test_list_jobs_pagination(server: SyncServer, default_user):
+    """Test listing jobs with pagination."""
+    # Create multiple jobs
+    for i in range(10):
+        job_data = PydanticJob(
+            status=JobStatus.created,
+            metadata_={"type": f"test-{i}"},
+        )
+        server.job_manager.create_job(job_data, actor=default_user)
+
+    # List jobs with a limit
+    jobs = server.job_manager.list_jobs(actor=default_user, limit=5)
+
+    # Assertions to check pagination
+    assert len(jobs) == 5
+    assert all(job.user_id == default_user.id for job in jobs)
+
+
+def test_list_jobs_by_status(server: SyncServer, default_user):
+    """Test listing jobs filtered by status."""
+    # Create multiple jobs with different statuses
+    job_data_created = PydanticJob(
+        status=JobStatus.created,
+        metadata_={"type": "test-created"},
+    )
+    job_data_in_progress = PydanticJob(
+        status=JobStatus.running,
+        metadata_={"type": "test-running"},
+    )
+    job_data_completed = PydanticJob(
+        status=JobStatus.completed,
+        metadata_={"type": "test-completed"},
+    )
+
+    server.job_manager.create_job(job_data_created, actor=default_user)
+    server.job_manager.create_job(job_data_in_progress, actor=default_user)
+    server.job_manager.create_job(job_data_completed, actor=default_user)
+
+    # List jobs filtered by status
+    created_jobs = server.job_manager.list_jobs(actor=default_user, statuses=[JobStatus.created])
+    in_progress_jobs = server.job_manager.list_jobs(actor=default_user, statuses=[JobStatus.running])
+    completed_jobs = server.job_manager.list_jobs(actor=default_user, statuses=[JobStatus.completed])
+
+    # Assertions
+    assert len(created_jobs) == 1
+    assert created_jobs[0].metadata_["type"] == job_data_created.metadata_["type"]
+
+    assert len(in_progress_jobs) == 1
+    assert in_progress_jobs[0].metadata_["type"] == job_data_in_progress.metadata_["type"]
+
+    assert len(completed_jobs) == 1
+    assert completed_jobs[0].metadata_["type"] == job_data_completed.metadata_["type"]

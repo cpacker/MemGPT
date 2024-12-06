@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import JSON, String, UniqueConstraint
+from sqlalchemy import JSON, String, UniqueConstraint, event
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # TODO everything in functions should live in this model
@@ -11,6 +11,7 @@ from letta.schemas.tool import Tool as PydanticTool
 
 if TYPE_CHECKING:
     from letta.orm.organization import Organization
+    from letta.orm.tools_agents import ToolsAgents
 
 
 class Tool(SqlalchemyBase, OrganizationMixin):
@@ -40,3 +41,23 @@ class Tool(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="tools", lazy="selectin")
+    tools_agents: Mapped[List["ToolsAgents"]] = relationship("ToolsAgents", back_populates="tool", cascade="all, delete-orphan")
+
+
+# Add event listener to update tool_name in ToolsAgents when Tool name changes
+@event.listens_for(Tool, 'before_update')
+def update_tool_name_in_tools_agents(mapper, connection, target):
+    """Update tool_name in ToolsAgents when Tool name changes."""
+    state = target._sa_instance_state
+    history = state.get_history('name', passive=True)
+    if not history.has_changes():
+        return
+    
+    # Get the new name and update all associated ToolsAgents records
+    new_name = target.name
+    from letta.orm.tools_agents import ToolsAgents
+    connection.execute(
+        ToolsAgents.__table__.update().where(
+            ToolsAgents.tool_id == target.id
+        ).values(tool_name=new_name)
+    )
