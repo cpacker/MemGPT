@@ -16,6 +16,7 @@ from letta.orm import (
     SandboxEnvironmentVariable,
     Source,
     Tool,
+    ToolsAgents,
     User,
 )
 from letta.orm.agents_tags import AgentsTags
@@ -49,6 +50,7 @@ from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolCreate, ToolUpdate
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
+from letta.services.tool_manager import ToolManager
 from letta.settings import tool_settings
 
 utils.DEBUG = True
@@ -76,6 +78,7 @@ def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
         session.execute(delete(Job))
+        session.execute(delete(ToolsAgents))  # Clear ToolsAgents first
         session.execute(delete(BlocksAgents))
         session.execute(delete(AgentsTags))
         session.execute(delete(SandboxEnvironmentVariable))
@@ -1272,7 +1275,7 @@ def test_list_agent_ids_with_tool(server, sarah_agent, charles_agent, default_us
 @pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
 def test_add_tool_to_agent_with_deleted_tool(server, sarah_agent, default_user, print_tool):
     tool_manager = ToolManager()
-    tool_manager.delete_tool(tool_id=print_tool.id, actor=default_user)
+    tool_manager.delete_tool_by_id(tool_id=print_tool.id, actor=default_user)
 
     with pytest.raises(ForeignKeyConstraintViolationError):
         server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
