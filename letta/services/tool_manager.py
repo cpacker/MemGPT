@@ -130,7 +130,7 @@ class ToolManager:
         with self.session_maker() as session:
             try:
                 tool = ToolModel.read(db_session=session, identifier=tool_id, actor=actor)
-                tool.delete(db_session=session, actor=actor)
+                tool.hard_delete(db_session=session, actor=actor)
             except NoResultFound:
                 raise ValueError(f"Tool with id {tool_id} not found.")
 
