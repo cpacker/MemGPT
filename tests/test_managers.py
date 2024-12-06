@@ -184,7 +184,7 @@ def print_tool(server: SyncServer, default_user, default_organization):
 
 
 @pytest.fixture
-def print_message(server: SyncServer, default_user, sarah_agent):
+def hello_world_message_fixture(server: SyncServer, default_user, sarah_agent):
     """Fixture to create a tool with default settings and clean up after the test."""
     # Set up message
     message = PydanticMessage(
@@ -529,52 +529,52 @@ def test_delete_tool_by_id(server: SyncServer, print_tool, default_user):
 # ======================================================================================================================
 
 
-def test_message_create(server: SyncServer, print_message, default_user):
-    """Test creating a message using print_message fixture"""
-    assert print_message.id is not None
-    assert print_message.text == "Hello, world!"
-    assert print_message.role == "user"
+def test_message_create(server: SyncServer, hello_world_message_fixture, default_user):
+    """Test creating a message using hello_world_message_fixture fixture"""
+    assert hello_world_message_fixture.id is not None
+    assert hello_world_message_fixture.text == "Hello, world!"
+    assert hello_world_message_fixture.role == "user"
 
     # Verify we can retrieve it
     retrieved = server.message_manager.get_message_by_id(
-        print_message.id,
+        hello_world_message_fixture.id,
         actor=default_user,
     )
     assert retrieved is not None
-    assert retrieved.id == print_message.id
-    assert retrieved.text == print_message.text
-    assert retrieved.role == print_message.role
+    assert retrieved.id == hello_world_message_fixture.id
+    assert retrieved.text == hello_world_message_fixture.text
+    assert retrieved.role == hello_world_message_fixture.role
 
 
-def test_message_get_by_id(server: SyncServer, print_message, default_user):
+def test_message_get_by_id(server: SyncServer, hello_world_message_fixture, default_user):
     """Test retrieving a message by ID"""
-    retrieved = server.message_manager.get_message_by_id(print_message.id, actor=default_user)
+    retrieved = server.message_manager.get_message_by_id(hello_world_message_fixture.id, actor=default_user)
     assert retrieved is not None
-    assert retrieved.id == print_message.id
-    assert retrieved.text == print_message.text
+    assert retrieved.id == hello_world_message_fixture.id
+    assert retrieved.text == hello_world_message_fixture.text
 
 
-def test_message_update(server: SyncServer, print_message, default_user):
+def test_message_update(server: SyncServer, hello_world_message_fixture, default_user):
     """Test updating a message"""
     new_text = "Updated text"
-    print_message.text = new_text
-    updated = server.message_manager.update_message_by_id(print_message.id, print_message, actor=default_user)
+    hello_world_message_fixture.text = new_text
+    updated = server.message_manager.update_message_by_id(hello_world_message_fixture.id, hello_world_message_fixture, actor=default_user)
     assert updated is not None
     assert updated.text == new_text
-    retrieved = server.message_manager.get_message_by_id(print_message.id, actor=default_user)
+    retrieved = server.message_manager.get_message_by_id(hello_world_message_fixture.id, actor=default_user)
     assert retrieved.text == new_text
 
 
-def test_message_delete(server: SyncServer, print_message, default_user):
+def test_message_delete(server: SyncServer, hello_world_message_fixture, default_user):
     """Test deleting a message"""
-    server.message_manager.delete_message_by_id(print_message.id, actor=default_user)
-    retrieved = server.message_manager.get_message_by_id(print_message.id, actor=default_user)
+    server.message_manager.delete_message_by_id(hello_world_message_fixture.id, actor=default_user)
+    retrieved = server.message_manager.get_message_by_id(hello_world_message_fixture.id, actor=default_user)
     assert retrieved is None
 
 
-def test_message_size(server: SyncServer, print_message, default_user):
+def test_message_size(server: SyncServer, hello_world_message_fixture, default_user):
     """Test counting messages with filters"""
-    base_message = print_message
+    base_message = hello_world_message_fixture
 
     # Create additional test messages
     messages = [
@@ -619,17 +619,17 @@ def create_test_messages(server: SyncServer, base_message: PydanticMessage, defa
     return messages
 
 
-def test_message_listing_basic(server: SyncServer, print_message, default_user):
+def test_message_listing_basic(server: SyncServer, hello_world_message_fixture, default_user):
     """Test basic message listing with limit"""
-    create_test_messages(server, print_message, default_user)
+    create_test_messages(server, hello_world_message_fixture, default_user)
 
     results = server.message_manager.list_user_messages(limit=3, actor=default_user)
     assert len(results) == 3
 
 
-def test_message_listing_cursor(server: SyncServer, print_message, default_user):
+def test_message_listing_cursor(server: SyncServer, hello_world_message_fixture, default_user):
     """Test cursor-based pagination functionality"""
-    create_test_messages(server, print_message, default_user)
+    create_test_messages(server, hello_world_message_fixture, default_user)
 
     # Make sure there are 5 messages
     assert server.message_manager.size(actor=default_user) == 6
@@ -646,18 +646,18 @@ def test_message_listing_cursor(server: SyncServer, print_message, default_user)
     assert all(r1.id != r2.id for r1 in first_page for r2 in second_page)
 
 
-def test_message_listing_filtering(server: SyncServer, print_message, default_user):
+def test_message_listing_filtering(server: SyncServer, hello_world_message_fixture, default_user):
     """Test filtering messages by agent ID"""
-    create_test_messages(server, print_message, default_user)
+    create_test_messages(server, hello_world_message_fixture, default_user)
 
     agent_results = server.message_manager.list_user_messages(actor=default_user, limit=10)
     assert len(agent_results) == 6  # login message + base message + 4 test messages
-    assert all(msg.agent_id == print_message.agent_id for msg in agent_results)
+    assert all(msg.agent_id == hello_world_message_fixture.agent_id for msg in agent_results)
 
 
-def test_message_listing_text_search(server: SyncServer, print_message, default_user):
+def test_message_listing_text_search(server: SyncServer, hello_world_message_fixture, default_user):
     """Test searching messages by text content"""
-    create_test_messages(server, print_message, default_user)
+    create_test_messages(server, hello_world_message_fixture, default_user)
 
     search_results = server.message_manager.list_user_messages(actor=default_user, query_text="Test message", limit=10)
     assert len(search_results) == 4
@@ -668,9 +668,9 @@ def test_message_listing_text_search(server: SyncServer, print_message, default_
     assert len(search_results) == 0
 
 
-def test_message_listing_date_range_filtering(server: SyncServer, print_message, default_user):
+def test_message_listing_date_range_filtering(server: SyncServer, hello_world_message_fixture, default_user):
     """Test filtering messages by date range"""
-    create_test_messages(server, print_message, default_user)
+    create_test_messages(server, hello_world_message_fixture, default_user)
     now = datetime.utcnow()
 
     date_results = server.message_manager.list_user_messages(
