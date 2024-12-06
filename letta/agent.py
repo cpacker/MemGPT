@@ -1028,13 +1028,10 @@ class Agent(BaseAgent):
             )
 
             # Step 6: extend the message history
-            # import ipdb;ipdb.set_trace()
             if len(messages) > 0:
                 all_new_messages = messages + all_response_messages
             else:
                 all_new_messages = all_response_messages
-            # import ipdb;
-            # ipdb.set_trace()
 
             # Check the memory pressure and potentially issue a memory pressure warning
             current_total_tokens = response.usage.total_tokens
@@ -1511,7 +1508,7 @@ class Agent(BaseAgent):
                 deleted_message = self._messages.pop()
                 # then also remove it from recall storage
                 try:
-                    self.message_manager.delete(filters={"id": deleted_message.id}, actor=self.user)
+                    self.message_manager.delete_message_by_id(deleted_message.id, actor=self.user)
                     popped_messages.append(deleted_message)
                 except Exception as e:
                     warnings.warn(f"Error deleting message {deleted_message.id} from recall memory: {e}")
@@ -1537,7 +1534,6 @@ class Agent(BaseAgent):
 
     def retry_message(self) -> List[Message]:
         """Retry / regenerate the last message"""
-
         self.pop_until_user()
         user_message = self.pop_message(count=1)[0]
         assert user_message.text is not None, "User message text is None"
