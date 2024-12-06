@@ -203,9 +203,9 @@ def print_tool(server: SyncServer, default_user, default_organization):
 def hello_world_passage_fixture(server: SyncServer, default_user, sarah_agent):
     """Fixture to create a tool with default settings and clean up after the test."""
     # Set up passage
-    dummy_embedding = [0.0] * 512
+    dummy_embedding = [0.0] * 2
     message = PydanticPassage(
-        user_id=default_user.id,
+        organization_id=default_user.organization_id,
         agent_id=sarah_agent.id,
         file_id="default_file",
         text="Hello, world!", 
@@ -218,10 +218,10 @@ def hello_world_passage_fixture(server: SyncServer, default_user, sarah_agent):
 
 def create_test_passages(server: SyncServer, agent_id: str, default_user) -> list[PydanticPassage]:
     """Helper function to create test passages for all tests"""
-    dummy_embedding = [0] * 512
+    dummy_embedding = [0] * 2
     passages = [
         PydanticPassage(
-            user_id=default_user.id,
+            organization_id=default_user.organization_id,
             agent_id=agent_id,
             file_id="default_file",
             text=f"Test passage {i}", 
@@ -232,6 +232,7 @@ def create_test_passages(server: SyncServer, agent_id: str, default_user) -> lis
     server.passage_manager.create_many_passages(passages, actor=default_user)
     return passages
 
+@pytest.fixture
 def hello_world_message_fixture(server: SyncServer, default_user, sarah_agent):
     """Fixture to create a tool with default settings and clean up after the test."""
     # Set up message
@@ -512,16 +513,6 @@ def test_passage_listing_text_search(server: SyncServer, hello_world_passage_fix
     assert len(search_results) == 0
 
 
-# def test_passage_listing_date_range_filtering(server: SyncServer, hello_world_passage_fixture, default_user, sarah_agent):
-#     """Test filtering passages by date range"""
-#     create_test_passages(server, hello_world_passage_fixture.agent_id, default_user)
-#     now = datetime.utcnow()
-
-#     date_results = server.passage_manager.list_passages(
-#         agent_id=sarah_agent.id, actor=default_user, start_date=now - timedelta(minutes=1), end_date=now + timedelta(minutes=1), limit=10
-#     )
-#     assert len(date_results) > 0
-
 def test_passage_listing_date_range_filtering(server: SyncServer, hello_world_passage_fixture, default_user, sarah_agent):
     """Test filtering passages by date range with various scenarios"""
     # Set up test data with known dates
@@ -542,7 +533,7 @@ def test_passage_listing_date_range_filtering(server: SyncServer, hello_world_pa
         timestamp = base_time + offset
         passage = server.passage_manager.create_passage(
             PydanticPassage(
-                user_id=default_user.id,
+                organization_id=default_user.organization_id,
                 agent_id=sarah_agent.id,
                 file_id="default_file",
                 text=f"Test passage {i}",

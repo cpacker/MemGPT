@@ -8,12 +8,12 @@ import base64
 
 from letta.orm.source import EmbeddingConfigColumn
 from letta.orm.sqlalchemy_base import SqlalchemyBase
-from letta.orm.mixins import AgentMixin, UserMixin, FileMixin
+from letta.orm.mixins import AgentMixin, FileMixin, OrganizationMixin
 from letta.schemas.passage import Passage as PydanticPassage
 
 if TYPE_CHECKING:
-    from letta.orm.user import User
     from letta.orm.file import File
+    from letta.orm.organization import Organization
 
 class CommonVector(TypeDecorator):
     """Common type for representing vectors in SQLite"""
@@ -37,7 +37,7 @@ class CommonVector(TypeDecorator):
             value = base64.b64decode(value)
         return np.frombuffer(value, dtype=np.float32)
 
-class Passage(SqlalchemyBase, AgentMixin, UserMixin, FileMixin):
+class Passage(SqlalchemyBase, AgentMixin, OrganizationMixin, FileMixin):
     """Defines data model for storing Passages"""
     __tablename__ = "passages"
     __table_args__ = {"extend_existing": True}
@@ -51,11 +51,6 @@ class Passage(SqlalchemyBase, AgentMixin, UserMixin, FileMixin):
     metadata_: Mapped[dict] = mapped_column(JSON, doc="Additional metadata")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
-    # Add the foreign key column
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), doc="Reference to user")
-    file_id: Mapped[str] = mapped_column(ForeignKey("files.id"), doc="Reference to file")
-
     # Relationships
-    user: Mapped["User"]         = relationship("User", back_populates="passages", lazy="selectin")
+    organization: Mapped["Organization"] = relationship("Organization", back_populates="passages", lazy="selectin")
     file: Mapped["FileMetadata"] = relationship("FileMetadata", back_populates="passages", lazy="selectin")
-    # TODO: Add agent relationship

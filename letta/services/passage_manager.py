@@ -20,7 +20,7 @@ class PassageManager:
         """Fetch a passage by ID."""
         with self.session_maker() as session:
             try:
-                passage = PassageModel.read(db_session=session, identifier=passage_id, actor=actor, access_type=AccessType.USER)
+                passage = PassageModel.read(db_session=session, identifier=passage_id, actor=actor)
                 return passage.to_pydantic()
             except NoResultFound:
                 return None
@@ -51,7 +51,6 @@ class PassageManager:
                     db_session=session,
                     identifier=passage_id,
                     actor=actor,
-                    access_type=AccessType.USER,
                 )
                 if not curr_passage:
                     raise ValueError(f"Passage with id {passage_id} does not exist.")
@@ -75,7 +74,7 @@ class PassageManager:
 
         with self.session_maker() as session:
             try:
-                passage = PassageModel.read(db_session=session, identifier=passage_id, actor=actor, access_type=AccessType.USER)
+                passage = PassageModel.read(db_session=session, identifier=passage_id, actor=actor)
                 passage.hard_delete(session, actor=actor)
             except NoResultFound:
                 raise ValueError(f"Passage with id {passage_id} not found.")
@@ -89,22 +88,27 @@ class PassageManager:
                       limit     : Optional[int] = 50,
                       query_text: Optional[str] = None,
                       start_date: Optional[datetime] = None,
-                      end_date  : Optional[datetime] = None
+                      end_date  : Optional[datetime] = None,
+                      source_id : Optional[str] = None
                      ) -> List[PydanticPassage]:
         """List passages with pagination."""
         with self.session_maker() as session:
-            filters = {"user_id": actor.id}
+            filters = {"organization_id": actor.organization_id}
             if agent_id:
                 filters["agent_id"] = agent_id
             if file_id:
                 filters["file_id"] = file_id
-            if query_text:
-                filters["query_text"] = query_text
-            if start_date:
-                filters["start_date"] = start_date
-            if end_date:
-                filters["end_date"] = end_date
-            results = PassageModel.list(db_session=session, cursor=cursor, limit=limit, **filters)
+            if source_id:
+                filters["source_id"] = source_id
+            results = PassageModel.list(
+                db_session=session, 
+                cursor=cursor,
+                query_text=query_text,
+                start_date=start_date,
+                end_date=end_date,
+                limit=limit,
+                **filters
+            )
             return [p.to_pydantic() for p in results]
     
     @enforce_types
@@ -120,51 +124,30 @@ class PassageManager:
             agent_id: The agent ID
         """
         with self.session_maker() as session:
-            return PassageModel.size(db_session=session, actor=actor, agent_id=agent_id, access_type=AccessType.USER)
+            return PassageModel.size(db_session=session, actor=actor, agent_id=agent_id)
 
-    @enforce_types
-    def list_passages_for_agent(
-        self,
-        actor: PydanticUser,
-        agent_id: Optional[str] = None,
-        cursor: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        limit: Optional[int] = 50,
-        filters: Optional[Dict] = None,
-        query_text: Optional[str] = None,
-    ) -> List[PydanticPassage]:
-        """List messages with flexible filtering and pagination options.
-
-        Args:
-            cursor: Cursor-based pagination - return records after this ID (exclusive)
-            start_date: Filter records created after this date
-            end_date: Filter records created before this date
-            limit: Maximum number of records to return
-            filters: Additional filters to apply
-            query_text: Optional text to search for in message content
-
-        Returns:
-            List[PydanticPassage] - List of messages matching the criteria
-        """
-        with self.session_maker() as session:
-            # Start with base filters
-            passage_filters = {}
-            if agent_id:
-                passage_filters.update({"agent_id": agent_id})
-            if actor:
-                passage_filters.update({"organization_id": actor.organization_id})
-            if filters:
-                passage_filters.update(filters)
-
-            results = PassageModel.list(
-                db_session=session,
-                cursor=cursor,
-                start_date=start_date,
-                end_date=end_date,
-                limit=limit,
-                query_text=query_text,
-                **passage_filters,
-            )
-
-            return [passage.to_pydantic() for passage in results]
+    def delete_passages(self,
+                        actor: PydanticUser,
+                        agent_id: Optional[str] = None,
+                        file_id: Optional[str] = None,
+                        start_date: Optional[datetime] = None,
+                        end_date: Optional[datetime] = None,
+                        limit: Optional[int] = 50,
+                        cursor: Optional[str] = None,
+                        query_text: Optional[str] = None,
+                        source_id: Optional[str] = None
+                       ) -> bool:
+                    
+        passages = self.list_passages(
+            actor=actor, 
+            agent_id=agent_id, 
+            file_id=file_id, 
+            cursor=cursor, 
+            limit=limit,
+            start_date=start_date, 
+            end_date=end_date, 
+            query_text=query_text, 
+            source_id=source_id)
+        
+        for passage in passages:
+            self.delete_passage_by_id(passage_id=passage.id, actor=actor)

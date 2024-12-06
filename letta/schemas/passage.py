@@ -15,7 +15,7 @@ class PassageBase(OrmMetadataBase):
     is_deleted: bool = Field(False, description="Whether this passage is deleted or not.")
 
     # associated user/agent
-    user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the passage.")
+    organization_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the passage.")
     agent_id: Optional[str] = Field(None, description="The unique identifier of the agent associated with the passage.")
 
     # origin data source
