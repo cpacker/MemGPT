@@ -28,10 +28,9 @@ from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
 from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
-from letta.memory import ArchivalMemory, summarize_messages
+from letta.memory import ArchivalMemory, EmbeddingArchivalMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.orm import User
-from letta.persistence_manager import LocalStateManager
 from letta.schemas.agent import AgentState, AgentStepResponse
 from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -290,7 +289,7 @@ class Agent(BaseAgent):
         self.interface = interface
 
         # Create the persistence manager object based on the AgentState info
-        self.persistence_manager = LocalStateManager(agent_state)
+        self.archival_memory = EmbeddingArchivalMemory(agent_state)
         self.message_manager = MessageManager()
 
         # State needed for heartbeat pausing
@@ -535,8 +534,6 @@ class Agent(BaseAgent):
 
     def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""
-        self.persistence_manager.trim_messages(num)
-
         new_messages = [self._messages[0]] + self._messages[num:]
         self._messages = new_messages
 
@@ -1295,7 +1292,7 @@ class Agent(BaseAgent):
             in_context_memory=self.agent_state.memory,
             in_context_memory_last_edit=memory_edit_timestamp,
             actor=self.user,
-            archival_memory=self.persistence_manager.archival_memory,
+            archival_memory=self.archival_memory,
             message_manager=self.message_manager,
             user_defined_variables=None,
             append_icm_if_missing=True,
@@ -1382,20 +1379,20 @@ class Agent(BaseAgent):
                 # passage.id = create_uuid_from_string(f"{source_id}_{str(passage.agent_id)}_{passage.text}")
 
             # insert into agent archival memory
-            self.persistence_manager.archival_memory.storage.insert_many(passages)
+            self.archival_memory.storage.insert_many(passages)
             all_passages += passages
 
         assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
 
         # save destination storage
-        self.persistence_manager.archival_memory.storage.save()
+        self.archival_memory.storage.save()
 
         # attach to agent
         source = SourceManager().get_source_by_id(source_id=source_id, actor=user)
         assert source is not None, f"Source {source_id} not found in metadata store"
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 
-        total_agent_passages = self.persistence_manager.archival_memory.storage.size()
+        total_agent_passages = self.archival_memory.storage.size()
 
         printd(
             f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
@@ -1580,12 +1577,12 @@ class Agent(BaseAgent):
                 num_tokens_from_messages(messages=messages_openai_format[1:], model=self.model) if len(messages_openai_format) > 1 else 0
             )
 
-        num_archival_memory = self.persistence_manager.archival_memory.storage.size()
+        num_archival_memory = self.archival_memory.storage.size()
         message_manager_size = self.message_manager.size(actor=self.user)
         external_memory_summary = compile_memory_metadata_block(
             actor=self.user,
             memory_edit_timestamp=get_utc_time(),  # dummy timestamp
-            archival_memory=self.persistence_manager.archival_memory,
+            archival_memory=self.archival_memory,
             message_manager=self.message_manager,
         )
         num_tokens_external_memory_summary = count_tokens(external_memory_summary)

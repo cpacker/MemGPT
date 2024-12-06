@@ -171,7 +171,6 @@ def run(
         # printd("State path:", agent_config.save_state_dir())
         # printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
         # printd("Index path:", agent_config.save_agent_index_dir())
-        # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
