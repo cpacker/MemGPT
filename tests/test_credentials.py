@@ -3,7 +3,7 @@ import shutil
 import pytest
 import uuid
 
-from letta.credentials import LettaCredentials as Credentials
+from letta.credentials import LettaCredentials
 
 # this must not bee imported from credentials.py, because it will ensure that no one will be removed.
 # TODO: if 31facc13565df7f10eeb14adb26041e8fc806132 commit will be accepted, replace this dict comprehantion by import:
