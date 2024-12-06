@@ -56,7 +56,7 @@ def pause_heartbeats(self: Agent, minutes: int) -> Optional[str]:
 pause_heartbeats.__doc__ = pause_heartbeats_docstring
 
 
-def conversation_search(self: Agent, query: str, page: Optional[int] = 0) -> Optional[str]:
+def conversation_search(self: "Agent", query: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search prior conversation history using case-insensitive string matching.
 
@@ -91,7 +91,7 @@ def conversation_search(self: Agent, query: str, page: Optional[int] = 0) -> Opt
     return results_str
 
 
-def conversation_search_date(self: Agent, start_date: str, end_date: str, page: Optional[int] = 0) -> Optional[str]:
+def conversation_search_date(self: "Agent", start_date: str, end_date: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search prior conversation history using a date range.
 
@@ -126,7 +126,7 @@ def conversation_search_date(self: Agent, start_date: str, end_date: str, page: 
     return results_str
 
 
-def archival_memory_insert(self: Agent, content: str) -> Optional[str]:
+def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
     """
     Add to archival memory. Make sure to phrase the memory contents such that it can be easily queried later.
 
@@ -140,7 +140,7 @@ def archival_memory_insert(self: Agent, content: str) -> Optional[str]:
     return None
 
 
-def archival_memory_search(self: Agent, query: str, page: Optional[int] = 0) -> Optional[str]:
+def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0) -> Optional[str]:
     """
     Search archival memory using semantic (embedding-based) search.
 
