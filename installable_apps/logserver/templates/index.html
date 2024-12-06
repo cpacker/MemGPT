@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+
+<html lang="en" class="dark">
+  <head>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Letta Logs</title>
+    <icon rel="icon" src="{{context.icon}}" />
+  </head>
+
+  <body class="dark:bg-gray-900">
+
+
+    <div class="flex items-center py-2 px-3">
+      <h1 class="text-3xl text-slate-300">Letta Logs</h1>
+    </div>
+    <br />
+
+    <div class="flex items-center py-2 px-3">
+        <i>Logs stored at
+        <a href="file://{{context.log_file}}">{{context.log_file}}</a>
+        </i>
+    </div>
+
+    <div class="flex items-center py-2 px-3">
+      <div
+        id="logs"
+        class="block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+      >
+        reading logs...
+      </div>
+    </div>
+
+    <script>
+      var ws_log = new WebSocket("ws://" + window.location.host + "/ws/log");
+
+      ws_log.onmessage = function (event) {
+        var logs = document.getElementById("logs");
+        var log_data = JSON.parse(event.data);
+        logs.innerHTML = ""; // Clear existing logs
+        log_data.forEach(function (log) {
+          var span = document.createElement("span");
+          span.classList.add("block");
+          span.style.color = log.color;
+          span.innerHTML = log.content;
+          logs.appendChild(span);
+        });
+      };
+    </script>
+  </body>
+</html>

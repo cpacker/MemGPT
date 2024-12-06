@@ -388,6 +388,7 @@ __pycache__/
 develop-eggs/
 downloads/
 eggs#letta/letta-server:0.3.7
+**/**/.eggs/
 MANIFEST
 
 # PyInstaller
@@ -395,7 +396,7 @@ MANIFEST
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
-
+!installable_apps/letta.spec
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
