@@ -8,8 +8,6 @@ from letta.offline_memory_agent import (
     finish_rethinking_memory_convo,
     rethink_memory,
     rethink_memory_convo,
-    rethink_memory,
-    rethink_memory_convo,
     trigger_rethink_memory,
 )
 from letta.prompts import gpt_system
@@ -22,7 +20,6 @@ from letta.utils import get_human_text, get_persona_text
 
 @pytest.fixture(scope="module")
 def client():
-    client = create_client()
     client = create_client()
     assert client is not None
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
@@ -151,7 +148,6 @@ def test_chat_only_agent(client, mock_e2b_api_key_none):
         tools=["send_message"],
         memory=conversation_memory,
         include_base_tools=False,
-        metadata={"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]},
         metadata={"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]},
     )
     assert chat_only_agent is not None
