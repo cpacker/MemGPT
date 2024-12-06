@@ -1,3 +1,5 @@
+import pytest
+
 from letta import BasicBlockMemory
 from letta.client.client import Block, create_client
 from letta.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
@@ -16,10 +18,23 @@ from letta.schemas.tool_rule import TerminalToolRule
 from letta.utils import get_human_text, get_persona_text
 
 
-def test_ripple_edit(mock_e2b_api_key_none):
+@pytest.fixture(scope="module")
+def client():
     client = create_client()
-    assert client is not None
-    trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+
+    yield client
+
+
+@pytest.fixture(autouse=True)
+def clear_agents(client):
+    for agent in client.list_agents():
+        client.delete_agent(agent.id)
+
+
+def test_ripple_edit(client, mock_e2b_api_key_none):
+    trigger_rethink_memory_tool = client.create_or_update_tool(trigger_rethink_memory)
 
     conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
     conversation_persona_block = Block(name="persona", label="persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
@@ -87,9 +102,7 @@ def test_ripple_edit(mock_e2b_api_key_none):
     client.delete_agent(offline_memory_agent.id)
 
 
-def test_chat_only_agent(mock_e2b_api_key_none):
-    client = create_client()
-
+def test_chat_only_agent(client, mock_e2b_api_key_none):
     rethink_memory = client.create_or_update_tool(rethink_memory_convo)
     finish_rethinking_memory = client.create_or_update_tool(finish_rethinking_memory_convo)
 
