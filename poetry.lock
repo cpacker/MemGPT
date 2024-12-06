@@ -6026,6 +6026,7 @@ files = [
 
 [package.dependencies]
 certifi = "*"
+fastapi = {version = ">=0.79.0", optional = true, markers = "extra == \"fastapi\""}
 urllib3 = ">=1.26.11"
 
 [package.extras]
@@ -7459,4 +7460,4 @@ tests = ["wikipedia"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<4.0,>=3.10"
-content-hash = "b48400389634ebe40f28fea92411a9d567a4fbe84e1b80042c65c5d2daa6eb64"
+content-hash = "edbf82340add90406bbf51460f8d10a3311d5860de23ccba661fce9f3336b5d8"

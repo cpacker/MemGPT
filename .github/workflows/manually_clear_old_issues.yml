@@ -1,0 +1,25 @@
+name: Clear Old Issues
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup-old-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/stale@v5
+        with:
+          days-before-issue-stale: 60
+          days-before-issue-close: 0
+          stale-issue-label: "auto-closed"
+          stale-issue-message: ""
+          close-issue-message: "This issue has been automatically closed due to 60 days of inactivity."
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          exempt-issue-labels: ""
+          only-issue-labels: ""
+          remove-stale-when-updated: true
+          operations-per-run: 1000
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
