@@ -1,24 +1,53 @@
-import json
+import pytest
 
 from letta import BasicBlockMemory
-from letta import offline_memory_agent
 from letta.client.client import Block, create_client
 from letta.constants import DEFAULT_HUMAN, DEFAULT_PERSONA
 from letta.offline_memory_agent import (
-    rethink_memory,
     finish_rethinking_memory,
-    rethink_memory_convo,
     finish_rethinking_memory_convo,
+    rethink_memory,
+    rethink_memory_convo,
     trigger_rethink_memory,
-    trigger_rethink_memory_convo,
 )
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.message import MessageCreate
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.utils import get_human_text, get_persona_text
+
+
+@pytest.fixture(scope="module")
+def client():
+    client = create_client()
+    client = create_client()
+    assert client is not None
+    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    client.create_tool(trigger_rethink_memory)
+    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+
+    yield client
+
+
+def test_rethink_memory_new_block(client):
+    """
+    Test that when rethink memory is called with a block that does not exist in the agent,
+    the new block is created.
+    """
+    client.create_agent()
+    agent = client.create_agent(
+        agent_type=AgentType.memgpt_agent,
+        system=gpt_system.get_system_text("memgpt_convo_only"),
+        llm_config=LLMConfig.default_config("gpt-4"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        include_base_tools=False,
+    )
+    assert set(agent.memory.list_block_labels()) == {"persona", "human"}
+    rethink_memory(
+        agent_state=agent, new_memory="I am a new memory block content", source_block_label="human", target_block_label="new_memory_block"
+    )
+    assert set(agent.memory.list_block_labels()) == {"persona", "human", "new_memory_block"}
 
 
 def test_ripple_edit():
@@ -61,12 +90,14 @@ def test_ripple_edit():
     )
     assert conversation_agent is not None
 
-    assert set(conversation_agent.memory.list_block_labels()) == set([
-        "persona",
-        "human",
-        "fact_block",
-        "rethink_memory_block",
-    ])
+    assert set(conversation_agent.memory.list_block_labels()) == set(
+        [
+            "persona",
+            "human",
+            "fact_block",
+            "rethink_memory_block",
+        ]
+    )
 
     rethink_memory_tool = client.create_tool(rethink_memory)
     finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
@@ -82,7 +113,7 @@ def test_ripple_edit():
         include_base_tools=False,
     )
     assert offline_memory_agent is not None
-    assert set(offline_memory_agent.memory.list_block_labels())== set(["persona", "human", "fact_block", "rethink_memory_block"])
+    assert set(offline_memory_agent.memory.list_block_labels()) == set(["persona", "human", "fact_block", "rethink_memory_block"])
     response = client.user_message(
         agent_id=conversation_agent.id, message="[trigger_rethink_memory]: Messi has now moved to playing for Inter Miami"
     )
@@ -114,7 +145,7 @@ def test_chat_only_agent():
         tools=["send_message"],
         memory=conversation_memory,
         include_base_tools=False,
-        metadata = {"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]}
+        metadata={"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]},
     )
     assert chat_only_agent is not None
     assert set(chat_only_agent.memory.list_block_labels()) == set(["chat_agent_persona", "chat_agent_human"])
