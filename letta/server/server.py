@@ -1313,14 +1313,13 @@ class SyncServer(Server):
         agent_id: str,
         cursor: Optional[str] = None,
         limit: Optional[int] = 100,
-        order_by: Optional[str] = "created_at",
-        order: Optional[str] = "asc",
         reverse: Optional[bool] = False,
         return_message_object: bool = True,
         assistant_message_tool_name: str = constants.DEFAULT_MESSAGE_TOOL,
         assistant_message_tool_kwarg: str = constants.DEFAULT_MESSAGE_TOOL_KWARG,
     ) -> Union[List[Message], List[LettaMessage]]:
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
+        actor = self.user_manager.get_user_by_id(user_id=user_id)
+        if actor is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1332,7 +1331,7 @@ class SyncServer(Server):
         # TODO: Check "order_by", "order"
         records = letta_agent.message_manager.list_messages_for_agent(
             agent_id=agent_id,
-            actor=self.default_user,
+            actor=actor,
             cursor=cursor,
             limit=limit,
         )
