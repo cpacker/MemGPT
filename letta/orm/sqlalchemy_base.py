@@ -1,8 +1,10 @@
+from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING, List, Literal, Optional, Type
 
-from sqlalchemy import String, select
+from sqlalchemy import String, func, select
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from letta.log import get_logger
 from letta.orm.base import Base, CommonSqlalchemyMetaMixins
@@ -20,6 +22,11 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
+class AccessType(str, Enum):
+    ORGANIZATION = "organization"
+    USER = "user"
+
+
 class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     __abstract__ = True
 
@@ -28,46 +35,68 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
 
     @classmethod
-    def list(
-        cls, *, db_session: "Session", cursor: Optional[str] = None, limit: Optional[int] = 50, **kwargs
-    ) -> List[Type["SqlalchemyBase"]]:
-        """
-        List records with optional cursor (for pagination), limit, and automatic filtering.
+    def get(cls, *, db_session: Session, id: str) -> Optional["SqlalchemyBase"]:
+        """Get a record by ID.
 
         Args:
-            db_session: The database session to use.
-            cursor: Optional ID to start pagination from.
-            limit: Maximum number of records to return.
-            **kwargs: Filters passed as equality conditions or iterable for IN filtering.
+            db_session: SQLAlchemy session
+            id: Record ID to retrieve
 
         Returns:
-            A list of model instances matching the filters.
+            Optional[SqlalchemyBase]: The record if found, None otherwise
         """
-        logger.debug(f"Listing {cls.__name__} with filters {kwargs}")
+        try:
+            return db_session.query(cls).filter(cls.id == id).first()
+        except DBAPIError:
+            return None
+
+    @classmethod
+    def list(
+        cls,
+        *,
+        db_session: "Session",
+        cursor: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: Optional[int] = 50,
+        query_text: Optional[str] = None,
+        **kwargs,
+    ) -> List[Type["SqlalchemyBase"]]:
+        """List records with advanced filtering and pagination options."""
+        if start_date and end_date and start_date > end_date:
+            raise ValueError("start_date must be earlier than or equal to end_date")
+
+        logger.debug(f"Listing {cls.__name__} with kwarg filters {kwargs}")
         with db_session as session:
-            # Start with a base query
             query = select(cls)
 
             # Apply filtering logic
             for key, value in kwargs.items():
                 column = getattr(cls, key)
-                if isinstance(value, (list, tuple, set)):  # Check for iterables
+                if isinstance(value, (list, tuple, set)):
                     query = query.where(column.in_(value))
-                else:  # Single value for equality filtering
+                else:
                     query = query.where(column == value)
 
-            # Apply cursor for pagination
+            # Date range filtering
+            if start_date:
+                query = query.filter(cls.created_at >= start_date)
+            if end_date:
+                query = query.filter(cls.created_at <= end_date)
+
+            # Cursor-based pagination
             if cursor:
                 query = query.where(cls.id > cursor)
 
-            # Handle soft deletes if the class has the 'is_deleted' attribute
+            # Apply text search
+            if query_text:
+                query = query.filter(func.lower(cls.text).contains(func.lower(query_text)))
+
+            # Handle ordering and soft deletes
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
-
-            # Add ordering and limit
             query = query.order_by(cls.id).limit(limit)
 
-            # Execute the query and return results as model instances
             return list(session.execute(query).scalars())
 
     @classmethod
@@ -77,6 +106,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         identifier: Optional[str] = None,
         actor: Optional["User"] = None,
         access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
+        access_type: AccessType = AccessType.ORGANIZATION,
         **kwargs,
     ) -> Type["SqlalchemyBase"]:
         """The primary accessor for an ORM record.
@@ -108,7 +138,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             query_conditions.append(", ".join(f"{key}='{value}'" for key, value in kwargs.items()))
 
         if actor:
-            query = cls.apply_access_predicate(query, actor, access)
+            query = cls.apply_access_predicate(query, actor, access, access_type)
             query_conditions.append(f"access level in {access} for actor='{actor}'")
 
         if hasattr(cls, "is_deleted"):
@@ -171,11 +201,65 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             return self
 
     @classmethod
+    def size(
+        cls,
+        *,
+        db_session: "Session",
+        actor: Optional["User"] = None,
+        access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
+        access_type: AccessType = AccessType.ORGANIZATION,
+        **kwargs,
+    ) -> int:
+        """
+        Get the count of rows that match the provided filters.
+
+        Args:
+            db_session: SQLAlchemy session
+            **kwargs: Filters to apply to the query (e.g., column_name=value)
+
+        Returns:
+            int: The count of rows that match the filters
+
+        Raises:
+            DBAPIError: If a database error occurs
+        """
+        logger.debug(f"Calculating size for {cls.__name__} with filters {kwargs}")
+
+        with db_session as session:
+            query = select(func.count()).select_from(cls)
+
+            if actor:
+                query = cls.apply_access_predicate(query, actor, access, access_type)
+
+            # Apply filtering logic based on kwargs
+            for key, value in kwargs.items():
+                if value:
+                    column = getattr(cls, key, None)
+                    if not column:
+                        raise AttributeError(f"{cls.__name__} has no attribute '{key}'")
+                    if isinstance(value, (list, tuple, set)):  # Check for iterables
+                        query = query.where(column.in_(value))
+                    else:  # Single value for equality filtering
+                        query = query.where(column == value)
+
+            # Handle soft deletes if the class has the 'is_deleted' attribute
+            if hasattr(cls, "is_deleted"):
+                query = query.where(cls.is_deleted == False)
+
+            try:
+                count = session.execute(query).scalar()
+                return count if count else 0
+            except DBAPIError as e:
+                logger.exception(f"Failed to calculate size for {cls.__name__}")
+                raise e
+
+    @classmethod
     def apply_access_predicate(
         cls,
         query: "Select",
         actor: "User",
         access: List[Literal["read", "write", "admin"]],
+        access_type: AccessType = AccessType.ORGANIZATION,
     ) -> "Select":
         """applies a WHERE clause restricting results to the given actor and access level
         Args:
@@ -189,10 +273,18 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             the sqlalchemy select statement restricted to the given access.
         """
         del access  # entrypoint for row-level permissions. Defaults to "same org as the actor, all permissions" at the moment
-        org_id = getattr(actor, "organization_id", None)
-        if not org_id:
-            raise ValueError(f"object {actor} has no organization accessor")
-        return query.where(cls.organization_id == org_id, cls.is_deleted == False)
+        if access_type == AccessType.ORGANIZATION:
+            org_id = getattr(actor, "organization_id", None)
+            if not org_id:
+                raise ValueError(f"object {actor} has no organization accessor")
+            return query.where(cls.organization_id == org_id, cls.is_deleted == False)
+        elif access_type == AccessType.USER:
+            user_id = getattr(actor, "id", None)
+            if not user_id:
+                raise ValueError(f"object {actor} has no user accessor")
+            return query.where(cls.user_id == user_id, cls.is_deleted == False)
+        else:
+            raise ValueError(f"unknown access_type: {access_type}")
 
     @classmethod
     def _handle_dbapi_error(cls, e: DBAPIError):

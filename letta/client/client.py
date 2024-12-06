@@ -3054,16 +3054,13 @@ class LocalClient(AbstractClient):
 
     # recall memory
 
-    def get_messages(
-        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
-    ) -> List[Message]:
+    def get_messages(self, agent_id: str, cursor: Optional[str] = None, limit: Optional[int] = 1000) -> List[Message]:
         """
         Get messages from an agent with pagination.
 
         Args:
             agent_id (str): ID of the agent
-            before (str): Get messages before a certain time
-            after (str): Get messages after a certain time
+            cursor (str): Get messages after a certain time
             limit (int): Limit number of messages
 
         Returns:
@@ -3074,8 +3071,7 @@ class LocalClient(AbstractClient):
         return self.server.get_agent_recall_cursor(
             user_id=self.user_id,
             agent_id=agent_id,
-            before=before,
-            after=after,
+            cursor=cursor,
             limit=limit,
             reverse=True,
         )

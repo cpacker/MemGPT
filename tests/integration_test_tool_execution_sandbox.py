@@ -59,21 +59,6 @@ def clear_tables():
 
 
 @pytest.fixture
-def mock_e2b_api_key_none():
-    # Store the original value of e2b_api_key
-    original_api_key = tool_settings.e2b_api_key
-
-    # Set e2b_api_key to None
-    tool_settings.e2b_api_key = None
-
-    # Yield control to the test
-    yield
-
-    # Restore the original value of e2b_api_key
-    tool_settings.e2b_api_key = original_api_key
-
-
-@pytest.fixture
 def check_e2b_key_is_set():
     original_api_key = tool_settings.e2b_api_key
     assert original_api_key is not None, "Missing e2b key! Cannot execute these tests."
