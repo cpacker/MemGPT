@@ -52,5 +52,4 @@ app = BUNDLE(
     exe,
     name='letta.app',
     icon='assets/letta.icns',
-    bundle_identifier='com.letta.app',
 )
