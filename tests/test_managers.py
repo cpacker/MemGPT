@@ -68,6 +68,8 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
     azure_deployment=None,
 )
 
+using_sqlite = not bool(os.getenv("LETTA_PG_URI"))
+
 
 @pytest.fixture(autouse=True)
 def clear_tables(server: SyncServer):
