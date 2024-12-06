@@ -8,6 +8,8 @@ from letta.offline_memory_agent import (
     finish_rethinking_memory_convo,
     rethink_memory,
     rethink_memory_convo,
+    rethink_memory,
+    rethink_memory_convo,
     trigger_rethink_memory,
 )
 from letta.prompts import gpt_system
@@ -29,6 +31,10 @@ def client():
 
     yield client
 
+@pytest.fixture(autouse=True)
+def clear_agents(client):
+    for agent in client.list_agents():
+        client.delete_agent(agent.id)
 
 def test_rethink_memory_new_block(client):
     """
@@ -50,10 +56,8 @@ def test_rethink_memory_new_block(client):
     assert set(agent.memory.list_block_labels()) == {"persona", "human", "new_memory_block"}
 
 
-def test_ripple_edit():
-    client = create_client()
-    assert client is not None
-    trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
+def test_ripple_edit(client, mock_e2b_api_key_none):
+    trigger_rethink_memory_tool = client.create_or_update_tool(trigger_rethink_memory)
 
     conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
     conversation_persona_block = Block(name="persona", label="persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
@@ -123,12 +127,14 @@ def test_ripple_edit():
     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
     assert conversation_agent.memory.get_block("rethink_memory_block").value != "[empty]"
 
+    # Clean up agent
+    client.create_agent(conversation_agent.id)
+    client.delete_agent(offline_memory_agent.id)
 
-def test_chat_only_agent():
-    client = create_client()
 
-    rethink_memory = client.create_tool(rethink_memory_convo)
-    finish_rethinking_memory = client.create_tool(finish_rethinking_memory_convo)
+def test_chat_only_agent(client, mock_e2b_api_key_none):
+    rethink_memory = client.create_or_update_tool(rethink_memory_convo)
+    finish_rethinking_memory = client.create_or_update_tool(finish_rethinking_memory_convo)
 
     conversation_human_block = Block(name="chat_agent_human", label="chat_agent_human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
     conversation_persona_block = Block(
@@ -146,9 +152,10 @@ def test_chat_only_agent():
         memory=conversation_memory,
         include_base_tools=False,
         metadata={"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]},
+        metadata={"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]},
     )
     assert chat_only_agent is not None
-    assert set(chat_only_agent.memory.list_block_labels()) == set(["chat_agent_persona", "chat_agent_human"])
+    assert set(chat_only_agent.memory.list_block_labels()) == {"chat_agent_persona", "chat_agent_human"}
 
     for message in ["hello", "my name is not chad, my name is swoodily"]:
         client.send_message(agent_id=chat_only_agent.id, message=message, role="user")
@@ -156,3 +163,6 @@ def test_chat_only_agent():
 
     chat_only_agent = client.get_agent(agent_id=chat_only_agent.id)
     assert chat_only_agent.memory.get_block("chat_agent_human").value != get_human_text(DEFAULT_HUMAN)
+
+    # Clean up agent
+    client.delete_agent(chat_only_agent.id)

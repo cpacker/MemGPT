@@ -5,7 +5,6 @@ import pytest
 from letta import create_client
 from letta.schemas.letta_message import FunctionCallMessage
 from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
-from letta.settings import tool_settings
 from tests.helpers.endpoints_helper import (
     assert_invoked_function_call,
     assert_invoked_send_message_with_keyword,
@@ -18,21 +17,6 @@ from tests.helpers.utils import cleanup
 namespace = uuid.NAMESPACE_DNS
 agent_uuid = str(uuid.uuid5(namespace, "test_agent_tool_graph"))
 config_file = "tests/configs/llm_model_configs/openai-gpt-4o.json"
-
-
-@pytest.fixture
-def mock_e2b_api_key_none():
-    # Store the original value of e2b_api_key
-    original_api_key = tool_settings.e2b_api_key
-
-    # Set e2b_api_key to None
-    tool_settings.e2b_api_key = None
-
-    # Yield control to the test
-    yield
-
-    # Restore the original value of e2b_api_key
-    tool_settings.e2b_api_key = original_api_key
 
 
 """Contrived tools for this test case"""

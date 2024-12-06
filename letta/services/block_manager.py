@@ -102,7 +102,7 @@ class BlockManager:
             return [block.to_pydantic() for block in blocks]
 
     @enforce_types
-    def get_block_by_id(self, block_id, actor: PydanticUser) -> Optional[PydanticBlock]:
+    def get_block_by_id(self, block_id: str, actor: Optional[PydanticUser] = None) -> Optional[PydanticBlock]:
         """Retrieve a block by its name."""
         with self.session_maker() as session:
             try:
