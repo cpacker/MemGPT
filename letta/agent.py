@@ -893,7 +893,6 @@ class Agent(BaseAgent):
                 messages=next_input_message,
                 **kwargs,
             )
-            step_response.messages
             heartbeat_request = step_response.heartbeat_request
             function_failed = step_response.function_failed
             token_warning = step_response.in_context_memory_warning
