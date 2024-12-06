@@ -81,6 +81,7 @@ grpcio = "^1.68.1"
 grpcio-tools = "^1.68.1"
 llama-index = "^0.12.2"
 llama-index-embeddings-openai = "^0.3.1"
+e2b-code-interpreter = {version = "^1.0.3", optional = true}
 
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]
@@ -90,7 +91,7 @@ dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets",
 server = ["websockets", "fastapi", "uvicorn"]
 qdrant = ["qdrant-client"]
 #ollama = ["llama-index-embeddings-ollama"]
-#cloud-tool-sandbox = ["e2b-code-interpreter"]
+cloud-tool-sandbox = ["e2b-code-interpreter"]
 external-tools = ["docker", "langchain", "wikipedia", "langchain-community"]
 tests = ["wikipedia"]
 all = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2", "pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "websockets", "fastapi", "uvicorn", "llama-index-embeddings-ollama", "docker", "langchain", "wikipedia", "langchain-community", "locust"]
