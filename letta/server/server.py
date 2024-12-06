@@ -80,6 +80,7 @@ from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.services.tools_agents_manager import ToolsAgentsManager
 from letta.services.job_manager import JobManager
 from letta.services.organization_manager import OrganizationManager
+from letta.services.passage_manager import PassageManager
 from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
@@ -253,6 +254,7 @@ class SyncServer(Server):
 
         # Managers that interface with data models
         self.organization_manager = OrganizationManager()
+        self.passage_manager = PassageManager()
         self.user_manager = UserManager()
         self.tool_manager = ToolManager()
         self.block_manager = BlockManager()

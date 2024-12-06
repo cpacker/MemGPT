@@ -5,12 +5,14 @@ from pydantic import Field, field_validator
 
 from letta.constants import MAX_EMBEDDING_DIM
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.letta_base import LettaBase
+from letta.schemas.letta_base import OrmMetadataBase
 from letta.utils import get_utc_time
 
 
-class PassageBase(LettaBase):
-    __id_prefix__ = "passage"
+class PassageBase(OrmMetadataBase):
+    __id_prefix__ = "passage_legacy"
+
+    is_deleted: bool = Field(False, description="Whether this passage is deleted or not.")
 
     # associated user/agent
     user_id: Optional[str] = Field(None, description="The unique identifier of the user associated with the passage.")

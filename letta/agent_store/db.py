@@ -135,7 +135,7 @@ class MessageModel(Base):
 class PassageModel(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
-    __tablename__ = "passages"
+    __tablename__ = "passages_legacy"
     __table_args__ = {"extend_existing": True}
 
     # Assuming passage_id is the primary key
@@ -161,7 +161,7 @@ class PassageModel(Base):
     # Add a datetime column, with default value as the current time
     created_at = Column(DateTime(timezone=True))
 
-    Index("passage_idx_user", user_id, agent_id, file_id),
+    Index("passage_idx_user_legacy", user_id, agent_id, file_id),
 
     def __repr__(self):
         return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
