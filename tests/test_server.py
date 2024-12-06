@@ -90,7 +90,7 @@ def agent_id(server, user_id):
 
 def test_error_on_nonexistent_agent(server, user_id, agent_id):
     try:
-        fake_agent_id = uuid.uuid4()
+        fake_agent_id = str(uuid.uuid4())
         server.user_message(user_id=user_id, agent_id=fake_agent_id, message="Hello?")
         raise Exception("user_message call should have failed")
     except (KeyError, ValueError) as e:

@@ -1209,7 +1209,8 @@ class SyncServer(Server):
             # need to access persistence manager for additional messages
 
             # get messages using message manager
-            page = letta_agent.message_manager.list_user_messages(
+            page = letta_agent.message_manager.list_user_messages_for_agent(
+                agent_id=agent_id,
                 actor=self.default_user,
                 cursor=start,
                 limit=count,
@@ -1327,7 +1328,8 @@ class SyncServer(Server):
 
         # iterate over records
         # TODO: Check "order_by", "order"
-        records = letta_agent.message_manager.list_messages(
+        records = letta_agent.message_manager.list_messages_for_agent(
+            agent_id=agent_id,
             actor=self.default_user,
             cursor=cursor,
             limit=limit,
@@ -1428,7 +1430,7 @@ class SyncServer(Server):
             raise ValueError(f"Could not find agent_id={agent_id} under user_id={user_id}")
 
         # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM MODEL
-        messages = self.message_manager.list_messages(filters={"agent_id": agent_state.id})
+        messages = self.message_manager.list_messages_for_agent(agent_id=agent_state.id)
         for message in messages:
             self.message_manager.delete_message_by_id(message.id, actor=actor)
 

@@ -83,7 +83,8 @@ def conversation_search(self: "Agent", query: str, page: Optional[int] = 0) -> O
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
     # TODO: add paging by page number. currently cursor only works with strings.
     # original: start=page * count
-    results = self.message_manager.list_user_messages(
+    results = self.message_manager.list_user_messages_for_agent(
+        agent_id=self.agent_state.id,
         actor=self.user,
         query_text=query,
         limit=count,
@@ -133,8 +134,9 @@ def conversation_search_date(self: "Agent", start_date: str, end_date: str, page
         raise ValueError("Dates must be in the format 'YYYY-MM-DD'")
 
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results = self.message_manager.list_user_messages(
+    results = self.message_manager.list_user_messages_for_agent(
         # TODO: add paging by page number. currently cursor only works with strings.
+        agent_id=self.agent_state.id,
         actor=self.user,
         start_date=start_datetime,
         end_date=end_datetime,

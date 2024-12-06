@@ -137,8 +137,9 @@ class MessageManager:
             return query.count()
 
     @enforce_types
-    def list_user_messages(
+    def list_user_messages_for_agent(
         self,
+        agent_id: str,
         actor: Optional[PydanticUser] = None,
         cursor: Optional[str] = None,
         start_date: Optional[datetime] = None,
@@ -165,7 +166,8 @@ class MessageManager:
             if filters:
                 message_filters.update(filters)
 
-            return self.list_messages(
+            return self.list_messages_for_agent(
+                agent_id=agent_id,
                 actor=actor,
                 cursor=cursor,
                 start_date=start_date,
@@ -176,8 +178,9 @@ class MessageManager:
             )
 
     @enforce_types
-    def list_messages(
+    def list_messages_for_agent(
         self,
+        agent_id: str,
         actor: Optional[PydanticUser] = None,
         cursor: Optional[str] = None,
         start_date: Optional[datetime] = None,
@@ -201,9 +204,9 @@ class MessageManager:
         """
         with self.session_maker() as session:
             # Start with base filters
-            message_filters = {}
+            message_filters = {"agent_id": agent_id}
             if actor:
-                message_filters = {"organization_id": actor.organization_id}
+                message_filters.update({"organization_id": actor.organization_id})
             if filters:
                 message_filters.update(filters)
 

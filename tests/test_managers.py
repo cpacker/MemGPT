@@ -619,15 +619,15 @@ def create_test_messages(server: SyncServer, base_message: PydanticMessage, defa
     return messages
 
 
-def test_message_listing_basic(server: SyncServer, hello_world_message_fixture, default_user):
+def test_message_listing_basic(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
     """Test basic message listing with limit"""
     create_test_messages(server, hello_world_message_fixture, default_user)
 
-    results = server.message_manager.list_user_messages(limit=3, actor=default_user)
+    results = server.message_manager.list_user_messages_for_agent(agent_id=sarah_agent.id, limit=3, actor=default_user)
     assert len(results) == 3
 
 
-def test_message_listing_cursor(server: SyncServer, hello_world_message_fixture, default_user):
+def test_message_listing_cursor(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
     """Test cursor-based pagination functionality"""
     create_test_messages(server, hello_world_message_fixture, default_user)
 
@@ -635,46 +635,52 @@ def test_message_listing_cursor(server: SyncServer, hello_world_message_fixture,
     assert server.message_manager.size(actor=default_user) == 6
 
     # Get first page
-    first_page = server.message_manager.list_user_messages(actor=default_user, limit=3)
+    first_page = server.message_manager.list_user_messages_for_agent(agent_id=sarah_agent.id, actor=default_user, limit=3)
     assert len(first_page) == 3
 
     last_id_on_first_page = first_page[-1].id
 
     # Get second page
-    second_page = server.message_manager.list_user_messages(actor=default_user, cursor=last_id_on_first_page, limit=3)
+    second_page = server.message_manager.list_user_messages_for_agent(
+        agent_id=sarah_agent.id, actor=default_user, cursor=last_id_on_first_page, limit=3
+    )
     assert len(second_page) == 3  # Should have 2 remaining messages
     assert all(r1.id != r2.id for r1 in first_page for r2 in second_page)
 
 
-def test_message_listing_filtering(server: SyncServer, hello_world_message_fixture, default_user):
+def test_message_listing_filtering(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
     """Test filtering messages by agent ID"""
     create_test_messages(server, hello_world_message_fixture, default_user)
 
-    agent_results = server.message_manager.list_user_messages(actor=default_user, limit=10)
+    agent_results = server.message_manager.list_user_messages_for_agent(agent_id=sarah_agent.id, actor=default_user, limit=10)
     assert len(agent_results) == 6  # login message + base message + 4 test messages
     assert all(msg.agent_id == hello_world_message_fixture.agent_id for msg in agent_results)
 
 
-def test_message_listing_text_search(server: SyncServer, hello_world_message_fixture, default_user):
+def test_message_listing_text_search(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
     """Test searching messages by text content"""
     create_test_messages(server, hello_world_message_fixture, default_user)
 
-    search_results = server.message_manager.list_user_messages(actor=default_user, query_text="Test message", limit=10)
+    search_results = server.message_manager.list_user_messages_for_agent(
+        agent_id=sarah_agent.id, actor=default_user, query_text="Test message", limit=10
+    )
     assert len(search_results) == 4
     assert all("Test message" in msg.text for msg in search_results)
 
     # Test no results
-    search_results = server.message_manager.list_user_messages(actor=default_user, query_text="Letta", limit=10)
+    search_results = server.message_manager.list_user_messages_for_agent(
+        agent_id=sarah_agent.id, actor=default_user, query_text="Letta", limit=10
+    )
     assert len(search_results) == 0
 
 
-def test_message_listing_date_range_filtering(server: SyncServer, hello_world_message_fixture, default_user):
+def test_message_listing_date_range_filtering(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
     """Test filtering messages by date range"""
     create_test_messages(server, hello_world_message_fixture, default_user)
     now = datetime.utcnow()
 
-    date_results = server.message_manager.list_user_messages(
-        actor=default_user, start_date=now - timedelta(minutes=1), end_date=now + timedelta(minutes=1), limit=10
+    date_results = server.message_manager.list_user_messages_for_agent(
+        agent_id=sarah_agent.id, actor=default_user, start_date=now - timedelta(minutes=1), end_date=now + timedelta(minutes=1), limit=10
     )
     assert len(date_results) > 0
 
