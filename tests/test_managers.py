@@ -37,6 +37,7 @@ from letta.schemas.job import Job as PydanticJob
 from letta.schemas.job import JobUpdate
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message as PydanticMessage
+from letta.schemas.message import MessageUpdate
 from letta.schemas.organization import Organization as PydanticOrganization
 from letta.schemas.sandbox_config import (
     E2BSandboxConfig,
@@ -601,8 +602,7 @@ def test_message_get_by_id(server: SyncServer, hello_world_message_fixture, defa
 def test_message_update(server: SyncServer, hello_world_message_fixture, default_user, other_user):
     """Test updating a message"""
     new_text = "Updated text"
-    hello_world_message_fixture.text = new_text
-    updated = server.message_manager.update_message_by_id(hello_world_message_fixture.id, hello_world_message_fixture, actor=other_user)
+    updated = server.message_manager.update_message_by_id(hello_world_message_fixture.id, MessageUpdate(text=new_text), actor=other_user)
     assert updated is not None
     assert updated.text == new_text
     retrieved = server.message_manager.get_message_by_id(hello_world_message_fixture.id, actor=default_user)

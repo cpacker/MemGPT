@@ -28,7 +28,7 @@ from letta.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, MessageCreate, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, MessageUpdate
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool
@@ -422,7 +422,7 @@ def get_agent_messages(
 def update_message(
     agent_id: str,
     message_id: str,
-    request: UpdateMessage = Body(...),
+    request: MessageUpdate = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
 ):
     """

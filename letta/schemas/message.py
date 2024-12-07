@@ -66,10 +66,9 @@ class MessageCreate(BaseMessage):
     name: Optional[str] = Field(None, description="The name of the participant.")
 
 
-class UpdateMessage(BaseMessage):
+class MessageUpdate(BaseMessage):
     """Request to update a message"""
 
-    id: str = Field(..., description="The id of the message.")
     role: Optional[MessageRole] = Field(None, description="The role of the participant.")
     text: Optional[str] = Field(None, description="The text of the message.")
     # NOTE: probably doesn't make sense to allow remapping user_id or agent_id (vs creating a new message)

@@ -32,7 +32,7 @@ from letta.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, MessageCreate, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, MessageUpdate
 from letta.schemas.openai.chat_completions import ToolCall
 from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
@@ -586,7 +586,7 @@ class RESTClient(AbstractClient):
         tool_calls: Optional[List[ToolCall]] = None,
         tool_call_id: Optional[str] = None,
     ) -> Message:
-        request = UpdateMessage(
+        request = MessageUpdate(
             id=message_id,
             role=role,
             text=text,
@@ -2146,7 +2146,7 @@ class LocalClient(AbstractClient):
     ) -> Message:
         message = self.server.update_agent_message(
             agent_id=agent_id,
-            request=UpdateMessage(
+            request=MessageUpdate(
                 id=message_id,
                 role=role,
                 text=text,

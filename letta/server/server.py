@@ -67,7 +67,7 @@ from letta.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, MessageRole, MessageUpdate
 from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
@@ -1667,12 +1667,12 @@ class SyncServer(Server):
         save_agent(letta_agent, self.ms)
         return message
 
-    def update_agent_message(self, agent_id: str, request: UpdateMessage) -> Message:
+    def update_agent_message(self, agent_id: str, message_id: str, request: MessageUpdate) -> Message:
         """Update the details of a message associated with an agent"""
 
         # Get the current message
         letta_agent = self.load_agent(agent_id=agent_id)
-        response = letta_agent.update_message(request=request)
+        response = letta_agent.update_message(message_id=message_id, request=request)
         save_agent(letta_agent, self.ms)
         return response
 
