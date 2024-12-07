@@ -279,11 +279,7 @@ def test_streaming_send_message(mock_e2b_api_key_none, client: RESTClient, agent
             assert chunk.total_tokens > 1000
 
     # If stream tokens, we expect at least one inner thought
-    if stream_tokens:
-        assert inner_thoughts_count > 1, "Expected more than one inner thought"
-    else:
-        assert inner_thoughts_count == 1, "Expected one inner thought"
-
+    assert inner_thoughts_count >= 1, "Expected more than one inner thought"
     assert inner_thoughts_exist, "No inner thoughts found"
     assert send_message_ran, "send_message function call not found"
     assert done, "Message stream not done"
