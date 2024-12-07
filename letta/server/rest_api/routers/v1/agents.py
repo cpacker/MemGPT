@@ -393,7 +393,6 @@ def get_agent_messages(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
     before: Optional[str] = Query(None, description="Message before which to retrieve the returned messages."),
-    after: Optional[str] = Query(None, description="Message before which to retrieve the returned messages."),
     limit: int = Query(10, description="Maximum number of messages to retrieve."),
     msg_object: bool = Query(False, description="If true, returns Message objects. If false, return LettaMessage objects."),
     # Flags to support the use of AssistantMessage message types
