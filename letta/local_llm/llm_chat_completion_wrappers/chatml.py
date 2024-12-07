@@ -209,7 +209,6 @@ class ChatMLInnerMonologueWrapper(LLMChatCompletionWrapper):
 
         # Last are the user/assistant messages
         for message in messages[1:]:
-            # assert message["role"] in ["user", "assistant", "function", "tool"], message
             # check that message["role"] is a valid option for MessageRole
             # TODO: this shouldn't be necessary if we use pydantic in the future
             assert message["role"] in [role.value for role in MessageRole]
