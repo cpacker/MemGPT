@@ -241,5 +241,19 @@ def add_composio_tool(
     Add a new Composio tool by action name (Composio refers to each tool as an `Action`)
     """
     actor = server.get_user_or_default(user_id=user_id)
-    tool_create = ToolCreate.from_composio(action=composio_action_name)
+
+    # List all the composio api keys
+    api_keys = server.sandbox_config_manager.list_sandbox_env_vars_by_key(key="COMPOSIO_API_KEY", actor=actor)
+    if not api_keys:
+        raise HTTPException(
+            status_code=400,  # Bad Request
+            detail=f"No API keys found for Composio. Please add your Composio API Key as an environment variable for your sandbox configuration.",
+        )
+
+    # TODO: Add more protections around this
+    # Ideally, not tied to a specific sandbox, but for now we just get the first one
+    # Theoretically possible for someone to have different composio api keys per sandbox
+    composio_api_key = api_keys[0]
+
+    tool_create = ToolCreate.from_composio(action_name=composio_action_name, api_key=composio_api_key)
     return server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=actor)
