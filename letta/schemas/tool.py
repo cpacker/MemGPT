@@ -182,14 +182,16 @@ class ToolCreate(LettaBase):
 
     @classmethod
     def load_default_composio_tools(cls) -> List["ToolCreate"]:
-        from composio_langchain import Action
+        pass
 
-        calculator = ToolCreate.from_composio(action_name=Action.MATHEMATICAL_CALCULATOR.name)
-        serp_news = ToolCreate.from_composio(action_name=Action.SERPAPI_NEWS_SEARCH.name)
-        serp_google_search = ToolCreate.from_composio(action_name=Action.SERPAPI_SEARCH.name)
-        serp_google_maps = ToolCreate.from_composio(action_name=Action.SERPAPI_GOOGLE_MAPS_SEARCH.name)
+        # TODO: Disable composio tools for now
+        # TODO: Naming is causing issues
+        # calculator = ToolCreate.from_composio(action_name=Action.MATHEMATICAL_CALCULATOR.name)
+        # serp_news = ToolCreate.from_composio(action_name=Action.SERPAPI_NEWS_SEARCH.name)
+        # serp_google_search = ToolCreate.from_composio(action_name=Action.SERPAPI_SEARCH.name)
+        # serp_google_maps = ToolCreate.from_composio(action_name=Action.SERPAPI_GOOGLE_MAPS_SEARCH.name)
 
-        return [calculator, serp_news, serp_google_search, serp_google_maps]
+        return []
 
 
 class ToolUpdate(LettaBase):

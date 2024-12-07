@@ -22,7 +22,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus, MessageRole
 from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
-from letta.schemas.letta_request import LettaRequest
+from letta.schemas.letta_request import LettaRequest, LettaStreamingRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import (
@@ -965,8 +965,10 @@ class RESTClient(AbstractClient):
         if stream_tokens or stream_steps:
             from letta.client.streaming import _sse_post
 
+            request = LettaStreamingRequest(messages=messages, stream_tokens=stream_tokens)
             return _sse_post(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages/stream", request.model_dump(), self.headers)
         else:
+            request = LettaRequest(messages=messages)
             response = requests.post(
                 f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers
             )
