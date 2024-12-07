@@ -1443,6 +1443,12 @@ class SyncServer(Server):
         except NoResultFound:
             logger.error(f"Agent with id {agent_state.id} has nonexistent user {agent_state.user_id}")
 
+        # delete all passages associated with this agent
+        # TODO: REMOVE THIS ONCE WE MIGRATE AGENTMODEL TO ORM
+        passages = self.passage_manager.list_passages(actor=actor, agent_id=agent_state.id)
+        for passage in passages:
+            self.passage_manager.delete_passage_by_id(passage.id, actor=actor)
+
         # First, if the agent is in the in-memory cache we should remove it
         # List of {'user_id': user_id, 'agent_id': agent_id, 'agent': agent_obj} dicts
         try:
@@ -1522,6 +1528,7 @@ class SyncServer(Server):
         user_id: str,
         connector: DataConnector,
         source_name: str,
+        agent_id: str,
     ) -> Tuple[int, int]:
         """Load data from a DataConnector into a source for a specified user_id"""
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
@@ -1536,7 +1543,7 @@ class SyncServer(Server):
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user)
+        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user, agent_id=agent_id)
         return passage_count, document_count
 
     def attach_source_to_agent(

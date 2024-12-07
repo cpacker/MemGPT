@@ -45,14 +45,6 @@ class AgentMixin(Base):
 
     agent_id: Mapped[str] = mapped_column(String, ForeignKey("agents.id"))
 
-class AgentMixin(Base):
-    """Mixin for models that belong to an agent."""
-
-    __abstract__ = True
-
-    agent_id: Mapped[str] = mapped_column(String, ForeignKey("agents.id"))
-
-
 class FileMixin(Base):
     """Mixin for models that belong to a file."""
 

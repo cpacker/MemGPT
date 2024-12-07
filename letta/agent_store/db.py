@@ -67,7 +67,7 @@ class CommonVector(TypeDecorator):
         return np.frombuffer(value, dtype=np.float32)
 
 
-class PassageModel(Base):
+class PassageModelLegacy(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
     __tablename__ = "passages_legacy"

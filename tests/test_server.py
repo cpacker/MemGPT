@@ -117,6 +117,9 @@ def test_user_message_memory(server, user_id, agent_id):
 @pytest.mark.order(3)
 def test_load_data(server, user_id, agent_id):
     # create source
+    passages_before = server.get_agent_archival(user_id=user_id, agent_id=agent_id, cursor=None, limit=10000)
+    assert len(passages_before) == 0
+
     source = server.source_manager.create_source(
         Source(name="test_source", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=server.default_user
     )
@@ -130,13 +133,11 @@ def test_load_data(server, user_id, agent_id):
         "Shishir loves indian food",
     ]
     connector = DummyDataConnector(archival_memories)
-    server.load_data(user_id, connector, source.name)
+    server.load_data(user_id, connector, source.name, agent_id=agent_id)
 
     # @pytest.mark.order(3)
     # def test_attach_source_to_agent(server, user_id, agent_id):
     # check archival memory size
-    passages_before = server.get_agent_archival(user_id=user_id, agent_id=agent_id, cursor=None, limit=10000)
-    assert len(passages_before) == 0
 
     # attach source
     server.attach_source_to_agent(user_id=user_id, agent_id=agent_id, source_name="test_source")
