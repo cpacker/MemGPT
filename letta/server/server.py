@@ -45,13 +45,7 @@ from letta.providers import (
     VLLMChatCompletionsProvider,
     VLLMCompletionsProvider,
 )
-from letta.schemas.agent import (
-    AgentState,
-    AgentType,
-    CreateAgent,
-    PersistedAgentState,
-    UpdateAgentState,
-)
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
 from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import Block, BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -74,6 +68,7 @@ from letta.schemas.source import Source
 from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
+from letta.services.agent_manager import AgentManager
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
 from letta.services.blocks_agents_manager import BlocksAgentsManager
@@ -85,7 +80,6 @@ from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.tool_manager import ToolManager
-from letta.services.tools_agents_manager import ToolsAgentsManager
 from letta.services.user_manager import UserManager
 from letta.utils import create_random_username, get_utc_time, json_dumps, json_loads
 
@@ -262,8 +256,8 @@ class SyncServer(Server):
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.blocks_agents_manager = BlocksAgentsManager()
         self.message_manager = MessageManager()
-        self.tools_agents_manager = ToolsAgentsManager()
         self.job_manager = JobManager()
+        self.agent_manager = AgentManager()
 
         # Managers that interface with parallelism
         self.per_agent_lock_manager = PerAgentLockManager()
@@ -781,10 +775,6 @@ class SyncServer(Server):
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
-        user_id = actor.id
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-
         if interface is None:
             interface = self.default_interface_factory()
 
@@ -815,41 +805,43 @@ class SyncServer(Server):
             block = self.block_manager.create_or_update_block(Block(**create_block.model_dump()), actor=actor)
             blocks.append(block)
 
+        # add existing blocks
+        for block_id in request.block_ids:
+            block = self.block_manager.get_block_by_id(block_id, actor=actor)
+            blocks.append(block)
+
         # get tools + only add if they exist
-        tool_objs = []
-        if request.tools:
-            for tool_name in request.tools:
-                tool_obj = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+        tools = []
+        if request.tool_ids:
+            for tool_id in request.tool_ids:
+                tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor)
                 if tool_obj:
-                    tool_objs.append(tool_obj)
+                    tools.append(tool_obj)
                 else:
-                    warnings.warn(f"Attempted to add a nonexistent tool {tool_name} to agent {request.name}, skipping.")
-        # reset the request.tools to only valid tools
-        request.tools = [t.name for t in tool_objs]
+                    warnings.warn(f"Attempted to add a nonexistent tool {tool_id} to agent {request.name}, skipping.")
 
-        # get the user
-        logger.debug(f"Attempting to find user: {user_id}")
-        user = self.user_manager.get_user_by_id(user_id=user_id)
-        if not user:
-            raise ValueError(f"cannot find user with associated client id: {user_id}")
+        # get sources
+        sources = []
+        if request.source_ids:
+            for source_id in request.source_ids:
+                source = self.source_manager.get_source_by_id(source_id=source_id, actor=actor)
+                sources.append(source)
 
-        # created and persist the agent state in the DB
-        agent_state = PersistedAgentState(
+        # Invoke manager
+        agent_state = self.agent_manager.create_agent(
             name=request.name,
-            user_id=user_id,
-            tool_names=request.tools if request.tools else [],
-            tool_rules=request.tool_rules,
+            system=request.system,
             agent_type=request.agent_type or AgentType.memgpt_agent,
             llm_config=request.llm_config,
             embedding_config=request.embedding_config,
-            system=request.system,
-            # other metadata
+            blocks=blocks,
+            tools=tools,
+            sources=sources,
             description=request.description,
             metadata_=request.metadata_,
+            tool_rules=request.tool_rules,
+            actor=actor,
         )
-        # TODO: move this to agent ORM
-        # this saves the agent ID and state into the DB
-        self.ms.create_agent(agent_state)
 
         # create the agent object
         if request.initial_message_sequence:
@@ -883,11 +875,6 @@ class SyncServer(Server):
         if request.tags:
             for tag in request.tags:
                 self.agents_tags_manager.add_tag_to_agent(agent_id=agent_state.id, tag=tag, actor=actor)
-
-        # create block mappins (now that agent is persisted)
-        for block in blocks:
-            # this links the created block to the agent
-            self.blocks_agents_manager.add_block_to_agent(block_id=block.id, agent_id=agent_state.id, block_label=block.label)
 
         in_memory_agent_state = self.get_agent(agent_state.id)
         return in_memory_agent_state
@@ -1389,29 +1376,29 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
         return letta_agent.agent_state.memory
 
-    def rename_agent(self, user_id: str, agent_id: str, new_agent_name: str) -> PersistedAgentState:
-        """Update the name of the agent in the database"""
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
-        if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
-
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
-
-        current_name = letta_agent.agent_state.name
-        if current_name == new_agent_name:
-            raise ValueError(f"New name ({new_agent_name}) is the same as the current name")
-
-        try:
-            letta_agent.agent_state.name = new_agent_name
-            self.ms.update_agent(agent=letta_agent.agent_state)
-        except Exception as e:
-            logger.exception(f"Failed to update agent name with:\n{str(e)}")
-            raise ValueError(f"Failed to update agent name in database")
-
-        assert isinstance(letta_agent.agent_state.id, str)
-        return letta_agent.agent_state
+    # def rename_agent(self, user_id: str, agent_id: str, new_agent_name: str):
+    #     """Update the name of the agent in the database"""
+    #     if self.user_manager.get_user_by_id(user_id=user_id) is None:
+    #         raise ValueError(f"User user_id={user_id} does not exist")
+    #     if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
+    #         raise ValueError(f"Agent agent_id={agent_id} does not exist")
+    #
+    #     # Get the agent object (loaded in memory)
+    #     letta_agent = self.load_agent(agent_id=agent_id)
+    #
+    #     current_name = letta_agent.agent_state.name
+    #     if current_name == new_agent_name:
+    #         raise ValueError(f"New name ({new_agent_name}) is the same as the current name")
+    #
+    #     try:
+    #         letta_agent.agent_state.name = new_agent_name
+    #         self.ms.update_agent(agent=letta_agent.agent_state)
+    #     except Exception as e:
+    #         logger.exception(f"Failed to update agent name with:\n{str(e)}")
+    #         raise ValueError(f"Failed to update agent name in database")
+    #
+    #     assert isinstance(letta_agent.agent_state.id, str)
+    #     return letta_agent.agent_state
 
     def delete_agent(self, user_id: str, agent_id: str):
         """Delete an agent in the database"""

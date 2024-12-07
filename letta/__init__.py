@@ -4,7 +4,7 @@ __version__ = "0.6.1"
 from letta.client.client import LocalClient, RESTClient, create_client
 
 # imports for easier access
-from letta.schemas.agent import AgentState, PersistedAgentState
+from letta.schemas.agent import AgentState
 from letta.schemas.block import Block
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus

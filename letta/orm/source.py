@@ -48,4 +48,4 @@ class Source(SqlalchemyBase, OrganizationMixin):
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="sources")
     files: Mapped[List["Source"]] = relationship("FileMetadata", back_populates="source", cascade="all, delete-orphan")
-    # agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")
+    agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")

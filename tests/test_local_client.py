@@ -4,7 +4,7 @@ import pytest
 
 from letta import create_client
 from letta.client.client import LocalClient
-from letta.schemas.agent import PersistedAgentState
+from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
@@ -216,7 +216,7 @@ def test_agent_with_shared_blocks(client: LocalClient):
             client.delete_agent(second_agent_state_test.id)
 
 
-def test_memory(client: LocalClient, agent: PersistedAgentState):
+def test_memory(client: LocalClient, agent: AgentState):
     # get agent memory
     original_memory = client.get_in_context_memory(agent.id)
     assert original_memory is not None
@@ -229,7 +229,7 @@ def test_memory(client: LocalClient, agent: PersistedAgentState):
     assert updated_memory.get_block("human").value != original_memory_value  # check if the memory has been updated
 
 
-def test_archival_memory(client: LocalClient, agent: PersistedAgentState):
+def test_archival_memory(client: LocalClient, agent: AgentState):
     """Test functions for interacting with archival memory store"""
 
     # add archival memory
@@ -244,7 +244,7 @@ def test_archival_memory(client: LocalClient, agent: PersistedAgentState):
     client.delete_archival_memory(agent.id, passage.id)
 
 
-def test_recall_memory(client: LocalClient, agent: PersistedAgentState):
+def test_recall_memory(client: LocalClient, agent: AgentState):
     """Test functions for interacting with recall memory store"""
 
     # send message to the agent

@@ -21,13 +21,6 @@ async def test_websocket_server():
     server = WebSocketServer(host=host)
     server_task = asyncio.create_task(server.run())  # Create a task for the server
 
-    # the agent config we want to ask the server to instantiate with
-    # test_config = AgentConfig(
-    #     persona="sam_pov",
-    #     human="cs_phd",
-    #     preset="memgpt_chat",
-    #     model_endpoint=
-    # )
     test_config = {}
 
     uri = f"ws://{host}:{WS_DEFAULT_PORT}"
