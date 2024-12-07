@@ -165,7 +165,12 @@ def delete_agent(
     """
     actor = server.get_user_or_default(user_id=user_id)
 
-    return server.delete_agent(user_id=actor.id, agent_id=agent_id)
+    agent = server.get_agent(agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
+
+    server.delete_agent(user_id=actor.id, agent_id=agent_id)
+    return agent
 
 
 @router.get("/{agent_id}/sources", response_model=List[Source], operation_id="get_agent_sources")
