@@ -6,7 +6,9 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from letta.errors import LettaToolCreateError
 from letta.orm.errors import UniqueConstraintViolationError
 from letta.schemas.letta_message import FunctionReturn
+from letta.schemas.sandbox_config import SandboxEnvironmentVariableCreate, SandboxType
 from letta.schemas.tool import Tool, ToolCreate, ToolRunFromSource, ToolUpdate
+from letta.schemas.user import User
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
 
@@ -213,22 +215,27 @@ def run_tool_from_source(
 
 
 @router.get("/composio/apps", response_model=List[AppModel], operation_id="list_composio_apps")
-def list_composio_apps(server: SyncServer = Depends(get_letta_server)):
+def list_composio_apps(server: SyncServer = Depends(get_letta_server), user_id: Optional[str] = Header(None, alias="user_id")):
     """
     Get a list of all Composio apps
     """
-    return server.get_composio_apps()
+    actor = server.get_user_or_default(user_id=user_id)
+    composio_api_key = get_composio_key(server, actor=actor)
+    return server.get_composio_apps(api_key=composio_api_key)
 
 
 @router.get("/composio/apps/{composio_app_name}/actions", response_model=List[ActionModel], operation_id="list_composio_actions_by_app")
 def list_composio_actions_by_app(
     composio_app_name: str,
     server: SyncServer = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),
 ):
     """
     Get a list of all Composio actions for a specific app
     """
-    return server.get_composio_actions_from_app_name(composio_app_name=composio_app_name)
+    actor = server.get_user_or_default(user_id=user_id)
+    composio_api_key = get_composio_key(server, actor=actor)
+    return server.get_composio_actions_from_app_name(composio_app_name=composio_app_name, api_key=composio_api_key)
 
 
 @router.post("/composio/{composio_action_name}", response_model=Tool, operation_id="add_composio_tool")
@@ -241,8 +248,24 @@ def add_composio_tool(
     Add a new Composio tool by action name (Composio refers to each tool as an `Action`)
     """
     actor = server.get_user_or_default(user_id=user_id)
+    composio_api_key = get_composio_key(server, actor=actor)
+    tool_create = ToolCreate.from_composio(action_name=composio_action_name, api_key=composio_api_key)
+    return server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=actor)
 
+
+# TODO: Factor this out to somewhere else
+def get_composio_key(server: SyncServer, actor: User):
     # List all the composio api keys
+    # Add sandbox env
+    manager = server.sandbox_config_manager
+    # Ensure you have e2b key set
+    sandbox_config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=actor)
+    manager.create_sandbox_env_var(
+        SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value="54le43q9wd5edke6hs1gfr"),
+        sandbox_config_id=sandbox_config.id,
+        actor=actor,
+    )
+
     api_keys = server.sandbox_config_manager.list_sandbox_env_vars_by_key(key="COMPOSIO_API_KEY", actor=actor)
     if not api_keys:
         raise HTTPException(
@@ -253,7 +276,4 @@ def add_composio_tool(
     # TODO: Add more protections around this
     # Ideally, not tied to a specific sandbox, but for now we just get the first one
     # Theoretically possible for someone to have different composio api keys per sandbox
-    composio_api_key = api_keys[0]
-
-    tool_create = ToolCreate.from_composio(action_name=composio_action_name, api_key=composio_api_key)
-    return server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=actor)
+    return api_keys[0].value
