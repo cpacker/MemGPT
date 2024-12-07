@@ -34,6 +34,8 @@ class AgentType(str, Enum):
     memgpt_agent = "memgpt_agent"
     split_thread_agent = "split_thread_agent"
     o1_agent = "o1_agent"
+    offline_memory_agent = "offline_memory_agent"
+    chat_only_agent = "chat_only_agent"
 
 
 class PersistedAgentState(BaseAgent, validate_assignment=True):
@@ -44,7 +46,6 @@ class PersistedAgentState(BaseAgent, validate_assignment=True):
 
     # in-context memory
     message_ids: Optional[List[str]] = Field(default=None, description="The ids of the messages in the agent's in-context memory.")
-
     # tools
     # TODO: move to ORM mapping
     tool_names: List[str] = Field(..., description="The tools used by the agent.")

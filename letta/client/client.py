@@ -434,6 +434,7 @@ class RESTClient(AbstractClient):
         debug: bool = False,
         default_llm_config: Optional[LLMConfig] = None,
         default_embedding_config: Optional[EmbeddingConfig] = None,
+        headers: Optional[Dict] = None,
     ):
         """
         Initializes a new instance of Client class.
@@ -442,12 +443,16 @@ class RESTClient(AbstractClient):
             auto_save (bool): Whether to automatically save changes.
             user_id (str): The user ID.
             debug (bool): Whether to print debug information.
-            default
+            default_llm_config (Optional[LLMConfig]): The default LLM configuration.
+            default_embedding_config (Optional[EmbeddingConfig]): The default embedding configuration.
+            headers (Optional[Dict]): The additional headers for the REST API.
         """
         super().__init__(debug=debug)
         self.base_url = base_url
         self.api_prefix = api_prefix
         self.headers = {"accept": "application/json", "authorization": f"Bearer {token}"}
+        if headers:
+            self.headers.update(headers)
         self._default_llm_config = default_llm_config
         self._default_embedding_config = default_embedding_config
 
@@ -2854,8 +2859,12 @@ class LocalClient(AbstractClient):
         Returns:
             job (Job): Data loading job including job status and metadata
         """
-        metadata_ = {"type": "embedding", "filename": filename, "source_id": source_id}
-        job = self.server.create_job(user_id=self.user_id, metadata=metadata_)
+        job = Job(
+            user_id=self.user_id,
+            status=JobStatus.created,
+            metadata_={"type": "embedding", "filename": filename, "source_id": source_id},
+        )
+        job = self.server.job_manager.create_job(pydantic_job=job, actor=self.user)
 
         # TODO: implement blocking vs. non-blocking
         self.server.load_file_to_source(source_id=source_id, file_path=filename, job_id=job.id)
@@ -2865,16 +2874,16 @@ class LocalClient(AbstractClient):
         self.server.source_manager.delete_file(file_id, actor=self.user)
 
     def get_job(self, job_id: str):
-        return self.server.get_job(job_id=job_id)
+        return self.server.job_manager.get_job_by_id(job_id=job_id, actor=self.user)
 
     def delete_job(self, job_id: str):
-        return self.server.delete_job(job_id)
+        return self.server.job_manager.delete_job(job_id=job_id, actor=self.user)
 
     def list_jobs(self):
-        return self.server.list_jobs(user_id=self.user_id)
+        return self.server.job_manager.list_jobs(actor=self.user)
 
     def list_active_jobs(self):
-        return self.server.list_active_jobs(user_id=self.user_id)
+        return self.server.job_manager.list_jobs(actor=self.user, statuses=[JobStatus.created, JobStatus.running])
 
     def create_source(self, name: str, embedding_config: Optional[EmbeddingConfig] = None) -> Source:
         """
@@ -3045,16 +3054,13 @@ class LocalClient(AbstractClient):
 
     # recall memory
 
-    def get_messages(
-        self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
-    ) -> List[Message]:
+    def get_messages(self, agent_id: str, cursor: Optional[str] = None, limit: Optional[int] = 1000) -> List[Message]:
         """
         Get messages from an agent with pagination.
 
         Args:
             agent_id (str): ID of the agent
-            before (str): Get messages before a certain time
-            after (str): Get messages after a certain time
+            cursor (str): Get messages after a certain time
             limit (int): Limit number of messages
 
         Returns:
@@ -3065,8 +3071,7 @@ class LocalClient(AbstractClient):
         return self.server.get_agent_recall_cursor(
             user_id=self.user_id,
             agent_id=agent_id,
-            before=before,
-            after=after,
+            cursor=cursor,
             limit=limit,
             reverse=True,
         )

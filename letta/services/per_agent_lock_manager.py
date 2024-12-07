@@ -1,4 +1,4 @@
-import asyncio
+import threading
 from collections import defaultdict
 
 
@@ -6,9 +6,9 @@ class PerAgentLockManager:
     """Manages per-agent locks."""
 
     def __init__(self):
-        self.locks = defaultdict(asyncio.Lock)
+        self.locks = defaultdict(threading.Lock)
 
-    def get_lock(self, agent_id: str) -> asyncio.Lock:
+    def get_lock(self, agent_id: str) -> threading.Lock:
         """Retrieve the lock for a specific agent_id."""
         return self.locks[agent_id]
 

@@ -105,7 +105,7 @@ class Message(BaseMessage):
     id: str = BaseMessage.generate_id_field()
     role: MessageRole = Field(..., description="The role of the participant.")
     text: Optional[str] = Field(None, description="The text of the message.")
-    user_id: Optional[str] = Field(None, description="The unique identifier of the user.")
+    organization_id: Optional[str] = Field(None, description="The unique identifier of the organization.")
     agent_id: Optional[str] = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
     name: Optional[str] = Field(None, description="The name of the participant.")
@@ -281,7 +281,6 @@ class Message(BaseMessage):
             )
             if id is not None:
                 return Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     model=model,
                     # standard fields expected in an OpenAI ChatCompletion message object
@@ -295,7 +294,6 @@ class Message(BaseMessage):
                 )
             else:
                 return Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     model=model,
                     # standard fields expected in an OpenAI ChatCompletion message object
@@ -328,7 +326,6 @@ class Message(BaseMessage):
 
             if id is not None:
                 return Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     model=model,
                     # standard fields expected in an OpenAI ChatCompletion message object
@@ -342,7 +339,6 @@ class Message(BaseMessage):
                 )
             else:
                 return Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     model=model,
                     # standard fields expected in an OpenAI ChatCompletion message object
@@ -375,7 +371,6 @@ class Message(BaseMessage):
             # If we're going from tool-call style
             if id is not None:
                 return Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     model=model,
                     # standard fields expected in an OpenAI ChatCompletion message object
@@ -389,7 +384,6 @@ class Message(BaseMessage):
                 )
             else:
                 return Message(
-                    user_id=user_id,
                     agent_id=agent_id,
                     model=model,
                     # standard fields expected in an OpenAI ChatCompletion message object

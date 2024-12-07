@@ -8,6 +8,8 @@ env:
   GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
   AZURE_API_KEY: ${{ secrets.AZURE_API_KEY }}
   AZURE_BASE_URL: ${{ secrets.AZURE_BASE_URL }}
+  E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+  E2B_SANDBOX_TEMPLATE_ID: ${{ secrets.E2B_SANDBOX_TEMPLATE_ID }}
 
 on:
   push:
@@ -24,6 +26,7 @@ jobs:
       matrix:
         integration_test_suite:
           - "integration_test_summarizer.py"
+          - "integration_test_tool_execution_sandbox.py"
     services:
       qdrant:
         image: qdrant/qdrant
@@ -52,7 +55,7 @@ jobs:
         with:
           python-version: "3.12"
           poetry-version: "1.8.2"
-          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"
+          install-args: "-E dev -E postgres -E milvus -E external-tools -E tests -E cloud-tool-sandbox"
       - name: Migrate database
         env:
           LETTA_PG_PORT: 5432

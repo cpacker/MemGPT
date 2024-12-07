@@ -30,19 +30,16 @@ class OrganizationManager:
     def get_organization_by_id(self, org_id: str) -> Optional[PydanticOrganization]:
         """Fetch an organization by ID."""
         with self.session_maker() as session:
-            try:
-                organization = OrganizationModel.read(db_session=session, identifier=org_id)
-                return organization.to_pydantic()
-            except NoResultFound:
-                return None
+            organization = OrganizationModel.read(db_session=session, identifier=org_id)
+            return organization.to_pydantic()
 
     @enforce_types
     def create_organization(self, pydantic_org: PydanticOrganization) -> PydanticOrganization:
-        """Create a new organization. If a name is provided, it is used, otherwise, a random one is generated."""
-        org = self.get_organization_by_id(pydantic_org.id)
-        if org:
+        """Create a new organization."""
+        try:
+            org = self.get_organization_by_id(pydantic_org.id)
             return org
-        else:
+        except NoResultFound:
             return self._create_organization(pydantic_org=pydantic_org)
 
     @enforce_types

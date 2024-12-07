@@ -1,11 +1,8 @@
-import importlib
 import inspect
-import os
 from textwrap import dedent  # remove indentation
 from types import ModuleType
 from typing import Dict, List, Optional
 
-from letta.constants import CLI_WARNING_PREFIX
 from letta.errors import LettaToolCreateError
 from letta.functions.schema_generator import generate_schema
 
@@ -89,47 +86,4 @@ def load_function_set(module: ModuleType) -> dict:
 
     if len(function_dict) == 0:
         raise ValueError(f"No functions found in module {module}")
-    return function_dict
-
-
-def validate_function(module_name, module_full_path):
-    try:
-        file = os.path.basename(module_full_path)
-        spec = importlib.util.spec_from_file_location(module_name, module_full_path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-    except ModuleNotFoundError as e:
-        # Handle missing module imports
-        missing_package = str(e).split("'")[1]  # Extract the name of the missing package
-        print(f"{CLI_WARNING_PREFIX}skipped loading python file '{module_full_path}'!")
-        return (
-            False,
-            f"'{file}' imports '{missing_package}', but '{missing_package}' is not installed locally - install python package '{missing_package}' to link functions from '{file}' to Letta.",
-        )
-    except SyntaxError as e:
-        # Handle syntax errors in the module
-        return False, f"{CLI_WARNING_PREFIX}skipped loading python file '{file}' due to a syntax error: {e}"
-    except Exception as e:
-        # Handle other general exceptions
-        return False, f"{CLI_WARNING_PREFIX}skipped loading python file '{file}': {e}"
-
-    return True, None
-
-
-def load_function_file(filepath: str) -> dict:
-    file = os.path.basename(filepath)
-    module_name = file[:-3]  # Remove '.py' from filename
-    try:
-        spec = importlib.util.spec_from_file_location(module_name, filepath)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-    except ModuleNotFoundError as e:
-        # Handle missing module imports
-        missing_package = str(e).split("'")[1]  # Extract the name of the missing package
-        print(f"{CLI_WARNING_PREFIX}skipped loading python file '{filepath}'!")
-        print(
-            f"'{file}' imports '{missing_package}', but '{missing_package}' is not installed locally - install python package '{missing_package}' to link functions from '{file}' to Letta."
-        )
-    # load all functions in the module
-    function_dict = load_function_set(module)
     return function_dict

@@ -410,8 +410,7 @@ def get_agent_messages(
     return server.get_agent_recall_cursor(
         user_id=actor.id,
         agent_id=agent_id,
-        before=before,
-        after=after,
+        cursor=before,
         limit=limit,
         reverse=True,
         return_message_object=msg_object,
@@ -450,27 +449,24 @@ async def send_message(
     This endpoint accepts a message from a user and processes it through the agent.
     """
     actor = server.get_user_or_default(user_id=user_id)
-
-    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
-    async with agent_lock:
-        result = await send_message_to_agent(
-            server=server,
-            agent_id=agent_id,
-            user_id=actor.id,
-            messages=request.messages,
-            stream_steps=False,
-            stream_tokens=False,
-            # Support for AssistantMessage
-            assistant_message_tool_name=request.assistant_message_tool_name,
-            assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
-        )
-        return result
+    result = await send_message_to_agent(
+        server=server,
+        agent_id=agent_id,
+        user_id=actor.id,
+        messages=request.messages,
+        stream_steps=False,
+        stream_tokens=False,
+        # Support for AssistantMessage
+        assistant_message_tool_name=request.assistant_message_tool_name,
+        assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
+    )
+    return result
 
 
 @router.post(
     "/{agent_id}/messages/stream",
     response_model=None,
-    operation_id="create_agent_message",
+    operation_id="create_agent_message_stream",
     responses={
         200: {
             "description": "Successful response",
@@ -492,21 +488,18 @@ async def send_message_streaming(
     It will stream the steps of the response always, and stream the tokens if 'stream_tokens' is set to True.
     """
     actor = server.get_user_or_default(user_id=user_id)
-
-    agent_lock = server.per_agent_lock_manager.get_lock(agent_id)
-    async with agent_lock:
-        result = await send_message_to_agent(
-            server=server,
-            agent_id=agent_id,
-            user_id=actor.id,
-            messages=request.messages,
-            stream_steps=True,
-            stream_tokens=request.stream_tokens,
-            # Support for AssistantMessage
-            assistant_message_tool_name=request.assistant_message_tool_name,
-            assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
-        )
-        return result
+    result = await send_message_to_agent(
+        server=server,
+        agent_id=agent_id,
+        user_id=actor.id,
+        messages=request.messages,
+        stream_steps=True,
+        stream_tokens=request.stream_tokens,
+        # Support for AssistantMessage
+        assistant_message_tool_name=request.assistant_message_tool_name,
+        assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
+    )
+    return result
 
 
 # TODO: move this into server.py?

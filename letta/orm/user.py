@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -7,7 +7,7 @@ from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.user import User as PydanticUser
 
 if TYPE_CHECKING:
-    from letta.orm.organization import Organization
+    from letta.orm import Job, Organization
 
 
 class User(SqlalchemyBase, OrganizationMixin):
@@ -20,10 +20,10 @@ class User(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="users")
+    jobs: Mapped[List["Job"]] = relationship("Job", back_populates="user", doc="the jobs associated with this user.")
 
     # TODO: Add this back later potentially
     # agents: Mapped[List["Agent"]] = relationship(
     #     "Agent", secondary="users_agents", back_populates="users", doc="the agents associated with this user."
     # )
     # tokens: Mapped[List["Token"]] = relationship("Token", back_populates="user", doc="the tokens associated with this user.")
-    # jobs: Mapped[List["Job"]] = relationship("Job", back_populates="user", doc="the jobs associated with this user.")
