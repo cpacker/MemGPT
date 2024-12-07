@@ -522,7 +522,7 @@ class SyncServer(Server):
             letta_agent.interface.print_messages_raw(letta_agent.messages)
 
         elif command.lower() == "memory":
-            ret_str = f"\nDumping memory contents:\n" + f"\n{str(letta_agent.agent_state.memory)}" + f"\n{str(letta_agent.archival_memory)}"
+            ret_str = f"\nDumping memory contents:\n" + f"\n{str(letta_agent.agent_state.memory)}" + f"\n{str(letta_agent.passage_manager)}"
             return ret_str
 
         elif command.lower() == "pop" or command.lower().startswith("pop "):
@@ -1154,7 +1154,7 @@ class SyncServer(Server):
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
-        return ArchivalMemorySummary(size=len(agent.archival_memory))
+        return ArchivalMemorySummary(size=len(agent.passage_manager))
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
@@ -1228,7 +1228,7 @@ class SyncServer(Server):
 
         return messages
 
-    def get_agent_archival(self, user_id: str, agent_id: str, start: int, count: int) -> List[Passage]:
+    def get_agent_archival(self, user_id: str, agent_id: str, cursor: Optional[str] = None, limit: int = 50) -> List[Passage]:
         """Paginated query of all messages in agent archival memory"""
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -1239,21 +1239,21 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        db_iterator = letta_agent.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
+        records = letta_agent.passage_manager.list_passages(
+            actor=self.default_user,
+            agent_id=agent_id,
+            cursor=cursor,
+            limit=limit,
+        )
 
-        # get a single page of messages
-        page = next(db_iterator, [])
-        return page
+        return records
 
     def get_agent_archival_cursor(
         self,
         user_id: str,
         agent_id: str,
-        after: Optional[str] = None,
-        before: Optional[str] = None,
+        cursor: Optional[str] = None,
         limit: Optional[int] = 100,
-        order_by: Optional[str] = "created_at",
-        reverse: Optional[bool] = False,
     ) -> List[Passage]:
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -1263,9 +1263,9 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
 
-        # iterate over recorde
-        cursor, records = letta_agent.archival_memory.storage.get_all_cursor(
-            after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
+        # iterate over records
+        records = letta_agent.passage_manager.list_passages(
+            actor=self.default_user, agent_id=agent_id, cursor=cursor, limit=limit,
         )
         return records
 
@@ -1279,14 +1279,14 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # Insert into archival memory
-        passage_ids = letta_agent.archival_memory.insert(memory_string=memory_contents, return_ids=True)
+        passage_ids = letta_agent.passage_manager.insert(memory_string=memory_contents, return_ids=True)
 
         # Update the agent
         # TODO: should this update the system prompt?
         save_agent(letta_agent, self.ms)
 
         # TODO: this is gross, fix
-        return [letta_agent.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
+        return [letta_agent.passage_manager.storage.get(id=passage_id) for passage_id in passage_ids]
 
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
@@ -1301,7 +1301,7 @@ class SyncServer(Server):
 
         # Delete by ID
         # TODO check if it exists first, and throw error if not
-        letta_agent.archival_memory.storage.delete({"id": memory_id})
+        letta_agent.passage_manager.storage.delete({"id": memory_id})
 
         # TODO: return archival memory
 
@@ -1586,8 +1586,7 @@ class SyncServer(Server):
 
         # delete all Passage objects with source_id==source_id from agent's archival memory
         agent = self.load_agent(agent_id=agent_id)
-        archival_memory = agent.archival_memory
-        archival_memory.storage.delete({"source_id": source_id})
+        agent.passage_manager.delete_passages(actor=user, limit=100, source_id=source_id)
 
         # delete agent-source mapping
         self.ms.detach_source(agent_id=agent_id, source_id=source_id)

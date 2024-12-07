@@ -1369,7 +1369,8 @@ class Agent(BaseAgent):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
         user = UserManager().get_user_by_id(self.agent_state.user_id)
-        filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
+        filters = {"organization_id": source_connector.organization_id, "source_id": source_id}
+        # filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
         size = source_connector.size(filters)
         page_size = 100
         generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
@@ -1387,13 +1388,10 @@ class Agent(BaseAgent):
                 # passage.id = create_uuid_from_string(f"{source_id}_{str(passage.agent_id)}_{passage.text}")
 
             # insert into agent archival memory
-            self.passage_manager.create_many_passages(passages)
+            self.passage_manager.create_many_passages(passages=passages, actor=user)
             all_passages += passages
 
         assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
-
-        # save destination storage
-        self.passage_manager.save()
 
         # attach to agent
         source = SourceManager().get_source_by_id(source_id=source_id, actor=user)
@@ -1617,7 +1615,7 @@ class Agent(BaseAgent):
         return ContextWindowOverview(
             # context window breakdown (in messages)
             num_messages=len(self._messages),
-            num_passage_manager=passage_manager_size,
+            num_archival_memory=passage_manager_size,
             num_recall_memory=message_manager_size,
             num_tokens_external_memory_summary=num_tokens_external_memory_summary,
             # top-level information
