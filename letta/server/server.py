@@ -236,11 +236,6 @@ class SyncServer(Server):
         # Locks
         self.send_message_lock = Lock()
 
-        # Composio
-        self.composio_client = None
-        if tool_settings.composio_api_key:
-            self.composio_client = Composio(api_key=tool_settings.composio_api_key)
-
         # Initialize the metadata store
         config = LettaConfig.load()
         if settings.letta_pg_uri_no_default:
@@ -1899,9 +1894,17 @@ class SyncServer(Server):
             )
 
     # Composio wrappers
-    def get_composio_apps(self) -> List["AppModel"]:
+    def get_composio_client(self, api_key: Optional[str] = None):
+        if api_key:
+            return Composio(api_key=api_key)
+        elif tool_settings.composio_api_key:
+            return Composio(api_key=tool_settings.composio_api_key)
+        else:
+            return Composio()
+
+    def get_composio_apps(self, api_key: Optional[str] = None) -> List["AppModel"]:
         """Get a list of all Composio apps with actions"""
-        apps = self.composio_client.apps.get()
+        apps = self.get_composio_client(api_key=api_key).apps.get()
         apps_with_actions = []
         for app in apps:
             # A bit of hacky logic until composio patches this
@@ -1910,6 +1913,6 @@ class SyncServer(Server):
 
         return apps_with_actions
 
-    def get_composio_actions_from_app_name(self, composio_app_name: str) -> List["ActionModel"]:
-        actions = self.composio_client.actions.get(apps=[composio_app_name])
+    def get_composio_actions_from_app_name(self, composio_app_name: str, api_key: Optional[str] = None) -> List["ActionModel"]:
+        actions = self.get_composio_client(api_key=api_key).actions.get(apps=[composio_app_name])
         return actions

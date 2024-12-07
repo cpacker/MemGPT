@@ -1,10 +1,14 @@
 import json
+import os
 import uuid
 
 from letta import create_client
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import ChatMemory
+from letta.schemas.sandbox_config import SandboxEnvironmentVariableCreate, SandboxType
+from letta.services.sandbox_config_manager import SandboxConfigManager
+from letta.settings import tool_settings
 
 """
 Setup here.
@@ -23,6 +27,17 @@ for agent_state in client.list_agents():
     if agent_state.name == agent_uuid:
         client.delete_agent(agent_id=agent_state.id)
         print(f"Deleted agent: {agent_state.name} with ID {str(agent_state.id)}")
+
+
+# Add sandbox env
+manager = SandboxConfigManager(tool_settings)
+# Ensure you have e2b key set
+sandbox_config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=client.user)
+manager.create_sandbox_env_var(
+    SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value=os.environ.get("COMPOSIO_API_KEY")),
+    sandbox_config_id=sandbox_config.id,
+    actor=client.user,
+)
 
 
 """
