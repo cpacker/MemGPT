@@ -41,7 +41,9 @@ def evaluate(input_data_filename: str, predictions_filename: str):
             correct = 0
             multihop_correct= 0
 
+            total_examples = 0
             for predictions, input_data in zip(predictions_file, input_data_file):
+                total_examples += 1
                 # get precision and recall of the fact block 
                 
                 predicted_sentences = predictions['fact_block'].split(".")  
@@ -55,9 +57,9 @@ def evaluate(input_data_filename: str, predictions_filename: str):
                         correct += 1
                     if sentence in "".join(multihop_memory):
                         multihop_correct += 1
-                    total_predicted_sentences += len(predicted_sentences)
-                    total_new_memory_sentences += len(new_memory)
-                    total_new_multihop_memory_sentences += len(multihop_memory)
+                total_predicted_sentences += len(predicted_sentences)
+                total_new_memory_sentences += len(new_memory)
+                total_new_multihop_memory_sentences += len(multihop_memory)
 
             new_memory_precision = correct / total_predicted_sentences
             new_memory_recall = correct / total_new_memory_sentences
@@ -70,6 +72,13 @@ def evaluate(input_data_filename: str, predictions_filename: str):
                 "new_memory_recall": new_memory_recall,
                 "new_multihop_memory_precision": new_multihop_memory_precision,
                 "new_multihop_memory_recall": new_multihop_memory_recall,
+                "correct": correct,
+                "total_predicted_sentences": total_predicted_sentences,
+                "total_new_memory_sentences": total_new_memory_sentences,
+                "total_new_multihop_memory_sentences": total_new_multihop_memory_sentences,
+                "multihop_correct": multihop_correct,
+                "total_examples": total_examples
+
             }
 
             # print out with 2 decimal places
