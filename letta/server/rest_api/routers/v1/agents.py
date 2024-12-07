@@ -486,7 +486,6 @@ async def send_message_streaming(
     This endpoint accepts a message from a user and processes it through the agent.
     It will stream the steps of the response always, and stream the tokens if 'stream_tokens' is set to True.
     """
-    request.stream_tokens = False
 
     actor = server.get_user_or_default(user_id=user_id)
     result = await send_message_to_agent(
