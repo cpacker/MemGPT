@@ -512,9 +512,10 @@ class Agent(BaseAgent):
         for m in self._messages:
             # assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
             # TODO eventually do casting via an edit_message function
-            if not is_utc_datetime(m.created_at):
-                printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
-                m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
+            if m.created_at:
+                if not is_utc_datetime(m.created_at):
+                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
+                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
     def set_message_buffer(self, message_ids: List[str], force_utc: bool = True):
         """Set the messages in the buffer to the message IDs list"""
