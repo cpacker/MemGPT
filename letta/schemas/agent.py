@@ -120,7 +120,7 @@ class CreateAgent(BaseAgent):  #
     tools: List[str] = Field(BASE_TOOLS + BASE_MEMORY_TOOLS, description="The tools used by the agent.")
     tool_rules: Optional[List[ToolRule]] = Field(None, description="The tool rules governing the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
-    system: str = Field("TODO", description="The system prompt used by the agent.")
+    system: Optional[str] = Field(None, description="The system prompt used by the agent.")
     agent_type: AgentType = Field(AgentType.memgpt_agent, description="The type of agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
