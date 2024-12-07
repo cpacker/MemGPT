@@ -223,7 +223,8 @@ def test_core_memory(mock_e2b_api_key_none, client: Union[LocalClient, RESTClien
     assert "Timber" in memory.get_block("human").value, f"Updating core memory failed: {memory.get_block('human').value}"
 
 
-def test_streaming_send_message(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
+@pytest.mark.parametrize("stream_tokens", [True, False])
+def test_streaming_send_message(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState, stream_tokens: bool):
     if isinstance(client, LocalClient):
         pytest.skip("Skipping test_streaming_send_message because LocalClient does not support streaming")
     assert isinstance(client, RESTClient), client
@@ -236,12 +237,13 @@ def test_streaming_send_message(mock_e2b_api_key_none, client: Union[LocalClient
         message="This is a test. Repeat after me: 'banana'",
         role="user",
         stream_steps=True,
-        stream_tokens=True,
+        stream_tokens=stream_tokens,
     )
 
     # Some manual checks to run
     # 1. Check that there were inner thoughts
     inner_thoughts_exist = False
+    inner_thoughts_count = 0
     # 2. Check that the agent runs `send_message`
     send_message_ran = False
     # 3. Check that we get all the start/stop/end tokens we want
@@ -256,6 +258,7 @@ def test_streaming_send_message(mock_e2b_api_key_none, client: Union[LocalClient
         assert isinstance(chunk, LettaStreamingResponse)
         if isinstance(chunk, InternalMonologue) and chunk.internal_monologue and chunk.internal_monologue != "":
             inner_thoughts_exist = True
+            inner_thoughts_count += 1
         if isinstance(chunk, FunctionCallMessage) and chunk.function_call and chunk.function_call.name == "send_message":
             send_message_ran = True
         if isinstance(chunk, MessageStreamStatus):
@@ -274,6 +277,12 @@ def test_streaming_send_message(mock_e2b_api_key_none, client: Union[LocalClient
             assert chunk.completion_tokens > 10
             assert chunk.prompt_tokens > 1000
             assert chunk.total_tokens > 1000
+
+    # If stream tokens, we expect at least one inner thought
+    if stream_tokens:
+        assert inner_thoughts_count > 1, "Expected more than one inner thought"
+    else:
+        assert inner_thoughts_count == 1, "Expected one inner thought"
 
     assert inner_thoughts_exist, "No inner thoughts found"
     assert send_message_ran, "send_message function call not found"
