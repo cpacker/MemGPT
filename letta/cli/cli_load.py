@@ -11,6 +11,7 @@ letta load <data-connector-type> --name <dataset-name> [ADDITIONAL ARGS]
 import uuid
 from typing import Annotated, List, Optional
 
+import questionary
 import typer
 
 from letta import create_client
@@ -37,8 +38,27 @@ def load_directory(
     # create connector
     connector = DirectoryConnector(input_files=input_files, input_directory=input_dir, recursive=recursive, extensions=extensions)
 
+    # choose form list of embedding configs
+    embedding_configs = client.list_embedding_configs()
+    embedding_options = [embedding_config.embedding_model for embedding_config in embedding_configs]
+
+    embedding_choices = [
+        questionary.Choice(title=embedding_config.pretty_print(), value=embedding_config) for embedding_config in embedding_configs
+    ]
+
+    # select model
+    if len(embedding_options) == 0:
+        raise ValueError("No embedding models found. Please enable a provider.")
+    elif len(embedding_options) == 1:
+        embedding_model_name = embedding_options[0]
+    else:
+        embedding_model_name = questionary.select("Select embedding model:", choices=embedding_choices).ask().embedding_model
+    embedding_config = [
+        embedding_config for embedding_config in embedding_configs if embedding_config.embedding_model == embedding_model_name
+    ][0]
+
     # create source
-    source = client.create_source(name=name)
+    source = client.create_source(name=name, embedding_config=embedding_config)
 
     # load data
     try:

@@ -191,7 +191,6 @@ def run_agent_loop(
                     print(f"\nDumping memory contents:\n")
                     print(f"{letta_agent.agent_state.memory.compile()}")
                     print(f"{letta_agent.archival_memory.compile()}")
-                    print(f"{letta_agent.recall_memory.compile()}")
                     continue
 
                 elif user_input.lower() == "/model":
