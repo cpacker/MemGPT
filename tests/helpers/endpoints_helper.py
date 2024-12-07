@@ -171,7 +171,6 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
     tool = client.load_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
-    # tool = client.load_composio_tool(action=Action.WEBTOOL_SCRAPE_WEBSITE_CONTENT)
     tool_name = tool.name
 
     # Set up persona for tool usage
