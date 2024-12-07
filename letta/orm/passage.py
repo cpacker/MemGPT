@@ -11,6 +11,12 @@ from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.orm.mixins import AgentMixin, FileMixin, OrganizationMixin
 from letta.schemas.passage import Passage as PydanticPassage
 
+from letta.config import LettaConfig
+from letta.constants import MAX_EMBEDDING_DIM
+from letta.settings import settings
+
+config = LettaConfig()
+
 if TYPE_CHECKING:
     from letta.orm.file import File
     from letta.orm.organization import Organization
@@ -46,10 +52,17 @@ class Passage(SqlalchemyBase, AgentMixin, OrganizationMixin, FileMixin):
     id: Mapped[str] = mapped_column(primary_key=True, doc="Unique passage identifier")
     text: Mapped[str] = mapped_column(doc="Passage text content")
     source_id: Mapped[Optional[str]] = mapped_column(nullable=True, doc="Source identifier")
-    embedding: Mapped[bytes] = mapped_column(CommonVector, doc="Vector embedding")
     embedding_config: Mapped[dict] = mapped_column(EmbeddingConfigColumn, doc="Embedding configuration")
     metadata_: Mapped[dict] = mapped_column(JSON, doc="Additional metadata")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    if settings.letta_pg_uri_no_default:
+        from pgvector.sqlalchemy import Vector
+
+        embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
+    elif config.archival_storage_type == "sqlite" or config.archival_storage_type == "chroma":
+        embedding = Column(CommonVector)
+    else:
+        raise ValueError(f"Unsupported archival_storage_type: {config.archival_storage_type}")
 
     # Relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="passages", lazy="selectin")

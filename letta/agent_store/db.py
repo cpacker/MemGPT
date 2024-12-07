@@ -32,7 +32,7 @@ from letta.orm.base import Base
 from letta.orm.file import FileMetadata as FileMetadataModel
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
-from letta.schemas.passage import Passage
+from letta.orm.passage import Passage as PassageModel
 from letta.settings import settings
 
 config = LettaConfig()
@@ -320,8 +320,9 @@ class PostgresStorageConnector(SQLStorageConnector):
         self.session_maker = db_context
 
         # TODO: move to DB init
-        with self.session_maker() as session:
-            session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+        if settings.pg_uri:
+            with self.session_maker() as session:
+                session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
         filters = self.get_filters(filters)
