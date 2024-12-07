@@ -2683,7 +2683,7 @@ class LocalClient(AbstractClient):
         return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     def load_composio_tool(self, action: "ActionType") -> Tool:
-        tool_create = ToolCreate.from_composio(action=action)
+        tool_create = ToolCreate.from_composio(action_name=action.name)
         return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     def create_tool(

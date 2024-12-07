@@ -226,6 +226,21 @@ class SandboxConfigManager:
             return [env_var.to_pydantic() for env_var in env_vars]
 
     @enforce_types
+    def list_sandbox_env_vars_by_key(
+        self, key: str, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50
+    ) -> List[PydanticEnvVar]:
+        """List all sandbox environment variables with optional pagination."""
+        with self.session_maker() as session:
+            env_vars = SandboxEnvVarModel.list(
+                db_session=session,
+                cursor=cursor,
+                limit=limit,
+                organization_id=actor.organization_id,
+                key=key,
+            )
+            return [env_var.to_pydantic() for env_var in env_vars]
+
+    @enforce_types
     def get_sandbox_env_vars_as_dict(
         self, sandbox_config_id: str, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50
     ) -> Dict[str, str]:
