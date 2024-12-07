@@ -370,8 +370,7 @@ def delete_agent(
         sys.exit(1)
 
 
-def version():
+def version() -> str:
     import letta
 
-    print(letta.__version__)
     return letta.__version__
