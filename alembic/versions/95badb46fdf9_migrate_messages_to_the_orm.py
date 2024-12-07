@@ -1,8 +1,8 @@
-"""Migrate messages to the orm
+"""Migrate message to orm
 
-Revision ID: d27a33843feb
-Revises: 08b2f8225812
-Create Date: 2024-12-07 13:52:20.591898
+Revision ID: 95badb46fdf9
+Revises: 3c683a662c82
+Create Date: 2024-12-05 14:02:04.163150
 
 """
 
@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "d27a33843feb"
+revision: str = "95badb46fdf9"
 down_revision: Union[str, None] = "08b2f8225812"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -39,9 +39,10 @@ def upgrade() -> None:
     )
     op.alter_column("messages", "organization_id", nullable=False)
     op.alter_column("messages", "tool_calls", existing_type=postgresql.JSON(astext_type=sa.Text()), nullable=False)
+    op.alter_column("messages", "created_at", existing_type=postgresql.TIMESTAMP(timezone=True), nullable=False)
     op.drop_index("message_idx_user", table_name="messages")
-    op.create_foreign_key(None, "messages", "organizations", ["organization_id"], ["id"])
     op.create_foreign_key(None, "messages", "agents", ["agent_id"], ["id"])
+    op.create_foreign_key(None, "messages", "organizations", ["organization_id"], ["id"])
     op.drop_column("messages", "user_id")
     # ### end Alembic commands ###
 
@@ -52,6 +53,7 @@ def downgrade() -> None:
     op.drop_constraint(None, "messages", type_="foreignkey")
     op.drop_constraint(None, "messages", type_="foreignkey")
     op.create_index("message_idx_user", "messages", ["user_id", "agent_id"], unique=False)
+    op.alter_column("messages", "created_at", existing_type=postgresql.TIMESTAMP(timezone=True), nullable=True)
     op.alter_column("messages", "tool_calls", existing_type=postgresql.JSON(astext_type=sa.Text()), nullable=True)
     op.drop_column("messages", "organization_id")
     op.drop_column("messages", "_last_updated_by_id")
