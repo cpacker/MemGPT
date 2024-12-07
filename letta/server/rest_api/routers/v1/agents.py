@@ -428,8 +428,7 @@ def update_message(
     """
     Update the details of a message associated with an agent.
     """
-    assert request.id == message_id, f"Message ID mismatch: {request.id} != {message_id}"
-    return server.update_agent_message(agent_id=agent_id, request=request)
+    return server.update_agent_message(agent_id=agent_id, message_id=message_id, request=request)
 
 
 @router.post(

@@ -587,7 +587,6 @@ class RESTClient(AbstractClient):
         tool_call_id: Optional[str] = None,
     ) -> Message:
         request = MessageUpdate(
-            id=message_id,
             role=role,
             text=text,
             name=name,
@@ -2148,8 +2147,8 @@ class LocalClient(AbstractClient):
     ) -> Message:
         message = self.server.update_agent_message(
             agent_id=agent_id,
+            message_id=message_id,
             request=MessageUpdate(
-                id=message_id,
                 role=role,
                 text=text,
                 name=name,
