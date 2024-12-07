@@ -28,7 +28,7 @@ from letta.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, MessageCreate, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, MessageUpdate
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool
@@ -422,14 +422,13 @@ def get_agent_messages(
 def update_message(
     agent_id: str,
     message_id: str,
-    request: UpdateMessage = Body(...),
+    request: MessageUpdate = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
 ):
     """
     Update the details of a message associated with an agent.
     """
-    assert request.id == message_id, f"Message ID mismatch: {request.id} != {message_id}"
-    return server.update_agent_message(agent_id=agent_id, request=request)
+    return server.update_agent_message(agent_id=agent_id, message_id=message_id, request=request)
 
 
 @router.post(

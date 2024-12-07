@@ -13,7 +13,7 @@ from letta.constants import (
 )
 from letta.local_llm.constants import INNER_THOUGHTS_KWARG
 from letta.schemas.enums import MessageRole
-from letta.schemas.letta_base import LettaBase
+from letta.schemas.letta_base import OrmMetadataBase
 from letta.schemas.letta_message import (
     AssistantMessage,
     FunctionCall,
@@ -50,7 +50,7 @@ def add_inner_thoughts_to_tool_call(
         raise e
 
 
-class BaseMessage(LettaBase):
+class BaseMessage(OrmMetadataBase):
     __id_prefix__ = "message"
 
 
@@ -66,10 +66,9 @@ class MessageCreate(BaseMessage):
     name: Optional[str] = Field(None, description="The name of the participant.")
 
 
-class UpdateMessage(BaseMessage):
+class MessageUpdate(BaseMessage):
     """Request to update a message"""
 
-    id: str = Field(..., description="The id of the message.")
     role: Optional[MessageRole] = Field(None, description="The role of the participant.")
     text: Optional[str] = Field(None, description="The text of the message.")
     # NOTE: probably doesn't make sense to allow remapping user_id or agent_id (vs creating a new message)
@@ -109,9 +108,10 @@ class Message(BaseMessage):
     agent_id: Optional[str] = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
     name: Optional[str] = Field(None, description="The name of the participant.")
-    created_at: datetime = Field(default_factory=get_utc_time, description="The time the message was created.")
     tool_calls: Optional[List[ToolCall]] = Field(None, description="The list of tool calls requested.")
     tool_call_id: Optional[str] = Field(None, description="The id of the tool call.")
+    # This overrides the optional base orm schema, created_at MUST exist on all messages objects
+    created_at: datetime = Field(default_factory=get_utc_time, description="The timestamp when the object was created.")
 
     @field_validator("role")
     @classmethod
