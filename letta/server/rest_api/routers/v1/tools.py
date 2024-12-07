@@ -6,7 +6,6 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from letta.errors import LettaToolCreateError
 from letta.orm.errors import UniqueConstraintViolationError
 from letta.schemas.letta_message import FunctionReturn
-from letta.schemas.sandbox_config import SandboxEnvironmentVariableCreate, SandboxType
 from letta.schemas.tool import Tool, ToolCreate, ToolRunFromSource, ToolUpdate
 from letta.schemas.user import User
 from letta.server.rest_api.utils import get_letta_server
@@ -255,17 +254,6 @@ def add_composio_tool(
 
 # TODO: Factor this out to somewhere else
 def get_composio_key(server: SyncServer, actor: User):
-    # List all the composio api keys
-    # Add sandbox env
-    manager = server.sandbox_config_manager
-    # Ensure you have e2b key set
-    sandbox_config = manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=actor)
-    manager.create_sandbox_env_var(
-        SandboxEnvironmentVariableCreate(key="COMPOSIO_API_KEY", value="54le43q9wd5edke6hs1gfr"),
-        sandbox_config_id=sandbox_config.id,
-        actor=actor,
-    )
-
     api_keys = server.sandbox_config_manager.list_sandbox_env_vars_by_key(key="COMPOSIO_API_KEY", actor=actor)
     if not api_keys:
         raise HTTPException(
