@@ -33,7 +33,7 @@ class SandboxConfigManager:
     def get_or_create_default_sandbox_config(self, sandbox_type: SandboxType, actor: PydanticUser) -> PydanticSandboxConfig:
         sandbox_config = self.get_sandbox_config_by_type(sandbox_type, actor=actor)
         if not sandbox_config:
-            logger.info(f"Creating new sandbox config of type {sandbox_type}, none found for organization {actor.organization_id}.")
+            logger.debug(f"Creating new sandbox config of type {sandbox_type}, none found for organization {actor.organization_id}.")
 
             # TODO: Add more sandbox types later
             if sandbox_type == SandboxType.E2B:
