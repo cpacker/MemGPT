@@ -84,7 +84,7 @@ def load_data(connector: DataConnector, source: Source, passage_store: StorageCo
                 file_id=file_metadata.id,
                 source_id=source.id,
                 metadata_=passage_metadata,
-                user_id=source.created_by_id,
+                organization_id=source.organization_id,
                 embedding_config=source.embedding_config,
                 embedding=embedding,
             )
