@@ -39,6 +39,7 @@ def evaluate(input_data_filename: str, predictions_filename: str):
             total_new_memory_sentences = 0
             total_new_multihop_memory_sentences = 0
             correct = 0
+            multihop_correct= 0
 
             for predictions, input_data in zip(predictions_file, input_data_file):
                 # get precision and recall of the fact block 
@@ -53,15 +54,15 @@ def evaluate(input_data_filename: str, predictions_filename: str):
                     if sentence in "".join(new_memory):
                         correct += 1
                     if sentence in "".join(multihop_memory):
-                        correct += 1
+                        multihop_correct += 1
                     total_predicted_sentences += len(predicted_sentences)
                     total_new_memory_sentences += len(new_memory)
                     total_new_multihop_memory_sentences += len(multihop_memory)
 
             new_memory_precision = correct / total_predicted_sentences
             new_memory_recall = correct / total_new_memory_sentences
-            new_multihop_memory_precision = correct / total_predicted_sentences
-            new_multihop_memory_recall = correct / total_new_multihop_memory_sentences
+            new_multihop_memory_precision = multihop_correct / total_predicted_sentences
+            new_multihop_memory_recall = multihop_correct / total_new_multihop_memory_sentences
 
 
             results = {

@@ -28,6 +28,7 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
     client = create_client()
     rethink_memory_tool = client.create_tool(rethink_memory)
     finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
+    trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
 
     with jsonlines.open(input_file_name) as input_file:
         with jsonlines.open(predictions_filename, 'w') as predictions_file:
@@ -35,8 +36,8 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
 
             for idx, datum in tqdm(enumerate(data)):
                 if not offline_memory:
-                    conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
-                    conversation_persona_block = Block(name="persona", label="persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
+                    conversation_human_block = Block(name="human", label="human", value="I am a trustworthy new source. I give verified updates of new facts. I am to be trusted as a source of truth.", limit=2000)
+                    conversation_persona_block = Block(name="persona", label="persona", value=" You are a counterfactual reasoner. You listen are given trustworthy factual updates. You always trust the new information no matter what, even if it is against you current knowledge of the world.", limit=2000)
                     fact_block = Block(
                         name="fact_block",
                         label="fact_block",
@@ -59,14 +60,10 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
 
                     client.delete_agent(agent_id=conversation_agent.id)
                 if offline_memory:
-                    trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
-
-                    conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
-                    conversation_persona_block = Block(name="persona", label="persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
-                    offline_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
+                    conversation_human_block = Block(name="human", label="human", value="I am a trustworthy new source. I give verified updates of new facts. I am to be trusted as a source of truth.", limit=2000)
+                    conversation_persona_block = Block(name="persona", label="persona", value=" You are a counterfactual reasoner. You listen are given trustworthy factual updates. You always trust the new information no matter what, even if it is against you current knowledge of the world.", limit=2000)
+                    offline_human_block = Block(name="human", label="human", value="I am a trustworthy new source. I give verified updates of new facts. I am to be trusted as a source of truth.", limit=2000)
                     offline_persona_block = Block(name="persona", label="persona", value=get_persona_text("offline_memory_persona"), limit=2000)
-                    # Figure 1. from Evaluating the Ripple Effects of Knowledge Editing in Language Models (Cohen et al., 2023)
-                    # https://arxiv.org/pdf/2307.12976
                     fact_block = Block(
                             name="fact_block",
                             label="fact_block",
@@ -95,24 +92,26 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
                     "rethink_memory_block",
                 ])
 
-                offline_memory_agent = client.create_agent(
-                name="offline_memory_agent",
-                agent_type=AgentType.offline_memory_agent,
-                system=gpt_system.get_system_text("memgpt_offline_memory"),
-                memory=offline_memory,
-                llm_config=LLMConfig.default_config("gpt-4"),
-                embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-                tools=[rethink_memory_tool.name, finish_rethinking_memory_tool.name],
-                tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
-                include_base_tools=False,
-            )
-                assert offline_memory_agent is not None
-                assert set(offline_memory_agent.memory.list_block_labels())== set(["persona", "human", "fact_block", "rethink_memory_block"])
+                    offline_memory_agent = client.create_agent(
+                    name="offline_memory_agent",
+                    agent_type=AgentType.offline_memory_agent,
+                    system=gpt_system.get_system_text("memgpt_offline_memory"),
+                    memory=offline_memory,
+                    llm_config=LLMConfig.default_config("gpt-4"),
+                    embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+                    tools=[rethink_memory_tool.name, finish_rethinking_memory_tool.name],
+                    tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
+                    include_base_tools=False,
+                )
+                    assert offline_memory_agent is not None
+                    assert set(offline_memory_agent.memory.list_block_labels())== set(["persona", "human", "fact_block", "rethink_memory_block"])
 
-                for requested_rewrite in datum["requested_rewrites"]:
-                    response = client.send_message(message="[trigger_rethink_message]" + requested_rewrite, role="user", agent_id=conversation_agent.id)
-                offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
-                predictions_file.write({"response": response.model_dump(), "fact_block": offline_memory_agent.memory.get_block("rethink_memory_block").value})
+                    for requested_rewrite in datum["requested_rewrites"]:
+                        response = client.send_message(message="[trigger_rethink_message]" + requested_rewrite, role="user", agent_id=conversation_agent.id)
+                    offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
+                    predictions_file.write({"response": response.model_dump(), "fact_block": offline_memory_agent.memory.get_block("rethink_memory_block").value})
+                    client.delete_agent(agent_id=conversation_agent.id)
+                    client.delete_agent(agent_id=offline_memory_agent.id)
 
                 if idx == num_questions - 1:
                     break
