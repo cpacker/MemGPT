@@ -25,7 +25,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         poetry-version: "1.8.2"
-        install-args: "-E dev -E postgres -E milvus -E external-tools -E tests"  # Adjust as necessary
+        install-args: "-E dev -E postgres -E external-tools -E tests"  # Adjust as necessary
 
     - name: Validate PR Title
       if: github.event_name == 'pull_request'
