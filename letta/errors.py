@@ -22,6 +22,14 @@ class LettaToolCreateError(LettaError):
         super().__init__(self.message)
 
 
+class LettaConfigurationError(LettaError):
+    """Error raised when there are configuration-related issues."""
+
+    def __init__(self, message: str, missing_fields: Optional[List[str]] = None):
+        self.missing_fields = missing_fields or []
+        super().__init__(message)
+
+
 class LLMError(LettaError):
     pass
 
