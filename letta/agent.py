@@ -477,10 +477,10 @@ class Agent(BaseAgent):
         for tool in tools:
             try:
                 # WARNING: name may not be consistent?
-                if tool.module:  # execute the whole module
-                    exec(tool.module, env)
-                else:
-                    exec(tool.source_code, env)
+                # if tool.module:  # execute the whole module
+                #    exec(tool.module, env)
+                # else:
+                exec(tool.source_code, env)
                 self.functions_python[tool.json_schema["name"]] = env[tool.json_schema["name"]]
                 self.functions.append(tool.json_schema)
             except Exception:
