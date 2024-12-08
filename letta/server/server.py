@@ -21,7 +21,6 @@ from letta.agent_store.storage import StorageConnector, TableType
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
-from letta.embeddings import embedding_model, parse_and_chunk_text
 
 # TODO use custom interface
 from letta.interface import AgentInterface  # abstract
@@ -1148,62 +1147,6 @@ class SyncServer(Server):
             raise ValueError("Source does not exist")
         return existing_source.id
 
-    def create_passage(self, actor: PydanticUser, agent_state: AgentState, embedding: List[float], text: str):
-        return self.passage_manager.create_passage(
-            PydanticPassage(
-                organization_id=actor.organization_id,
-                agent_id=agent_state.id,
-                text=text, 
-                embedding=embedding, 
-                embedding_config=agent_state.embedding_config
-            ),
-            actor=actor
-        ) 
-
-    def insert_passages(self, actor: PydanticUser, text: str, agent_id: str, return_ids: bool = False) -> List[PydanticPassage]:
-        """ Insert passage(s) into archival memory """
-
-        letta_agent = self.load_agent(agent_id=agent_id)
-        agent_state = letta_agent.agent_state
-        embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
-        embed_model = embedding_model(agent_state.embedding_config)
-
-        passages = []
-        
-        try:
-            # breakup string into passages
-            for text in parse_and_chunk_text(text, embedding_chunk_size):
-                embedding = embed_model.get_text_embedding(text)
-                # fixing weird bug where type returned isn't a list, but instead is an object
-                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
-                if isinstance(embedding, dict):
-                    try:
-                        embedding = embedding["data"][0]["embedding"]
-                    except (KeyError, IndexError):
-                        # TODO as a fallback, see if we can find any lists in the payload
-                        raise TypeError(
-                            f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
-                        )
-                passage = self.create_passage(
-                    actor,
-                    agent_state, 
-                    embedding,
-                    text, 
-                )
-                passages.append(passage)
-
-            ids = [str(p.id) for p in passages]
-
-            if return_ids:
-                return ids
-            
-            return passages
-
-        except Exception as e:
-            print("Passage insert error", e)
-            raise e
-
-
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
         agent = self.load_agent(agent_id=agent_id)
@@ -1337,7 +1280,9 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # Insert into archival memory
-        passage_ids = self.insert_passages(actor, text=memory_contents, agent_id=agent_id, return_ids=True) 
+        passage_ids = self.passage_manager.insert_passage(
+            agent_state=letta_agent.agent_state, agent_id=agent_id, text=memory_contents, actor=actor, return_ids=True
+        )
 
         # Update the agent
         # TODO: should this update the system prompt?

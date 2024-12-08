@@ -3,8 +3,11 @@ from datetime import datetime
 from letta.orm.errors import NoResultFound
 from letta.utils import enforce_types
 
+from letta.embeddings import embedding_model, parse_and_chunk_text
+
 from letta.orm.passage import Passage as PassageModel
 from letta.orm.sqlalchemy_base import AccessType
+from letta.schemas.agent import AgentState
 from letta.schemas.passage import Passage as PydanticPassage
 from letta.schemas.user import User as PydanticUser
 
@@ -37,6 +40,58 @@ class PassageManager:
     def create_many_passages(self, passages: List[PydanticPassage], actor: PydanticUser) -> List[PydanticPassage]:
         """Create multiple passages."""
         return [self.create_passage(p, actor) for p in passages]
+
+    @enforce_types
+    def insert_passage(self, 
+        agent_state: AgentState,
+        agent_id: str,
+        text: str, 
+        actor: PydanticUser, 
+        return_ids: bool = False
+    ) -> List[PydanticPassage]:
+        """ Insert passage(s) into archival memory """
+
+        embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
+        embed_model = embedding_model(agent_state.embedding_config)
+
+        passages = []
+        
+        try:
+            # breakup string into passages
+            for text in parse_and_chunk_text(text, embedding_chunk_size):
+                embedding = embed_model.get_text_embedding(text)
+                # fixing weird bug where type returned isn't a list, but instead is an object
+                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
+                if isinstance(embedding, dict):
+                    try:
+                        embedding = embedding["data"][0]["embedding"]
+                    except (KeyError, IndexError):
+                        # TODO as a fallback, see if we can find any lists in the payload
+                        raise TypeError(
+                            f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
+                        )
+                passage = self.create_passage(
+                    PydanticPassage(
+                        organization_id=actor.organization_id,
+                        agent_id=agent_id,
+                        text=text,
+                        embedding=embedding,
+                        embedding_config=agent_state.embedding_config
+                    ),
+                    actor=actor
+                )
+                passages.append(passage)
+
+            ids = [str(p.id) for p in passages]
+
+            if return_ids:
+                return ids
+            
+            return passages
+
+        except Exception as e:
+            print("Passage insert error", e)
+            raise e
 
     @enforce_types
     def update_passage_by_id(self, passage_id: str, passage: PydanticPassage, actor: PydanticUser, **kwargs) -> Optional[PydanticPassage]:
