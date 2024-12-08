@@ -21,6 +21,7 @@ from letta.agent_store.storage import StorageConnector, TableType
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
+from letta.embeddings import embedding_model, parse_and_chunk_text
 
 # TODO use custom interface
 from letta.interface import AgentInterface  # abstract
@@ -69,11 +70,11 @@ from letta.schemas.memory import (
 )
 from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
 from letta.schemas.organization import Organization
-from letta.schemas.passage import Passage
+from letta.schemas.passage import Passage as PydanticPassage
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.usage import LettaUsageStatistics
-from letta.schemas.user import User
+from letta.schemas.user import User as PydanticUser
 from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
 from letta.services.blocks_agents_manager import BlocksAgentsManager
@@ -130,7 +131,7 @@ class Server(object):
     def create_agent(
         self,
         request: CreateAgent,
-        actor: User,
+        actor: PydanticUser,
         # interface
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
@@ -778,7 +779,7 @@ class SyncServer(Server):
     def create_agent(
         self,
         request: CreateAgent,
-        actor: User,
+        actor: PydanticUser,
         # interface
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
@@ -937,7 +938,7 @@ class SyncServer(Server):
     def update_agent(
         self,
         request: UpdateAgentState,
-        actor: User,
+        actor: PydanticUser,
     ) -> AgentState:
         """Update the agents core memory block, return the new state"""
         try:
@@ -1147,6 +1148,62 @@ class SyncServer(Server):
             raise ValueError("Source does not exist")
         return existing_source.id
 
+    def create_passage(self, actor: PydanticUser, agent_state: AgentState, embedding: List[float], text: str):
+        return self.passage_manager.create_passage(
+            PydanticPassage(
+                organization_id=actor.organization_id,
+                agent_id=agent_state.id,
+                text=text, 
+                embedding=embedding, 
+                embedding_config=agent_state.embedding_config
+            ),
+            actor=actor
+        ) 
+
+    def insert_passages(self, actor: PydanticUser, text: str, agent_id: str, return_ids: bool = False) -> List[PydanticPassage]:
+        """ Insert passage(s) into archival memory """
+
+        letta_agent = self.load_agent(agent_id=agent_id)
+        agent_state = letta_agent.agent_state
+        embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
+        embed_model = embedding_model(agent_state.embedding_config)
+
+        passages = []
+        
+        try:
+            # breakup string into passages
+            for text in parse_and_chunk_text(text, embedding_chunk_size):
+                embedding = embed_model.get_text_embedding(text)
+                # fixing weird bug where type returned isn't a list, but instead is an object
+                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
+                if isinstance(embedding, dict):
+                    try:
+                        embedding = embedding["data"][0]["embedding"]
+                    except (KeyError, IndexError):
+                        # TODO as a fallback, see if we can find any lists in the payload
+                        raise TypeError(
+                            f"Got back an unexpected payload from text embedding function, type={type(embedding)}, value={embedding}"
+                        )
+                passage = self.create_passage(
+                    actor,
+                    agent_state, 
+                    embedding,
+                    text, 
+                )
+                passages.append(passage)
+
+            ids = [str(p.id) for p in passages]
+
+            if return_ids:
+                return ids
+            
+            return passages
+
+        except Exception as e:
+            print("Passage insert error", e)
+            raise e
+
+
     def get_agent_memory(self, agent_id: str) -> Memory:
         """Return the memory of an agent (core memory)"""
         agent = self.load_agent(agent_id=agent_id)
@@ -1228,7 +1285,7 @@ class SyncServer(Server):
 
         return messages
 
-    def get_agent_archival(self, user_id: str, agent_id: str, cursor: Optional[str] = None, limit: int = 50) -> List[Passage]:
+    def get_agent_archival(self, user_id: str, agent_id: str, cursor: Optional[str] = None, limit: int = 50) -> List[PydanticPassage]:
         """Paginated query of all messages in agent archival memory"""
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
@@ -1254,7 +1311,7 @@ class SyncServer(Server):
         agent_id: str,
         cursor: Optional[str] = None,
         limit: Optional[int] = 100,
-    ) -> List[Passage]:
+    ) -> List[PydanticPassage]:
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
@@ -1269,8 +1326,9 @@ class SyncServer(Server):
         )
         return records
 
-    def insert_archival_memory(self, user_id: str, agent_id: str, memory_contents: str) -> List[Passage]:
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
+    def insert_archival_memory(self, user_id: str, agent_id: str, memory_contents: str) -> List[PydanticPassage]:
+        actor = self.user_manager.get_user_by_id(user_id=user_id)
+        if actor is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1279,17 +1337,18 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # Insert into archival memory
-        passage_ids = letta_agent.passage_manager.insert(memory_string=memory_contents, return_ids=True)
+        passage_ids = self.insert_passages(actor, text=memory_contents, agent_id=agent_id, return_ids=True) 
 
         # Update the agent
         # TODO: should this update the system prompt?
         save_agent(letta_agent, self.ms)
 
         # TODO: this is gross, fix
-        return [letta_agent.passage_manager.storage.get(id=passage_id) for passage_id in passage_ids]
+        return [self.passage_manager.get_passage_by_id(passage_id=passage_id, actor=actor) for passage_id in passage_ids]
 
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
-        if self.user_manager.get_user_by_id(user_id=user_id) is None:
+        actor = self.user_manager.get_user_by_id(user_id=user_id)
+        if actor is None:
             raise ValueError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
             raise ValueError(f"Agent agent_id={agent_id} does not exist")
@@ -1301,7 +1360,7 @@ class SyncServer(Server):
 
         # Delete by ID
         # TODO check if it exists first, and throw error if not
-        letta_agent.passage_manager.storage.delete({"id": memory_id})
+        letta_agent.passage_manager.delete_passage_by_id(passage_id=memory_id, actor=actor)
 
         # TODO: return archival memory
 
@@ -1491,7 +1550,7 @@ class SyncServer(Server):
         self.ms.delete_api_key(api_key=api_key)
         return api_key_obj
 
-    def delete_source(self, source_id: str, actor: User):
+    def delete_source(self, source_id: str, actor: PydanticUser):
         """Delete a data source"""
         self.source_manager.delete_source(source_id=source_id, actor=actor)
 
@@ -1501,7 +1560,7 @@ class SyncServer(Server):
 
         # TODO: delete data from agent passage stores (?)
 
-    def load_file_to_source(self, source_id: str, file_path: str, job_id: str, actor: User) -> Job:
+    def load_file_to_source(self, source_id: str, file_path: str, job_id: str, actor: PydanticUser) -> Job:
 
         # update job
         job = self.job_manager.get_job_by_id(job_id, actor=actor)
@@ -1607,11 +1666,11 @@ class SyncServer(Server):
 
         return [self.source_manager.get_source_by_id(source_id=id) for id in source_ids]
 
-    def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
+    def list_data_source_passages(self, user_id: str, source_id: str) -> List[PydanticPassage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
         return []
 
-    def list_all_sources(self, actor: User) -> List[Source]:
+    def list_all_sources(self, actor: PydanticUser) -> List[Source]:
         """List all sources (w/ extra metadata) belonging to a user"""
 
         sources = self.source_manager.list_sources(actor=actor)
@@ -1651,7 +1710,7 @@ class SyncServer(Server):
 
         return sources_with_metadata
 
-    def add_default_external_tools(self, actor: User) -> bool:
+    def add_default_external_tools(self, actor: PydanticUser) -> bool:
         """Add default langchain tools. Return true if successful, false otherwise."""
         success = True
         tool_creates = ToolCreate.load_default_langchain_tools()
@@ -1708,7 +1767,7 @@ class SyncServer(Server):
         save_agent(letta_agent, self.ms)
         return response
 
-    def get_user_or_default(self, user_id: Optional[str]) -> User:
+    def get_user_or_default(self, user_id: Optional[str]) -> PydanticUser:
         """Get the user object for user_id if it exists, otherwise return the default user object"""
         if user_id is None:
             user_id = self.user_manager.DEFAULT_USER_ID
