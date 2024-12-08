@@ -33,7 +33,10 @@ class Organization(SqlalchemyBase):
     sandbox_environment_variables: Mapped[List["SandboxEnvironmentVariable"]] = relationship(
         "SandboxEnvironmentVariable", back_populates="organization", cascade="all, delete-orphan"
     )
+
+    # relationships
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="organization", cascade="all, delete-orphan")
+    passages: Mapped[List["Passage"]] = relationship("Passage", back_populates="organization", cascade="all, delete-orphan")
 
     # TODO: Map these relationships later when we actually make these models
     # below is just a suggestion

@@ -17,6 +17,8 @@ class ToolSettings(BaseSettings):
 
 class ModelSettings(BaseSettings):
 
+    model_config = SettingsConfigDict(env_file='.env')
+
     # env_prefix='my_prefix_'
 
     # when we use /completions APIs (instead of /chat/completions), we need to specify a model wrapper

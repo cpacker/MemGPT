@@ -16,8 +16,8 @@ class ChromaStorageConnector(StorageConnector):
     # WARNING: This is not thread safe. Do NOT do concurrent access to the same collection.
     # Timestamps are converted to integer timestamps for chroma (datetime not supported)
 
-    def __init__(self, table_type: str, config: LettaConfig, user_id, agent_id=None):
-        super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
+    def __init__(self, table_type: str, config: LettaConfig, user_id: str, organization_id: str, agent_id=None):
+        super().__init__(table_type=table_type, config=config, user_id=user_id, organization_id=organization_id, agent_id=agent_id)
 
         assert table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES, "Chroma only supports archival memory"
 
@@ -51,7 +51,8 @@ class ChromaStorageConnector(StorageConnector):
                 continue
 
             # filter by other keys
-            chroma_filters.append({key: {"$eq": value}})
+            if value is not None:  # Skip None values
+                chroma_filters.append({key: {"$eq": value}})
 
         if len(chroma_filters) > 1:
             chroma_filters = {"$and": chroma_filters}

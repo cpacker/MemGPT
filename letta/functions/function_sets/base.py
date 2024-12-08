@@ -164,7 +164,12 @@ def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-    self.archival_memory.insert(content)
+    self.passage_manager.insert_passage(
+        agent_state=self.agent_state,
+        agent_id=self.agent_state.id,
+        text=content,
+        actor=self.user,
+    )
     return None
 
 
@@ -191,13 +196,12 @@ def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0) -
     except:
         raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results, total = self.archival_memory.search(query, count=count, start=page * count)
-    num_pages = math.ceil(total / count) - 1  # 0 index
+    results = self.passage_manager.list_passages(actor=self.user, query_text=query, limit=count)
     if len(results) == 0:
         results_str = f"No results found."
     else:
-        results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-        results_formatted = [f"timestamp: {d['timestamp']}, memory: {d['content']}" for d in results]
+        results_pref = f"Showing {len(results)} of results:"
+        results_formatted = [f"timestamp: {d.created_at}, memory: {d.text}" for d in results]
         results_str = f"{results_pref} {json_dumps(results_formatted)}"
     return results_str
 

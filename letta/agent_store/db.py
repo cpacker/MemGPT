@@ -32,7 +32,7 @@ from letta.orm.base import Base
 from letta.orm.file import FileMetadata as FileMetadataModel
 
 # from letta.schemas.message import Message, Passage, Record, RecordType, ToolCall
-from letta.schemas.passage import Passage
+from letta.orm.passage import Passage as PassageModel
 from letta.settings import settings
 
 config = LettaConfig()
@@ -67,10 +67,10 @@ class CommonVector(TypeDecorator):
         return np.frombuffer(value, dtype=np.float32)
 
 
-class PassageModel(Base):
+class PassageModelLegacy(Base):
     """Defines data model for storing Passages (consisting of text, embedding)"""
 
-    __tablename__ = "passages"
+    __tablename__ = "passages_legacy"
     __table_args__ = {"extend_existing": True}
 
     # Assuming passage_id is the primary key
@@ -96,7 +96,7 @@ class PassageModel(Base):
     # Add a datetime column, with default value as the current time
     created_at = Column(DateTime(timezone=True))
 
-    Index("passage_idx_user", user_id, agent_id, file_id),
+    Index("passage_idx_user_legacy", user_id, agent_id, file_id),
 
     def __repr__(self):
         return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
@@ -320,8 +320,9 @@ class PostgresStorageConnector(SQLStorageConnector):
         self.session_maker = db_context
 
         # TODO: move to DB init
-        with self.session_maker() as session:
-            session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
+        if settings.pg_uri:
+            with self.session_maker() as session:
+                session.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))  # Enables the vector extension
 
     def query(self, query: str, query_vec: List[float], top_k: int = 10, filters: Optional[Dict] = {}):
         filters = self.get_filters(filters)
