@@ -67,7 +67,7 @@ from letta.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, MessageRole, MessageUpdate
 from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage as PydanticPassage
 from letta.schemas.source import Source
@@ -236,11 +236,6 @@ class SyncServer(Server):
 
         # Locks
         self.send_message_lock = Lock()
-
-        # Composio
-        self.composio_client = None
-        if tool_settings.composio_api_key:
-            self.composio_client = Composio(api_key=tool_settings.composio_api_key)
 
         # Initialize the metadata store
         config = LettaConfig.load()
@@ -1679,12 +1674,12 @@ class SyncServer(Server):
         save_agent(letta_agent, self.ms)
         return message
 
-    def update_agent_message(self, agent_id: str, request: UpdateMessage) -> Message:
+    def update_agent_message(self, agent_id: str, message_id: str, request: MessageUpdate) -> Message:
         """Update the details of a message associated with an agent"""
 
         # Get the current message
         letta_agent = self.load_agent(agent_id=agent_id)
-        response = letta_agent.update_message(request=request)
+        response = letta_agent.update_message(message_id=message_id, request=request)
         save_agent(letta_agent, self.ms)
         return response
 
@@ -1911,9 +1906,17 @@ class SyncServer(Server):
             )
 
     # Composio wrappers
-    def get_composio_apps(self) -> List["AppModel"]:
+    def get_composio_client(self, api_key: Optional[str] = None):
+        if api_key:
+            return Composio(api_key=api_key)
+        elif tool_settings.composio_api_key:
+            return Composio(api_key=tool_settings.composio_api_key)
+        else:
+            return Composio()
+
+    def get_composio_apps(self, api_key: Optional[str] = None) -> List["AppModel"]:
         """Get a list of all Composio apps with actions"""
-        apps = self.composio_client.apps.get()
+        apps = self.get_composio_client(api_key=api_key).apps.get()
         apps_with_actions = []
         for app in apps:
             # A bit of hacky logic until composio patches this
@@ -1922,6 +1925,6 @@ class SyncServer(Server):
 
         return apps_with_actions
 
-    def get_composio_actions_from_app_name(self, composio_app_name: str) -> List["ActionModel"]:
-        actions = self.composio_client.actions.get(apps=[composio_app_name])
+    def get_composio_actions_from_app_name(self, composio_app_name: str, api_key: Optional[str] = None) -> List["ActionModel"]:
+        actions = self.get_composio_client(api_key=api_key).actions.get(apps=[composio_app_name])
         return actions

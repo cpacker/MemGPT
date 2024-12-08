@@ -67,7 +67,7 @@ llama-index-embeddings-openai = "^0.2.5"
 llama-index-embeddings-ollama = "^0.3.1"
 wikipedia = {version = "^1.4.0", optional = true}
 composio-langchain = "^0.5.28"
-composio-core = "^0.5.34"
+composio-core = "^0.5.51"
 alembic = "^1.13.3"
 pyhumps = "^3.8.0"
 psycopg2 = "^2.9.10"
