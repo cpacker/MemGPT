@@ -4,6 +4,7 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from letta.constants import BASE_MEMORY_TOOLS, BASE_TOOLS
 from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import LettaBase
@@ -108,7 +109,7 @@ class CreateAgent(BaseAgent):  #
     # all optional as server can generate defaults
     name: Optional[str] = Field(None, description="The name of the agent.")
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
-    
+
     # memory creation
     memory_blocks: List[CreateBlock] = Field(
         # [CreateHuman(), CreatePersona()], description="The blocks to create in the agent's in-context memory."
@@ -116,11 +117,11 @@ class CreateAgent(BaseAgent):  #
         description="The blocks to create in the agent's in-context memory.",
     )
 
-    tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
+    tools: List[str] = Field(BASE_TOOLS + BASE_MEMORY_TOOLS, description="The tools used by the agent.")
     tool_rules: Optional[List[ToolRule]] = Field(None, description="The tool rules governing the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
-    agent_type: Optional[AgentType] = Field(None, description="The type of agent.")
+    agent_type: AgentType = Field(AgentType.memgpt_agent, description="The type of agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
     # Note: if this is None, then we'll populate with the standard "more human than human" initial message sequence
