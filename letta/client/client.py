@@ -1319,6 +1319,7 @@ class RESTClient(AbstractClient):
         Returns:
             source (Source): Created source
         """
+        assert embedding_config or self._default_embedding_config, f"Must specify embedding_config for source"
         source_create = SourceCreate(name=name, embedding_config=embedding_config or self._default_embedding_config)
         payload = source_create.model_dump()
         response = requests.post(f"{self.base_url}/{self.api_prefix}/sources", json=payload, headers=self.headers)
@@ -2896,6 +2897,7 @@ class LocalClient(AbstractClient):
         Returns:
             source (Source): Created source
         """
+        assert embedding_config or self._default_embedding_config, f"Must specify embedding_config for source"
         source = Source(
             name=name, embedding_config=embedding_config or self._default_embedding_config, organization_id=self.user.organization_id
         )
