@@ -40,8 +40,8 @@ echo "Database migration completed successfully."
 
 # If ADE is enabled, add the --ade flag to the command
 CMD="letta server --host $HOST --port $PORT"
-if [ "${ENABLE_ADE:-false}" = "true" ]; then
-    CMD="$CMD --ade"
+if [ "${SECURE:-false}" = "true" ]; then
+    CMD="$CMD --secure"
 fi
 
 echo "Starting Letta server at http://$HOST:$PORT..."
