@@ -22,7 +22,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import JobStatus, MessageRole
 from letta.schemas.file import FileMetadata
 from letta.schemas.job import Job
-from letta.schemas.letta_request import LettaRequest
+from letta.schemas.letta_request import LettaRequest, LettaStreamingRequest
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import (
@@ -32,7 +32,7 @@ from letta.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, MessageCreate, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, MessageUpdate
 from letta.schemas.openai.chat_completions import ToolCall
 from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
@@ -586,8 +586,7 @@ class RESTClient(AbstractClient):
         tool_calls: Optional[List[ToolCall]] = None,
         tool_call_id: Optional[str] = None,
     ) -> Message:
-        request = UpdateMessage(
-            id=message_id,
+        request = MessageUpdate(
             role=role,
             text=text,
             name=name,
@@ -965,8 +964,10 @@ class RESTClient(AbstractClient):
         if stream_tokens or stream_steps:
             from letta.client.streaming import _sse_post
 
+            request = LettaStreamingRequest(messages=messages, stream_tokens=stream_tokens)
             return _sse_post(f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages/stream", request.model_dump(), self.headers)
         else:
+            request = LettaRequest(messages=messages)
             response = requests.post(
                 f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages", json=request.model_dump(), headers=self.headers
             )
@@ -2146,8 +2147,8 @@ class LocalClient(AbstractClient):
     ) -> Message:
         message = self.server.update_agent_message(
             agent_id=agent_id,
-            request=UpdateMessage(
-                id=message_id,
+            message_id=message_id,
+            request=MessageUpdate(
                 role=role,
                 text=text,
                 name=name,
@@ -2683,7 +2684,7 @@ class LocalClient(AbstractClient):
         return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     def load_composio_tool(self, action: "ActionType") -> Tool:
-        tool_create = ToolCreate.from_composio(action=action)
+        tool_create = ToolCreate.from_composio(action_name=action.name)
         return self.server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=self.user)
 
     def create_tool(
