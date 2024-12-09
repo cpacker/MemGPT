@@ -30,6 +30,14 @@ class LettaConfigurationError(LettaError):
         super().__init__(message)
 
 
+class LettaAgentNotFoundError(LettaError):
+    """Error raised when an agent is not found."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
 class LLMError(LettaError):
     pass
 
