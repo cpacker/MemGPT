@@ -38,6 +38,14 @@ class LettaAgentNotFoundError(LettaError):
         super().__init__(self.message)
 
 
+class LettaUserNotFoundError(LettaError):
+    """Error raised when a user is not found."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
 class LLMError(LettaError):
     pass
 

@@ -13,7 +13,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from letta.__init__ import __version__
 from letta.constants import ADMIN_PREFIX, API_PREFIX, OPENAI_API_PREFIX
-from letta.errors import LettaAgentNotFoundError
+from letta.errors import LettaAgentNotFoundError, LettaUserNotFoundError
 from letta.schemas.letta_response import LettaResponse
 from letta.server.constants import REST_DEFAULT_PORT
 
@@ -165,6 +165,10 @@ def create_application() -> "FastAPI":
     @app.exception_handler(LettaAgentNotFoundError)
     async def agent_not_found_handler(request, exc):
         return JSONResponse(status_code=404, content={"detail": "Agent not found"})
+
+    @app.exception_handler(LettaUserNotFoundError)
+    async def user_not_found_handler(request, exc):
+        return JSONResponse(status_code=404, content={"detail": "User not found"})
 
     settings.cors_origins.append("https://app.letta.com")
     print(f"▶ View using ADE at: https://app.letta.com/development-servers/local/dashboard")
