@@ -33,3 +33,10 @@ python fact_edit_baseline.py \
     --predictions_file_name MQuAKE/datasets/predictions-letta-MQuAKE-CF-3k-v2-100-fact-prompt-v2-offline-memory.json  \
     --offline_memory
 ```
+
+To evaluate the predictions:
+```
+python evaluate_fact_edit.py \
+    --input_file_name MQuAKE/datasets/letta-MQuAKE-CF-3k-v2-100.json \
+    --predictions_file_name MQuAKE/datasets/predictions-letta-MQuAKE-CF-3k-v2-100-fact-prompt.json
+```
