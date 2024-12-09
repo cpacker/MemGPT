@@ -292,6 +292,12 @@ def test_messages(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert len(messages_response) > 0, "Retrieving messages failed"
 
 
+def test_send_system_message(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Important unit test since the Letta API exposes sending system messages, but some backends don't natively support it (eg Anthropic)"""
+    send_system_message_response = client.send_message(agent_id=agent.id, message="Event occured: The user just logged off.", role="system")
+    assert send_system_message_response, "Sending message failed"
+
+
 @pytest.mark.asyncio
 async def test_send_message_parallel(client: Union[LocalClient, RESTClient], agent: AgentState, request):
     """

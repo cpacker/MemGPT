@@ -1,6 +1,5 @@
 import asyncio
 import json
-import traceback
 import warnings
 from enum import Enum
 from typing import AsyncGenerator, Optional, Union
@@ -62,6 +61,9 @@ async def sse_async_generator(
                     raise ValueError(f"Expected LettaUsageStatistics, got {type(usage)}")
                 yield sse_formatter({"usage": usage.model_dump()})
             except Exception as e:
+                import traceback
+
+                traceback.print_exc()
                 warnings.warn(f"Error getting usage data: {e}")
                 yield sse_formatter({"error": "Failed to get usage data"})
 

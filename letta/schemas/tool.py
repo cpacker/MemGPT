@@ -93,7 +93,7 @@ class ToolCreate(LettaBase):
     )
 
     @classmethod
-    def from_composio(cls, action: "ActionType") -> "ToolCreate":
+    def from_composio(cls, action_name: str, api_key: Optional[str] = None) -> "ToolCreate":
         """
         Class method to create an instance of Letta-compatible Composio Tool.
         Check https://docs.composio.dev/introduction/intro/overview to look at options for from_composio
@@ -101,15 +101,20 @@ class ToolCreate(LettaBase):
         This function will error if we find more than one tool, or 0 tools.
 
         Args:
-            action ActionType: A action name to filter tools by.
+            action_name str: A action name to filter tools by.
         Returns:
             Tool: A Letta Tool initialized with attributes derived from the Composio tool.
         """
         from composio import LogLevel
         from composio_langchain import ComposioToolSet
 
-        composio_toolset = ComposioToolSet(logging_level=LogLevel.ERROR)
-        composio_tools = composio_toolset.get_tools(actions=[action])
+        if api_key:
+            # Pass in an external API key
+            composio_toolset = ComposioToolSet(logging_level=LogLevel.ERROR, api_key=api_key)
+        else:
+            # Use environmental variable
+            composio_toolset = ComposioToolSet(logging_level=LogLevel.ERROR)
+        composio_tools = composio_toolset.get_tools(actions=[action_name])
 
         assert len(composio_tools) > 0, "User supplied parameters do not match any Composio tools"
         assert len(composio_tools) == 1, f"User supplied parameters match too many Composio tools; {len(composio_tools)} > 1"
@@ -119,7 +124,7 @@ class ToolCreate(LettaBase):
         description = composio_tool.description
         source_type = "python"
         tags = ["composio"]
-        wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(action)
+        wrapper_func_name, wrapper_function_str = generate_composio_tool_wrapper(action_name)
         json_schema = generate_schema_from_args_schema_v2(composio_tool.args_schema, name=wrapper_func_name, description=description)
 
         return cls(
@@ -177,14 +182,16 @@ class ToolCreate(LettaBase):
 
     @classmethod
     def load_default_composio_tools(cls) -> List["ToolCreate"]:
-        from composio_langchain import Action
+        pass
 
-        calculator = ToolCreate.from_composio(action=Action.MATHEMATICAL_CALCULATOR)
-        serp_news = ToolCreate.from_composio(action=Action.SERPAPI_NEWS_SEARCH)
-        serp_google_search = ToolCreate.from_composio(action=Action.SERPAPI_SEARCH)
-        serp_google_maps = ToolCreate.from_composio(action=Action.SERPAPI_GOOGLE_MAPS_SEARCH)
+        # TODO: Disable composio tools for now
+        # TODO: Naming is causing issues
+        # calculator = ToolCreate.from_composio(action_name=Action.MATHEMATICAL_CALCULATOR.name)
+        # serp_news = ToolCreate.from_composio(action_name=Action.SERPAPI_NEWS_SEARCH.name)
+        # serp_google_search = ToolCreate.from_composio(action_name=Action.SERPAPI_SEARCH.name)
+        # serp_google_maps = ToolCreate.from_composio(action_name=Action.SERPAPI_GOOGLE_MAPS_SEARCH.name)
 
-        return [calculator, serp_news, serp_google_search, serp_google_maps]
+        return []
 
 
 class ToolUpdate(LettaBase):

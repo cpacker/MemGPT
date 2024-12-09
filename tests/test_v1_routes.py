@@ -162,6 +162,16 @@ def composio_actions():
     ]
 
 
+def configure_mock_sync_server(mock_sync_server):
+    # Mock sandbox config manager to return a valid API key
+    mock_api_key = Mock()
+    mock_api_key.value = "mock_composio_api_key"
+    mock_sync_server.sandbox_config_manager.list_sandbox_env_vars_by_key.return_value = [mock_api_key]
+
+    # Mock user retrieval
+    mock_sync_server.get_user_or_default.return_value = Mock()  # Provide additional attributes if needed
+
+
 # ======================================================================================================================
 # Tools Routes Tests
 # ======================================================================================================================
@@ -274,6 +284,8 @@ def test_add_base_tools(client, mock_sync_server, add_integers_tool):
 
 
 def test_list_composio_apps(client, mock_sync_server, composio_apps):
+    configure_mock_sync_server(mock_sync_server)
+
     mock_sync_server.get_composio_apps.return_value = composio_apps
 
     response = client.get("/v1/tools/composio/apps")
@@ -284,16 +296,20 @@ def test_list_composio_apps(client, mock_sync_server, composio_apps):
 
 
 def test_list_composio_actions_by_app(client, mock_sync_server, composio_actions):
+    configure_mock_sync_server(mock_sync_server)
+
     mock_sync_server.get_composio_actions_from_app_name.return_value = composio_actions
 
     response = client.get("/v1/tools/composio/apps/App1/actions")
 
     assert response.status_code == 200
     assert len(response.json()) == 1
-    mock_sync_server.get_composio_actions_from_app_name.assert_called_once_with(composio_app_name="App1")
+    mock_sync_server.get_composio_actions_from_app_name.assert_called_once_with(composio_app_name="App1", api_key="mock_composio_api_key")
 
 
 def test_add_composio_tool(client, mock_sync_server, add_integers_tool):
+    configure_mock_sync_server(mock_sync_server)
+
     # Mock ToolCreate.from_composio to return the expected ToolCreate object
     with patch("letta.schemas.tool.ToolCreate.from_composio") as mock_from_composio:
         mock_from_composio.return_value = ToolCreate(
@@ -314,4 +330,4 @@ def test_add_composio_tool(client, mock_sync_server, add_integers_tool):
         mock_sync_server.tool_manager.create_or_update_tool.assert_called_once()
 
         # Verify the mocked from_composio method was called
-        mock_from_composio.assert_called_once_with(action=add_integers_tool.name)
+        mock_from_composio.assert_called_once_with(action_name=add_integers_tool.name, api_key="mock_composio_api_key")

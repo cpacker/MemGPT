@@ -4,12 +4,12 @@ import humps
 from pydantic import BaseModel
 
 
-def generate_composio_tool_wrapper(action: "ActionType") -> tuple[str, str]:
+def generate_composio_tool_wrapper(action_name: str) -> tuple[str, str]:
     # Instantiate the object
-    tool_instantiation_str = f"composio_toolset.get_tools(actions=[Action.{str(action)}])[0]"
+    tool_instantiation_str = f"composio_toolset.get_tools(actions=['{action_name}'])[0]"
 
     # Generate func name
-    func_name = action.name.lower()
+    func_name = action_name.lower()
 
     wrapper_function_str = f"""
 def {func_name}(**kwargs):

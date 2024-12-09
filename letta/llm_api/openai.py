@@ -217,7 +217,6 @@ def openai_chat_completions_process_stream(
     dummy_message = _Message(
         role=_MessageRole.assistant,
         text="",
-        user_id="",
         agent_id="",
         model="",
         name=None,
