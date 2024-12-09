@@ -3,6 +3,7 @@ from typing import List, Optional, TYPE_CHECKING
 from sqlalchemy import Column, String, DateTime, Index, JSON, UniqueConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator, BINARY
+
 import numpy as np
 import base64
 

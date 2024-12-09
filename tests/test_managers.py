@@ -4,9 +4,11 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import delete
 
+from letta.embeddings import embedding_model
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
 from letta.metadata import AgentModel
+from letta.orm.sqlite_functions import verify_embedding_dimension, convert_array
 from letta.orm import (
     Block,
     BlocksAgents,
@@ -634,6 +636,55 @@ def test_passage_listing_date_range_filtering(server: SyncServer, hello_world_pa
     )
     assert len(limited_results) <= 3, "Should respect the limit parameter"
 
+
+def test_passage_vector_search(server: SyncServer, default_user, default_file, sarah_agent):
+    """Test vector search functionality for passages."""
+    passage_manager = server.passage_manager
+    embed_model = embedding_model(DEFAULT_EMBEDDING_CONFIG) 
+    
+    # Create passages with known embeddings
+    passages = []
+    
+    # Create passages with different embeddings
+    test_passages = [
+        "I like red",
+        "random text",
+        "blue shoes",
+    ]
+    
+    for text in test_passages:
+        embedding = embed_model.get_text_embedding(text)
+        passage = PydanticPassage(
+            text=text,
+            organization_id=default_user.organization_id,
+            agent_id=sarah_agent.id,
+            embedding_config=DEFAULT_EMBEDDING_CONFIG,
+            embedding=embedding
+        )
+        created_passage = passage_manager.create_passage(passage, default_user)
+        passages.append(created_passage)
+    assert passage_manager.size(actor=default_user) == len(passages)
+    
+    # Query vector similar to "cats" embedding
+    query_key = "What's my favorite color?"
+    
+    # List passages with vector search
+    results = passage_manager.list_passages(
+        actor=default_user,
+        agent_id=sarah_agent.id,
+        query_text=query_key,
+        limit=3,
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+        embed_query=True,
+    )
+    
+    # Verify results are ordered by similarity
+    assert len(results) == 3
+    assert results[0].text == "I like red"
+    assert results[1].text == "random text" # For some reason the embedding model doesn't like "blue shoes"
+    assert results[2].text == "blue shoes"
+
+
 # ======================================================================================================================
 # User Manager Tests
 # ======================================================================================================================
@@ -1115,8 +1166,6 @@ def test_delete_block(server: SyncServer, default_user):
 # ======================================================================================================================
 # Source Manager Tests - Sources
 # ======================================================================================================================
-
-
 def test_create_source(server: SyncServer, default_user):
     """Test creating a new source."""
     source_pydantic = PydanticSource(
@@ -1326,8 +1375,6 @@ def test_delete_file(server: SyncServer, default_user, default_source):
 # ======================================================================================================================
 # AgentsTagsManager Tests
 # ======================================================================================================================
-
-
 def test_add_tag_to_agent(server: SyncServer, sarah_agent, default_user):
     # Add a tag to the agent
     tag_name = "test_tag"

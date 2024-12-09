@@ -1,9 +1,13 @@
 from typing import List, Optional, Dict, Tuple
+from letta.constants import MAX_EMBEDDING_DIM
 from datetime import datetime
+import numpy as np
+
 from letta.orm.errors import NoResultFound
 from letta.utils import enforce_types
 
 from letta.embeddings import embedding_model, parse_and_chunk_text
+from letta.schemas.embedding_config import EmbeddingConfig
 
 from letta.orm.passage import Passage as PassageModel
 from letta.orm.sqlalchemy_base import AccessType
@@ -136,15 +140,17 @@ class PassageManager:
 
     @enforce_types
     def list_passages(self, 
-                      actor     : PydanticUser,
-                      agent_id  : Optional[str] = None, 
-                      file_id   : Optional[str] = None, 
-                      cursor    : Optional[str] = None, 
-                      limit     : Optional[int] = 50,
-                      query_text: Optional[str] = None,
-                      start_date: Optional[datetime] = None,
-                      end_date  : Optional[datetime] = None,
-                      source_id : Optional[str] = None
+                      actor           : PydanticUser,
+                      agent_id        : Optional[str] = None, 
+                      file_id         : Optional[str] = None, 
+                      cursor          : Optional[str] = None, 
+                      limit           : Optional[int] = 50,
+                      query_text      : Optional[str] = None,
+                      start_date      : Optional[datetime] = None,
+                      end_date        : Optional[datetime] = None,
+                      source_id       : Optional[str] = None,
+                      embed_query    : bool = False,
+                      embedding_config: Optional[EmbeddingConfig] = None
                      ) -> List[PydanticPassage]:
         """List passages with pagination."""
         with self.session_maker() as session:
@@ -155,10 +161,23 @@ class PassageManager:
                 filters["file_id"] = file_id
             if source_id:
                 filters["source_id"] = source_id
+            
+            embedded_text = None
+            if embed_query:
+                assert embedding_config is not None
+
+                # Embed the text
+                embedded_text = embedding_model(embedding_config).get_text_embedding(query_text)
+
+                # Pad the embedding with zeros
+                embedded_text = np.array(embedded_text)
+                embedded_text = np.pad(embedded_text, (0, MAX_EMBEDDING_DIM - embedded_text.shape[0]), mode="constant").tolist()
+
             results = PassageModel.list(
                 db_session=session, 
                 cursor=cursor,
-                query_text=query_text,
+                query_text=query_text if not embedded_text else None,
+                query_embedding=embedded_text,
                 start_date=start_date,
                 end_date=end_date,
                 limit=limit,
