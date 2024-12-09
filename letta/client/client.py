@@ -2836,7 +2836,7 @@ class LocalClient(AbstractClient):
             id (str): ID of the tool (`None` if not found)
         """
         tool = self.server.tool_manager.get_tool_by_name(tool_name=name, actor=self.user)
-        return tool.id
+        return tool.id if tool else None
 
     def load_data(self, connector: DataConnector, source_name: str):
         """
