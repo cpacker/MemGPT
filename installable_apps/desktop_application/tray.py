@@ -3,7 +3,7 @@ import webbrowser
 from pystray import Icon, Menu, MenuItem
 from PIL import Image
 
-from installable_image import InstallableImage
+from .installable_image import InstallableImage
 
 class Tray:
     icon_image: "Path"

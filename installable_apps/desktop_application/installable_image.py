@@ -1,7 +1,7 @@
 from pathlib import Path
 import darkdetect
 
-from installable_logger import get_logger
+from .installable_logger import get_logger
 
 logger = get_logger(__name__)
 

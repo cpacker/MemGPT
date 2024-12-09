@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['startup.py'],
+    ['desktop_application/startup.py'],
     pathex=[],
     binaries=[
         ('venv/lib/python3.12/site-packages/pgserver/pginstall', 'pgserver/pginstall')
@@ -14,7 +14,7 @@ a = Analysis(
         ('venv/lib/python3.12/site-packages/letta/prompts/system', 'letta/prompts/system'),
         ('venv/lib/python3.12/site-packages/letta/functions/function_sets', 'letta/functions/function_sets'),
         ('assets','assets'),
-        ('logserver/templates','logserver/templates'),
+        ('desktop_application/logserver/templates','logserver/templates'),
 
     ],
     hiddenimports=[],
