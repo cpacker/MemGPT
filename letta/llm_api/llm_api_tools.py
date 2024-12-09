@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 import requests
 
 from letta.constants import CLI_WARNING_PREFIX
+from letta.errors import LettaConfigurationError
 from letta.llm_api.anthropic import anthropic_chat_completions_request
 from letta.llm_api.azure_openai import azure_openai_chat_completions_request
 from letta.llm_api.google_ai import (
@@ -148,7 +149,7 @@ def create(
     if llm_config.model_endpoint_type == "openai":
         if model_settings.openai_api_key is None and llm_config.model_endpoint == "https://api.openai.com/v1":
             # only is a problem if we are *not* using an openai proxy
-            raise ValueError(f"OpenAI key is missing from letta config file")
+            raise LettaConfigurationError(message="OpenAI key is missing from letta config file", missing_fields=["openai_api_key"])
 
         data = build_openai_chat_completions_request(llm_config, messages, user_id, functions, function_call, use_tool_naming, max_tokens)
         if stream:  # Client requested token streaming
@@ -187,13 +188,19 @@ def create(
             raise NotImplementedError(f"Streaming not yet implemented for {llm_config.model_endpoint_type}")
 
         if model_settings.azure_api_key is None:
-            raise ValueError(f"Azure API key is missing. Did you set AZURE_API_KEY in your env?")
+            raise LettaConfigurationError(
+                message="Azure API key is missing. Did you set AZURE_API_KEY in your env?", missing_fields=["azure_api_key"]
+            )
 
         if model_settings.azure_base_url is None:
-            raise ValueError(f"Azure base url is missing. Did you set AZURE_BASE_URL in your env?")
+            raise LettaConfigurationError(
+                message="Azure base url is missing. Did you set AZURE_BASE_URL in your env?", missing_fields=["azure_base_url"]
+            )
 
         if model_settings.azure_api_version is None:
-            raise ValueError(f"Azure API version is missing. Did you set AZURE_API_VERSION in your env?")
+            raise LettaConfigurationError(
+                message="Azure API version is missing. Did you set AZURE_API_VERSION in your env?", missing_fields=["azure_api_version"]
+            )
 
         # Set the llm config model_endpoint from model_settings
         # For Azure, this model_endpoint is required to be configured via env variable, so users don't need to provide it in the LLM config
@@ -291,7 +298,7 @@ def create(
             raise NotImplementedError(f"Streaming not yet implemented for Groq.")
 
         if model_settings.groq_api_key is None and llm_config.model_endpoint == "https://api.groq.com/openai/v1/chat/completions":
-            raise ValueError(f"Groq key is missing from letta config file")
+            raise LettaConfigurationError(message="Groq key is missing from letta config file", missing_fields=["groq_api_key"])
 
         # force to true for groq, since they don't support 'content' is non-null
         if llm_config.put_inner_thoughts_in_kwargs:
@@ -344,7 +351,7 @@ def create(
             raise NotImplementedError(f"Streaming not yet implemented for TogetherAI (via the /completions endpoint).")
 
         if model_settings.together_api_key is None and llm_config.model_endpoint == "https://api.together.ai/v1/completions":
-            raise ValueError(f"TogetherAI key is missing from letta config file")
+            raise LettaConfigurationError(message="TogetherAI key is missing from letta config file", missing_fields=["together_api_key"])
 
         return get_chat_completion(
             model=llm_config.model,

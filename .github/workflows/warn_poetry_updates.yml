@@ -1,0 +1,63 @@
+name: Check Poetry Dependencies Changes
+
+on:
+  pull_request:
+    paths:
+      - 'poetry.lock'
+      - 'pyproject.toml'
+
+jobs:
+  check-poetry-changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for poetry.lock changes
+        id: check-poetry-lock
+        run: |
+          if git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep -q "poetry.lock"; then
+            echo "poetry_lock_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "poetry_lock_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check for pyproject.toml changes
+        id: check-pyproject
+        run: |
+          if git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep -q "pyproject.toml"; then
+            echo "pyproject_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "pyproject_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create PR comment
+        if: steps.check-poetry-lock.outputs.poetry_lock_changed == 'true' || steps.check-pyproject.outputs.pyproject_changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const poetryLockChanged = ${{ steps.check-poetry-lock.outputs.poetry_lock_changed }};
+            const pyprojectChanged = ${{ steps.check-pyproject.outputs.pyproject_changed }};
+
+            let message = '📦 Dependencies Alert:\n\n';
+
+            if (poetryLockChanged && pyprojectChanged) {
+              message += '- Both `poetry.lock` and `pyproject.toml` have been modified\n';
+            } else if (poetryLockChanged) {
+              message += '- `poetry.lock` has been modified\n';
+            } else if (pyprojectChanged) {
+              message += '- `pyproject.toml` has been modified\n';
+            }
+
+            message += '\nPlease review these changes carefully to ensure they are intended (cc @sarahwooders @cpacker).';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
