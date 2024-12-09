@@ -26,11 +26,29 @@ def client():
 
     yield client
 
-
 @pytest.fixture(autouse=True)
 def clear_agents(client):
     for agent in client.list_agents():
         client.delete_agent(agent.id)
+
+def test_rethink_memory_new_block(client):
+    """
+    Test that when rethink memory is called with a block that does not exist in the agent,
+    the new block is created.
+    """
+    client.create_agent()
+    agent = client.create_agent(
+        agent_type=AgentType.memgpt_agent,
+        system=gpt_system.get_system_text("memgpt_convo_only"),
+        llm_config=LLMConfig.default_config("gpt-4"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        include_base_tools=False,
+    )
+    assert set(agent.memory.list_block_labels()) == {"persona", "human"}
+    rethink_memory(
+        agent_state=agent, new_memory="I am a new memory block content", source_block_label="human", target_block_label="new_memory_block"
+    )
+    assert set(agent.memory.list_block_labels()) == {"persona", "human", "new_memory_block"}
 
 
 def test_ripple_edit(client, mock_e2b_api_key_none):
@@ -71,7 +89,12 @@ def test_ripple_edit(client, mock_e2b_api_key_none):
     )
     assert conversation_agent is not None
 
-    assert set(conversation_agent.memory.list_block_labels()) == {"persona", "human", "fact_block", "rethink_memory_block"}
+    assert set(conversation_agent.memory.list_block_labels()) == { 
+            "persona",
+            "human",
+            "fact_block",
+            "rethink_memory_block",
+    }
 
     rethink_memory_tool = client.create_tool(rethink_memory)
     finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
