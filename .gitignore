@@ -1022,3 +1022,6 @@ memgpy/pytest.ini
 
 ## ignore venvs
 tests/test_tool_sandbox/restaurant_management_system/venv
+
+
+fact_edit_experiments/MQuAKE/
