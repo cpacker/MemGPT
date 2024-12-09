@@ -21,6 +21,7 @@ from letta.agent_store.storage import StorageConnector, TableType
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
+from letta.errors import LettaAgentNotFoundError, LettaUserNotFoundError
 
 # TODO use custom interface
 from letta.interface import AgentInterface  # abstract
@@ -397,7 +398,7 @@ class SyncServer(Server):
         with agent_lock:
             agent_state = self.get_agent(agent_id=agent_id)
             if agent_state is None:
-                raise ValueError(f"Agent (agent_id={agent_id}) does not exist")
+                raise LettaAgentNotFoundError(f"Agent (agent_id={agent_id}) does not exist")
             elif agent_state.user_id is None:
                 raise ValueError(f"Agent (agent_id={agent_id}) does not have a user_id")
             actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
@@ -1249,9 +1250,9 @@ class SyncServer(Server):
         reverse: Optional[bool] = False,
     ) -> List[Passage]:
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+            raise LettaUserNotFoundError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+            raise LettaAgentNotFoundError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)

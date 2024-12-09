@@ -13,6 +13,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from letta.__init__ import __version__
 from letta.constants import ADMIN_PREFIX, API_PREFIX, OPENAI_API_PREFIX
+from letta.errors import LettaAgentNotFoundError, LettaUserNotFoundError
 from letta.schemas.letta_response import LettaResponse
 from letta.server.constants import REST_DEFAULT_PORT
 
@@ -143,6 +144,31 @@ def create_application() -> "FastAPI":
         version="1.0.0",  # TODO wire this up to the version in the package
         debug=True,
     )
+
+    @app.exception_handler(Exception)
+    async def generic_error_handler(request, exc):
+        # Log the actual error for debugging
+        log.error(f"Unhandled error: {exc}", exc_info=True)
+
+        # Print the stack trace
+        print(f"Stack trace: {exc.__traceback__}")
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "An internal server error occurred",
+                # Only include error details in debug/development mode
+                # "debug_info": str(exc) if settings.debug else None
+            },
+        )
+
+    @app.exception_handler(LettaAgentNotFoundError)
+    async def agent_not_found_handler(request, exc):
+        return JSONResponse(status_code=404, content={"detail": "Agent not found"})
+
+    @app.exception_handler(LettaUserNotFoundError)
+    async def user_not_found_handler(request, exc):
+        return JSONResponse(status_code=404, content={"detail": "User not found"})
 
     settings.cors_origins.append("https://app.letta.com")
     print(f"▶ View using ADE at: https://app.letta.com/development-servers/local/dashboard")
