@@ -1,56 +1,69 @@
-# The builder image, used to build the virtual environment
-FROM python:3.12.2-bookworm as builder
-ARG LETTA_ENVIRONMENT=PRODUCTION
-ENV LETTA_ENVIRONMENT=${LETTA_ENVIRONMENT}
-RUN pip install poetry==1.8.2
+# Start with pgvector base for builder
+FROM ankane/pgvector:v0.5.1 AS builder
 
-ENV POETRY_NO_INTERACTION=1 \
+# Install Python and required packages
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-venv \
+    python3-pip \
+    python3-full \
+    build-essential \
+    libpq-dev \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG LETTA_ENVIRONMENT=PRODUCTION
+ENV LETTA_ENVIRONMENT=${LETTA_ENVIRONMENT} \
+    POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=1 \
     POETRY_VIRTUALENVS_CREATE=1 \
     POETRY_CACHE_DIR=/tmp/poetry_cache
 
 WORKDIR /app
 
+# Create and activate virtual environment
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Now install poetry in the virtual environment
+RUN pip install --no-cache-dir poetry==1.8.2
+
+# Copy dependency files first
 COPY pyproject.toml poetry.lock ./
-RUN poetry lock --no-update
-RUN if [ "$LETTA_ENVIRONMENT" = "DEVELOPMENT"  ] ; then \
-    poetry install --no-root -E "postgres server dev" ; \
-    else \
-    poetry install --no-root --all-extras && \
-    rm -rf $POETRY_CACHE_DIR ;  \
-    fi
+# Then copy the rest of the application code
+COPY . .
 
+RUN poetry lock --no-update && \
+    poetry install --all-extras && \
+    rm -rf $POETRY_CACHE_DIR
 
-# The runtime image, used to just run the code provided its virtual environment
-FROM python:3.12.2-slim-bookworm as runtime
+# Runtime stage
+FROM ankane/pgvector:v0.5.1 AS runtime
+
+# Install Python packages
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /app
+
 ARG LETTA_ENVIRONMENT=PRODUCTION
-ENV LETTA_ENVIRONMENT=${LETTA_ENVIRONMENT}
-ENV VIRTUAL_ENV=/app/.venv \
-    PATH="/app/.venv/bin:$PATH"
+ENV LETTA_ENVIRONMENT=${LETTA_ENVIRONMENT} \
+    VIRTUAL_ENV="/app/.venv" \
+    PATH="/app/.venv/bin:$PATH" \
+    POSTGRES_USER=letta \
+    POSTGRES_PASSWORD=letta \
+    POSTGRES_DB=letta
 
-COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
+WORKDIR /app
 
-COPY ./letta /letta
-COPY ./alembic.ini /alembic.ini
-COPY ./alembic /alembic
+# Copy virtual environment and app from builder
+COPY --from=builder /app .
 
-EXPOSE 8283
+# Copy initialization SQL if it exists
+COPY init.sql /docker-entrypoint-initdb.d/
 
-CMD ./letta/server/startup.sh
+EXPOSE 8283 5432
 
-# allow for in-container development and testing
-FROM builder as development
-ARG LETTA_ENVIRONMENT=PRODUCTION
-ENV LETTA_ENVIRONMENT=${LETTA_ENVIRONMENT}
-ENV VIRTUAL_ENV=/app/.venv \
-    PATH="/app/.venv/bin:$PATH"
-ENV PYTHONPATH=/
-WORKDIR /
-COPY ./tests /tests
-COPY ./letta /letta
-COPY ./alembic.ini /alembic.ini
-COPY ./alembic /alembic
-#COPY ./configs/server_config.yaml /root/.letta/config
-EXPOSE 8083
-
-CMD ./letta/server/startup.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["./letta/server/startup.sh"]
