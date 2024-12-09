@@ -16,8 +16,18 @@ jobs:
           - macos-15-large # intel
           - macos-15 # arm64
     steps:
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
       - name: Checkout repository
         uses: actions/checkout@v2
+
+      - name: install create-dmg from homebrew
+        run: |
+          brew install create-dmg
+
 
       - name: Create and activate virtual environment
         run: |
