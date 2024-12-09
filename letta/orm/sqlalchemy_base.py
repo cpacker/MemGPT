@@ -187,7 +187,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
                 logger.exception(f"Failed to hard delete {self.__class__.__name__} with ID {self.id}")
                 raise ValueError(f"Failed to hard delete {self.__class__.__name__} with ID {self.id}: {e}")
             else:
-                logger.info(f"{self.__class__.__name__} with ID {self.id} successfully hard deleted")
+                logger.debug(f"{self.__class__.__name__} with ID {self.id} successfully hard deleted")
 
     def update(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
         logger.debug(f"Updating {self.__class__.__name__} with ID: {self.id} with actor={actor}")
