@@ -5,7 +5,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from composio import Action
 from sqlalchemy import delete
 
 from letta import create_client
@@ -200,7 +199,7 @@ def list_tool(test_user):
 @pytest.fixture
 def composio_github_star_tool(test_user):
     tool_manager = ToolManager()
-    tool_create = ToolCreate.from_composio(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
+    tool_create = ToolCreate.from_composio(action_name="GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER")
     tool = tool_manager.create_or_update_tool(pydantic_tool=Tool(**tool_create.model_dump()), actor=test_user)
     yield tool
 
