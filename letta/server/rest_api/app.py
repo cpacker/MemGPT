@@ -152,6 +152,10 @@ def create_application() -> "FastAPI":
 
         # Print the stack trace
         print(f"Stack trace: {exc.__traceback__}")
+        if (os.getenv("SENTRY_DSN") is not None) and (os.getenv("SENTRY_DSN") != ""):
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(exc)
 
         return JSONResponse(
             status_code=500,
