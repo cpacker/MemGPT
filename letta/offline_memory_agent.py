@@ -18,7 +18,6 @@ def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) ->
 
     """
     from letta import create_client
-
     client = create_client()
     agents = client.list_agents()
     for agent in agents:
@@ -35,7 +34,6 @@ def trigger_rethink_memory_convo(agent_state: "AgentState", message: Optional[st
 
     """
     from letta import create_client
-
     client = create_client()
     recent_convo = "".join([str(message) for message in agent_state.messages])[
         -2000:
@@ -61,10 +59,14 @@ def rethink_memory_convo(agent_state: "AgentState", new_memory: str, target_bloc
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
+    from letta import create_client
+    client = create_client()
     if target_block_label is not None:
-        if agent_state.memory.get_block(target_block_label) is None:
-            agent_state.memory.create_block(label=target_block_label, value=new_memory)
-        agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
+        if target_block_label not in agent_state.memory.list_block_labels():
+            new_block = client.create_block(label=target_block_label, value=new_memory)
+            agent_state.memory.set_block(new_block)
+        else:
+            agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
     return None
 
 
@@ -81,12 +83,16 @@ def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_labe
     Returns:
         Optional[str]: None is always returned as this function does not produce a response.
     """
-
+    from letta import create_client
+    client = create_client()
     if target_block_label is not None:
-        if agent_state.memory.get_block(target_block_label) is None:
-            agent_state.memory.create_block(label=target_block_label, value=new_memory)
-        agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
+        if target_block_label not in agent_state.memory.list_block_labels():
+            new_block = client.create_block(label=target_block_label, value=new_memory)
+            agent_state.memory.set_block(new_block)
+        else:
+            agent_state.memory.update_block_value(label=target_block_label, value=new_memory)
     return None
+
 
 
 def finish_rethinking_memory(agent_state: "AgentState") -> Optional[str]:  # type: ignore
