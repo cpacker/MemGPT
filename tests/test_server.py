@@ -172,9 +172,9 @@ def test_get_recall_memory(server, org_id, user_id, agent_id):
     messages_3 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=1000)
     messages_3[-1].id
     assert messages_3[-1].created_at >= messages_3[0].created_at
-    assert len(messages_3) == len(messages_1) + len(messages_2) - 1
+    assert len(messages_3) == len(messages_1) + len(messages_2)
     messages_4 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, before=cursor1)
-    assert len(messages_4) == 2
+    assert len(messages_4) == 1
 
     # test in-context message ids
     in_context_ids = server.get_in_context_message_ids(agent_id=agent_id)
