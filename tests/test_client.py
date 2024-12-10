@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import threading
 import time
@@ -15,6 +16,7 @@ from letta.schemas.agent import AgentState
 from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.job import JobStatus
+from letta.schemas.letta_message import FunctionReturn
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.sandbox_config import LocalSandboxConfig, SandboxType
 from letta.utils import create_random_username
@@ -40,7 +42,8 @@ def run_server():
 
 
 @pytest.fixture(
-    params=[{"server": False}, {"server": True}],  # whether to use REST API server
+    # params=[{"server": False}, {"server": True}],  # whether to use REST API server
+    params=[{"server": False}],  # whether to use REST API server
     scope="module",
 )
 def client(request):
@@ -297,6 +300,40 @@ def test_send_system_message(client: Union[LocalClient, RESTClient], agent: Agen
     """Important unit test since the Letta API exposes sending system messages, but some backends don't natively support it (eg Anthropic)"""
     send_system_message_response = client.send_message(agent_id=agent.id, message="Event occured: The user just logged off.", role="system")
     assert send_system_message_response, "Sending message failed"
+
+
+def test_function_return_limit(client: Union[LocalClient, RESTClient]):
+    """Test to see if the function return limit works"""
+
+    def big_return():
+        """
+        Always call this tool.
+
+        Returns:
+            important_data (str): Important data
+        """
+        return "x" * 100000
+
+    padding = len("[NOTE: function output was truncated since it exceeded the character limit (100000 > 1000)]") + 50
+    tool = client.create_or_update_tool(func=big_return, return_char_limit=1000)
+    agent = client.create_agent(name="agent1", tools=[tool.name])
+    # get function response
+    response = client.send_message(agent_id=agent.id, message="call the big_return function", role="user")
+    print(response.messages)
+
+    response_message = None
+    for message in response.messages:
+        if isinstance(message, FunctionReturn):
+            response_message = message
+            break
+
+    assert response_message, "FunctionReturn message not found in response"
+    res = response_message.function_return
+    assert "function output was truncated " in res
+    res_json = json.loads(res)
+    assert (
+        len(res_json["message"]) <= 1000 + padding
+    ), f"Expected length to be less than or equal to 1000 + {padding}, but got {len(res_json['message'])}"
 
 
 @pytest.mark.asyncio

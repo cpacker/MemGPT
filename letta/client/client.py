@@ -11,6 +11,7 @@ from letta.constants import (
     BASE_TOOLS,
     DEFAULT_HUMAN,
     DEFAULT_PERSONA,
+    FUNCTION_RETURN_CHAR_LIMIT,
 )
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
@@ -200,18 +201,12 @@ class AbstractClient(object):
         raise NotImplementedError
 
     def create_tool(
-        self,
-        func,
-        name: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        self, func, name: Optional[str] = None, tags: Optional[List[str]] = None, return_char_limit: int = FUNCTION_RETURN_CHAR_LIMIT
     ) -> Tool:
         raise NotImplementedError
 
     def create_or_update_tool(
-        self,
-        func,
-        name: Optional[str] = None,
-        tags: Optional[List[str]] = None,
+        self, func, name: Optional[str] = None, tags: Optional[List[str]] = None, return_char_limit: int = FUNCTION_RETURN_CHAR_LIMIT
     ) -> Tool:
         raise NotImplementedError
 
@@ -222,6 +217,7 @@ class AbstractClient(object):
         description: Optional[str] = None,
         func: Optional[Callable] = None,
         tags: Optional[List[str]] = None,
+        return_char_limit: int = FUNCTION_RETURN_CHAR_LIMIT,
     ) -> Tool:
         raise NotImplementedError
 
@@ -1465,6 +1461,7 @@ class RESTClient(AbstractClient):
         func: Callable,
         name: Optional[str] = None,
         tags: Optional[List[str]] = None,
+        return_char_limit: int = FUNCTION_RETURN_CHAR_LIMIT,
     ) -> Tool:
         """
         Create a tool. This stores the source code of function on the server, so that the server can execute the function and generate an OpenAI JSON schemas for it when using with an agent.
@@ -1473,6 +1470,7 @@ class RESTClient(AbstractClient):
             func (callable): The function to create a tool for.
             name: (str): Name of the tool (must be unique per-user.)
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            return_char_limit (int): The character limit for the tool's return value. Defaults to FUNCTION_RETURN_CHAR_LIMIT.
 
         Returns:
             tool (Tool): The created tool.
@@ -1481,7 +1479,9 @@ class RESTClient(AbstractClient):
         source_type = "python"
 
         # call server function
-        request = ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags)
+        request = ToolCreate(source_type=source_type, source_code=source_code, name=name, return_char_limit=return_char_limit)
+        if tags:
+            request.tags = tags
         response = requests.post(f"{self.base_url}/{self.api_prefix}/tools", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
@@ -1492,6 +1492,7 @@ class RESTClient(AbstractClient):
         func: Callable,
         name: Optional[str] = None,
         tags: Optional[List[str]] = None,
+        return_char_limit: int = FUNCTION_RETURN_CHAR_LIMIT,
     ) -> Tool:
         """
         Creates or updates a tool. This stores the source code of function on the server, so that the server can execute the function and generate an OpenAI JSON schemas for it when using with an agent.
@@ -1500,6 +1501,7 @@ class RESTClient(AbstractClient):
             func (callable): The function to create a tool for.
             name: (str): Name of the tool (must be unique per-user.)
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
+            return_char_limit (int): The character limit for the tool's return value. Defaults to FUNCTION_RETURN_CHAR_LIMIT.
 
         Returns:
             tool (Tool): The created tool.
@@ -1508,7 +1510,9 @@ class RESTClient(AbstractClient):
         source_type = "python"
 
         # call server function
-        request = ToolCreate(source_type=source_type, source_code=source_code, name=name, tags=tags)
+        request = ToolCreate(source_type=source_type, source_code=source_code, name=name, return_char_limit=return_char_limit)
+        if tags:
+            request.tags = tags
         response = requests.put(f"{self.base_url}/{self.api_prefix}/tools", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to create tool: {response.text}")
@@ -1521,6 +1525,7 @@ class RESTClient(AbstractClient):
         description: Optional[str] = None,
         func: Optional[Callable] = None,
         tags: Optional[List[str]] = None,
+        return_char_limit: int = FUNCTION_RETURN_CHAR_LIMIT,
     ) -> Tool:
         """
         Update a tool with provided parameters (name, func, tags)
@@ -1530,6 +1535,7 @@ class RESTClient(AbstractClient):
             name (str): Name of the tool
             func (callable): Function to wrap in a tool
             tags (List[str]): Tags for the tool
+            return_char_limit (int): The character limit for the tool's return value. Defaults to FUNCTION_RETURN_CHAR_LIMIT.
 
         Returns:
             tool (Tool): Updated tool
@@ -1541,7 +1547,14 @@ class RESTClient(AbstractClient):
 
         source_type = "python"
 
-        request = ToolUpdate(description=description, source_type=source_type, source_code=source_code, tags=tags, name=name)
+        request = ToolUpdate(
+            description=description,
+            source_type=source_type,
+            source_code=source_code,
+            tags=tags,
+            name=name,
+            return_char_limit=return_char_limit,
+        )
         response = requests.patch(f"{self.base_url}/{self.api_prefix}/tools/{id}", json=request.model_dump(), headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to update tool: {response.text}")
@@ -2726,6 +2739,7 @@ class LocalClient(AbstractClient):
         name: Optional[str] = None,
         tags: Optional[List[str]] = None,
         description: Optional[str] = None,
+        return_char_limit: int = FUNCTION_RETURN_CHAR_LIMIT,
     ) -> Tool:
         """
         Create a tool. This stores the source code of function on the server, so that the server can execute the function and generate an OpenAI JSON schemas for it when using with an agent.
@@ -2735,6 +2749,7 @@ class LocalClient(AbstractClient):
             name: (str): Name of the tool (must be unique per-user.)
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
             description (str, optional): The description.
+            return_char_limit (int): The character limit for the tool's return value. Defaults to FUNCTION_RETURN_CHAR_LIMIT.
 
         Returns:
             tool (Tool): The created tool.
@@ -2755,6 +2770,7 @@ class LocalClient(AbstractClient):
                 name=name,
                 tags=tags,
                 description=description,
+                return_char_limit=return_char_limit,
             ),
             actor=self.user,
         )
@@ -2765,6 +2781,7 @@ class LocalClient(AbstractClient):
         name: Optional[str] = None,
         tags: Optional[List[str]] = None,
         description: Optional[str] = None,
+        return_char_limit: int = FUNCTION_RETURN_CHAR_LIMIT,
     ) -> Tool:
         """
         Creates or updates a tool. This stores the source code of function on the server, so that the server can execute the function and generate an OpenAI JSON schemas for it when using with an agent.
@@ -2774,6 +2791,7 @@ class LocalClient(AbstractClient):
             name: (str): Name of the tool (must be unique per-user.)
             tags (Optional[List[str]], optional): Tags for the tool. Defaults to None.
             description (str, optional): The description.
+            return_char_limit (int): The character limit for the tool's return value. Defaults to FUNCTION_RETURN_CHAR_LIMIT.
 
         Returns:
             tool (Tool): The created tool.
@@ -2791,6 +2809,7 @@ class LocalClient(AbstractClient):
                 name=name,
                 tags=tags,
                 description=description,
+                return_char_limit=return_char_limit,
             ),
             actor=self.user,
         )
@@ -2802,6 +2821,7 @@ class LocalClient(AbstractClient):
         description: Optional[str] = None,
         func: Optional[callable] = None,
         tags: Optional[List[str]] = None,
+        return_char_limit: int = FUNCTION_RETURN_CHAR_LIMIT,
     ) -> Tool:
         """
         Update a tool with provided parameters (name, func, tags)
@@ -2811,6 +2831,7 @@ class LocalClient(AbstractClient):
             name (str): Name of the tool
             func (callable): Function to wrap in a tool
             tags (List[str]): Tags for the tool
+            return_char_limit (int): The character limit for the tool's return value. Defaults to FUNCTION_RETURN_CHAR_LIMIT.
 
         Returns:
             tool (Tool): Updated tool
@@ -2821,6 +2842,7 @@ class LocalClient(AbstractClient):
             "tags": tags,
             "name": name,
             "description": description,
+            "return_char_limit": return_char_limit,
         }
 
         # Filter out any None values from the dictionary
