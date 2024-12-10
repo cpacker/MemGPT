@@ -98,7 +98,7 @@ def test_ripple_edit(client, mock_e2b_api_key_none):
     assert conversation_agent.memory.get_block("rethink_memory_block").value != "[empty]"
 
     # Clean up agent
-    client.create_agent(conversation_agent.id)
+    client.delete_agent(conversation_agent.id)
     client.delete_agent(offline_memory_agent.id)
 
 
