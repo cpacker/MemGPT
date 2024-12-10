@@ -81,6 +81,12 @@ To access the Letta ADE, visit [https://app.letta.com](https://app.letta.com).
 
 ### 🧑‍🚀 Running the Letta CLI
 
+The recommended way to use Letta is via the REST API and ADE, however you can also access your agents with the Letta CLI tool.
+
+<details>
+
+<summary>View instructions for running the Letta CLI</summary>
+
 You can chat with your agents via the Letta CLI tool (`letta run`). If you have a Letta Docker container running, you can use `docker exec` to run the Letta CLI inside the container:
 ```sh
 # replace `<letta_container_id>` with the ID of your Letta container, found via `docker ps`
@@ -119,6 +125,7 @@ Hit enter to begin (will request first Letta message)
 
 > Enter your message:
 ```
+</details>
 
 ## ⚡ Quickstart (pip)
 
