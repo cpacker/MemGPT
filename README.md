@@ -38,9 +38,55 @@
 
 ## ⚡ Quickstart
 
-The two main ways to install Letta are through **pypi** (`pip`) or via **Docker**:
-* **`pip`** (guide below) - the easiest way to try Letta, will default to using SQLite and ChromaDB for the database backends
-* **Docker** (guide [here](https://docs.letta.com/install#run-letta-with-docker)) - recommended for production settings, will default to using Postgres (+ pgvector) for the database backend
+The two main ways to install Letta are through **Docker** and **pypi** (`pip`).
+
+### Step 0 - Install Docker on your machine
+Follow the [install guide on the official Docker website](https://www.docker.com/get-started).
+Once you have Docker installed, make sure it's running before proceeding to the next step. If you're having issues getting Docker set up, check out [their official troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/).
+
+### Step 1 - Run the Docker image
+The Letta server can be connected to various LLM API backends ([OpenAI](https://docs.letta.com/models/openai), [Anthropic](https://docs.letta.com/models/anthropic), [vLLM](https://docs.letta.com/models/vllm), [Ollama](https://docs.letta.com/models/ollama), etc.). To enable access to these LLM API providers, set the appropriate environment variables when you use `docker run`:
+```sh
+# replace `~/.letta/.persist/pgdata` with wherever you want to store your agent data
+docker run \
+  -v ~/.letta/.persist/pgdata:/var/lib/postgresql/data \
+  -p 8283:8283 \
+  -e OPENAI_API_KEY="your_openai_api_key" \
+  letta/letta
+```
+
+If you have many different LLM API keys, you can also set up a `.env` file instead and pass that to `docker run`:
+```sh
+# using a .env file instead of passing environment variables
+docker run \
+  -v ~/.letta/.persist/pgdata:/var/lib/postgresql/data \
+  -p 8283:8283 \
+  --env-file .env \
+  letta/letta
+```
+
+### Alternate install method: `pip`
+
+You can also install Letta with `pip`, will default to using `SQLite` for the database backends (whereas Docker will default to using `postgres`):
+```sh
+# Step 1: install
+pip install -U letta
+```
+
+```sh
+# Step 2
+export OPENAI_API_KEY=sk-...
+
+```
+
+> [!WARNING]
+> **Database migrations are not officially support with `SQLite`**
+>
+> When you install Letta with `pip`, the default database backend is `SQLite` (you can still use an external `postgres` service with your `pip` install of Letta by setting `LETTA_PG_URI`).
+>
+> We do not officially support migrations between Letta versions with `SQLite` backends, only `postgres`. If you would like to keep your agent data across multiple Letta versions we highly recommend using the Docker install method which is the easiest way to use `postgres` with Letta.
+
+### Alterative install: install Letta using `pip`
 
 ### Step 1 - Install Letta using `pip`
 ```sh
