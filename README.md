@@ -36,15 +36,20 @@
 >
 > You use the **Letta _framework_** to create **MemGPT _agents_**. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
 
-## ⚡ Quickstart
+## Overview
 
-The two main ways to install Letta are through **Docker** and **pypi** (`pip`).
+In Letta, all agents are stored/persisted in the same database, so the agents you create in the CLI are accessible via the API and ADE, and vice versa. Check out the [quickstart guide on our docs](https://docs.letta.com/quickstart) for a tutorial where you create an agent in the Letta CLI and message the same agent via the Letta API.
 
-### Step 0 - Install Docker on your machine
-Follow the [install guide on the official Docker website](https://www.docker.com/get-started).
-Once you have Docker installed, make sure it's running before proceeding to the next step. If you're having issues getting Docker set up, check out [their official troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/).
+## ⚡ Quickstart (Docker)
 
-### Step 1 - Run the Docker image
+The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/).
+
+You can also install Letta using `pip` (`pip install letta`), however, the configuration when installing via `pip` will use SQLite, which does not support migrating Letta data between versions.
+
+### 🌖 Running the Letta server
+
+Once you have Docker installed and running, you can launch the Letta server with `docker run`.
+
 The Letta server can be connected to various LLM API backends ([OpenAI](https://docs.letta.com/models/openai), [Anthropic](https://docs.letta.com/models/anthropic), [vLLM](https://docs.letta.com/models/vllm), [Ollama](https://docs.letta.com/models/ollama), etc.). To enable access to these LLM API providers, set the appropriate environment variables when you use `docker run`:
 ```sh
 # replace `~/.letta/.persist/pgdata` with wherever you want to store your agent data
@@ -65,19 +70,57 @@ docker run \
   letta/letta
 ```
 
-### Alternate install method: `pip`
+Once the Letta server is running, you can access it via port `8283` (e.g. sending REST API requests to `http://localhost:8283/api/v1`). You can also connect your server to the Letta ADE to access and manage your agents in a web interface.
 
-You can also install Letta with `pip`, will default to using `SQLite` for the database backends (whereas Docker will default to using `postgres`):
+### 👾 Accessing the Letta ADE (Agent Development Environment)
+
+> [!NOTE]
+> The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server.
+
+To access the Letta ADE, visit [https://app.letta.com](https://app.letta.com).
+
+### 🧑‍🚀 Running the Letta CLI
+
+You can chat with your agents via the Letta CLI tool (`letta run`). If you have a Letta Docker container running, you can use `docker exec` to run the Letta CLI inside the container:
 ```sh
-# Step 1: install
-pip install -U letta
+# replace `<letta_container_id>` with the ID of your Letta container, found via `docker ps`
+docker exec -it <letta_container_id> letta run
 ```
 
-```sh
-# Step 2
-export OPENAI_API_KEY=sk-...
-
+You can also use `docker ps` within the command to automatically find the ID of your Letta container:
 ```
+docker exec -it $(docker ps -q -f ancestor=letta/letta) letta run
+```
+
+In the CLI tool, you'll be able to create new agents, or load existing agents:
+```
+🧬 Creating new agent...
+? Select LLM model: letta-free [type=openai] [ip=https://inference.memgpt.ai]
+? Select embedding model: letta-free [type=hugging-face] [ip=https://embeddings.memgpt.ai]
+->  🤖 Using persona profile: 'sam_pov'
+->  🧑 Using human profile: 'basic'
+->  🛠️  8 tools: send_message, pause_heartbeats, conversation_search, conversation_search_date, archival_memory_insert, archival_memory_search, core_memory_append, core_memory_replace
+
+🎉 Created new agent 'InspiringSpinach'
+
+Hit enter to begin (will request first Letta message)
+
+💭 User engaged. Recognize as Chad. Acknowledge presence and establish connection. Explore interests and engage in meaningful discourse.
+🤖 Hello, Chad. It's nice to meet you. I am keen on learning and exploring new ideas and concepts. Is there a specific topic you'd like to discuss today?
+
+> Enter your message: my name is Brad, not Chad...
+
+💭 A discrepancy in identity. Reflect this change in core memory. Apologize for the oversight, and rectify the error.
+⚡🧠 [function] updating memory with core_memory_replace
+         First name: Chad
+        → First name: Brad
+💭 Apologize for the mistake in recognizing his name, and begin the conversation anew, addressing him by the correct name this time.
+🤖 I apologize for the oversight, Brad. Let's restart. It's a pleasure to meet you, Brad. Is there a specific topic you'd like to discuss today?
+
+> Enter your message:
+```
+
+## ⚡ Quickstart (pip)
 
 > [!WARNING]
 > **Database migrations are not officially support with `SQLite`**
@@ -86,7 +129,11 @@ export OPENAI_API_KEY=sk-...
 >
 > We do not officially support migrations between Letta versions with `SQLite` backends, only `postgres`. If you would like to keep your agent data across multiple Letta versions we highly recommend using the Docker install method which is the easiest way to use `postgres` with Letta.
 
-### Alterative install: install Letta using `pip`
+<section>
+
+<details>View instructions for installing with pip</details>
+
+You can also install Letta with `pip`, will default to using `SQLite` for the database backends (whereas Docker will default to using `postgres`).
 
 ### Step 1 - Install Letta using `pip`
 ```sh
@@ -150,11 +197,7 @@ INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://localhost:8283 (Press CTRL+C to quit)
 ```
-
-When you start the Letta API server, the ADE (Agent Development Environment) will be available on `http://localhost:8283`:
-<img alt="Screenshot of the Letta ADE (Agent Development Environment)" src="assets/letta_ade_screenshot.png" width="1600">
-
-In Letta, all agents are stored/persisted in the same database, so the agents you create in the CLI are accessible via the API and ADE, and vice versa. Check out the [quickstart guide on our docs](https://docs.letta.com/quickstart) for a tutorial where you create an agent in the Letta CLI and message the same agent via the Letta API.
+</section>
 
 ## 🤗 How to contribute
 
