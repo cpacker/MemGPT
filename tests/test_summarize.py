@@ -1,14 +1,11 @@
 import uuid
 from typing import List
 
-import pytest
-
 from letta import create_client
 from letta.client.client import LocalClient
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
-from letta.settings import tool_settings
 
 from .utils import wipe_config
 
@@ -19,21 +16,6 @@ agent_obj = None
 
 # TODO: these tests should include looping through LLM providers, since behavior may vary across providers
 # TODO: these tests should add function calls into the summarized message sequence:W
-
-
-@pytest.fixture
-def mock_e2b_api_key_none():
-    # Store the original value of e2b_api_key
-    original_api_key = tool_settings.e2b_api_key
-
-    # Set e2b_api_key to None
-    tool_settings.e2b_api_key = None
-
-    # Yield control to the test
-    yield
-
-    # Restore the original value of e2b_api_key
-    tool_settings.e2b_api_key = original_api_key
 
 
 def create_test_agent():

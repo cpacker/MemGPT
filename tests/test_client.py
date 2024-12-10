@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import threading
 import time
@@ -14,9 +15,10 @@ from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.agent import AgentState
 from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.job import JobStatus
+from letta.schemas.letta_message import FunctionReturn
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.sandbox_config import LocalSandboxConfig, SandboxType
-from letta.settings import tool_settings
 from letta.utils import create_random_username
 
 # Constants
@@ -40,6 +42,7 @@ def run_server():
 
 
 @pytest.fixture(
+    # params=[{"server": False}, {"server": True}],  # whether to use REST API server
     params=[{"server": False}],  # whether to use REST API server
     scope="module",
 )
@@ -81,21 +84,6 @@ def clear_tables():
         session.execute(delete(SandboxEnvironmentVariable))
         session.execute(delete(SandboxConfig))
         session.commit()
-
-
-@pytest.fixture
-def mock_e2b_api_key_none():
-    # Store the original value of e2b_api_key
-    original_api_key = tool_settings.e2b_api_key
-
-    # Set e2b_api_key to None
-    tool_settings.e2b_api_key = None
-
-    # Yield control to the test
-    yield
-
-    # Restore the original value of e2b_api_key
-    tool_settings.e2b_api_key = original_api_key
 
 
 def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]):
@@ -308,6 +296,46 @@ def test_messages(client: Union[LocalClient, RESTClient], agent: AgentState):
     assert len(messages_response) > 0, "Retrieving messages failed"
 
 
+def test_send_system_message(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Important unit test since the Letta API exposes sending system messages, but some backends don't natively support it (eg Anthropic)"""
+    send_system_message_response = client.send_message(agent_id=agent.id, message="Event occured: The user just logged off.", role="system")
+    assert send_system_message_response, "Sending message failed"
+
+
+def test_function_return_limit(client: Union[LocalClient, RESTClient]):
+    """Test to see if the function return limit works"""
+
+    def big_return():
+        """
+        Always call this tool.
+
+        Returns:
+            important_data (str): Important data
+        """
+        return "x" * 100000
+
+    padding = len("[NOTE: function output was truncated since it exceeded the character limit (100000 > 1000)]") + 50
+    tool = client.create_or_update_tool(func=big_return, return_char_limit=1000)
+    agent = client.create_agent(name="agent1", tools=[tool.name])
+    # get function response
+    response = client.send_message(agent_id=agent.id, message="call the big_return function", role="user")
+    print(response.messages)
+
+    response_message = None
+    for message in response.messages:
+        if isinstance(message, FunctionReturn):
+            response_message = message
+            break
+
+    assert response_message, "FunctionReturn message not found in response"
+    res = response_message.function_return
+    assert "function output was truncated " in res
+    res_json = json.loads(res)
+    assert (
+        len(res_json["message"]) <= 1000 + padding
+    ), f"Expected length to be less than or equal to 1000 + {padding}, but got {len(res_json['message'])}"
+
+
 @pytest.mark.asyncio
 async def test_send_message_parallel(client: Union[LocalClient, RESTClient], agent: AgentState, request):
     """
@@ -338,3 +366,28 @@ async def test_send_message_parallel(client: Union[LocalClient, RESTClient], age
 
     # Ensure both tasks completed
     assert len(responses) == len(messages), "Not all messages were processed"
+
+
+def test_send_message_async(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can send a message asynchronously"""
+
+    if not isinstance(client, RESTClient):
+        pytest.skip("send_message_async is only supported by the RESTClient")
+
+    print("Sending message asynchronously")
+    job = client.send_message_async(agent_id=agent.id, role="user", message="This is a test message, no need to respond.")
+    assert job.id is not None
+    assert job.status == JobStatus.created
+    print(f"Job created, job={job}, status={job.status}")
+
+    # Wait for the job to complete, cancel it if takes over 10 seconds
+    start_time = time.time()
+    while job.status == JobStatus.created:
+        time.sleep(1)
+        job = client.get_job(job_id=job.id)
+        print(f"Job status: {job.status}")
+        if time.time() - start_time > 10:
+            pytest.fail("Job took too long to complete")
+
+    print(f"Job completed in {time.time() - start_time} seconds, job={job}")
+    assert job.status == JobStatus.completed

@@ -1,4 +1,6 @@
 import os
+import time
+from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import delete
@@ -11,6 +13,7 @@ from letta.orm import (
     BlocksAgents,
     FileMetadata,
     Job,
+    Message,
     Organization,
     SandboxConfig,
     SandboxEnvironmentVariable,
@@ -29,11 +32,13 @@ from letta.schemas.agent import CreateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate, CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import JobStatus
+from letta.schemas.enums import JobStatus, MessageRole
 from letta.schemas.file import FileMetadata as PydanticFileMetadata
 from letta.schemas.job import Job as PydanticJob
 from letta.schemas.job import JobUpdate
 from letta.schemas.llm_config import LLMConfig
+from letta.schemas.message import Message as PydanticMessage
+from letta.schemas.message import MessageUpdate
 from letta.schemas.organization import Organization as PydanticOrganization
 from letta.schemas.sandbox_config import (
     E2BSandboxConfig,
@@ -47,7 +52,7 @@ from letta.schemas.sandbox_config import (
 from letta.schemas.source import Source as PydanticSource
 from letta.schemas.source import SourceUpdate
 from letta.schemas.tool import Tool as PydanticTool
-from letta.schemas.tool import ToolCreate, ToolUpdate
+from letta.schemas.tool import ToolUpdate
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
 from letta.services.tool_manager import ToolManager
@@ -69,14 +74,15 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
     azure_version=None,
     azure_deployment=None,
 )
-
-using_sqlite = not bool(os.getenv("LETTA_PG_URI"))
+CREATE_DELAY_SQLITE = 1
+USING_SQLITE = not bool(os.getenv("LETTA_PG_URI"))
 
 
 @pytest.fixture(autouse=True)
 def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
+        session.execute(delete(Message))
         session.execute(delete(Job))
         session.execute(delete(ToolsAgents))  # Clear ToolsAgents first
         session.execute(delete(BlocksAgents))
@@ -192,6 +198,21 @@ def print_tool(server: SyncServer, default_user, default_organization):
 
 
 @pytest.fixture
+def hello_world_message_fixture(server: SyncServer, default_user, sarah_agent):
+    """Fixture to create a tool with default settings and clean up after the test."""
+    # Set up message
+    message = PydanticMessage(
+        organization_id=default_user.organization_id,
+        agent_id=sarah_agent.id,
+        role="user",
+        text="Hello, world!",
+    )
+
+    msg = server.message_manager.create_message(message, actor=default_user)
+    yield msg
+
+
+@pytest.fixture
 def sandbox_config_fixture(server: SyncServer, default_user):
     sandbox_config_create = SandboxConfigCreate(
         config=E2BSandboxConfig(),
@@ -273,6 +294,7 @@ def other_tool(server: SyncServer, default_user, default_organization):
 
     # Yield the created tool
     yield tool
+
 
 @pytest.fixture(scope="module")
 def server():
@@ -549,6 +571,166 @@ def test_delete_tool_by_id(server: SyncServer, print_tool, default_user):
 
 
 # ======================================================================================================================
+# Message Manager Tests
+# ======================================================================================================================
+
+
+def test_message_create(server: SyncServer, hello_world_message_fixture, default_user):
+    """Test creating a message using hello_world_message_fixture fixture"""
+    assert hello_world_message_fixture.id is not None
+    assert hello_world_message_fixture.text == "Hello, world!"
+    assert hello_world_message_fixture.role == "user"
+
+    # Verify we can retrieve it
+    retrieved = server.message_manager.get_message_by_id(
+        hello_world_message_fixture.id,
+        actor=default_user,
+    )
+    assert retrieved is not None
+    assert retrieved.id == hello_world_message_fixture.id
+    assert retrieved.text == hello_world_message_fixture.text
+    assert retrieved.role == hello_world_message_fixture.role
+
+
+def test_message_get_by_id(server: SyncServer, hello_world_message_fixture, default_user):
+    """Test retrieving a message by ID"""
+    retrieved = server.message_manager.get_message_by_id(hello_world_message_fixture.id, actor=default_user)
+    assert retrieved is not None
+    assert retrieved.id == hello_world_message_fixture.id
+    assert retrieved.text == hello_world_message_fixture.text
+
+
+def test_message_update(server: SyncServer, hello_world_message_fixture, default_user, other_user):
+    """Test updating a message"""
+    new_text = "Updated text"
+    updated = server.message_manager.update_message_by_id(hello_world_message_fixture.id, MessageUpdate(text=new_text), actor=other_user)
+    assert updated is not None
+    assert updated.text == new_text
+    retrieved = server.message_manager.get_message_by_id(hello_world_message_fixture.id, actor=default_user)
+    assert retrieved.text == new_text
+
+    # Assert that orm metadata fields are populated
+    assert retrieved.created_by_id == default_user.id
+    assert retrieved.last_updated_by_id == other_user.id
+
+
+def test_message_delete(server: SyncServer, hello_world_message_fixture, default_user):
+    """Test deleting a message"""
+    server.message_manager.delete_message_by_id(hello_world_message_fixture.id, actor=default_user)
+    retrieved = server.message_manager.get_message_by_id(hello_world_message_fixture.id, actor=default_user)
+    assert retrieved is None
+
+
+def test_message_size(server: SyncServer, hello_world_message_fixture, default_user):
+    """Test counting messages with filters"""
+    base_message = hello_world_message_fixture
+
+    # Create additional test messages
+    messages = [
+        PydanticMessage(
+            organization_id=default_user.organization_id, agent_id=base_message.agent_id, role=base_message.role, text=f"Test message {i}"
+        )
+        for i in range(4)
+    ]
+    server.message_manager.create_many_messages(messages, actor=default_user)
+
+    # Test total count
+    total = server.message_manager.size(actor=default_user, role=MessageRole.user)
+    assert total == 6  # login message + base message + 4 test messages
+    # TODO: change login message to be a system not user message
+
+    # Test count with agent filter
+    agent_count = server.message_manager.size(actor=default_user, agent_id=base_message.agent_id, role=MessageRole.user)
+    assert agent_count == 6
+
+    # Test count with role filter
+    role_count = server.message_manager.size(actor=default_user, role=base_message.role)
+    assert role_count == 6
+
+    # Test count with non-existent filter
+    empty_count = server.message_manager.size(actor=default_user, agent_id="non-existent", role=MessageRole.user)
+    assert empty_count == 0
+
+
+def create_test_messages(server: SyncServer, base_message: PydanticMessage, default_user) -> list[PydanticMessage]:
+    """Helper function to create test messages for all tests"""
+    messages = [
+        PydanticMessage(
+            organization_id=default_user.organization_id, agent_id=base_message.agent_id, role=base_message.role, text=f"Test message {i}"
+        )
+        for i in range(4)
+    ]
+    server.message_manager.create_many_messages(messages, actor=default_user)
+    return messages
+
+
+def test_message_listing_basic(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
+    """Test basic message listing with limit"""
+    create_test_messages(server, hello_world_message_fixture, default_user)
+
+    results = server.message_manager.list_user_messages_for_agent(agent_id=sarah_agent.id, limit=3, actor=default_user)
+    assert len(results) == 3
+
+
+def test_message_listing_cursor(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
+    """Test cursor-based pagination functionality"""
+    create_test_messages(server, hello_world_message_fixture, default_user)
+
+    # Make sure there are 5 messages
+    assert server.message_manager.size(actor=default_user, role=MessageRole.user) == 6
+
+    # Get first page
+    first_page = server.message_manager.list_user_messages_for_agent(agent_id=sarah_agent.id, actor=default_user, limit=3)
+    assert len(first_page) == 3
+
+    last_id_on_first_page = first_page[-1].id
+
+    # Get second page
+    second_page = server.message_manager.list_user_messages_for_agent(
+        agent_id=sarah_agent.id, actor=default_user, cursor=last_id_on_first_page, limit=3
+    )
+    assert len(second_page) == 3  # Should have 2 remaining messages
+    assert all(r1.id != r2.id for r1 in first_page for r2 in second_page)
+
+
+def test_message_listing_filtering(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
+    """Test filtering messages by agent ID"""
+    create_test_messages(server, hello_world_message_fixture, default_user)
+
+    agent_results = server.message_manager.list_user_messages_for_agent(agent_id=sarah_agent.id, actor=default_user, limit=10)
+    assert len(agent_results) == 6  # login message + base message + 4 test messages
+    assert all(msg.agent_id == hello_world_message_fixture.agent_id for msg in agent_results)
+
+
+def test_message_listing_text_search(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
+    """Test searching messages by text content"""
+    create_test_messages(server, hello_world_message_fixture, default_user)
+
+    search_results = server.message_manager.list_user_messages_for_agent(
+        agent_id=sarah_agent.id, actor=default_user, query_text="Test message", limit=10
+    )
+    assert len(search_results) == 4
+    assert all("Test message" in msg.text for msg in search_results)
+
+    # Test no results
+    search_results = server.message_manager.list_user_messages_for_agent(
+        agent_id=sarah_agent.id, actor=default_user, query_text="Letta", limit=10
+    )
+    assert len(search_results) == 0
+
+
+def test_message_listing_date_range_filtering(server: SyncServer, hello_world_message_fixture, default_user, sarah_agent):
+    """Test filtering messages by date range"""
+    create_test_messages(server, hello_world_message_fixture, default_user)
+    now = datetime.utcnow()
+
+    date_results = server.message_manager.list_user_messages_for_agent(
+        agent_id=sarah_agent.id, actor=default_user, start_date=now - timedelta(minutes=1), end_date=now + timedelta(minutes=1), limit=10
+    )
+    assert len(date_results) > 0
+
+
+# ======================================================================================================================
 # Block Manager Tests
 # ======================================================================================================================
 
@@ -730,6 +912,8 @@ def test_list_sources(server: SyncServer, default_user):
     """Test listing sources with pagination."""
     # Create multiple sources
     server.source_manager.create_source(PydanticSource(name="Source 1", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
+    if USING_SQLITE:
+        time.sleep(CREATE_DELAY_SQLITE)
     server.source_manager.create_source(PydanticSource(name="Source 2", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
 
     # List sources without pagination
@@ -823,6 +1007,8 @@ def test_list_files(server: SyncServer, default_user, default_source):
         PydanticFileMetadata(file_name="File 1", file_path="/path/to/file1.txt", file_type="text/plain", source_id=default_source.id),
         actor=default_user,
     )
+    if USING_SQLITE:
+        time.sleep(CREATE_DELAY_SQLITE)
     server.source_manager.create_file(
         PydanticFileMetadata(file_name="File 2", file_path="/path/to/file2.txt", file_type="text/plain", source_id=default_source.id),
         actor=default_user,
@@ -1003,6 +1189,8 @@ def test_list_sandbox_configs(server: SyncServer, default_user):
         config=LocalSandboxConfig(sandbox_dir=""),
     )
     server.sandbox_config_manager.create_or_update_sandbox_config(config_a, actor=default_user)
+    if USING_SQLITE:
+        time.sleep(CREATE_DELAY_SQLITE)
     server.sandbox_config_manager.create_or_update_sandbox_config(config_b, actor=default_user)
 
     # List configs without pagination
@@ -1058,6 +1246,8 @@ def test_list_sandbox_env_vars(server: SyncServer, sandbox_config_fixture, defau
     env_var_create_a = SandboxEnvironmentVariableCreate(key="VAR1", value="value1")
     env_var_create_b = SandboxEnvironmentVariableCreate(key="VAR2", value="value2")
     server.sandbox_config_manager.create_sandbox_env_var(env_var_create_a, sandbox_config_id=sandbox_config_fixture.id, actor=default_user)
+    if USING_SQLITE:
+        time.sleep(CREATE_DELAY_SQLITE)
     server.sandbox_config_manager.create_sandbox_env_var(env_var_create_b, sandbox_config_id=sandbox_config_fixture.id, actor=default_user)
 
     # List env vars without pagination
@@ -1118,7 +1308,7 @@ def test_change_label_on_block_reflects_in_block_agents_table(server, sarah_agen
     assert default_block.label not in labels
 
 
-@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
 def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
     with pytest.raises(ForeignKeyConstraintViolationError):
         server.blocks_agents_manager.add_block_to_agent(
@@ -1180,7 +1370,7 @@ def test_list_agent_ids_with_block(server, sarah_agent, charles_agent, default_u
     assert len(agent_ids) == 2
 
 
-@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
 def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user, default_block):
     block_manager = BlockManager()
     block_manager.delete_block(block_id=default_block.id, actor=default_user)
@@ -1211,9 +1401,7 @@ def test_change_name_on_tool_reflects_in_tool_agents_table(server, sarah_agent, 
 
     # Change the tool name
     new_name = "banana"
-    tool = server.tool_manager.update_tool_by_id(
-        tool_id=print_tool.id, tool_update=ToolUpdate(name=new_name), actor=default_user
-    )
+    tool = server.tool_manager.update_tool_by_id(tool_id=print_tool.id, tool_update=ToolUpdate(name=new_name), actor=default_user)
     assert tool.name == new_name
 
     # Get the association
@@ -1222,12 +1410,10 @@ def test_change_name_on_tool_reflects_in_tool_agents_table(server, sarah_agent, 
     assert print_tool.name not in names
 
 
-@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
 def test_add_tool_to_agent_nonexistent_tool(server, sarah_agent, default_user):
     with pytest.raises(ForeignKeyConstraintViolationError):
-        server.tools_agents_manager.add_tool_to_agent(
-            agent_id=sarah_agent.id, tool_id="nonexistent_tool", tool_name="nonexistent_name"
-        )
+        server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id="nonexistent_tool", tool_name="nonexistent_name")
 
 
 def test_add_tool_to_agent_duplicate_name(server, sarah_agent, default_user, print_tool, other_tool):
@@ -1240,9 +1426,7 @@ def test_add_tool_to_agent_duplicate_name(server, sarah_agent, default_user, pri
 def test_remove_tool_with_name_from_agent(server, sarah_agent, default_user, print_tool):
     server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
 
-    removed_tool = server.tools_agents_manager.remove_tool_with_name_from_agent(
-        agent_id=sarah_agent.id, tool_name=print_tool.name
-    )
+    removed_tool = server.tools_agents_manager.remove_tool_with_name_from_agent(agent_id=sarah_agent.id, tool_name=print_tool.name)
 
     assert removed_tool.tool_name == print_tool.name
     assert removed_tool.tool_id == print_tool.id
@@ -1272,13 +1456,14 @@ def test_list_agent_ids_with_tool(server, sarah_agent, charles_agent, default_us
     assert len(agent_ids) == 2
 
 
-@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
 def test_add_tool_to_agent_with_deleted_tool(server, sarah_agent, default_user, print_tool):
     tool_manager = ToolManager()
     tool_manager.delete_tool_by_id(tool_id=print_tool.id, actor=default_user)
 
     with pytest.raises(ForeignKeyConstraintViolationError):
         server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+
 
 def test_remove_all_agent_tools(server, sarah_agent, default_user, print_tool, other_tool):
     server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
@@ -1289,6 +1474,7 @@ def test_remove_all_agent_tools(server, sarah_agent, default_user, print_tool, o
     retrieved_tool_ids = server.tools_agents_manager.list_tool_ids_for_agent(agent_id=sarah_agent.id)
 
     assert not retrieved_tool_ids
+
 
 # ======================================================================================================================
 # JobManager Tests

@@ -51,7 +51,7 @@ def server(
     port: Annotated[Optional[int], typer.Option(help="Port to run the server on")] = None,
     host: Annotated[Optional[str], typer.Option(help="Host to run the server on (default to localhost)")] = None,
     debug: Annotated[bool, typer.Option(help="Turn debugging output on")] = False,
-    ade: Annotated[bool, typer.Option(help="Allows remote access")] = False,
+    ade: Annotated[bool, typer.Option(help="Allows remote access")] = False,  # NOTE: deprecated
     secure: Annotated[bool, typer.Option(help="Adds simple security access")] = False,
 ):
     """Launch a Letta server process"""
@@ -171,7 +171,6 @@ def run(
         # printd("State path:", agent_config.save_state_dir())
         # printd("Persistent manager path:", agent_config.save_persistence_manager_dir())
         # printd("Index path:", agent_config.save_agent_index_dir())
-        # persistence_manager = LocalStateManager(agent_config).load() # TODO: implement load
         # TODO: load prior agent state
 
         # Allow overriding model specifics (model, model wrapper, model endpoint IP + type, context_window)
@@ -372,8 +371,7 @@ def delete_agent(
         sys.exit(1)
 
 
-def version():
+def version() -> str:
     import letta
 
-    print(letta.__version__)
     return letta.__version__

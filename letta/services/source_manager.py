@@ -141,5 +141,5 @@ class SourceManager:
         """Delete a file by its ID."""
         with self.session_maker() as session:
             file = FileMetadataModel.read(db_session=session, identifier=file_id)
-            file.delete(db_session=session, actor=actor)
+            file.hard_delete(db_session=session, actor=actor)
             return file.to_pydantic()

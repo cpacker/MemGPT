@@ -18,6 +18,7 @@ def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) ->
 
     """
     from letta import create_client
+
     client = create_client()
     agents = client.list_agents()
     for agent in agents:
@@ -149,6 +150,8 @@ class OfflineMemoryAgent(Agent):
         step_count = 0
 
         while counter < self.max_memory_rethinks:
+            if counter > 0:
+                next_input_message = []
             kwargs["ms"] = ms
             kwargs["first_message"] = False
             step_response = self.inner_step(
