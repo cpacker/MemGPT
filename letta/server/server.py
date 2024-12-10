@@ -826,6 +826,12 @@ class SyncServer(Server):
         if not user:
             raise ValueError(f"cannot find user with associated client id: {user_id}")
 
+        if request.llm_config is None:
+            raise ValueError("llm_config is required")
+
+        if request.embedding_config is None:
+            raise ValueError("embedding_config is required")
+
         # created and persist the agent state in the DB
         agent_state = PersistedAgentState(
             name=request.name,
