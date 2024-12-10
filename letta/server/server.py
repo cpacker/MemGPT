@@ -1829,6 +1829,8 @@ class SyncServer(Server):
                 date=get_utc_time(),
                 status="success",
                 function_return=function_response,
+                stdout=sandbox_run_result.stdout,
+                stderr=sandbox_run_result.stderr,
             )
         except Exception as e:
             # same as agent.py
@@ -1844,6 +1846,8 @@ class SyncServer(Server):
                 date=get_utc_time(),
                 status="error",
                 function_return=error_msg,
+                stdout=[''],
+                stderr=[traceback.format_exc()],
             )
 
     # Composio wrappers
