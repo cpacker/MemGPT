@@ -1,3 +1,15 @@
+"""
+Script that runs memory edits for both the baseline Letta systema and with the offline memory agent.
+
+Example:
+
+    python run_fact_editing.py --input_file_name MQuAKE/datasets/letta-MQuAKE-CF-3k-v2-100.json \
+        --predictions_file_name MQuaAKE/datasets/debug-letta-MQuAKE-CF-3k-v2-100-predictions.json \
+        --num_questions 1000
+
+
+"""
+
 import argparse
 
 import jsonlines
@@ -60,8 +72,14 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
                         response = client.send_message(message=requested_rewrite, role="user", agent_id=conversation_agent.id)
 
                     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
+                    import pdb
+
+                    pdb.set_trace()
                     predictions_file.write(
-                        {"response": response.model_dump(), "fact_block": conversation_agent.memory.get_block("fact_block").value}
+                        {
+                            "messages": [message.to_openai_dict() for message in client.get_messages(conversation_agent.id)],
+                            "memory_blocks": {block.label: block.value for block in conversation_agent.memory.get_blocks()},
+                        }
                     )
 
                     client.delete_agent(agent_id=conversation_agent.id)
