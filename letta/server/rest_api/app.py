@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
@@ -147,7 +147,7 @@ def create_application() -> "FastAPI":
     )
 
     @app.exception_handler(Exception)
-    async def generic_error_handler(request, exc):
+    async def generic_error_handler(request: Request, exc: Exception):
         # Log the actual error for debugging
         log.error(f"Unhandled error: {exc}", exc_info=True)
 
@@ -167,12 +167,16 @@ def create_application() -> "FastAPI":
             },
         )
 
+    @app.exception_handler(ValueError)
+    async def value_error_handler(request: Request, exc: ValueError):
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
     @app.exception_handler(LettaAgentNotFoundError)
-    async def agent_not_found_handler(request, exc):
+    async def agent_not_found_handler(request: Request, exc: LettaAgentNotFoundError):
         return JSONResponse(status_code=404, content={"detail": "Agent not found"})
 
     @app.exception_handler(LettaUserNotFoundError)
-    async def user_not_found_handler(request, exc):
+    async def user_not_found_handler(request: Request, exc: LettaUserNotFoundError):
         return JSONResponse(status_code=404, content={"detail": "User not found"})
 
     settings.cors_origins.append("https://app.letta.com")
