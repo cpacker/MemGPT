@@ -12,7 +12,6 @@ from openai import OpenAI
 import jsonlines
 import json
 from typing import Optional
-
 import tqdm
 
 def question_to_statement(question: str) -> str:
@@ -45,6 +44,14 @@ def convert_explicit_statements(input_file_name: str, output_file_name: str, num
                 data = data[:num_questions]
             for idx, datum in tqdm.tqdm(enumerate(data)):
                 letta_data = defaultdict(list)
+
+                # Add metadata
+                for key in ["case_id", 
+                            "answer", "answer_alias",
+                            "new_answer", "new_answer_alias",
+                            "orig"]:
+                    letta_data[key] = datum[key]
+
                 for hop in datum["single_hops"]:
                     fact = f"{hop["cloze"]} {hop["answer"]}."
                     letta_data['memory'].append(fact)
@@ -72,7 +79,6 @@ def convert_explicit_statements(input_file_name: str, output_file_name: str, num
                         pass
 
                 for requested_rewrite in datum["requested_rewrite"]:
-                    statement = question_to_statement(requested_rewrite)
                     letta_data['requested_rewrites'].append(
                         requested_rewrite["prompt"].format(requested_rewrite["subject"]) + " " + requested_rewrite["target_new"]["str"]
                         )
