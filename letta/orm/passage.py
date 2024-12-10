@@ -44,7 +44,7 @@ class CommonVector(TypeDecorator):
             value = base64.b64decode(value)
         return np.frombuffer(value, dtype=np.float32)
 
-class Passage(SqlalchemyBase, AgentMixin, OrganizationMixin, FileMixin):
+class Passage(SqlalchemyBase, OrganizationMixin, FileMixin):
     """Defines data model for storing Passages"""
     __tablename__ = "passages"
     __table_args__ = {"extend_existing": True}
@@ -61,6 +61,9 @@ class Passage(SqlalchemyBase, AgentMixin, OrganizationMixin, FileMixin):
         embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
     else:
         embedding = Column(CommonVector)
+
+    # Foreign keys
+    agent_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("agents.id"), nullable=True)
 
     # Relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="passages", lazy="selectin")
