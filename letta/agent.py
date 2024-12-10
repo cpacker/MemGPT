@@ -1372,43 +1372,33 @@ class Agent(BaseAgent):
         # TODO: recall memory
         raise NotImplementedError()
 
-    def attach_source(self, source_id: str, source_connector: StorageConnector, ms: MetadataStore):
+    def attach_source(self, user: PydanticUser, source_id: str, source_manager: SourceManager, ms: MetadataStore):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
-        user = UserManager().get_user_by_id(self.agent_state.user_id)
-        filters = {"organization_id": source_connector.organization_id, "source_id": source_id}
-        # filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
-        size = source_connector.size(filters)
         page_size = 100
-        generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
-        all_passages = []
-        for i in tqdm(range(0, size, page_size)):
-            passages = next(generator)
+        passages = self.passage_manager.list_passages(actor=user, source_id=source_id, limit=page_size)
 
-            # need to associated passage with agent (for filtering)
-            for passage in passages:
-                assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
-                passage.agent_id = self.agent_state.id
+        for passage in passages:
+            assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
+            passage.agent_id = self.agent_state.id
+            self.passage_manager.update_passage_by_id(passage_id=passage.id, passage=passage, actor=user)
 
-                # regenerate passage ID (avoid duplicates)
-                # TODO: need to find another solution to the text duplication issue
-                # passage.id = create_uuid_from_string(f"{source_id}_{str(passage.agent_id)}_{passage.text}")
-
-            # insert into agent archival memory
-            self.passage_manager.create_many_passages(passages=passages, actor=user)
-            all_passages += passages
-
-        assert size == len(all_passages), f"Expected {size} passages, but only got {len(all_passages)}"
+        agents_passages = self.passage_manager.list_passages(actor=user, agent_id=self.agent_state.id, source_id=source_id, limit=page_size)
+        passage_size = self.passage_manager.size(actor=user, agent_id=self.agent_state.id, source_id=source_id)
+        assert all([p.agent_id == self.agent_state.id for p in agents_passages])
+        assert len(agents_passages) == passage_size # sanity check
+        assert passage_size == len(passages), f"Expected {len(passages)} passages, got {passage_size}"
 
         # attach to agent
-        source = SourceManager().get_source_by_id(source_id=source_id, actor=user)
+        source = source_manager.get_source_by_id(source_id=source_id, actor=user)
         assert source is not None, f"Source {source_id} not found in metadata store"
+
+        # NOTE: need this redundant line here because we haven't migrated agent to ORM yet
+        # TODO: delete @matt and remove
         ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
 
-        total_agent_passages = self.passage_manager.size(actor=user, agent_id=self.agent_state.id)
-
         printd(
-            f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(all_passages)}. Agent now has {total_agent_passages} embeddings in archival memory.",
+            f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(passages)}. Agent now has {passage_size} embeddings in archival memory.",
         )
 
     def update_message(self, message_id: str, request: MessageUpdate) -> Message:

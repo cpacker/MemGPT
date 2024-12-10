@@ -495,7 +495,12 @@ class SyncServer(Server):
 
             # attach data to agent from source
             source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-            letta_agent.attach_source(data_source, source_connector, self.ms)
+            letta_agent.attach_source(
+                user=self.user_manager.get_user_by_id(user_id=user_id),
+                source_id=data_source,
+                source_manager=letta_agent.source_manager, 
+                ms=self.ms
+            )
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
             # Check if there's an additional argument that's an integer
@@ -1524,7 +1529,7 @@ class SyncServer(Server):
         user_id: str,
         connector: DataConnector,
         source_name: str,
-        agent_id: str,
+        agent_id: Optional[str] = None,
     ) -> Tuple[int, int]:
         """Load data from a DataConnector into a source for a specified user_id"""
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
@@ -1546,7 +1551,6 @@ class SyncServer(Server):
         self,
         user_id: str,
         agent_id: str,
-        # source_id: str,
         source_id: Optional[str] = None,
         source_name: Optional[str] = None,
     ) -> Source:
@@ -1559,14 +1563,14 @@ class SyncServer(Server):
         else:
             raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
         # get connection to data source storage
-        source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+        # source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
         assert data_source, f"Data source with id={source_id} or name={source_name} does not exist"
 
         # load agent
         agent = self.load_agent(agent_id=agent_id)
 
         # attach source to agent
-        agent.attach_source(data_source.id, source_connector, self.ms)
+        agent.attach_source(user=user, source_id=data_source.id, source_manager=self.source_manager, ms=self.ms)
 
         return data_source
 

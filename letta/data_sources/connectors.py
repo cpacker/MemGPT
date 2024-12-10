@@ -1,4 +1,4 @@
-from typing import Dict, Iterator, List, Tuple
+from typing import Dict, Iterator, List, Tuple, Optional
 
 import typer
 
@@ -42,7 +42,7 @@ class DataConnector:
         """
 
 
-def load_data(connector: DataConnector, source: Source, passage_store: StorageConnector, source_manager: SourceManager, actor: "User", agent_id: str):
+def load_data(connector: DataConnector, source: Source, passage_store: StorageConnector, source_manager: SourceManager, actor: "User", agent_id: Optional[str] = None):
     """Load data from a connector (generates file and passages) into a specified source_id, associated with a user_id."""
     embedding_config = source.embedding_config
 

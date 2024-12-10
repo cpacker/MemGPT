@@ -649,7 +649,6 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
         system=agent.system,
         agent_id=agent.id,
         memory=agent.memory,
-        archival_memory=None,
         memory_edit_timestamp=get_utc_time(),
         include_initial_boot_message=True,
         actor=default_user,
