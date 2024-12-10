@@ -578,7 +578,10 @@ async def send_message_async(
     job = Job(
         user_id=actor.id,
         status=JobStatus.created,
-        metadata_={"agent_id": agent_id},
+        metadata_={
+            "job_type": "send_message_async",
+            "agent_id": agent_id,
+        },
     )
     job = server.job_manager.create_job(pydantic_job=job, actor=actor)
 
