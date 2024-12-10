@@ -40,8 +40,6 @@ class ToolManager:
         if tool:
             # Put to dict and remove fields that should not be reset
             update_data = pydantic_tool.model_dump(exclude={"module"}, exclude_unset=True, exclude_none=True)
-            # Remove redundant update fields
-            update_data = {key: value for key, value in update_data.items() if getattr(tool, key) != value}
 
             # If there's anything to update
             if update_data:
@@ -108,7 +106,7 @@ class ToolManager:
             tool = ToolModel.read(db_session=session, identifier=tool_id, actor=actor)
 
             # Update tool attributes with only the fields that were explicitly set
-            update_data = tool_update.model_dump(exclude_unset=True, exclude_none=True)
+            update_data = tool_update.model_dump(exclude_none=True)
             for key, value in update_data.items():
                 setattr(tool, key, value)
 

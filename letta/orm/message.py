@@ -1,7 +1,6 @@
-from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import JSON, DateTime, TypeDecorator
+from sqlalchemy import JSON, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.mixins import AgentMixin, OrganizationMixin
@@ -58,7 +57,6 @@ class Message(SqlalchemyBase, OrganizationMixin, AgentMixin):
     name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="Name for multi-agent scenarios")
     tool_calls: Mapped[ToolCall] = mapped_column(ToolCallColumn, doc="Tool call information")
     tool_call_id: Mapped[Optional[str]] = mapped_column(nullable=True, doc="ID of the tool call")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     # Relationships
     # TODO: Add in after Agent ORM is created

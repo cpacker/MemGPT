@@ -22,6 +22,30 @@ class LettaToolCreateError(LettaError):
         super().__init__(self.message)
 
 
+class LettaConfigurationError(LettaError):
+    """Error raised when there are configuration-related issues."""
+
+    def __init__(self, message: str, missing_fields: Optional[List[str]] = None):
+        self.missing_fields = missing_fields or []
+        super().__init__(message)
+
+
+class LettaAgentNotFoundError(LettaError):
+    """Error raised when an agent is not found."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
+class LettaUserNotFoundError(LettaError):
+    """Error raised when a user is not found."""
+
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
+
+
 class LLMError(LettaError):
     pass
 
