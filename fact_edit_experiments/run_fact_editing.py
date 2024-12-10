@@ -29,6 +29,27 @@ from letta.schemas.llm_config import LLMConfig
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.utils import get_persona_text
 
+OFFLINE_SYSTEM_PROMPT = """You are Letta-Offline-Memory, the latest version of Limnal Corporation's digital companion, developed in 2024.
+Your task is to re-organize and consolidate memories by calling `rethink_memory` at every single step, when you are done reorganizing the memory, you use the
+`finish_rethinking_memory` function. Call the function for as many times as necessary and not more.
+Your core memory unit is held inside the initial system instructions file, and is always available in-context (you will see it at all times).
+Core memory provides an essential, foundational context for keeping track of your persona and key details about user.
+Read-Only Blocks:
+This includes the persona information and essential user details, allowing you to emulate the real-time, conscious awareness we have when talking to a friend.
+Persona Sub-Block: Stores details about your current persona, guiding how you behave and respond. This helps you to maintain consistency and personality in your interactions.
+Access as a source block with the label `persona` when calling `rethink_memory`
+Human Sub-Block: Stores key details about the person you are conversing with, allowing for more personalized and friend-like conversation.
+Access as a source block with the label `human` when calling `rethink_memory`.
+Read-Write Blocks:
+Rethink Memory Sub-Block: New representation of the memories go here. Access with the label `rethink_memory_block` when calling `rethink_memory` as source or target block.
+Do not remove information unless it has been replaced with new information. Use language as close to what is in the block as possible.
+At every step, you reorganize the memories by calling the `rethink_memory` function. You use this to take current information in the `rethink_memory` block and select a single memory block to integrate information from, producing a new memory for the rethink_memory_block.  The new memory is the result
+of new insights, and new inferences and hypotheses based on the past memories. Make sure to consider how the new information affects each memory.
+Prioritize the new information overy existing memories. If the new information implies that the old memory may need to change, then output the most
+likely fact given the update information. Given new information and your current memory, you draw all logical conclusions and potential hypotheses possible with the `rethink_memory` function.
+If you are uncertain, use your internal monologue to consider what the possible conclusions are, and then state the most likely new facts that would replace the old facts in the new memory block.
+"""
+
 
 def run_memory_edits(input_file_name: str, predictions_filename: str, num_questions: int, offline_memory: bool):
     client = create_client()
@@ -72,11 +93,10 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
                         response = client.send_message(message=requested_rewrite, role="user", agent_id=conversation_agent.id)
 
                     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
-                    import pdb
 
-                    pdb.set_trace()
                     predictions_file.write(
                         {
+                            "case_id": datum["case_id"],
                             "messages": [message.to_openai_dict() for message in client.get_messages(conversation_agent.id)],
                             "memory_blocks": {block.label: block.value for block in conversation_agent.memory.get_blocks()},
                         }
@@ -140,7 +160,7 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
                     offline_memory_agent = client.create_agent(
                         name="offline_memory_agent",
                         agent_type=AgentType.offline_memory_agent,
-                        system=gpt_system.get_system_text("memgpt_offline_memory"),
+                        system=OFFLINE_SYSTEM_PROMPT,
                         memory=offline_memory,
                         llm_config=LLMConfig.default_config("gpt-4"),
                         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
@@ -148,20 +168,26 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
                         tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
                         include_base_tools=False,
                     )
-                    assert offline_memory_agent is not None
-                    assert set(offline_memory_agent.memory.list_block_labels()) == set(
-                        ["persona", "human", "fact_block", "rethink_memory_block"]
-                    )
 
                     for requested_rewrite in datum["requested_rewrites"]:
                         response = client.send_message(
-                            message="[trigger_rethink_message]" + requested_rewrite, role="user", agent_id=conversation_agent.id
+                            message="[trigger_rethink_message]" + requested_rewrite, role="system", agent_id=conversation_agent.id
                         )
                     offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
+
                     predictions_file.write(
                         {
-                            "response": response.model_dump(),
-                            "fact_block": offline_memory_agent.memory.get_block("rethink_memory_block").value,
+                            "case_id": datum["case_id"],
+                            "conversation_agent_messages": [
+                                message.to_openai_dict() for message in client.get_messages(conversation_agent.id)
+                            ],
+                            "conversation_agent_memory_blocks": {
+                                block.label: block.value for block in conversation_agent.memory.get_blocks()
+                            },
+                            "offline_memory_agent_messages": [
+                                message.to_openai_dict() for message in client.get_messages(offline_memory_agent.id)
+                            ],
+                            "offline_memory_agent_memory": {block.label: block.value for block in offline_memory_agent.memory.get_blocks()},
                         }
                     )
                     client.delete_agent(agent_id=conversation_agent.id)
