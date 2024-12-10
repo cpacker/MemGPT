@@ -7,6 +7,7 @@ import runpy
 import subprocess
 import sys
 import tempfile
+import traceback
 import uuid
 import venv
 from typing import Any, Dict, Optional, TextIO
@@ -165,6 +166,8 @@ class ToolExecutionSandbox:
         env["PYTHONWARNINGS"] = "ignore"
 
         # Execute the code in a restricted subprocess
+        func_return, agent_state = None, None
+        stdout, stderr = '', ''
         try:
             result = subprocess.run(
                 [os.path.join(venv_path, "bin", "python3"), temp_file_path],
@@ -174,66 +177,52 @@ class ToolExecutionSandbox:
                 capture_output=True,
                 text=True,
             )
-
-            # Handle error with optimistic error parsing from the string
-            # This is very brittle, so we fall back to a RuntimeError if parsing fails
-            if result.returncode != 0:
-                # Log the error
-                logger.error(f"Sandbox execution error:\n{result.stderr}")
-
-                # Parse and raise the actual error from stderr
-                tb_lines = result.stderr.strip().splitlines()
-                exception_line = tb_lines[-1]  # The last line contains the exception
-
-                try:
-                    # Split exception type and message
-                    exception_type, exception_message = exception_line.split(": ", 1)
-                    exception_type = exception_type.strip()
-                    exception_message = exception_message.strip()
-
-                    # Dynamically raise the exception
-                    exception_class = eval(exception_type)  # Look up the exception type
-
-                except Exception:
-                    # Fallback to RuntimeError if parsing fails
-                    raise RuntimeError(result.stderr)
-
-                raise exception_class(exception_message)
-
+            stderr = result.stderr
             func_result, stdout = self.parse_out_function_results_markers(result.stdout)
             func_return, agent_state = self.parse_best_effort(func_result)
-            return SandboxRunResult(
-                func_return=func_return, 
-                agent_state=agent_state,
-                stdout=[stdout],
-                stderr=[result.stderr],
-                sandbox_config_fingerprint=sbx_config.fingerprint(),
-            )
+
         except subprocess.TimeoutExpired:
-            raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
+            logger.error(f"Executing tool {self.tool_name} has timed out")
+            stderr += f"\nTimeoutError: Executing tool {self.tool_name} has timed out.\n"
+            stderr += traceback.format_exc()
         except subprocess.CalledProcessError as e:
             logger.error(f"Executing tool {self.tool_name} has process error: {e}")
-            raise e
+            stderr += f"\nError: Executing tool {self.tool_name} has process error: {e}.\n"
+            stderr += traceback.format_exc()
         except Exception as e:
             logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
-            raise e
+            stderr += f"\nError: Executing tool {self.tool_name} has an unexpected error: {e}.\n"
+            stderr += traceback.format_exc()
+
+        return SandboxRunResult(
+            func_return=func_return, 
+            agent_state=agent_state, 
+            stdout=[stdout], 
+            stderr=[stderr], 
+            sandbox_config_fingerprint=sbx_config.fingerprint(),
+        )
 
     def run_local_dir_sandbox_runpy(
         self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str, old_stdout: TextIO, old_stderr: TextIO
     ) -> SandboxRunResult:
+        func_return, agent_state = None, None
+
         # Redirect stdout and stderr to capture script output
-        captured_stdout = io.StringIO()
-        captured_stderr = io.StringIO()
+        captured_stdout, captured_stderr = io.StringIO(), io.StringIO()
         sys.stdout = captured_stdout
         sys.stderr = captured_stderr
 
-        # Execute the temp file
-        with self.temporary_env_vars(env_vars):
-            result = runpy.run_path(temp_file_path, init_globals=env_vars)
+        try:
+            # Execute the temp file
+            with self.temporary_env_vars(env_vars):
+                result = runpy.run_path(temp_file_path, init_globals=env_vars)
 
-        # Fetch the result
-        func_result = result.get(self.LOCAL_SANDBOX_RESULT_VAR_NAME)
-        func_return, agent_state = self.parse_best_effort(func_result)
+            # Fetch the result
+            func_result = result.get(self.LOCAL_SANDBOX_RESULT_VAR_NAME)
+            func_return, agent_state = self.parse_best_effort(func_result)
+
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
 
         # Restore stdout and stderr and collect captured output
         sys.stdout = old_stdout
@@ -250,6 +239,8 @@ class ToolExecutionSandbox:
         )
 
     def parse_out_function_results_markers(self, text: str):
+        if self.LOCAL_SANDBOX_RESULT_START_MARKER not in text:
+            return '', text
         marker_len = len(self.LOCAL_SANDBOX_RESULT_START_MARKER)
         start_index = text.index(self.LOCAL_SANDBOX_RESULT_START_MARKER) + marker_len
         end_index = text.index(self.LOCAL_SANDBOX_RESULT_END_MARKER)
@@ -296,19 +287,16 @@ class ToolExecutionSandbox:
         execution = sbx.run_code(code, envs=env_vars)
         if execution.error is not None:
             logger.error(f"Executing tool {self.tool_name} failed with {execution.error}")
-            # Raise a concise exception as this gets returned to the LLM
-            raise self.parse_exception_from_e2b_execution(execution)
-        elif len(execution.results) == 0:
-            return None
-        else:
-            func_return, agent_state = self.parse_best_effort(execution.results[0].text)
-            return SandboxRunResult(
-                func_return=func_return,
-                agent_state=agent_state,
-                stdout=execution.logs.stdout,
-                stderr=execution.logs.stderr,
-                sandbox_config_fingerprint=sbx_config.fingerprint(),
-            )
+            execution.logs.stderr.append(execution.error.traceback) 
+
+        func_return, agent_state = self.parse_best_effort(execution.results[0].text if execution.results else '')
+        return SandboxRunResult(
+            func_return=func_return,
+            agent_state=agent_state,
+            stdout=execution.logs.stdout,
+            stderr=execution.logs.stderr,
+            sandbox_config_fingerprint=sbx_config.fingerprint(),
+        )
 
     def parse_exception_from_e2b_execution(self, e2b_execution: "Execution") -> Exception:
         builtins_dict = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
@@ -356,6 +344,8 @@ class ToolExecutionSandbox:
     # general utility functions
 
     def parse_best_effort(self, text: str) -> Any:
+        if not text:
+            return None, None
         result = pickle.loads(base64.b64decode(text))
         agent_state = None
         if not result["agent_state"] is None:
