@@ -16,7 +16,6 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
-from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
@@ -170,8 +169,6 @@ from letta.config import LettaConfig
 from letta.settings import model_settings, settings, tool_settings
 
 config = LettaConfig.load()
-
-attach_base()
 
 if settings.letta_pg_uri_no_default:
     config.recall_storage_type = "postgres"

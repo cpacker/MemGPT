@@ -176,11 +176,11 @@ class PassageManager:
             results = PassageModel.list(
                 db_session=session, 
                 cursor=cursor,
-                query_text=query_text if not embedded_text else None,
-                query_embedding=embedded_text,
                 start_date=start_date,
                 end_date=end_date,
                 limit=limit,
+                query_text=query_text if not embedded_text else None,
+                query_embedding=embedded_text,
                 **filters
             )
             return [p.to_pydantic() for p in results]
@@ -190,6 +190,7 @@ class PassageManager:
         self,
         actor    : PydanticUser,
         agent_id : Optional[str] = None,
+        **kwargs
     ) -> int:
         """Get the total count of messages with optional filters.
 
@@ -198,7 +199,7 @@ class PassageManager:
             agent_id: The agent ID
         """
         with self.session_maker() as session:
-            return PassageModel.size(db_session=session, actor=actor, agent_id=agent_id)
+            return PassageModel.size(db_session=session, actor=actor, agent_id=agent_id, **kwargs)
 
     def delete_passages(self,
                         actor: PydanticUser,

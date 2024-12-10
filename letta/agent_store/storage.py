@@ -106,10 +106,6 @@ class StorageConnector:
             from letta.agent_store.db import PostgresStorageConnector
 
             return PostgresStorageConnector(table_type, config, user_id, agent_id)
-        elif storage_type == "chroma":
-            from letta.agent_store.chroma import ChromaStorageConnector
-
-            return ChromaStorageConnector(table_type, config, user_id, organization_id,agent_id)
 
         elif storage_type == "qdrant":
             from letta.agent_store.qdrant import QdrantStorageConnector

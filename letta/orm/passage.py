@@ -58,12 +58,9 @@ class Passage(SqlalchemyBase, AgentMixin, OrganizationMixin, FileMixin):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     if settings.letta_pg_uri_no_default:
         from pgvector.sqlalchemy import Vector
-
         embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
-    elif config.archival_storage_type == "sqlite" or config.archival_storage_type == "chroma":
-        embedding = Column(CommonVector)
     else:
-        raise ValueError(f"Unsupported archival_storage_type: {config.archival_storage_type}")
+        embedding = Column(CommonVector)
 
     # Relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="passages", lazy="selectin")

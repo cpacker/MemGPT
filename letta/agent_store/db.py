@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 from datetime import datetime
 from typing import Dict, List, Optional
@@ -65,56 +66,6 @@ class CommonVector(TypeDecorator):
             value = base64.b64decode(value)
         # For PostgreSQL, value is already in bytes
         return np.frombuffer(value, dtype=np.float32)
-
-
-class PassageModelLegacy(Base):
-    """Defines data model for storing Passages (consisting of text, embedding)"""
-
-    __tablename__ = "passages_legacy"
-    __table_args__ = {"extend_existing": True}
-
-    # Assuming passage_id is the primary key
-    id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=False)
-    text = Column(String)
-    file_id = Column(String)
-    agent_id = Column(String)
-    source_id = Column(String)
-
-    # vector storage
-    if settings.letta_pg_uri_no_default:
-        from pgvector.sqlalchemy import Vector
-
-        embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
-    elif config.archival_storage_type == "sqlite" or config.archival_storage_type == "chroma":
-        embedding = Column(CommonVector)
-    else:
-        raise ValueError(f"Unsupported archival_storage_type: {config.archival_storage_type}")
-    embedding_config = Column(EmbeddingConfigColumn)
-    metadata_ = Column(MutableJson)
-
-    # Add a datetime column, with default value as the current time
-    created_at = Column(DateTime(timezone=True))
-
-    Index("passage_idx_user_legacy", user_id, agent_id, file_id),
-
-    def __repr__(self):
-        return f"<Passage(passage_id='{self.id}', text='{self.text}', embedding='{self.embedding})>"
-
-    def to_record(self):
-        return Passage(
-            text=self.text,
-            embedding=self.embedding,
-            embedding_config=self.embedding_config,
-            file_id=self.file_id,
-            user_id=self.user_id,
-            id=self.id,
-            source_id=self.source_id,
-            agent_id=self.agent_id,
-            metadata_=self.metadata_,
-            created_at=self.created_at,
-        )
-
 
 class SQLStorageConnector(StorageConnector):
     def __init__(self, table_type: str, config: LettaConfig, user_id, agent_id=None):
@@ -417,10 +368,16 @@ class PostgresStorageConnector(SQLStorageConnector):
 class SQLLiteStorageConnector(SQLStorageConnector):
     def __init__(self, table_type: str, config: LettaConfig, user_id, agent_id=None):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
-
+    
         # get storage URI
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
-            raise ValueError(f"Table type {table_type} not implemented")
+            self.db_model = PassageModel
+            if settings.letta_pg_uri_no_default:
+                self.uri = settings.letta_pg_uri_no_default
+            else:
+                # For SQLite, use the archival storage path
+                self.path = config.archival_storage_path
+                self.uri = f"sqlite:///{os.path.join(config.archival_storage_path, 'letta.db')}"
         elif table_type == TableType.FILES:
             self.path = self.config.metadata_storage_path
             if self.path is None:
