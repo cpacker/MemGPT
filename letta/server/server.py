@@ -379,6 +379,8 @@ class SyncServer(Server):
         interface = interface or self.default_interface_factory()
         if agent_state.agent_type == AgentType.memgpt_agent:
             agent = Agent(agent_state=agent_state, interface=interface, user=actor, initial_message_sequence=initial_message_sequence)
+        elif agent_state.agent_type == AgentType.offline_memory_agent:
+            agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, user=actor, initial_message_sequence=initial_message_sequence)
         else:
             assert initial_message_sequence is None, f"Initial message sequence is not supported for O1Agents"
             agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
@@ -843,7 +845,7 @@ class SyncServer(Server):
         self.ms.create_agent(agent_state)
 
         # create the agent object
-        if request.initial_message_sequence:
+        if request.initial_message_sequence is not None:
             # init_messages = [Message(user_id=user_id, agent_id=agent_state.id, role=message.role, text=message.text) for message in request.initial_message_sequence]
             init_messages = []
             for message in request.initial_message_sequence:
