@@ -21,14 +21,14 @@ The output of the previous generated step can then be fed to agents in the Letta
 To generate predictions with just the baseline Letta agent, run:
 
 ```
-python fact_edit_baseline.py \
+python run_fact_editing.py \
     --input_file_name MQuAKE/datasets/letta-MQuAKE-CF-3k-v2-100.json \
     --predictions_file_name MQuAKE/datasets/predictions-letta-MQuAKE-CF-3k-v2-100-fact-prompt-v2-offline-memory.json
 ```
 
 To run the async memory agent:
 ```
-python fact_edit_baseline.py \
+python run_fact_editing.py \
     --input_file_name MQuAKE/datasets/letta-MQuAKE-CF-3k-v2-100.json \
     --predictions_file_name MQuAKE/datasets/predictions-letta-MQuAKE-CF-3k-v2-100-fact-prompt-v2-offline-memory.json  \
     --offline_memory
