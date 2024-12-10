@@ -5,6 +5,7 @@ from letta.orm.errors import NoResultFound
 from letta.orm.message import Message as MessageModel
 from letta.schemas.enums import MessageRole
 from letta.schemas.message import Message as PydanticMessage
+from letta.schemas.message import MessageUpdate
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types
 
@@ -44,27 +45,38 @@ class MessageManager:
         return [self.create_message(m, actor=actor) for m in pydantic_msgs]
 
     @enforce_types
-    def update_message_by_id(self, message_id: str, message: PydanticMessage, actor: PydanticUser) -> PydanticMessage:
+    def update_message_by_id(self, message_id: str, message_update: MessageUpdate, actor: PydanticUser) -> PydanticMessage:
         """
         Updates an existing record in the database with values from the provided record object.
         """
         with self.session_maker() as session:
             # Fetch existing message from database
-            msg = MessageModel.read(
+            message = MessageModel.read(
                 db_session=session,
                 identifier=message_id,
                 actor=actor,
             )
 
-            # Update the database record with values from the provided record
-            for column in MessageModel.__table__.columns:
-                column_name = column.name
-                if hasattr(message, column_name):
-                    new_value = getattr(message, column_name)
-                    setattr(msg, column_name, new_value)
+            # Some safety checks specific to messages
+            if message_update.tool_calls and message.role != MessageRole.assistant:
+                raise ValueError(
+                    f"Tool calls {message_update.tool_calls} can only be added to assistant messages. Message {message_id} has role {message.role}."
+                )
+            if message_update.tool_call_id and message.role != MessageRole.tool:
+                raise ValueError(
+                    f"Tool call IDs {message_update.tool_call_id} can only be added to tool messages. Message {message_id} has role {message.role}."
+                )
 
-            # Commit changes
-            return msg.update(db_session=session, actor=actor).to_pydantic()
+            # get update dictionary
+            update_data = message_update.model_dump(exclude_unset=True, exclude_none=True)
+            # Remove redundant update fields
+            update_data = {key: value for key, value in update_data.items() if getattr(message, key) != value}
+
+            for key, value in update_data.items():
+                setattr(message, key, value)
+            message.update(db_session=session, actor=actor)
+
+            return message.to_pydantic()
 
     @enforce_types
     def delete_message_by_id(self, message_id: str, actor: PydanticUser) -> bool:
@@ -107,6 +119,7 @@ class MessageManager:
         limit: Optional[int] = 50,
         filters: Optional[Dict] = None,
         query_text: Optional[str] = None,
+        ascending: bool = True,
     ) -> List[PydanticMessage]:
         """List user messages with flexible filtering and pagination options.
 
@@ -147,6 +160,7 @@ class MessageManager:
         limit: Optional[int] = 50,
         filters: Optional[Dict] = None,
         query_text: Optional[str] = None,
+        ascending: bool = True,
     ) -> List[PydanticMessage]:
         """List messages with flexible filtering and pagination options.
 
@@ -176,6 +190,7 @@ class MessageManager:
                 end_date=end_date,
                 limit=limit,
                 query_text=query_text,
+                ascending=ascending,
                 **message_filters,
             )
 

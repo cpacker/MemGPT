@@ -21,6 +21,7 @@ from letta.agent_store.storage import StorageConnector, TableType
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
+from letta.errors import LettaAgentNotFoundError, LettaUserNotFoundError
 
 # TODO use custom interface
 from letta.interface import AgentInterface  # abstract
@@ -67,7 +68,7 @@ from letta.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, MessageCreate, MessageRole, UpdateMessage
+from letta.schemas.message import Message, MessageCreate, MessageRole, MessageUpdate
 from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
@@ -98,11 +99,6 @@ class Server(object):
     @abstractmethod
     def list_agents(self, user_id: str) -> dict:
         """List all available agents to a user"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_agent_messages(self, user_id: str, agent_id: str, start: int, count: int) -> list:
-        """Paginated query of in-context messages in agent message queue"""
         raise NotImplementedError
 
     @abstractmethod
@@ -235,11 +231,6 @@ class SyncServer(Server):
 
         # Locks
         self.send_message_lock = Lock()
-
-        # Composio
-        self.composio_client = None
-        if tool_settings.composio_api_key:
-            self.composio_client = Composio(api_key=tool_settings.composio_api_key)
 
         # Initialize the metadata store
         config = LettaConfig.load()
@@ -402,7 +393,7 @@ class SyncServer(Server):
         with agent_lock:
             agent_state = self.get_agent(agent_id=agent_id)
             if agent_state is None:
-                raise ValueError(f"Agent (agent_id={agent_id}) does not exist")
+                raise LettaAgentNotFoundError(f"Agent (agent_id={agent_id}) does not exist")
             elif agent_state.user_id is None:
                 raise ValueError(f"Agent (agent_id={agent_id}) does not have a user_id")
             actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
@@ -1177,55 +1168,6 @@ class SyncServer(Server):
         message = agent.message_manager.get_message_by_id(id=message_id, actor=self.default_user)
         return message
 
-    def get_agent_messages(
-        self,
-        agent_id: str,
-        start: int,
-        count: int,
-    ) -> Union[List[Message], List[LettaMessage]]:
-        """Paginated query of all messages in agent message queue"""
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
-
-        if start < 0 or count < 0:
-            raise ValueError("Start and count values should be non-negative")
-
-        if start + count < len(letta_agent._messages):  # messages can be returned from whats in memory
-            # Reverse the list to make it in reverse chronological order
-            reversed_messages = letta_agent._messages[::-1]
-            # Check if start is within the range of the list
-            if start >= len(reversed_messages):
-                raise IndexError("Start index is out of range")
-
-            # Calculate the end index, ensuring it does not exceed the list length
-            end_index = min(start + count, len(reversed_messages))
-
-            # Slice the list for pagination
-            messages = reversed_messages[start:end_index]
-
-        else:
-            # need to access persistence manager for additional messages
-
-            # get messages using message manager
-            page = letta_agent.message_manager.list_user_messages_for_agent(
-                agent_id=agent_id,
-                actor=self.default_user,
-                cursor=start,
-                limit=count,
-            )
-
-            messages = page
-            assert all(isinstance(m, Message) for m in messages)
-
-            ## Convert to json
-            ## Add a tag indicating in-context or not
-            # json_messages = [record.to_json() for record in messages]
-            # in_context_message_ids = [str(m.id) for m in letta_agent._messages]
-            # for d in json_messages:
-            #    d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
-
-        return messages
-
     def get_agent_archival(self, user_id: str, agent_id: str, start: int, count: int) -> List[Passage]:
         """Paginated query of all messages in agent archival memory"""
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
@@ -1254,9 +1196,9 @@ class SyncServer(Server):
         reverse: Optional[bool] = False,
     ) -> List[Passage]:
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+            raise LettaUserNotFoundError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+            raise LettaAgentNotFoundError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
@@ -1307,7 +1249,8 @@ class SyncServer(Server):
         self,
         user_id: str,
         agent_id: str,
-        cursor: Optional[str] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
         limit: Optional[int] = 100,
         reverse: Optional[bool] = False,
         return_message_object: bool = True,
@@ -1324,12 +1267,15 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        # TODO: Check "order_by", "order"
+        start_date = self.message_manager.get_message_by_id(after, actor=actor).created_at if after else None
+        end_date = self.message_manager.get_message_by_id(before, actor=actor).created_at if before else None
         records = letta_agent.message_manager.list_messages_for_agent(
             agent_id=agent_id,
             actor=actor,
-            cursor=cursor,
+            start_date=start_date,
+            end_date=end_date,
             limit=limit,
+            ascending=not reverse,
         )
 
         assert all(isinstance(m, Message) for m in records)
@@ -1667,12 +1613,12 @@ class SyncServer(Server):
         save_agent(letta_agent, self.ms)
         return message
 
-    def update_agent_message(self, agent_id: str, request: UpdateMessage) -> Message:
+    def update_agent_message(self, agent_id: str, message_id: str, request: MessageUpdate) -> Message:
         """Update the details of a message associated with an agent"""
 
         # Get the current message
         letta_agent = self.load_agent(agent_id=agent_id)
-        response = letta_agent.update_message(request=request)
+        response = letta_agent.update_message(message_id=message_id, request=request)
         save_agent(letta_agent, self.ms)
         return response
 
@@ -1899,9 +1845,17 @@ class SyncServer(Server):
             )
 
     # Composio wrappers
-    def get_composio_apps(self) -> List["AppModel"]:
+    def get_composio_client(self, api_key: Optional[str] = None):
+        if api_key:
+            return Composio(api_key=api_key)
+        elif tool_settings.composio_api_key:
+            return Composio(api_key=tool_settings.composio_api_key)
+        else:
+            return Composio()
+
+    def get_composio_apps(self, api_key: Optional[str] = None) -> List["AppModel"]:
         """Get a list of all Composio apps with actions"""
-        apps = self.composio_client.apps.get()
+        apps = self.get_composio_client(api_key=api_key).apps.get()
         apps_with_actions = []
         for app in apps:
             # A bit of hacky logic until composio patches this
@@ -1910,6 +1864,6 @@ class SyncServer(Server):
 
         return apps_with_actions
 
-    def get_composio_actions_from_app_name(self, composio_app_name: str) -> List["ActionModel"]:
-        actions = self.composio_client.actions.get(apps=[composio_app_name])
+    def get_composio_actions_from_app_name(self, composio_app_name: str, api_key: Optional[str] = None) -> List["ActionModel"]:
+        actions = self.get_composio_client(api_key=api_key).actions.get(apps=[composio_app_name])
         return actions
