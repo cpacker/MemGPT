@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime, timedelta
 
 import pytest
@@ -73,8 +74,8 @@ DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
     azure_version=None,
     azure_deployment=None,
 )
-
-using_sqlite = not bool(os.getenv("LETTA_PG_URI"))
+CREATE_DELAY_SQLITE = 1
+USING_SQLITE = not bool(os.getenv("LETTA_PG_URI"))
 
 
 @pytest.fixture(autouse=True)
@@ -911,6 +912,8 @@ def test_list_sources(server: SyncServer, default_user):
     """Test listing sources with pagination."""
     # Create multiple sources
     server.source_manager.create_source(PydanticSource(name="Source 1", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
+    if USING_SQLITE:
+        time.sleep(CREATE_DELAY_SQLITE)
     server.source_manager.create_source(PydanticSource(name="Source 2", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=default_user)
 
     # List sources without pagination
@@ -1004,6 +1007,8 @@ def test_list_files(server: SyncServer, default_user, default_source):
         PydanticFileMetadata(file_name="File 1", file_path="/path/to/file1.txt", file_type="text/plain", source_id=default_source.id),
         actor=default_user,
     )
+    if USING_SQLITE:
+        time.sleep(CREATE_DELAY_SQLITE)
     server.source_manager.create_file(
         PydanticFileMetadata(file_name="File 2", file_path="/path/to/file2.txt", file_type="text/plain", source_id=default_source.id),
         actor=default_user,
@@ -1184,6 +1189,8 @@ def test_list_sandbox_configs(server: SyncServer, default_user):
         config=LocalSandboxConfig(sandbox_dir=""),
     )
     server.sandbox_config_manager.create_or_update_sandbox_config(config_a, actor=default_user)
+    if USING_SQLITE:
+        time.sleep(CREATE_DELAY_SQLITE)
     server.sandbox_config_manager.create_or_update_sandbox_config(config_b, actor=default_user)
 
     # List configs without pagination
@@ -1239,6 +1246,8 @@ def test_list_sandbox_env_vars(server: SyncServer, sandbox_config_fixture, defau
     env_var_create_a = SandboxEnvironmentVariableCreate(key="VAR1", value="value1")
     env_var_create_b = SandboxEnvironmentVariableCreate(key="VAR2", value="value2")
     server.sandbox_config_manager.create_sandbox_env_var(env_var_create_a, sandbox_config_id=sandbox_config_fixture.id, actor=default_user)
+    if USING_SQLITE:
+        time.sleep(CREATE_DELAY_SQLITE)
     server.sandbox_config_manager.create_sandbox_env_var(env_var_create_b, sandbox_config_id=sandbox_config_fixture.id, actor=default_user)
 
     # List env vars without pagination
@@ -1299,7 +1308,7 @@ def test_change_label_on_block_reflects_in_block_agents_table(server, sarah_agen
     assert default_block.label not in labels
 
 
-@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
 def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
     with pytest.raises(ForeignKeyConstraintViolationError):
         server.blocks_agents_manager.add_block_to_agent(
@@ -1361,7 +1370,7 @@ def test_list_agent_ids_with_block(server, sarah_agent, charles_agent, default_u
     assert len(agent_ids) == 2
 
 
-@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
 def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user, default_block):
     block_manager = BlockManager()
     block_manager.delete_block(block_id=default_block.id, actor=default_user)
@@ -1401,7 +1410,7 @@ def test_change_name_on_tool_reflects_in_tool_agents_table(server, sarah_agent, 
     assert print_tool.name not in names
 
 
-@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
 def test_add_tool_to_agent_nonexistent_tool(server, sarah_agent, default_user):
     with pytest.raises(ForeignKeyConstraintViolationError):
         server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id="nonexistent_tool", tool_name="nonexistent_name")
@@ -1447,7 +1456,7 @@ def test_list_agent_ids_with_tool(server, sarah_agent, charles_agent, default_us
     assert len(agent_ids) == 2
 
 
-@pytest.mark.skipif(using_sqlite, reason="Skipped because using SQLite")
+@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
 def test_add_tool_to_agent_with_deleted_tool(server, sarah_agent, default_user, print_tool):
     tool_manager = ToolManager()
     tool_manager.delete_tool_by_id(tool_id=print_tool.id, actor=default_user)

@@ -3128,7 +3128,7 @@ class LocalClient(AbstractClient):
         return self.server.get_agent_recall_cursor(
             user_id=self.user_id,
             agent_id=agent_id,
-            cursor=cursor,
+            before=cursor,
             limit=limit,
             reverse=True,
         )

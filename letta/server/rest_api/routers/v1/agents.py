@@ -420,7 +420,7 @@ def get_agent_messages(
     return server.get_agent_recall_cursor(
         user_id=actor.id,
         agent_id=agent_id,
-        cursor=before,
+        before=before,
         limit=limit,
         reverse=True,
         return_message_object=msg_object,
