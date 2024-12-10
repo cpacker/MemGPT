@@ -29,6 +29,7 @@ class Tool(SqlalchemyBase, OrganizationMixin):
     __table_args__ = (UniqueConstraint("name", "organization_id", name="uix_name_organization"),)
 
     name: Mapped[str] = mapped_column(doc="The display name of the tool.")
+    return_char_limit: Mapped[int] = mapped_column(nullable=True, doc="The maximum number of characters the tool can return.")
     description: Mapped[Optional[str]] = mapped_column(nullable=True, doc="The description of the tool.")
     tags: Mapped[List] = mapped_column(JSON, doc="Metadata tags used to filter tools.")
     source_type: Mapped[ToolSourceType] = mapped_column(String, doc="The type of the source code.", default=ToolSourceType.json)

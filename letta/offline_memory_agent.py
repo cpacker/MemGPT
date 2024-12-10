@@ -150,11 +150,8 @@ class OfflineMemoryAgent(Agent):
         step_count = 0
 
         while counter < self.max_memory_rethinks:
-            # This is hacky but we need to do this for now
-            # TODO: REMOVE THIS
-            for m in next_input_message:
-                m.id = m._generate_id()
-
+            if counter > 0:
+                next_input_message = []
             kwargs["ms"] = ms
             kwargs["first_message"] = False
             step_response = self.inner_step(

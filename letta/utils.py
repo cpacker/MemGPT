@@ -28,7 +28,6 @@ from letta.constants import (
     CLI_WARNING_PREFIX,
     CORE_MEMORY_HUMAN_CHAR_LIMIT,
     CORE_MEMORY_PERSONA_CHAR_LIMIT,
-    FUNCTION_RETURN_CHAR_LIMIT,
     LETTA_DIR,
     MAX_FILENAME_LENGTH,
     TOOL_CALL_ID_MAX_LEN,
@@ -906,8 +905,8 @@ def parse_json(string) -> dict:
         raise e
 
 
-def validate_function_response(function_response_string: any, strict: bool = False, truncate: bool = True) -> str:
-    """Check to make sure that a function used by Letta returned a valid response
+def validate_function_response(function_response_string: any, return_char_limit: int, strict: bool = False, truncate: bool = True) -> str:
+    """Check to make sure that a function used by Letta returned a valid response. Truncates to return_char_limit if necessary.
 
     Responses need to be strings (or None) that fall under a certain text count limit.
     """
@@ -943,11 +942,11 @@ def validate_function_response(function_response_string: any, strict: bool = Fal
 
     # Now check the length and make sure it doesn't go over the limit
     # TODO we should change this to a max token limit that's variable based on tokens remaining (or context-window)
-    if truncate and len(function_response_string) > FUNCTION_RETURN_CHAR_LIMIT:
+    if truncate and len(function_response_string) > return_char_limit:
         print(
-            f"{CLI_WARNING_PREFIX}function return was over limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT}) and was truncated"
+            f"{CLI_WARNING_PREFIX}function return was over limit ({len(function_response_string)} > {return_char_limit}) and was truncated"
         )
-        function_response_string = f"{function_response_string[:FUNCTION_RETURN_CHAR_LIMIT]}... [NOTE: function output was truncated since it exceeded the character limit ({len(function_response_string)} > {FUNCTION_RETURN_CHAR_LIMIT})]"
+        function_response_string = f"{function_response_string[:return_char_limit]}... [NOTE: function output was truncated since it exceeded the character limit ({len(function_response_string)} > {return_char_limit})]"
 
     return function_response_string
 

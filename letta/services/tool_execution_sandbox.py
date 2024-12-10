@@ -201,7 +201,10 @@ class ToolExecutionSandbox:
             func_result, stdout = self.parse_out_function_results_markers(result.stdout)
             func_return, agent_state = self.parse_best_effort(func_result)
             return SandboxRunResult(
-                func_return=func_return, agent_state=agent_state, stdout=[stdout], sandbox_config_fingerprint=sbx_config.fingerprint()
+                func_return=func_return, 
+                agent_state=agent_state, 
+                stdout=[stdout], 
+                sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
         except subprocess.TimeoutExpired:
             raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
@@ -459,7 +462,7 @@ class ToolExecutionSandbox:
         Generate the code string to call the function.
 
         Args:
-            inject_agent_state (bool): Whether to inject the agent's state as an input into the tool
+            inject_agent_state (bool): Whether to inject the axgent's state as an input into the tool
 
         Returns:
             str: Generated code string for calling the tool
