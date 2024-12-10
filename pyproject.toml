@@ -77,6 +77,7 @@ pathvalidate = "^3.2.1"
 langchain-community = {version = "^0.3.7", optional = true}
 langchain = {version = "^0.3.7", optional = true}
 sentry-sdk = {extras = ["fastapi"], version = "2.19.1"}
+rich = "^13.9.4"
 
 [tool.poetry.extras]
 #local = ["llama-index-embeddings-huggingface"]

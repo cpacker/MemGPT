@@ -7555,4 +7555,4 @@ tests = ["wikipedia"]
 [metadata]
 lock-version = "2.0"
 python-versions = "<3.13,>=3.10"
-content-hash = "04884f8e0f0dba223d058969636575e96aa0b8d089bbabba6425acc82ac4ea88"
+content-hash = "85c78fd4e1985aea3678acbdb7df579c3da8d2ff3fd93fff0ccbcd9d192b2f79"
