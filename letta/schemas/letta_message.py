@@ -150,16 +150,16 @@ class FunctionReturn(LettaMessage):
         id (str): The ID of the message
         date (datetime): The date the message was created in ISO format
         function_call_id (str): A unique identifier for the function call that generated this message
-        stdout (List(str)): Captured stdout (e.g. prints, logs) from the function invocation
-        stderr (List(str)): Captured stderr from the function invocation
+        stdout (Optional[List(str)]): Captured stdout (e.g. prints, logs) from the function invocation
+        stderr (Optional[List(str)]): Captured stderr from the function invocation
     """
 
     message_type: Literal["function_return"] = "function_return"
     function_return: str
     status: Literal["success", "error"]
     function_call_id: str
-    stdout: List[str]
-    stderr: List[str]
+    stdout: Optional[List[str]]
+    stderr: Optional[List[str]]
 
 
 # Legacy Letta API had an additional type "assistant_message" and the "function_call" was a formatted string
