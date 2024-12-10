@@ -32,7 +32,6 @@ def clear_agents(client):
     for agent in client.list_agents():
         client.delete_agent(agent.id)
 
-
 def test_ripple_edit(client, mock_e2b_api_key_none):
     trigger_rethink_memory_tool = client.create_or_update_tool(trigger_rethink_memory)
 
@@ -135,3 +134,24 @@ def test_chat_only_agent(client, mock_e2b_api_key_none):
 
     # Clean up agent
     client.delete_agent(chat_only_agent.id)
+
+def test_initial_message_sequence(client, mock_e2b_api_key_none):
+    """
+    Test that when we set the initial sequence to an empty list,
+    we do not get the default initial message sequence.
+    """
+    offline_memory_agent = client.create_agent(
+        name="offline_memory_agent",
+        agent_type=AgentType.offline_memory_agent,
+        system=gpt_system.get_system_text("memgpt_offline_memory"),
+        llm_config=LLMConfig.default_config("gpt-4"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        include_base_tools=False,
+        initial_message_sequence=[],
+    )
+    assert offline_memory_agent is not None
+    assert len(offline_memory_agent.message_ids) == 1 # There should just the system message 
+
+    client.delete_agent(offline_memory_agent.id)
+
+

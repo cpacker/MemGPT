@@ -127,11 +127,12 @@ class ToolExecutionSandbox:
 
         # Save the old stdout
         old_stdout = sys.stdout
+        old_stderr = sys.stderr
         try:
             if local_configs.use_venv:
                 return self.run_local_dir_sandbox_venv(sbx_config, env, temp_file_path)
             else:
-                return self.run_local_dir_sandbox_runpy(sbx_config, env_vars, temp_file_path, old_stdout)
+                return self.run_local_dir_sandbox_runpy(sbx_config, env_vars, temp_file_path, old_stdout, old_stderr)
         except Exception as e:
             logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
             logger.error(f"Logging out tool {self.tool_name} auto-generated code for debugging: \n\n{code}")
@@ -139,6 +140,7 @@ class ToolExecutionSandbox:
         finally:
             # Clean up the temp file and restore stdout
             sys.stdout = old_stdout
+            sys.stderr = old_stderr
             os.remove(temp_file_path)
 
     def run_local_dir_sandbox_venv(self, sbx_config: SandboxConfig, env: Dict[str, str], temp_file_path: str) -> SandboxRunResult:
@@ -201,7 +203,11 @@ class ToolExecutionSandbox:
             func_result, stdout = self.parse_out_function_results_markers(result.stdout)
             func_return, agent_state = self.parse_best_effort(func_result)
             return SandboxRunResult(
-                func_return=func_return, agent_state=agent_state, stdout=[stdout], sandbox_config_fingerprint=sbx_config.fingerprint()
+                func_return=func_return, 
+                agent_state=agent_state,
+                stdout=[stdout],
+                stderr=[result.stderr],
+                sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
         except subprocess.TimeoutExpired:
             raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
@@ -213,11 +219,13 @@ class ToolExecutionSandbox:
             raise e
 
     def run_local_dir_sandbox_runpy(
-        self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str, old_stdout: TextIO
+        self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str, old_stdout: TextIO, old_stderr: TextIO
     ) -> SandboxRunResult:
-        # Redirect stdout to capture script output
+        # Redirect stdout and stderr to capture script output
         captured_stdout = io.StringIO()
+        captured_stderr = io.StringIO()
         sys.stdout = captured_stdout
+        sys.stderr = captured_stderr
 
         # Execute the temp file
         with self.temporary_env_vars(env_vars):
@@ -227,14 +235,17 @@ class ToolExecutionSandbox:
         func_result = result.get(self.LOCAL_SANDBOX_RESULT_VAR_NAME)
         func_return, agent_state = self.parse_best_effort(func_result)
 
-        # Restore stdout and collect captured output
+        # Restore stdout and stderr and collect captured output
         sys.stdout = old_stdout
+        sys.stderr = old_stderr
         stdout_output = captured_stdout.getvalue()
+        stderr_output = captured_stderr.getvalue()
 
         return SandboxRunResult(
             func_return=func_return,
             agent_state=agent_state,
             stdout=[stdout_output],
+            stderr=[stderr_output],
             sandbox_config_fingerprint=sbx_config.fingerprint(),
         )
 
@@ -294,7 +305,8 @@ class ToolExecutionSandbox:
             return SandboxRunResult(
                 func_return=func_return,
                 agent_state=agent_state,
-                stdout=execution.logs.stdout + execution.logs.stderr,
+                stdout=execution.logs.stdout,
+                stderr=execution.logs.stderr,
                 sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
 
