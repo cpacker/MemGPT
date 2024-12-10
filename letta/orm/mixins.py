@@ -52,7 +52,7 @@ class FileMixin(Base):
 
     file_id: Mapped[Optional[str]] = mapped_column(
         String, 
-        ForeignKey("files.id"),
+        ForeignKey("files.id", ondelete="CASCADE"),
         nullable=True
     )
 
