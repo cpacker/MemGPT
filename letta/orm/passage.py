@@ -44,6 +44,8 @@ class CommonVector(TypeDecorator):
             value = base64.b64decode(value)
         return np.frombuffer(value, dtype=np.float32)
 
+# TODO: After migration to Passage, will need to manually delete passages where files 
+#       are deleted on web
 class Passage(SqlalchemyBase, OrganizationMixin, FileMixin):
     """Defines data model for storing Passages"""
     __tablename__ = "passages"
