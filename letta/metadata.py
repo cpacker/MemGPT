@@ -363,8 +363,19 @@ class MetadataStore:
         with self.session_maker() as session:
             # TODO: remove this (is a hack)
             mapping_id = f"{user_id}-{agent_id}-{source_id}"
-            session.add(AgentSourceMappingModel(id=mapping_id, user_id=user_id, agent_id=agent_id, source_id=source_id))
-            session.commit()
+            existing = session.query(AgentSourceMappingModel).filter(
+                AgentSourceMappingModel.id == mapping_id
+            ).first()
+
+            if existing is None:
+                # Only create if it doesn't exist
+                session.add(AgentSourceMappingModel(
+                    id=mapping_id, 
+                    user_id=user_id, 
+                    agent_id=agent_id, 
+                    source_id=source_id
+                ))
+                session.commit()
 
     @enforce_types
     def list_attached_source_ids(self, agent_id: str) -> List[str]:
