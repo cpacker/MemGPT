@@ -2640,7 +2640,7 @@ class LocalClient(AbstractClient):
             block_id=persona_id, block_update=UpdatePersona(value=text, is_template=True), actor=self.user
         )
 
-    def get_persona(self, persona_id: str) -> Persona:
+    def get_persona(self, id: str) -> Persona:
         """
         Get a persona block template
 
