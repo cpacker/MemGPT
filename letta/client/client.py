@@ -1003,9 +1003,7 @@ class RESTClient(AbstractClient):
         Returns:
             job (Job): Information about the async job
         """
-        # TODO: implement include_full_message
         messages = [MessageCreate(role=MessageRole(role), text=message, name=name)]
-        # TODO: figure out how to handle stream_steps and stream_tokens
 
         request = LettaRequest(messages=messages)
         response = requests.post(
