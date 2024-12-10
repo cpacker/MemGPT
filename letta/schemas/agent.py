@@ -13,6 +13,7 @@ from letta.schemas.openai.chat_completion_response import UsageStatistics
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool
 from letta.schemas.tool_rule import ToolRule
+from letta.utils import create_random_username
 
 
 class BaseAgent(OrmMetadataBase, validate_assignment=True):
@@ -84,7 +85,7 @@ class AgentState(BaseAgent):
 
 class CreateAgent(BaseAgent):  #
     # all optional as server can generate defaults
-    name: Optional[str] = Field(None, description="The name of the agent.")
+    name: str = Field(default_factory=lambda: create_random_username(), description="The name of the agent.")
 
     # memory creation
     memory_blocks: List[CreateBlock] = Field(
@@ -98,7 +99,7 @@ class CreateAgent(BaseAgent):  #
     tool_rules: Optional[List[ToolRule]] = Field(None, description="The tool rules governing the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
-    agent_type: Optional[AgentType] = Field(None, description="The type of agent.")
+    agent_type: AgentType = Field(default_factory=lambda: AgentType.memgpt_agent, description="The type of agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
     # Note: if this is None, then we'll populate with the standard "more human than human" initial message sequence
@@ -134,15 +135,15 @@ class CreateAgent(BaseAgent):  #
 
 
 class UpdateAgentState(BaseAgent):
-    id: str = Field(..., description="The id of the agent.")
     name: Optional[str] = Field(None, description="The name of the agent.")
-    tool_names: Optional[List[str]] = Field(None, description="The tools used by the agent.")
+    tool_ids: Optional[List[str]] = Field(None, description="The ids of the tools used by the agent.")
+    source_ids: Optional[List[str]] = Field(None, description="The ids of the sources used by the agent.")
+    block_ids: Optional[List[str]] = Field(None, description="The ids of the blocks used by the agent.")
     tags: Optional[List[str]] = Field(None, description="The tags associated with the agent.")
     system: Optional[str] = Field(None, description="The system prompt used by the agent.")
+    tool_rules: Optional[List[ToolRule]] = Field(None, description="The tool rules governing the agent.")
     llm_config: Optional[LLMConfig] = Field(None, description="The LLM configuration used by the agent.")
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
-
-    # TODO: determine if these should be editable via this schema?
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
 
 

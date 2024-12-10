@@ -112,6 +112,15 @@ class BlockManager:
                 return None
 
     @enforce_types
+    def get_all_blocks_by_ids(self, block_ids: List[str], actor: Optional[PydanticUser] = None) -> List[PydanticBlock]:
+        # TODO: We can do this much more efficiently by listing, instead of executing individual queries per block_id
+        blocks = []
+        for block_id in block_ids:
+            block = self.get_block_by_id(block_id, actor=actor)
+            blocks.append(block)
+        return blocks
+
+    @enforce_types
     def add_default_blocks(self, actor: PydanticUser):
         for persona_file in list_persona_files():
             text = open(persona_file, "r", encoding="utf-8").read()

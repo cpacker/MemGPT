@@ -32,7 +32,6 @@ from letta.o1_agent import O1Agent
 from letta.offline_memory_agent import OfflineMemoryAgent
 from letta.orm import Base
 from letta.orm.errors import NoResultFound
-from letta.prompts import gpt_system
 from letta.providers import (
     AnthropicProvider,
     AzureProvider,
@@ -82,7 +81,7 @@ from letta.services.source_manager import SourceManager
 from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
-from letta.utils import create_random_username, get_utc_time, json_dumps, json_loads
+from letta.utils import get_utc_time, json_dumps, json_loads
 
 logger = get_logger(__name__)
 
@@ -771,71 +770,9 @@ class SyncServer(Server):
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
         """Create a new agent using a config"""
-        if interface is None:
-            interface = self.default_interface_factory()
-
-        # create agent name
-        if request.name is None:
-            request.name = create_random_username()
-
-        if request.agent_type is None:
-            request.agent_type = AgentType.memgpt_agent
-
-        # system debug
-        if request.system is None:
-            # TODO: don't hardcode
-            if request.agent_type == AgentType.memgpt_agent:
-                request.system = gpt_system.get_system_text("memgpt_chat")
-            elif request.agent_type == AgentType.o1_agent:
-                request.system = gpt_system.get_system_text("memgpt_modified_o1")
-            elif request.agent_type == AgentType.offline_memory_agent:
-                request.system = gpt_system.get_system_text("memgpt_offline_memory")
-            elif request.agent_type == AgentType.chat_only_agent:
-                request.system = gpt_system.get_system_text("memgpt_convo_only")
-            else:
-                raise ValueError(f"Invalid agent type: {request.agent_type}")
-
-        # create blocks (note: cannot be linked into the agent_id is created)
-        blocks = []
-        for create_block in request.memory_blocks:
-            block = self.block_manager.create_or_update_block(Block(**create_block.model_dump()), actor=actor)
-            blocks.append(block)
-
-        # add existing blocks
-        for block_id in request.block_ids:
-            block = self.block_manager.get_block_by_id(block_id, actor=actor)
-            blocks.append(block)
-
-        # get tools + only add if they exist
-        tools = []
-        if request.tool_ids:
-            for tool_id in request.tool_ids:
-                tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor)
-                if tool_obj:
-                    tools.append(tool_obj)
-                else:
-                    warnings.warn(f"Attempted to add a nonexistent tool {tool_id} to agent {request.name}, skipping.")
-
-        # get sources
-        sources = []
-        if request.source_ids:
-            for source_id in request.source_ids:
-                source = self.source_manager.get_source_by_id(source_id=source_id, actor=actor)
-                sources.append(source)
-
         # Invoke manager
         agent_state = self.agent_manager.create_agent(
-            name=request.name,
-            system=request.system,
-            agent_type=request.agent_type or AgentType.memgpt_agent,
-            llm_config=request.llm_config,
-            embedding_config=request.embedding_config,
-            blocks=blocks,
-            tools=tools,
-            sources=sources,
-            description=request.description,
-            metadata_=request.metadata_,
-            tool_rules=request.tool_rules,
+            agent_create=request,
             actor=actor,
         )
 
@@ -862,15 +799,9 @@ class SyncServer(Server):
             init_messages = None
 
         # initialize the agent (generates initial message list with system prompt)
+        if interface is None:
+            interface = self.default_interface_factory()
         self.initialize_agent(agent_id=agent_state.id, interface=interface, initial_message_sequence=init_messages)
-
-        # Note: mappings (e.g. tags, blocks) are created after the agent is persisted
-        # TODO: add source mappings here as well
-
-        # create the tags
-        if request.tags:
-            for tag in request.tags:
-                self.agents_tags_manager.add_tag_to_agent(agent_id=agent_state.id, tag=tag, actor=actor)
 
         in_memory_agent_state = self.get_agent(agent_state.id)
         return in_memory_agent_state

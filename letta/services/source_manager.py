@@ -87,6 +87,15 @@ class SourceManager:
                 return None
 
     @enforce_types
+    def get_all_sources_by_ids(self, source_ids: List[str], actor: Optional[PydanticUser] = None) -> List[PydanticSource]:
+        # TODO: We can do this much more efficiently by listing
+        sources = []
+        for source_id in source_ids:
+            source = self.get_source_by_id(source_id, actor=actor)
+            sources.append(source)
+        return sources
+
+    @enforce_types
     def get_source_by_name(self, source_name: str, actor: PydanticUser) -> Optional[PydanticSource]:
         """Retrieve a source by its name."""
         with self.session_maker() as session:

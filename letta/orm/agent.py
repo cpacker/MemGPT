@@ -24,6 +24,7 @@ from letta.schemas.tool_rule import (
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
+    from letta.orm.agents_tags import AgentsTags
     from letta.orm.organization import Organization
     from letta.orm.source import Source
     from letta.orm.tool import Tool
@@ -151,9 +152,9 @@ class Agent(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="agents")
-    tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_agents", lazy="joined")
-    sources: Mapped[List["Source"]] = relationship("Source", secondary="sources_agents", lazy="joined")
-    memory: Mapped[List["Block"]] = relationship("Block", secondary="blocks_agents", lazy="joined")
+    tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_agents", lazy="selectin")
+    sources: Mapped[List["Source"]] = relationship("Source", secondary="sources_agents", lazy="selectin")
+    core_memory: Mapped[List["Block"]] = relationship("Block", secondary="blocks_agents", lazy="selectin")
     messages: Mapped[List["Message"]] = relationship(
         "Message",
         back_populates="agent",
@@ -161,10 +162,12 @@ class Agent(SqlalchemyBase, OrganizationMixin):
         cascade="all, delete-orphan",  # Ensure messages are deleted when the agent is deleted
         passive_deletes=True,
     )
-
-    # TODO: Add this back
-    tags: Mapped[List["TagModel"]] = relationship(
-        "TagModel", secondary="tags_agents", lazy="selectin", doc="Tags associated with the agent."
+    tags: Mapped[List["AgentsTags"]] = relationship(
+        "AgentsTags",
+        back_populates="agent",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        doc="Tags associated with the agent.",
     )
     # passages: Mapped[List["Passage"]] = relationship("Passage", back_populates="agent", lazy="selectin")
 
@@ -177,13 +180,13 @@ class Agent(SqlalchemyBase, OrganizationMixin):
             "message_ids": self.message_ids,
             "tools": self.tools,
             "sources": self.sources,
-            "tags": [],  # TODO: Add this back in
+            "tags": [t.tag for t in self.tags],
             "tool_rules": self.tool_rules,
             "system": self.system,
             "agent_type": self.agent_type,
             "llm_config": self.llm_config,
             "embedding_config": self.embedding_config,
             "metadata_": self.metadata_,
-            "memory": Memory(blocks=self.memory),
+            "memory": Memory(blocks=self.core_memory),
         }
         return self.__pydantic_model__(**state)

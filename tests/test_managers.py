@@ -1,4 +1,5 @@
 import os
+from typing import Union
 
 import pytest
 from sqlalchemy import delete
@@ -23,12 +24,14 @@ from letta.orm import (
     User,
 )
 from letta.orm.agents_tags import AgentsTags
-from letta.schemas.agent import AgentType, CreateAgent
+from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.enums import MessageRole
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message as PydanticMessage
+from letta.schemas.message import MessageCreate
 from letta.schemas.sandbox_config import (
     E2BSandboxConfig,
     SandboxConfigCreate,
@@ -39,7 +42,6 @@ from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool_rule import InitToolRule
 from letta.schemas.user import User as PydanticUser
 from letta.server.server import SyncServer
-from letta.services.agent_manager import AgentManager
 from letta.services.block_manager import BlockManager
 
 DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
@@ -111,34 +113,15 @@ def default_source(server: SyncServer, default_user):
 
 
 @pytest.fixture
-def sarah_agent(server: SyncServer, default_user, default_organization):
-    """Fixture to create and return a sample agent within the default organization."""
-    agent_state = server.create_agent(
-        request=CreateAgent(
-            name="sarah_agent",
-            # memory_blocks=[CreateBlock(label="human", value="Charles"), CreateBlock(label="persona", value="I am a helpful assistant")],
-            memory_blocks=[],
-            llm_config=LLMConfig.default_config("gpt-4"),
-            embedding_config=EmbeddingConfig.default_config(provider="openai"),
-        ),
-        actor=default_user,
+def other_source(server: SyncServer, default_user):
+    source_pydantic = PydanticSource(
+        name="Another Test Source",
+        description="This is yet another test source.",
+        metadata_={"type": "another_test"},
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
     )
-    yield agent_state
-
-
-@pytest.fixture
-def charles_agent(server: SyncServer, default_user, default_organization):
-    """Fixture to create and return a sample agent within the default organization."""
-    agent_state = server.create_agent(
-        request=CreateAgent(
-            name="charles_agent",
-            memory_blocks=[CreateBlock(label="human", value="Charles"), CreateBlock(label="persona", value="I am a helpful assistant")],
-            llm_config=LLMConfig.default_config("gpt-4"),
-            embedding_config=EmbeddingConfig.default_config(provider="openai"),
-        ),
-        actor=default_user,
-    )
-    yield agent_state
+    source = server.source_manager.create_source(source=source_pydantic, actor=default_user)
+    yield source
 
 
 @pytest.fixture
@@ -274,6 +257,61 @@ def other_tool(server: SyncServer, default_user, default_organization):
     yield tool
 
 
+@pytest.fixture
+def sarah_agent(server: SyncServer, default_user, default_organization):
+    """Fixture to create and return a sample agent within the default organization."""
+    agent_state = server.create_agent(
+        request=CreateAgent(
+            name="sarah_agent",
+            memory_blocks=[],
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        ),
+        actor=default_user,
+    )
+    yield agent_state
+
+
+@pytest.fixture
+def charles_agent(server: SyncServer, default_user, default_organization):
+    """Fixture to create and return a sample agent within the default organization."""
+    agent_state = server.create_agent(
+        request=CreateAgent(
+            name="charles_agent",
+            memory_blocks=[CreateBlock(label="human", value="Charles"), CreateBlock(label="persona", value="I am a helpful assistant")],
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        ),
+        actor=default_user,
+    )
+    yield agent_state
+
+
+@pytest.fixture
+def comprehensive_test_agent_fixture(server: SyncServer, default_user, print_tool, default_source, default_block):
+    memory_blocks = [CreateBlock(label="human", value="BananaBoy"), CreateBlock(label="persona", value="I am a helpful assistant")]
+    create_agent_request = CreateAgent(
+        system="test system",
+        memory_blocks=memory_blocks,
+        llm_config=LLMConfig.default_config("gpt-4"),
+        embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        block_ids=[default_block.id],
+        tool_ids=[print_tool.id],
+        source_ids=[default_source.id],
+        tags=["a", "b"],
+        description="test_description",
+        metadata_={"test_key": "test_value"},
+        tool_rules=[InitToolRule(tool_name=print_tool.name)],
+        initial_message_sequence=[MessageCreate(role=MessageRole.user, text="hello world")],
+    )
+    created_agent = server.agent_manager.create_agent(
+        create_agent_request,
+        actor=default_user,
+    )
+
+    yield created_agent, create_agent_request
+
+
 @pytest.fixture(scope="module")
 def server():
     config = LettaConfig.load()
@@ -287,37 +325,91 @@ def server():
 # ======================================================================================================================
 # AgentManager Tests
 # ======================================================================================================================
-def test_create_agent_scratchpad(server: SyncServer, default_user, print_tool, default_source, default_block):
-    # # Create a dummy message
-    # message = PydanticMessage(
-    #     organization_id=default_user.organization_id,
-    #     agent_id=sarah_agent.id,
-    #     role="user",
-    #     text="Hello, world!",
-    # )
-    #
-    # msg = server.message_manager.create_message(message, actor=default_user)
+def _comprehensive_agent_checks(agent: AgentState, request: Union[CreateAgent, UpdateAgentState]):
+    # Assert scalar fields
+    assert agent.system == request.system, f"System prompt mismatch: {agent.system} != {request.system}"
+    assert agent.description == request.description, f"Description mismatch: {agent.description} != {request.description}"
+    assert agent.metadata_ == request.metadata_, f"Metadata mismatch: {agent.metadata_} != {request.metadata_}"
 
-    manager = AgentManager()
-    created_agent = manager.create_agent(
-        name="test_agent",
-        system="test system",
-        agent_type=AgentType.memgpt_agent,
-        llm_config=LLMConfig.default_config("gpt-4"),
-        embedding_config=EmbeddingConfig.default_config(provider="openai"),
-        blocks=[default_block],
-        tools=[print_tool],
-        sources=[default_source],
-        tags=[],
-        description="test_description",
-        metadata_={"test_key": "test_value"},
-        tool_rules=[InitToolRule(tool_name=print_tool.name)],
-        actor=default_user,
+    # Assert agent type
+    assert agent.agent_type == request.agent_type, f"Agent type mismatch: {agent.agent_type} != {request.agent_type}"
+
+    # Assert LLM configuration
+    assert agent.llm_config == request.llm_config, f"LLM config mismatch: {agent.llm_config} != {request.llm_config}"
+
+    # Assert embedding configuration
+    assert (
+        agent.embedding_config == request.embedding_config
+    ), f"Embedding config mismatch: {agent.embedding_config} != {request.embedding_config}"
+
+    # Assert memory blocks
+    assert len(agent.memory.blocks) == len(request.memory_blocks) + len(
+        request.block_ids
+    ), f"Memory blocks count mismatch: {len(agent.memory.blocks)} != {len(request.memory_blocks) + len(request.block_ids)}"
+    memory_block_values = {block.value for block in agent.memory.blocks}
+    expected_block_values = {block.value for block in request.memory_blocks}
+    assert expected_block_values.issubset(
+        memory_block_values
+    ), f"Memory blocks mismatch: {expected_block_values} not in {memory_block_values}"
+
+    # Assert tools
+    assert len(agent.tools) == len(request.tool_ids), f"Tools count mismatch: {len(agent.tools)} != {len(request.tool_ids)}"
+    assert {tool.id for tool in agent.tools} == set(
+        request.tool_ids
+    ), f"Tools mismatch: {set(tool.id for tool in agent.tools)} != {set(request.tool_ids)}"
+
+    # Assert sources
+    assert len(agent.sources) == len(request.source_ids), f"Sources count mismatch: {len(agent.sources)} != {len(request.source_ids)}"
+    assert {source.id for source in agent.sources} == set(
+        request.source_ids
+    ), f"Sources mismatch: {set(source.id for source in agent.sources)} != {set(request.source_ids)}"
+
+    # Assert tags
+    assert set(agent.tags) == set(request.tags), f"Tags mismatch: {set(agent.tags)} != {set(request.tags)}"
+
+    # Assert tool rules
+    if request.tool_rules:
+        assert len(agent.tool_rules) == len(
+            request.tool_rules
+        ), f"Tool rules count mismatch: {len(agent.tool_rules)} != {len(request.tool_rules)}"
+        assert all(
+            any(rule.tool_name == req_rule.tool_name for rule in agent.tool_rules) for req_rule in request.tool_rules
+        ), f"Tool rules mismatch: {agent.tool_rules} != {request.tool_rules}"
+
+
+def test_create_get_list_agent(server: SyncServer, comprehensive_test_agent_fixture, default_user):
+    # Test agent creation
+    created_agent, create_agent_request = comprehensive_test_agent_fixture
+    _comprehensive_agent_checks(created_agent, create_agent_request)
+
+    # Test get agent
+    get_agent = server.agent_manager.get_agent_by_id(agent_id=created_agent.id, actor=default_user)
+    _comprehensive_agent_checks(get_agent, create_agent_request)
+
+    # Test list agent
+    list_agents = server.agent_manager.list_agents(actor=default_user)
+    assert len(list_agents) == 1
+    _comprehensive_agent_checks(list_agents[0], create_agent_request)
+
+
+def test_update_agent(server: SyncServer, comprehensive_test_agent_fixture, other_tool, other_source, other_block, default_user):
+    agent, _ = comprehensive_test_agent_fixture
+    update_agent_request = UpdateAgentState(
+        name="train_agent",
+        tool_ids=[other_tool.id],
+        source_ids=[other_source.id],
+        block_ids=[other_block.id],
+        tool_rules=[InitToolRule(tool_name=other_tool.name)],
+        tags=["c", "d"],
+        system="train system",
+        llm_config=LLMConfig.default_config("gpt-4o-mini"),
+        embedding_config=EmbeddingConfig.default_config(model_name="letta"),
+        message_ids=["10", "20"],
     )
 
-    import ipdb
-
-    ipdb.set_trace()
+    updated_agent = server.agent_manager.update_agent(agent.id, update_agent_request, actor=default_user)
+    _comprehensive_agent_checks(agent, updated_agent)
+    assert updated_agent.message_ids == update_agent_request.message_ids
 
 
 # # ======================================================================================================================
