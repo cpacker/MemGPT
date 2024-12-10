@@ -175,7 +175,6 @@ def create_application() -> "FastAPI":
         return JSONResponse(status_code=404, content={"detail": "User not found"})
 
     settings.cors_origins.append("https://app.letta.com")
-    print(f"▶ View using ADE at: https://app.letta.com/development-servers/local/dashboard")
 
     if (os.getenv("LETTA_SERVER_SECURE") == "true") or "--secure" in sys.argv:
         print(f"▶ Using secure mode with password: {random_password}")
@@ -254,9 +253,21 @@ def start_server(
         # Add the handler to the logger
         server_logger.addHandler(stream_handler)
 
-    print(f"▶ Server running at: http://{host or 'localhost'}:{port or REST_DEFAULT_PORT}\n")
-    uvicorn.run(
-        app,
-        host=host or "localhost",
-        port=port or REST_DEFAULT_PORT,
-    )
+    if (os.getenv("LOCAL_HTTPS") == "true") or "--localhttps" in sys.argv:
+        uvicorn.run(
+            app,
+            host=host or "localhost",
+            port=port or REST_DEFAULT_PORT,
+            ssl_keyfile="certs/localhost-key.pem",
+            ssl_certfile="certs/localhost.pem",
+        )
+        print(f"▶ Server running at: https://{host or 'localhost'}:{port or REST_DEFAULT_PORT}\n")
+    else:
+        uvicorn.run(
+            app,
+            host=host or "localhost",
+            port=port or REST_DEFAULT_PORT,
+        )
+        print(f"▶ Server running at: http://{host or 'localhost'}:{port or REST_DEFAULT_PORT}\n")
+
+    print(f"▶ View using ADE at: https://app.letta.com/development-servers/local/dashboard")
