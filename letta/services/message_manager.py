@@ -119,6 +119,7 @@ class MessageManager:
         limit: Optional[int] = 50,
         filters: Optional[Dict] = None,
         query_text: Optional[str] = None,
+        ascending: bool = True,
     ) -> List[PydanticMessage]:
         """List user messages with flexible filtering and pagination options.
 
@@ -159,6 +160,7 @@ class MessageManager:
         limit: Optional[int] = 50,
         filters: Optional[Dict] = None,
         query_text: Optional[str] = None,
+        ascending: bool = True,
     ) -> List[PydanticMessage]:
         """List messages with flexible filtering and pagination options.
 
@@ -188,6 +190,7 @@ class MessageManager:
                 end_date=end_date,
                 limit=limit,
                 query_text=query_text,
+                ascending=ascending,
                 **message_filters,
             )
 

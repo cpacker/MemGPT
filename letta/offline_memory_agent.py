@@ -130,8 +130,9 @@ class OfflineMemoryAgent(Agent):
         # extras
         first_message_verify_mono: bool = False,
         max_memory_rethinks: int = 10,
+        initial_message_sequence: Optional[List[Message]] = None,  
     ):
-        super().__init__(interface, agent_state, user)
+        super().__init__(interface, agent_state, user, initial_message_sequence=initial_message_sequence)
         self.first_message_verify_mono = first_message_verify_mono
         self.max_memory_rethinks = max_memory_rethinks
 
@@ -150,11 +151,8 @@ class OfflineMemoryAgent(Agent):
         step_count = 0
 
         while counter < self.max_memory_rethinks:
-            # This is hacky but we need to do this for now
-            # TODO: REMOVE THIS
-            for m in next_input_message:
-                m.id = m._generate_id()
-
+            if counter > 0:
+                next_input_message = []
             kwargs["ms"] = ms
             kwargs["first_message"] = False
             step_response = self.inner_step(

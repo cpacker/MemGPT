@@ -161,37 +161,25 @@ def test_user_message(server, user_id, agent_id):
     # server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
 
 
-# TODO: Add this back, this is broken on main
-# @pytest.mark.order(5)
-# def test_get_recall_memory(server, org_id, user_id, agent_id):
-#     # test recall memory cursor pagination
-#     messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=2)
-#     cursor1 = messages_1[-1].id
-#     messages_2 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, after=cursor1, limit=1000)
-#     messages_2[-1].id
-#     messages_3 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=1000)
-#     messages_3[-1].id
-#     assert messages_3[-1].created_at >= messages_3[0].created_at
-#     assert len(messages_3) == len(messages_1) + len(messages_2)
-#     messages_4 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, before=cursor1)
-#     assert len(messages_4) == 1
-#
-#     # test in-context message ids
-#     in_context_ids = server.get_in_context_message_ids(agent_id=agent_id)
-#     message_ids = [m.id for m in messages_3]
-#     for message_id in in_context_ids:
-#         assert message_id in message_ids, f"{message_id} not in {message_ids}"
-#
-#     # test recall memory
-#     messages_1 = server.get_agent_messages(agent_id=agent_id, start=0, count=1)
-#     assert len(messages_1) == 1
-#     messages_2 = server.get_agent_messages(agent_id=agent_id, start=1, count=1000)
-#     messages_3 = server.get_agent_messages(agent_id=agent_id, start=1, count=2)
-#     # not sure exactly how many messages there should be
-#     assert len(messages_2) > len(messages_3)
-#     # test safe empty return
-#     messages_none = server.get_agent_messages(agent_id=agent_id, start=1000, count=1000)
-#     assert len(messages_none) == 0
+@pytest.mark.order(5)
+def test_get_recall_memory(server, org_id, user_id, agent_id):
+    # test recall memory cursor pagination
+    messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=2)
+    cursor1 = messages_1[-1].id
+    messages_2 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, after=cursor1, limit=1000)
+    messages_2[-1].id
+    messages_3 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=1000)
+    messages_3[-1].id
+    assert messages_3[-1].created_at >= messages_3[0].created_at
+    assert len(messages_3) == len(messages_1) + len(messages_2)
+    messages_4 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, reverse=True, before=cursor1)
+    assert len(messages_4) == 1
+
+    # test in-context message ids
+    in_context_ids = server.get_in_context_message_ids(agent_id=agent_id)
+    message_ids = [m.id for m in messages_3]
+    for message_id in in_context_ids:
+        assert message_id in message_ids, f"{message_id} not in {message_ids}"
 
 
 @pytest.mark.order(6)

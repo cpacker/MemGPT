@@ -102,11 +102,6 @@ class Server(object):
         raise NotImplementedError
 
     @abstractmethod
-    def get_agent_messages(self, user_id: str, agent_id: str, start: int, count: int) -> list:
-        """Paginated query of in-context messages in agent message queue"""
-        raise NotImplementedError
-
-    @abstractmethod
     def get_agent_memory(self, user_id: str, agent_id: str) -> dict:
         """Return the memory of an agent (core memory + non-core statistics)"""
         raise NotImplementedError
@@ -384,6 +379,8 @@ class SyncServer(Server):
         interface = interface or self.default_interface_factory()
         if agent_state.agent_type == AgentType.memgpt_agent:
             agent = Agent(agent_state=agent_state, interface=interface, user=actor, initial_message_sequence=initial_message_sequence)
+        elif agent_state.agent_type == AgentType.offline_memory_agent:
+            agent = OfflineMemoryAgent(agent_state=agent_state, interface=interface, user=actor, initial_message_sequence=initial_message_sequence)
         else:
             assert initial_message_sequence is None, f"Initial message sequence is not supported for O1Agents"
             agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
@@ -848,7 +845,7 @@ class SyncServer(Server):
         self.ms.create_agent(agent_state)
 
         # create the agent object
-        if request.initial_message_sequence:
+        if request.initial_message_sequence is not None:
             # init_messages = [Message(user_id=user_id, agent_id=agent_state.id, role=message.role, text=message.text) for message in request.initial_message_sequence]
             init_messages = []
             for message in request.initial_message_sequence:
@@ -1173,55 +1170,6 @@ class SyncServer(Server):
         message = agent.message_manager.get_message_by_id(id=message_id, actor=self.default_user)
         return message
 
-    def get_agent_messages(
-        self,
-        agent_id: str,
-        start: int,
-        count: int,
-    ) -> Union[List[Message], List[LettaMessage]]:
-        """Paginated query of all messages in agent message queue"""
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
-
-        if start < 0 or count < 0:
-            raise ValueError("Start and count values should be non-negative")
-
-        if start + count < len(letta_agent._messages):  # messages can be returned from whats in memory
-            # Reverse the list to make it in reverse chronological order
-            reversed_messages = letta_agent._messages[::-1]
-            # Check if start is within the range of the list
-            if start >= len(reversed_messages):
-                raise IndexError("Start index is out of range")
-
-            # Calculate the end index, ensuring it does not exceed the list length
-            end_index = min(start + count, len(reversed_messages))
-
-            # Slice the list for pagination
-            messages = reversed_messages[start:end_index]
-
-        else:
-            # need to access persistence manager for additional messages
-
-            # get messages using message manager
-            page = letta_agent.message_manager.list_user_messages_for_agent(
-                agent_id=agent_id,
-                actor=self.default_user,
-                cursor=start,
-                limit=count,
-            )
-
-            messages = page
-            assert all(isinstance(m, Message) for m in messages)
-
-            ## Convert to json
-            ## Add a tag indicating in-context or not
-            # json_messages = [record.to_json() for record in messages]
-            # in_context_message_ids = [str(m.id) for m in letta_agent._messages]
-            # for d in json_messages:
-            #    d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
-
-        return messages
-
     def get_agent_archival(self, user_id: str, agent_id: str, start: int, count: int) -> List[Passage]:
         """Paginated query of all messages in agent archival memory"""
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
@@ -1303,7 +1251,8 @@ class SyncServer(Server):
         self,
         user_id: str,
         agent_id: str,
-        cursor: Optional[str] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
         limit: Optional[int] = 100,
         reverse: Optional[bool] = False,
         return_message_object: bool = True,
@@ -1320,12 +1269,15 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        # TODO: Check "order_by", "order"
+        start_date = self.message_manager.get_message_by_id(after, actor=actor).created_at if after else None
+        end_date = self.message_manager.get_message_by_id(before, actor=actor).created_at if before else None
         records = letta_agent.message_manager.list_messages_for_agent(
             agent_id=agent_id,
             actor=actor,
-            cursor=cursor,
+            start_date=start_date,
+            end_date=end_date,
             limit=limit,
+            ascending=not reverse,
         )
 
         assert all(isinstance(m, Message) for m in records)
