@@ -136,7 +136,8 @@ def cosine_distance(embedding1, embedding2, expected_dim=MAX_EMBEDDING_DIM):
 @event.listens_for(Engine, "connect")
 def register_functions(dbapi_connection, connection_record):
     """Register SQLite functions"""
-    dbapi_connection.create_function("cosine_distance", 2, cosine_distance)
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        dbapi_connection.create_function("cosine_distance", 2, cosine_distance)
     
 # Register adapters and converters for numpy arrays
 sqlite3.register_adapter(np.ndarray, adapt_array)
