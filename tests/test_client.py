@@ -14,6 +14,7 @@ from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.agent import AgentState
 from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.job import JobStatus
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.sandbox_config import LocalSandboxConfig, SandboxType
 from letta.utils import create_random_username
@@ -328,3 +329,28 @@ async def test_send_message_parallel(client: Union[LocalClient, RESTClient], age
 
     # Ensure both tasks completed
     assert len(responses) == len(messages), "Not all messages were processed"
+
+
+def test_send_message_async(client: Union[LocalClient, RESTClient], agent: AgentState):
+    """Test that we can send a message asynchronously"""
+
+    if not isinstance(client, RESTClient):
+        pytest.skip("send_message_async is only supported by the RESTClient")
+
+    print("Sending message asynchronously")
+    job = client.send_message_async(agent_id=agent.id, role="user", message="This is a test message, no need to respond.")
+    assert job.id is not None
+    assert job.status == JobStatus.created
+    print(f"Job created, job={job}, status={job.status}")
+
+    # Wait for the job to complete, cancel it if takes over 10 seconds
+    start_time = time.time()
+    while job.status == JobStatus.created:
+        time.sleep(1)
+        job = client.get_job(job_id=job.id)
+        print(f"Job status: {job.status}")
+        if time.time() - start_time > 10:
+            pytest.fail("Job took too long to complete")
+
+    print(f"Job completed in {time.time() - start_time} seconds, job={job}")
+    assert job.status == JobStatus.completed

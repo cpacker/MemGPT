@@ -960,7 +960,6 @@ class RESTClient(AbstractClient):
         # TODO: figure out how to handle stream_steps and stream_tokens
 
         # When streaming steps is True, stream_tokens must be False
-        request = LettaRequest(messages=messages)
         if stream_tokens or stream_steps:
             from letta.client.streaming import _sse_post
 
@@ -984,6 +983,39 @@ class RESTClient(AbstractClient):
             #     response.messages = messages
 
             return response
+
+    def send_message_async(
+        self,
+        message: str,
+        role: str,
+        agent_id: Optional[str] = None,
+        name: Optional[str] = None,
+    ) -> Job:
+        """
+        Send a message to an agent (async, returns a job)
+
+        Args:
+            message (str): Message to send
+            role (str): Role of the message
+            agent_id (str): ID of the agent
+            name(str): Name of the sender
+
+        Returns:
+            job (Job): Information about the async job
+        """
+        messages = [MessageCreate(role=MessageRole(role), text=message, name=name)]
+
+        request = LettaRequest(messages=messages)
+        response = requests.post(
+            f"{self.base_url}/{self.api_prefix}/agents/{agent_id}/messages/async",
+            json=request.model_dump(),
+            headers=self.headers,
+        )
+        if response.status_code != 200:
+            raise ValueError(f"Failed to send message: {response.text}")
+        response = Job(**response.json())
+
+        return response
 
     # humans / personas
 

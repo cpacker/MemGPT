@@ -3,7 +3,16 @@ import warnings
 from datetime import datetime
 from typing import List, Optional, Union
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    Header,
+    HTTPException,
+    Query,
+    status,
+)
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
@@ -14,6 +23,7 @@ from letta.schemas.block import (  # , BlockLabelUpdate, BlockLimitUpdate
     CreateBlock,
 )
 from letta.schemas.enums import MessageStreamStatus
+from letta.schemas.job import Job, JobStatus, JobUpdate
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
     LettaMessage,
@@ -32,6 +42,7 @@ from letta.schemas.message import Message, MessageCreate, MessageUpdate
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
 from letta.schemas.tool import Tool
+from letta.schemas.user import User
 from letta.server.rest_api.interface import StreamingServerInterface
 from letta.server.rest_api.utils import get_letta_server, sse_async_generator
 from letta.server.server import SyncServer
@@ -500,6 +511,94 @@ async def send_message_streaming(
         assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
     )
     return result
+
+
+async def process_message_background(
+    job_id: str,
+    server: SyncServer,
+    actor: User,
+    agent_id: str,
+    user_id: str,
+    messages: list,
+    assistant_message_tool_name: str,
+    assistant_message_tool_kwarg: str,
+) -> None:
+    """Background task to process the message and update job status."""
+    try:
+        # TODO(matt) we should probably make this stream_steps and log each step as it progresses, so the job update GET can see the total steps so far + partial usage?
+        result = await send_message_to_agent(
+            server=server,
+            agent_id=agent_id,
+            user_id=user_id,
+            messages=messages,
+            stream_steps=False,  # NOTE(matt)
+            stream_tokens=False,
+            assistant_message_tool_name=assistant_message_tool_name,
+            assistant_message_tool_kwarg=assistant_message_tool_kwarg,
+        )
+
+        # Update job status to completed
+        job_update = JobUpdate(
+            status=JobStatus.completed,
+            completed_at=datetime.utcnow(),
+            metadata_={"result": result.model_dump()},  # Store the result in metadata
+        )
+        server.job_manager.update_job_by_id(job_id=job_id, job_update=job_update, actor=actor)
+
+    except Exception as e:
+        # Update job status to failed
+        job_update = JobUpdate(
+            status=JobStatus.failed,
+            completed_at=datetime.utcnow(),
+            metadata_={"error": str(e)},
+        )
+        server.job_manager.update_job_by_id(job_id=job_id, job_update=job_update, actor=actor)
+        raise
+
+
+@router.post(
+    "/{agent_id}/messages/async",
+    response_model=Job,
+    operation_id="create_agent_message_async",
+)
+async def send_message_async(
+    agent_id: str,
+    background_tasks: BackgroundTasks,
+    server: SyncServer = Depends(get_letta_server),
+    request: LettaRequest = Body(...),
+    user_id: Optional[str] = Header(None, alias="user_id"),
+):
+    """
+    Asynchronously process a user message and return a job ID.
+    The actual processing happens in the background, and the status can be checked using the job ID.
+    """
+    actor = server.get_user_or_default(user_id=user_id)
+
+    # Create a new job
+    job = Job(
+        user_id=actor.id,
+        status=JobStatus.created,
+        metadata_={
+            "job_type": "send_message_async",
+            "agent_id": agent_id,
+        },
+    )
+    job = server.job_manager.create_job(pydantic_job=job, actor=actor)
+
+    # Add the background task
+    background_tasks.add_task(
+        process_message_background,
+        job_id=job.id,
+        server=server,
+        actor=actor,
+        agent_id=agent_id,
+        user_id=actor.id,
+        messages=request.messages,
+        assistant_message_tool_name=request.assistant_message_tool_name,
+        assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
+    )
+
+    return job
 
 
 # TODO: move this into server.py?
