@@ -1142,7 +1142,7 @@ class SyncServer(Server):
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
-        return ArchivalMemorySummary(size=len(agent.passage_manager))
+        return ArchivalMemorySummary(size=agent.passage_manager.size(actor=self.default_user))
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
