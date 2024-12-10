@@ -158,8 +158,8 @@ class FunctionReturn(LettaMessage):
     function_return: str
     status: Literal["success", "error"]
     function_call_id: str
-    stdout: Optional[List[str]]
-    stderr: Optional[List[str]]
+    stdout: Optional[List[str]] = None
+    stderr: Optional[List[str]] = None
 
 
 # Legacy Letta API had an additional type "assistant_message" and the "function_call" was a formatted string
