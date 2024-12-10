@@ -580,7 +580,7 @@ async def send_message_async(
         status=JobStatus.created,
         metadata_={"agent_id": agent_id},
     )
-    job = server.job_manager.create_job(job=job, actor=actor)
+    job = server.job_manager.create_job(pydantic_job=job, actor=actor)
 
     # Add the background task
     background_tasks.add_task(
