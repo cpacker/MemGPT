@@ -136,13 +136,14 @@ def create_application() -> "FastAPI":
             },
         )
 
+    debug_mode = "--debug" in sys.argv
     app = FastAPI(
         swagger_ui_parameters={"docExpansion": "none"},
         # openapi_tags=TAGS_METADATA,
         title="Letta",
         summary="Create LLM agents with long-term memory and custom tools 📚🦙",
         version="1.0.0",  # TODO wire this up to the version in the package
-        debug=True,
+        debug=debug_mode,  # if True, the stack trace will be printed in the response
     )
 
     @app.exception_handler(Exception)
