@@ -801,7 +801,13 @@ class Agent(BaseAgent):
                     # but by default, we add a truncation safeguard to prevent bad functions from
                     # overflow the agent context window
                     truncate = True
-                function_response_string = validate_function_response(function_response, truncate=truncate)
+
+                # get the function response limit
+                tool_obj = [tool for tool in self.agent_state.tools if tool.name == function_name][0]
+                return_char_limit = tool_obj.return_char_limit
+                function_response_string = validate_function_response(
+                    function_response, return_char_limit=return_char_limit, truncate=truncate
+                )
                 function_args.pop("self", None)
                 function_response = package_function_response(True, function_response_string)
                 function_failed = False

@@ -2,6 +2,7 @@ from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
 
+from letta.constants import FUNCTION_RETURN_CHAR_LIMIT
 from letta.functions.functions import derive_openai_json_schema
 from letta.functions.helpers import (
     generate_composio_tool_wrapper,
@@ -40,6 +41,9 @@ class Tool(BaseTool):
     # code
     source_code: str = Field(..., description="The source code of the function.")
     json_schema: Optional[Dict] = Field(None, description="The JSON schema of the function.")
+
+    # tool configuration
+    return_char_limit: int = Field(FUNCTION_RETURN_CHAR_LIMIT, description="The maximum number of characters in the response.")
 
     # metadata fields
     created_by_id: Optional[str] = Field(None, description="The id of the user that made this Tool.")
@@ -91,6 +95,7 @@ class ToolCreate(LettaBase):
     json_schema: Optional[Dict] = Field(
         None, description="The JSON schema of the function (auto-generated from source_code if not provided)"
     )
+    return_char_limit: int = Field(FUNCTION_RETURN_CHAR_LIMIT, description="The maximum number of characters in the response.")
 
     @classmethod
     def from_composio(cls, action_name: str, api_key: Optional[str] = None) -> "ToolCreate":
