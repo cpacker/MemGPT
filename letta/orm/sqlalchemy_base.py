@@ -94,9 +94,9 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
             # Date range filtering
             if start_date:
-                query = query.filter(cls.created_at > start_date)
+                query = query.filter(cls.created_at >= start_date)
             if end_date:
-                query = query.filter(cls.created_at < end_date)
+                query = query.filter(cls.created_at <= end_date)
 
             # Cursor-based pagination using created_at
             # TODO: There is a really nasty race condition issue here with Sqlite
