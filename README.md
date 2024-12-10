@@ -46,7 +46,7 @@ The recommended way to use Letta is to run use Docker. To install Docker, see [D
 
 You can also install Letta using `pip` (`pip install letta`), however, the configuration when installing via `pip` will use SQLite, which does not support migrating Letta data between versions.
 
-### 🌖 Running the Letta server
+### 🌖 Run the Letta server
 
 Once you have Docker installed and running, you can launch the Letta server with `docker run`.
 
@@ -70,16 +70,16 @@ docker run \
   letta/letta
 ```
 
-Once the Letta server is running, you can access it via port `8283` (e.g. sending REST API requests to `http://localhost:8283/api/v1`). You can also connect your server to the Letta ADE to access and manage your agents in a web interface.
+Once the Letta server is running, you can access it via port `8283` (e.g. sending REST API requests to `http://localhost:8283/v1`). You can also connect your server to the Letta ADE to access and manage your agents in a web interface.
 
-### 👾 Accessing the Letta ADE (Agent Development Environment)
+### 👾 Access the Letta ADE (Agent Development Environment)
 
 > [!NOTE]
 > The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server.
 
 To access the Letta ADE, visit [https://app.letta.com](https://app.letta.com).
 
-### 🧑‍🚀 Running the Letta CLI
+### 🧑‍🚀 Run the Letta CLI
 
 The recommended way to use Letta is via the REST API and ADE, however you can also access your agents with the Letta CLI tool.
 
