@@ -129,9 +129,9 @@ Hit enter to begin (will request first Letta message)
 >
 > We do not officially support migrations between Letta versions with `SQLite` backends, only `postgres`. If you would like to keep your agent data across multiple Letta versions we highly recommend using the Docker install method which is the easiest way to use `postgres` with Letta.
 
-<section>
+<details>
 
-<details>View instructions for installing with pip</details>
+<summary>View instructions for installing with pip</summary>
 
 You can also install Letta with `pip`, will default to using `SQLite` for the database backends (whereas Docker will default to using `postgres`).
 
@@ -197,7 +197,7 @@ INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://localhost:8283 (Press CTRL+C to quit)
 ```
-</section>
+</details>
 
 ## 🤗 How to contribute
 
