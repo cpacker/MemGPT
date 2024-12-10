@@ -173,13 +173,14 @@ def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
     return None
 
 
-def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0) -> Optional[str]:
+def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0, start: Optional[int] = 0) -> Optional[str]:
     """
     Search archival memory using semantic (embedding-based) search.
 
     Args:
         query (str): String to search for.
         page (Optional[int]): Allows you to page through results. Only use on a follow-up query. Defaults to 0 (first page).
+        start (Optional[int]): Starting index for the search results. Defaults to 0.
 
     Returns:
         str: Query result string
@@ -196,14 +197,35 @@ def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0) -
     except:
         raise ValueError(f"'page' argument must be an integer")
     count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results = self.passage_manager.list_passages(actor=self.user, query_text=query, limit=count)
-    if len(results) == 0:
-        results_str = f"No results found."
-    else:
-        results_pref = f"Showing {len(results)} of results:"
-        results_formatted = [f"timestamp: {d.created_at}, memory: {d.text}" for d in results]
-        results_str = f"{results_pref} {json_dumps(results_formatted)}"
-    return results_str
+    
+    try:
+        # Get results using passage manager
+        all_results = self.passage_manager.list_passages(
+            actor=self.user,
+            query_text=query,
+            limit=count + start,  # Request enough results to handle offset
+            embedding_config=self.agent_state.embedding_config,
+            embed_query=True
+        )
+
+        # Apply pagination
+        end = min(count + start, len(all_results))
+        paged_results = all_results[start:end]
+
+        # Format results to match previous implementation
+        formatted_results = [
+            {
+                "timestamp": str(result.created_at),
+                "content": result.text
+            }
+            for result in paged_results
+        ]
+
+        return formatted_results, len(formatted_results)
+
+    except Exception as e:
+        print("Archival search error", e)
+        raise e
 
 
 def core_memory_append(agent_state: "AgentState", label: str, content: str) -> Optional[str]:  # type: ignore
