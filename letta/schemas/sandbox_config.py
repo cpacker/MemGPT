@@ -19,6 +19,7 @@ class SandboxRunResult(BaseModel):
     func_return: Optional[Any] = Field(None, description="The function return object")
     agent_state: Optional[AgentState] = Field(None, description="The agent state")
     stdout: Optional[List[str]] = Field(None, description="Captured stdout (e.g. prints, logs) from the function invocation")
+    stderr: Optional[List[str]] = Field(None, description="Captured stderr from the function invocation")
     sandbox_config_fingerprint: str = Field(None, description="The fingerprint of the config for the sandbox")
 
 
