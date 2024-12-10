@@ -113,7 +113,7 @@ class CheckPasswordMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
 
         # Exclude health check endpoint from password protection
-        if request.url.path == "/api/v1/health" or request.url.path == "/latest/health":
+        if request.url.path == "/v1/health/" or request.url.path == "/latest/health/":
             return await call_next(request)
 
         if request.headers.get("X-BARE-PASSWORD") == f"password {random_password}":
