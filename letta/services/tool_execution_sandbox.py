@@ -459,7 +459,7 @@ class ToolExecutionSandbox:
         Generate the code string to call the function.
 
         Args:
-            inject_agent_state (bool): Whether to inject the agent's state as an input into the tool
+            inject_agent_state (bool): Whether to inject the axgent's state as an input into the tool
 
         Returns:
             str: Generated code string for calling the tool

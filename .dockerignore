@@ -1,1 +1,9 @@
-chatui
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.git
+.gitignore
+.env
+*.log

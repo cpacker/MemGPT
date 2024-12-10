@@ -20,6 +20,7 @@ from letta.agent_store.storage import StorageConnector, TableType
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
+from letta.errors import LettaAgentNotFoundError, LettaUserNotFoundError
 
 # TODO use custom interface
 from letta.interface import AgentInterface  # abstract
@@ -98,11 +99,6 @@ class Server(object):
     @abstractmethod
     def list_agents(self, user_id: str) -> dict:
         """List all available agents to a user"""
-        raise NotImplementedError
-
-    @abstractmethod
-    def get_agent_messages(self, user_id: str, agent_id: str, start: int, count: int) -> list:
-        """Paginated query of in-context messages in agent message queue"""
         raise NotImplementedError
 
     @abstractmethod
@@ -396,7 +392,7 @@ class SyncServer(Server):
         with agent_lock:
             agent_state = self.get_agent(agent_id=agent_id)
             if agent_state is None:
-                raise ValueError(f"Agent (agent_id={agent_id}) does not exist")
+                raise LettaAgentNotFoundError(f"Agent (agent_id={agent_id}) does not exist")
             elif agent_state.user_id is None:
                 raise ValueError(f"Agent (agent_id={agent_id}) does not have a user_id")
             actor = self.user_manager.get_user_by_id(user_id=agent_state.user_id)
@@ -1248,9 +1244,9 @@ class SyncServer(Server):
         limit: Optional[int] = 100,
     ) -> List[PydanticPassage]:
         if self.user_manager.get_user_by_id(user_id=user_id) is None:
-            raise ValueError(f"User user_id={user_id} does not exist")
+            raise LettaUserNotFoundError(f"User user_id={user_id} does not exist")
         if self.ms.get_agent(agent_id=agent_id, user_id=user_id) is None:
-            raise ValueError(f"Agent agent_id={agent_id} does not exist")
+            raise LettaAgentNotFoundError(f"Agent agent_id={agent_id} does not exist")
 
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
@@ -1305,7 +1301,8 @@ class SyncServer(Server):
         self,
         user_id: str,
         agent_id: str,
-        cursor: Optional[str] = None,
+        after: Optional[str] = None,
+        before: Optional[str] = None,
         limit: Optional[int] = 100,
         reverse: Optional[bool] = False,
         return_message_object: bool = True,
@@ -1322,12 +1319,15 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        # TODO: Check "order_by", "order"
+        start_date = self.message_manager.get_message_by_id(after, actor=actor).created_at if after else None
+        end_date = self.message_manager.get_message_by_id(before, actor=actor).created_at if before else None
         records = letta_agent.message_manager.list_messages_for_agent(
             agent_id=agent_id,
             actor=actor,
-            cursor=cursor,
+            start_date=start_date,
+            end_date=end_date,
             limit=limit,
+            ascending=not reverse,
         )
 
         assert all(isinstance(m, Message) for m in records)

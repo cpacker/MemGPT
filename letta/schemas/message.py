@@ -481,7 +481,20 @@ class Message(BaseMessage):
             return f"<{xml_tag}>{string}</{xml_tag}" if xml_tag else string
 
         if self.role == "system":
-            raise ValueError(f"Anthropic 'system' role not supported")
+            # NOTE: this is not for system instructions, but instead system "events"
+
+            assert all([v is not None for v in [self.text, self.role]]), vars(self)
+            # Two options here, we would use system.package_system_message,
+            # or use a more Anthropic-specific packaging ie xml tags
+            user_system_event = add_xml_tag(string=f"SYSTEM ALERT: {self.text}", xml_tag="event")
+            anthropic_message = {
+                "content": user_system_event,
+                "role": "user",
+            }
+
+            # Optional field, do not include if null
+            if self.name is not None:
+                anthropic_message["name"] = self.name
 
         elif self.role == "user":
             assert all([v is not None for v in [self.text, self.role]]), vars(self)
