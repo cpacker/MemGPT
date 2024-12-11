@@ -51,7 +51,7 @@
 
 ## ⚡ Quickstart
 
-_The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see [below](#-quickstart-pip))._
+_The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see instructions [below](#-quickstart-pip))._
 
 ### 🌖 Run the Letta server
 
@@ -134,6 +134,18 @@ If your Letta server isn't running on `localhost` (for example, you deployed it 
 > _"Do I need to install Docker to use Letta?"_
 
 No, you can install Letta using `pip` (via `pip install -U letta`), as well as from source (via `poetry install`). See instructions below.
+
+> _"What's the difference between installing with `pip` vs `Docker`?"_
+
+Letta gives your agents persistence (they live indefinitely) by storing all your agent data in a database. Letta is designed to be used with a [PostgreSQL](https://en.wikipedia.org/wiki/PostgreSQL) (the world's most popular database), however, it is not possible to install PostgreSQL via `pip`, so the `pip` install of Letta defaults to using [SQLite](https://www.sqlite.org/). If you have a PostgreSQL instance running on your own computer, you can still connect Letta (installed via `pip`) to PostgreSQL by setting the environment variable `LETTA_PG_URI`.
+
+**Database migrations are not officially supported for Letta when using SQLite**, so you would like to ensure that if you're able to upgrade to the latest Letta version and migrate your Letta agents data, make sure that you're using PostgreSQL as your Letta database backend. Full compatability table below:
+
+| Installation method | Database backend | Data migrations supported? |
+|---|---|---|
+| `pip install letta` + `letta server` | SQLite | ❌ |
+| `pip install letta` + `export LETTA_PG_URI=...` + `letta server` (postgres running externally) | Postgres | ✅ |
+| `docker run ...` | Postgres | ✅ |
 
 > _"How do I use the ADE locally?"_
 
