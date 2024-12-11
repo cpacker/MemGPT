@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/letta-ai/letta/tree/main/assets/Letta-logo-RGB_GreyonTransparent_cropped_small.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://github.com/letta-ai/letta/tree/main/assets/Letta-logo-RGB_OffBlackonTransparent_cropped_small.png">
-    <img alt="Letta logo" src="https://github.com/letta-ai/letta/tree/main/assets/Letta-logo-RGB_GreyonOffBlack_cropped_small.png" width="500">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/Letta-logo-RGB_GreyonTransparent_cropped_small.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/Letta-logo-RGB_OffBlackonTransparent_cropped_small.png">
+    <img alt="Letta logo" src="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/Letta-logo-RGB_GreyonOffBlack_cropped_small.png" width="500">
   </picture>
 </p>
 
@@ -13,9 +13,9 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/letta-ai/letta/tree/main/assets/example_ade_screenshot.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://github.com/letta-ai/letta/tree/main/assets/example_ade_screenshot_light.png">
-    <img alt="Letta logo" src="https://github.com/letta-ai/letta/tree/main/assets/example_ade_screenshot.png" width="800">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_light.png">
+    <img alt="Letta logo" src="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot.png" width="800">
   </picture>
 </p>
 
@@ -89,9 +89,9 @@ Once the Letta server is running, you can access it via port `8283` (e.g. sendin
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/letta-ai/letta/tree/main/assets/example_ade_screenshot.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://github.com/letta-ai/letta/tree/main/assets/example_ade_screenshot_light.png">
-    <img alt="ADE screenshot" src="https://github.com/letta-ai/letta/tree/main/assets/example_ade_screenshot.png" width="800">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_light.png">
+    <img alt="ADE screenshot" src="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot.png" width="800">
   </picture>
 </p>
 
@@ -104,9 +104,9 @@ To connect the ADE with your local Letta server, simply:
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/letta-ai/letta/tree/main/assets/example_ade_screenshot_agents.png">
-    <source media="(prefers-color-scheme: light)" srcset="https://github.com/letta-ai/letta/tree/main/assets/example_ade_screenshot_agents_light.png">
-    <img alt="Letta logo" src="https://github.com/letta-ai/letta/tree/main/assets/example_ade_screenshot_agents.png" width="800">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_agents.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_agents_light.png">
+    <img alt="Letta logo" src="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_agents.png" width="800">
   </picture>
 </p>
 
