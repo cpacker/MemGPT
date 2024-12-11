@@ -1825,23 +1825,32 @@ class SyncServer(Server):
             stdout = [s for s in sandbox_run_result.stdout if s.strip()]
             stderr = [s for s in sandbox_run_result.stderr if s.strip()]
 
+            # expected error
+            if stderr:
+                error_msg = self.get_error_msg_for_func_return(tool.name, stderr[-1])
+                return FunctionReturn(
+                    id="null",
+                    function_call_id="null",
+                    date=get_utc_time(),
+                    status="error",
+                    function_return=error_msg,
+                    stdout=stdout,
+                    stderr=stderr,
+                )
+
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
                 date=get_utc_time(),
-                status="error" if stderr and "Error" in function_response else "success",
+                status="success",
                 function_return=function_response,
                 stdout=stdout,
                 stderr=stderr,
             )
+
+        # unexpected error TODO(@cthomas): consolidate error handling
         except Exception as e:
-            # same as agent.py
-            from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
-
-            error_msg = f"Error executing tool {tool.name}: {e}"
-            if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
-                error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
-
+            error_msg = self.get_error_msg_for_func_return(tool.name, e)
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
@@ -1851,6 +1860,18 @@ class SyncServer(Server):
                 stdout=[''],
                 stderr=[traceback.format_exc()],
             )
+
+
+    def get_error_msg_for_func_return(self, tool_name, exception_message):
+        # same as agent.py
+        from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
+
+        error_msg = f"Error executing tool {tool_name}: {exception_message}"
+        if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
+            error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
+        print("error_msg: " + error_msg)
+        return error_msg
+
 
     # Composio wrappers
     def get_composio_client(self, api_key: Optional[str] = None):

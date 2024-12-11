@@ -166,8 +166,6 @@ class ToolExecutionSandbox:
         env["PYTHONWARNINGS"] = "ignore"
 
         # Execute the code in a restricted subprocess
-        agent_state = None
-        stdout, stderr = '', ''
         try:
             result = subprocess.run(
                 [os.path.join(venv_path, "bin", "python3"), temp_file_path],
@@ -177,38 +175,30 @@ class ToolExecutionSandbox:
                 capture_output=True,
                 text=True,
             )
-            stderr = result.stderr
             func_result, stdout = self.parse_out_function_results_markers(result.stdout)
             func_return, agent_state = self.parse_best_effort(func_result)
+            return SandboxRunResult(
+                func_return=func_return,
+                agent_state=agent_state,
+                stdout=[stdout],
+                stderr=[result.stderr],
+                sandbox_config_fingerprint=sbx_config.fingerprint(),
+            )
 
-        except subprocess.TimeoutExpired as e:
-            func_return = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
-            logger.error(f"Executing tool {self.tool_name} has timed out")
-            stderr += f"\nTimeoutError: Executing tool {self.tool_name} has timed out.\n"
-            stderr += func_return
+        except subprocess.TimeoutExpired:
+            raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
         except subprocess.CalledProcessError as e:
-            func_return = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
             logger.error(f"Executing tool {self.tool_name} has process error: {e}")
-            stderr += f"\nError: Executing tool {self.tool_name} has process error: {e}.\n"
-            stderr += func_return
+            raise e
         except Exception as e:
-            func_return = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
             logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
-            stderr += f"\nError: Executing tool {self.tool_name} has an unexpected error: {e}.\n"
-            stderr += func_return
-
-        return SandboxRunResult(
-            func_return=func_return, 
-            agent_state=agent_state, 
-            stdout=[stdout], 
-            stderr=[stderr], 
-            sandbox_config_fingerprint=sbx_config.fingerprint(),
-        )
+            raise e
+        
 
     def run_local_dir_sandbox_runpy(
         self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str, old_stdout: TextIO, old_stderr: TextIO
     ) -> SandboxRunResult:
-        func_return, agent_state = None, None
+        func_return, agent_state, error_msg = None, None, None
 
         # Redirect stdout and stderr to capture script output
         captured_stdout, captured_stderr = io.StringIO(), io.StringIO()
@@ -225,20 +215,21 @@ class ToolExecutionSandbox:
             func_return, agent_state = self.parse_best_effort(func_result)
 
         except Exception as e:
-            func_return = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
-            traceback.print_exc(func_return)
+            traceback.print_exc(file=sys.stderr)
+            error_msg = f"{type(e).__name__}: {str(e)}"
 
         # Restore stdout and stderr and collect captured output
         sys.stdout = old_stdout
         sys.stderr = old_stderr
-        stdout_output = captured_stdout.getvalue()
-        stderr_output = captured_stderr.getvalue()
+        stdout_output = [captured_stdout.getvalue()]
+        stderr_output = [captured_stderr.getvalue()]
+        stderr_output.append(error_msg if error_msg else '')
 
         return SandboxRunResult(
             func_return=func_return,
             agent_state=agent_state,
-            stdout=[stdout_output],
-            stderr=[stderr_output],
+            stdout=stdout_output,
+            stderr=stderr_output,
             sandbox_config_fingerprint=sbx_config.fingerprint(),
         )
 
@@ -289,11 +280,13 @@ class ToolExecutionSandbox:
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         code = self.generate_execution_script(agent_state=agent_state)
         execution = sbx.run_code(code, envs=env_vars)
+        func_return, agent_state = None, None
         if execution.error is not None:
             logger.error(f"Executing tool {self.tool_name} failed with {execution.error}")
             execution.logs.stderr.append(execution.error.traceback) 
-            func_return = f"{execution.error.name}: {execution.error.value}\n{execution.error.traceback}"
-            agent_state = None
+            execution.logs.stderr.append(f"{execution.error.name}: {execution.error.value}") 
+        elif len(execution.results) == 0:
+            return None
         else:
             func_return, agent_state = self.parse_best_effort(execution.results[0].text)
         return SandboxRunResult(
