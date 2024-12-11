@@ -36,14 +36,12 @@
 
 ## ⚡ Quickstart (Docker)
 
-The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see guide [below](#-quickstart-pip).
+The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see guide [below](#-quickstart-pip)).
 
 ### 🌖 Run the Letta server
 
 > [!NOTE]
 > Letta agents live inside the Letta server, which persists them to a database. You can interact with the Letta agents inside your Letta server via the [REST API](https://docs.letta.com/api-reference) + Python / Typescript SDKs, and the Agent Development Environment (a graphical interface).
-
-Once you have Docker installed and running, you can launch the Letta server with `docker run`.
 
 The Letta server can be connected to various LLM API backends ([OpenAI](https://docs.letta.com/models/openai), [Anthropic](https://docs.letta.com/models/anthropic), [vLLM](https://docs.letta.com/models/vllm), [Ollama](https://docs.letta.com/models/ollama), etc.). To enable access to these LLM API providers, set the appropriate environment variables when you use `docker run`:
 ```sh
@@ -52,7 +50,7 @@ docker run \
   -v ~/.letta/.persist/pgdata:/var/lib/postgresql/data \
   -p 8283:8283 \
   -e OPENAI_API_KEY="your_openai_api_key" \
-  letta/letta
+  letta/letta:latest
 ```
 
 If you have many different LLM API keys, you can also set up a `.env` file instead and pass that to `docker run`:
@@ -62,12 +60,15 @@ docker run \
   -v ~/.letta/.persist/pgdata:/var/lib/postgresql/data \
   -p 8283:8283 \
   --env-file .env \
-  letta/letta
+  letta/letta:latest
 ```
 
 Once the Letta server is running, you can access it via port `8283` (e.g. sending REST API requests to `http://localhost:8283/v1`). You can also connect your server to the Letta ADE to access and manage your agents in a web interface.
 
 ### 👾 Access the Letta ADE (Agent Development Environment)
+
+> [!NOTE]
+> The Letta ADE is a graphical user interface for creating, deploying, interacting and observing with your Letta agents.
 
 <p align="center">
   <picture>
@@ -77,12 +78,36 @@ Once the Letta server is running, you can access it via port `8283` (e.g. sendin
   </picture>
 </p>
 
-> [!NOTE]
-> The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server.
+The ADE is an integrated development environment meant to developers create and manage Letta agents. For example, if you're running a Letta server to power an end-user application (such as a customer support chatbot), you can use the ADE to test, debug, and observe the agents in your server. You can also use the ADE as a general chat interface to interacting with your Letta agents.
+
+The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server. The Letta server and REST API are fully open source, and you can
+
+
 
 To access the Letta ADE, visit [https://app.letta.com](https://app.letta.com).
 
-### 🧑‍🚀 Run the Letta CLI
+### 🧑‍🚀 Frequently asked questions (FAQ)
+
+> _"Do I need to install Docker to use Letta?"_
+
+No, you can install Letta using `pip` (via `pip install -U letta`), as well as from source (via `poetry install`). See instructions below.
+
+> _"How do I use the ADE locally?"_
+
+1. Start a Letta server on your local computer by running the `docker run` command
+2. Go to the [ADE](https://app.letta.com), and you should see a connection to "Local server"
+
+If you would like to use the old version of the ADE (that runs on `localhost`), you can downgrade to a Letta version `<=0.5.0`.
+
+> _"If I connect the ADE to my local server, does my agent data get uploaded to letta.com?"_
+
+No, the data in your Letta server database stays on your machine. The Letta ADE web application simply connects to your local Letta server (via the REST API) and provides a graphical interface on top of it.
+
+> _"Do I have to use your ADE? Can I build my own?"_
+
+The ADE is built on top of the (fully open source) Letta server and Letta Agents API. You can build your own application like the ADE on top of the REST API (view the documention [here](https://docs.letta.com/api-reference)).
+
+### 🖥️ Run the Letta CLI
 
 The recommended way to use Letta is via the REST API and ADE, however you can also access your agents with the Letta CLI tool.
 
