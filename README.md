@@ -29,24 +29,19 @@
 
 </div>
 
-> [!NOTE]
+> [!IMPORTANT]
 > **Looking for MemGPT?** You're in the right place!
 >
-> The MemGPT package and Docker image have been renamed to `letta` to clarify the distinction between MemGPT agents and the API server / runtime that runs LLM agents as *services*.
->
-> You use the **Letta _framework_** to create **MemGPT _agents_**. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
-
-## Overview
-
-In Letta, all agents are stored/persisted in the same database, so the agents you create in the CLI are accessible via the API and ADE, and vice versa. Check out the [quickstart guide on our docs](https://docs.letta.com/quickstart) for a tutorial where you create an agent in the Letta CLI and message the same agent via the Letta API.
+> The MemGPT package and Docker image have been renamed to `letta` to clarify the distinction between MemGPT *agents* and the Letta API *server* / *runtime* that runs LLM agents as *services*. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
 
 ## ⚡ Quickstart (Docker)
 
-The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/).
-
-You can also install Letta using `pip` (`pip install letta`), however, the configuration when installing via `pip` will use SQLite, which does not support migrating Letta data between versions.
+The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see guide [below](##-⚡-Quickstart-(pip))).
 
 ### 🌖 Run the Letta server
+
+> [!NOTE]
+> Letta agents live inside the Letta server, which persists them to a database. You can interact with the Letta agents inside your Letta server via the [REST API](https://docs.letta.com/api-reference) + Python / Typescript SDKs, and the Agent Development Environment (a graphical interface).
 
 Once you have Docker installed and running, you can launch the Letta server with `docker run`.
 
