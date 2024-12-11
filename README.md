@@ -98,12 +98,7 @@ To connect the ADE with your local Letta server, simply:
   </picture>
 </p>
 
-#### 🌐 Connecting the ADE to an external (self-hosted) Letta server
-If your Letta server isn't running on `localhost` (for example, you deployed it on an external service like EC2):
-1. Click "Add remote server"
-2. Enter your desired server name, the IP address of the server, and the server password (if set)
-
-To password protect your server, include `SECURE=true` and `LETTA_SERVER_PASSWORD=yourpassword` in your `docker run` command:
+🔐 To password protect your server, include `SECURE=true` and `LETTA_SERVER_PASSWORD=yourpassword` in your `docker run` command:
 ```sh
 # If LETTA_SERVER_PASSWORD isn't set, the server will autogenerate a password
 docker run \
@@ -114,6 +109,11 @@ docker run \
   -e LETTA_SERVER_PASSWORD=yourpassword \
   letta/letta:latest
 ```
+
+#### 🌐 Connecting the ADE to an external (self-hosted) Letta server
+If your Letta server isn't running on `localhost` (for example, you deployed it on an external service like EC2):
+1. Click "Add remote server"
+2. Enter your desired server name, the IP address of the server, and the server password (if set)
 
 ---
 
