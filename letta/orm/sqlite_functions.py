@@ -122,7 +122,6 @@ def cosine_distance(embedding1, embedding2, expected_dim=MAX_EMBEDDING_DIM):
         vec1 = validate_and_transform_embedding(embedding1, expected_dim)
         vec2 = validate_and_transform_embedding(embedding2, expected_dim)
     except ValueError as e:
-        print(f"Embedding validation failed: {str(e)}")
         return 0.0
         
     similarity = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
