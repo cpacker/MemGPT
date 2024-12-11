@@ -14,8 +14,10 @@ from fastapi import (
     status,
 )
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import Field
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
+from letta.orm.errors import NoResultFound
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgent
 from letta.schemas.block import (  # , BlockLabelUpdate, BlockLimitUpdate
     Block,
@@ -87,9 +89,18 @@ def get_agent_context_window(
     return server.get_agent_context_window(user_id=actor.id, agent_id=agent_id)
 
 
+class CreateAgentRequest(CreateAgent):
+    """
+    CreateAgent model specifically for POST request body, excluding user_id which comes from headers
+    """
+
+    # Override the user_id field to exclude it from the request body validation
+    user_id: Optional[str] = Field(None, exclude=True)
+
+
 @router.post("/", response_model=AgentState, operation_id="create_agent")
 def create_agent(
-    agent: CreateAgent = Body(...),
+    agent: CreateAgentRequest = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -165,7 +176,7 @@ def get_agent_state(
     return server.get_agent_state(user_id=actor.id, agent_id=agent_id)
 
 
-@router.delete("/{agent_id}", response_model=None, operation_id="delete_agent")
+@router.delete("/{agent_id}", response_model=AgentState, operation_id="delete_agent")
 def delete_agent(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
@@ -175,7 +186,10 @@ def delete_agent(
     Delete an agent.
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-    return server.agent_manager.delete_agent(agent_id=agent_id, actor=actor)
+    try:
+        return server.agent_manager.delete_agent(agent_id=agent_id, actor=actor)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found for user_id={actor.id}.")
 
 
 @router.get("/{agent_id}/sources", response_model=List[Source], operation_id="get_agent_sources")
@@ -495,7 +509,6 @@ async def send_message_streaming(
     This endpoint accepts a message from a user and processes it through the agent.
     It will stream the steps of the response always, and stream the tokens if 'stream_tokens' is set to True.
     """
-    request.stream_tokens = False
 
     actor = server.user_manager.get_user_or_default(user_id=user_id)
     result = await send_message_to_agent(

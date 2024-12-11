@@ -258,7 +258,7 @@ class AgentManager:
             return agent.to_pydantic()
 
     @enforce_types
-    def delete_agent(self, agent_id: str, actor: Optional[PydanticUser] = None) -> None:
+    def delete_agent(self, agent_id: str, actor: Optional[PydanticUser] = None) -> PydanticAgentState:
         """
         Deletes an agent and its associated relationships.
         Ensures proper permission checks and cascades where applicable.
@@ -276,6 +276,8 @@ class AgentManager:
 
             # Commit the session to apply changes
             session.commit()
+
+            return agent.to_pydantic()
 
     # Functions dealing with sources
     @enforce_types
