@@ -367,8 +367,7 @@ def get_agent_archival_memory(
     return server.get_agent_archival_cursor(
         user_id=actor.id,
         agent_id=agent_id,
-        after=after,
-        before=before,
+        cursor=after,  # TODO: deleting before, after. is this expected?
         limit=limit,
     )
 
@@ -385,7 +384,7 @@ def insert_agent_archival_memory(
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    return server.insert_archival_memory(user_id=actor.id, agent_id=agent_id, memory_contents=request.text)
+    return server.insert_archival_memory(agent_id=agent_id, memory_contents=request.text, actor=actor)
 
 
 # TODO(ethan): query or path parameter for memory_id?
@@ -403,7 +402,7 @@ def delete_agent_archival_memory(
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    server.delete_archival_memory(user_id=actor.id, agent_id=agent_id, memory_id=memory_id)
+    server.delete_archival_memory(agent_id=agent_id, memory_id=memory_id, actor=actor)
     return JSONResponse(status_code=status.HTTP_200_OK, content={"message": f"Memory id={memory_id} successfully deleted"})
 
 

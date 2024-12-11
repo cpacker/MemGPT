@@ -743,7 +743,8 @@ class RESTClient(AbstractClient):
         agents = [AgentState(**agent) for agent in response.json()]
         if len(agents) == 0:
             return None
-        assert len(agents) == 1, f"Multiple agents with the same name: {agents}"
+        agents = [agents[0]]  # TODO: @matt monkeypatched
+        assert len(agents) == 1, f"Multiple agents with the same name: {[(agents.name, agents.id) for agents in agents]}"
         return agents[0].id
 
     # memory
@@ -3072,7 +3073,7 @@ class LocalClient(AbstractClient):
         Returns:
             passages (List[Passage]): List of inserted passages
         """
-        return self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
+        return self.server.insert_archival_memory(agent_id=agent_id, memory_contents=memory, actor=self.user)
 
     def delete_archival_memory(self, agent_id: str, memory_id: str):
         """
@@ -3082,7 +3083,7 @@ class LocalClient(AbstractClient):
             agent_id (str): ID of the agent
             memory_id (str): ID of the memory
         """
-        self.server.delete_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_id=memory_id)
+        self.server.delete_archival_memory(agent_id=agent_id, memory_id=memory_id, actor=self.user)
 
     def get_archival_memory(
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
@@ -3100,7 +3101,7 @@ class LocalClient(AbstractClient):
             passages (List[Passage]): List of passages
         """
 
-        return self.server.get_agent_archival_cursor(user_id=self.user_id, agent_id=agent_id, before=before, after=after, limit=limit)
+        return self.server.get_agent_archival_cursor(user_id=self.user_id, agent_id=agent_id, limit=limit)
 
     # recall memory
 

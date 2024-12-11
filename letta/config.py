@@ -58,8 +58,8 @@ class LettaConfig:
     # @norton120 these are the metdadatastore
 
     # database configs: archival
-    archival_storage_type: str = "chroma"  # local, db
-    archival_storage_path: str = os.path.join(LETTA_DIR, "chroma")
+    archival_storage_type: str = "sqlite"  # local, db
+    archival_storage_path: str = LETTA_DIR
     archival_storage_uri: str = None  # TODO: eventually allow external vector DB
 
     # database configs: recall

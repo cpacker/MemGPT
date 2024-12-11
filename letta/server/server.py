@@ -16,7 +16,6 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
-from letta.agent_store.db import attach_base
 from letta.agent_store.storage import StorageConnector, TableType
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
@@ -75,6 +74,7 @@ from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.services.job_manager import JobManager
 from letta.services.message_manager import MessageManager
 from letta.services.organization_manager import OrganizationManager
+from letta.services.passage_manager import PassageManager
 from letta.services.per_agent_lock_manager import PerAgentLockManager
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.source_manager import SourceManager
@@ -159,8 +159,6 @@ from letta.settings import model_settings, settings, tool_settings
 
 config = LettaConfig.load()
 
-attach_base()
-
 if settings.letta_pg_uri_no_default:
     config.recall_storage_type = "postgres"
     config.recall_storage_uri = settings.letta_pg_uri_no_default
@@ -234,6 +232,7 @@ class SyncServer(Server):
 
         # Managers that interface with data models
         self.organization_manager = OrganizationManager()
+        self.passage_manager = PassageManager()
         self.user_manager = UserManager()
         self.tool_manager = ToolManager()
         self.block_manager = BlockManager()
@@ -457,7 +456,12 @@ class SyncServer(Server):
 
             # attach data to agent from source
             source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-            letta_agent.attach_source(data_source, source_connector, self.ms)
+            letta_agent.attach_source(
+                user=self.user_manager.get_user_by_id(user_id=user_id),
+                source_id=data_source,
+                source_manager=letta_agent.source_manager,
+                ms=self.ms,
+            )
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
             # Check if there's an additional argument that's an integer
@@ -472,7 +476,7 @@ class SyncServer(Server):
             letta_agent.interface.print_messages_raw(letta_agent.messages)
 
         elif command.lower() == "memory":
-            ret_str = f"\nDumping memory contents:\n" + f"\n{str(letta_agent.agent_state.memory)}" + f"\n{str(letta_agent.archival_memory)}"
+            ret_str = f"\nDumping memory contents:\n" + f"\n{str(letta_agent.agent_state.memory)}" + f"\n{str(letta_agent.passage_manager)}"
             return ret_str
 
         elif command.lower() == "pop" or command.lower().startswith("pop "):
@@ -970,7 +974,7 @@ class SyncServer(Server):
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
-        return ArchivalMemorySummary(size=len(agent.archival_memory))
+        return ArchivalMemorySummary(size=agent.passage_manager.size(actor=self.default_user))
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
         agent = self.load_agent(agent_id=agent_id)
@@ -995,24 +999,75 @@ class SyncServer(Server):
         message = agent.message_manager.get_message_by_id(id=message_id, actor=self.default_user)
         return message
 
-    def get_agent_archival(self, user_id: str, agent_id: str, start: int, count: int) -> List[Passage]:
+    def get_agent_messages(
+        self,
+        agent_id: str,
+        start: int,
+        count: int,
+    ) -> Union[List[Message], List[LettaMessage]]:
+        """Paginated query of all messages in agent message queue"""
+        # Get the agent object (loaded in memory)
+        letta_agent = self.load_agent(agent_id=agent_id)
+
+        if start < 0 or count < 0:
+            raise ValueError("Start and count values should be non-negative")
+
+        if start + count < len(letta_agent._messages):  # messages can be returned from whats in memory
+            # Reverse the list to make it in reverse chronological order
+            reversed_messages = letta_agent._messages[::-1]
+            # Check if start is within the range of the list
+            if start >= len(reversed_messages):
+                raise IndexError("Start index is out of range")
+
+            # Calculate the end index, ensuring it does not exceed the list length
+            end_index = min(start + count, len(reversed_messages))
+
+            # Slice the list for pagination
+            messages = reversed_messages[start:end_index]
+
+        else:
+            # need to access persistence manager for additional messages
+
+            # get messages using message manager
+            page = letta_agent.message_manager.list_user_messages_for_agent(
+                agent_id=agent_id,
+                actor=self.default_user,
+                cursor=start,
+                limit=count,
+            )
+
+            messages = page
+            assert all(isinstance(m, Message) for m in messages)
+
+            ## Convert to json
+            ## Add a tag indicating in-context or not
+            # json_messages = [record.to_json() for record in messages]
+            # in_context_message_ids = [str(m.id) for m in letta_agent._messages]
+            # for d in json_messages:
+            #    d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
+
+        return messages
+
+    def get_agent_archival(self, user_id: str, agent_id: str, cursor: Optional[str] = None, limit: int = 50) -> List[Passage]:
         """Paginated query of all messages in agent archival memory"""
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # iterate over records
-        db_iterator = letta_agent.archival_memory.storage.get_all_paginated(page_size=count, offset=start)
+        records = letta_agent.passage_manager.list_passages(
+            actor=self.default_user,
+            agent_id=agent_id,
+            cursor=cursor,
+            limit=limit,
+        )
 
-        # get a single page of messages
-        page = next(db_iterator, [])
-        return page
+        return records
 
     def get_agent_archival_cursor(
         self,
         user_id: str,
         agent_id: str,
-        after: Optional[str] = None,
-        before: Optional[str] = None,
+        cursor: Optional[str] = None,
         limit: Optional[int] = 100,
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
@@ -1020,35 +1075,35 @@ class SyncServer(Server):
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
 
-        # iterate over recorde
-        cursor, records = letta_agent.archival_memory.storage.get_all_cursor(
-            after=after, before=before, limit=limit, order_by=order_by, reverse=reverse
+        # iterate over records
+        records = letta_agent.passage_manager.list_passages(
+            actor=self.default_user,
+            agent_id=agent_id,
+            cursor=cursor,
+            limit=limit,
         )
         return records
 
-    def insert_archival_memory(self, user_id: str, agent_id: str, memory_contents: str) -> List[Passage]:
+    def insert_archival_memory(self, agent_id: str, memory_contents: str, actor: User) -> List[Passage]:
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # Insert into archival memory
-        passage_ids = letta_agent.archival_memory.insert(memory_string=memory_contents, return_ids=True)
+        passages = self.passage_manager.insert_passage(
+            agent_state=letta_agent.agent_state, agent_id=agent_id, text=memory_contents, actor=actor
+        )
 
-        # Update the agent
-        # TODO: should this update the system prompt?
         save_agent(letta_agent, self.ms)
 
-        # TODO: this is gross, fix
-        return [letta_agent.archival_memory.storage.get(id=passage_id) for passage_id in passage_ids]
+        return passages
 
-    def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
-        # TODO: should return a passage
-
+    def delete_archival_memory(self, agent_id: str, memory_id: str, actor: User):
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # Delete by ID
         # TODO check if it exists first, and throw error if not
-        letta_agent.archival_memory.storage.delete({"id": memory_id})
+        letta_agent.passage_manager.delete_passage_by_id(passage_id=memory_id, actor=actor)
 
         # TODO: return archival memory
 
@@ -1205,6 +1260,7 @@ class SyncServer(Server):
         user_id: str,
         connector: DataConnector,
         source_name: str,
+        agent_id: Optional[str] = None,
     ) -> Tuple[int, int]:
         """Load data from a DataConnector into a source for a specified user_id"""
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
@@ -1219,14 +1275,13 @@ class SyncServer(Server):
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user)
+        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user, agent_id=agent_id)
         return passage_count, document_count
 
     def attach_source_to_agent(
         self,
         user_id: str,
         agent_id: str,
-        # source_id: str,
         source_id: Optional[str] = None,
         source_name: Optional[str] = None,
     ) -> Source:
@@ -1238,15 +1293,14 @@ class SyncServer(Server):
             data_source = self.source_manager.get_source_by_name(source_name=source_name, actor=user)
         else:
             raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
-        # get connection to data source storage
-        source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+
         assert data_source, f"Data source with id={source_id} or name={source_name} does not exist"
 
         # load agent
         agent = self.load_agent(agent_id=agent_id)
 
         # attach source to agent
-        agent.attach_source(data_source.id, source_connector, self.ms)
+        agent.attach_source(user=user, source_id=data_source.id, source_manager=self.source_manager, ms=self.ms)
 
         return data_source
 
@@ -1269,8 +1323,7 @@ class SyncServer(Server):
 
         # delete all Passage objects with source_id==source_id from agent's archival memory
         agent = self.load_agent(agent_id=agent_id)
-        archival_memory = agent.archival_memory
-        archival_memory.storage.delete({"source_id": source_id})
+        agent.passage_manager.delete_passages(actor=user, limit=100, source_id=source_id)
 
         # delete agent-source mapping
         self.ms.detach_source(agent_id=agent_id, source_id=source_id)
