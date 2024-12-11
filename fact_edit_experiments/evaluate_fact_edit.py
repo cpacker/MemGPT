@@ -51,14 +51,13 @@ def evaluate(input_data_filename: str, predictions_filename: str):
           total_examples += 1
 
           predicted_sentences = predictions["final_answer"].split(". ")
-          import pdb; pdb.set_trace()
           new_memory = [sentence.strip(". ") for sentence in predictions["new_memory"]]
           multihop_memory= [sentence.strip(". ") for sentence in predictions["new_memory_multi_hop"]]
 
           for sentence in predicted_sentences:
-              if sentence in new_memory: # "".join(new_memory):
+              if sentence in new_memory:
                   correct += 1
-              if sentence in multihop_memory: #"".join(multihop_memory):
+              if sentence in multihop_memory:
                   multihop_correct += 1
           total_predicted_sentences += len(predicted_sentences)
           total_new_memory_sentences += len(new_memory)
