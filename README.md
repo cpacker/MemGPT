@@ -34,9 +34,11 @@
 >
 > The MemGPT package and Docker image have been renamed to `letta` to clarify the distinction between MemGPT *agents* and the Letta API *server* / *runtime* that runs LLM agents as *services*. Read more about the relationship between MemGPT and Letta [here](https://www.letta.com/blog/memgpt-and-letta).
 
-## ⚡ Quickstart (Docker)
+---
 
-The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see guide [below](#-quickstart-pip)).
+## ⚡ Quickstart
+
+_The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see guide [below](#-quickstart-pip))._
 
 ### 🌖 Run the Letta server
 
@@ -82,11 +84,11 @@ The ADE is an integrated development environment meant to developers create and 
 
 The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server. The Letta server and REST API are fully open source, and you can
 
-
-
 To access the Letta ADE, visit [https://app.letta.com](https://app.letta.com).
 
-### 🧑‍🚀 Frequently asked questions (FAQ)
+---
+
+## 🧑‍🚀 Frequently asked questions (FAQ)
 
 > _"Do I need to install Docker to use Letta?"_
 
@@ -94,25 +96,21 @@ No, you can install Letta using `pip` (via `pip install -U letta`), as well as f
 
 > _"How do I use the ADE locally?"_
 
-1. Start a Letta server on your local computer by running the `docker run` command
-2. Go to the [ADE](https://app.letta.com), and you should see a connection to "Local server"
-
-If you would like to use the old version of the ADE (that runs on `localhost`), you can downgrade to a Letta version `<=0.5.0`.
+To connect the ADE to your local Letta server, simply run your Letta server (make sure you can access `localhost:8283`) and go to [https://app.letta.com](https://app.letta.com). If you would like to use the old version of the ADE (that runs on `localhost`), downgrade to Letta version `<=0.5.0`.
 
 > _"If I connect the ADE to my local server, does my agent data get uploaded to letta.com?"_
 
-No, the data in your Letta server database stays on your machine. The Letta ADE web application simply connects to your local Letta server (via the REST API) and provides a graphical interface on top of it.
+No, the data in your Letta server database stays on your machine. The Letta ADE web application simply connects to your local Letta server (via the REST API) and provides a graphical interface on top of it to visualize your local Letta data in your browser's local state.
 
 > _"Do I have to use your ADE? Can I build my own?"_
 
 The ADE is built on top of the (fully open source) Letta server and Letta Agents API. You can build your own application like the ADE on top of the REST API (view the documention [here](https://docs.letta.com/api-reference)).
 
-### 🖥️ Run the Letta CLI
+> _"Can I interact with Letta agents via the CLI?"_
 
-The recommended way to use Letta is via the REST API and ADE, however you can also access your agents with the Letta CLI tool.
+The recommended way to use Letta is via the REST API and ADE, however you can also access your agents via the CLI.
 
 <details>
-
 <summary>View instructions for running the Letta CLI</summary>
 
 You can chat with your agents via the Letta CLI tool (`letta run`). If you have a Letta Docker container running, you can use `docker exec` to run the Letta CLI inside the container:
@@ -154,6 +152,8 @@ Hit enter to begin (will request first Letta message)
 > Enter your message:
 ```
 </details>
+
+---
 
 ## ⚡ Quickstart (pip)
 
@@ -233,6 +233,8 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://localhost:8283 (Press CTRL+C to quit)
 ```
 </details>
+
+---
 
 ## 🤗 How to contribute
 
