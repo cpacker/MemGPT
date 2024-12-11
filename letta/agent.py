@@ -8,7 +8,6 @@ from typing import List, Literal, Optional, Tuple, Union
 
 from tqdm import tqdm
 
-from letta.agent_store.storage import StorageConnector
 from letta.constants import (
     BASE_TOOLS,
     CLI_WARNING_PREFIX,
