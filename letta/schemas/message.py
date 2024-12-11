@@ -4,7 +4,7 @@ import warnings
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
-from pydantic import Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from letta.constants import (
     DEFAULT_MESSAGE_TOOL,
@@ -54,7 +54,7 @@ class BaseMessage(OrmMetadataBase):
     __id_prefix__ = "message"
 
 
-class MessageCreate(BaseMessage):
+class MessageCreate(BaseModel):
     """Request to create a message"""
 
     # In the simplified format, only allow simple roles
@@ -66,7 +66,7 @@ class MessageCreate(BaseMessage):
     name: Optional[str] = Field(None, description="The name of the participant.")
 
 
-class MessageUpdate(BaseMessage):
+class MessageUpdate(BaseModel):
     """Request to update a message"""
 
     role: Optional[MessageRole] = Field(None, description="The role of the participant.")

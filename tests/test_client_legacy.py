@@ -15,7 +15,7 @@ from letta.constants import DEFAULT_PRESET
 from letta.orm import FileMetadata, Source
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import MessageStreamStatus
+from letta.schemas.enums import MessageRole, MessageStreamStatus
 from letta.schemas.letta_message import (
     AssistantMessage,
     FunctionCallMessage,
@@ -27,7 +27,7 @@ from letta.schemas.letta_message import (
 )
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.message import Message
+from letta.schemas.message import MessageCreate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.organization_manager import OrganizationManager
 from letta.services.tool_manager import ToolManager
@@ -671,7 +671,7 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
     empty_agent_state = client.create_agent(name="test-empty-message-sequence", initial_message_sequence=[])
     cleanup_agents.append(empty_agent_state.id)
 
-    custom_sequence = [Message(**{"text": "Hello, how are you?", "role": "user"})]
+    custom_sequence = [MessageCreate(**{"text": "Hello, how are you?", "role": MessageRole.user})]
     custom_agent_state = client.create_agent(name="test-custom-message-sequence", initial_message_sequence=custom_sequence)
     cleanup_agents.append(custom_agent_state.id)
     assert custom_agent_state.message_ids is not None
