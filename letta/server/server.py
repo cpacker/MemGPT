@@ -1603,7 +1603,6 @@ class SyncServer(Server):
         user_id: str,
         connector: DataConnector,
         source_name: str,
-        agent_id: Optional[str] = None,
     ) -> Tuple[int, int]:
         """Load data from a DataConnector into a source for a specified user_id"""
         # TODO: this should be implemented as a batch job or at least async, since it may take a long time
@@ -1618,7 +1617,7 @@ class SyncServer(Server):
         passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user, agent_id=agent_id)
+        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user)
         return passage_count, document_count
 
     def attach_source_to_agent(
