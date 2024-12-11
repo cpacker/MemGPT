@@ -266,18 +266,22 @@ class AgentManager:
         Args:
             agent_id: ID of the agent to be deleted.
             actor: User performing the action.
+
+        Returns:
+            PydanticAgentState: The deleted agent state
         """
         with self.session_maker() as session:
             # Retrieve the agent
             agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
 
+            # Convert to Pydantic BEFORE deletion while the session is still active
+            agent_state = agent.to_pydantic()
+
             # Delete the agent (hard delete ensures relationships are handled)
             agent.hard_delete(session)
 
-            # Commit the session to apply changes
-            session.commit()
-
-            return agent.to_pydantic()
+            # Return the Pydantic model we created before deletion
+            return agent_state
 
     # Functions dealing with sources
     @enforce_types
