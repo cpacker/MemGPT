@@ -69,6 +69,7 @@ pathvalidate = "^3.2.1"
 langchain-community = {version = "^0.3.7", optional = true}
 langchain = {version = "^0.3.7", optional = true}
 sentry-sdk = {extras = ["fastapi"], version = "2.19.1"}
+rich = "^13.9.4"
 brotli = "^1.1.0"
 grpcio = "^1.68.1"
 grpcio-tools = "^1.68.1"
