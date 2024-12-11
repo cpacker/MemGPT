@@ -14,6 +14,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import Field
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgentState
@@ -87,9 +88,18 @@ def get_agent_context_window(
     return server.get_agent_context_window(user_id=actor.id, agent_id=agent_id)
 
 
+class CreateAgentRequest(CreateAgent):
+    """
+    CreateAgent model specifically for POST request body, excluding user_id which comes from headers
+    """
+
+    # Override the user_id field to exclude it from the request body validation
+    user_id: Optional[str] = Field(None, exclude=True)
+
+
 @router.post("/", response_model=AgentState, operation_id="create_agent")
 def create_agent(
-    agent: CreateAgent = Body(...),
+    agent: CreateAgentRequest = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
