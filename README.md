@@ -85,12 +85,20 @@ The ADE is an integrated development environment meant to developers create and 
 
 The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server. The Letta server and REST API are fully open source, and you can
 
-#### Connecting the ADE to your local Letta server
+#### 🖥️ Connecting the ADE to your local Letta server
 To connect the ADE with your local Letta server, simply:
 1. Start your Letta server (`docker run ...`)
-2. Visit [https://app.letta.com](https://app.letta.com)
+2. Visit [https://app.letta.com](https://app.letta.com) and you will see "Local server" as an option in the left panel
 
-#### Connecting the ADE to an external (self-hosted) Letta server
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/example_ade_screenshot_agents.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/example_ade_screenshot_agents_light.png">
+    <img alt="Letta logo" src="assets/example_ade_screenshot_agents.png" width="800">
+  </picture>
+</p>
+
+#### 🌐 Connecting the ADE to an external (self-hosted) Letta server
 If your Letta server isn't running on `localhost` (for example, you deployed it on an external service like EC2):
 1. Click "Add remote server"
 2. Enter your desired server name, the IP address of the server, and the server password (if set)
