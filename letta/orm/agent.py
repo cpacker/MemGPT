@@ -1,5 +1,5 @@
 import uuid
-from typing import TYPE_CHECKING, List, Optional, Type, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from sqlalchemy import JSON, String, TypeDecorator, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,7 +9,8 @@ from letta.orm.message import Message
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.organization import Organization
 from letta.orm.sqlalchemy_base import SqlalchemyBase
-from letta.schemas.agent import AgentState, AgentType
+from letta.schemas.agent import AgentState as PydanticAgentState
+from letta.schemas.agent import AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import ToolRuleType
 from letta.schemas.llm_config import LLMConfig
@@ -22,8 +23,6 @@ from letta.schemas.tool_rule import (
 )
 
 if TYPE_CHECKING:
-    from pydantic import BaseModel
-
     from letta.orm.agents_tags import AgentsTags
     from letta.orm.organization import Organization
     from letta.orm.source import Source
@@ -118,7 +117,7 @@ class ToolRulesColumn(TypeDecorator):
 
 class Agent(SqlalchemyBase, OrganizationMixin):
     __tablename__ = "agents"
-    __pydantic_model__ = AgentState
+    __pydantic_model__ = PydanticAgentState
     __table_args__ = (UniqueConstraint("organization_id", "name", name="unique_org_agent_name"),)
 
     # agent generates its own id
@@ -172,7 +171,7 @@ class Agent(SqlalchemyBase, OrganizationMixin):
     )
     # passages: Mapped[List["Passage"]] = relationship("Passage", back_populates="agent", lazy="selectin")
 
-    def to_pydantic(self) -> Type["BaseModel"]:
+    def to_pydantic(self) -> PydanticAgentState:
         """converts to the basic pydantic model counterpart"""
         state = {
             "id": self.id,

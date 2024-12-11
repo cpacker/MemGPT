@@ -1,7 +1,6 @@
 import os
 import time
 from datetime import datetime, timedelta
-from typing import Union
 
 import pytest
 from sqlalchemy import delete
@@ -25,7 +24,7 @@ from letta.orm import (
 )
 from letta.orm.agents_tags import AgentsTags
 from letta.orm.errors import NoResultFound, UniqueConstraintViolationError
-from letta.schemas.agent import AgentState, CreateAgent, UpdateAgent
+from letta.schemas.agent import CreateAgent, UpdateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate, CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -54,6 +53,7 @@ from letta.schemas.tool_rule import InitToolRule
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
 from letta.settings import tool_settings
+from tests.helpers.utils import comprehensive_agent_checks
 
 utils.DEBUG = True
 from letta.config import LettaConfig
@@ -342,77 +342,23 @@ def server():
 # ======================================================================================================================
 # AgentManager Tests
 # ======================================================================================================================
-def _comprehensive_agent_checks(agent: AgentState, request: Union[CreateAgent, UpdateAgent]):
-    # Assert scalar fields
-    assert agent.system == request.system, f"System prompt mismatch: {agent.system} != {request.system}"
-    assert agent.description == request.description, f"Description mismatch: {agent.description} != {request.description}"
-    assert agent.metadata_ == request.metadata_, f"Metadata mismatch: {agent.metadata_} != {request.metadata_}"
-
-    # Assert agent type
-    if hasattr(request, "agent_type"):
-        assert agent.agent_type == request.agent_type, f"Agent type mismatch: {agent.agent_type} != {request.agent_type}"
-
-    # Assert LLM configuration
-    assert agent.llm_config == request.llm_config, f"LLM config mismatch: {agent.llm_config} != {request.llm_config}"
-
-    # Assert embedding configuration
-    assert (
-        agent.embedding_config == request.embedding_config
-    ), f"Embedding config mismatch: {agent.embedding_config} != {request.embedding_config}"
-
-    # Assert memory blocks
-    if hasattr(request, "memory_blocks"):
-        assert len(agent.memory.blocks) == len(request.memory_blocks) + len(
-            request.block_ids
-        ), f"Memory blocks count mismatch: {len(agent.memory.blocks)} != {len(request.memory_blocks) + len(request.block_ids)}"
-        memory_block_values = {block.value for block in agent.memory.blocks}
-        expected_block_values = {block.value for block in request.memory_blocks}
-        assert expected_block_values.issubset(
-            memory_block_values
-        ), f"Memory blocks mismatch: {expected_block_values} not in {memory_block_values}"
-
-    # Assert tools
-    assert len(agent.tools) == len(request.tool_ids), f"Tools count mismatch: {len(agent.tools)} != {len(request.tool_ids)}"
-    assert {tool.id for tool in agent.tools} == set(
-        request.tool_ids
-    ), f"Tools mismatch: {set(tool.id for tool in agent.tools)} != {set(request.tool_ids)}"
-
-    # Assert sources
-    assert len(agent.sources) == len(request.source_ids), f"Sources count mismatch: {len(agent.sources)} != {len(request.source_ids)}"
-    assert {source.id for source in agent.sources} == set(
-        request.source_ids
-    ), f"Sources mismatch: {set(source.id for source in agent.sources)} != {set(request.source_ids)}"
-
-    # Assert tags
-    assert set(agent.tags) == set(request.tags), f"Tags mismatch: {set(agent.tags)} != {set(request.tags)}"
-
-    # Assert tool rules
-    if request.tool_rules:
-        assert len(agent.tool_rules) == len(
-            request.tool_rules
-        ), f"Tool rules count mismatch: {len(agent.tool_rules)} != {len(request.tool_rules)}"
-        assert all(
-            any(rule.tool_name == req_rule.tool_name for rule in agent.tool_rules) for req_rule in request.tool_rules
-        ), f"Tool rules mismatch: {agent.tool_rules} != {request.tool_rules}"
-
-
 def test_create_get_list_agent(server: SyncServer, comprehensive_test_agent_fixture, default_user):
     # Test agent creation
     created_agent, create_agent_request = comprehensive_test_agent_fixture
-    _comprehensive_agent_checks(created_agent, create_agent_request)
+    comprehensive_agent_checks(created_agent, create_agent_request)
 
     # Test get agent
     get_agent = server.agent_manager.get_agent_by_id(agent_id=created_agent.id, actor=default_user)
-    _comprehensive_agent_checks(get_agent, create_agent_request)
+    comprehensive_agent_checks(get_agent, create_agent_request)
 
     # Test get agent name
     get_agent_name = server.agent_manager.get_agent_by_name(agent_name=created_agent.name, actor=default_user)
-    _comprehensive_agent_checks(get_agent_name, create_agent_request)
+    comprehensive_agent_checks(get_agent_name, create_agent_request)
 
     # Test list agent
     list_agents = server.agent_manager.list_agents(actor=default_user)
     assert len(list_agents) == 1
-    _comprehensive_agent_checks(list_agents[0], create_agent_request)
+    comprehensive_agent_checks(list_agents[0], create_agent_request)
 
     # Test deleting the agent
     server.agent_manager.delete_agent(get_agent.id, default_user)
@@ -438,8 +384,123 @@ def test_update_agent(server: SyncServer, comprehensive_test_agent_fixture, othe
     )
 
     updated_agent = server.agent_manager.update_agent(agent.id, update_agent_request, actor=default_user)
-    _comprehensive_agent_checks(updated_agent, update_agent_request)
+    comprehensive_agent_checks(updated_agent, update_agent_request)
     assert updated_agent.message_ids == update_agent_request.message_ids
+
+
+def test_attach_source(server: SyncServer, sarah_agent, default_source, default_user):
+    """Test attaching a source to an agent."""
+    # Attach the source
+    server.agent_manager.attach_source(agent_id=sarah_agent.id, source_id=default_source.id, actor=default_user)
+
+    # Verify attachment through get_agent_by_id
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert default_source.id in [s.id for s in agent.sources]
+
+    # Verify that attaching the same source again doesn't cause issues
+    server.agent_manager.attach_source(agent_id=sarah_agent.id, source_id=default_source.id, actor=default_user)
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert len([s for s in agent.sources if s.id == default_source.id]) == 1
+
+
+def test_list_attached_source_ids(server: SyncServer, sarah_agent, default_source, other_source, default_user):
+    """Test listing source IDs attached to an agent."""
+    # Initially should have no sources
+    source_ids = server.agent_manager.list_attached_source_ids(sarah_agent.id, actor=default_user)
+    assert len(source_ids) == 0
+
+    # Attach sources
+    server.agent_manager.attach_source(sarah_agent.id, default_source.id, actor=default_user)
+    server.agent_manager.attach_source(sarah_agent.id, other_source.id, actor=default_user)
+
+    # List sources and verify
+    source_ids = server.agent_manager.list_attached_source_ids(sarah_agent.id, actor=default_user)
+    assert len(source_ids) == 2
+    assert default_source.id in source_ids
+    assert other_source.id in source_ids
+
+
+def test_detach_source(server: SyncServer, sarah_agent, default_source, default_user):
+    """Test detaching a source from an agent."""
+    # Attach source
+    server.agent_manager.attach_source(sarah_agent.id, default_source.id, actor=default_user)
+
+    # Verify it's attached
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert default_source.id in [s.id for s in agent.sources]
+
+    # Detach source
+    server.agent_manager.detach_source(sarah_agent.id, default_source.id, actor=default_user)
+
+    # Verify it's detached
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert default_source.id not in [s.id for s in agent.sources]
+
+    # Verify that detaching an already detached source doesn't cause issues
+    server.agent_manager.detach_source(sarah_agent.id, default_source.id, actor=default_user)
+
+
+def test_attach_source_nonexistent_agent(server: SyncServer, default_source, default_user):
+    """Test attaching a source to a nonexistent agent."""
+    with pytest.raises(NoResultFound):
+        server.agent_manager.attach_source(agent_id="nonexistent-agent-id", source_id=default_source.id, actor=default_user)
+
+
+def test_attach_source_nonexistent_source(server: SyncServer, sarah_agent, default_user):
+    """Test attaching a nonexistent source to an agent."""
+    with pytest.raises(NoResultFound):
+        server.agent_manager.attach_source(agent_id=sarah_agent.id, source_id="nonexistent-source-id", actor=default_user)
+
+
+def test_detach_source_nonexistent_agent(server: SyncServer, default_source, default_user):
+    """Test detaching a source from a nonexistent agent."""
+    with pytest.raises(NoResultFound):
+        server.agent_manager.detach_source(agent_id="nonexistent-agent-id", source_id=default_source.id, actor=default_user)
+
+
+def test_list_attached_source_ids_nonexistent_agent(server: SyncServer, default_user):
+    """Test listing sources for a nonexistent agent."""
+    with pytest.raises(NoResultFound):
+        server.agent_manager.list_attached_source_ids(agent_id="nonexistent-agent-id", actor=default_user)
+
+
+def test_list_attached_agents(server: SyncServer, sarah_agent, charles_agent, default_source, default_user):
+    """Test listing agents that have a particular source attached."""
+    # Initially should have no attached agents
+    attached_agents = server.source_manager.list_attached_agents(source_id=default_source.id, actor=default_user)
+    assert len(attached_agents) == 0
+
+    # Attach source to first agent
+    server.agent_manager.attach_source(agent_id=sarah_agent.id, source_id=default_source.id, actor=default_user)
+
+    # Verify one agent is now attached
+    attached_agents = server.source_manager.list_attached_agents(source_id=default_source.id, actor=default_user)
+    assert len(attached_agents) == 1
+    assert sarah_agent.id in [a.id for a in attached_agents]
+
+    # Attach source to second agent
+    server.agent_manager.attach_source(agent_id=charles_agent.id, source_id=default_source.id, actor=default_user)
+
+    # Verify both agents are now attached
+    attached_agents = server.source_manager.list_attached_agents(source_id=default_source.id, actor=default_user)
+    assert len(attached_agents) == 2
+    attached_agent_ids = [a.id for a in attached_agents]
+    assert sarah_agent.id in attached_agent_ids
+    assert charles_agent.id in attached_agent_ids
+
+    # Detach source from first agent
+    server.agent_manager.detach_source(agent_id=sarah_agent.id, source_id=default_source.id, actor=default_user)
+
+    # Verify only second agent remains attached
+    attached_agents = server.source_manager.list_attached_agents(source_id=default_source.id, actor=default_user)
+    assert len(attached_agents) == 1
+    assert charles_agent.id in [a.id for a in attached_agents]
+
+
+def test_list_attached_agents_nonexistent_source(server: SyncServer, default_user):
+    """Test listing agents for a nonexistent source."""
+    with pytest.raises(NoResultFound):
+        server.source_manager.list_attached_agents(source_id="nonexistent-source-id", actor=default_user)
 
 
 # ======================================================================================================================
@@ -968,7 +1029,7 @@ def test_delete_block(server: SyncServer, default_user):
 
 
 # ======================================================================================================================
-# Source Manager Tests - Sources
+# SourceManager Tests - Sources
 # ======================================================================================================================
 
 

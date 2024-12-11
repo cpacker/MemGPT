@@ -5,6 +5,7 @@ from letta.orm import AgentsTags
 from letta.orm import Block as BlockModel
 from letta.orm import Source as SourceModel
 from letta.orm import Tool as ToolModel
+from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentState as PydanticAgentState
 from letta.schemas.agent import AgentType, CreateAgent, UpdateAgent
@@ -50,7 +51,7 @@ def _process_relationship(
     # Validate all items are found if allow_partial is False
     if not allow_partial and len(found_items) != len(item_ids):
         missing = set(item_ids) - {item.id for item in found_items}
-        raise ValueError(f"Items not found in {relationship_name}: {missing}")
+        raise NoResultFound(f"Items not found in {relationship_name}: {missing}")
 
     if replace:
         # Replace the relationship
@@ -115,6 +116,7 @@ class AgentManager:
         self.tool_manager = ToolManager()
         self.source_manager = SourceManager()
 
+    # Base agent CRUD operations
     @enforce_types
     def create_agent(
         self,
@@ -274,3 +276,75 @@ class AgentManager:
 
             # Commit the session to apply changes
             session.commit()
+
+    # Functions dealing with sources
+    @enforce_types
+    def attach_source(self, agent_id: str, source_id: str, actor: Optional[PydanticUser] = None) -> None:
+        """
+        Attaches a source to an agent.
+
+        Args:
+            agent_id: ID of the agent to attach the source to
+            source_id: ID of the source to attach
+            actor: User performing the action
+
+        Raises:
+            ValueError: If either agent or source doesn't exist
+            IntegrityError: If the source is already attached to the agent
+        """
+        with self.session_maker() as session:
+            # Verify both agent and source exist and user has permission to access them
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+
+            # The _process_relationship helper already handles duplicate checking via unique constraint
+            _process_relationship(
+                session=session,
+                agent=agent,
+                relationship_name="sources",
+                model_class=SourceModel,
+                item_ids=[source_id],
+                allow_partial=False,
+                replace=False,  # Extend existing sources rather than replace
+            )
+
+            # Commit the changes
+            agent.update(session, actor=actor)
+
+    @enforce_types
+    def list_attached_source_ids(self, agent_id: str, actor: Optional[PydanticUser] = None) -> List[str]:
+        """
+        Lists all source IDs attached to an agent.
+
+        Args:
+            agent_id: ID of the agent to list sources for
+            actor: User performing the action
+
+        Returns:
+            List[str]: List of source IDs attached to the agent
+        """
+        with self.session_maker() as session:
+            # Verify agent exists and user has permission to access it
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+
+            # Use the lazy-loaded relationship to get sources
+            return [source.id for source in agent.sources]
+
+    @enforce_types
+    def detach_source(self, agent_id: str, source_id: str, actor: Optional[PydanticUser] = None) -> None:
+        """
+        Detaches a source from an agent.
+
+        Args:
+            agent_id: ID of the agent to detach the source from
+            source_id: ID of the source to detach
+            actor: User performing the action
+        """
+        with self.session_maker() as session:
+            # Verify agent exists and user has permission to access it
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+
+            # Remove the source from the relationship
+            agent.sources = [s for s in agent.sources if s.id != source_id]
+
+            # Commit the changes
+            agent.update(session, actor=actor)

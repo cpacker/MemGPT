@@ -3,6 +3,7 @@ from typing import List, Optional
 from letta.orm.errors import NoResultFound
 from letta.orm.file import FileMetadata as FileMetadataModel
 from letta.orm.source import Source as SourceModel
+from letta.schemas.agent import AgentState as PydanticAgentState
 from letta.schemas.file import FileMetadata as PydanticFileMetadata
 from letta.schemas.source import Source as PydanticSource
 from letta.schemas.source import SourceUpdate
@@ -75,6 +76,26 @@ class SourceManager:
             )
             return [source.to_pydantic() for source in sources]
 
+    @enforce_types
+    def list_attached_agents(self, source_id: str, actor: Optional[PydanticUser] = None) -> List[PydanticAgentState]:
+        """
+        Lists all agents that have the specified source attached.
+
+        Args:
+            source_id: ID of the source to find attached agents for
+            actor: User performing the action (optional for now, following existing pattern)
+
+        Returns:
+            List[PydanticAgentState]: List of agents that have this source attached
+        """
+        with self.session_maker() as session:
+            # Verify source exists and user has permission to access it
+            source = SourceModel.read(db_session=session, identifier=source_id, actor=actor)
+
+            # The agents relationship is already loaded due to lazy="selectin" in the Source model
+            # and will be properly filtered by organization_id due to the OrganizationMixin
+            return [agent.to_pydantic() for agent in source.agents]
+
     # TODO: We make actor optional for now, but should most likely be enforced due to security reasons
     @enforce_types
     def get_source_by_id(self, source_id: str, actor: Optional[PydanticUser] = None) -> Optional[PydanticSource]:
@@ -85,15 +106,6 @@ class SourceManager:
                 return source.to_pydantic()
             except NoResultFound:
                 return None
-
-    @enforce_types
-    def get_all_sources_by_ids(self, source_ids: List[str], actor: Optional[PydanticUser] = None) -> List[PydanticSource]:
-        # TODO: We can do this much more efficiently by listing
-        sources = []
-        for source_id in source_ids:
-            source = self.get_source_by_id(source_id, actor=actor)
-            sources.append(source)
-        return sources
 
     @enforce_types
     def get_source_by_name(self, source_name: str, actor: PydanticUser) -> Optional[PydanticSource]:

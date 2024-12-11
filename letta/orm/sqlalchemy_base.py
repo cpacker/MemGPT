@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, List, Literal, Optional, Type
+from typing import TYPE_CHECKING, List, Literal, Optional
 
 from sqlalchemy import String, desc, func, or_, select
 from sqlalchemy.exc import DBAPIError
@@ -62,7 +62,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         query_text: Optional[str] = None,
         ascending: bool = True,
         **kwargs,
-    ) -> List[Type["SqlalchemyBase"]]:
+    ) -> List["SqlalchemyBase"]:
         """
         List records with cursor-based pagination, ordering by created_at.
         Cursor is an ID, but pagination is based on the cursor object's created_at value.
@@ -135,7 +135,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
         access_type: AccessType = AccessType.ORGANIZATION,
         **kwargs,
-    ) -> Type["SqlalchemyBase"]:
+    ) -> "SqlalchemyBase":
         """The primary accessor for an ORM record.
         Args:
             db_session: the database session to use when retrieving the record
@@ -178,7 +178,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         conditions_str = ", ".join(query_conditions) if query_conditions else "no specific conditions"
         raise NoResultFound(f"{cls.__name__} not found with {conditions_str}")
 
-    def create(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+    def create(self, db_session: "Session", actor: Optional["User"] = None) -> "SqlalchemyBase":
         logger.debug(f"Creating {self.__class__.__name__} with ID: {self.id} with actor={actor}")
 
         if actor:
@@ -192,7 +192,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         except DBAPIError as e:
             self._handle_dbapi_error(e)
 
-    def delete(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+    def delete(self, db_session: "Session", actor: Optional["User"] = None) -> "SqlalchemyBase":
         logger.debug(f"Soft deleting {self.__class__.__name__} with ID: {self.id} with actor={actor}")
 
         if actor:
@@ -216,7 +216,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             else:
                 logger.debug(f"{self.__class__.__name__} with ID {self.id} successfully hard deleted")
 
-    def update(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+    def update(self, db_session: "Session", actor: Optional["User"] = None) -> "SqlalchemyBase":
         logger.debug(f"Updating {self.__class__.__name__} with ID: {self.id} with actor={actor}")
         if actor:
             self._set_created_and_updated_by_fields(actor.id)
@@ -359,14 +359,14 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         raise
 
     @property
-    def __pydantic_model__(self) -> Type["BaseModel"]:
+    def __pydantic_model__(self) -> "BaseModel":
         raise NotImplementedError("Sqlalchemy models must declare a __pydantic_model__ property to be convertable.")
 
-    def to_pydantic(self) -> Type["BaseModel"]:
+    def to_pydantic(self) -> "BaseModel":
         """converts to the basic pydantic model counterpart"""
         return self.__pydantic_model__.model_validate(self)
 
-    def to_record(self) -> Type["BaseModel"]:
+    def to_record(self) -> "BaseModel":
         """Deprecated accessor for to_pydantic"""
         logger.warning("to_record is deprecated, use to_pydantic instead.")
         return self.to_pydantic()
