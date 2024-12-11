@@ -92,7 +92,6 @@ class PassageManager:
             return passages
 
         except Exception as e:
-            print("Passage insert error", e)
             raise e
 
     @enforce_types

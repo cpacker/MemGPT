@@ -224,7 +224,6 @@ def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0, s
         return formatted_results, len(formatted_results)
 
     except Exception as e:
-        print("Archival search error", e)
         raise e
 
 

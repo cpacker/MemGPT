@@ -45,9 +45,6 @@ def convert_array(text):
         # Then convert to numpy array
         return np.frombuffer(decoded_data, dtype=np.float32)
     except Exception as e:
-        print(f"Error converting array: {e}")
-        print(f"Input type: {type(text)}")
-        print(f"First few bytes: {text[:20] if text else None}")
         return None
 
 def verify_embedding_dimension(embedding: np.ndarray, expected_dim: int = MAX_EMBEDDING_DIM) -> bool:
