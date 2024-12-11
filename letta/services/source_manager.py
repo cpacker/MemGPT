@@ -64,7 +64,7 @@ class SourceManager:
             return source.to_pydantic()
 
     @enforce_types
-    def list_sources(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[PydanticSource]:
+    def list_sources(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50, **kwargs) -> List[PydanticSource]:
         """List all sources with optional pagination."""
         with self.session_maker() as session:
             sources = SourceModel.list(
@@ -72,6 +72,7 @@ class SourceManager:
                 cursor=cursor,
                 limit=limit,
                 organization_id=actor.organization_id,
+                **kwargs,
             )
             return [source.to_pydantic() for source in sources]
 

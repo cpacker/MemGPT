@@ -67,9 +67,8 @@ class O1Agent(Agent):
         total_usage = UsageStatistics()
         step_count = 0
         while step_count < self.max_thinking_steps:
-            # This is hacky but we need to do this for now
-            for m in next_input_message:
-                m.id = m._generate_id()
+            if counter > 0:
+                next_input_message = []
 
             kwargs["ms"] = ms
             kwargs["first_message"] = False
