@@ -38,7 +38,7 @@ Example:
 import argparse
 import jsonlines
 
-def evaluate(input_data_filename: str, predictions_filename: str):
+def evaluate(predictions_filename: str):
     with jsonlines.open(predictions_filename) as predictions_file:
       total_predicted_sentences = 0
       total_new_memory_sentences = 0
@@ -84,7 +84,6 @@ def evaluate(input_data_filename: str, predictions_filename: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_file_name", type=str)
     parser.add_argument("--predictions_file_name", type=str)
     args = parser.parse_args()
-    evaluate(args.input_file_name, args.predictions_file_name)
+    evaluate(args.predictions_file_name)
