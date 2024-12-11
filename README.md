@@ -9,7 +9,7 @@
 <div align="center">
 <h1>Letta (previously MemGPT)</h1>
 
-**☄️ New release // Letta ADE ☄️**
+**☄️ New release → Letta ADE ☄️**
 
 <p align="center">
   <picture>
