@@ -1822,15 +1822,17 @@ class SyncServer(Server):
             if sandbox_run_result is None:
                 raise ValueError(f"Tool with id {tool.id} returned execution with None")
             function_response = str(sandbox_run_result.func_return)
+            stdout = [s for s in sandbox_run_result.stdout if s.strip()]
+            stderr = [s for s in sandbox_run_result.stderr if s.strip()]
 
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
                 date=get_utc_time(),
-                status="success",
+                status="error" if stderr and "Error" in function_response else "success",
                 function_return=function_response,
-                stdout=sandbox_run_result.stdout,
-                stderr=sandbox_run_result.stderr,
+                stdout=stdout,
+                stderr=stderr,
             )
         except Exception as e:
             # same as agent.py

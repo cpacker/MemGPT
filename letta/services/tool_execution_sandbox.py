@@ -166,7 +166,7 @@ class ToolExecutionSandbox:
         env["PYTHONWARNINGS"] = "ignore"
 
         # Execute the code in a restricted subprocess
-        func_return, agent_state = None, None
+        agent_state = None
         stdout, stderr = '', ''
         try:
             result = subprocess.run(
@@ -181,18 +181,21 @@ class ToolExecutionSandbox:
             func_result, stdout = self.parse_out_function_results_markers(result.stdout)
             func_return, agent_state = self.parse_best_effort(func_result)
 
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as e:
+            func_return = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
             logger.error(f"Executing tool {self.tool_name} has timed out")
             stderr += f"\nTimeoutError: Executing tool {self.tool_name} has timed out.\n"
-            stderr += traceback.format_exc()
+            stderr += func_return
         except subprocess.CalledProcessError as e:
+            func_return = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
             logger.error(f"Executing tool {self.tool_name} has process error: {e}")
             stderr += f"\nError: Executing tool {self.tool_name} has process error: {e}.\n"
-            stderr += traceback.format_exc()
+            stderr += func_return
         except Exception as e:
+            func_return = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
             logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
             stderr += f"\nError: Executing tool {self.tool_name} has an unexpected error: {e}.\n"
-            stderr += traceback.format_exc()
+            stderr += func_return
 
         return SandboxRunResult(
             func_return=func_return, 
@@ -221,8 +224,9 @@ class ToolExecutionSandbox:
             func_result = result.get(self.LOCAL_SANDBOX_RESULT_VAR_NAME)
             func_return, agent_state = self.parse_best_effort(func_result)
 
-        except Exception:
-            traceback.print_exc(file=sys.stderr)
+        except Exception as e:
+            func_return = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
+            traceback.print_exc(func_return)
 
         # Restore stdout and stderr and collect captured output
         sys.stdout = old_stdout
@@ -288,8 +292,10 @@ class ToolExecutionSandbox:
         if execution.error is not None:
             logger.error(f"Executing tool {self.tool_name} failed with {execution.error}")
             execution.logs.stderr.append(execution.error.traceback) 
-
-        func_return, agent_state = self.parse_best_effort(execution.results[0].text if execution.results else '')
+            func_return = f"{execution.error.name}: {execution.error.value}\n{execution.error.traceback}"
+            agent_state = None
+        else:
+            func_return, agent_state = self.parse_best_effort(execution.results[0].text)
         return SandboxRunResult(
             func_return=func_return,
             agent_state=agent_state,
