@@ -94,6 +94,14 @@ class UserManager:
         return self.get_user_by_id(self.DEFAULT_USER_ID)
 
     @enforce_types
+    def get_user_or_default(self, user_id: str):
+        """Fetch the user or default user."""
+        try:
+            return self.get_user_by_id(user_id=user_id)
+        except NoResultFound:
+            return self.get_default_user()
+
+    @enforce_types
     def list_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Tuple[Optional[str], List[PydanticUser]]:
         """List users with pagination using cursor (id) and limit."""
         with self.session_maker() as session:

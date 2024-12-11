@@ -67,7 +67,6 @@ def summarize_messages(
             + message_sequence_to_summarize[cutoff:]
         )
 
-    agent_state.user_id
     dummy_agent_id = agent_state.id
     message_sequence = []
     message_sequence.append(Message(agent_id=dummy_agent_id, role=MessageRole.system, text=summary_prompt))
@@ -79,7 +78,7 @@ def summarize_messages(
     llm_config_no_inner_thoughts.put_inner_thoughts_in_kwargs = False
     response = create(
         llm_config=llm_config_no_inner_thoughts,
-        user_id=agent_state.user_id,
+        user_id=agent_state.created_by_id,
         messages=message_sequence,
         stream=False,
     )
@@ -272,13 +271,13 @@ class EmbeddingArchivalMemory(ArchivalMemory):
             self.embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
 
         # create storage backend
-        self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.user_id, agent_id=agent_state.id)
+        self.storage = StorageConnector.get_archival_storage_connector(user_id=agent_state.created_by_id, agent_id=agent_state.id)
         # TODO: have some mechanism for cleanup otherwise will lead to OOM
         self.cache = {}
 
     def create_passage(self, text, embedding):
         return Passage(
-            user_id=self.agent_state.user_id,
+            user_id=self.agent_state.created_by_id,
             agent_id=self.agent_state.id,
             text=text,
             embedding=embedding,

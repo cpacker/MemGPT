@@ -31,7 +31,7 @@ from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_mes
 from letta.memory import ArchivalMemory, EmbeddingArchivalMemory, summarize_messages
 from letta.metadata import MetadataStore
 from letta.orm import User
-from letta.schemas.agent import AgentState, AgentStepResponse
+from letta.schemas.agent import AgentState, AgentStepResponse, UpdateAgent
 from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import MessageRole
@@ -50,6 +50,7 @@ from letta.schemas.tool import Tool
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User as PydanticUser
+from letta.services.agent_manager import AgentManager
 from letta.services.block_manager import BlockManager
 from letta.services.message_manager import MessageManager
 from letta.services.source_manager import SourceManager
@@ -316,7 +317,7 @@ class Agent(BaseAgent):
 
         else:
             printd(f"Agent.__init__ :: creating, state={agent_state.message_ids}")
-            assert self.agent_state.id is not None and self.agent_state.user_id is not None
+            assert self.agent_state.id is not None and self.agent_state.created_by_id is not None
 
             # Generate a sequence of initial messages to put in the buffer
             init_messages = initialize_message_sequence(
@@ -335,7 +336,7 @@ class Agent(BaseAgent):
                 # We always need the system prompt up front
                 system_message_obj = Message.dict_to_message(
                     agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
+                    user_id=self.agent_state.created_by_id,
                     model=self.model,
                     openai_message_dict=init_messages[0],
                 )
@@ -358,7 +359,7 @@ class Agent(BaseAgent):
                 # Cast to Message objects
                 init_messages = [
                     Message.dict_to_message(
-                        agent_id=self.agent_state.id, user_id=self.agent_state.user_id, model=self.model, openai_message_dict=msg
+                        agent_id=self.agent_state.id, user_id=self.agent_state.created_by_id, model=self.model, openai_message_dict=msg
                     )
                     for msg in init_messages
                 ]
@@ -439,7 +440,7 @@ class Agent(BaseAgent):
             else:
                 # execute tool in a sandbox
                 # TODO: allow agent_state to specify which sandbox to execute tools in
-                sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.user_id).run(
+                sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.created_by_id).run(
                     agent_state=self.agent_state.__deepcopy__()
                 )
                 function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
@@ -573,7 +574,7 @@ class Agent(BaseAgent):
         added_messages_objs = [
             Message.dict_to_message(
                 agent_id=self.agent_state.id,
-                user_id=self.agent_state.user_id,
+                user_id=self.agent_state.created_by_id,
                 model=self.model,
                 openai_message_dict=msg,
             )
@@ -603,7 +604,7 @@ class Agent(BaseAgent):
                 response = create(
                     llm_config=self.agent_state.llm_config,
                     messages=message_sequence,
-                    user_id=self.agent_state.user_id,
+                    user_id=self.agent_state.created_by_id,
                     functions=allowed_functions,
                     functions_python=self.functions_python,
                     function_call=function_call,
@@ -689,7 +690,7 @@ class Agent(BaseAgent):
                 Message.dict_to_message(
                     id=response_message_id,
                     agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
+                    user_id=self.agent_state.created_by_id,
                     model=self.model,
                     openai_message_dict=response_message.model_dump(),
                 )
@@ -722,7 +723,7 @@ class Agent(BaseAgent):
                 messages.append(
                     Message.dict_to_message(
                         agent_id=self.agent_state.id,
-                        user_id=self.agent_state.user_id,
+                        user_id=self.agent_state.created_by_id,
                         model=self.model,
                         openai_message_dict={
                             "role": "tool",
@@ -745,7 +746,7 @@ class Agent(BaseAgent):
                 messages.append(
                     Message.dict_to_message(
                         agent_id=self.agent_state.id,
-                        user_id=self.agent_state.user_id,
+                        user_id=self.agent_state.created_by_id,
                         model=self.model,
                         openai_message_dict={
                             "role": "tool",
@@ -823,7 +824,7 @@ class Agent(BaseAgent):
                 messages.append(
                     Message.dict_to_message(
                         agent_id=self.agent_state.id,
-                        user_id=self.agent_state.user_id,
+                        user_id=self.agent_state.created_by_id,
                         model=self.model,
                         openai_message_dict={
                             "role": "tool",
@@ -842,7 +843,7 @@ class Agent(BaseAgent):
             messages.append(
                 Message.dict_to_message(
                     agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
+                    user_id=self.agent_state.created_by_id,
                     model=self.model,
                     openai_message_dict={
                         "role": "tool",
@@ -861,7 +862,7 @@ class Agent(BaseAgent):
                 Message.dict_to_message(
                     id=response_message_id,
                     agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
+                    user_id=self.agent_state.created_by_id,
                     model=self.model,
                     openai_message_dict=response_message.model_dump(),
                 )
@@ -931,10 +932,10 @@ class Agent(BaseAgent):
                 break
             # Chain handlers
             elif token_warning:
-                assert self.agent_state.user_id is not None
+                assert self.agent_state.created_by_id is not None
                 next_input_message = Message.dict_to_message(
                     agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
+                    user_id=self.agent_state.created_by_id,
                     model=self.model,
                     openai_message_dict={
                         "role": "user",  # TODO: change to system?
@@ -943,10 +944,10 @@ class Agent(BaseAgent):
                 )
                 continue  # always chain
             elif function_failed:
-                assert self.agent_state.user_id is not None
+                assert self.agent_state.created_by_id is not None
                 next_input_message = Message.dict_to_message(
                     agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
+                    user_id=self.agent_state.created_by_id,
                     model=self.model,
                     openai_message_dict={
                         "role": "user",  # TODO: change to system?
@@ -955,10 +956,10 @@ class Agent(BaseAgent):
                 )
                 continue  # always chain
             elif heartbeat_request:
-                assert self.agent_state.user_id is not None
+                assert self.agent_state.created_by_id is not None
                 next_input_message = Message.dict_to_message(
                     agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
+                    user_id=self.agent_state.created_by_id,
                     model=self.model,
                     openai_message_dict={
                         "role": "user",  # TODO: change to system?
@@ -1129,10 +1130,10 @@ class Agent(BaseAgent):
         openai_message_dict = {"role": "user", "content": cleaned_user_message_text, "name": name}
 
         # Create the associated Message object (in the database)
-        assert self.agent_state.user_id is not None, "User ID is not set"
+        assert self.agent_state.created_by_id is not None, "User ID is not set"
         user_message = Message.dict_to_message(
             agent_id=self.agent_state.id,
-            user_id=self.agent_state.user_id,
+            user_id=self.agent_state.created_by_id,
             model=self.model,
             openai_message_dict=openai_message_dict,
             # created_at=timestamp,
@@ -1232,7 +1233,7 @@ class Agent(BaseAgent):
             [
                 Message.dict_to_message(
                     agent_id=self.agent_state.id,
-                    user_id=self.agent_state.user_id,
+                    user_id=self.agent_state.created_by_id,
                     model=self.model,
                     openai_message_dict=packed_summary_message,
                 )
@@ -1260,7 +1261,7 @@ class Agent(BaseAgent):
         assert isinstance(new_system_message, str)
         new_system_message_obj = Message.dict_to_message(
             agent_id=self.agent_state.id,
-            user_id=self.agent_state.user_id,
+            user_id=self.agent_state.created_by_id,
             model=self.model,
             openai_message_dict={"role": "system", "content": new_system_message},
         )
@@ -1374,8 +1375,8 @@ class Agent(BaseAgent):
     def attach_source(self, source_id: str, source_connector: StorageConnector, ms: MetadataStore):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
-        user = UserManager().get_user_by_id(self.agent_state.user_id)
-        filters = {"user_id": self.agent_state.user_id, "source_id": source_id}
+        user = UserManager().get_user_by_id(self.agent_state.created_by_id)
+        filters = {"user_id": self.agent_state.created_by_id, "source_id": source_id}
         size = source_connector.size(filters)
         page_size = 100
         generator = source_connector.get_all_paginated(filters=filters, page_size=page_size)  # yields List[Passage]
@@ -1404,7 +1405,7 @@ class Agent(BaseAgent):
         # attach to agent
         source = SourceManager().get_source_by_id(source_id=source_id, actor=user)
         assert source is not None, f"Source {source_id} not found in metadata store"
-        ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
+        ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.created_by_id)
 
         total_agent_passages = self.archival_memory.storage.size()
 
@@ -1631,12 +1632,24 @@ def save_agent(agent: Agent, ms: MetadataStore):
     assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"
 
     # TODO: move this to agent manager
+    # TODO: Completely strip out metadata
     # convert to persisted model
-    persisted_agent_state = agent.agent_state.to_persisted_agent_state()
-    if ms.get_agent(agent_id=persisted_agent_state.id):
-        ms.update_agent(persisted_agent_state)
-    else:
-        ms.create_agent(persisted_agent_state)
+    agent_manager = AgentManager()
+    update_agent = UpdateAgent(
+        name=agent_state.name,
+        tool_ids=[t.id for t in agent_state.tools],
+        source_ids=[s.id for s in agent_state.sources],
+        block_ids=[b.id for b in agent_state.memory.blocks],
+        tags=agent_state.tags,
+        system=agent_state.system,
+        tool_rules=agent_state.tool_rules,
+        llm_config=agent_state.llm_config,
+        embedding_config=agent_state.embedding_config,
+        message_ids=agent_state.message_ids,
+        description=agent_state.description,
+        metadata_=agent_state.metadata_,
+    )
+    agent_manager.update_agent(agent_id=agent_state.id, agent_update=update_agent)
 
 
 def strip_name_field_from_user_message(user_message_text: str) -> Tuple[str, Optional[str]]:

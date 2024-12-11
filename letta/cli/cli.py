@@ -164,7 +164,6 @@ def run(
     persona = persona if persona else config.persona
     if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
-        # agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
         printd("Loading agent state:", agent_state.id)
         printd("Agent state:", agent_state.name)
         # printd("State path:", agent_config.save_state_dir())

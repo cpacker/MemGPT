@@ -134,7 +134,7 @@ class CreateAgent(BaseAgent):  #
         return name
 
 
-class UpdateAgentState(BaseAgent):
+class UpdateAgent(BaseAgent):
     name: Optional[str] = Field(None, description="The name of the agent.")
     tool_ids: Optional[List[str]] = Field(None, description="The ids of the tools used by the agent.")
     source_ids: Optional[List[str]] = Field(None, description="The ids of the sources used by the agent.")

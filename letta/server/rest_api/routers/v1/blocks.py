@@ -23,7 +23,7 @@ def list_blocks(
     server: SyncServer = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     return server.block_manager.get_blocks(actor=actor, label=label, is_template=templates_only, template_name=name)
 
 
@@ -33,7 +33,7 @@ def create_block(
     server: SyncServer = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     block = Block(**create_block.model_dump())
     return server.block_manager.create_or_update_block(actor=actor, block=block)
 
@@ -45,7 +45,7 @@ def update_block(
     server: SyncServer = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),
 ):
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     return server.block_manager.update_block(block_id=block_id, block_update=update_block, actor=actor)
 
 
@@ -55,7 +55,7 @@ def delete_block(
     server: SyncServer = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),
 ):
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     return server.block_manager.delete_block(block_id=block_id, actor=actor)
 
 
@@ -66,7 +66,7 @@ def get_block(
     user_id: Optional[str] = Header(None, alias="user_id"),
 ):
     print("call get block", block_id)
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     try:
         block = server.block_manager.get_block_by_id(block_id=block_id, actor=actor)
         if block is None:
@@ -86,7 +86,7 @@ def link_agent_memory_block(
     """
     Link a memory block to an agent.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     block = server.block_manager.get_block_by_id(block_id=block_id, actor=actor)
     if block is None:
@@ -106,7 +106,7 @@ def unlink_agent_memory_block(
     """
     Unlink a memory block from an agent
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     block = server.block_manager.get_block_by_id(block_id=block_id, actor=actor)
     if block is None:

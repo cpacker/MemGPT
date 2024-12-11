@@ -69,23 +69,44 @@ def user_id(server, org_id):
 
 
 @pytest.fixture(scope="module")
-def agent_id(server, user_id):
+def base_tools(server, user_id):
+    actor = server.user_manager.get_user_or_default(user_id)
+    tools = []
+    for tool_name in BASE_TOOLS:
+        tools.append(server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor))
+
+    yield tools
+
+
+@pytest.fixture(scope="module")
+def base_memory_tools(server, user_id):
+    actor = server.user_manager.get_user_or_default(user_id)
+    tools = []
+    for tool_name in BASE_MEMORY_TOOLS:
+        tools.append(server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor))
+
+    yield tools
+
+
+@pytest.fixture(scope="module")
+def agent_id(server, user_id, base_tools):
     # create agent
+    actor = server.user_manager.get_user_or_default(user_id)
     agent_state = server.create_agent(
         request=CreateAgent(
             name="test_agent",
-            tools=BASE_TOOLS,
+            tool_ids=[t.id for t in base_tools],
             memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        actor=server.get_user_or_default(user_id),
+        actor=actor,
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
 
     # cleanup
-    server.delete_agent(user_id, agent_state.id)
+    server.agent_manager.delete_agent(agent_state.id, actor=actor)
 
 
 def test_error_on_nonexistent_agent(server, user_id, agent_id):
@@ -324,33 +345,6 @@ def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id:
     )
 
 
-def test_load_agent_with_nonexistent_tool_names_does_not_error(server: SyncServer, user_id: str):
-    fake_tool_name = "blahblahblah"
-    tools = BASE_TOOLS + [fake_tool_name]
-    agent_state = server.create_agent(
-        request=CreateAgent(
-            name="nonexistent_tools_agent",
-            tools=tools,
-            memory_blocks=[],
-            llm_config=LLMConfig.default_config("gpt-4"),
-            embedding_config=EmbeddingConfig.default_config(provider="openai"),
-        ),
-        actor=server.get_user_or_default(user_id),
-    )
-
-    # Check that the tools in agent_state do NOT include the fake name
-    assert fake_tool_name not in agent_state.tool_names
-    assert set(BASE_TOOLS).issubset(set(agent_state.tool_names))
-
-    # Load the agent from the database and check that it doesn't error / tools are correct
-    saved_tools = server.get_tools_from_agent(agent_id=agent_state.id, user_id=user_id)
-    assert fake_tool_name not in agent_state.tool_names
-    assert set(BASE_TOOLS).issubset(set(agent_state.tool_names))
-
-    # cleanup
-    server.delete_agent(user_id, agent_state.id)
-
-
 def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
     agent_state = server.create_agent(
         request=CreateAgent(
@@ -359,14 +353,14 @@ def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        actor=server.get_user_or_default(user_id),
+        actor=server.user_manager.get_user_or_default(user_id),
     )
 
     # create another user in the same org
     another_user = server.user_manager.create_user(User(organization_id=org_id, name="another"))
 
     # test that another user in the same org can delete the agent
-    server.delete_agent(another_user.id, agent_state.id)
+    server.agent_manager.delete_agent(agent_state.id, actor=another_user)
 
 
 def _test_get_messages_letta_format(
@@ -614,14 +608,14 @@ def test_composio_client_simple(server):
     assert len(actions) > 0
 
 
-def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none):
+def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none, base_tools, base_memory_tools):
     """Test that the memory rebuild is generating the correct number of role=system messages"""
 
     # create agent
     agent_state = server.create_agent(
         request=CreateAgent(
             name="memory_rebuild_test_agent",
-            tools=BASE_TOOLS + BASE_MEMORY_TOOLS,
+            tool_ids=[t.id for t in base_tools + base_memory_tools],
             memory_blocks=[
                 CreateBlock(label="human", value="The human's name is Bob."),
                 CreateBlock(label="persona", value="My name is Alice."),
@@ -629,7 +623,7 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none):
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        actor=server.get_user_or_default(user_id),
+        actor=server.user_manager.get_user_or_default(user_id),
     )
     print(f"Created agent\n{agent_state}")
 
@@ -676,4 +670,4 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none):
 
     finally:
         # cleanup
-        server.delete_agent(user_id, agent_state.id)
+        server.agent_manager.delete_agent(agent_state.id)

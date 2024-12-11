@@ -1,14 +1,15 @@
 import os
 import time
 from datetime import datetime, timedelta
+from typing import Union
 
 import pytest
 from sqlalchemy import delete
 
 import letta.utils as utils
-from letta.agent import Agent
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
 from letta.orm import (
+    Agent,
     Block,
     BlocksAgents,
     FileMetadata,
@@ -23,12 +24,8 @@ from letta.orm import (
     User,
 )
 from letta.orm.agents_tags import AgentsTags
-from letta.orm.errors import (
-    ForeignKeyConstraintViolationError,
-    NoResultFound,
-    UniqueConstraintViolationError,
-)
-from letta.schemas.agent import CreateAgent, UpdateAgentState
+from letta.orm.errors import NoResultFound, UniqueConstraintViolationError
+from letta.schemas.agent import AgentState, CreateAgent, UpdateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate, CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -56,7 +53,6 @@ from letta.schemas.tool import ToolUpdate
 from letta.schemas.tool_rule import InitToolRule
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
-from letta.services.tool_manager import ToolManager
 from letta.settings import tool_settings
 
 utils.DEBUG = True
@@ -346,14 +342,15 @@ def server():
 # ======================================================================================================================
 # AgentManager Tests
 # ======================================================================================================================
-def _comprehensive_agent_checks(agent: AgentState, request: Union[CreateAgent, UpdateAgentState]):
+def _comprehensive_agent_checks(agent: AgentState, request: Union[CreateAgent, UpdateAgent]):
     # Assert scalar fields
     assert agent.system == request.system, f"System prompt mismatch: {agent.system} != {request.system}"
     assert agent.description == request.description, f"Description mismatch: {agent.description} != {request.description}"
     assert agent.metadata_ == request.metadata_, f"Metadata mismatch: {agent.metadata_} != {request.metadata_}"
 
     # Assert agent type
-    assert agent.agent_type == request.agent_type, f"Agent type mismatch: {agent.agent_type} != {request.agent_type}"
+    if hasattr(request, "agent_type"):
+        assert agent.agent_type == request.agent_type, f"Agent type mismatch: {agent.agent_type} != {request.agent_type}"
 
     # Assert LLM configuration
     assert agent.llm_config == request.llm_config, f"LLM config mismatch: {agent.llm_config} != {request.llm_config}"
@@ -364,14 +361,15 @@ def _comprehensive_agent_checks(agent: AgentState, request: Union[CreateAgent, U
     ), f"Embedding config mismatch: {agent.embedding_config} != {request.embedding_config}"
 
     # Assert memory blocks
-    assert len(agent.memory.blocks) == len(request.memory_blocks) + len(
-        request.block_ids
-    ), f"Memory blocks count mismatch: {len(agent.memory.blocks)} != {len(request.memory_blocks) + len(request.block_ids)}"
-    memory_block_values = {block.value for block in agent.memory.blocks}
-    expected_block_values = {block.value for block in request.memory_blocks}
-    assert expected_block_values.issubset(
-        memory_block_values
-    ), f"Memory blocks mismatch: {expected_block_values} not in {memory_block_values}"
+    if hasattr(request, "memory_blocks"):
+        assert len(agent.memory.blocks) == len(request.memory_blocks) + len(
+            request.block_ids
+        ), f"Memory blocks count mismatch: {len(agent.memory.blocks)} != {len(request.memory_blocks) + len(request.block_ids)}"
+        memory_block_values = {block.value for block in agent.memory.blocks}
+        expected_block_values = {block.value for block in request.memory_blocks}
+        assert expected_block_values.issubset(
+            memory_block_values
+        ), f"Memory blocks mismatch: {expected_block_values} not in {memory_block_values}"
 
     # Assert tools
     assert len(agent.tools) == len(request.tool_ids), f"Tools count mismatch: {len(agent.tools)} != {len(request.tool_ids)}"
@@ -407,16 +405,26 @@ def test_create_get_list_agent(server: SyncServer, comprehensive_test_agent_fixt
     get_agent = server.agent_manager.get_agent_by_id(agent_id=created_agent.id, actor=default_user)
     _comprehensive_agent_checks(get_agent, create_agent_request)
 
+    # Test get agent name
+    get_agent_name = server.agent_manager.get_agent_by_name(agent_name=created_agent.name, actor=default_user)
+    _comprehensive_agent_checks(get_agent_name, create_agent_request)
+
     # Test list agent
     list_agents = server.agent_manager.list_agents(actor=default_user)
     assert len(list_agents) == 1
     _comprehensive_agent_checks(list_agents[0], create_agent_request)
 
+    # Test deleting the agent
+    server.agent_manager.delete_agent(get_agent.id, default_user)
+    list_agents = server.agent_manager.list_agents(actor=default_user)
+    assert len(list_agents) == 0
+
 
 def test_update_agent(server: SyncServer, comprehensive_test_agent_fixture, other_tool, other_source, other_block, default_user):
     agent, _ = comprehensive_test_agent_fixture
-    update_agent_request = UpdateAgentState(
+    update_agent_request = UpdateAgent(
         name="train_agent",
+        description="train description",
         tool_ids=[other_tool.id],
         source_ids=[other_source.id],
         block_ids=[other_block.id],
@@ -426,10 +434,11 @@ def test_update_agent(server: SyncServer, comprehensive_test_agent_fixture, othe
         llm_config=LLMConfig.default_config("gpt-4o-mini"),
         embedding_config=EmbeddingConfig.default_config(model_name="letta"),
         message_ids=["10", "20"],
+        metadata_={"train_key": "train_value"},
     )
 
     updated_agent = server.agent_manager.update_agent(agent.id, update_agent_request, actor=default_user)
-    _comprehensive_agent_checks(agent, updated_agent)
+    _comprehensive_agent_checks(updated_agent, update_agent_request)
     assert updated_agent.message_ids == update_agent_request.message_ids
 
 
@@ -1173,86 +1182,86 @@ def test_delete_file(server: SyncServer, default_user, default_source):
     assert len(files) == 0
 
 
-# ======================================================================================================================
-# AgentsTagsManager Tests
-# ======================================================================================================================
-
-
-def test_add_tag_to_agent(server: SyncServer, sarah_agent, default_user):
-    # Add a tag to the agent
-    tag_name = "test_tag"
-    tag_association = server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-
-    # Assert that the tag association was created correctly
-    assert tag_association.agent_id == sarah_agent.id
-    assert tag_association.tag == tag_name
-
-
-def test_add_duplicate_tag_to_agent(server: SyncServer, sarah_agent, default_user):
-    # Add the same tag twice to the agent
-    tag_name = "test_tag"
-    first_tag = server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-    duplicate_tag = server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-
-    # Assert that the second addition returns the existing tag without creating a duplicate
-    assert first_tag.agent_id == duplicate_tag.agent_id
-    assert first_tag.tag == duplicate_tag.tag
-
-    # Get all the tags belonging to the agent
-    tags = server.agents_tags_manager.get_tags_for_agent(agent_id=sarah_agent.id, actor=default_user)
-    assert len(tags) == 1
-    assert tags[0] == first_tag.tag
-
-
-def test_delete_tag_from_agent(server: SyncServer, sarah_agent, default_user):
-    # Add a tag, then delete it
-    tag_name = "test_tag"
-    server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-    server.agents_tags_manager.delete_tag_from_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-
-    # Assert the tag was deleted
-    agent_tags = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
-    assert sarah_agent.id not in agent_tags
-
-
-def test_delete_nonexistent_tag_from_agent(server: SyncServer, sarah_agent, default_user):
-    # Attempt to delete a tag that doesn't exist
-    tag_name = "nonexistent_tag"
-    with pytest.raises(ValueError, match=f"Tag '{tag_name}' not found for agent '{sarah_agent.id}'"):
-        server.agents_tags_manager.delete_tag_from_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-
-
-def test_delete_tag_from_nonexistent_agent(server: SyncServer, default_user):
-    # Attempt to delete a tag that doesn't exist
-    tag_name = "nonexistent_tag"
-    agent_id = "abc"
-    with pytest.raises(ValueError, match=f"Tag '{tag_name}' not found for agent '{agent_id}'"):
-        server.agents_tags_manager.delete_tag_from_agent(agent_id=agent_id, tag=tag_name, actor=default_user)
-
-
-def test_get_agents_by_tag(server: SyncServer, sarah_agent, charles_agent, default_user, default_organization):
-    # Add a shared tag to multiple agents
-    tag_name = "shared_tag"
-
-    # Add the same tag to both agents
-    server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-    server.agents_tags_manager.add_tag_to_agent(agent_id=charles_agent.id, tag=tag_name, actor=default_user)
-
-    # Retrieve agents by tag
-    agent_ids = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
-
-    # Assert that both agents are returned for the tag
-    assert sarah_agent.id in agent_ids
-    assert charles_agent.id in agent_ids
-    assert len(agent_ids) == 2
-
-    # Delete tags from only sarah agent
-    server.agents_tags_manager.delete_all_tags_from_agent(agent_id=sarah_agent.id, actor=default_user)
-    agent_ids = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
-    # Assert that both agents are returned for the tag
-    assert sarah_agent.id not in agent_ids
-    assert charles_agent.id in agent_ids
-    assert len(agent_ids) == 1
+# # ======================================================================================================================
+# # AgentsTagsManager Tests
+# # ======================================================================================================================
+#
+#
+# def test_add_tag_to_agent(server: SyncServer, sarah_agent, default_user):
+#     # Add a tag to the agent
+#     tag_name = "test_tag"
+#     tag_association = server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
+#
+#     # Assert that the tag association was created correctly
+#     assert tag_association.agent_id == sarah_agent.id
+#     assert tag_association.tag == tag_name
+#
+#
+# def test_add_duplicate_tag_to_agent(server: SyncServer, sarah_agent, default_user):
+#     # Add the same tag twice to the agent
+#     tag_name = "test_tag"
+#     first_tag = server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
+#     duplicate_tag = server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
+#
+#     # Assert that the second addition returns the existing tag without creating a duplicate
+#     assert first_tag.agent_id == duplicate_tag.agent_id
+#     assert first_tag.tag == duplicate_tag.tag
+#
+#     # Get all the tags belonging to the agent
+#     tags = server.agents_tags_manager.get_tags_for_agent(agent_id=sarah_agent.id, actor=default_user)
+#     assert len(tags) == 1
+#     assert tags[0] == first_tag.tag
+#
+#
+# def test_delete_tag_from_agent(server: SyncServer, sarah_agent, default_user):
+#     # Add a tag, then delete it
+#     tag_name = "test_tag"
+#     server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
+#     server.agents_tags_manager.delete_tag_from_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
+#
+#     # Assert the tag was deleted
+#     agent_tags = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
+#     assert sarah_agent.id not in agent_tags
+#
+#
+# def test_delete_nonexistent_tag_from_agent(server: SyncServer, sarah_agent, default_user):
+#     # Attempt to delete a tag that doesn't exist
+#     tag_name = "nonexistent_tag"
+#     with pytest.raises(ValueError, match=f"Tag '{tag_name}' not found for agent '{sarah_agent.id}'"):
+#         server.agents_tags_manager.delete_tag_from_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
+#
+#
+# def test_delete_tag_from_nonexistent_agent(server: SyncServer, default_user):
+#     # Attempt to delete a tag that doesn't exist
+#     tag_name = "nonexistent_tag"
+#     agent_id = "abc"
+#     with pytest.raises(ValueError, match=f"Tag '{tag_name}' not found for agent '{agent_id}'"):
+#         server.agents_tags_manager.delete_tag_from_agent(agent_id=agent_id, tag=tag_name, actor=default_user)
+#
+#
+# def test_get_agents_by_tag(server: SyncServer, sarah_agent, charles_agent, default_user, default_organization):
+#     # Add a shared tag to multiple agents
+#     tag_name = "shared_tag"
+#
+#     # Add the same tag to both agents
+#     server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
+#     server.agents_tags_manager.add_tag_to_agent(agent_id=charles_agent.id, tag=tag_name, actor=default_user)
+#
+#     # Retrieve agents by tag
+#     agent_ids = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
+#
+#     # Assert that both agents are returned for the tag
+#     assert sarah_agent.id in agent_ids
+#     assert charles_agent.id in agent_ids
+#     assert len(agent_ids) == 2
+#
+#     # Delete tags from only sarah agent
+#     server.agents_tags_manager.delete_all_tags_from_agent(agent_id=sarah_agent.id, actor=default_user)
+#     agent_ids = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
+#     # Assert that both agents are returned for the tag
+#     assert sarah_agent.id not in agent_ids
+#     assert charles_agent.id in agent_ids
+#     assert len(agent_ids) == 1
 
 
 # ======================================================================================================================
@@ -1404,203 +1413,203 @@ def test_get_sandbox_env_var_by_key(server: SyncServer, sandbox_env_var_fixture,
     assert retrieved_env_var.key == sandbox_env_var_fixture.key
 
 
-# ======================================================================================================================
-# BlocksAgentsManager Tests
-# ======================================================================================================================
-def test_add_block_to_agent(server, sarah_agent, default_user, default_block):
-    block_association = server.blocks_agents_manager.add_block_to_agent(
-        agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label
-    )
-
-    assert block_association.agent_id == sarah_agent.id
-    assert block_association.block_id == default_block.id
-    assert block_association.block_label == default_block.label
-
-
-def test_change_label_on_block_reflects_in_block_agents_table(server, sarah_agent, default_user, default_block):
-    # Add the block
-    block_association = server.blocks_agents_manager.add_block_to_agent(
-        agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label
-    )
-    assert block_association.block_label == default_block.label
-
-    # Change the block label
-    new_label = "banana"
-    block = server.block_manager.update_block(block_id=default_block.id, block_update=BlockUpdate(label=new_label), actor=default_user)
-    assert block.label == new_label
-
-    # Get the association
-    labels = server.blocks_agents_manager.list_block_labels_for_agent(agent_id=sarah_agent.id)
-    assert new_label in labels
-    assert default_block.label not in labels
-
-
-@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
-def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
-    with pytest.raises(ForeignKeyConstraintViolationError):
-        server.blocks_agents_manager.add_block_to_agent(
-            agent_id=sarah_agent.id, block_id="nonexistent_block", block_label="nonexistent_label"
-        )
-
-
-def test_add_block_to_agent_duplicate_label(server, sarah_agent, default_user, default_block, other_block):
-    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-
-    with pytest.warns(UserWarning, match=f"Block label '{default_block.label}' already exists for agent '{sarah_agent.id}'"):
-        server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=default_block.label)
-
-
-def test_remove_block_with_label_from_agent(server, sarah_agent, default_user, default_block):
-    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-
-    removed_block = server.blocks_agents_manager.remove_block_with_label_from_agent(
-        agent_id=sarah_agent.id, block_label=default_block.label
-    )
-
-    assert removed_block.block_label == default_block.label
-    assert removed_block.block_id == default_block.id
-    assert removed_block.agent_id == sarah_agent.id
-
-    with pytest.raises(ValueError, match=f"Block label '{default_block.label}' not found for agent '{sarah_agent.id}'"):
-        server.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=sarah_agent.id, block_label=default_block.label)
-
-
-def test_update_block_id_for_agent(server, sarah_agent, default_user, default_block, other_block):
-    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-
-    updated_block = server.blocks_agents_manager.update_block_id_for_agent(
-        agent_id=sarah_agent.id, block_label=default_block.label, new_block_id=other_block.id
-    )
-
-    assert updated_block.block_id == other_block.id
-    assert updated_block.block_label == default_block.label
-    assert updated_block.agent_id == sarah_agent.id
-
-
-def test_list_block_ids_for_agent(server, sarah_agent, default_user, default_block, other_block):
-    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=other_block.label)
-
-    retrieved_block_ids = server.blocks_agents_manager.list_block_ids_for_agent(agent_id=sarah_agent.id)
-
-    assert set(retrieved_block_ids) == {default_block.id, other_block.id}
-
-
-def test_list_agent_ids_with_block(server, sarah_agent, charles_agent, default_user, default_block):
-    server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-    server.blocks_agents_manager.add_block_to_agent(agent_id=charles_agent.id, block_id=default_block.id, block_label=default_block.label)
-
-    agent_ids = server.blocks_agents_manager.list_agent_ids_with_block(block_id=default_block.id)
-
-    assert sarah_agent.id in agent_ids
-    assert charles_agent.id in agent_ids
-    assert len(agent_ids) == 2
-
-
-@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
-def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user, default_block):
-    block_manager = BlockManager()
-    block_manager.delete_block(block_id=default_block.id, actor=default_user)
-
-    with pytest.raises(ForeignKeyConstraintViolationError):
-        server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-
-
-# ======================================================================================================================
-# ToolsAgentsManager Tests
-# ======================================================================================================================
-def test_add_tool_to_agent(server, sarah_agent, default_user, print_tool):
-    tool_association = server.tools_agents_manager.add_tool_to_agent(
-        agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name
-    )
-
-    assert tool_association.agent_id == sarah_agent.id
-    assert tool_association.tool_id == print_tool.id
-    assert tool_association.tool_name == print_tool.name
+# # ======================================================================================================================
+# # BlocksAgentsManager Tests
+# # ======================================================================================================================
+# def test_add_block_to_agent(server, sarah_agent, default_user, default_block):
+#     block_association = server.blocks_agents_manager.add_block_to_agent(
+#         agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label
+#     )
+#
+#     assert block_association.agent_id == sarah_agent.id
+#     assert block_association.block_id == default_block.id
+#     assert block_association.block_label == default_block.label
+#
+#
+# def test_change_label_on_block_reflects_in_block_agents_table(server, sarah_agent, default_user, default_block):
+#     # Add the block
+#     block_association = server.blocks_agents_manager.add_block_to_agent(
+#         agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label
+#     )
+#     assert block_association.block_label == default_block.label
+#
+#     # Change the block label
+#     new_label = "banana"
+#     block = server.block_manager.update_block(block_id=default_block.id, block_update=BlockUpdate(label=new_label), actor=default_user)
+#     assert block.label == new_label
+#
+#     # Get the association
+#     labels = server.blocks_agents_manager.list_block_labels_for_agent(agent_id=sarah_agent.id)
+#     assert new_label in labels
+#     assert default_block.label not in labels
+#
+#
+# @pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
+# def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
+#     with pytest.raises(ForeignKeyConstraintViolationError):
+#         server.blocks_agents_manager.add_block_to_agent(
+#             agent_id=sarah_agent.id, block_id="nonexistent_block", block_label="nonexistent_label"
+#         )
+#
+#
+# def test_add_block_to_agent_duplicate_label(server, sarah_agent, default_user, default_block, other_block):
+#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+#
+#     with pytest.warns(UserWarning, match=f"Block label '{default_block.label}' already exists for agent '{sarah_agent.id}'"):
+#         server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=default_block.label)
+#
+#
+# def test_remove_block_with_label_from_agent(server, sarah_agent, default_user, default_block):
+#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+#
+#     removed_block = server.blocks_agents_manager.remove_block_with_label_from_agent(
+#         agent_id=sarah_agent.id, block_label=default_block.label
+#     )
+#
+#     assert removed_block.block_label == default_block.label
+#     assert removed_block.block_id == default_block.id
+#     assert removed_block.agent_id == sarah_agent.id
+#
+#     with pytest.raises(ValueError, match=f"Block label '{default_block.label}' not found for agent '{sarah_agent.id}'"):
+#         server.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=sarah_agent.id, block_label=default_block.label)
+#
+#
+# def test_update_block_id_for_agent(server, sarah_agent, default_user, default_block, other_block):
+#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+#
+#     updated_block = server.blocks_agents_manager.update_block_id_for_agent(
+#         agent_id=sarah_agent.id, block_label=default_block.label, new_block_id=other_block.id
+#     )
+#
+#     assert updated_block.block_id == other_block.id
+#     assert updated_block.block_label == default_block.label
+#     assert updated_block.agent_id == sarah_agent.id
+#
+#
+# def test_list_block_ids_for_agent(server, sarah_agent, default_user, default_block, other_block):
+#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=other_block.label)
+#
+#     retrieved_block_ids = server.blocks_agents_manager.list_block_ids_for_agent(agent_id=sarah_agent.id)
+#
+#     assert set(retrieved_block_ids) == {default_block.id, other_block.id}
+#
+#
+# def test_list_agent_ids_with_block(server, sarah_agent, charles_agent, default_user, default_block):
+#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
+#     server.blocks_agents_manager.add_block_to_agent(agent_id=charles_agent.id, block_id=default_block.id, block_label=default_block.label)
+#
+#     agent_ids = server.blocks_agents_manager.list_agent_ids_with_block(block_id=default_block.id)
+#
+#     assert sarah_agent.id in agent_ids
+#     assert charles_agent.id in agent_ids
+#     assert len(agent_ids) == 2
+#
+#
+# @pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
+# def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user, default_block):
+#     block_manager = BlockManager()
+#     block_manager.delete_block(block_id=default_block.id, actor=default_user)
+#
+#     with pytest.raises(ForeignKeyConstraintViolationError):
+#         server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
 
 
-def test_change_name_on_tool_reflects_in_tool_agents_table(server, sarah_agent, default_user, print_tool):
-    # Add the tool
-    tool_association = server.tools_agents_manager.add_tool_to_agent(
-        agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name
-    )
-    assert tool_association.tool_name == print_tool.name
-
-    # Change the tool name
-    new_name = "banana"
-    tool = server.tool_manager.update_tool_by_id(tool_id=print_tool.id, tool_update=ToolUpdate(name=new_name), actor=default_user)
-    assert tool.name == new_name
-
-    # Get the association
-    names = server.tools_agents_manager.list_tool_names_for_agent(agent_id=sarah_agent.id)
-    assert new_name in names
-    assert print_tool.name not in names
-
-
-@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
-def test_add_tool_to_agent_nonexistent_tool(server, sarah_agent, default_user):
-    with pytest.raises(ForeignKeyConstraintViolationError):
-        server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id="nonexistent_tool", tool_name="nonexistent_name")
-
-
-def test_add_tool_to_agent_duplicate_name(server, sarah_agent, default_user, print_tool, other_tool):
-    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
-
-    with pytest.warns(UserWarning, match=f"Tool name '{print_tool.name}' already exists for agent '{sarah_agent.id}'"):
-        server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=other_tool.id, tool_name=print_tool.name)
-
-
-def test_remove_tool_with_name_from_agent(server, sarah_agent, default_user, print_tool):
-    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
-
-    removed_tool = server.tools_agents_manager.remove_tool_with_name_from_agent(agent_id=sarah_agent.id, tool_name=print_tool.name)
-
-    assert removed_tool.tool_name == print_tool.name
-    assert removed_tool.tool_id == print_tool.id
-    assert removed_tool.agent_id == sarah_agent.id
-
-    with pytest.raises(ValueError, match=f"Tool name '{print_tool.name}' not found for agent '{sarah_agent.id}'"):
-        server.tools_agents_manager.remove_tool_with_name_from_agent(agent_id=sarah_agent.id, tool_name=print_tool.name)
-
-
-def test_list_tool_ids_for_agent(server, sarah_agent, default_user, print_tool, other_tool):
-    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
-    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=other_tool.id, tool_name=other_tool.name)
-
-    retrieved_tool_ids = server.tools_agents_manager.list_tool_ids_for_agent(agent_id=sarah_agent.id)
-
-    assert set(retrieved_tool_ids) == {print_tool.id, other_tool.id}
-
-
-def test_list_agent_ids_with_tool(server, sarah_agent, charles_agent, default_user, print_tool):
-    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
-    server.tools_agents_manager.add_tool_to_agent(agent_id=charles_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
-
-    agent_ids = server.tools_agents_manager.list_agent_ids_with_tool(tool_id=print_tool.id)
-
-    assert sarah_agent.id in agent_ids
-    assert charles_agent.id in agent_ids
-    assert len(agent_ids) == 2
-
-
-@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
-def test_add_tool_to_agent_with_deleted_tool(server, sarah_agent, default_user, print_tool):
-    tool_manager = ToolManager()
-    tool_manager.delete_tool_by_id(tool_id=print_tool.id, actor=default_user)
-
-    with pytest.raises(ForeignKeyConstraintViolationError):
-        server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
-
-
-def test_remove_all_agent_tools(server, sarah_agent, default_user, print_tool, other_tool):
-    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
-    server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=other_tool.id, tool_name=other_tool.name)
-
-    server.tools_agents_manager.remove_all_agent_tools(agent_id=sarah_agent.id)
-
-    retrieved_tool_ids = server.tools_agents_manager.list_tool_ids_for_agent(agent_id=sarah_agent.id)
-
-    assert not retrieved_tool_ids
+# # ======================================================================================================================
+# # ToolsAgentsManager Tests
+# # ======================================================================================================================
+# def test_add_tool_to_agent(server, sarah_agent, default_user, print_tool):
+#     tool_association = server.tools_agents_manager.add_tool_to_agent(
+#         agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name
+#     )
+#
+#     assert tool_association.agent_id == sarah_agent.id
+#     assert tool_association.tool_id == print_tool.id
+#     assert tool_association.tool_name == print_tool.name
+#
+#
+# def test_change_name_on_tool_reflects_in_tool_agents_table(server, sarah_agent, default_user, print_tool):
+#     # Add the tool
+#     tool_association = server.tools_agents_manager.add_tool_to_agent(
+#         agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name
+#     )
+#     assert tool_association.tool_name == print_tool.name
+#
+#     # Change the tool name
+#     new_name = "banana"
+#     tool = server.tool_manager.update_tool_by_id(tool_id=print_tool.id, tool_update=ToolUpdate(name=new_name), actor=default_user)
+#     assert tool.name == new_name
+#
+#     # Get the association
+#     names = server.tools_agents_manager.list_tool_names_for_agent(agent_id=sarah_agent.id)
+#     assert new_name in names
+#     assert print_tool.name not in names
+#
+#
+# @pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
+# def test_add_tool_to_agent_nonexistent_tool(server, sarah_agent, default_user):
+#     with pytest.raises(ForeignKeyConstraintViolationError):
+#         server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id="nonexistent_tool", tool_name="nonexistent_name")
+#
+#
+# def test_add_tool_to_agent_duplicate_name(server, sarah_agent, default_user, print_tool, other_tool):
+#     server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+#
+#     with pytest.warns(UserWarning, match=f"Tool name '{print_tool.name}' already exists for agent '{sarah_agent.id}'"):
+#         server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=other_tool.id, tool_name=print_tool.name)
+#
+#
+# def test_remove_tool_with_name_from_agent(server, sarah_agent, default_user, print_tool):
+#     server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+#
+#     removed_tool = server.tools_agents_manager.remove_tool_with_name_from_agent(agent_id=sarah_agent.id, tool_name=print_tool.name)
+#
+#     assert removed_tool.tool_name == print_tool.name
+#     assert removed_tool.tool_id == print_tool.id
+#     assert removed_tool.agent_id == sarah_agent.id
+#
+#     with pytest.raises(ValueError, match=f"Tool name '{print_tool.name}' not found for agent '{sarah_agent.id}'"):
+#         server.tools_agents_manager.remove_tool_with_name_from_agent(agent_id=sarah_agent.id, tool_name=print_tool.name)
+#
+#
+# def test_list_tool_ids_for_agent(server, sarah_agent, default_user, print_tool, other_tool):
+#     server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+#     server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=other_tool.id, tool_name=other_tool.name)
+#
+#     retrieved_tool_ids = server.tools_agents_manager.list_tool_ids_for_agent(agent_id=sarah_agent.id)
+#
+#     assert set(retrieved_tool_ids) == {print_tool.id, other_tool.id}
+#
+#
+# def test_list_agent_ids_with_tool(server, sarah_agent, charles_agent, default_user, print_tool):
+#     server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+#     server.tools_agents_manager.add_tool_to_agent(agent_id=charles_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+#
+#     agent_ids = server.tools_agents_manager.list_agent_ids_with_tool(tool_id=print_tool.id)
+#
+#     assert sarah_agent.id in agent_ids
+#     assert charles_agent.id in agent_ids
+#     assert len(agent_ids) == 2
+#
+#
+# @pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
+# def test_add_tool_to_agent_with_deleted_tool(server, sarah_agent, default_user, print_tool):
+#     tool_manager = ToolManager()
+#     tool_manager.delete_tool_by_id(tool_id=print_tool.id, actor=default_user)
+#
+#     with pytest.raises(ForeignKeyConstraintViolationError):
+#         server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+#
+#
+# def test_remove_all_agent_tools(server, sarah_agent, default_user, print_tool, other_tool):
+#     server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=print_tool.id, tool_name=print_tool.name)
+#     server.tools_agents_manager.add_tool_to_agent(agent_id=sarah_agent.id, tool_id=other_tool.id, tool_name=other_tool.name)
+#
+#     server.tools_agents_manager.remove_all_agent_tools(agent_id=sarah_agent.id)
+#
+#     retrieved_tool_ids = server.tools_agents_manager.list_tool_ids_for_agent(agent_id=sarah_agent.id)
+#
+#     assert not retrieved_tool_ids
 
 
 # ======================================================================================================================

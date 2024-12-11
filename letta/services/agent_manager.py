@@ -7,7 +7,7 @@ from letta.orm import Source as SourceModel
 from letta.orm import Tool as ToolModel
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentState as PydanticAgentState
-from letta.schemas.agent import AgentType, CreateAgent, UpdateAgentState
+from letta.schemas.agent import AgentType, CreateAgent, UpdateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
@@ -103,6 +103,7 @@ def derive_system_message(agent_type: AgentType, system: Optional[str] = None):
 
 
 # Agent Manager Class
+# TODO: Make the actor REQUIRED!
 class AgentManager:
     """Manager class to handle business logic related to Agents."""
 
@@ -118,16 +119,16 @@ class AgentManager:
     def create_agent(
         self,
         agent_create: CreateAgent,
-        actor: PydanticUser = None,
+        actor: Optional[PydanticUser] = None,
     ) -> PydanticAgentState:
         system = derive_system_message(agent_type=agent_create.agent_type, system=agent_create.system)
 
         # TODO:
         # create blocks (note: cannot be linked into the agent_id is created)
-        new_block_ids = []
+        block_ids = list(agent_create.block_ids or [])  # Create a local copy to avoid modifying the original
         for create_block in agent_create.memory_blocks:
             block = self.block_manager.create_or_update_block(PydanticBlock(**create_block.model_dump()), actor=actor)
-            new_block_ids.append(block.id)
+            block_ids.append(block.id)
 
         return self._create_agent(
             name=agent_create.name,
@@ -135,10 +136,10 @@ class AgentManager:
             agent_type=agent_create.agent_type,
             llm_config=agent_create.llm_config,
             embedding_config=agent_create.embedding_config,
-            block_ids=agent_create.block_ids + new_block_ids,
-            tool_ids=agent_create.tool_ids,
-            source_ids=agent_create.source_ids,
-            tags=agent_create.tags,
+            block_ids=block_ids,
+            tool_ids=agent_create.tool_ids or [],
+            source_ids=agent_create.source_ids or [],
+            tags=agent_create.tags or [],
             description=agent_create.description,
             metadata_=agent_create.metadata_,
             tool_rules=agent_create.tool_rules,
@@ -160,7 +161,7 @@ class AgentManager:
         description: Optional[str] = None,
         metadata_: Optional[Dict] = None,
         tool_rules: Optional[List[PydanticToolRule]] = None,
-        actor: PydanticUser = None,
+        actor: Optional[PydanticUser] = None,
     ) -> PydanticAgentState:
         """Create a new agent."""
         with self.session_maker() as session:
@@ -189,13 +190,13 @@ class AgentManager:
             return new_agent.to_pydantic()
 
     @enforce_types
-    def update_agent(self, agent_id: str, agent_update: UpdateAgentState, actor: PydanticUser) -> PydanticAgentState:
+    def update_agent(self, agent_id: str, agent_update: UpdateAgent, actor: Optional[PydanticUser] = None) -> PydanticAgentState:
         """
         Update an existing agent.
 
         Args:
             agent_id: The ID of the agent to update.
-            agent_update: UpdateAgentState object containing the updated fields.
+            agent_update: UpdateAgent object containing the updated fields.
             actor: User performing the action.
 
         Returns:
@@ -206,7 +207,7 @@ class AgentManager:
             agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
 
             # Update scalar fields directly
-            scalar_fields = {"name", "system", "llm_config", "embedding_config", "message_ids", "tool_rules"}
+            scalar_fields = {"name", "system", "llm_config", "embedding_config", "message_ids", "tool_rules", "description", "metadata_"}
             for field in scalar_fields:
                 value = getattr(agent_update, field, None)
                 if value is not None:
@@ -231,7 +232,7 @@ class AgentManager:
     @enforce_types
     def list_agents(
         self,
-        actor: PydanticUser,
+        actor: Optional[PydanticUser] = None,
         cursor: Optional[str] = None,
         limit: Optional[int] = 50,
     ) -> Tuple[Optional[str], List[PydanticAgentState]]:
@@ -241,14 +242,21 @@ class AgentManager:
             return [agent.to_pydantic() for agent in results]
 
     @enforce_types
-    def get_agent_by_id(self, agent_id: str, actor: PydanticUser) -> PydanticAgentState:
+    def get_agent_by_id(self, agent_id: str, actor: Optional[PydanticUser] = None) -> PydanticAgentState:
         """Fetch an agent by its ID."""
         with self.session_maker() as session:
             agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
             return agent.to_pydantic()
 
     @enforce_types
-    def delete_agent(self, agent_id: str, actor: PydanticUser) -> None:
+    def get_agent_by_name(self, agent_name: str, actor: Optional[PydanticUser] = None) -> PydanticAgentState:
+        """Fetch an agent by its ID."""
+        with self.session_maker() as session:
+            agent = AgentModel.read(db_session=session, name=agent_name, actor=actor)
+            return agent.to_pydantic()
+
+    @enforce_types
+    def delete_agent(self, agent_id: str, actor: Optional[PydanticUser] = None) -> None:
         """
         Deletes an agent and its associated relationships.
         Ensures proper permission checks and cascades where applicable.

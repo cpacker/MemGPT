@@ -1,7 +1,7 @@
 import uuid
 from typing import TYPE_CHECKING, List, Optional, Type, Union
 
-from sqlalchemy import JSON, String, TypeDecorator
+from sqlalchemy import JSON, String, TypeDecorator, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.block import Block
@@ -119,6 +119,7 @@ class ToolRulesColumn(TypeDecorator):
 class Agent(SqlalchemyBase, OrganizationMixin):
     __tablename__ = "agents"
     __pydantic_model__ = AgentState
+    __table_args__ = (UniqueConstraint("organization_id", "name", name="unique_org_agent_name"),)
 
     # agent generates its own id
     # TODO: We want to migrate all the ORM models to do this, so we will need to move this to the SqlalchemyBase
@@ -188,5 +189,9 @@ class Agent(SqlalchemyBase, OrganizationMixin):
             "embedding_config": self.embedding_config,
             "metadata_": self.metadata_,
             "memory": Memory(blocks=self.core_memory),
+            "created_by_id": self.created_by_id,
+            "last_updated_by_id": self.last_updated_by_id,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
         }
         return self.__pydantic_model__(**state)

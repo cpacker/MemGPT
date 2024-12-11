@@ -15,7 +15,7 @@ from letta.constants import (
 )
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
-from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgent
 from letta.schemas.block import Block, BlockUpdate, CreateBlock, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 
@@ -526,6 +526,7 @@ class RESTClient(AbstractClient):
         if include_base_tools:
             tool_names += BASE_TOOLS
             tool_names += BASE_MEMORY_TOOLS
+        tools = [self.get_tool_id(name) for name in tool_names]
 
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
         assert llm_config or self._default_llm_config, f"LLM config must be provided"
@@ -536,7 +537,7 @@ class RESTClient(AbstractClient):
             description=description,
             metadata_=metadata,
             memory_blocks=[],
-            tools=tool_names,
+            tool_ids=[t.id for t in tools],
             tool_rules=tool_rules,
             system=system,
             agent_type=agent_type,
@@ -627,7 +628,7 @@ class RESTClient(AbstractClient):
         Returns:
             agent_state (AgentState): State of the updated agent
         """
-        request = UpdateAgentState(
+        request = UpdateAgent(
             id=agent_id,
             name=name,
             system=system,
@@ -2055,7 +2056,7 @@ class LocalClient(AbstractClient):
             # get default user
             self.user_id = self.server.user_manager.DEFAULT_USER_ID
 
-        self.user = self.server.get_user_or_default(self.user_id)
+        self.user = self.server.user_manager.get_user_or_default(self.user_id)
         self.organization = self.server.get_organization_or_default(self.org_id)
 
     # agents
@@ -2104,7 +2105,7 @@ class LocalClient(AbstractClient):
         # system
         system: Optional[str] = None,
         # tools
-        tools: Optional[List[str]] = None,
+        tool_ids: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
@@ -2137,11 +2138,12 @@ class LocalClient(AbstractClient):
 
         # construct list of tools
         tool_names = []
-        if tools:
-            tool_names += tools
+        if tool_ids:
+            tool_names += tool_ids
         if include_base_tools:
             tool_names += BASE_TOOLS
             tool_names += BASE_MEMORY_TOOLS
+        tools = [self.server.tool_manager.get_tool_by_name(tool_name=name, actor=self.user) for name in tool_names]
 
         # check if default configs are provided
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
@@ -2157,7 +2159,7 @@ class LocalClient(AbstractClient):
                 memory_blocks=[],
                 # memory_blocks = memory.get_blocks(),
                 # memory_tools=memory_tools,
-                tools=tool_names,
+                tools=[t.id for t in tools],
                 tool_rules=tool_rules,
                 system=system,
                 agent_type=agent_type,
@@ -2169,17 +2171,8 @@ class LocalClient(AbstractClient):
             actor=self.user,
         )
 
-        # TODO: remove when we fully migrate to block creation CreateAgent model
-        # Link additional blocks to the agent (block ids created on the client)
-        # This needs to happen since the create agent does not allow passing in blocks which have already been persisted and have an ID
-        # So we create the agent and then link the blocks afterwards
-        user = self.server.get_user_or_default(self.user_id)
-        for block in memory.get_blocks():
-            self.server.block_manager.create_or_update_block(block, actor=user)
-            self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_state.id, block_id=block.id)
-
         # TODO: get full agent state
-        return self.server.get_agent(agent_state.id)
+        return self.server.agent_manager.get_agent_by_id(agent_state.id, actor=self.user)
 
     def update_message(
         self,
@@ -2238,7 +2231,7 @@ class LocalClient(AbstractClient):
         # TODO: add the abilitty to reset linked block_ids
         self.interface.clear()
         agent_state = self.server.update_agent(
-            UpdateAgentState(
+            UpdateAgent(
                 id=agent_id,
                 name=name,
                 system=system,
@@ -2314,7 +2307,7 @@ class LocalClient(AbstractClient):
         Args:
             agent_id (str): ID of the agent to delete
         """
-        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
+        self.server.agent_manager.delete_agent(agent_id=agent_id, actor=self.user)
 
     def get_agent_by_name(self, agent_name: str) -> AgentState:
         """
