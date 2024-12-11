@@ -145,7 +145,7 @@ Letta gives your agents persistence (they live indefinitely) by storing all your
 |---|---|---|---|
 | `pip install letta` | `letta server` | SQLite | ❌ |
 | `pip install letta` | `export LETTA_PG_URI=...` + `letta server` | PostgreSQL | ✅ |
-| *[Install Docker](https://www.docker.com/get-started/)*  |`docker run ...` | PostgreSQL | ✅ |
+| *[Install Docker](https://www.docker.com/get-started/)*  |`docker run ...` ([full command](#-run-the-letta-server)) | PostgreSQL | ✅ |
 
 > _"How do I use the ADE locally?"_
 
