@@ -17,7 +17,8 @@ from tests.helpers.utils import create_tool_from_func
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    client = TestClient(app, base_url="http://testserver")
+    return client
 
 
 @pytest.fixture

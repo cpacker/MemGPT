@@ -34,7 +34,7 @@ numpy = "^1.26.2"
 demjson3 = "^3.0.6"
 pyyaml = "^6.0.1"
 sqlalchemy-json = "^0.7.0"
-fastapi = {version = "^0.104.1", optional = true}
+fastapi = { version = "^0.115.6", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
 pydantic = ">=2.7.4,<2.10.0"
 html2text = "^2020.1.16"
