@@ -74,9 +74,6 @@ Once the Letta server is running, you can access it via port `8283` (e.g. sendin
 
 ### 👾 Access the Letta ADE (Agent Development Environment)
 
-> [!NOTE]
-> The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server.
-
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/example_ade_screenshot.png">
@@ -84,6 +81,9 @@ Once the Letta server is running, you can access it via port `8283` (e.g. sendin
     <img alt="Letta logo" src="assets/example_ade_screenshot.png" width="800">
   </picture>
 </p>
+
+> [!NOTE]
+> The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server.
 
 To access the Letta ADE, visit [https://app.letta.com](https://app.letta.com).
 
