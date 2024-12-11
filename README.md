@@ -9,9 +9,19 @@
 <div align="center">
 <h1>Letta (previously MemGPT)</h1>
 
+**☄️ New release // Letta ADE ☄️**
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/example_ade_screenshot.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/example_ade_screenshot_light.png">
+    <img alt="Letta logo" src="assets/example_ade_screenshot.png" width="800">
+  </picture>
+</p>
+
 <h3>
 
-[Homepage](https://letta.com) // [Documentation](https://docs.letta.com) // [Letta Cloud](https://forms.letta.com/early-access)
+[Homepage](https://letta.com) // [Documentation](https://docs.letta.com) // [ADE](https://app.letta.com) / [Letta Cloud](https://forms.letta.com/early-access)
 
 </h3>
 
@@ -44,7 +54,7 @@ _The recommended way to use Letta is to run use Docker. To install Docker, see [
 ### 🌖 Run the Letta server
 
 > [!NOTE]
-> Letta agents live inside the Letta server, which persists them to a database. You can interact with the Letta agents inside your Letta server via the [REST API](https://docs.letta.com/api-reference) + Python / Typescript SDKs, and the Agent Development Environment (a graphical interface).
+> Letta agents live inside the Letta server, which persists them to a database. You can interact with the Letta agents inside your Letta server via the [REST API](https://docs.letta.com/api-reference) + Python / Typescript SDKs, and the [Agent Development Environment](https://app.letta.com) (a graphical interface).
 
 The Letta server can be connected to various LLM API backends ([OpenAI](https://docs.letta.com/models/openai), [Anthropic](https://docs.letta.com/models/anthropic), [vLLM](https://docs.letta.com/models/vllm), [Ollama](https://docs.letta.com/models/ollama), etc.). To enable access to these LLM API providers, set the appropriate environment variables when you use `docker run`:
 ```sh
@@ -68,7 +78,7 @@ docker run \
 
 Once the Letta server is running, you can access it via port `8283` (e.g. sending REST API requests to `http://localhost:8283/v1`). You can also connect your server to the Letta ADE to access and manage your agents in a web interface.
 
-### 👾 Access the Letta ADE (Agent Development Environment)
+### 👾 Access the [Letta ADE (Agent Development Environment)](https://app.letta.com)
 
 > [!NOTE]
 > The Letta ADE is a graphical user interface for creating, deploying, interacting and observing with your Letta agents.
