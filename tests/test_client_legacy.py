@@ -27,7 +27,7 @@ from letta.schemas.letta_message import (
 )
 from letta.schemas.letta_response import LettaResponse, LettaStreamingResponse
 from letta.schemas.llm_config import LLMConfig
-from letta.schemas.message import Message
+from letta.schemas.message import Message, MessageCreate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.services.organization_manager import OrganizationManager
 from letta.services.tool_manager import ToolManager
@@ -654,6 +654,8 @@ def test_initial_message_sequence(client: Union[LocalClient, RESTClient], agent:
         include_initial_boot_message=True,
         actor=default_user,
     )
+    # convert to MessageCreate
+    reference_init_messages = [MessageCreate(role=msg.role, text=msg.text) for msg in reference_init_messages]
 
     # system, login message, send_message test, send_message receipt
     assert len(reference_init_messages) > 0
