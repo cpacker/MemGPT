@@ -2,7 +2,7 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
