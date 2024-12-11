@@ -36,7 +36,7 @@
 
 ## ⚡ Quickstart (Docker)
 
-The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see guide [below](#-⚡-Quickstart-(pip))).
+The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see guide [below](#⚡-Quickstart-(pip))).
 
 ### 🌖 Run the Letta server
 
