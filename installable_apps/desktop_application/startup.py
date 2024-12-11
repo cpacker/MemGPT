@@ -6,10 +6,10 @@ from letta.settings import settings
 from letta.server.rest_api.app import app as letta_app
 from letta.server.constants import REST_DEFAULT_PORT
 
-from .server import ThreadedServer
+from server import ThreadedServer
 from logserver.main import app as log_app
-from .tray import Tray
-from .installable_logger import get_logger
+from tray import Tray
+from installable_logger import get_logger
 
 logger = get_logger(__name__)
 

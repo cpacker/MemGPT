@@ -5,8 +5,8 @@ from fastapi.templating import Jinja2Templates
 import asyncio
 
 from letta.settings import settings
-from installable_apps.desktop_application.installable_image import InstallableImage
-from installable_apps.desktop_application.installable_logger import get_logger
+from installable_image import InstallableImage
+from installable_logger import get_logger
 
 logger = get_logger(__name__)
 
