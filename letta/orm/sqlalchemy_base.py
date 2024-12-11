@@ -135,7 +135,8 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
                     query_embedding_binary = adapt_array(query_embedding)
                     query = query.order_by(
                         func.cosine_distance(cls.embedding, query_embedding_binary).asc(),
-                        cls.id
+                        cls.created_at.asc(),
+                        cls.id.asc()
                     )
                     is_ordered = True
 

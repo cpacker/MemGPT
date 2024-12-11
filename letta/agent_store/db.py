@@ -368,7 +368,7 @@ class PostgresStorageConnector(SQLStorageConnector):
 class SQLLiteStorageConnector(SQLStorageConnector):
     def __init__(self, table_type: str, config: LettaConfig, user_id, agent_id=None):
         super().__init__(table_type=table_type, config=config, user_id=user_id, agent_id=agent_id)
-    
+
         # get storage URI
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             self.db_model = PassageModel

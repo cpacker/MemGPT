@@ -64,8 +64,6 @@ class PassageManager:
             # breakup string into passages
             for text in parse_and_chunk_text(text, embedding_chunk_size):
                 embedding = embed_model.get_text_embedding(text)
-                # fixing weird bug where type returned isn't a list, but instead is an object
-                # eg: embedding={'object': 'list', 'data': [{'object': 'embedding', 'embedding': [-0.0071973633, -0.07893023,
                 if isinstance(embedding, dict):
                     try:
                         embedding = embedding["data"][0]["embedding"]

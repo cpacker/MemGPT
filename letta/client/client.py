@@ -742,7 +742,8 @@ class RESTClient(AbstractClient):
         agents = [AgentState(**agent) for agent in response.json()]
         if len(agents) == 0:
             return None
-        assert len(agents) == 1, f"Multiple agents with the same name: {agents}"
+        agents = [agents[0]] # TODO: @matt monkeypatched
+        assert len(agents) == 1, f"Multiple agents with the same name: {[(agents.name, agents.id) for agents in agents]}"
         return agents[0].id
 
     # memory

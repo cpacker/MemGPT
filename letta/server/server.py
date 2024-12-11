@@ -917,6 +917,7 @@ class SyncServer(Server):
 
         # get `Tool` objects
         tools = [self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=user) for tool_name in agent_state.tool_names]
+        tools = [tool for tool in tools if tool is not None]
 
         # get `Source` objects
         sources = self.list_attached_sources(agent_id=agent_id)
@@ -1562,8 +1563,7 @@ class SyncServer(Server):
             data_source = self.source_manager.get_source_by_name(source_name=source_name, actor=user)
         else:
             raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
-        # get connection to data source storage
-        # source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
+
         assert data_source, f"Data source with id={source_id} or name={source_name} does not exist"
 
         # load agent
