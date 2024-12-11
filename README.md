@@ -72,6 +72,10 @@ Once the Letta server is running, you can access it via port `8283` (e.g. sendin
 
 > [!NOTE]
 > The Letta ADE is a graphical user interface for creating, deploying, interacting and observing with your Letta agents.
+>
+> The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server. The Letta server and REST API are fully open source, and you can
+>
+> For example, if you're running a Letta server to power an end-user application (such as a customer support chatbot), you can use the ADE to test, debug, and observe the agents in your server. You can also use the ADE as a general chat interface to interacting with your Letta agents.
 
 <p align="center">
   <picture>
@@ -80,10 +84,6 @@ Once the Letta server is running, you can access it via port `8283` (e.g. sendin
     <img alt="Letta logo" src="assets/example_ade_screenshot.png" width="800">
   </picture>
 </p>
-
-The ADE is an integrated development environment meant to developers create and manage Letta agents. For example, if you're running a Letta server to power an end-user application (such as a customer support chatbot), you can use the ADE to test, debug, and observe the agents in your server. You can also use the ADE as a general chat interface to interacting with your Letta agents.
-
-The ADE can connect to self-hosted Letta servers (e.g. a Letta server running on your laptop), as well as the Letta Cloud service. When connected to a self-hosted / private server, the ADE uses the Letta REST API to communicate with your server. The Letta server and REST API are fully open source, and you can
 
 #### 🖥️ Connecting the ADE to your local Letta server
 To connect the ADE with your local Letta server, simply:
