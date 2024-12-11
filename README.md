@@ -9,7 +9,7 @@
 <div align="center">
 <h1>Letta (previously MemGPT)</h1>
 
-**☄️ New release → Letta ADE ☄️**
+**☄️ New release: Letta ADE (read more [here](#-access-the-letta-ade-agent-development-environment)) ☄️**
 
 <p align="center">
   <picture>
@@ -18,6 +18,8 @@
     <img alt="Letta logo" src="assets/example_ade_screenshot.png" width="800">
   </picture>
 </p>
+
+---
 
 <h3>
 
