@@ -1584,23 +1584,23 @@ class SyncServer(Server):
         from letta.data_sources.connectors import DirectoryConnector
 
         source = self.source_manager.get_source_by_id(source_id=source_id)
+        if source is None:
+            raise ValueError(f"Source {source_id} does not exist")
         connector = DirectoryConnector(input_files=[file_path])
         num_passages, num_documents = self.load_data(user_id=source.created_by_id, source_name=source.name, connector=connector)
-
-        # update all agents who have this source attached
-        agent_ids = self.ms.list_attached_agents(source_id=source_id)
-        for agent_id in agent_ids:
-            agent = self.load_agent(agent_id=agent_id)
-            curr_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
-            agent.attach_source(user=actor, source_id=source_id, source_manager=self.source_manager, ms=self.ms)
-            new_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
-            assert new_passage_size > curr_passage_size
 
         # update job status
         job.status = JobStatus.completed
         job.metadata_["num_passages"] = num_passages
         job.metadata_["num_documents"] = num_documents
         self.job_manager.update_job_by_id(job_id=job_id, job_update=JobUpdate(**job.model_dump()), actor=actor)
+
+        # update all agents who have this source attached
+        agent_ids = self.ms.list_attached_agents(source_id=source_id)
+        for agent_id in agent_ids:
+            agent = self.load_agent(agent_id=agent_id)
+            agent.attach_source(user=actor, source_id=source_id, source_manager=self.source_manager, ms=self.ms)
+            assert new_passage_size >= curr_passage_size # in case empty files are added
 
         return job
 
@@ -1620,7 +1620,7 @@ class SyncServer(Server):
             raise ValueError(f"Data source {source_name} does not exist for user {user_id}")
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, self.passage_manager, self.source_manager, actor=user, agent_id=agent_id)
+        passage_count, document_count = load_data(connector, source, self.passage_manager, self.source_manager, actor=user)
         return passage_count, document_count
 
     def attach_source_to_agent(

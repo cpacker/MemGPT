@@ -13,8 +13,6 @@ from letta.schemas.passage import Passage
 from letta.schemas.source import Source
 from letta.services.passage_manager import PassageManager
 from letta.services.source_manager import SourceManager
-from letta.utils import create_uuid_from_string
-
 
 class DataConnector:
     """
@@ -42,7 +40,7 @@ class DataConnector:
         """
 
 
-def load_data(connector: DataConnector, source: Source, passage_manager: PassageManager, source_manager: SourceManager, actor: "User", agent_id: Optional[str] = None):
+def load_data(connector: DataConnector, source: Source, passage_manager: PassageManager, source_manager: SourceManager, actor: "User"):
     """Load data from a connector (generates file and passages) into a specified source_id, associated with a user_id."""
     embedding_config = source.embedding_config
 
@@ -79,7 +77,6 @@ def load_data(connector: DataConnector, source: Source, passage_manager: Passage
                 continue
 
             passage = Passage(
-                id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),
                 text=passage_text,
                 file_id=file_metadata.id,
                 source_id=source.id,
