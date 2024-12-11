@@ -70,7 +70,6 @@ alembic = "^1.13.3"
 pyhumps = "^3.8.0"
 psycopg2 = {version = "^2.9.10", optional = true}
 psycopg2-binary = {version = "^2.9.10", optional = true}
-e2b-code-interpreter = {version = "^1.0.2", optional = true}
 pathvalidate = "^3.2.1"
 langchain-community = {version = "^0.3.7", optional = true}
 langchain = {version = "^0.3.7", optional = true}
