@@ -141,11 +141,11 @@ Letta gives your agents persistence (they live indefinitely) by storing all your
 
 **Database migrations are not officially supported for Letta when using SQLite**, so you would like to ensure that if you're able to upgrade to the latest Letta version and migrate your Letta agents data, make sure that you're using PostgreSQL as your Letta database backend. Full compatability table below:
 
-| Installation method | Database backend | Data migrations supported? |
-|---|---|---|
-| `pip install letta` + `letta server` | SQLite | ❌ |
-| `pip install letta` + `export LETTA_PG_URI=...` + `letta server` (PostgreSQL running externally) | PostgreSQL | ✅ |
-| `docker run ...` | PostgreSQL | ✅ |
+| Installation method | Start server command | Database backend | Data migrations supported? |
+|---|---|---|---|
+| `pip install letta` | `letta server` | SQLite | ❌ |
+| `pip install letta` | `export LETTA_PG_URI=...` + `letta server` | PostgreSQL | ✅ |
+| *[Install Docker](https://www.docker.com/get-started/)*  |`docker run ...` | PostgreSQL | ✅ |
 
 > _"How do I use the ADE locally?"_
 
