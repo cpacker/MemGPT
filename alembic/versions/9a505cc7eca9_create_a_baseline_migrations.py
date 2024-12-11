@@ -97,7 +97,7 @@ def upgrade() -> None:
         sa.Column("text", sa.String(), nullable=True),
         sa.Column("model", sa.String(), nullable=True),
         sa.Column("name", sa.String(), nullable=True),
-        sa.Column("tool_calls", letta.metadata.ToolCallColumn(), nullable=True),
+        sa.Column("tool_calls", letta.orm.message.ToolCallColumn(), nullable=True),
         sa.Column("tool_call_id", sa.String(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),

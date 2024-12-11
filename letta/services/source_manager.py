@@ -64,7 +64,7 @@ class SourceManager:
             return source.to_pydantic()
 
     @enforce_types
-    def list_sources(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50) -> List[PydanticSource]:
+    def list_sources(self, actor: PydanticUser, cursor: Optional[str] = None, limit: Optional[int] = 50, **kwargs) -> List[PydanticSource]:
         """List all sources with optional pagination."""
         with self.session_maker() as session:
             sources = SourceModel.list(
@@ -72,6 +72,7 @@ class SourceManager:
                 cursor=cursor,
                 limit=limit,
                 organization_id=actor.organization_id,
+                **kwargs,
             )
             return [source.to_pydantic() for source in sources]
 
@@ -141,5 +142,5 @@ class SourceManager:
         """Delete a file by its ID."""
         with self.session_maker() as session:
             file = FileMetadataModel.read(db_session=session, identifier=file_id)
-            file.delete(db_session=session, actor=actor)
+            file.hard_delete(db_session=session, actor=actor)
             return file.to_pydantic()

@@ -6,13 +6,14 @@ from pathlib import Path
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.cors import CORSMiddleware
 
 from letta.__init__ import __version__
 from letta.constants import ADMIN_PREFIX, API_PREFIX, OPENAI_API_PREFIX
+from letta.errors import LettaAgentNotFoundError, LettaUserNotFoundError
 from letta.schemas.letta_response import LettaResponse
 from letta.server.constants import REST_DEFAULT_PORT
 
@@ -108,7 +109,13 @@ random_password = os.getenv("LETTA_SERVER_PASSWORD") or generate_password()
 
 
 class CheckPasswordMiddleware(BaseHTTPMiddleware):
+
     async def dispatch(self, request, call_next):
+
+        # Exclude health check endpoint from password protection
+        if request.url.path == "/v1/health/" or request.url.path == "/latest/health/":
+            return await call_next(request)
+
         if request.headers.get("X-BARE-PASSWORD") == f"password {random_password}":
             return await call_next(request)
 
@@ -135,18 +142,50 @@ def create_application() -> "FastAPI":
             },
         )
 
+    debug_mode = "--debug" in sys.argv
     app = FastAPI(
         swagger_ui_parameters={"docExpansion": "none"},
         # openapi_tags=TAGS_METADATA,
         title="Letta",
         summary="Create LLM agents with long-term memory and custom tools 📚🦙",
         version="1.0.0",  # TODO wire this up to the version in the package
-        debug=True,
+        debug=debug_mode,  # if True, the stack trace will be printed in the response
     )
 
-    if (os.getenv("LETTA_SERVER_ADE") == "true") or "--ade" in sys.argv:
-        settings.cors_origins.append("https://app.letta.com")
-        print(f"▶ View using ADE at: https://app.letta.com/development-servers/local/dashboard")
+    @app.exception_handler(Exception)
+    async def generic_error_handler(request: Request, exc: Exception):
+        # Log the actual error for debugging
+        log.error(f"Unhandled error: {exc}", exc_info=True)
+
+        # Print the stack trace
+        print(f"Stack trace: {exc.__traceback__}")
+        if (os.getenv("SENTRY_DSN") is not None) and (os.getenv("SENTRY_DSN") != ""):
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(exc)
+
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": "An internal server error occurred",
+                # Only include error details in debug/development mode
+                # "debug_info": str(exc) if settings.debug else None
+            },
+        )
+
+    @app.exception_handler(ValueError)
+    async def value_error_handler(request: Request, exc: ValueError):
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+    @app.exception_handler(LettaAgentNotFoundError)
+    async def agent_not_found_handler(request: Request, exc: LettaAgentNotFoundError):
+        return JSONResponse(status_code=404, content={"detail": "Agent not found"})
+
+    @app.exception_handler(LettaUserNotFoundError)
+    async def user_not_found_handler(request: Request, exc: LettaUserNotFoundError):
+        return JSONResponse(status_code=404, content={"detail": "User not found"})
+
+    settings.cors_origins.append("https://app.letta.com")
 
     if (os.getenv("LETTA_SERVER_SECURE") == "true") or "--secure" in sys.argv:
         print(f"▶ Using secure mode with password: {random_password}")
@@ -225,9 +264,21 @@ def start_server(
         # Add the handler to the logger
         server_logger.addHandler(stream_handler)
 
-    print(f"▶ Server running at: http://{host or 'localhost'}:{port or REST_DEFAULT_PORT}\n")
-    uvicorn.run(
-        app,
-        host=host or "localhost",
-        port=port or REST_DEFAULT_PORT,
-    )
+    if (os.getenv("LOCAL_HTTPS") == "true") or "--localhttps" in sys.argv:
+        uvicorn.run(
+            app,
+            host=host or "localhost",
+            port=port or REST_DEFAULT_PORT,
+            ssl_keyfile="certs/localhost-key.pem",
+            ssl_certfile="certs/localhost.pem",
+        )
+        print(f"▶ Server running at: https://{host or 'localhost'}:{port or REST_DEFAULT_PORT}\n")
+    else:
+        uvicorn.run(
+            app,
+            host=host or "localhost",
+            port=port or REST_DEFAULT_PORT,
+        )
+        print(f"▶ Server running at: http://{host or 'localhost'}:{port or REST_DEFAULT_PORT}\n")
+
+    print(f"▶ View using ADE at: https://app.letta.com/development-servers/local/dashboard")

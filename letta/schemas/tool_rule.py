@@ -17,7 +17,6 @@ class ChildToolRule(BaseToolRule):
     A ToolRule represents a tool that can be invoked by the agent.
     """
 
-    # type: str = Field("ToolRule")
     type: ToolRuleType = ToolRuleType.constrain_child_tools
     children: List[str] = Field(..., description="The children tools that can be invoked.")
 
@@ -27,7 +26,6 @@ class InitToolRule(BaseToolRule):
     Represents the initial tool rule configuration.
     """
 
-    # type: str = Field("InitToolRule")
     type: ToolRuleType = ToolRuleType.run_first
 
 
@@ -36,7 +34,6 @@ class TerminalToolRule(BaseToolRule):
     Represents a terminal tool rule configuration where if this tool gets called, it must end the agent loop.
     """
 
-    # type: str = Field("TerminalToolRule")
     type: ToolRuleType = ToolRuleType.exit_loop
 
 
