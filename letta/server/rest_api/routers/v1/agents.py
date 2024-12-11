@@ -369,8 +369,7 @@ def get_agent_archival_memory(
     return server.get_agent_archival_cursor(
         user_id=actor.id,
         agent_id=agent_id,
-        after=after,
-        before=before,
+        cursor=after, # TODO: deleting before, after. is this expected?
         limit=limit,
     )
 
