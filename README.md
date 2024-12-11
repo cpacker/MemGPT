@@ -23,7 +23,7 @@
 
 <h3>
 
-[Homepage](https://letta.com) // [Documentation](https://docs.letta.com) // [ADE](https://app.letta.com) / [Letta Cloud](https://forms.letta.com/early-access)
+[Homepage](https://letta.com) // [Documentation](https://docs.letta.com) // [ADE](https://app.letta.com) // [Letta Cloud](https://forms.letta.com/early-access)
 
 </h3>
 
