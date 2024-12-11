@@ -1,4 +1,4 @@
-from typing import Dict, Iterator, List, Tuple
+from typing import Dict, Iterator, List, Tuple, Optional
 
 import typer
 
@@ -42,7 +42,7 @@ class DataConnector:
         """
 
 
-def load_data(connector: DataConnector, source: Source, passage_store: StorageConnector, source_manager: SourceManager, actor: "User"):
+def load_data(connector: DataConnector, source: Source, passage_store: StorageConnector, source_manager: SourceManager, actor: "User", agent_id: Optional[str] = None):
     """Load data from a connector (generates file and passages) into a specified source_id, associated with a user_id."""
     embedding_config = source.embedding_config
 
@@ -82,9 +82,10 @@ def load_data(connector: DataConnector, source: Source, passage_store: StorageCo
                 id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),
                 text=passage_text,
                 file_id=file_metadata.id,
+                agent_id=agent_id,
                 source_id=source.id,
                 metadata_=passage_metadata,
-                user_id=source.created_by_id,
+                organization_id=source.organization_id,
                 embedding_config=source.embedding_config,
                 embedding=embedding,
             )
