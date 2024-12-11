@@ -25,9 +25,10 @@ utils.DEBUG = True
 from letta.config import LettaConfig
 from letta.schemas.agent import CreateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
+from letta.schemas.job import Job as PydanticJob
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
-from letta.schemas.source import Source
+from letta.schemas.source import Source as PydanticSource
 from letta.server.server import SyncServer
 
 from .utils import DummyDataConnector
@@ -87,6 +88,24 @@ def agent_id(server, user_id):
     # cleanup
     server.delete_agent(user_id, agent_state.id)
 
+@pytest.fixture(scope="module")
+def other_agent_id(server, user_id):
+    # create agent
+    agent_state = server.create_agent(
+        request=CreateAgent(
+            name="test_agent_other",
+            tools=BASE_TOOLS,
+            memory_blocks=[],
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        ),
+        actor=server.get_user_or_default(user_id),
+    )
+    print(f"Created agent\n{agent_state}")
+    yield agent_state.id
+
+    # cleanup
+    server.delete_agent(user_id, agent_state.id)
 
 def test_error_on_nonexistent_agent(server, user_id, agent_id):
     try:
@@ -121,7 +140,7 @@ def test_load_data(server, user_id, agent_id):
     assert len(passages_before) == 0
 
     source = server.source_manager.create_source(
-        Source(name="test_source", embedding_config=DEFAULT_EMBEDDING_CONFIG), actor=server.default_user
+        PydanticSource(name="test_source", embedding_config=EmbeddingConfig.default_config(provider="openai")), actor=server.default_user
     )
 
     # load data
@@ -133,7 +152,7 @@ def test_load_data(server, user_id, agent_id):
         "Shishir loves indian food",
     ]
     connector = DummyDataConnector(archival_memories)
-    server.load_data(user_id, connector, source.name, agent_id=agent_id)
+    server.load_data(user_id, connector, source.name)
 
     # @pytest.mark.order(3)
     # def test_attach_source_to_agent(server, user_id, agent_id):
@@ -168,7 +187,6 @@ def test_get_recall_memory(server, org_id, user_id, agent_id):
     messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=2)
     cursor1 = messages_1[-1].id
     messages_2 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, after=cursor1, limit=1000)
-    messages_2[-1].id
     messages_3 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=1000)
     messages_3[-1].id
     assert messages_3[-1].created_at >= messages_3[0].created_at
@@ -691,3 +709,136 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none):
     finally:
         # cleanup
         server.delete_agent(user_id, agent_state.id)
+
+
+def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, other_agent_id: str, tmp_path):
+    user = server.get_user_or_default(user_id)
+
+    # Create a source
+    source = server.source_manager.create_source(
+        PydanticSource(
+            name="timber_source",
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+            created_by_id=user_id,
+        ),
+        actor=user
+    )
+
+    # Create a test file with some content
+    test_file = tmp_path / "test.txt"
+    test_content = "We have a dog called Timber. He likes to sleep."
+    test_file.write_text(test_content)
+
+    # Attach source to agent first
+    agent = server.load_agent(agent_id=agent_id)
+    agent.attach_source(user=user, source_id=source.id, source_manager=server.source_manager, ms=server.ms)
+
+    # Get initial passage count
+    initial_passage_count = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    assert initial_passage_count == 0
+
+    # Create a job for loading the first file
+    job = server.job_manager.create_job(
+        PydanticJob(
+            user_id=user_id,
+            metadata_={"type": "embedding", "filename": test_file.name, "source_id": source.id},
+        ),
+        actor=user
+    )
+
+    # Load the first file to source
+    server.load_file_to_source(
+        source_id=source.id,
+        file_path=str(test_file),
+        job_id=job.id,
+        actor=user,
+    )
+
+    # Verify job completed successfully
+    job = server.job_manager.get_job_by_id(job_id=job.id, actor=user)
+    assert job.status == "completed"
+    assert job.metadata_["num_passages"]  == 1
+    assert job.metadata_["num_documents"] == 1
+
+    # Verify passages were added
+    first_file_passage_count = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    assert first_file_passage_count > initial_passage_count
+
+    # Create a second test file with different content
+    test_file2 = tmp_path / "test2.txt"
+    test_content2 = "Timber lives in a house in San Francisco. It's next to the bay. His favorit food is chicken."
+    test_file2.write_text(test_content2)
+
+    # Create a job for loading the second file
+    job2 = server.job_manager.create_job(
+        PydanticJob(
+            user_id=user_id,
+            metadata_={"type": "embedding", "filename": test_file2.name, "source_id": source.id},
+        ),
+        actor=user
+    )
+
+    # Load the second file to source
+    server.load_file_to_source(
+        source_id=source.id,
+        file_path=str(test_file2),
+        job_id=job2.id,
+        actor=user,
+    )
+
+    # Verify second job completed successfully
+    job2 = server.job_manager.get_job_by_id(job_id=job2.id, actor=user)
+    assert job2.status == "completed"
+    assert job2.metadata_["num_passages"] == 1
+    assert job2.metadata_["num_documents"] == 1
+
+    # Verify passages were appended (not replaced)
+    final_passage_count = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    assert final_passage_count > first_file_passage_count
+
+    # Verify both old and new content is searchable
+    passages = server.passage_manager.list_passages(
+        actor=user,
+        agent_id=agent_id,
+        source_id=source.id,
+        query_text="what does Timber like to eat",
+        embedding_config=EmbeddingConfig.default_config(provider="openai"),
+        embed_query=True,
+        limit=10,
+    )
+    assert len(passages) == 2
+    assert any("chicken" in passage.text.lower() for passage in passages)
+    assert any("sleep" in passage.text.lower() for passage in passages)
+
+    # TODO: Add this test back in after separation of `Passage tables` (LET-449)
+    # # Load second agent
+    # agent2 = server.load_agent(agent_id=other_agent_id)
+
+    # # Initially should have no passages
+    # initial_agent2_passages = server.passage_manager.size(actor=user, agent_id=other_agent_id, source_id=source.id)
+    # assert initial_agent2_passages == 0
+
+    # # Attach source to second agent
+    # agent2.attach_source(user=user, source_id=source.id, source_manager=server.source_manager, ms=server.ms)
+
+    # # Verify second agent has same number of passages as first agent
+    # agent2_passages = server.passage_manager.size(actor=user, agent_id=other_agent_id, source_id=source.id)
+    # agent1_passages = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    # assert agent2_passages == agent1_passages
+
+    # # Verify second agent can query the same content
+    # passages2 = server.passage_manager.list_passages(
+    #     actor=user,
+    #     agent_id=other_agent_id,
+    #     source_id=source.id,
+    #     query_text="what does Timber like to eat",
+    #     embedding_config=EmbeddingConfig.default_config(provider="openai"),
+    #     embed_query=True,
+    #     limit=10,
+    # )
+    # assert len(passages2) == len(passages)
+    # assert any("chicken" in passage.text.lower() for passage in passages2)
+    # assert any("sleep" in passage.text.lower() for passage in passages2)
+
+    # # Cleanup
+    # server.delete_agent(user_id=user_id, agent_id=agent2_state.id)
