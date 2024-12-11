@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import pytest
 from sqlalchemy import delete
 
-import letta.utils as utils
+from letta.config import LettaConfig
 from letta.embeddings import embedding_model
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
 from letta.orm import (
@@ -53,16 +53,13 @@ from letta.schemas.source import SourceUpdate
 from letta.schemas.tool import Tool as PydanticTool
 from letta.schemas.tool import ToolUpdate
 from letta.schemas.tool_rule import InitToolRule
+from letta.schemas.user import User as PydanticUser
+from letta.schemas.user import UserUpdate
+from letta.server.server import SyncServer
 from letta.services.block_manager import BlockManager
 from letta.services.organization_manager import OrganizationManager
 from letta.settings import tool_settings
 from tests.helpers.utils import comprehensive_agent_checks
-
-utils.DEBUG = True
-from letta.config import LettaConfig
-from letta.schemas.user import User as PydanticUser
-from letta.schemas.user import UserUpdate
-from letta.server.server import SyncServer
 
 DEFAULT_EMBEDDING_CONFIG = EmbeddingConfig(
     embedding_endpoint_type="hugging-face",
@@ -390,7 +387,7 @@ def server():
 
 
 # ======================================================================================================================
-# AgentManager Tests
+# AgentManager Tests - Basic
 # ======================================================================================================================
 def test_create_get_list_agent(server: SyncServer, comprehensive_test_agent_fixture, default_user):
     # Test agent creation
@@ -436,6 +433,11 @@ def test_update_agent(server: SyncServer, comprehensive_test_agent_fixture, othe
     updated_agent = server.agent_manager.update_agent(agent.id, update_agent_request, actor=default_user)
     comprehensive_agent_checks(updated_agent, update_agent_request)
     assert updated_agent.message_ids == update_agent_request.message_ids
+
+
+# ======================================================================================================================
+# AgentManager Tests - Sources Relationship
+# ======================================================================================================================
 
 
 def test_attach_source(server: SyncServer, sarah_agent, default_source, default_user):
@@ -551,6 +553,123 @@ def test_list_attached_agents_nonexistent_source(server: SyncServer, default_use
     """Test listing agents for a nonexistent source."""
     with pytest.raises(NoResultFound):
         server.source_manager.list_attached_agents(source_id="nonexistent-source-id", actor=default_user)
+
+
+# ======================================================================================================================
+# AgentManager Tests - Tags Relationship
+# ======================================================================================================================
+
+
+def test_list_agents_by_tags_match_all(server: SyncServer, sarah_agent, charles_agent, default_user):
+    """Test listing agents that have ALL specified tags."""
+    # Create agents with multiple tags
+    server.agent_manager.update_agent(sarah_agent.id, UpdateAgent(tags=["test", "production", "gpt4"]), actor=default_user)
+    server.agent_manager.update_agent(charles_agent.id, UpdateAgent(tags=["test", "development", "gpt4"]), actor=default_user)
+
+    # Search for agents with all specified tags
+    agents = server.agent_manager.list_agents(tags=["test", "gpt4"], match_all_tags=True, actor=default_user)
+    assert len(agents) == 2
+    agent_ids = [a.id for a in agents]
+    assert sarah_agent.id in agent_ids
+    assert charles_agent.id in agent_ids
+
+    # Search for tags that only sarah_agent has
+    agents = server.agent_manager.list_agents(tags=["test", "production"], match_all_tags=True, actor=default_user)
+    assert len(agents) == 1
+    assert agents[0].id == sarah_agent.id
+
+
+def test_list_agents_by_tags_match_any(server: SyncServer, sarah_agent, charles_agent, default_user):
+    """Test listing agents that have ANY of the specified tags."""
+    # Create agents with different tags
+    server.agent_manager.update_agent(sarah_agent.id, UpdateAgent(tags=["production", "gpt4"]), actor=default_user)
+    server.agent_manager.update_agent(charles_agent.id, UpdateAgent(tags=["development", "gpt3"]), actor=default_user)
+
+    # Search for agents with any of the specified tags
+    agents = server.agent_manager.list_agents(tags=["production", "development"], match_all_tags=False, actor=default_user)
+    assert len(agents) == 2
+    agent_ids = [a.id for a in agents]
+    assert sarah_agent.id in agent_ids
+    assert charles_agent.id in agent_ids
+
+    # Search for tags where only sarah_agent matches
+    agents = server.agent_manager.list_agents(tags=["production", "nonexistent"], match_all_tags=False, actor=default_user)
+    assert len(agents) == 1
+    assert agents[0].id == sarah_agent.id
+
+
+def test_list_agents_by_tags_no_matches(server: SyncServer, sarah_agent, charles_agent, default_user):
+    """Test listing agents when no tags match."""
+    # Create agents with tags
+    server.agent_manager.update_agent(sarah_agent.id, UpdateAgent(tags=["production", "gpt4"]), actor=default_user)
+    server.agent_manager.update_agent(charles_agent.id, UpdateAgent(tags=["development", "gpt3"]), actor=default_user)
+
+    # Search for nonexistent tags
+    agents = server.agent_manager.list_agents(tags=["nonexistent1", "nonexistent2"], match_all_tags=True, actor=default_user)
+    assert len(agents) == 0
+
+    agents = server.agent_manager.list_agents(tags=["nonexistent1", "nonexistent2"], match_all_tags=False, actor=default_user)
+    assert len(agents) == 0
+
+
+def test_list_agents_by_tags_with_other_filters(server: SyncServer, sarah_agent, charles_agent, default_user):
+    """Test combining tag search with other filters."""
+    # Create agents with specific names and tags
+    server.agent_manager.update_agent(sarah_agent.id, UpdateAgent(name="production_agent", tags=["production", "gpt4"]), actor=default_user)
+    server.agent_manager.update_agent(charles_agent.id, UpdateAgent(name="test_agent", tags=["production", "gpt3"]), actor=default_user)
+
+    # List agents with specific tag and name pattern
+    agents = server.agent_manager.list_agents(actor=default_user, tags=["production"], match_all_tags=True, name="production_agent")
+    assert len(agents) == 1
+    assert agents[0].id == sarah_agent.id
+
+
+def test_list_agents_by_tags_pagination(server: SyncServer, default_user, default_organization):
+    """Test pagination when listing agents by tags."""
+    # Create first agent
+    agent1 = server.create_agent(
+        request=CreateAgent(
+            name="agent1",
+            tags=["pagination_test", "tag1"],
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+            memory_blocks=[],
+        ),
+        actor=default_user,
+    )
+
+    if USING_SQLITE:
+        time.sleep(CREATE_DELAY_SQLITE)  # Ensure distinct created_at timestamps
+
+    # Create second agent
+    agent2 = server.create_agent(
+        request=CreateAgent(
+            name="agent2",
+            tags=["pagination_test", "tag2"],
+            llm_config=LLMConfig.default_config("gpt-4"),
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+            memory_blocks=[],
+        ),
+        actor=default_user,
+    )
+
+    # Get first page
+    first_page = server.agent_manager.list_agents(tags=["pagination_test"], match_all_tags=True, actor=default_user, limit=1)
+    assert len(first_page) == 1
+    first_agent_id = first_page[0].id
+
+    # Get second page using cursor
+    second_page = server.agent_manager.list_agents(
+        tags=["pagination_test"], match_all_tags=True, actor=default_user, cursor=first_agent_id, limit=1
+    )
+    assert len(second_page) == 1
+    assert second_page[0].id != first_agent_id
+
+    # Verify we got both agents with no duplicates
+    all_ids = {first_page[0].id, second_page[0].id}
+    assert len(all_ids) == 2
+    assert agent1.id in all_ids
+    assert agent2.id in all_ids
 
 
 # ======================================================================================================================

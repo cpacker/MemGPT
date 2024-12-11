@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from letta.orm import Agent as AgentModel
 from letta.orm import Block as BlockModel
@@ -154,13 +154,26 @@ class AgentManager:
     def list_agents(
         self,
         actor: Optional[PydanticUser] = None,
+        tags: Optional[List[str]] = None,
+        match_all_tags: bool = True,
         cursor: Optional[str] = None,
         limit: Optional[int] = 50,
-    ) -> Tuple[Optional[str], List[PydanticAgentState]]:
-        """List agents with pagination."""
+        **kwargs,
+    ) -> List[PydanticAgentState]:
+        """
+        List agents that have the specified tags.
+        """
         with self.session_maker() as session:
-            results = AgentModel.list(db_session=session, cursor=cursor, limit=limit, organization_id=actor.organization_id)
-            return [agent.to_pydantic() for agent in results]
+            agents = AgentModel.list(
+                db_session=session,
+                tags=tags,
+                match_all_tags=match_all_tags,
+                cursor=cursor,
+                limit=limit,
+                organization_id=actor.organization_id if actor else None,
+                **kwargs,
+            )
+            return [agent.to_pydantic() for agent in agents]
 
     @enforce_types
     def get_agent_by_id(self, agent_id: str, actor: Optional[PydanticUser] = None) -> PydanticAgentState:

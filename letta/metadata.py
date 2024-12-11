@@ -278,59 +278,6 @@ class MetadataStore:
             return tokens
 
     # @enforce_types
-    # def create_agent(self, agent: PersistedAgentState):
-    #     # insert into agent table
-    #     # make sure agent.name does not already exist for user user_id
-    #     with self.session_maker() as session:
-    #         if session.query(AgentModel).filter(AgentModel.name == agent.name).filter(AgentModel.user_id == agent.user_id).count() > 0:
-    #             raise ValueError(f"Agent with name {agent.name} already exists")
-    #         fields = vars(agent)
-    #         # fields["memory"] = agent.memory.to_dict()
-    #         # if "_internal_memory" in fields:
-    #         #    del fields["_internal_memory"]
-    #         # else:
-    #         #    warnings.warn(f"Agent {agent.id} has no _internal_memory field")
-    #         if "tags" in fields:
-    #             del fields["tags"]
-    #         # else:
-    #         # warnings.warn(f"Agent {agent.id} has no tags field")
-    #         session.add(AgentModel(**fields))
-    #         session.commit()
-
-    # @enforce_types
-    # def update_agent(self, agent: PersistedAgentState):
-    #     with self.session_maker() as session:
-    #         fields = vars(agent)
-    #         # if isinstance(agent.memory, Memory):  # TODO: this is nasty but this whole class will soon be removed so whatever
-    #         #    fields["memory"] = agent.memory.to_dict()
-    #         # if "_internal_memory" in fields:
-    #         #    del fields["_internal_memory"]
-    #         # else:
-    #         #    warnings.warn(f"Agent {agent.id} has no _internal_memory field")
-    #         if "tags" in fields:
-    #             del fields["tags"]
-    #         # else:
-    #         # warnings.warn(f"Agent {agent.id} has no tags field")
-    #         session.query(AgentModel).filter(AgentModel.id == agent.id).update(fields)
-    #         session.commit()
-    #
-    # @enforce_types
-    # def delete_agent(self, agent_id: str, per_agent_lock_manager: PerAgentLockManager):
-    #     # TODO: Remove this once Agent is on the ORM
-    #     # TODO: To prevent unbounded growth
-    #     per_agent_lock_manager.clear_lock(agent_id)
-    #
-    #     with self.session_maker() as session:
-    #
-    #         # delete agents
-    #         session.query(AgentModel).filter(AgentModel.id == agent_id).delete()
-    #
-    #         # delete mappings
-    #         session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.agent_id == agent_id).delete()
-    #
-    #         session.commit()
-    #
-    # @enforce_types
     # def list_agents(self, user_id: str) -> List[PersistedAgentState]:
     #     with self.session_maker() as session:
     #         results = session.query(AgentModel).filter(AgentModel.user_id == user_id).all()

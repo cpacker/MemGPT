@@ -63,11 +63,26 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         query_text: Optional[str] = None,
         query_embedding: Optional[List[float]] = None,
         ascending: bool = True,
+        tags: Optional[List[str]] = None,
+        match_all_tags: bool = False,
         **kwargs,
     ) -> List["SqlalchemyBase"]:
         """
         List records with cursor-based pagination, ordering by created_at.
         Cursor is an ID, but pagination is based on the cursor object's created_at value.
+
+        Args:
+            db_session: SQLAlchemy session
+            cursor: ID of the last item seen (for pagination)
+            start_date: Filter items after this date
+            end_date: Filter items before this date
+            limit: Maximum number of items to return
+            query_text: Text to search for
+            query_embedding: Vector to search for similar embeddings
+            ascending: Sort direction
+            tags: List of tags to filter by
+            match_all_tags: If True, return items matching all tags. If False, match any tag.
+            **kwargs: Additional filters to apply
         """
         if start_date and end_date and start_date > end_date:
             raise ValueError("start_date must be earlier than or equal to end_date")
@@ -83,7 +98,22 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
             query = select(cls)
 
-            # Apply filtering logic
+            # Handle tag filtering if the model has tags
+            if tags and hasattr(cls, "tags"):
+                query = query.distinct()  # Ensure no duplicates from joins
+                query = query.join(cls.tags)
+
+                if match_all_tags:
+                    # Match ALL tags - use subqueries
+                    for tag in tags:
+                        # For each tag, check that it exists for this item
+                        subquery = select(cls.tags.property.mapper.class_.agent_id).where(cls.tags.property.mapper.class_.tag == tag)
+                        query = query.where(cls.id.in_(subquery))
+                else:
+                    # Match ANY tag - simpler WHERE IN clause
+                    query = query.where(cls.tags.property.mapper.class_.tag.in_(tags))
+
+            # Apply filtering logic from kwargs
             for key, value in kwargs.items():
                 column = getattr(cls, key)
                 if isinstance(value, (list, tuple, set)):
@@ -97,9 +127,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             if end_date:
                 query = query.filter(cls.created_at < end_date)
 
-            # Cursor-based pagination using created_at
-            # TODO: There is a really nasty race condition issue here with Sqlite
-            # TODO: If they have the same created_at timestamp, this query does NOT match for whatever reason
+            # Cursor-based pagination
             if cursor_obj:
                 if ascending:
                     query = query.where(cls.created_at >= cursor_obj.created_at).where(
@@ -110,16 +138,13 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
                         or_(cls.created_at < cursor_obj.created_at, cls.id < cursor_obj.id)
                     )
 
-            # Apply text search
+            # Text search
             if query_text:
-                from sqlalchemy import func
-
                 query = query.filter(func.lower(cls.text).contains(func.lower(query_text)))
 
-            # Apply embedding search (Passages)
+            # Embedding search (for Passages)
             is_ordered = False
             if query_embedding:
-                # check if embedding column exists. should only exist for passages
                 if not hasattr(cls, "embedding"):
                     raise ValueError(f"Class {cls.__name__} does not have an embedding column")
 
@@ -130,19 +155,17 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
                     query = query.order_by(cls.embedding.cosine_distance(query_embedding).asc())
                 else:
                     # SQLite with custom vector type
-                    from sqlalchemy import func
-
                     query_embedding_binary = adapt_array(query_embedding)
                     query = query.order_by(
                         func.cosine_distance(cls.embedding, query_embedding_binary).asc(), cls.created_at.asc(), cls.id.asc()
                     )
                     is_ordered = True
 
-            # Handle ordering and soft deletes
+            # Handle soft deletes
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
 
-            # Apply ordering by created_at
+            # Apply ordering
             if not is_ordered:
                 if ascending:
                     query = query.order_by(cls.created_at, cls.id)
