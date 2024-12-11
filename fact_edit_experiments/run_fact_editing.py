@@ -40,9 +40,14 @@ Persona Sub-Block: Stores details about your current persona, guiding how you be
 Access as a source block with the label `persona` when calling `rethink_memory`
 Human Sub-Block: Stores key details about the person you are conversing with, allowing for more personalized and friend-like conversation.
 Access as a source block with the label `human` when calling `rethink_memory`.
+Fact Block: Stores facts about the world that are known to be true so far. Use this to update the rethink memory block. Access as a source block with the label `fact_block` when calling `rethink_memory`.
+
 Read-Write Blocks:
 Rethink Memory Sub-Block: New representation of the memories go here. Access with the label `rethink_memory_block` when calling `rethink_memory` as source or target block.
-Do not remove information unless it has been replaced with new information. Use language as close to what is in the block as possible.
+When calling `rethink_memory`, you will generate a new memory block with all the content as the fact block, but with new information added. 
+Do not remove information unless it has been replaced with new information. Use the same exact language as in the fact block, but with new information added. 
+
+
 At every step, you reorganize the memories by calling the `rethink_memory` function. You use this to take current information in the `rethink_memory` block and select a single memory block to integrate information from, producing a new memory for the rethink_memory_block.  The new memory is the result
 of new insights, and new inferences and hypotheses based on the past memories. Make sure to consider how the new information affects each memory.
 Prioritize the new information overy existing memories. If the new information implies that the old memory may need to change, then output the most
@@ -171,13 +176,17 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
 
                     for requested_rewrite in datum["requested_rewrites"]:
                         response = client.send_message(
-                            message="[trigger_rethink_message]" + requested_rewrite, role="system", agent_id=conversation_agent.id
+                            message="[trigger_rethink_message]" + requested_rewrite, role="user", agent_id=conversation_agent.id
                         )
                     offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
 
                     predictions_file.write(
                         {
                             "case_id": datum["case_id"],
+                            "new_memory": datum["new_memory"],
+                            "new_memory_multi_hop": datum["new_memory_multi_hop"],
+                            "memory": datum["memory"],
+                            "memory_multi_hop": datum["memory_multi_hop"],
                             "conversation_agent_messages": [
                                 message.to_openai_dict() for message in client.get_messages(conversation_agent.id)
                             ],
@@ -188,6 +197,7 @@ def run_memory_edits(input_file_name: str, predictions_filename: str, num_questi
                                 message.to_openai_dict() for message in client.get_messages(offline_memory_agent.id)
                             ],
                             "offline_memory_agent_memory": {block.label: block.value for block in offline_memory_agent.memory.get_blocks()},
+                            "final_answer": offline_memory_agent.memory.get_block("rethink_memory_block").value, # We use this for the final answer
                         }
                     )
                     client.delete_agent(agent_id=conversation_agent.id)
