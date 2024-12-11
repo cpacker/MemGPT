@@ -2,7 +2,7 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Literal, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -58,10 +58,7 @@ class MessageCreate(BaseModel):
     """Request to create a message"""
 
     # In the simplified format, only allow simple roles
-    role: Literal[
-        MessageRole.user,
-        MessageRole.system,
-    ] = Field(..., description="The role of the participant.")
+    role: MessageRole = Field(..., description="The role of the participant.")
     text: str = Field(..., description="The text of the message.")
     name: Optional[str] = Field(None, description="The name of the participant.")
 
