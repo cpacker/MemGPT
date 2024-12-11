@@ -2002,7 +2002,6 @@ class SyncServer(Server):
         error_msg = f"Error executing tool {tool_name}: {exception_message}"
         if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
             error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
-        print("error_msg: " + error_msg)
         return error_msg
 
 
