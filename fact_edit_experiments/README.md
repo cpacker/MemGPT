@@ -27,7 +27,7 @@ To run on the full dataset:
 ```
 python convert_mquake_to_explicit_format.py \
     --input_file MQuAKE/datasets/MQuAKE-CF-3k-v2.json \
-    --output_file MQuAKE/datasets/letta-MQuAKE-CF-3k-v2-3000.json \
+    --output_file MQuAKE/datasets/letta-MQuAKE-CF-3k-v2-3000.json
 ```
 
 
