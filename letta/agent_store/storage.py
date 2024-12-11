@@ -45,11 +45,13 @@ class StorageConnector:
         self,
         table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.FILES],
         config: LettaConfig,
-        user_id,
-        agent_id=None,
+        user_id: str,
+        agent_id: Optional[str] = None,
+        organization_id: Optional[str] = None,
     ):
         self.user_id = user_id
         self.agent_id = agent_id
+        self.organization_id = organization_id
         self.table_type = table_type
 
         # get object type
@@ -74,10 +76,12 @@ class StorageConnector:
             # agent-specific table
             assert agent_id is not None, "Agent ID must be provided for agent-specific tables"
             self.filters = {"user_id": self.user_id, "agent_id": self.agent_id}
-        elif self.table_type == TableType.PASSAGES or self.table_type == TableType.FILES:
+        elif self.table_type == TableType.FILES:
             # setup base filters for user-specific tables
             assert agent_id is None, "Agent ID must not be provided for user-specific tables"
             self.filters = {"user_id": self.user_id}
+        elif self.table_type == TableType.PASSAGES:
+            self.filters = {"organization_id": self.organization_id}
         else:
             raise ValueError(f"Table type {table_type} not implemented")
 
@@ -85,8 +89,9 @@ class StorageConnector:
     def get_storage_connector(
         table_type: Union[TableType.ARCHIVAL_MEMORY, TableType.RECALL_MEMORY, TableType.PASSAGES, TableType.FILES],
         config: LettaConfig,
-        user_id,
-        agent_id=None,
+        user_id: str,
+        organization_id: Optional[str] = None,
+        agent_id: Optional[str] = None,
     ):
         if table_type == TableType.ARCHIVAL_MEMORY or table_type == TableType.PASSAGES:
             storage_type = config.archival_storage_type
@@ -101,10 +106,6 @@ class StorageConnector:
             from letta.agent_store.db import PostgresStorageConnector
 
             return PostgresStorageConnector(table_type, config, user_id, agent_id)
-        elif storage_type == "chroma":
-            from letta.agent_store.chroma import ChromaStorageConnector
-
-            return ChromaStorageConnector(table_type, config, user_id, agent_id)
 
         elif storage_type == "qdrant":
             from letta.agent_store.qdrant import QdrantStorageConnector

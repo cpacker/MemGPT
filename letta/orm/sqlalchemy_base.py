@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, List, Literal, Optional, Type
+import sqlite3
 
 from sqlalchemy import String, desc, func, or_, select
 from sqlalchemy.exc import DBAPIError
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from letta.log import get_logger
 from letta.orm.base import Base, CommonSqlalchemyMetaMixins
+from letta.orm.sqlite_functions import adapt_array, convert_array, cosine_distance
 from letta.orm.errors import (
     ForeignKeyConstraintViolationError,
     NoResultFound,
@@ -60,6 +62,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         end_date: Optional[datetime] = None,
         limit: Optional[int] = 50,
         query_text: Optional[str] = None,
+        query_embedding: Optional[List[float]] = None,
         ascending: bool = True,
         **kwargs,
     ) -> List[Type["SqlalchemyBase"]]:
@@ -110,17 +113,43 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
             # Apply text search
             if query_text:
+                from sqlalchemy import func
                 query = query.filter(func.lower(cls.text).contains(func.lower(query_text)))
 
-            # Handle soft deletes
+            # Apply embedding search (Passages)
+            is_ordered = False
+            if query_embedding:
+                # check if embedding column exists. should only exist for passages
+                if not hasattr(cls, "embedding"):
+                    raise ValueError(f"Class {cls.__name__} does not have an embedding column")
+                
+                from letta.settings import settings
+                if settings.letta_pg_uri_no_default:
+                    # PostgreSQL with pgvector
+                    from pgvector.sqlalchemy import Vector
+                    query = query.order_by(cls.embedding.cosine_distance(query_embedding).asc())
+                else:
+                    # SQLite with custom vector type
+                    from sqlalchemy import func
+
+                    query_embedding_binary = adapt_array(query_embedding)
+                    query = query.order_by(
+                        func.cosine_distance(cls.embedding, query_embedding_binary).asc(),
+                        cls.created_at.asc(),
+                        cls.id.asc()
+                    )
+                    is_ordered = True
+
+            # Handle ordering and soft deletes
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
-
+            
             # Apply ordering by created_at
-            if ascending:
-                query = query.order_by(cls.created_at, cls.id)
-            else:
-                query = query.order_by(desc(cls.created_at), desc(cls.id))
+            if not is_ordered:
+                if ascending:
+                    query = query.order_by(cls.created_at, cls.id)
+                else:
+                    query = query.order_by(desc(cls.created_at), desc(cls.id))
 
             query = query.limit(limit)
 
