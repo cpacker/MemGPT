@@ -171,8 +171,6 @@ from letta.settings import model_settings, settings, tool_settings
 
 config = LettaConfig.load()
 
-attach_base()
-
 
 def print_sqlite_schema_error():
     """Print a formatted error message for SQLite schema issues"""
