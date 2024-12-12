@@ -59,6 +59,5 @@ class Message(SqlalchemyBase, OrganizationMixin, AgentMixin):
     tool_call_id: Mapped[Optional[str]] = mapped_column(nullable=True, doc="ID of the tool call")
 
     # Relationships
-    # TODO: Add in after Agent ORM is created
-    # agent: Mapped["Agent"] = relationship("Agent", back_populates="messages", lazy="selectin")
+    agent: Mapped["Agent"] = relationship("Agent", back_populates="messages", lazy="selectin")
     organization: Mapped["Organization"] = relationship("Organization", back_populates="messages", lazy="selectin")

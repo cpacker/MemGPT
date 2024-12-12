@@ -2,8 +2,6 @@ import logging
 
 import pytest
 
-from letta.settings import tool_settings
-
 
 def pytest_configure(config):
     logging.basicConfig(level=logging.DEBUG)
@@ -11,6 +9,8 @@ def pytest_configure(config):
 
 @pytest.fixture
 def mock_e2b_api_key_none():
+    from letta.settings import tool_settings
+
     # Store the original value of e2b_api_key
     original_api_key = tool_settings.e2b_api_key
 

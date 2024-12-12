@@ -1,28 +1,20 @@
-from typing import TYPE_CHECKING
-
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from letta.orm.mixins import OrganizationMixin
-from letta.orm.sqlalchemy_base import SqlalchemyBase
-from letta.schemas.agents_tags import AgentsTags as PydanticAgentsTags
-
-if TYPE_CHECKING:
-    from letta.orm.organization import Organization
+from letta.orm.base import Base
 
 
-class AgentsTags(SqlalchemyBase, OrganizationMixin):
-    """Associates tags with agents, allowing agents to have multiple tags and supporting tag-based filtering."""
-
+class AgentsTags(Base):
     __tablename__ = "agents_tags"
-    __pydantic_model__ = PydanticAgentsTags
     __table_args__ = (UniqueConstraint("agent_id", "tag", name="unique_agent_tag"),)
 
-    # The agent associated with this tag
-    agent_id = mapped_column(String, ForeignKey("agents.id"), primary_key=True)
+    # # agent generates its own id
+    # # TODO: We want to migrate all the ORM models to do this, so we will need to move this to the SqlalchemyBase
+    # # TODO: Move this in this PR? at the very end?
+    # id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: f"agents_tags-{uuid.uuid4()}")
 
-    # The name of the tag
-    tag: Mapped[str] = mapped_column(String, nullable=False, doc="The name of the tag associated with the agent.")
+    agent_id: Mapped[String] = mapped_column(String, ForeignKey("agents.id"), primary_key=True)
+    tag: Mapped[str] = mapped_column(String, doc="The name of the tag associated with the agent.", primary_key=True)
 
-    # relationships
-    organization: Mapped["Organization"] = relationship("Organization", back_populates="agents_tags")
+    # Relationships
+    agent: Mapped["Agent"] = relationship("Agent", back_populates="tags")

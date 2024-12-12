@@ -25,9 +25,6 @@ from letta.server.rest_api.interface import StreamingServerInterface
 from letta.server.rest_api.routers.openai.assistants.assistants import (
     router as openai_assistants_router,
 )
-from letta.server.rest_api.routers.openai.assistants.threads import (
-    router as openai_threads_router,
-)
 from letta.server.rest_api.routers.openai.chat_completions.chat_completions import (
     router as openai_chat_completions_router,
 )
@@ -215,7 +212,6 @@ def create_application() -> "FastAPI":
 
     # openai
     app.include_router(openai_assistants_router, prefix=OPENAI_API_PREFIX)
-    app.include_router(openai_threads_router, prefix=OPENAI_API_PREFIX)
     app.include_router(openai_chat_completions_router, prefix=OPENAI_API_PREFIX)
 
     # /api/auth endpoints

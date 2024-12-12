@@ -15,7 +15,7 @@ from letta.constants import (
 )
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
-from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgentState
+from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgent
 from letta.schemas.block import Block, BlockUpdate, CreateBlock, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
 
@@ -526,6 +526,7 @@ class RESTClient(AbstractClient):
         if include_base_tools:
             tool_names += BASE_TOOLS
             tool_names += BASE_MEMORY_TOOLS
+        tools = [self.get_tool_id(name) for name in tool_names]
 
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
         assert llm_config or self._default_llm_config, f"LLM config must be provided"
@@ -536,7 +537,7 @@ class RESTClient(AbstractClient):
             description=description,
             metadata_=metadata,
             memory_blocks=[],
-            tools=tool_names,
+            tool_ids=[t.id for t in tools],
             tool_rules=tool_rules,
             system=system,
             agent_type=agent_type,
@@ -627,7 +628,7 @@ class RESTClient(AbstractClient):
         Returns:
             agent_state (AgentState): State of the updated agent
         """
-        request = UpdateAgentState(
+        request = UpdateAgent(
             id=agent_id,
             name=name,
             system=system,
@@ -742,7 +743,7 @@ class RESTClient(AbstractClient):
         agents = [AgentState(**agent) for agent in response.json()]
         if len(agents) == 0:
             return None
-        agents = [agents[0]] # TODO: @matt monkeypatched
+        agents = [agents[0]]  # TODO: @matt monkeypatched
         assert len(agents) == 1, f"Multiple agents with the same name: {[(agents.name, agents.id) for agents in agents]}"
         return agents[0].id
 
@@ -2056,14 +2057,14 @@ class LocalClient(AbstractClient):
             # get default user
             self.user_id = self.server.user_manager.DEFAULT_USER_ID
 
-        self.user = self.server.get_user_or_default(self.user_id)
+        self.user = self.server.user_manager.get_user_or_default(self.user_id)
         self.organization = self.server.get_organization_or_default(self.org_id)
 
     # agents
     def list_agents(self, tags: Optional[List[str]] = None) -> List[AgentState]:
         self.interface.clear()
 
-        return self.server.list_agents(user_id=self.user_id, tags=tags)
+        return self.server.agent_manager.list_agents(actor=self.user, tags=tags)
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
         """
@@ -2105,7 +2106,7 @@ class LocalClient(AbstractClient):
         # system
         system: Optional[str] = None,
         # tools
-        tools: Optional[List[str]] = None,
+        tool_ids: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
@@ -2138,11 +2139,12 @@ class LocalClient(AbstractClient):
 
         # construct list of tools
         tool_names = []
-        if tools:
-            tool_names += tools
+        if tool_ids:
+            tool_names += tool_ids
         if include_base_tools:
             tool_names += BASE_TOOLS
             tool_names += BASE_MEMORY_TOOLS
+        tools = [self.server.tool_manager.get_tool_by_name(tool_name=name, actor=self.user) for name in tool_names]
 
         # check if default configs are provided
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
@@ -2158,7 +2160,7 @@ class LocalClient(AbstractClient):
                 memory_blocks=[],
                 # memory_blocks = memory.get_blocks(),
                 # memory_tools=memory_tools,
-                tools=tool_names,
+                tools=[t.id for t in tools],
                 tool_rules=tool_rules,
                 system=system,
                 agent_type=agent_type,
@@ -2170,17 +2172,8 @@ class LocalClient(AbstractClient):
             actor=self.user,
         )
 
-        # TODO: remove when we fully migrate to block creation CreateAgent model
-        # Link additional blocks to the agent (block ids created on the client)
-        # This needs to happen since the create agent does not allow passing in blocks which have already been persisted and have an ID
-        # So we create the agent and then link the blocks afterwards
-        user = self.server.get_user_or_default(self.user_id)
-        for block in memory.get_blocks():
-            self.server.block_manager.create_or_update_block(block, actor=user)
-            self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_state.id, block_id=block.id)
-
         # TODO: get full agent state
-        return self.server.get_agent(agent_state.id)
+        return self.server.agent_manager.get_agent_by_id(agent_state.id, actor=self.user)
 
     def update_message(
         self,
@@ -2239,7 +2232,7 @@ class LocalClient(AbstractClient):
         # TODO: add the abilitty to reset linked block_ids
         self.interface.clear()
         agent_state = self.server.update_agent(
-            UpdateAgentState(
+            UpdateAgent(
                 id=agent_id,
                 name=name,
                 system=system,
@@ -2315,7 +2308,7 @@ class LocalClient(AbstractClient):
         Args:
             agent_id (str): ID of the agent to delete
         """
-        self.server.delete_agent(user_id=self.user_id, agent_id=agent_id)
+        self.server.agent_manager.delete_agent(agent_id=agent_id, actor=self.user)
 
     def get_agent_by_name(self, agent_name: str) -> AgentState:
         """
@@ -2328,7 +2321,7 @@ class LocalClient(AbstractClient):
             agent_state (AgentState): State of the agent
         """
         self.interface.clear()
-        return self.server.get_agent_state(agent_name=agent_name, user_id=self.user_id, agent_id=None)
+        return self.server.agent_manager.get_agent_by_name(agent_name=agent_name, actor=self.user)
 
     def get_agent(self, agent_id: str) -> AgentState:
         """
@@ -2340,9 +2333,8 @@ class LocalClient(AbstractClient):
         Returns:
             agent_state (AgentState): State representation of the agent
         """
-        # TODO: include agent_name
         self.interface.clear()
-        return self.server.get_agent_state(user_id=self.user_id, agent_id=agent_id)
+        return self.server.agent_manager.get_agent_by_id(agent_id=agent_id, actor=self.user)
 
     def get_agent_id(self, agent_name: str) -> Optional[str]:
         """
@@ -2388,7 +2380,7 @@ class LocalClient(AbstractClient):
 
         """
         # TODO: implement this (not sure what it should look like)
-        memory = self.server.update_agent_core_memory(user_id=self.user_id, agent_id=agent_id, label=section, value=value)
+        memory = self.server.update_agent_core_memory(agent_id=agent_id, label=section, value=value, actor=self.user)
         return memory
 
     def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
@@ -3036,7 +3028,7 @@ class LocalClient(AbstractClient):
         Returns:
             sources (List[Source]): List of sources
         """
-        return self.server.list_attached_sources(agent_id=agent_id)
+        return self.server.agent_manager.list_attached_sources(agent_id=agent_id, actor=self.user)
 
     def list_files_from_source(self, source_id: str, limit: int = 1000, cursor: Optional[str] = None) -> List[FileMetadata]:
         """
@@ -3080,7 +3072,7 @@ class LocalClient(AbstractClient):
         Returns:
             passages (List[Passage]): List of inserted passages
         """
-        return self.server.insert_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_contents=memory)
+        return self.server.insert_archival_memory(agent_id=agent_id, memory_contents=memory, actor=self.user)
 
     def delete_archival_memory(self, agent_id: str, memory_id: str):
         """
@@ -3090,7 +3082,7 @@ class LocalClient(AbstractClient):
             agent_id (str): ID of the agent
             memory_id (str): ID of the memory
         """
-        self.server.delete_archival_memory(user_id=self.user_id, agent_id=agent_id, memory_id=memory_id)
+        self.server.delete_archival_memory(agent_id=agent_id, memory_id=memory_id, actor=self.user)
 
     def get_archival_memory(
         self, agent_id: str, before: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = 1000
@@ -3349,8 +3341,8 @@ class LocalClient(AbstractClient):
         block_req = Block(**create_block.model_dump())
         block = self.server.block_manager.create_or_update_block(actor=self.user, block=block_req)
         # Link the block to the agent
-        updated_memory = self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_id, block_id=block.id)
-        return updated_memory
+        agent = self.server.agent_manager.attach_block(agent_id=agent_id, block_id=block.id, actor=actor)
+        return agent.memory
 
     def link_agent_memory_block(self, agent_id: str, block_id: str) -> Memory:
         """
@@ -3363,7 +3355,7 @@ class LocalClient(AbstractClient):
         Returns:
             memory (Memory): The updated memory
         """
-        return self.server.link_block_to_agent_memory(user_id=self.user_id, agent_id=agent_id, block_id=block_id)
+        return self.server.agent_manager.attach_block(agent_id=agent_id, block_id=block_id, actor=self.user)
 
     def remove_agent_memory_block(self, agent_id: str, block_label: str) -> Memory:
         """
@@ -3376,7 +3368,7 @@ class LocalClient(AbstractClient):
         Returns:
             memory (Memory): The updated memory
         """
-        return self.server.unlink_block_from_agent_memory(user_id=self.user_id, agent_id=agent_id, block_label=block_label)
+        return self.server.agent_manager.detach_block_with_label(agent_id=agent_id, block_label=block_label, actor=actor)
 
     def get_agent_memory_blocks(self, agent_id: str) -> List[Block]:
         """
@@ -3388,8 +3380,8 @@ class LocalClient(AbstractClient):
         Returns:
             blocks (List[Block]): The blocks in the agent's core memory
         """
-        block_ids = self.server.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id)
-        return [self.server.block_manager.get_block_by_id(block_id, actor=self.user) for block_id in block_ids]
+        agent = self.server.agent_manager.get_agent_by_id(agent_id=agent_id, actor=self.user)
+        return agent.memory.blocks
 
     def get_agent_memory_block(self, agent_id: str, label: str) -> Block:
         """
@@ -3402,8 +3394,7 @@ class LocalClient(AbstractClient):
         Returns:
             block (Block): The block corresponding to the label
         """
-        block_id = self.server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=label)
-        return self.server.block_manager.get_block_by_id(block_id, actor=self.user)
+        return self.server.agent_manager.get_block_with_label(agent_id=agent_id, block_label=label, actor=self.user)
 
     def update_agent_memory_block(
         self,

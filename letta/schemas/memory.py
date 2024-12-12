@@ -87,7 +87,7 @@ class Memory(BaseModel, validate_assignment=True):
             Template(prompt_template)
 
             # Validate compatibility with current memory structure
-            test_render = Template(prompt_template).render(blocks=self.blocks)
+            Template(prompt_template).render(blocks=self.blocks)
 
             # If we get here, the template is valid and compatible
             self.prompt_template = prompt_template

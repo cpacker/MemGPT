@@ -36,7 +36,7 @@ def get_source(
     """
     Get all sources
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     source = server.source_manager.get_source_by_id(source_id=source_id, actor=actor)
     if not source:
@@ -53,7 +53,7 @@ def get_source_id_by_name(
     """
     Get a source by name
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     source = server.source_manager.get_source_by_name(source_name=source_name, actor=actor)
     if not source:
@@ -69,7 +69,7 @@ def list_sources(
     """
     List all data sources created by a user.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     return server.list_all_sources(actor=actor)
 
@@ -83,7 +83,7 @@ def create_source(
     """
     Create a new data source.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     source = Source(**source_create.model_dump())
 
     return server.source_manager.create_source(source=source, actor=actor)
@@ -99,7 +99,7 @@ def update_source(
     """
     Update the name or documentation of an existing data source.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     if not server.source_manager.get_source_by_id(source_id=source_id, actor=actor):
         raise HTTPException(status_code=404, detail=f"Source with id={source_id} does not exist.")
     return server.source_manager.update_source(source_id=source_id, source_update=source, actor=actor)
@@ -114,7 +114,7 @@ def delete_source(
     """
     Delete a data source.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     server.delete_source(source_id=source_id, actor=actor)
 
@@ -129,7 +129,7 @@ def attach_source_to_agent(
     """
     Attach a data source to an existing agent.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     source = server.source_manager.get_source_by_id(source_id=source_id, actor=actor)
     assert source is not None, f"Source with id={source_id} not found."
@@ -147,7 +147,7 @@ def detach_source_from_agent(
     """
     Detach a data source from an existing agent.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     return server.detach_source_from_agent(source_id=source_id, agent_id=agent_id, user_id=actor.id)
 
@@ -163,7 +163,7 @@ def upload_file_to_source(
     """
     Upload a file to a data source.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     source = server.source_manager.get_source_by_id(source_id=source_id, actor=actor)
     assert source is not None, f"Source with id={source_id} not found."
@@ -197,7 +197,7 @@ def list_passages(
     """
     List all passages associated with a data source.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     passages = server.list_data_source_passages(user_id=actor.id, source_id=source_id)
     return passages
 
@@ -213,7 +213,7 @@ def list_files_from_source(
     """
     List paginated files associated with a data source.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     return server.source_manager.list_files(source_id=source_id, limit=limit, cursor=cursor, actor=actor)
 
 
@@ -229,7 +229,7 @@ def delete_file_from_source(
     """
     Delete a data source.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     deleted_file = server.source_manager.delete_file(file_id=file_id, actor=actor)
     if deleted_file is None:

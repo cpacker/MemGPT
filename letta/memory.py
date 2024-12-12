@@ -1,23 +1,13 @@
-import datetime
-from abc import ABC, abstractmethod
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable, Dict, List
 
 from letta.constants import MESSAGE_SUMMARY_REQUEST_ACK, MESSAGE_SUMMARY_WARNING_FRAC
-from letta.embeddings import embedding_model, parse_and_chunk_text, query_embedding
 from letta.llm_api.llm_api_tools import create
 from letta.prompts.gpt_summarize import SYSTEM as SUMMARY_PROMPT_SYSTEM
 from letta.schemas.agent import AgentState
 from letta.schemas.enums import MessageRole
 from letta.schemas.memory import Memory
 from letta.schemas.message import Message
-from letta.schemas.passage import Passage
-from letta.utils import (
-    count_tokens,
-    extract_date_from_timestamp,
-    get_local_time,
-    printd,
-    validate_date_format,
-)
+from letta.utils import count_tokens, printd
 
 
 def get_memory_functions(cls: Memory) -> Dict[str, Callable]:
@@ -67,7 +57,6 @@ def summarize_messages(
             + message_sequence_to_summarize[cutoff:]
         )
 
-    agent_state.user_id
     dummy_agent_id = agent_state.id
     message_sequence = []
     message_sequence.append(Message(agent_id=dummy_agent_id, role=MessageRole.system, text=summary_prompt))
@@ -79,7 +68,7 @@ def summarize_messages(
     llm_config_no_inner_thoughts.put_inner_thoughts_in_kwargs = False
     response = create(
         llm_config=llm_config_no_inner_thoughts,
-        user_id=agent_state.user_id,
+        user_id=agent_state.created_by_id,
         messages=message_sequence,
         stream=False,
     )

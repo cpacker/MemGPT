@@ -36,7 +36,7 @@ async def create_chat_completion(
     The bearer token will be used to identify the user.
     The 'user' field in the completion_request should be set to the agent ID.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     agent_id = completion_request.user
     if agent_id is None:
