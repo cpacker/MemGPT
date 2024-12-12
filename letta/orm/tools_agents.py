@@ -2,14 +2,12 @@ from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from letta.orm import Base
-from letta.schemas.tools_agents import ToolsAgents as PydanticToolsAgents
 
 
 class ToolsAgents(Base):
     """Agents can have one or many tools associated with them."""
 
     __tablename__ = "tools_agents"
-    __pydantic_model__ = PydanticToolsAgents
     __table_args__ = (UniqueConstraint("agent_id", "tool_id", name="unique_agent_tool"),)
 
     # Each agent must have unique tool names
