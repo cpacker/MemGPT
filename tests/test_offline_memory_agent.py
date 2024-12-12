@@ -21,8 +21,16 @@ from letta.utils import get_human_text, get_persona_text
 @pytest.fixture(scope="module")
 def client():
     client = create_client()
-    client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
-    client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+    ANTHROPIC_CONFIG = LLMConfig(
+        model_endpoint_type="anthropic",
+        model_endpoint="https://api.anthropic.com/v1",
+        model="claude-3-5-haiku-20241022",
+        context_window=32000,
+    )
+    # client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
+    # client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
+    client.set_default_llm_config(ANTHROPIC_CONFIG)
+    client.set_default_embedding_config(EmbeddingConfig.default_config(model_name="letta"))
 
     yield client
 
@@ -31,6 +39,7 @@ def client():
 def clear_agents(client):
     for agent in client.list_agents():
         client.delete_agent(agent.id)
+
 
 def test_ripple_edit_anthropic(client, mock_e2b_api_key_none):
     trigger_rethink_memory_tool = client.create_or_update_tool(trigger_rethink_memory)
@@ -57,19 +66,19 @@ def test_ripple_edit_anthropic(client, mock_e2b_api_key_none):
     new_memory = Block(name="rethink_memory_block", label="rethink_memory_block", value="[empty]", limit=2000)
     conversation_memory = BasicBlockMemory(blocks=[conversation_persona_block, conversation_human_block, fact_block, new_memory])
     offline_memory = BasicBlockMemory(blocks=[offline_persona_block, offline_human_block, fact_block, new_memory])
-
-    ANTHROPIC_CONFIG = LLMConfig(
-            model_endpoint_type="anthropic",
-            model_endpoint="https://api.anthropic.com/v1",
-            model="claude-3-5-haiku-20241022",
-            context_window=32000,
-        )
+    #
+    # ANTHROPIC_CONFIG = LLMConfig(
+    #         model_endpoint_type="anthropic",
+    #         model_endpoint="https://api.anthropic.com/v1",
+    #         model="claude-3-5-haiku-20241022",
+    #         context_window=32000,
+    #     )
     conversation_agent = client.create_agent(
         name="conversation_agent",
         agent_type=AgentType.memgpt_agent,
         system=gpt_system.get_system_text("memgpt_convo_only"),
-        llm_config=ANTHROPIC_CONFIG,
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        # llm_config=ANTHROPIC_CONFIG,
+        # embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
         tools=["send_message", trigger_rethink_memory_tool.name],
         memory=conversation_memory,
         include_base_tools=False,
@@ -85,8 +94,8 @@ def test_ripple_edit_anthropic(client, mock_e2b_api_key_none):
         agent_type=AgentType.offline_memory_agent,
         system=gpt_system.get_system_text("memgpt_offline_memory"),
         memory=offline_memory,
-        llm_config=ANTHROPIC_CONFIG,
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        # llm_config=ANTHROPIC_CONFIG,
+        # embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
         tools=[rethink_memory_tool.name, finish_rethinking_memory_tool.name],
         tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
         include_base_tools=False,
@@ -97,18 +106,15 @@ def test_ripple_edit_anthropic(client, mock_e2b_api_key_none):
         agent_id=conversation_agent.id, message="[trigger_rethink_memory]: Messi has now moved to playing for Inter Miami"
     )
     offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
-
-    import pdb; pdb.set_trace()
     assert offline_memory_agent.memory.get_block("rethink_memory_block").value != "[empty]"
     conversation_agent = client.get_agent(agent_id=conversation_agent.id)
     assert conversation_agent.memory.get_block("rethink_memory_block").value != "[empty]"
 
     # Clean up agent
-    '''
+    """
     client.delete_agent(conversation_agent.id)
     client.delete_agent(offline_memory_agent.id)
-    '''
-
+    """
 
 
 def test_ripple_edit(client, mock_e2b_api_key_none):
@@ -214,6 +220,7 @@ def test_chat_only_agent(client, mock_e2b_api_key_none):
     # Clean up agent
     client.delete_agent(chat_only_agent.id)
 
+
 def test_initial_message_sequence(client, mock_e2b_api_key_none):
     """
     Test that when we set the initial sequence to an empty list,
@@ -229,8 +236,6 @@ def test_initial_message_sequence(client, mock_e2b_api_key_none):
         initial_message_sequence=[],
     )
     assert offline_memory_agent is not None
-    assert len(offline_memory_agent.message_ids) == 1 # There should just the system message 
+    assert len(offline_memory_agent.message_ids) == 1  # There should just the system message
 
     client.delete_agent(offline_memory_agent.id)
-
-

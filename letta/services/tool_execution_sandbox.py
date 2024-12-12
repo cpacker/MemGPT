@@ -203,7 +203,7 @@ class ToolExecutionSandbox:
             func_result, stdout = self.parse_out_function_results_markers(result.stdout)
             func_return, agent_state = self.parse_best_effort(func_result)
             return SandboxRunResult(
-                func_return=func_return, 
+                func_return=func_return,
                 agent_state=agent_state,
                 stdout=[stdout],
                 stderr=[result.stderr],
@@ -229,7 +229,7 @@ class ToolExecutionSandbox:
 
         # Execute the temp file
         with self.temporary_env_vars(env_vars):
-            result = runpy.run_path(temp_file_path, init_globals=env_vars)
+            result = runpy.run_path(temp_file_path, init_globals=env_vars, run_name="__main__")
 
         # Fetch the result
         func_result = result.get(self.LOCAL_SANDBOX_RESULT_VAR_NAME)
