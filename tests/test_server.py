@@ -310,8 +310,7 @@ def agent_id(server, user_id):
             tools=BASE_TOOLS,
             memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
-            # embedding_config=EmbeddingConfig.default_config(provider="openai"),
-            embedding_config=DEFAULT_EMBEDDING_CONFIG,
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
         actor=server.get_user_or_default(user_id),
     )
@@ -951,8 +950,7 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
     source = server.source_manager.create_source(
         PydanticSource(
             name="timber_source",
-            # embedding_config=EmbeddingConfig.default_config(provider="openai"),
-            embedding_config=DEFAULT_EMBEDDING_CONFIG,
+            embedding_config=EmbeddingConfig.default_config(provider="openai"),
             created_by_id=user_id,
         ),
         actor=user
