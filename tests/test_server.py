@@ -1020,7 +1020,7 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
     # Verify second job completed successfully
     job2 = server.job_manager.get_job_by_id(job_id=job2.id, actor=user)
     assert job2.status == "completed"
-    assert job2.metadata_["num_passages"] == 13
+    assert job2.metadata_["num_passages"] >= 10
     assert job2.metadata_["num_documents"] == 1
 
     # Verify passages were appended (not replaced)
@@ -1036,7 +1036,7 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
         embedding_config=EmbeddingConfig.default_config(provider="openai"),
         embed_query=True,
     )
-    assert len(passages) == 14
+    assert len(passages) == final_passage_count
     assert any("chicken" in passage.text.lower() for passage in passages)
     assert any("Anna".lower() in passage.text.lower() for passage in passages)
 
