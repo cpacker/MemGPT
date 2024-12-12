@@ -16,7 +16,6 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
-from letta.agent_store.storage import StorageConnector, TableType
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
@@ -558,7 +557,6 @@ class SyncServer(Server):
                 raise ValueError(command)
 
             # attach data to agent from source
-            source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
             letta_agent.attach_source(
                 user=self.user_manager.get_user_by_id(user_id=user_id),
                 source_id=data_source,
@@ -1571,8 +1569,7 @@ class SyncServer(Server):
         self.source_manager.delete_source(source_id=source_id, actor=actor)
 
         # delete data from passage store
-        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=actor.id)
-        passage_store.delete({"source_id": source_id})
+        self.passage_manager.delete_passages(actor=actor, limit=None, source_id=source_id)
 
         # TODO: delete data from agent passage stores (?)
 
@@ -1614,11 +1611,10 @@ class SyncServer(Server):
         if source is None:
             raise ValueError(f"Data source {source_name} does not exist for user {user_id}")
 
-        # get the data connectors
-        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user, agent_id=agent_id)
+        passage_count, document_count = load_data(
+            connector, source, self.passage_manager, self.source_manager, actor=user, agent_id=agent_id
+        )
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1694,8 +1690,7 @@ class SyncServer(Server):
         for source in sources:
 
             # count number of passages
-            passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=actor.id)
-            num_passages = passage_conn.size({"source_id": source.id})
+            num_passages = self.passage_manager.size(actor=actor, source_id=source.id)
 
             # TODO: add when files table implemented
             ## count number of files
@@ -1806,14 +1801,20 @@ class SyncServer(Server):
 
         llm_models = []
         for provider in self._enabled_providers:
-            llm_models.extend(provider.list_llm_models())
+            try:
+                llm_models.extend(provider.list_llm_models())
+            except Exception as e:
+                warnings.warn(f"An error occurred while listing LLM models for provider {provider}: {e}")
         return llm_models
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         """List available embedding models"""
         embedding_models = []
         for provider in self._enabled_providers:
-            embedding_models.extend(provider.list_embedding_models())
+            try:
+                embedding_models.extend(provider.list_embedding_models())
+            except Exception as e:
+                warnings.warn(f"An error occurred while listing embedding models for provider {provider}: {e}")
         return embedding_models
 
     def add_llm_model(self, request: LLMConfig) -> LLMConfig:

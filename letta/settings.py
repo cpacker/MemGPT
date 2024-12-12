@@ -17,7 +17,7 @@ class ToolSettings(BaseSettings):
 
 class ModelSettings(BaseSettings):
 
-    model_config = SettingsConfigDict(env_file='.env')
+    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
 
     # env_prefix='my_prefix_'
 
@@ -64,7 +64,7 @@ cors_origins = ["http://letta.localhost", "http://localhost:8283", "http://local
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="letta_")
+    model_config = SettingsConfigDict(env_prefix="letta_", extra='ignore')
 
     letta_dir: Optional[Path] = Field(Path.home() / ".letta", env="LETTA_DIR")
     debug: Optional[bool] = False
@@ -103,7 +103,7 @@ class Settings(BaseSettings):
 
 
 class TestSettings(Settings):
-    model_config = SettingsConfigDict(env_prefix="letta_test_")
+    model_config = SettingsConfigDict(env_prefix="letta_test_", extra='ignore')
 
     letta_dir: Optional[Path] = Field(Path.home() / ".letta/test", env="LETTA_TEST_DIR")
 
