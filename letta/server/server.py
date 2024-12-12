@@ -402,6 +402,7 @@ class SyncServer(Server):
         agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
         with agent_lock:
             agent_state = self.agent_manager.get_agent_by_id(agent_id=agent_id)
+
             if agent_state is None:
                 raise LettaAgentNotFoundError(f"Agent (agent_id={agent_id}) does not exist")
             elif agent_state.created_by_id is None:
@@ -822,6 +823,9 @@ class SyncServer(Server):
         in_memory_agent_state = self.agent_manager.get_agent_by_id(agent_state.id)
         return in_memory_agent_state
 
+    # TODO: This is not good!
+    # TODO: Ideally, this should ALL be handled by the ORM
+    # TODO: The main blocker here IS the _message updates
     def update_agent(
         self,
         agent_id: str,
@@ -829,9 +833,12 @@ class SyncServer(Server):
         actor: User,
     ) -> AgentState:
         """Update the agents core memory block, return the new state"""
-
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id)
+
+        # Update tags
+        if request.tags is not None:  # Allow for empty list
+            letta_agent.agent_state.tags = request.tags
 
         # update the system prompt
         if request.system:

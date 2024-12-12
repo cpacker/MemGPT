@@ -178,6 +178,7 @@ class AgentManager:
                 organization_id=actor.organization_id if actor else None,
                 **kwargs,
             )
+
             return [agent.to_pydantic() for agent in agents]
 
     @enforce_types

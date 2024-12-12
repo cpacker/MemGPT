@@ -2132,18 +2132,15 @@ class LocalClient(AbstractClient):
         Returns:
             agent_state (AgentState): State of the created agent
         """
-
-        if name and self.agent_exists(agent_name=name):
-            raise ValueError(f"Agent with name {name} already exists (user_id={self.user_id})")
-
         # construct list of tools
         tool_names = []
-        if tool_ids:
-            tool_names += tool_ids
         if include_base_tools:
             tool_names += BASE_TOOLS
             tool_names += BASE_MEMORY_TOOLS
         tools = [self.server.tool_manager.get_tool_by_name(tool_name=name, actor=self.user) for name in tool_names]
+
+        if tool_ids:
+            tools += [self.server.tool_manager.get_tool_by_id(tool_id=tool_id, actor=self.user) for tool_id in tool_ids]
 
         # check if default configs are provided
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
@@ -3348,7 +3345,7 @@ class LocalClient(AbstractClient):
         block_req = Block(**create_block.model_dump())
         block = self.server.block_manager.create_or_update_block(actor=self.user, block=block_req)
         # Link the block to the agent
-        agent = self.server.agent_manager.attach_block(agent_id=agent_id, block_id=block.id, actor=actor)
+        agent = self.server.agent_manager.attach_block(agent_id=agent_id, block_id=block.id, actor=self.user)
         return agent.memory
 
     def link_agent_memory_block(self, agent_id: str, block_id: str) -> Memory:
@@ -3375,7 +3372,7 @@ class LocalClient(AbstractClient):
         Returns:
             memory (Memory): The updated memory
         """
-        return self.server.agent_manager.detach_block_with_label(agent_id=agent_id, block_label=block_label, actor=actor)
+        return self.server.agent_manager.detach_block_with_label(agent_id=agent_id, block_label=block_label, actor=self.user)
 
     def get_agent_memory_blocks(self, agent_id: str) -> List[Block]:
         """

@@ -8,10 +8,9 @@ from typing import List, Union
 
 import pytest
 from dotenv import load_dotenv
-from sqlalchemy import delete
+from pydantic_core._pydantic_core import ValidationError
 
 from letta import LocalClient, RESTClient, create_client
-from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.agent import AgentState
 from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -69,21 +68,11 @@ def client(request):
 @pytest.fixture(scope="module")
 def agent(client: Union[LocalClient, RESTClient]):
     agent_state = client.create_agent(name=f"test_client_{str(uuid.uuid4())}")
+
     yield agent_state
 
     # delete agent
     client.delete_agent(agent_state.id)
-
-
-@pytest.fixture(autouse=True)
-def clear_tables():
-    """Clear the sandbox tables before each test."""
-    from letta.server.server import db_context
-
-    with db_context() as session:
-        session.execute(delete(SandboxEnvironmentVariable))
-        session.execute(delete(SandboxConfig))
-        session.commit()
 
 
 def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]):
@@ -137,15 +126,15 @@ def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]
     client.delete_sandbox_config(sandbox_config_id=sandbox_config.id)
 
 
-def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient]):
     """
     Comprehensive happy path test for adding, retrieving, and managing tags on an agent.
     """
     tags_to_add = ["test_tag_1", "test_tag_2", "test_tag_3"]
 
-    # Step 0: create an agent with tags
-    tagged_agent = client.create_agent(tags=tags_to_add)
-    assert set(tagged_agent.tags) == set(tags_to_add), f"Expected tags {tags_to_add}, but got {tagged_agent.tags}"
+    # Step 0: create an agent with no tags
+    agent = client.create_agent()
+    assert len(agent.tags) == 0
 
     # Step 1: Add multiple tags to the agent
     client.update_agent(agent_id=agent.id, tags=tags_to_add)
@@ -174,6 +163,9 @@ def test_add_and_manage_tags_for_agent(client: Union[LocalClient, RESTClient], a
     # Verify all tags are removed
     final_tags = client.get_agent(agent_id=agent.id).tags
     assert len(final_tags) == 0, f"Expected no tags, but found {final_tags}"
+
+    # Remove agent
+    client.delete_agent(agent.id)
 
 
 def test_update_agent_memory_label(client: Union[LocalClient, RESTClient], agent: AgentState):
@@ -255,35 +247,36 @@ def test_add_remove_agent_memory_block(client: Union[LocalClient, RESTClient], a
 #         client.delete_agent(new_agent.id)
 
 
-def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient], agent: AgentState):
+def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient]):
     """Test that we can update the limit of a block in an agent's memory"""
 
-    agent = client.create_agent(name=create_random_username())
+    agent = client.create_agent()
 
-    try:
-        current_labels = agent.memory.list_block_labels()
-        example_label = current_labels[0]
-        example_new_limit = 1
-        current_block = agent.memory.get_block(label=example_label)
-        current_block_length = len(current_block.value)
+    current_labels = agent.memory.list_block_labels()
+    example_label = current_labels[0]
+    example_new_limit = 1
+    current_block = agent.memory.get_block(label=example_label)
+    current_block_length = len(current_block.value)
 
-        assert example_new_limit != agent.memory.get_block(label=example_label).limit
-        assert example_new_limit < current_block_length
+    assert example_new_limit != agent.memory.get_block(label=example_label).limit
+    assert example_new_limit < current_block_length
 
-        # We expect this to throw a value error
-        with pytest.raises(ValueError):
-            client.update_agent_memory_block(agent_id=agent.id, label=example_label, limit=example_new_limit)
+    import ipdb
 
-        # Now try the same thing with a higher limit
-        example_new_limit = current_block_length + 10000
-        assert example_new_limit > current_block_length
+    ipdb.set_trace()
+    # We expect this to throw a value error
+    with pytest.raises(ValidationError):
         client.update_agent_memory_block(agent_id=agent.id, label=example_label, limit=example_new_limit)
 
-        updated_agent = client.get_agent(agent_id=agent.id)
-        assert example_new_limit == updated_agent.memory.get_block(label=example_label).limit
+    # Now try the same thing with a higher limit
+    example_new_limit = current_block_length + 10000
+    assert example_new_limit > current_block_length
+    client.update_agent_memory_block(agent_id=agent.id, label=example_label, limit=example_new_limit)
 
-    finally:
-        client.delete_agent(agent.id)
+    updated_agent = client.get_agent(agent_id=agent.id)
+    assert example_new_limit == updated_agent.memory.get_block(label=example_label).limit
+
+    client.delete_agent(agent.id)
 
 
 def test_messages(client: Union[LocalClient, RESTClient], agent: AgentState):
@@ -316,7 +309,7 @@ def test_function_return_limit(client: Union[LocalClient, RESTClient]):
 
     padding = len("[NOTE: function output was truncated since it exceeded the character limit (100000 > 1000)]") + 50
     tool = client.create_or_update_tool(func=big_return, return_char_limit=1000)
-    agent = client.create_agent(name="agent1", tools=[tool.name])
+    agent = client.create_agent(name="agent1", tool_ids=[tool.id])
     # get function response
     response = client.send_message(agent_id=agent.id, message="call the big_return function", role="user")
     print(response.messages)

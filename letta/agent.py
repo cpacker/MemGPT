@@ -1611,7 +1611,6 @@ class Agent(BaseAgent):
 
 def save_agent(agent: Agent, ms: MetadataStore):
     """Save agent to metadata store"""
-
     agent.update_state()
     agent_state = agent.agent_state
     assert isinstance(agent_state.memory, Memory), f"Memory is not a Memory object: {type(agent_state.memory)}"

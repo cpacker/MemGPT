@@ -187,7 +187,7 @@ class Agent(SqlalchemyBase, OrganizationMixin):
             "llm_config": self.llm_config,
             "embedding_config": self.embedding_config,
             "metadata_": self.metadata_,
-            "memory": Memory(blocks=self.core_memory),
+            "memory": Memory(blocks=[b.to_pydantic() for b in self.core_memory]),
             "created_by_id": self.created_by_id,
             "last_updated_by_id": self.last_updated_by_id,
             "created_at": self.created_at,
