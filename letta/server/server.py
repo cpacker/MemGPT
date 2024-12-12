@@ -1809,14 +1809,20 @@ class SyncServer(Server):
 
         llm_models = []
         for provider in self._enabled_providers:
-            llm_models.extend(provider.list_llm_models())
+            try:
+                llm_models.extend(provider.list_llm_models())
+            except Exception as e:
+                warnings.warn(f"An error occurred while listing LLM models for provider {provider}: {e}")
         return llm_models
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         """List available embedding models"""
         embedding_models = []
         for provider in self._enabled_providers:
-            embedding_models.extend(provider.list_embedding_models())
+            try:
+                embedding_models.extend(provider.list_embedding_models())
+            except Exception as e:
+                warnings.warn(f"An error occurred while listing embedding models for provider {provider}: {e}")
         return embedding_models
 
     def add_llm_model(self, request: LLMConfig) -> LLMConfig:
