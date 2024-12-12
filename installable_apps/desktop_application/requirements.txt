@@ -1,5 +1,5 @@
 setuptools==68.2.2 # letta pinned - and anything newer than 70 builds a broken wheel
-letta==0.5.5 # this is also the version of the installer
+letta==0.6.3 # this is also the version of the installer
 pgserver~=0.1.4
 pystray
 pillow

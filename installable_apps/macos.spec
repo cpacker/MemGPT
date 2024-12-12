@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
-
+import sys
+sys.setrecursionlimit(10000)
 
 a = Analysis(
     ['desktop_application/startup.py'],
@@ -14,7 +15,7 @@ a = Analysis(
         ('venv/lib/python3.12/site-packages/letta/prompts/system', 'letta/prompts/system'),
         ('venv/lib/python3.12/site-packages/letta/functions/function_sets', 'letta/functions/function_sets'),
         ('assets','assets'),
-        ('desktop_application/logserver/templates','logserver/templates'),
+        ('desktop_application/templates','templates'),
 
     ],
     hiddenimports=[],
