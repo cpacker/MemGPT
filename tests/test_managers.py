@@ -9,7 +9,6 @@ from letta.embeddings import embedding_model
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
 from letta.metadata import AgentModel
-from letta.orm.sqlite_functions import verify_embedding_dimension, convert_array
 from letta.orm import (
     Block,
     BlocksAgents,
@@ -445,8 +444,8 @@ def test_passage_update(server: SyncServer, hello_world_passage_fixture, default
 def test_passage_delete(server: SyncServer, hello_world_passage_fixture, default_user):
     """Test deleting a passage"""
     server.passage_manager.delete_passage_by_id(hello_world_passage_fixture.id, actor=default_user)
-    retrieved = server.passage_manager.get_passage_by_id(hello_world_passage_fixture.id, actor=default_user)
-    assert retrieved is None
+    with pytest.raises(NoResultFound):
+        server.passage_manager.get_passage_by_id(hello_world_passage_fixture.id, actor=default_user)
 
 
 def test_passage_size(server: SyncServer, hello_world_passage_fixture, create_test_passages, default_user):
