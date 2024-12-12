@@ -16,7 +16,6 @@ import letta.constants as constants
 import letta.server.utils as server_utils
 import letta.system as system
 from letta.agent import Agent, save_agent
-from letta.agent_store.storage import StorageConnector, TableType
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
@@ -142,6 +141,11 @@ class Server(object):
         raise NotImplementedError
 
 
+from contextlib import contextmanager
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -151,6 +155,37 @@ from letta.config import LettaConfig
 from letta.settings import model_settings, settings, tool_settings
 
 config = LettaConfig.load()
+
+
+def print_sqlite_schema_error():
+    """Print a formatted error message for SQLite schema issues"""
+    console = Console()
+    error_text = Text()
+    error_text.append("Existing SQLite DB schema is invalid, and schema migrations are not supported for SQLite. ", style="bold red")
+    error_text.append("To have migrations supported between Letta versions, please run Letta with Docker (", style="white")
+    error_text.append("https://docs.letta.com/server/docker", style="blue underline")
+    error_text.append(") or use Postgres by setting ", style="white")
+    error_text.append("LETTA_PG_URI", style="yellow")
+    error_text.append(".\n\n", style="white")
+    error_text.append("If you wish to keep using SQLite, you can reset your database by removing the DB file with ", style="white")
+    error_text.append("rm ~/.letta/sqlite.db", style="yellow")
+    error_text.append(" or downgrade to your previous version of Letta.", style="white")
+
+    console.print(Panel(error_text, border_style="red"))
+
+
+@contextmanager
+def db_error_handler():
+    """Context manager for handling database errors"""
+    try:
+        yield
+    except Exception as e:
+        # Handle other SQLAlchemy errors
+        print(e)
+        print_sqlite_schema_error()
+        # raise ValueError(f"SQLite DB error: {str(e)}")
+        exit(1)
+
 
 if settings.letta_pg_uri_no_default:
     config.recall_storage_type = "postgres"
@@ -163,6 +198,30 @@ if settings.letta_pg_uri_no_default:
 else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
+
+    # Store the original connect method
+    original_connect = engine.connect
+
+    def wrapped_connect(*args, **kwargs):
+        with db_error_handler():
+            # Get the connection
+            connection = original_connect(*args, **kwargs)
+
+            # Store the original execution method
+            original_execute = connection.execute
+
+            # Wrap the execute method of the connection
+            def wrapped_execute(*args, **kwargs):
+                with db_error_handler():
+                    return original_execute(*args, **kwargs)
+
+            # Replace the connection's execute method
+            connection.execute = wrapped_execute
+
+            return connection
+
+    # Replace the engine's connect method
+    engine.connect = wrapped_connect
 
     Base.metadata.create_all(bind=engine)
 
@@ -446,7 +505,6 @@ class SyncServer(Server):
                 raise ValueError(command)
 
             # attach data to agent from source
-            source_connector = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
             letta_agent.attach_source(
                 user=self.user_manager.get_user_by_id(user_id=user_id),
                 source_id=data_source,
@@ -1175,8 +1233,7 @@ class SyncServer(Server):
         self.source_manager.delete_source(source_id=source_id, actor=actor)
 
         # delete data from passage store
-        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=actor.id)
-        passage_store.delete({"source_id": source_id})
+        self.passage_manager.delete_passages(actor=actor, limit=None, source_id=source_id)
 
         # TODO: delete data from agent passage stores (?)
 
@@ -1218,11 +1275,10 @@ class SyncServer(Server):
         if source is None:
             raise ValueError(f"Data source {source_name} does not exist for user {user_id}")
 
-        # get the data connectors
-        passage_store = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=user_id)
-
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, passage_store, self.source_manager, actor=user, agent_id=agent_id)
+        passage_count, document_count = load_data(
+            connector, source, self.passage_manager, self.source_manager, actor=user, agent_id=agent_id
+        )
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1292,8 +1348,7 @@ class SyncServer(Server):
         for source in sources:
 
             # count number of passages
-            passage_conn = StorageConnector.get_storage_connector(TableType.PASSAGES, self.config, user_id=actor.id)
-            num_passages = passage_conn.size({"source_id": source.id})
+            num_passages = self.passage_manager.size(actor=actor, source_id=source.id)
 
             # TODO: add when files table implemented
             ## count number of files
@@ -1388,14 +1443,20 @@ class SyncServer(Server):
 
         llm_models = []
         for provider in self._enabled_providers:
-            llm_models.extend(provider.list_llm_models())
+            try:
+                llm_models.extend(provider.list_llm_models())
+            except Exception as e:
+                warnings.warn(f"An error occurred while listing LLM models for provider {provider}: {e}")
         return llm_models
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         """List available embedding models"""
         embedding_models = []
         for provider in self._enabled_providers:
-            embedding_models.extend(provider.list_embedding_models())
+            try:
+                embedding_models.extend(provider.list_embedding_models())
+            except Exception as e:
+                warnings.warn(f"An error occurred while listing embedding models for provider {provider}: {e}")
         return embedding_models
 
     def add_llm_model(self, request: LLMConfig) -> LLMConfig:
