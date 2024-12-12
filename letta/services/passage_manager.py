@@ -26,11 +26,8 @@ class PassageManager:
     def get_passage_by_id(self, passage_id: str, actor: PydanticUser) -> Optional[PydanticPassage]:
         """Fetch a passage by ID."""
         with self.session_maker() as session:
-            try:
-                passage = PassageModel.read(db_session=session, identifier=passage_id, actor=actor)
-                return passage.to_pydantic()
-            except NoResultFound:
-                return None
+            passage = PassageModel.read(db_session=session, identifier=passage_id, actor=actor)
+            return passage.to_pydantic()
 
     @enforce_types
     def create_passage(self, pydantic_passage: PydanticPassage, actor: PydanticUser) -> PydanticPassage:
@@ -83,11 +80,6 @@ class PassageManager:
                     actor=actor
                 )
                 passages.append(passage)
-
-            ids = [str(p.id) for p in passages]
-
-            if return_ids:
-                return ids
             
             return passages
 
@@ -101,26 +93,23 @@ class PassageManager:
             raise ValueError("Passage ID must be provided.")
 
         with self.session_maker() as session:
-            try:
-                # Fetch existing message from database
-                curr_passage = PassageModel.read(
-                    db_session=session,
-                    identifier=passage_id,
-                    actor=actor,
-                )
-                if not curr_passage:
-                    raise ValueError(f"Passage with id {passage_id} does not exist.")
+            # Fetch existing message from database
+            curr_passage = PassageModel.read(
+                db_session=session,
+                identifier=passage_id,
+                actor=actor,
+            )
+            if not curr_passage:
+                raise ValueError(f"Passage with id {passage_id} does not exist.")
 
-                # Update the database record with values from the provided record
-                update_data = passage.model_dump(exclude_unset=True, exclude_none=True)
-                for key, value in update_data.items():
-                    setattr(curr_passage, key, value)
+            # Update the database record with values from the provided record
+            update_data = passage.model_dump(exclude_unset=True, exclude_none=True)
+            for key, value in update_data.items():
+                setattr(curr_passage, key, value)
 
-                # Commit changes
-                curr_passage.update(session, actor=actor)
-                return curr_passage.to_pydantic()
-            except NoResultFound:
-                return None
+            # Commit changes
+            curr_passage.update(session, actor=actor)
+            return curr_passage.to_pydantic()
 
     @enforce_types
     def delete_passage_by_id(self, passage_id: str, actor: PydanticUser) -> bool:
@@ -145,6 +134,7 @@ class PassageManager:
                       query_text      : Optional[str] = None,
                       start_date      : Optional[datetime] = None,
                       end_date        : Optional[datetime] = None,
+                      ascending       : bool = True,
                       source_id       : Optional[str] = None,
                       embed_query    : bool = False,
                       embedding_config: Optional[EmbeddingConfig] = None
@@ -176,6 +166,7 @@ class PassageManager:
                 start_date=start_date,
                 end_date=end_date,
                 limit=limit,
+                ascending=ascending,
                 query_text=query_text if not embedded_text else None,
                 query_embedding=embedded_text,
                 **filters

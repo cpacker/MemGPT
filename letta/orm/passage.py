@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING
-from sqlalchemy import Column, String, DateTime, Index, JSON, UniqueConstraint, ForeignKey
+from typing import Optional, TYPE_CHECKING
+from sqlalchemy import Column, String, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator, BINARY
 
@@ -9,7 +9,7 @@ import base64
 
 from letta.orm.source import EmbeddingConfigColumn
 from letta.orm.sqlalchemy_base import SqlalchemyBase
-from letta.orm.mixins import AgentMixin, FileMixin, OrganizationMixin
+from letta.orm.mixins import FileMixin, OrganizationMixin
 from letta.schemas.passage import Passage as PydanticPassage
 
 from letta.config import LettaConfig
@@ -19,7 +19,6 @@ from letta.settings import settings
 config = LettaConfig()
 
 if TYPE_CHECKING:
-    from letta.orm.file import File
     from letta.orm.organization import Organization
 
 class CommonVector(TypeDecorator):

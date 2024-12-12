@@ -1345,16 +1345,9 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # Insert into archival memory
-        passage_ids = self.passage_manager.insert_passage(
-            agent_state=letta_agent.agent_state, agent_id=agent_id, text=memory_contents, actor=actor, return_ids=True
+        return self.passage_manager.insert_passage(
+            agent_state=letta_agent.agent_state, agent_id=agent_id, text=memory_contents, actor=actor
         )
-
-        # Update the agent
-        # TODO: should this update the system prompt?
-        save_agent(letta_agent, self.ms)
-
-        # TODO: this is gross, fix
-        return [self.passage_manager.get_passage_by_id(passage_id=passage_id, actor=actor) for passage_id in passage_ids]
 
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
         actor = self.user_manager.get_user_by_id(user_id=user_id)
