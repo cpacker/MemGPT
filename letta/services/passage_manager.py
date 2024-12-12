@@ -134,6 +134,7 @@ class PassageManager:
                       query_text      : Optional[str] = None,
                       start_date      : Optional[datetime] = None,
                       end_date        : Optional[datetime] = None,
+                      ascending       : bool = True,
                       source_id       : Optional[str] = None,
                       embed_query    : bool = False,
                       embedding_config: Optional[EmbeddingConfig] = None
@@ -165,6 +166,7 @@ class PassageManager:
                 start_date=start_date,
                 end_date=end_date,
                 limit=limit,
+                ascending=ascending,
                 query_text=query_text if not embedded_text else None,
                 query_embedding=embedded_text,
                 **filters
