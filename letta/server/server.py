@@ -455,9 +455,8 @@ class SyncServer(Server):
             # save agent after step
             save_agent(letta_agent)
 
-        except Exception as e:
-            logger.error(f"Error in server._step: {e}")
-            print(traceback.print_exc())
+        except Exception:
+            logger.exception("Error in server._step")
             raise
         finally:
             logger.debug("Calling step_yield()")

@@ -244,9 +244,9 @@ def convert_anthropic_response_to_chatcompletion(
     if isinstance(response_json["content"], list):
         if len(response_json["content"]) > 1:
             # inner mono + function call
-            assert len(response_json["content"]) == 2, response_json
-            assert response_json["content"][0]["type"] == "text", response_json
-            assert response_json["content"][1]["type"] == "tool_use", response_json
+            assert len(response_json["content"]) == 2, f"Unexpected content length: {response_json}"
+            assert response_json["content"][0]["type"] == "text", f"Expected text, got: {response_json['content'][0]}"
+            assert response_json["content"][1]["type"] == "tool_use", f"Expected tool_use, got: {response_json['content'][1]}"
             content = strip_xml_tags(string=response_json["content"][0]["text"], tag=inner_thoughts_xml_tag)
             tool_calls = [
                 ToolCall(
@@ -258,10 +258,31 @@ def convert_anthropic_response_to_chatcompletion(
                     ),
                 )
             ]
+        elif len(response_json["content"]) == 1:
+            # Only tool call or just inner mono
+            first_item = response_json["content"][0]
+            if first_item["type"] == "text":
+                # Just inner mono
+                content = strip_xml_tags(string=first_item["text"], tag=inner_thoughts_xml_tag)
+                tool_calls = None
+            elif first_item["type"] == "tool_use":
+                # Only tool call, no inner mono
+                content = None  # No inner mono to extract
+                tool_calls = [
+                    ToolCall(
+                        id=first_item["id"],
+                        type="function",
+                        function=FunctionCall(
+                            name=first_item["name"],
+                            arguments=json.dumps(first_item["input"], indent=2),
+                        ),
+                    )
+                ]
+            else:
+                raise ValueError(f"Unexpected type in content: {first_item}")
         else:
-            # Just inner mono
-            content = strip_xml_tags(string=response_json["content"][0]["text"], tag=inner_thoughts_xml_tag)
-            tool_calls = None
+            # Empty content list
+            raise ValueError(f"Empty content in response: {response_json}")
     else:
         raise RuntimeError("Unexpected type for content in response_json.")
 
