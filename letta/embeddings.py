@@ -1,4 +1,3 @@
-import os
 import uuid
 from typing import Any, List, Optional
 
@@ -141,14 +140,35 @@ class AzureOpenAIEmbedding:
         return embeddings
 
 
-def default_embedding_model():
-    # default to hugging face model running local
-    # warning: this is a terrible model
-    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+class OllamaEmbeddings:
 
-    os.environ["TOKENIZERS_PARALLELISM"] = "False"
-    model = "BAAI/bge-small-en-v1.5"
-    return HuggingFaceEmbedding(model_name=model)
+    # Format:
+    # curl http://localhost:11434/api/embeddings -d '{
+    #   "model": "mxbai-embed-large",
+    #   "prompt": "Llamas are members of the camelid family"
+    # }'
+
+    def __init__(self, model: str, base_url: str, ollama_additional_kwargs: dict):
+        self.model = model
+        self.base_url = base_url
+        self.ollama_additional_kwargs = ollama_additional_kwargs
+
+    def get_text_embedding(self, text: str):
+        import httpx
+
+        headers = {"Content-Type": "application/json"}
+        json_data = {"model": self.model, "prompt": text}
+        json_data.update(self.ollama_additional_kwargs)
+
+        with httpx.Client() as client:
+            response = client.post(
+                f"{self.base_url}/api/embeddings",
+                headers=headers,
+                json=json_data,
+            )
+
+        response_json = response.json()
+        return response_json["embedding"]
 
 
 def query_embedding(embedding_model, query_text: str):
@@ -228,4 +248,4 @@ def embedding_model(config: EmbeddingConfig, user_id: Optional[uuid.UUID] = None
         return model
 
     else:
-        return default_embedding_model()
+        raise ValueError(f"Unknown endpoint type {endpoint_type}")

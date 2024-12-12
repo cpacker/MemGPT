@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "letta"
-version = "0.6.2"
+version = "0.6.3"
 packages = [
     {include = "letta"}
 ]
@@ -15,7 +15,7 @@ readme = "README.md"
 letta = "letta.main:app"
 
 [tool.poetry.dependencies]
-python = "<3.13,>=3.10"
+python = "<4.0,>=3.10"
 typer = {extras = ["all"], version = "^0.9.0"}
 questionary = "^2.0.1"
 pytz = "^2023.3.post1"
@@ -29,24 +29,21 @@ pre-commit = {version = "^3.5.0", optional = true }
 pg8000 = {version = "^1.30.3", optional = true}
 websockets = {version = "^12.0", optional = true}
 docstring-parser = ">=0.16,<0.17"
-httpx = "^0.27.2"
+httpx = "^0.28.0"
 numpy = "^1.26.2"
 demjson3 = "^3.0.6"
-#tiktoken = ">=0.7.0,<0.8.0"
 pyyaml = "^6.0.1"
-chromadb = ">=0.4.24,<0.5.0"
 sqlalchemy-json = "^0.7.0"
-fastapi = {version = "^0.104.1", optional = true}
+fastapi = { version = "^0.115.6", optional = true}
 uvicorn = {version = "^0.24.0.post1", optional = true}
 pydantic = ">=2.7.4,<2.10.0"
-pyautogen = {version = "0.2.22", optional = true}
 html2text = "^2020.1.16"
 docx2txt = "^0.8"
 sqlalchemy = "^2.0.25"
 pexpect = {version = "^4.9.0", optional = true}
 pyright = {version = "^1.1.347", optional = true}
 qdrant-client = {version="^1.9.1", optional = true}
-pymilvus = {version ="^2.4.3", optional = true}
+#pymilvus = {version ="^2.4.3", optional = true}
 python-box = "^7.1.1"
 sqlmodel = "^0.0.16"
 autoflake = {version = "^2.3.0", optional = true}
@@ -58,13 +55,9 @@ pydantic-settings = "^2.2.1"
 httpx-sse = "^0.4.0"
 isort = { version = "^5.13.2", optional = true }
 docker = {version = "^7.1.0", optional = true}
-tiktoken = "^0.7.0"
 nltk = "^3.8.1"
 jinja2 = "^3.1.4"
 locust = {version = "^2.31.5", optional = true}
-llama-index = "^0.11.9"
-llama-index-embeddings-openai = "^0.2.5"
-llama-index-embeddings-ollama = "^0.3.1"
 wikipedia = {version = "^1.4.0", optional = true}
 composio-langchain = "^0.5.28"
 composio-core = "^0.5.51"
@@ -72,21 +65,23 @@ alembic = "^1.13.3"
 pyhumps = "^3.8.0"
 psycopg2 = {version = "^2.9.10", optional = true}
 psycopg2-binary = {version = "^2.9.10", optional = true}
-e2b-code-interpreter = {version = "^1.0.1", optional = true}
 pathvalidate = "^3.2.1"
 langchain-community = {version = "^0.3.7", optional = true}
 langchain = {version = "^0.3.7", optional = true}
 sentry-sdk = {extras = ["fastapi"], version = "2.19.1"}
+rich = "^13.9.4"
+brotli = "^1.1.0"
+grpcio = "^1.68.1"
+grpcio-tools = "^1.68.1"
+llama-index = "^0.12.2"
+llama-index-embeddings-openai = "^0.3.1"
+e2b-code-interpreter = {version = "^1.0.3", optional = true}
 
 [tool.poetry.extras]
-#local = ["llama-index-embeddings-huggingface"]
 postgres = ["pgvector", "pg8000", "psycopg2-binary", "psycopg2"]
-milvus = ["pymilvus"]
 dev = ["pytest", "pytest-asyncio", "pexpect", "black", "pre-commit", "datasets", "pyright", "pytest-order", "autoflake", "isort", "locust"]
 server = ["websockets", "fastapi", "uvicorn"]
-autogen = ["pyautogen"]
 qdrant = ["qdrant-client"]
-ollama = ["llama-index-embeddings-ollama"]
 cloud-tool-sandbox = ["e2b-code-interpreter"]
 external-tools = ["docker", "langchain", "wikipedia", "langchain-community"]
 tests = ["wikipedia"]
@@ -99,7 +94,7 @@ ipdb = "^0.13.13"
 
 [tool.black]
 line-length = 140
-target-version = ['py310', 'py311']
+target-version = ['py310', 'py311', 'py312', 'py313']
 extend-exclude = "examples/*"
 
 [build-system]

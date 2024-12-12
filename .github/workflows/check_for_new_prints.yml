@@ -43,7 +43,7 @@ jobs:
               NEW_PRINTS=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.sha }} "$file" | \
                           grep "^+" | \
                           grep -v "^+++" | \
-                          grep "print(" || true)
+                          grep -E "(^|\s)print\(" || true)
 
               if [ ! -z "$NEW_PRINTS" ]; then
                 echo "❌ Found new print statements in $file:"

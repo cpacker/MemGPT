@@ -20,7 +20,7 @@ class User(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="users")
-    jobs: Mapped[List["Job"]] = relationship("Job", back_populates="user", doc="the jobs associated with this user.")
+    jobs: Mapped[List["Job"]] = relationship("Job", back_populates="user", doc="the jobs associated with this user.", cascade="all, delete-orphan")
 
     # TODO: Add this back later potentially
     # agents: Mapped[List["Agent"]] = relationship(

@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from typing import Annotated, Literal, Optional, Union
+from typing import Annotated, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
@@ -150,12 +150,16 @@ class FunctionReturn(LettaMessage):
         id (str): The ID of the message
         date (datetime): The date the message was created in ISO format
         function_call_id (str): A unique identifier for the function call that generated this message
+        stdout (Optional[List(str)]): Captured stdout (e.g. prints, logs) from the function invocation
+        stderr (Optional[List(str)]): Captured stderr from the function invocation
     """
 
     message_type: Literal["function_return"] = "function_return"
     function_return: str
     status: Literal["success", "error"]
     function_call_id: str
+    stdout: Optional[List[str]] = None
+    stderr: Optional[List[str]] = None
 
 
 # Legacy Letta API had an additional type "assistant_message" and the "function_call" was a formatted string
