@@ -7,6 +7,7 @@ Example:
 '''
 import argparse
 import random
+from flask import g
 import jsonlines
 from datasets import load_dataset
 
@@ -14,23 +15,28 @@ ds = load_dataset("openai/gsm8k", "main")
 
 
 def generate_dataset(output_filename: str, k: int):
-    with jsonlines.open(output_filename, mode="w") as writer:
+    with jsonlines.open(output_filename, mode="a") as writer:
+        
+        gsm8k_memory_instances = []
         for test_instance in ds["test"]:
-            gsm8k_memory_instances = {}
-            sentences = test_instance["question"].rsplit('.', 1)
-            gsm8k_memory_instances["context"] = sentences[0].strip() + "."
-            gsm8k_memory_instances["question"] = sentences[1].strip()
+            try:
+                gsm8k_memory_instance = {}
+                sentences = test_instance["question"].rsplit('.', 1)
+                gsm8k_memory_instance["context"] = sentences[0].strip() + "."
+                gsm8k_memory_instance["question"] = sentences[1].strip()
 
-            # sample randoml k instances from train dataset
-            sampled_instances = random.sample(list(ds["train"]), k)
+                # sample randoml k instances from train dataset
+                sampled_instances = random.sample(list(ds["train"]), k)
 
-            gsm8k_memory_instances["memory"] = [sampled_instances["question"] for sampled_instances in sampled_instances]
-            gsm8k_memory_instances["answer"] = test_instance["answer"] 
+                gsm8k_memory_instance["memory"] = [sampled_instance["question"] for sampled_instance in sampled_instances]
+                gsm8k_memory_instance["answer"] = test_instance["answer"] 
 
-            gsm8k_memory_instances["metadata"] = {"train_instances": sampled_instances}
-            
-            writer.write(gsm8k_memory_instances)
-            break
+                gsm8k_memory_instance["metadata"] = {"train_instances": sampled_instances}
+                gsm8k_memory_instances.append(gsm8k_memory_instance)
+            except:
+                print("Could not split", test_instance)
+                continue
+        writer.write_all(gsm8k_memory_instances)
 
 
 if __name__ == "__main__":
