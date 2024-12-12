@@ -11,5 +11,5 @@ class ToolsAgents(Base):
     __table_args__ = (UniqueConstraint("agent_id", "tool_id", name="unique_agent_tool"),)
 
     # Each agent must have unique tool names
-    agent_id: Mapped[str] = mapped_column(String, ForeignKey("agents.id"), primary_key=True)
-    tool_id: Mapped[str] = mapped_column(String, ForeignKey("tools.id"), primary_key=True)
+    agent_id: Mapped[str] = mapped_column(String, ForeignKey("agents.id", ondelete="CASCADE"), primary_key=True)
+    tool_id: Mapped[str] = mapped_column(String, ForeignKey("tools.id", ondelete="CASCADE"), primary_key=True)

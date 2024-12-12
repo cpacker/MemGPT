@@ -664,23 +664,23 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none, base_tools
     try:
         # At this stage, there should only be 1 system message inside of recall storage
         num_system_messages, all_messages = count_system_messages_in_recall()
-        # assert num_system_messages == 1, (num_system_messages, all_messages)
-        assert num_system_messages == 2, (num_system_messages, all_messages)
+        assert num_system_messages == 1, (num_system_messages, all_messages)
+        # assert num_system_messages == 2, (num_system_messages, all_messages)
 
         # Assuming core memory append actually ran correctly, at this point there should be 2 messages
         server.user_message(user_id=user_id, agent_id=agent_state.id, message="Append 'banana' to your core memory")
 
         # At this stage, there should only be 1 system message inside of recall storage
         num_system_messages, all_messages = count_system_messages_in_recall()
-        # assert num_system_messages == 2, (num_system_messages, all_messages)
-        assert num_system_messages == 3, (num_system_messages, all_messages)
+        assert num_system_messages == 2, (num_system_messages, all_messages)
+        # assert num_system_messages == 3, (num_system_messages, all_messages)
 
         # Run server.load_agent, and make sure that the number of system messages is still 2
         server.load_agent(agent_id=agent_state.id)
 
         num_system_messages, all_messages = count_system_messages_in_recall()
-        # assert num_system_messages == 2, (num_system_messages, all_messages)
-        assert num_system_messages == 3, (num_system_messages, all_messages)
+        assert num_system_messages == 2, (num_system_messages, all_messages)
+        # assert num_system_messages == 3, (num_system_messages, all_messages)
 
     finally:
         # cleanup

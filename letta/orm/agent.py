@@ -152,7 +152,7 @@ class Agent(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="agents")
-    tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_agents", lazy="selectin")
+    tools: Mapped[List["Tool"]] = relationship("Tool", secondary="tools_agents", lazy="selectin", passive_deletes=True)
     sources: Mapped[List["Source"]] = relationship("Source", secondary="sources_agents", lazy="selectin")
     core_memory: Mapped[List["Block"]] = relationship("Block", secondary="blocks_agents", lazy="selectin")
     messages: Mapped[List["Message"]] = relationship(
