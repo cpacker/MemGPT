@@ -14,10 +14,14 @@ class ToolSettings(BaseSettings):
     e2b_api_key: Optional[str] = None
     e2b_sandbox_template_id: Optional[str] = None  # Updated manually
 
+    # local sandbox configurations
+    local_sandbox_dir: Optional[str] = None
+    local_sandbox_env_name: Optional[str] = None
+
 
 class ModelSettings(BaseSettings):
 
-    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # env_prefix='my_prefix_'
 
@@ -64,7 +68,7 @@ cors_origins = ["http://letta.localhost", "http://localhost:8283", "http://local
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="letta_", extra='ignore')
+    model_config = SettingsConfigDict(env_prefix="letta_", extra="ignore")
 
     letta_dir: Optional[Path] = Field(Path.home() / ".letta", env="LETTA_DIR")
     debug: Optional[bool] = False
@@ -103,7 +107,7 @@ class Settings(BaseSettings):
 
 
 class TestSettings(Settings):
-    model_config = SettingsConfigDict(env_prefix="letta_test_", extra='ignore')
+    model_config = SettingsConfigDict(env_prefix="letta_test_", extra="ignore")
 
     letta_dir: Optional[Path] = Field(Path.home() / ".letta/test", env="LETTA_TEST_DIR")
 
