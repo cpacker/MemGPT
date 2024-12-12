@@ -1265,11 +1265,12 @@ class SyncServer(Server):
         self.job_manager.update_job_by_id(job_id=job_id, job_update=JobUpdate(**job.model_dump()), actor=actor)
 
         # update all agents who have this source attached
-        agent_ids = self.ms.list_attached_agents(source_id=source_id)
-        for agent_id in agent_ids:
+        agent_states = self.source_manager.list_attached_agents(source_id=source_id, actor=actor)
+        for agent_state in agent_states:
+            agent_id = agent_state.id
             agent = self.load_agent(agent_id=agent_id)
             curr_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
-            agent.attach_source(user=actor, source_id=source_id, source_manager=self.source_manager, ms=self.ms)
+            agent.attach_source(user=actor, source_id=source_id, source_manager=self.source_manager, agent_manager=self.agent_manager)
             new_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
             assert new_passage_size >= curr_passage_size  # in case empty files are added
 

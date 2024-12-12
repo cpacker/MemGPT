@@ -342,23 +342,24 @@ def agent_id(server, user_id, base_tools):
 
 
 @pytest.fixture(scope="module")
-def other_agent_id(server, user_id):
+def other_agent_id(server, user_id, base_tools):
     # create agent
+    actor = server.user_manager.get_user_or_default(user_id)
     agent_state = server.create_agent(
         request=CreateAgent(
             name="test_agent_other",
-            tools=BASE_TOOLS,
+            tool_ids=[t.id for t in base_tools],
             memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        actor=server.get_user_or_default(user_id),
+        actor=actor,
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
 
     # cleanup
-    server.delete_agent(user_id, agent_state.id)
+    server.agent_manager.delete_agent(agent_state.id, actor=actor)
 
 
 def test_error_on_nonexistent_agent(server, user_id, agent_id):
@@ -944,7 +945,7 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none, base_tools
 
 
 def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, other_agent_id: str, tmp_path):
-    user = server.get_user_or_default(user_id)
+    actor = server.user_manager.get_user_or_default(user_id)
 
     # Create a source
     source = server.source_manager.create_source(
@@ -953,7 +954,7 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
             created_by_id=user_id,
         ),
-        actor=user,
+        actor=actor,
     )
 
     # Create a test file with some content
@@ -962,10 +963,10 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
     test_file.write_text(test_content)
 
     # Attach source to agent first
-    server.agent_manager.attach_source(agent_id=agent_id, source_id=source.id, actor=user)
+    server.agent_manager.attach_source(agent_id=agent_id, source_id=source.id, actor=actor)
 
     # Get initial passage count
-    initial_passage_count = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    initial_passage_count = server.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source.id)
     assert initial_passage_count == 0
 
     # Create a job for loading the first file
@@ -974,7 +975,7 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
             user_id=user_id,
             metadata_={"type": "embedding", "filename": test_file.name, "source_id": source.id},
         ),
-        actor=user,
+        actor=actor,
     )
 
     # Load the first file to source
@@ -982,17 +983,17 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
         source_id=source.id,
         file_path=str(test_file),
         job_id=job.id,
-        actor=user,
+        actor=actor,
     )
 
     # Verify job completed successfully
-    job = server.job_manager.get_job_by_id(job_id=job.id, actor=user)
+    job = server.job_manager.get_job_by_id(job_id=job.id, actor=actor)
     assert job.status == "completed"
     assert job.metadata_["num_passages"] == 1
     assert job.metadata_["num_documents"] == 1
 
     # Verify passages were added
-    first_file_passage_count = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    first_file_passage_count = server.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source.id)
     assert first_file_passage_count > initial_passage_count
 
     # Create a second test file with different content
@@ -1005,7 +1006,7 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
             user_id=user_id,
             metadata_={"type": "embedding", "filename": test_file2.name, "source_id": source.id},
         ),
-        actor=user,
+        actor=actor,
     )
 
     # Load the second file to source
@@ -1013,22 +1014,22 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
         source_id=source.id,
         file_path=str(test_file2),
         job_id=job2.id,
-        actor=user,
+        actor=actor,
     )
 
     # Verify second job completed successfully
-    job2 = server.job_manager.get_job_by_id(job_id=job2.id, actor=user)
+    job2 = server.job_manager.get_job_by_id(job_id=job2.id, actor=actor)
     assert job2.status == "completed"
     assert job2.metadata_["num_passages"] >= 10
     assert job2.metadata_["num_documents"] == 1
 
     # Verify passages were appended (not replaced)
-    final_passage_count = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    final_passage_count = server.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source.id)
     assert final_passage_count > first_file_passage_count
 
     # Verify both old and new content is searchable
     passages = server.passage_manager.list_passages(
-        actor=user,
+        actor=actor,
         agent_id=agent_id,
         source_id=source.id,
         query_text="what does Timber like to eat",
