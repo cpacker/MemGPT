@@ -1,10 +1,9 @@
 from typing import TYPE_CHECKING, List, Optional
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Response
 
 from letta.orm.errors import NoResultFound
 from letta.schemas.block import Block, BlockUpdate, CreateBlock
-from letta.schemas.memory import Memory
 from letta.server.rest_api.utils import get_letta_server
 from letta.server.server import SyncServer
 
@@ -76,7 +75,7 @@ def get_block(
         raise HTTPException(status_code=404, detail="Block not found")
 
 
-@router.patch("/{block_id}/attach", response_model=Block, operation_id="link_agent_memory_block")
+@router.patch("/{block_id}/attach", response_model=None, status_code=204, operation_id="link_agent_memory_block")
 def link_agent_memory_block(
     block_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to attach the source to."),
@@ -88,15 +87,14 @@ def link_agent_memory_block(
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    block = server.block_manager.get_block_by_id(block_id=block_id, actor=actor)
-    if block is None:
-        raise HTTPException(status_code=404, detail="Block not found")
+    try:
+        server.agent_manager.attach_block(agent_id=agent_id, block_id=block_id, actor=actor)
+        return Response(status_code=204)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
-    server.blocks_agents_manager.add_block_to_agent(agent_id=agent_id, block_id=block_id, block_label=block.label)
-    return block
 
-
-@router.patch("/{block_id}/detach", response_model=Memory, operation_id="unlink_agent_memory_block")
+@router.patch("/{block_id}/detach", response_model=None, status_code=204, operation_id="unlink_agent_memory_block")
 def unlink_agent_memory_block(
     block_id: str,
     agent_id: str = Query(..., description="The unique identifier of the agent to attach the source to."),
@@ -108,9 +106,8 @@ def unlink_agent_memory_block(
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    block = server.block_manager.get_block_by_id(block_id=block_id, actor=actor)
-    if block is None:
-        raise HTTPException(status_code=404, detail="Block not found")
-    # Link the block to the agent
-    server.blocks_agents_manager.remove_block_with_id_from_agent(agent_id=agent_id, block_id=block_id)
-    return block
+    try:
+        server.agent_manager.detach_block(agent_id=agent_id, block_id=block_id, actor=actor)
+        return Response(status_code=204)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))

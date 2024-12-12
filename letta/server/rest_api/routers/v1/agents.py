@@ -55,10 +55,15 @@ from letta.server.server import SyncServer
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
+# TODO: This should be paginated
 @router.get("/", response_model=List[AgentState], operation_id="list_agents")
 def list_agents(
     name: Optional[str] = Query(None, description="Name of the agent"),
     tags: Optional[List[str]] = Query(None, description="List of tags to filter agents by"),
+    match_all_tags: bool = Query(
+        False,
+        description="If True, only returns agents that matches ALL given tags. Otherwise, return agents that have ANY of the passed in tags.",
+    ),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -67,11 +72,7 @@ def list_agents(
     This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-
-    agents = server.list_agents(user_id=actor.id, tags=tags)
-    # TODO: move this logic to the ORM
-    if name:
-        agents = [a for a in agents if a.name == name]
+    agents = server.agent_manager.list_agents(actor=actor, tags=tags, match_all_tags=match_all_tags, name=name)
     return agents
 
 
@@ -169,11 +170,10 @@ def get_agent_state(
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    if not server.agent_manager.get_agent_by_id(agent_id=agent_id, actor=actor):
-        # agent does not exist
-        raise HTTPException(status_code=404, detail=f"Agent agent_id={agent_id} not found.")
-
-    return server.get_agent_state(user_id=actor.id, agent_id=agent_id)
+    try:
+        return server.agent_manager.get_agent_by_id(agent_id=agent_id, actor=actor)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.delete("/{agent_id}", response_model=AgentState, operation_id="delete_agent")
@@ -196,12 +196,13 @@ def delete_agent(
 def get_agent_sources(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Get the sources associated with an agent.
     """
-
-    return server.list_attached_sources(agent_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
+    return server.agent_manager.list_attached_sources(agent_id=agent_id, actor=actor)
 
 
 @router.get("/{agent_id}/memory/messages", response_model=List[Message], operation_id="list_agent_in_context_messages")
@@ -242,8 +243,10 @@ def get_agent_memory_block(
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    block_id = server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=block_label)
-    return server.block_manager.get_block_by_id(block_id, actor=actor)
+    try:
+        return server.agent_manager.get_block_with_label(agent_id=agent_id, block_label=block_label, actor=actor)
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/{agent_id}/memory/block", response_model=List[Block], operation_id="get_agent_memory_blocks")
@@ -256,8 +259,11 @@ def get_agent_memory_blocks(
     Retrieve the memory blocks of a specific agent.
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-    block_ids = server.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id)
-    return [server.block_manager.get_block_by_id(block_id, actor=actor) for block_id in block_ids]
+    try:
+        agent = server.agent_manager.get_agent_by_id(agent_id, actor=actor)
+        return agent.memory.blocks
+    except NoResultFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.post("/{agent_id}/memory/block", response_model=Memory, operation_id="add_agent_memory_block")
@@ -273,13 +279,14 @@ def add_agent_memory_block(
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     # Copied from POST /blocks
+    # TODO: Should have block_manager accept only CreateBlock
+    # TODO: This will be possible once we move ID creation to the ORM
     block_req = Block(**create_block.model_dump())
     block = server.block_manager.create_or_update_block(actor=actor, block=block_req)
 
     # Link the block to the agent
-    updated_memory = server.link_block_to_agent_memory(user_id=actor.id, agent_id=agent_id, block_id=block.id)
-
-    return updated_memory
+    agent = server.agent_manager.attach_block(agent_id=agent_id, block_id=block.id, actor=actor)
+    return agent.memory
 
 
 @router.delete("/{agent_id}/memory/block/{block_label}", response_model=Memory, operation_id="remove_agent_memory_block_by_label")
@@ -297,9 +304,9 @@ def remove_agent_memory_block(
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     # Unlink the block from the agent
-    updated_memory = server.unlink_block_from_agent_memory(user_id=actor.id, agent_id=agent_id, block_label=block_label)
+    agent = server.agent_manager.detach_block_with_label(agent_id=agent_id, block_label=block_label, actor=actor)
 
-    return updated_memory
+    return agent.memory
 
 
 @router.patch("/{agent_id}/memory/block/{block_label}", response_model=Block, operation_id="update_agent_memory_block_by_label")

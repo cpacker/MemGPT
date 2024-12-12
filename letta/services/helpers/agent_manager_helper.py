@@ -1,7 +1,7 @@
 from typing import List, Optional
 
-from letta.orm import Agent as AgentModel
-from letta.orm import AgentsTags
+from letta.orm.agent import Agent as AgentModel
+from letta.orm.agents_tags import AgentsTags
 from letta.orm.errors import NoResultFound
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentType

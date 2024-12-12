@@ -4,11 +4,13 @@ from letta.orm import Agent as AgentModel
 from letta.orm import Block as BlockModel
 from letta.orm import Source as SourceModel
 from letta.orm import Tool as ToolModel
+from letta.orm.errors import NoResultFound
 from letta.schemas.agent import AgentState as PydanticAgentState
 from letta.schemas.agent import AgentType, CreateAgent, UpdateAgent
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
+from letta.schemas.source import Source as PydanticSource
 from letta.schemas.tool_rule import ToolRule as PydanticToolRule
 from letta.schemas.user import User as PydanticUser
 from letta.services.block_manager import BlockManager
@@ -23,7 +25,7 @@ from letta.utils import enforce_types
 
 
 # Agent Manager Class
-# TODO: Make the actor REQUIRED!
+# TODO: Make the actor REQUIRED! @matt
 class AgentManager:
     """Manager class to handle business logic related to Agents."""
 
@@ -35,7 +37,9 @@ class AgentManager:
         self.tool_manager = ToolManager()
         self.source_manager = SourceManager()
 
-    # Base agent CRUD operations
+    # ======================================================================================================================
+    # Basic CRUD operations
+    # ======================================================================================================================
     @enforce_types
     def create_agent(
         self,
@@ -155,7 +159,7 @@ class AgentManager:
         self,
         actor: Optional[PydanticUser] = None,
         tags: Optional[List[str]] = None,
-        match_all_tags: bool = True,
+        match_all_tags: bool = False,
         cursor: Optional[str] = None,
         limit: Optional[int] = 50,
         **kwargs,
@@ -215,7 +219,9 @@ class AgentManager:
             # Return the Pydantic model we created before deletion
             return agent_state
 
-    # Functions dealing with sources
+    # ======================================================================================================================
+    # Source Management
+    # ======================================================================================================================
     @enforce_types
     def attach_source(self, agent_id: str, source_id: str, actor: Optional[PydanticUser] = None) -> None:
         """
@@ -249,9 +255,9 @@ class AgentManager:
             agent.update(session, actor=actor)
 
     @enforce_types
-    def list_attached_source_ids(self, agent_id: str, actor: Optional[PydanticUser] = None) -> List[str]:
+    def list_attached_sources(self, agent_id: str, actor: Optional[PydanticUser] = None) -> List[PydanticSource]:
         """
-        Lists all source IDs attached to an agent.
+        Lists all sources attached to an agent.
 
         Args:
             agent_id: ID of the agent to list sources for
@@ -265,7 +271,7 @@ class AgentManager:
             agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
 
             # Use the lazy-loaded relationship to get sources
-            return [source.id for source in agent.sources]
+            return [source.to_pydantic() for source in agent.sources]
 
     @enforce_types
     def detach_source(self, agent_id: str, source_id: str, actor: Optional[PydanticUser] = None) -> None:
@@ -286,3 +292,96 @@ class AgentManager:
 
             # Commit the changes
             agent.update(session, actor=actor)
+
+    # ======================================================================================================================
+    # Block management
+    # ======================================================================================================================
+    @enforce_types
+    def get_block_with_label(
+        self,
+        agent_id: str,
+        block_label: str,
+        actor: PydanticUser,
+    ) -> PydanticBlock:
+        """Gets a block attached to an agent by its label."""
+        with self.session_maker() as session:
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+            for block in agent.core_memory:
+                if block.label == block_label:
+                    return block.to_pydantic()
+            raise NoResultFound(f"No block with label '{block_label}' found for agent '{agent_id}'")
+
+    @enforce_types
+    def update_block_with_label(
+        self,
+        agent_id: str,
+        block_label: str,
+        new_block_id: str,
+        actor: PydanticUser,
+    ) -> PydanticAgentState:
+        """Updates which block is assigned to a specific label for an agent."""
+        with self.session_maker() as session:
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+            new_block = BlockModel.read(db_session=session, identifier=new_block_id, actor=actor)
+
+            if new_block.label != block_label:
+                raise ValueError(f"New block label '{new_block.label}' doesn't match required label '{block_label}'")
+
+            # Remove old block with this label if it exists
+            agent.core_memory = [b for b in agent.core_memory if b.label != block_label]
+
+            # Add new block
+            agent.core_memory.append(new_block)
+            agent.update(session, actor=actor)
+            return agent.to_pydantic()
+
+    @enforce_types
+    def attach_block(self, agent_id: str, block_id: str, actor: PydanticUser) -> PydanticAgentState:
+        """Attaches a block to an agent."""
+        with self.session_maker() as session:
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+            block = BlockModel.read(db_session=session, identifier=block_id, actor=actor)
+
+            agent.core_memory.append(block)
+            agent.update(session, actor=actor)
+            return agent.to_pydantic()
+
+    @enforce_types
+    def detach_block(
+        self,
+        agent_id: str,
+        block_id: str,
+        actor: PydanticUser,
+    ) -> PydanticAgentState:
+        """Detaches a block from an agent."""
+        with self.session_maker() as session:
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+            original_length = len(agent.core_memory)
+
+            agent.core_memory = [b for b in agent.core_memory if b.id != block_id]
+
+            if len(agent.core_memory) == original_length:
+                raise NoResultFound(f"No block with id '{block_id}' found for agent '{agent_id}' with actor id: '{actor.id}'")
+
+            agent.update(session, actor=actor)
+            return agent.to_pydantic()
+
+    @enforce_types
+    def detach_block_with_label(
+        self,
+        agent_id: str,
+        block_label: str,
+        actor: PydanticUser,
+    ) -> PydanticAgentState:
+        """Detaches a block with the specified label from an agent."""
+        with self.session_maker() as session:
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+            original_length = len(agent.core_memory)
+
+            agent.core_memory = [b for b in agent.core_memory if b.label != block_label]
+
+            if len(agent.core_memory) == original_length:
+                raise NoResultFound(f"No block with label '{block_label}' found for agent '{agent_id}' with actor id: '{actor.id}'")
+
+            agent.update(session, actor=actor)
+            return agent.to_pydantic()

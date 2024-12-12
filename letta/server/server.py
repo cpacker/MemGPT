@@ -46,7 +46,7 @@ from letta.providers import (
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgent
 from letta.schemas.api_key import APIKey, APIKeyCreate
-from letta.schemas.block import Block, BlockUpdate
+from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 
 # openai schemas
@@ -68,9 +68,7 @@ from letta.schemas.tool import Tool, ToolCreate
 from letta.schemas.usage import LettaUsageStatistics
 from letta.schemas.user import User
 from letta.services.agent_manager import AgentManager
-from letta.services.agents_tags_manager import AgentsTagsManager
 from letta.services.block_manager import BlockManager
-from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.services.job_manager import JobManager
 from letta.services.message_manager import MessageManager
 from letta.services.organization_manager import OrganizationManager
@@ -100,17 +98,12 @@ class Server(object):
         raise NotImplementedError
 
     @abstractmethod
-    def get_agent_state(self, user_id: str, agent_id: str) -> dict:
-        """Return the config of an agent"""
-        raise NotImplementedError
-
-    @abstractmethod
     def get_server_config(self, user_id: str) -> dict:
         """Return the base config"""
         raise NotImplementedError
 
     @abstractmethod
-    def update_agent_core_memory(self, user_id: str, agent_id: str, new_memory_contents: dict) -> dict:
+    def update_agent_core_memory(self, user_id: str, agent_id: str, label: str, actor: User) -> Memory:
         """Update the agents core memory block, return the new state"""
         raise NotImplementedError
 
@@ -237,9 +230,7 @@ class SyncServer(Server):
         self.tool_manager = ToolManager()
         self.block_manager = BlockManager()
         self.source_manager = SourceManager()
-        self.agents_tags_manager = AgentsTagsManager()
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
-        self.blocks_agents_manager = BlocksAgentsManager()
         self.message_manager = MessageManager()
         self.job_manager = JobManager()
         self.agent_manager = AgentManager()
@@ -329,7 +320,7 @@ class SyncServer(Server):
 
     def initialize_agent(self, agent_id, interface: Union[AgentInterface, None] = None, initial_message_sequence=None) -> Agent:
         """Initialize an agent from the database"""
-        agent_state = self.get_agent(agent_id=agent_id)
+        agent_state = self.agent_manager.get_agent_by_id(agent_id=agent_id)
         actor = self.user_manager.get_user_by_id(user_id=agent_state.created_by_id)
 
         interface = interface or self.default_interface_factory()
@@ -351,7 +342,7 @@ class SyncServer(Server):
         """Updated method to load agents from persisted storage"""
         agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
         with agent_lock:
-            agent_state = self.get_agent(agent_id=agent_id)
+            agent_state = self.agent_manager.get_agent_by_id(agent_id=agent_id)
             if agent_state is None:
                 raise LettaAgentNotFoundError(f"Agent (agent_id={agent_id}) does not exist")
             elif agent_state.created_by_id is None:
@@ -459,8 +450,8 @@ class SyncServer(Server):
             letta_agent.attach_source(
                 user=self.user_manager.get_user_by_id(user_id=user_id),
                 source_id=data_source,
-                source_manager=letta_agent.source_manager,
-                ms=self.ms,
+                source_manager=self.source_manager,
+                agent_manager=self.agent_manager,
             )
 
         elif command.lower() == "dump" or command.lower().startswith("dump "):
@@ -770,18 +761,8 @@ class SyncServer(Server):
             interface = self.default_interface_factory()
         self.initialize_agent(agent_id=agent_state.id, interface=interface, initial_message_sequence=init_messages)
 
-        in_memory_agent_state = self.get_agent(agent_state.id)
+        in_memory_agent_state = self.agent_manager.get_agent_by_id(agent_state.id)
         return in_memory_agent_state
-
-    def get_agent(self, agent_id: str) -> Optional[AgentState]:
-        """
-        Retrieve the full agent state from the DB.
-        This gathers data accross multiple tables to provide the full state of an agent, which is passed into the `Agent` object for creation.
-        """
-
-        # get data persisted from the DB
-        # TODO: Clean this function out of server
-        return self.agent_manager.get_agent_by_id(agent_id)
 
     def update_agent(
         self,
@@ -841,19 +822,6 @@ class SyncServer(Server):
             letta_agent.agent_state.name = request.name
         if request.metadata_:
             letta_agent.agent_state.metadata_ = request.metadata_
-
-        # Manage tag state
-        if request.tags is not None:
-            current_tags = set(self.agents_tags_manager.get_tags_for_agent(agent_id=letta_agent.agent_state.id, actor=actor))
-            target_tags = set(request.tags)
-
-            tags_to_add = target_tags - current_tags
-            tags_to_remove = current_tags - target_tags
-
-            for tag in tags_to_add:
-                self.agents_tags_manager.add_tag_to_agent(agent_id=letta_agent.agent_state.id, tag=tag, actor=actor)
-            for tag in tags_to_remove:
-                self.agents_tags_manager.delete_tag_from_agent(agent_id=letta_agent.agent_state.id, tag=tag, actor=actor)
 
         # save the agent
         save_agent(letta_agent, self.ms)
@@ -940,24 +908,6 @@ class SyncServer(Server):
         # save the agent
         save_agent(letta_agent, self.ms)
         return letta_agent.agent_state
-
-    def get_agent_state(self, user_id: str, agent_id: str) -> AgentState:
-        # TODO: duplicate, remove
-        return self.get_agent(agent_id=agent_id)
-
-    def list_agents(self, user_id: str, tags: Optional[List[str]] = None) -> List[AgentState]:
-        """List all available agents to a user"""
-        user = self.user_manager.get_user_by_id(user_id=user_id)
-
-        if tags is None:
-            agents_states = self.ms.list_agents(user_id=user_id)
-            agent_ids = [agent.id for agent in agents_states]
-        else:
-            agent_ids = []
-            for tag in tags:
-                agent_ids += self.agents_tags_manager.get_agents_by_tag(tag=tag, actor=user)
-
-        return [self.get_agent(agent_id=agent_id) for agent_id in agent_ids]
 
     # convert name->id
 
@@ -1180,17 +1130,14 @@ class SyncServer(Server):
 
         return response
 
-    def update_agent_core_memory(self, user_id: str, agent_id: str, label: str, value: str) -> Memory:
+    def update_agent_core_memory(self, agent_id: str, label: str, value: str, actor: User) -> Memory:
         """Update the value of a block in the agent's memory"""
 
         # get the block id
-        block = self.get_agent_block_by_label(user_id=user_id, agent_id=agent_id, label=label)
-        block_id = block.id
+        block = self.agent_manager.get_block_with_label(agent_id=agent_id, block_label=label, actor=actor)
 
         # update the block
-        self.block_manager.update_block(
-            block_id=block_id, block_update=BlockUpdate(value=value), actor=self.user_manager.get_user_by_id(user_id=user_id)
-        )
+        self.block_manager.update_block(block_id=block.id, block_update=BlockUpdate(value=value), actor=actor)
 
         # load agent
         letta_agent = self.load_agent(agent_id=agent_id)
@@ -1300,7 +1247,7 @@ class SyncServer(Server):
         agent = self.load_agent(agent_id=agent_id)
 
         # attach source to agent
-        agent.attach_source(user=user, source_id=data_source.id, source_manager=self.source_manager, ms=self.ms)
+        agent.attach_source(user=user, source_id=data_source.id, source_manager=self.source_manager, agent_manager=self.agent_manager)
 
         return data_source
 
@@ -1308,34 +1255,28 @@ class SyncServer(Server):
         self,
         user_id: str,
         agent_id: str,
-        # source_id: str,
         source_id: Optional[str] = None,
         source_name: Optional[str] = None,
     ) -> Source:
-        user = self.user_manager.get_user_by_id(user_id=user_id)
+        actor = self.user_manager.get_user_by_id(user_id=user_id)
         if source_id:
-            source = self.source_manager.get_source_by_id(source_id=source_id, actor=user)
+            source = self.source_manager.get_source_by_id(source_id=source_id, actor=actor)
         elif source_name:
-            source = self.source_manager.get_source_by_name(source_name=source_name, actor=user)
+            source = self.source_manager.get_source_by_name(source_name=source_name, actor=actor)
         else:
             raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
         source_id = source.id
 
+        # TODO: This should be done with the ORM?
         # delete all Passage objects with source_id==source_id from agent's archival memory
         agent = self.load_agent(agent_id=agent_id)
-        agent.passage_manager.delete_passages(actor=user, limit=100, source_id=source_id)
+        agent.passage_manager.delete_passages(actor=actor, limit=100, source_id=source_id)
 
         # delete agent-source mapping
-        self.ms.detach_source(agent_id=agent_id, source_id=source_id)
+        self.agent_manager.detach_source(agent_id=agent_id, source_id=source_id, actor=actor)
 
         # return back source data
         return source
-
-    def list_attached_sources(self, agent_id: str) -> List[Source]:
-        # list all attached sources to an agent
-        source_ids = self.ms.list_attached_source_ids(agent_id)
-
-        return [self.source_manager.get_source_by_id(source_id=id) for id in source_ids]
 
     def list_data_source_passages(self, user_id: str, source_id: str) -> List[Passage]:
         warnings.warn("list_data_source_passages is not yet implemented, returning empty list.", category=UserWarning)
@@ -1360,15 +1301,9 @@ class SyncServer(Server):
             # num_documents = document_conn.size({"data_source": source.name})
             num_documents = 0
 
-            agent_ids = self.ms.list_attached_agents(source_id=source.id)
+            agents = self.source_manager.list_attached_agents(source_id=source.id, actor=actor)
             # add the agent name information
-            attached_agents = [
-                {
-                    "id": str(a_id),
-                    "name": self.ms.get_agent(user_id=actor.id, agent_id=a_id).name,
-                }
-                for a_id in agent_ids
-            ]
+            attached_agents = [{"id": agent.id, "name": agent.name} for agent in agents]
 
             # Overwrite metadata field, should be empty anyways
             source.metadata_ = dict(
@@ -1477,50 +1412,6 @@ class SyncServer(Server):
         # Get the current message
         letta_agent = self.load_agent(agent_id=agent_id)
         return letta_agent.get_context_window()
-
-    def link_block_to_agent_memory(self, user_id: str, agent_id: str, block_id: str) -> Memory:
-        """Link a block to an agent's memory"""
-        block = self.block_manager.get_block_by_id(block_id=block_id, actor=self.user_manager.get_user_by_id(user_id=user_id))
-        if block is None:
-            raise ValueError(f"Block with id {block_id} not found")
-        self.blocks_agents_manager.add_block_to_agent(agent_id, block_id, block_label=block.label)
-
-        # get agent memory
-        memory = self.get_agent(agent_id=agent_id).memory
-        return memory
-
-    def unlink_block_from_agent_memory(self, user_id: str, agent_id: str, block_label: str, delete_if_no_ref: bool = True) -> Memory:
-        """Unlink a block from an agent's memory. If the block is not linked to any agent, delete it."""
-        self.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=agent_id, block_label=block_label)
-
-        # get agent memory
-        memory = self.get_agent(agent_id=agent_id).memory
-        return memory
-
-    def update_agent_memory_limit(self, user_id: str, agent_id: str, block_label: str, limit: int) -> Memory:
-        """Update the limit of a block in an agent's memory"""
-        block = self.get_agent_block_by_label(user_id=user_id, agent_id=agent_id, label=block_label)
-        self.block_manager.update_block(
-            block_id=block.id, block_update=BlockUpdate(limit=limit), actor=self.user_manager.get_user_by_id(user_id=user_id)
-        )
-        # get agent memory
-        memory = self.get_agent(agent_id=agent_id).memory
-        return memory
-
-    def upate_block(self, user_id: str, block_id: str, block_update: BlockUpdate) -> Block:
-        """Update a block"""
-        return self.block_manager.update_block(
-            block_id=block_id, block_update=block_update, actor=self.user_manager.get_user_by_id(user_id=user_id)
-        )
-
-    def get_agent_block_by_label(self, user_id: str, agent_id: str, label: str) -> Block:
-        """Get a block by label"""
-        # TODO: implement at ORM?
-        for block_id in self.blocks_agents_manager.list_block_ids_for_agent(agent_id=agent_id):
-            block = self.block_manager.get_block_by_id(block_id=block_id, actor=self.user_manager.get_user_by_id(user_id=user_id))
-            if block.label == label:
-                return block
-        return None
 
     def run_tool_from_source(
         self,

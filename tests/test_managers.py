@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from sqlalchemy import delete
+from sqlalchemy.exc import IntegrityError
 
 from letta.config import LettaConfig
 from letta.embeddings import embedding_model
@@ -458,16 +459,17 @@ def test_attach_source(server: SyncServer, sarah_agent, default_source, default_
 def test_list_attached_source_ids(server: SyncServer, sarah_agent, default_source, other_source, default_user):
     """Test listing source IDs attached to an agent."""
     # Initially should have no sources
-    source_ids = server.agent_manager.list_attached_source_ids(sarah_agent.id, actor=default_user)
-    assert len(source_ids) == 0
+    sources = server.agent_manager.list_attached_sources(sarah_agent.id, actor=default_user)
+    assert len(sources) == 0
 
     # Attach sources
     server.agent_manager.attach_source(sarah_agent.id, default_source.id, actor=default_user)
     server.agent_manager.attach_source(sarah_agent.id, other_source.id, actor=default_user)
 
     # List sources and verify
-    source_ids = server.agent_manager.list_attached_source_ids(sarah_agent.id, actor=default_user)
-    assert len(source_ids) == 2
+    sources = server.agent_manager.list_attached_sources(sarah_agent.id, actor=default_user)
+    assert len(sources) == 2
+    source_ids = [s.id for s in sources]
     assert default_source.id in source_ids
     assert other_source.id in source_ids
 
@@ -513,7 +515,7 @@ def test_detach_source_nonexistent_agent(server: SyncServer, default_source, def
 def test_list_attached_source_ids_nonexistent_agent(server: SyncServer, default_user):
     """Test listing sources for a nonexistent agent."""
     with pytest.raises(NoResultFound):
-        server.agent_manager.list_attached_source_ids(agent_id="nonexistent-agent-id", actor=default_user)
+        server.agent_manager.list_attached_sources(agent_id="nonexistent-agent-id", actor=default_user)
 
 
 def test_list_attached_agents(server: SyncServer, sarah_agent, charles_agent, default_source, default_user):
@@ -670,6 +672,102 @@ def test_list_agents_by_tags_pagination(server: SyncServer, default_user, defaul
     assert len(all_ids) == 2
     assert agent1.id in all_ids
     assert agent2.id in all_ids
+
+
+# ======================================================================================================================
+# AgentManager Tests - Blocks Relationship
+# ======================================================================================================================
+
+
+def test_attach_block(server: SyncServer, sarah_agent, default_block, default_user):
+    """Test attaching a block to an agent."""
+    # Attach block
+    server.agent_manager.attach_block(agent_id=sarah_agent.id, block_id=default_block.id, actor=default_user)
+
+    # Verify attachment
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert len(agent.memory.blocks) == 1
+    assert agent.memory.blocks[0].id == default_block.id
+    assert agent.memory.blocks[0].label == default_block.label
+
+
+def test_attach_block_duplicate_label(server: SyncServer, sarah_agent, default_block, other_block, default_user):
+    """Test attempting to attach a block with a duplicate label."""
+    # Set up both blocks with same label
+    server.block_manager.update_block(default_block.id, BlockUpdate(label="same_label"), actor=default_user)
+    server.block_manager.update_block(other_block.id, BlockUpdate(label="same_label"), actor=default_user)
+
+    # Attach first block
+    server.agent_manager.attach_block(agent_id=sarah_agent.id, block_id=default_block.id, actor=default_user)
+
+    # Attempt to attach second block with same label
+    with pytest.raises(IntegrityError):
+        server.agent_manager.attach_block(agent_id=sarah_agent.id, block_id=other_block.id, actor=default_user)
+
+
+def test_detach_block(server: SyncServer, sarah_agent, default_block, default_user):
+    """Test detaching a block by ID."""
+    # Set up: attach block
+    server.agent_manager.attach_block(agent_id=sarah_agent.id, block_id=default_block.id, actor=default_user)
+
+    # Detach block
+    server.agent_manager.detach_block(agent_id=sarah_agent.id, block_id=default_block.id, actor=default_user)
+
+    # Verify detachment
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert len(agent.memory.blocks) == 0
+
+
+def test_detach_nonexistent_block(server: SyncServer, sarah_agent, default_user):
+    """Test detaching a block that isn't attached."""
+    with pytest.raises(NoResultFound):
+        server.agent_manager.detach_block(agent_id=sarah_agent.id, block_id="nonexistent-block-id", actor=default_user)
+
+
+def test_update_block_label(server: SyncServer, sarah_agent, default_block, default_user):
+    """Test updating a block's label updates the relationship."""
+    # Attach block
+    server.agent_manager.attach_block(agent_id=sarah_agent.id, block_id=default_block.id, actor=default_user)
+
+    # Update block label
+    new_label = "new_label"
+    server.block_manager.update_block(default_block.id, BlockUpdate(label=new_label), actor=default_user)
+
+    # Verify relationship is updated
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    block = agent.memory.blocks[0]
+    assert block.id == default_block.id
+    assert block.label == new_label
+
+
+def test_update_block_label_multiple_agents(server: SyncServer, sarah_agent, charles_agent, default_block, default_user):
+    """Test updating a block's label updates relationships for all agents."""
+    # Attach block to both agents
+    server.agent_manager.attach_block(agent_id=sarah_agent.id, block_id=default_block.id, actor=default_user)
+    server.agent_manager.attach_block(agent_id=charles_agent.id, block_id=default_block.id, actor=default_user)
+
+    # Update block label
+    new_label = "new_label"
+    server.block_manager.update_block(default_block.id, BlockUpdate(label=new_label), actor=default_user)
+
+    # Verify both relationships are updated
+    for agent_id in [sarah_agent.id, charles_agent.id]:
+        agent = server.agent_manager.get_agent_by_id(agent_id, actor=default_user)
+        # Find our specific block by ID
+        block = next(b for b in agent.memory.blocks if b.id == default_block.id)
+        assert block.label == new_label
+
+
+def test_get_block_with_label(server: SyncServer, sarah_agent, default_block, default_user):
+    """Test retrieving a block by its label."""
+    # Attach block
+    server.agent_manager.attach_block(agent_id=sarah_agent.id, block_id=default_block.id, actor=default_user)
+
+    # Get block by label
+    block = server.agent_manager.get_block_with_label(agent_id=sarah_agent.id, block_label=default_block.label, actor=default_user)
+
+    assert block.id == default_block.id
+    assert block.label == default_block.label
 
 
 # ======================================================================================================================
@@ -1676,88 +1774,6 @@ def test_delete_file(server: SyncServer, default_user, default_source):
     assert len(files) == 0
 
 
-# # ======================================================================================================================
-# # AgentsTagsManager Tests
-# # ======================================================================================================================
-#
-#
-# def test_add_tag_to_agent(server: SyncServer, sarah_agent, default_user):
-#     # Add a tag to the agent
-#     tag_name = "test_tag"
-#     tag_association = server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-#
-#     # Assert that the tag association was created correctly
-#     assert tag_association.agent_id == sarah_agent.id
-#     assert tag_association.tag == tag_name
-#
-#
-# def test_add_duplicate_tag_to_agent(server: SyncServer, sarah_agent, default_user):
-#     # Add the same tag twice to the agent
-#     tag_name = "test_tag"
-#     first_tag = server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-#     duplicate_tag = server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-#
-#     # Assert that the second addition returns the existing tag without creating a duplicate
-#     assert first_tag.agent_id == duplicate_tag.agent_id
-#     assert first_tag.tag == duplicate_tag.tag
-#
-#     # Get all the tags belonging to the agent
-#     tags = server.agents_tags_manager.get_tags_for_agent(agent_id=sarah_agent.id, actor=default_user)
-#     assert len(tags) == 1
-#     assert tags[0] == first_tag.tag
-#
-#
-# def test_delete_tag_from_agent(server: SyncServer, sarah_agent, default_user):
-#     # Add a tag, then delete it
-#     tag_name = "test_tag"
-#     server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-#     server.agents_tags_manager.delete_tag_from_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-#
-#     # Assert the tag was deleted
-#     agent_tags = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
-#     assert sarah_agent.id not in agent_tags
-#
-#
-# def test_delete_nonexistent_tag_from_agent(server: SyncServer, sarah_agent, default_user):
-#     # Attempt to delete a tag that doesn't exist
-#     tag_name = "nonexistent_tag"
-#     with pytest.raises(ValueError, match=f"Tag '{tag_name}' not found for agent '{sarah_agent.id}'"):
-#         server.agents_tags_manager.delete_tag_from_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-#
-#
-# def test_delete_tag_from_nonexistent_agent(server: SyncServer, default_user):
-#     # Attempt to delete a tag that doesn't exist
-#     tag_name = "nonexistent_tag"
-#     agent_id = "abc"
-#     with pytest.raises(ValueError, match=f"Tag '{tag_name}' not found for agent '{agent_id}'"):
-#         server.agents_tags_manager.delete_tag_from_agent(agent_id=agent_id, tag=tag_name, actor=default_user)
-#
-#
-# def test_get_agents_by_tag(server: SyncServer, sarah_agent, charles_agent, default_user, default_organization):
-#     # Add a shared tag to multiple agents
-#     tag_name = "shared_tag"
-#
-#     # Add the same tag to both agents
-#     server.agents_tags_manager.add_tag_to_agent(agent_id=sarah_agent.id, tag=tag_name, actor=default_user)
-#     server.agents_tags_manager.add_tag_to_agent(agent_id=charles_agent.id, tag=tag_name, actor=default_user)
-#
-#     # Retrieve agents by tag
-#     agent_ids = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
-#
-#     # Assert that both agents are returned for the tag
-#     assert sarah_agent.id in agent_ids
-#     assert charles_agent.id in agent_ids
-#     assert len(agent_ids) == 2
-#
-#     # Delete tags from only sarah agent
-#     server.agents_tags_manager.delete_all_tags_from_agent(agent_id=sarah_agent.id, actor=default_user)
-#     agent_ids = server.agents_tags_manager.get_agents_by_tag(tag=tag_name, actor=default_user)
-#     # Assert that both agents are returned for the tag
-#     assert sarah_agent.id not in agent_ids
-#     assert charles_agent.id in agent_ids
-#     assert len(agent_ids) == 1
-
-
 # ======================================================================================================================
 # SandboxConfigManager Tests - Sandbox Configs
 # ======================================================================================================================
@@ -1905,108 +1921,6 @@ def test_get_sandbox_env_var_by_key(server: SyncServer, sandbox_env_var_fixture,
     # Assertions to verify correct retrieval
     assert retrieved_env_var.id == sandbox_env_var_fixture.id
     assert retrieved_env_var.key == sandbox_env_var_fixture.key
-
-
-# # ======================================================================================================================
-# # BlocksAgentsManager Tests
-# # ======================================================================================================================
-# def test_add_block_to_agent(server, sarah_agent, default_user, default_block):
-#     block_association = server.blocks_agents_manager.add_block_to_agent(
-#         agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label
-#     )
-#
-#     assert block_association.agent_id == sarah_agent.id
-#     assert block_association.block_id == default_block.id
-#     assert block_association.block_label == default_block.label
-#
-#
-# def test_change_label_on_block_reflects_in_block_agents_table(server, sarah_agent, default_user, default_block):
-#     # Add the block
-#     block_association = server.blocks_agents_manager.add_block_to_agent(
-#         agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label
-#     )
-#     assert block_association.block_label == default_block.label
-#
-#     # Change the block label
-#     new_label = "banana"
-#     block = server.block_manager.update_block(block_id=default_block.id, block_update=BlockUpdate(label=new_label), actor=default_user)
-#     assert block.label == new_label
-#
-#     # Get the association
-#     labels = server.blocks_agents_manager.list_block_labels_for_agent(agent_id=sarah_agent.id)
-#     assert new_label in labels
-#     assert default_block.label not in labels
-#
-#
-# @pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
-# def test_add_block_to_agent_nonexistent_block(server, sarah_agent, default_user):
-#     with pytest.raises(ForeignKeyConstraintViolationError):
-#         server.blocks_agents_manager.add_block_to_agent(
-#             agent_id=sarah_agent.id, block_id="nonexistent_block", block_label="nonexistent_label"
-#         )
-#
-#
-# def test_add_block_to_agent_duplicate_label(server, sarah_agent, default_user, default_block, other_block):
-#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-#
-#     with pytest.warns(UserWarning, match=f"Block label '{default_block.label}' already exists for agent '{sarah_agent.id}'"):
-#         server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=default_block.label)
-#
-#
-# def test_remove_block_with_label_from_agent(server, sarah_agent, default_user, default_block):
-#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-#
-#     removed_block = server.blocks_agents_manager.remove_block_with_label_from_agent(
-#         agent_id=sarah_agent.id, block_label=default_block.label
-#     )
-#
-#     assert removed_block.block_label == default_block.label
-#     assert removed_block.block_id == default_block.id
-#     assert removed_block.agent_id == sarah_agent.id
-#
-#     with pytest.raises(ValueError, match=f"Block label '{default_block.label}' not found for agent '{sarah_agent.id}'"):
-#         server.blocks_agents_manager.remove_block_with_label_from_agent(agent_id=sarah_agent.id, block_label=default_block.label)
-#
-#
-# def test_update_block_id_for_agent(server, sarah_agent, default_user, default_block, other_block):
-#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-#
-#     updated_block = server.blocks_agents_manager.update_block_id_for_agent(
-#         agent_id=sarah_agent.id, block_label=default_block.label, new_block_id=other_block.id
-#     )
-#
-#     assert updated_block.block_id == other_block.id
-#     assert updated_block.block_label == default_block.label
-#     assert updated_block.agent_id == sarah_agent.id
-#
-#
-# def test_list_block_ids_for_agent(server, sarah_agent, default_user, default_block, other_block):
-#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=other_block.id, block_label=other_block.label)
-#
-#     retrieved_block_ids = server.blocks_agents_manager.list_block_ids_for_agent(agent_id=sarah_agent.id)
-#
-#     assert set(retrieved_block_ids) == {default_block.id, other_block.id}
-#
-#
-# def test_list_agent_ids_with_block(server, sarah_agent, charles_agent, default_user, default_block):
-#     server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
-#     server.blocks_agents_manager.add_block_to_agent(agent_id=charles_agent.id, block_id=default_block.id, block_label=default_block.label)
-#
-#     agent_ids = server.blocks_agents_manager.list_agent_ids_with_block(block_id=default_block.id)
-#
-#     assert sarah_agent.id in agent_ids
-#     assert charles_agent.id in agent_ids
-#     assert len(agent_ids) == 2
-#
-#
-# @pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
-# def test_add_block_to_agent_with_deleted_block(server, sarah_agent, default_user, default_block):
-#     block_manager = BlockManager()
-#     block_manager.delete_block(block_id=default_block.id, actor=default_user)
-#
-#     with pytest.raises(ForeignKeyConstraintViolationError):
-#         server.blocks_agents_manager.add_block_to_agent(agent_id=sarah_agent.id, block_id=default_block.id, block_label=default_block.label)
 
 
 # # ======================================================================================================================

@@ -1369,7 +1369,7 @@ class Agent(BaseAgent):
         # TODO: recall memory
         raise NotImplementedError()
 
-    def attach_source(self, user: PydanticUser, source_id: str, source_manager: SourceManager, ms: MetadataStore):
+    def attach_source(self, user: PydanticUser, source_id: str, source_manager: SourceManager, agent_manager: AgentManager):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
         page_size = 100
@@ -1392,7 +1392,7 @@ class Agent(BaseAgent):
 
         # NOTE: need this redundant line here because we haven't migrated agent to ORM yet
         # TODO: delete @matt and remove
-        ms.attach_source(agent_id=self.agent_state.id, source_id=source_id, user_id=self.agent_state.user_id)
+        agent_manager.attach_source(agent_id=self.agent_state.id, source_id=source_id, actor=user)
 
         printd(
             f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(passages)}. Agent now has {passage_size} embeddings in archival memory.",

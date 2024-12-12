@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING, Optional, Type
 
-from sqlalchemy import JSON, BigInteger, Integer, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON, BigInteger, Integer, UniqueConstraint, event
+from sqlalchemy.orm import Mapped, attributes, mapped_column, relationship
 
 from letta.constants import CORE_MEMORY_BLOCK_CHAR_LIMIT
+from letta.orm.blocks_agents import BlocksAgents
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.block import Block as PydanticBlock
@@ -45,3 +46,19 @@ class Block(OrganizationMixin, SqlalchemyBase):
             case _:
                 Schema = PydanticBlock
         return Schema.model_validate(self)
+
+
+# Event listener right after the class
+@event.listens_for(Block, "before_update")
+def block_before_update(mapper, connection, target):
+    """Handle updating BlocksAgents when a block's label changes."""
+    label_history = attributes.get_history(target, "label")
+    if not label_history.has_changes():
+        return
+
+    blocks_agents = BlocksAgents.__table__
+    connection.execute(
+        blocks_agents.update()
+        .where(blocks_agents.c.block_id == target.id, blocks_agents.c.block_label == label_history.deleted[0])
+        .values(block_label=label_history.added[0])
+    )
