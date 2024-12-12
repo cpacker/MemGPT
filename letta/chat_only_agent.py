@@ -88,7 +88,7 @@ class ChatOnlyAgent(Agent):
                     system=gpt_system.get_system_text("memgpt_offline_memory_chat"),
                     memory=offline_memory,
                     llm_config=LLMConfig.default_config("gpt-4"),
-                    embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+                    embedding_config=EmbeddingConfig.default_config("text-embedding-3-small"),
                     tools=self.agent_state.metadata_.get("offline_memory_tools", []),
                     include_base_tools=False,
                 )

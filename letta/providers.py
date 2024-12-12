@@ -129,7 +129,7 @@ class OpenAIProvider(Provider):
         # TODO: actually automatically list models
         return [
             EmbeddingConfig(
-                embedding_model="text-embedding-ada-002",
+                embedding_model="text-embedding-3-small",
                 embedding_endpoint_type="openai",
                 embedding_endpoint="https://api.openai.com/v1",
                 embedding_dim=1536,

@@ -20,7 +20,7 @@ agent_state = client.create_agent(
     embedding_config=EmbeddingConfig(
         embedding_endpoint_type="openai",
         embedding_endpoint="https://api.openai.com/v1",
-        embedding_model="text-embedding-ada-002",
+        embedding_model="text-embedding-3-small",
         embedding_dim=1536,
         embedding_chunk_size=300,
     ),

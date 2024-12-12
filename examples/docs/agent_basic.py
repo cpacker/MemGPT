@@ -4,7 +4,7 @@ client = create_client()
 
 # set automatic defaults for LLM/embedding config
 client.set_default_llm_config(LLMConfig.default_config(model_name="gpt-4"))
-client.set_default_embedding_config(EmbeddingConfig.default_config(model_name="text-embedding-ada-002"))
+client.set_default_embedding_config(EmbeddingConfig.default_config(model_name="text-embedding-3-small"))
 
 # create a new agent
 agent_state = client.create_agent()

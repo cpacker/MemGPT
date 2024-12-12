@@ -393,14 +393,14 @@ def test_shared_blocks_without_send_message(client: LocalClient):
     agent_1 = client.create_agent(
         agent_type=AgentType.memgpt_agent,
         llm_config=LLMConfig.default_config("gpt-4"),
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-3-small"),
         memory=memory,
     )
 
     agent_2 = client.create_agent(
         agent_type=AgentType.memgpt_agent,
         llm_config=LLMConfig.default_config("gpt-4"),
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-3-small"),
         memory=memory,
     )
 

@@ -7,7 +7,7 @@ asked to use the provided documents to answer the question. Similar to Liu et al
 we evaluate reader accuracy as the number of retrieved documents K increases. In our evaluation setup, both
 the fixed-context baselines and Letta use the same retriever, which selects the top K documents
 according using Faiss efficient similarity search (Johnson et al., 2019) (which corresponds to
-approximate nearest neighbor search) on OpenAI's text-embedding-ada-002 embeddings. In
+approximate nearest neighbor search) on OpenAI's text-embedding-3-small embeddings. In
 Letta, the entire document set is loaded into archival storage, and the retriever naturally emerges
 via the archival storage search functionality (which performs embedding-based similarity search).
 In the fixed-context baselines, the top-K documents are fetched using the retriever independently

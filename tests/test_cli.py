@@ -59,7 +59,7 @@ def test_letta_run_create_new_agent(swap_letta_config):
     # Optional: Embedding model selection
     try:
         child.expect("Select embedding model:", timeout=20)
-        child.sendline("text-embedding-ada-002")
+        child.sendline("text-embedding-3-small")
     except (pexpect.TIMEOUT, pexpect.EOF):
         print("[WARNING] Embedding model selection step was skipped.")
 

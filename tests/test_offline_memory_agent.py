@@ -63,7 +63,7 @@ def test_ripple_edit(client, mock_e2b_api_key_none):
         agent_type=AgentType.memgpt_agent,
         system=gpt_system.get_system_text("memgpt_convo_only"),
         llm_config=LLMConfig.default_config("gpt-4"),
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-3-small"),
         tools=["send_message", trigger_rethink_memory_tool.name],
         memory=conversation_memory,
         include_base_tools=False,
@@ -80,7 +80,7 @@ def test_ripple_edit(client, mock_e2b_api_key_none):
         system=gpt_system.get_system_text("memgpt_offline_memory"),
         memory=offline_memory,
         llm_config=LLMConfig.default_config("gpt-4"),
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-3-small"),
         tools=[rethink_memory_tool.name, finish_rethinking_memory_tool.name],
         tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
         include_base_tools=False,
@@ -116,7 +116,7 @@ def test_chat_only_agent(client, mock_e2b_api_key_none):
         name="conversation_agent",
         agent_type=AgentType.chat_only_agent,
         llm_config=LLMConfig.default_config("gpt-4"),
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-3-small"),
         tools=["send_message"],
         memory=conversation_memory,
         include_base_tools=False,
@@ -145,7 +145,7 @@ def test_initial_message_sequence(client, mock_e2b_api_key_none):
         agent_type=AgentType.offline_memory_agent,
         system=gpt_system.get_system_text("memgpt_offline_memory"),
         llm_config=LLMConfig.default_config("gpt-4"),
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-3-small"),
         include_base_tools=False,
         initial_message_sequence=[],
     )
@@ -153,5 +153,3 @@ def test_initial_message_sequence(client, mock_e2b_api_key_none):
     assert len(offline_memory_agent.message_ids) == 1 # There should just the system message 
 
     client.delete_agent(offline_memory_agent.id)
-
-

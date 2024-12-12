@@ -19,7 +19,7 @@ def test_o1_agent():
         agent_type=AgentType.o1_agent,
         tools=[thinking_tool.name, final_tool.name],
         llm_config=LLMConfig.default_config("gpt-4"),
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        embedding_config=EmbeddingConfig.default_config("text-embedding-3-small"),
         memory=ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text("o1_persona")),
     )
     agent = client.get_agent(agent_id=agent_state.id)

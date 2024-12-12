@@ -26,7 +26,7 @@ MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or e
 
 # tokenizers
 EMBEDDING_TO_TOKENIZER_MAP = {
-    "text-embedding-ada-002": "cl100k_base",
+    "text-embedding-3-small": "cl100k_base",
 }
 EMBEDDING_TO_TOKENIZER_DEFAULT = "cl100k_base"
 
