@@ -2160,7 +2160,7 @@ class LocalClient(AbstractClient):
                 memory_blocks=[],
                 # memory_blocks = memory.get_blocks(),
                 # memory_tools=memory_tools,
-                tools=[t.id for t in tools],
+                tool_ids=[t.id for t in tools],
                 tool_rules=tool_rules,
                 system=system,
                 agent_type=agent_type,
