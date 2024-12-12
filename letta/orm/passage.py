@@ -1,6 +1,6 @@
 from datetime import datetime
-from typing import List, Optional, TYPE_CHECKING
-from sqlalchemy import Column, String, DateTime, JSON, ForeignKey
+from typing import Optional, TYPE_CHECKING
+from sqlalchemy import Column, DateTime, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr
 from sqlalchemy.types import TypeDecorator, BINARY
 
@@ -61,8 +61,10 @@ class BasePassage(SqlalchemyBase, OrganizationMixin):
     else:
         embedding = Column(CommonVector)
 
-    # Relationships
-    organization: Mapped["Organization"] = relationship("Organization", back_populates="passages", lazy="selectin")
+    @declared_attr
+    def organization(cls) -> Mapped["Organization"]:
+        """Relationship to organization"""
+        return relationship("Organization", back_populates="passages", lazy="selectin")
 
     @declared_attr
     def __table_args__(cls):
@@ -74,12 +76,16 @@ class SourcePassage(BasePassage, FileMixin, SourceMixin):
 
     source_id: Mapped[Optional[str]] = mapped_column(nullable=False, doc="Source identifier")
     
-    # Relationships
-    file: Mapped["FileMetadata"] = relationship("FileMetadata", back_populates="passages", lazy="selectin", passive_deletes=True)
+    @declared_attr
+    def file(cls) -> Mapped["FileMetadata"]:
+        """Relationship to file"""
+        return relationship("FileMetadata", back_populates="source_passages", lazy="selectin", passive_deletes=True, cascade="all, delete-orphan")
 
-class ArchivalPassage(BasePassage, AgentMixin):
+class AgentPassage(BasePassage, AgentMixin):
     """Passages created by agents as archival memories"""
-    __tablename__ = "archival_passages"
+    __tablename__ = "agent_passages"
     
-    # Relationships
-    agent: Mapped["Agent"] = relationship("Agent", back_populates="archival_passages", lazy="selectin", passive_deletes=True)
+    @declared_attr
+    def agent(cls) -> Mapped["Agent"]:
+        """Relationship to agent"""
+        return relationship("Agent", back_populates="agent_passages", lazy="selectin", passive_deletes=True, cascade="all, delete-orphan")
