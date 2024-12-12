@@ -797,6 +797,7 @@ class SyncServer(Server):
                         role=message.role,
                         text=message.text,
                         name=message.name,
+                        image=message.image,
                         # assigned later?
                         model=None,
                         # irrelevant

@@ -232,12 +232,19 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
         for key, value in message.items():
             try:
 
-                if isinstance(value, list) and key == "tool_calls":
-                    num_tokens += num_tokens_from_tool_calls(tool_calls=value, model=model)
-                    # special case for tool calling (list)
-                    # num_tokens += len(encoding.encode(value["name"]))
-                    # num_tokens += len(encoding.encode(value["arguments"]))
-
+                if isinstance(value, list):
+                    if key == "tool_calls":
+                        num_tokens += num_tokens_from_tool_calls(tool_calls=value, model=model)
+                        # special case for tool calling (list)
+                        # num_tokens += len(encoding.encode(value["name"]))
+                        # num_tokens += len(encoding.encode(value["arguments"]))
+                    else:
+                        # prompt with image
+                        for sub_message in value:
+                            if sub_message["type"] == "text":
+                                num_tokens += len(encoding.encode(sub_message["text"]))
+                            elif sub_message["type"] == "image_url":
+                                pass  # TODO calculate cost: https://platform.openai.com/docs/guides/vision/calculating-costs#quickstart
                 else:
                     if value is None:
                         # raise ValueError(f"Message has null value: {key} with value: {value} - message={message}")

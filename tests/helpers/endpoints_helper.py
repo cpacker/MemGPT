@@ -351,6 +351,26 @@ def check_agent_summarize_memory_simple(filename: str) -> LettaResponse:
     return response
 
 
+def check_vision_input(filename, image_url: str, keyword: str):
+    # Set up client
+    client = create_client()
+    cleanup(client=client, agent_uuid=agent_uuid)
+    agent_state = setup_agent(client, filename)
+
+    # when using images, GPT-4o leans toward respond with direct text messages back to user instead of send_message tool call
+    prompt_force_user_output = "If you are responding to the user question, you MUST use the 'send_message' function/tool"
+
+    response = client.user_message(agent_id=agent_state.id,
+                                   message="You are a object detection model trained on high-level everyday things. List everything inside. " + prompt_force_user_output,
+                                   image=image_url)
+
+    # check that keyword exists in description
+    assert_sanity_checks(response)
+    assert_invoked_send_message_with_keyword(response.messages, keyword)
+    assert_inner_monologue_is_present_and_valid(response.messages)
+
+    return response
+
 def run_embedding_endpoint(filename):
     # load JSON file
     config_data = json.load(open(filename, "r"))

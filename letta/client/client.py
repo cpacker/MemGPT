@@ -152,10 +152,11 @@ class AbstractClient(object):
         stream: Optional[bool] = False,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        image: Optional[str] = None,
     ) -> LettaResponse:
         raise NotImplementedError
 
-    def user_message(self, agent_id: str, message: str) -> LettaResponse:
+    def user_message(self, agent_id: str, message: str, image: str|None) -> LettaResponse:
         raise NotImplementedError
 
     def create_human(self, name: str, text: str) -> Human:
@@ -832,7 +833,7 @@ class RESTClient(AbstractClient):
 
     # agent interactions
 
-    def user_message(self, agent_id: str, message: str) -> LettaResponse:
+    def user_message(self, agent_id: str, message: str, image: str|None) -> LettaResponse:
         """
         Send a message to an agent as a user
 
@@ -937,6 +938,7 @@ class RESTClient(AbstractClient):
         stream: Optional[bool] = False,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        image: Optional[str] = None,
     ) -> Union[LettaResponse, Generator[LettaStreamingResponse, None, None]]:
         """
         Send a message to an agent
@@ -2464,6 +2466,7 @@ class LocalClient(AbstractClient):
         agent_name: Optional[str] = None,
         stream_steps: bool = False,
         stream_tokens: bool = False,
+        image: Optional[str] = None,
     ) -> LettaResponse:
         """
         Send a message to an agent
@@ -2492,7 +2495,7 @@ class LocalClient(AbstractClient):
         usage = self.server.send_messages(
             user_id=self.user_id,
             agent_id=agent_id,
-            messages=[MessageCreate(role=MessageRole(role), text=message, name=name)],
+            messages=[MessageCreate(role=MessageRole(role), text=message, name=name, image=image)],
         )
 
         # auto-save
@@ -2518,19 +2521,20 @@ class LocalClient(AbstractClient):
 
         return LettaResponse(messages=letta_messages, usage=usage)
 
-    def user_message(self, agent_id: str, message: str) -> LettaResponse:
+    def user_message(self, agent_id: str, message: str, image: Optional[str]) -> LettaResponse:
         """
         Send a message to an agent as a user
 
         Args:
             agent_id (str): ID of the agent
             message (str): Message to send
+            image (Optional[str]): Image to send
 
         Returns:
             response (LettaResponse): Response from the agent
         """
         self.interface.clear()
-        return self.send_message(role="user", agent_id=agent_id, message=message)
+        return self.send_message(role="user", agent_id=agent_id, message=message, image=image)
 
     def run_command(self, agent_id: str, command: str) -> LettaResponse:
         """

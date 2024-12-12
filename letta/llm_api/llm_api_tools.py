@@ -145,6 +145,9 @@ def create(
         printd("unsetting function_call because functions is None")
         function_call = None
 
+    if messages[-1].image is not None and llm_config.model_endpoint_type != "openai":
+        raise Exception(f"Vision input is only supported for openai models. Selected model is {llm_config.model_endpoint_type}")
+
     # openai
     if llm_config.model_endpoint_type == "openai":
         if model_settings.openai_api_key is None and llm_config.model_endpoint == "https://api.openai.com/v1":

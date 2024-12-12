@@ -63,6 +63,7 @@ class MessageCreate(BaseModel):
         MessageRole.system,
     ] = Field(..., description="The role of the participant.")
     text: str = Field(..., description="The text of the message.")
+    image: Optional[str] = Field(None, description="The image to include with the message")
     name: Optional[str] = Field(None, description="The name of the participant.")
 
 
@@ -104,6 +105,7 @@ class Message(BaseMessage):
     id: str = BaseMessage.generate_id_field()
     role: MessageRole = Field(..., description="The role of the participant.")
     text: Optional[str] = Field(None, description="The text of the message.")
+    image: Optional[str] = Field(None, description="The image to include in the message, can be URL or base64-encoded image")
     organization_id: Optional[str] = Field(None, description="The unique identifier of the organization.")
     agent_id: Optional[str] = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
@@ -421,8 +423,22 @@ class Message(BaseMessage):
 
         elif self.role == "user":
             assert all([v is not None for v in [self.text, self.role]]), vars(self)
+
+            if self.image is not None:
+                content =       [
+                    {"type": "text",
+                     "text": self.text},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": self.image,
+                        },
+                    },
+                ]
+            else:
+                content = self.text
             openai_message = {
-                "content": self.text,
+                "content": content,
                 "role": self.role,
             }
             # Optional field, do not include if null
