@@ -48,8 +48,7 @@ class Block(OrganizationMixin, SqlalchemyBase):
         return Schema.model_validate(self)
 
 
-# Event listener right after the class
-@event.listens_for(Block, "before_update")
+@event.listens_for(Block, "after_update")  # Changed from 'before_update'
 def block_before_update(mapper, connection, target):
     """Handle updating BlocksAgents when a block's label changes."""
     label_history = attributes.get_history(target, "label")

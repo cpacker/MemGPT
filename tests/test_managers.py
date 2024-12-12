@@ -21,6 +21,7 @@ from letta.orm import (
     SandboxConfig,
     SandboxEnvironmentVariable,
     Source,
+    SourcesAgents,
     Tool,
     ToolsAgents,
     User,
@@ -85,6 +86,7 @@ def clear_tables(server: SyncServer):
         session.execute(delete(Job))
         session.execute(delete(ToolsAgents))  # Clear ToolsAgents first
         session.execute(delete(BlocksAgents))
+        session.execute(delete(SourcesAgents))
         session.execute(delete(AgentsTags))
         session.execute(delete(SandboxEnvironmentVariable))
         session.execute(delete(SandboxConfig))

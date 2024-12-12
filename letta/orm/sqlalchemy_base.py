@@ -100,18 +100,21 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
             # Handle tag filtering if the model has tags
             if tags and hasattr(cls, "tags"):
-                query = query.distinct()  # Ensure no duplicates from joins
-                query = query.join(cls.tags)
+                query = select(cls)
 
                 if match_all_tags:
                     # Match ALL tags - use subqueries
                     for tag in tags:
-                        # For each tag, check that it exists for this item
                         subquery = select(cls.tags.property.mapper.class_.agent_id).where(cls.tags.property.mapper.class_.tag == tag)
-                        query = query.where(cls.id.in_(subquery))
+                        query = query.filter(cls.id.in_(subquery))
                 else:
-                    # Match ANY tag - simpler WHERE IN clause
-                    query = query.where(cls.tags.property.mapper.class_.tag.in_(tags))
+                    # Match ANY tag - use join and filter
+                    query = (
+                        query.join(cls.tags).filter(cls.tags.property.mapper.class_.tag.in_(tags)).group_by(cls.id)  # Deduplicate results
+                    )
+
+                # Group by primary key and all necessary columns to avoid JSON comparison
+                query = query.group_by(cls.id)
 
             # Apply filtering logic from kwargs
             for key, value in kwargs.items():
