@@ -798,8 +798,8 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == "Ingested message Hello, world!", result.function_return
-    assert result.stdout == ['']
-    assert result.stderr == ['']
+    assert not result.stdout
+    assert not result.stderr
 
     result = server.run_tool_from_source(
         user_id=user_id,
@@ -811,8 +811,8 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == "Ingested message Well well well", result.function_return
-    assert result.stdout == ['']
-    assert result.stderr == ['']
+    assert not result.stdout
+    assert not result.stderr
 
     result = server.run_tool_from_source(
         user_id=user_id,
@@ -825,8 +825,9 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     assert result.status == "error"
     assert "Error" in result.function_return, result.function_return
     assert "missing 1 required positional argument" in result.function_return, result.function_return
-    assert result.stdout == ['']
-    assert result.stderr != [''], "missing 1 required positional argument" in result.stderr[0]
+    assert not result.stdout
+    assert result.stderr
+    assert "missing 1 required positional argument" in result.stderr[0]
 
     # Test that we can still pull the tool out by default (pulls that last tool in the source)
     result = server.run_tool_from_source(
@@ -839,8 +840,9 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == "Ingested message Well well well", result.function_return
-    assert result.stdout != [''], "I'm a distractor" in result.stdout[0]
-    assert result.stderr == ['']
+    assert result.stdout
+    assert "I'm a distractor" in result.stdout[0]
+    assert not result.stderr
 
     # Test that we can pull the tool out by name
     result = server.run_tool_from_source(
@@ -853,8 +855,9 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == "Ingested message Well well well", result.function_return
-    assert result.stdout != [''], "I'm a distractor" in result.stdout[0]
-    assert result.stderr == ['']
+    assert result.stdout
+    assert "I'm a distractor" in result.stdout[0]
+    assert not result.stderr
 
     # Test that we can pull a different tool out by name
     result = server.run_tool_from_source(
@@ -867,8 +870,9 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == str(None), result.function_return
-    assert result.stdout != [''], "I'm a distractor" in result.stdout[0]
-    assert result.stderr == ['']
+    assert result.stdout
+    assert "I'm a distractor" in result.stdout[0]
+    assert not result.stderr
 
 
 def test_composio_client_simple(server):
