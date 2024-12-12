@@ -1599,7 +1599,9 @@ class SyncServer(Server):
         agent_ids = self.ms.list_attached_agents(source_id=source_id)
         for agent_id in agent_ids:
             agent = self.load_agent(agent_id=agent_id)
+            curr_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
             agent.attach_source(user=actor, source_id=source_id, source_manager=self.source_manager, ms=self.ms)
+            new_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
             assert new_passage_size >= curr_passage_size # in case empty files are added
 
         return job

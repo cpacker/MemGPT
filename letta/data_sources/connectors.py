@@ -1,4 +1,4 @@
-from typing import Dict, Iterator, List, Tuple, Optional
+from typing import Dict, Iterator, List, Tuple
 
 import typer
 
