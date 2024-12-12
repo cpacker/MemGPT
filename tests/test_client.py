@@ -8,7 +8,6 @@ from typing import List, Union
 
 import pytest
 from dotenv import load_dotenv
-from pydantic_core._pydantic_core import ValidationError
 
 from letta import LocalClient, RESTClient, create_client
 from letta.schemas.agent import AgentState
@@ -261,11 +260,8 @@ def test_update_agent_memory_limit(client: Union[LocalClient, RESTClient]):
     assert example_new_limit != agent.memory.get_block(label=example_label).limit
     assert example_new_limit < current_block_length
 
-    import ipdb
-
-    ipdb.set_trace()
     # We expect this to throw a value error
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         client.update_agent_memory_block(agent_id=agent.id, label=example_label, limit=example_new_limit)
 
     # Now try the same thing with a higher limit

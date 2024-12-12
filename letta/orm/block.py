@@ -61,3 +61,13 @@ def block_before_update(mapper, connection, target):
         .where(blocks_agents.c.block_id == target.id, blocks_agents.c.block_label == label_history.deleted[0])
         .values(block_label=label_history.added[0])
     )
+
+
+@event.listens_for(Block, "before_insert")
+@event.listens_for(Block, "before_update")
+def validate_value_length(mapper, connection, target):
+    """Ensure the value length does not exceed the limit."""
+    if target.value and len(target.value) > target.limit:
+        raise ValueError(
+            f"Value length ({len(target.value)}) exceeds the limit ({target.limit}) for block with label '{target.label}' and id '{target.id}'."
+        )

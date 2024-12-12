@@ -36,6 +36,8 @@ class BlockManager:
     @enforce_types
     def update_block(self, block_id: str, block_update: BlockUpdate, actor: PydanticUser) -> PydanticBlock:
         """Update a block by its ID with the given BlockUpdate object."""
+        # Safety check for block
+
         with self.session_maker() as session:
             block = BlockModel.read(db_session=session, identifier=block_id, actor=actor)
             update_data = block_update.model_dump(exclude_unset=True, exclude_none=True)
