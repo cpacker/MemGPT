@@ -824,13 +824,14 @@ class SyncServer(Server):
 
     def update_agent(
         self,
+        agent_id: str,
         request: UpdateAgent,
         actor: User,
     ) -> AgentState:
         """Update the agents core memory block, return the new state"""
 
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=request.id)
+        letta_agent = self.load_agent(agent_id=agent_id)
 
         # update the system prompt
         if request.system:
@@ -844,30 +845,27 @@ class SyncServer(Server):
             letta_agent.set_message_buffer(message_ids=request.message_ids)
 
         # tools
-        if request.tool_names:
+        if request.tool_ids:
             # Replace tools and also re-link
 
             # (1) get tools + make sure they exist
             # Current and target tools as sets of tool names
-            current_tools = set(letta_agent.agent_state.tool_names)
-            target_tools = set(request.tool_names)
+            current_tools = letta_agent.agent_state.tools
+            current_tool_ids = set([t.id for t in current_tools])
+            target_tool_ids = set(request.tool_ids)
 
             # Calculate tools to add and remove
-            tools_to_add = target_tools - current_tools
-            tools_to_remove = current_tools - target_tools
-
-            # Fetch tool objects for those to add and remove
-            tools_to_add = [self.tool_manager.get_tool_by_name(tool_name=tool, actor=actor) for tool in tools_to_add]
-            tools_to_remove = [self.tool_manager.get_tool_by_name(tool_name=tool, actor=actor) for tool in tools_to_remove]
+            tool_ids_to_add = target_tool_ids - current_tool_ids
+            tools_ids_to_remove = current_tool_ids - target_tool_ids
 
             # update agent tool list
-            for tool in tools_to_remove:
-                self.remove_tool_from_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
-            for tool in tools_to_add:
-                self.add_tool_to_agent(agent_id=request.id, tool_id=tool.id, user_id=actor.id)
+            for tool_id in tools_ids_to_remove:
+                self.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
+            for tool_id in tool_ids_to_add:
+                self.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
             # reload agent
-            letta_agent = self.load_agent(agent_id=request.id)
+            letta_agent = self.load_agent(agent_id=agent_id)
 
         # configs
         if request.llm_config:
@@ -923,7 +921,7 @@ class SyncServer(Server):
                 tool_objs.append(tool_obj)
 
         # replace the list of tool names ("ids") inside the agent state
-        letta_agent.agent_state.tool_names = [tool.name for tool in tool_objs]
+        letta_agent.agent_state.tools = tool_objs
 
         # then attempt to link the tools modules
         letta_agent.link_tools(tool_objs)
@@ -958,7 +956,7 @@ class SyncServer(Server):
                 tool_objs.append(tool_obj)
 
         # replace the list of tool names ("ids") inside the agent state
-        letta_agent.agent_state.tool_names = [tool.name for tool in tool_objs]
+        letta_agent.agent_state.tools = tool_objs
 
         # then attempt to link the tools modules
         letta_agent.link_tools(tool_objs)

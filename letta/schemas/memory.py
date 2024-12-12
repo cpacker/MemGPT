@@ -213,6 +213,7 @@ class ChatMemory(BasicBlockMemory):
             human (str): The starter value for the human block.
             limit (int): The character limit for each block.
         """
+        # TODO: Should these be CreateBlocks?
         super().__init__(blocks=[Block(value=persona, limit=limit, label="persona"), Block(value=human, limit=limit, label="human")])
 
 

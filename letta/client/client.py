@@ -97,7 +97,7 @@ class AbstractClient(object):
         name: Optional[str] = None,
         description: Optional[str] = None,
         system: Optional[str] = None,
-        tools: Optional[List[str]] = None,
+        tool_ids: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
@@ -603,7 +603,7 @@ class RESTClient(AbstractClient):
         name: Optional[str] = None,
         description: Optional[str] = None,
         system: Optional[str] = None,
-        tool_names: Optional[List[str]] = None,
+        tool_ids: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
         embedding_config: Optional[EmbeddingConfig] = None,
@@ -618,7 +618,7 @@ class RESTClient(AbstractClient):
             name (str): Name of the agent
             description (str): Description of the agent
             system (str): System configuration
-            tool_names (List[str]): List of tools
+            tool_ids (List[str]): List of tools
             metadata (Dict): Metadata
             llm_config (LLMConfig): LLM configuration
             embedding_config (EmbeddingConfig): Embedding configuration
@@ -629,10 +629,9 @@ class RESTClient(AbstractClient):
             agent_state (AgentState): State of the updated agent
         """
         request = UpdateAgent(
-            id=agent_id,
             name=name,
             system=system,
-            tool_names=tool_names,
+            tool_ids=tool_ids,
             tags=tags,
             description=description,
             metadata_=metadata,
@@ -2150,25 +2149,33 @@ class LocalClient(AbstractClient):
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
         assert llm_config or self._default_llm_config, f"LLM config must be provided"
 
+        # TODO: This should not happen here, we need to have clear separation between create/add blocks
+        for block in memory.get_blocks():
+            self.server.block_manager.create_or_update_block(block, actor=self.user)
+
         # create agent
+        # Create the base parameters
+        create_params = {
+            "description": description,
+            "metadata_": metadata,
+            "memory_blocks": [],
+            "block_ids": [b.id for b in memory.get_blocks()],
+            "tool_ids": [t.id for t in tools],
+            "tool_rules": tool_rules,
+            "system": system,
+            "agent_type": agent_type,
+            "llm_config": llm_config if llm_config else self._default_llm_config,
+            "embedding_config": embedding_config if embedding_config else self._default_embedding_config,
+            "initial_message_sequence": initial_message_sequence,
+            "tags": tags,
+        }
+
+        # Only add name if it's not None
+        if name is not None:
+            create_params["name"] = name
+
         agent_state = self.server.create_agent(
-            CreateAgent(
-                name=name,
-                description=description,
-                metadata_=metadata,
-                # memory=memory,
-                memory_blocks=[],
-                # memory_blocks = memory.get_blocks(),
-                # memory_tools=memory_tools,
-                tool_ids=[t.id for t in tools],
-                tool_rules=tool_rules,
-                system=system,
-                agent_type=agent_type,
-                llm_config=llm_config if llm_config else self._default_llm_config,
-                embedding_config=embedding_config if embedding_config else self._default_embedding_config,
-                initial_message_sequence=initial_message_sequence,
-                tags=tags,
-            ),
+            CreateAgent(**create_params),
             actor=self.user,
         )
 
@@ -2204,7 +2211,7 @@ class LocalClient(AbstractClient):
         name: Optional[str] = None,
         description: Optional[str] = None,
         system: Optional[str] = None,
-        tools: Optional[List[str]] = None,
+        tool_ids: Optional[List[str]] = None,
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict] = None,
         llm_config: Optional[LLMConfig] = None,
@@ -2232,11 +2239,11 @@ class LocalClient(AbstractClient):
         # TODO: add the abilitty to reset linked block_ids
         self.interface.clear()
         agent_state = self.server.update_agent(
+            agent_id,
             UpdateAgent(
-                id=agent_id,
                 name=name,
                 system=system,
-                tool_names=tools,
+                tool_ids=tool_ids,
                 tags=tags,
                 description=description,
                 metadata_=metadata,

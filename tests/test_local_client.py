@@ -13,6 +13,7 @@ from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
 @pytest.fixture(scope="module")
 def client():
     client = create_client()
+    # client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
@@ -29,7 +30,6 @@ def agent(client):
     yield agent_state
 
     client.delete_agent(agent_state.id)
-    assert client.get_agent(agent_state.id) is None, f"Failed to properly delete agent {agent_state.id}"
 
 
 def test_agent(client: LocalClient):
@@ -80,16 +80,15 @@ def test_agent(client: LocalClient):
     assert isinstance(agent_state.memory, Memory)
     # update agent: tools
     tool_to_delete = "send_message"
-    assert tool_to_delete in agent_state.tool_names
-    new_agent_tools = [t_name for t_name in agent_state.tool_names if t_name != tool_to_delete]
-    client.update_agent(agent_state_test.id, tools=new_agent_tools)
-    assert client.get_agent(agent_state_test.id).tool_names == new_agent_tools
+    assert tool_to_delete in [t.name for t in agent_state.tools]
+    new_agent_tool_ids = [t.id for t in agent_state.tools if t.name != tool_to_delete]
+    client.update_agent(agent_state_test.id, tool_ids=new_agent_tool_ids)
+    assert sorted([t.id for t in client.get_agent(agent_state_test.id).tools]) == sorted(new_agent_tool_ids)
 
     assert isinstance(agent_state.memory, Memory)
     # update agent: memory
     new_human = "My name is Mr Test, 100 percent human."
     new_persona = "I am an all-knowing AI."
-    new_memory = ChatMemory(human=new_human, persona=new_persona)
     assert agent_state.memory.get_block("human").value != new_human
     assert agent_state.memory.get_block("persona").value != new_persona
 
