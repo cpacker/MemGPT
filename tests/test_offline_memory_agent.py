@@ -32,6 +32,85 @@ def clear_agents(client):
     for agent in client.list_agents():
         client.delete_agent(agent.id)
 
+def test_ripple_edit_anthropic(client, mock_e2b_api_key_none):
+    trigger_rethink_memory_tool = client.create_or_update_tool(trigger_rethink_memory)
+
+    conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
+    conversation_persona_block = Block(name="persona", label="persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
+    offline_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
+    offline_persona_block = Block(name="persona", label="persona", value=get_persona_text("offline_memory_persona"), limit=2000)
+
+    # Figure 1. from Evaluating the Ripple Effects of Knowledge Editing in Language Models (Cohen et al., 2023)
+    # https://arxiv.org/pdf/2307.12976
+    fact_block = Block(
+        name="fact_block",
+        label="fact_block",
+        value="""Messi resides in the Paris.
+               Messi plays in the league Ligue 1.
+               Messi plays for the team Paris Saint-Germain.
+               The national team Messi plays for is the Argentina team.
+               Messi is also known as Leo Messi
+               Victor Ulloa plays for Inter Miami""",
+        limit=2000,
+    )
+
+    new_memory = Block(name="rethink_memory_block", label="rethink_memory_block", value="[empty]", limit=2000)
+    conversation_memory = BasicBlockMemory(blocks=[conversation_persona_block, conversation_human_block, fact_block, new_memory])
+    offline_memory = BasicBlockMemory(blocks=[offline_persona_block, offline_human_block, fact_block, new_memory])
+
+    ANTHROPIC_CONFIG = LLMConfig(
+            model_endpoint_type="anthropic",
+            model_endpoint="https://api.anthropic.com/v1",
+            model="claude-3-5-haiku-20241022",
+            context_window=32000,
+        )
+    conversation_agent = client.create_agent(
+        name="conversation_agent",
+        agent_type=AgentType.memgpt_agent,
+        system=gpt_system.get_system_text("memgpt_convo_only"),
+        llm_config=ANTHROPIC_CONFIG,
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        tools=["send_message", trigger_rethink_memory_tool.name],
+        memory=conversation_memory,
+        include_base_tools=False,
+    )
+    assert conversation_agent is not None
+
+    assert set(conversation_agent.memory.list_block_labels()) == {"persona", "human", "fact_block", "rethink_memory_block"}
+
+    rethink_memory_tool = client.create_tool(rethink_memory)
+    finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
+    offline_memory_agent = client.create_agent(
+        name="offline_memory_agent",
+        agent_type=AgentType.offline_memory_agent,
+        system=gpt_system.get_system_text("memgpt_offline_memory"),
+        memory=offline_memory,
+        llm_config=ANTHROPIC_CONFIG,
+        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+        tools=[rethink_memory_tool.name, finish_rethinking_memory_tool.name],
+        tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
+        include_base_tools=False,
+    )
+    assert offline_memory_agent is not None
+    assert set(offline_memory_agent.memory.list_block_labels()) == {"persona", "human", "fact_block", "rethink_memory_block"}
+    response = client.user_message(
+        agent_id=conversation_agent.id, message="[trigger_rethink_memory]: Messi has now moved to playing for Inter Miami"
+    )
+    offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
+
+    import pdb; pdb.set_trace()
+    assert offline_memory_agent.memory.get_block("rethink_memory_block").value != "[empty]"
+    conversation_agent = client.get_agent(agent_id=conversation_agent.id)
+    assert conversation_agent.memory.get_block("rethink_memory_block").value != "[empty]"
+
+    # Clean up agent
+    '''
+    client.delete_agent(conversation_agent.id)
+    client.delete_agent(offline_memory_agent.id)
+    '''
+
+
+
 def test_ripple_edit(client, mock_e2b_api_key_none):
     trigger_rethink_memory_tool = client.create_or_update_tool(trigger_rethink_memory)
 
