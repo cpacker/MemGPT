@@ -1612,7 +1612,9 @@ class SyncServer(Server):
             raise ValueError(f"Data source {source_name} does not exist for user {user_id}")
 
         # load data into the document store
-        passage_count, document_count = load_data(connector, source, self.passage_manager, self.source_manager, actor=user, agent_id=agent_id)
+        passage_count, document_count = load_data(
+            connector, source, self.passage_manager, self.source_manager, actor=user, agent_id=agent_id
+        )
         return passage_count, document_count
 
     def attach_source_to_agent(
@@ -1799,14 +1801,20 @@ class SyncServer(Server):
 
         llm_models = []
         for provider in self._enabled_providers:
-            llm_models.extend(provider.list_llm_models())
+            try:
+                llm_models.extend(provider.list_llm_models())
+            except Exception as e:
+                warnings.warn(f"An error occurred while listing LLM models for provider {provider}: {e}")
         return llm_models
 
     def list_embedding_models(self) -> List[EmbeddingConfig]:
         """List available embedding models"""
         embedding_models = []
         for provider in self._enabled_providers:
-            embedding_models.extend(provider.list_embedding_models())
+            try:
+                embedding_models.extend(provider.list_embedding_models())
+            except Exception as e:
+                warnings.warn(f"An error occurred while listing embedding models for provider {provider}: {e}")
         return embedding_models
 
     def add_llm_model(self, request: LLMConfig) -> LLMConfig:
