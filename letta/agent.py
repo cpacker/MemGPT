@@ -1371,10 +1371,9 @@ class Agent(BaseAgent):
         # TODO: recall memory
         raise NotImplementedError()
 
-    def attach_source(self, user: PydanticUser, source_id: str, source_manager: SourceManager, ms: MetadataStore):
+    def attach_source(self, user: PydanticUser, source_id: str, source_manager: SourceManager, ms: MetadataStore, page_size: Optional[int] = None):
         """Attach data with name `source_name` to the agent from source_connector."""
         # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
-        page_size = 100
         passages = self.passage_manager.list_passages(actor=user, source_id=source_id, limit=page_size)
 
         for passage in passages:
