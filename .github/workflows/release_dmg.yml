@@ -1,0 +1,51 @@
+name: Create DMG on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-dmg:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # see this weird matrix to determine who gets what architecture
+      # https://github.com/actions/runner-images?tab=readme-ov-file#available-images
+      # supporting only current OS. to extend that, update the dmg_packager.sh script as well
+      matrix:
+        os:
+          - macos-15-large # intel
+          - macos-15 # arm64
+    steps:
+      - name: setup python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: install create-dmg from homebrew
+        run: |
+          brew install create-dmg
+
+
+      - name: Create and activate virtual environment
+        run: |
+          cd installable_apps
+          python -m venv venv
+          source venv/bin/activate
+
+      - name: Install requirements
+        run: |
+          cd installable_apps
+          source venv/bin/activate
+          pip install -r desktop_app/requirements.txt
+
+      - name: Run DMG creator script
+        run: |
+          cd installable_apps
+          source venv/bin/activate
+          bash dmg_packager.sh
+      - name: Upload created dmg to GCP bucket
+        run: |
+          gsutil cp installable_apps/*.dmg gs://some-bucket-where-dmgs-live/

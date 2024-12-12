@@ -1,0 +1,9 @@
+setuptools==68.2.2 # letta pinned - and anything newer than 70 builds a broken wheel
+letta==0.6.3 # this is also the version of the installer
+pgserver~=0.1.4
+pystray
+pillow
+darkdetect
+
+# the actual packaging engine. This should be hard pinned and any changes should be tested and intentional
+pyinstaller==6.11.1
