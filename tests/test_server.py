@@ -1035,11 +1035,10 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
         query_text="what does Timber like to eat",
         embedding_config=EmbeddingConfig.default_config(provider="openai"),
         embed_query=True,
-        limit=10,
     )
-    assert len(passages) == 2
+    assert len(passages) == 14
     assert any("chicken" in passage.text.lower() for passage in passages)
-    assert any("Anna" in passage.text.lower() for passage in passages)
+    assert any("Anna".lower() in passage.text.lower() for passage in passages)
 
     # TODO: Add this test back in after separation of `Passage tables` (LET-449)
     # # Load second agent
