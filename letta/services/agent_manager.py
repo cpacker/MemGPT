@@ -19,6 +19,7 @@ from letta.services.helpers.agent_manager_helper import (
     _process_tags,
     derive_system_message,
 )
+from letta.services.passage_manager import PassageManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
 from letta.utils import enforce_types
@@ -194,7 +195,7 @@ class AgentManager:
             return agent.to_pydantic()
 
     @enforce_types
-    def delete_agent(self, agent_id: str, actor: Optional[PydanticUser] = None) -> PydanticAgentState:
+    def delete_agent(self, agent_id: str, actor: PydanticUser) -> PydanticAgentState:
         """
         Deletes an agent and its associated relationships.
         Ensures proper permission checks and cascades where applicable.
@@ -210,13 +211,14 @@ class AgentManager:
             # Retrieve the agent
             agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
 
-            # Convert to Pydantic BEFORE deletion while the session is still active
+            # TODO: @mindy delete this piece when we have a proper passages/sources implementation
+            # TODO: This is done very hacky on purpose
+            # TODO: 1000 limit is also wack
+            passage_manager = PassageManager()
+            passage_manager.delete_passages(actor=actor, agent_id=agent_id, limit=1000)
+
             agent_state = agent.to_pydantic()
-
-            # Delete the agent (hard delete ensures relationships are handled)
             agent.hard_delete(session)
-
-            # Return the Pydantic model we created before deletion
             return agent_state
 
     # ======================================================================================================================

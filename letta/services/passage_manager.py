@@ -213,5 +213,7 @@ class PassageManager:
             source_id=source_id,
         )
 
+        # TODO: This is very inefficient
+        # TODO: We should have a base `delete_all_matching_filters`-esque function
         for passage in passages:
             self.delete_passage_by_id(passage_id=passage.id, actor=actor)

@@ -624,7 +624,7 @@ def test_composio_client_simple(server):
 
 def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none, base_tools, base_memory_tools):
     """Test that the memory rebuild is generating the correct number of role=system messages"""
-
+    actor = server.user_manager.get_user_or_default(user_id)
     # create agent
     agent_state = server.create_agent(
         request=CreateAgent(
@@ -637,7 +637,7 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none, base_tools
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        actor=server.user_manager.get_user_or_default(user_id),
+        actor=actor,
     )
     print(f"Created agent\n{agent_state}")
 
@@ -684,4 +684,4 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none, base_tools
 
     finally:
         # cleanup
-        server.agent_manager.delete_agent(agent_state.id)
+        server.agent_manager.delete_agent(agent_state.id, actor=actor)
