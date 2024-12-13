@@ -60,7 +60,7 @@ class SourceManager:
         """Delete a source by its ID."""
         with self.session_maker() as session:
             source = SourceModel.read(db_session=session, identifier=source_id)
-            source.delete(db_session=session, actor=actor)
+            source.hard_delete(db_session=session, actor=actor)
             return source.to_pydantic()
 
     @enforce_types

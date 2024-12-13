@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Union
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -36,7 +36,21 @@ class Organization(SqlalchemyBase):
 
     # relationships
     messages: Mapped[List["Message"]] = relationship("Message", back_populates="organization", cascade="all, delete-orphan")
-    passages: Mapped[List["Passage"]] = relationship("Passage", back_populates="organization", cascade="all, delete-orphan")
+    source_passages: Mapped[List["SourcePassage"]] = relationship(
+        "SourcePassage", 
+        back_populates="organization", 
+        cascade="all, delete-orphan"
+    )
+    agent_passages: Mapped[List["AgentPassage"]] = relationship(
+        "AgentPassage", 
+        back_populates="organization", 
+        cascade="all, delete-orphan"
+    )
+
+    @property
+    def passages(self) -> List[Union["SourcePassage", "AgentPassage"]]:
+        """Convenience property to get all passages"""
+        return self.source_passages + self.agent_passages
 
     # TODO: Map these relationships later when we actually make these models
     # below is just a suggestion

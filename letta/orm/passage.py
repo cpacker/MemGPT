@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import Column, DateTime, JSON
+from sqlalchemy import Column, DateTime, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr
 from sqlalchemy.types import TypeDecorator, BINARY
 
@@ -68,24 +68,37 @@ class BasePassage(SqlalchemyBase, OrganizationMixin):
 
     @declared_attr
     def __table_args__(cls):
-        return {"extend_existing": True}
+        if settings.letta_pg_uri_no_default:
+            return (
+                Index(f'{cls.__tablename__}_org_idx', 'organization_id'),
+                {"extend_existing": True}
+            )
+        return ({"extend_existing": True},)
+
 
 class SourcePassage(BasePassage, FileMixin, SourceMixin):
     """Passages derived from external files/sources"""
     __tablename__ = "source_passages"
-
-    source_id: Mapped[Optional[str]] = mapped_column(nullable=False, doc="Source identifier")
     
     @declared_attr
     def file(cls) -> Mapped["FileMetadata"]:
         """Relationship to file"""
-        return relationship("FileMetadata", back_populates="source_passages", lazy="selectin", passive_deletes=True, cascade="all, delete-orphan")
+        return relationship("FileMetadata", back_populates="source_passages", lazy="selectin")
+
+    @declared_attr
+    def organization(cls) -> Mapped["Organization"]:
+        return relationship("Organization", back_populates="source_passages", lazy="selectin")
+        
+    @declared_attr
+    def source(cls) -> Mapped["Source"]:
+        """Relationship to source"""
+        return relationship("Source", back_populates="passages", lazy="selectin", passive_deletes=True)
+
 
 class AgentPassage(BasePassage, AgentMixin):
     """Passages created by agents as archival memories"""
     __tablename__ = "agent_passages"
     
     @declared_attr
-    def agent(cls) -> Mapped["Agent"]:
-        """Relationship to agent"""
-        return relationship("Agent", back_populates="agent_passages", lazy="selectin", passive_deletes=True, cascade="all, delete-orphan")
+    def organization(cls) -> Mapped["Organization"]:
+        return relationship("Organization", back_populates="agent_passages", lazy="selectin")

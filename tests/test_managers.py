@@ -2,8 +2,9 @@ import os
 import time
 from datetime import datetime, timedelta
 
+from numpy import source
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import all_, delete
 
 from letta.embeddings import embedding_model
 import letta.utils as utils
@@ -17,7 +18,8 @@ from letta.orm import (
     Job,
     Message,
     Organization,
-    Passage,
+    AgentPassage,
+    SourcePassage,
     SandboxConfig,
     SandboxEnvironmentVariable,
     Source,
@@ -88,7 +90,8 @@ def clear_tables(server: SyncServer):
     """Fixture to clear the organization table before each test."""
     with server.organization_manager.session_maker() as session:
         session.execute(delete(Message))
-        session.execute(delete(Passage))
+        session.execute(delete(AgentPassage))
+        session.execute(delete(SourcePassage))
         session.execute(delete(Job))
         session.execute(delete(ToolsAgents))  # Clear ToolsAgents first
         session.execute(delete(BlocksAgents))
@@ -214,39 +217,81 @@ def print_tool(server: SyncServer, default_user, default_organization):
 
 
 @pytest.fixture
-def hello_world_passage_fixture(server: SyncServer, default_user, default_file, sarah_agent):
-    """Fixture to create a tool with default settings and clean up after the test."""
-    # Set up passage
-    dummy_embedding = [0.0] * 2
-    message = PydanticPassage(
-        organization_id=default_user.organization_id,
-        agent_id=sarah_agent.id,
-        file_id=default_file.id,
-        text="Hello, world!", 
-        embedding=dummy_embedding, 
-        embedding_config=DEFAULT_EMBEDDING_CONFIG
+def agent_passage_fixture(server: SyncServer, default_user, sarah_agent):
+    """Fixture to create an agent passage."""
+    passage = server.passage_manager.create_passage(
+        PydanticPassage(
+            text="Hello, I am an agent passage",
+            agent_id=sarah_agent.id,
+            organization_id=default_user.organization_id,
+            embedding=[0.1],
+            embedding_config=DEFAULT_EMBEDDING_CONFIG,
+            metadata_={"type": "test"}
+        ),
+        actor=default_user
     )
-
-    msg = server.passage_manager.create_passage(message, actor=default_user)
-    yield msg
+    yield passage
 
 
 @pytest.fixture
-def create_test_passages(server: SyncServer, default_file, default_user, sarah_agent) -> list[PydanticPassage]:
-    """Helper function to create test passages for all tests"""
-    dummy_embedding = [0] * 2
-    passages = [
+def source_passage_fixture(server: SyncServer, default_user, default_file, default_source):
+    """Fixture to create a source passage."""
+    passage = server.passage_manager.create_passage(
         PydanticPassage(
-            organization_id=default_user.organization_id,
-            agent_id=sarah_agent.id,
+            text="Hello, I am a source passage",
+            source_id=default_source.id,
             file_id=default_file.id,
-            text=f"Test passage {i}", 
-            embedding=dummy_embedding, 
-            embedding_config=DEFAULT_EMBEDDING_CONFIG
-        ) for i in range(4)
-    ]
-    server.passage_manager.create_many_passages(passages, actor=default_user)
+            organization_id=default_user.organization_id,
+            embedding=[0.1],
+            embedding_config=DEFAULT_EMBEDDING_CONFIG,
+            metadata_={"type": "test"}
+        ),
+        actor=default_user
+    )
+    yield passage
+
+
+@pytest.fixture
+def create_test_passages(server: SyncServer, default_file, default_user, sarah_agent, default_source):
+    """Helper function to create test passages for all tests."""
+    # Create agent passages
+    passages = []
+    for i in range(5):
+        passage = server.passage_manager.create_passage(
+            PydanticPassage(
+                text=f"Agent passage {i}",
+                agent_id=sarah_agent.id,
+                organization_id=default_user.organization_id,
+                embedding=[0.1],
+                embedding_config=DEFAULT_EMBEDDING_CONFIG,
+                metadata_={"type": "test"}
+            ),
+            actor=default_user
+        )
+        passages.append(passage)
+        if USING_SQLITE:
+            time.sleep(CREATE_DELAY_SQLITE)
+
+    # Create source passages
+    for i in range(5):
+        passage = server.passage_manager.create_passage(
+            PydanticPassage(
+                text=f"Source passage {i}",
+                source_id=default_source.id,
+                file_id=default_file.id,
+                organization_id=default_user.organization_id,
+                embedding=[0.1],
+                embedding_config=DEFAULT_EMBEDDING_CONFIG,
+                metadata_={"type": "test"}
+            ),
+            actor=default_user
+        )
+        passages.append(passage)
+        if USING_SQLITE:
+            time.sleep(CREATE_DELAY_SQLITE)
+
     return passages
+
 
 @pytest.fixture
 def hello_world_message_fixture(server: SyncServer, default_user, sarah_agent):
@@ -408,118 +453,208 @@ def test_list_organizations_pagination(server: SyncServer):
 # Passage Manager Tests
 # ======================================================================================================================
 
-def test_passage_create(server: SyncServer, hello_world_passage_fixture, default_user):
-    """Test creating a passage using hello_world_passage_fixture fixture"""
-    assert hello_world_passage_fixture.id is not None
-    assert hello_world_passage_fixture.text == "Hello, world!"
+def test_passage_create_agentic(server: SyncServer, agent_passage_fixture, default_user):
+    """Test creating a passage using agent_passage_fixture fixture"""
+    assert agent_passage_fixture.id is not None
+    assert agent_passage_fixture.text == "Hello, I am an agent passage"
 
     # Verify we can retrieve it
     retrieved = server.passage_manager.get_passage_by_id(
-        hello_world_passage_fixture.id,
+        agent_passage_fixture.id,
         actor=default_user,
     )
     assert retrieved is not None
-    assert retrieved.id == hello_world_passage_fixture.id
-    assert retrieved.text == hello_world_passage_fixture.text
+    assert retrieved.id == agent_passage_fixture.id
+    assert retrieved.text == agent_passage_fixture.text
 
 
-def test_passage_get_by_id(server: SyncServer, hello_world_passage_fixture, default_user):
-    """Test retrieving a passage by ID"""
-    retrieved = server.passage_manager.get_passage_by_id(hello_world_passage_fixture.id, actor=default_user)
+def test_passage_create_source(server: SyncServer, source_passage_fixture, default_user):
+    """Test creating a source passage."""
+    assert source_passage_fixture is not None
+    assert source_passage_fixture.text == "Hello, I am a source passage"
+
+    # Verify we can retrieve it
+    retrieved = server.passage_manager.get_passage_by_id(
+        source_passage_fixture.id,
+        actor=default_user,
+    )
     assert retrieved is not None
-    assert retrieved.id == hello_world_passage_fixture.id
-    assert retrieved.text == hello_world_passage_fixture.text
+    assert retrieved.id == source_passage_fixture.id
+    assert retrieved.text == source_passage_fixture.text
 
 
-def test_passage_update(server: SyncServer, hello_world_passage_fixture, default_user):
+def test_passage_create_invalid(server: SyncServer, agent_passage_fixture, default_user):
+    """Test creating an agent passage."""
+    assert agent_passage_fixture is not None
+    assert agent_passage_fixture.text == "Hello, I am an agent passage"
+    
+    # Try to create an invalid passage (with both agent_id and source_id)
+    with pytest.raises(AssertionError):
+        server.passage_manager.create_passage(
+            PydanticPassage(
+                text="Invalid passage",
+                agent_id="123",
+                source_id="456",
+                organization_id=default_user.organization_id,
+                embedding=[0.1] * 1024,
+                embedding_config=DEFAULT_EMBEDDING_CONFIG,
+            ),
+            actor=default_user
+        )
+
+
+def test_passage_get_by_id(server: SyncServer, agent_passage_fixture, source_passage_fixture, default_user):
+    """Test retrieving a passage by ID"""
+    retrieved = server.passage_manager.get_passage_by_id(agent_passage_fixture.id, actor=default_user)
+    assert retrieved is not None
+    assert retrieved.id == agent_passage_fixture.id
+    assert retrieved.text == agent_passage_fixture.text
+
+    retrieved = server.passage_manager.get_passage_by_id(source_passage_fixture.id, actor=default_user)
+    assert retrieved is not None
+    assert retrieved.id == source_passage_fixture.id
+    assert retrieved.text == source_passage_fixture.text
+
+
+def test_passage_cascade_deletion(server: SyncServer, agent_passage_fixture, source_passage_fixture, default_user, default_source):
+    """Test that passages are deleted when their parent (agent or source) is deleted."""
+    # Verify passages exist
+    agent_passage = server.passage_manager.get_passage_by_id(agent_passage_fixture.id, default_user)
+    source_passage = server.passage_manager.get_passage_by_id(source_passage_fixture.id, default_user)
+    assert agent_passage is not None
+    assert source_passage is not None
+    
+    # Delete agent and verify its passages are deleted
+
+    # TODO: add in with Agents ORM
+    # server.agent_manager.delete_agent(sarah_agent.id, default_user)
+    # with pytest.raises(ValueError):
+    #     server.passage_manager.get_passage_by_id(agent_passage_fixture.id, default_user)
+    
+    # Delete source and verify its passages are deleted
+    server.source_manager.delete_source(default_source.id, default_user)
+    with pytest.raises(NoResultFound):
+        server.passage_manager.get_passage_by_id(source_passage_fixture.id, default_user)
+
+
+def test_passage_listing(server: SyncServer, agent_passage_fixture, source_passage_fixture, default_user, sarah_agent, default_source):
+    """Test listing passages by type (agent or source)."""
+    # List only agent passages
+    agent_passages = server.passage_manager.list_passages(
+        actor=default_user,
+        agent_id=sarah_agent.id,
+    )
+    assert len(agent_passages) == 1
+    assert all(p.agent_id == sarah_agent.id for p in agent_passages)
+    
+    # List only source passages
+    source_passages = server.passage_manager.list_passages(
+        actor=default_user,
+        source_id=default_source.id,
+    )
+    assert len(source_passages) == 1
+    assert all(p.source_id == default_source.id for p in source_passages)
+
+    # List all passages in the user's organization
+    all_passages = server.passage_manager.list_passages(
+        actor=default_user,
+    )
+    assert len(all_passages) == 2
+
+
+def test_passage_update(server: SyncServer, agent_passage_fixture, source_passage_fixture, default_user):
     """Test updating a passage"""
     new_text = "Updated text"
-    hello_world_passage_fixture.text = new_text
-    updated = server.passage_manager.update_passage_by_id(hello_world_passage_fixture.id, hello_world_passage_fixture, actor=default_user)
+    agent_passage_fixture.text = new_text
+    updated = server.passage_manager.update_passage_by_id(agent_passage_fixture.id, agent_passage_fixture, actor=default_user)
     assert updated is not None
     assert updated.text == new_text
-    retrieved = server.passage_manager.get_passage_by_id(hello_world_passage_fixture.id, actor=default_user)
+    retrieved = server.passage_manager.get_passage_by_id(agent_passage_fixture.id, actor=default_user)
+    assert retrieved.text == new_text
+
+    source_passage_fixture.text = new_text
+    updated = server.passage_manager.update_passage_by_id(source_passage_fixture.id, source_passage_fixture, actor=default_user)
+    assert updated is not None
+    assert updated.text == new_text
+    retrieved = server.passage_manager.get_passage_by_id(source_passage_fixture.id, actor=default_user)
     assert retrieved.text == new_text
 
 
-def test_passage_delete(server: SyncServer, hello_world_passage_fixture, default_user):
+def test_passage_delete(server: SyncServer, agent_passage_fixture, source_passage_fixture, default_user):
     """Test deleting a passage"""
-    server.passage_manager.delete_passage_by_id(hello_world_passage_fixture.id, actor=default_user)
-    retrieved = server.passage_manager.get_passage_by_id(hello_world_passage_fixture.id, actor=default_user)
-    assert retrieved is None
+    server.passage_manager.delete_passage_by_id(agent_passage_fixture.id, actor=default_user)
+    with pytest.raises(NoResultFound):
+        server.passage_manager.get_passage_by_id(agent_passage_fixture.id, actor=default_user)
+
+    server.passage_manager.delete_passage_by_id(source_passage_fixture.id, actor=default_user)
+    with pytest.raises(NoResultFound):
+        server.passage_manager.get_passage_by_id(source_passage_fixture.id, actor=default_user)
+
+    with pytest.raises(NoResultFound):
+        server.passage_manager.delete_passage_by_id(agent_passage_fixture.id, actor=default_user)
+    with pytest.raises(NoResultFound):
+        server.passage_manager.delete_passage_by_id(source_passage_fixture.id, actor=default_user)
 
 
-def test_passage_size(server: SyncServer, hello_world_passage_fixture, create_test_passages, default_user):
+def test_passage_size(server: SyncServer, agent_passage_fixture, source_passage_fixture, create_test_passages, default_user):
     """Test counting passages with filters"""
-    base_passage = hello_world_passage_fixture
 
     # Test total count
     total = server.passage_manager.size(actor=default_user)
-    assert total == 5  # base passage + 4 test passages
-    # TODO: change login passage to be a system not user passage
+    assert total == 12 # 1 base passage +5 agent passages + 5 source passages
 
     # Test count with agent filter
-    agent_count = server.passage_manager.size(actor=default_user, agent_id=base_passage.agent_id)
-    assert agent_count == 5
+    agent_count = server.passage_manager.size(actor=default_user, agent_id=agent_passage_fixture.agent_id)
+    assert agent_count == 6
 
-    # Test count with role filter
-    role_count = server.passage_manager.size(actor=default_user)
-    assert role_count == 5
+    # Test count with source filter
+    source_count = server.passage_manager.size(actor=default_user, source_id=source_passage_fixture.source_id)
+    assert source_count == 6
 
     # Test count with non-existent filter
     empty_count = server.passage_manager.size(actor=default_user, agent_id="non-existent")
     assert empty_count == 0
 
 
-def test_passage_listing_basic(server: SyncServer, hello_world_passage_fixture, create_test_passages, default_user):
+def test_passage_listing_basic(server: SyncServer, create_test_passages, default_user):
     """Test basic passage listing with limit"""
     results = server.passage_manager.list_passages(actor=default_user, limit=3)
     assert len(results) == 3
 
 
-def test_passage_listing_cursor(server: SyncServer, hello_world_passage_fixture, create_test_passages, default_user):
-    """Test cursor-based pagination functionality"""
-
-    # Make sure there are 5 passages
-    assert server.passage_manager.size(actor=default_user) == 5
-
-    # Get first page
-    first_page = server.passage_manager.list_passages(actor=default_user, limit=3)
-    assert len(first_page) == 3
-
-    last_id_on_first_page = first_page[-1].id
-
-    # Get second page
-    second_page = server.passage_manager.list_passages(
-        actor=default_user, cursor=last_id_on_first_page, limit=3
-    )
-    assert len(second_page) == 2 # Should have 2 remaining passages
-    assert all(r1.id != r2.id for r1 in first_page for r2 in second_page)
-
-
-def test_passage_listing_filtering(server: SyncServer, hello_world_passage_fixture, create_test_passages, default_user, sarah_agent):
+def test_passage_listing_filtering(server: SyncServer, create_test_passages, default_user, sarah_agent, default_source):
     """Test filtering passages by agent ID"""
-    agent_results = server.passage_manager.list_passages(agent_id=sarah_agent.id, actor=default_user, limit=10)
-    assert len(agent_results) == 5  # base passage + 4 test passages
-    assert all(msg.agent_id == hello_world_passage_fixture.agent_id for msg in agent_results)
+    agent_results = server.passage_manager.list_passages(agent_id=sarah_agent.id, actor=default_user)
+    assert len(agent_results) == 5  # 5 agent passages
+    assert all(msg.agent_id == sarah_agent.id for msg in agent_results)
+
+    source_results = server.passage_manager.list_passages(source_id=default_source.id, actor=default_user)
+    assert len(source_results) == 5  # 5 source passages
+    assert all(msg.source_id == default_source.id for msg in source_results)
+
+    all_results = server.passage_manager.list_passages(actor=default_user)
+    assert len(all_results) == 10
+
+    all_results_with_filters = server.passage_manager.list_passages(agent_id=sarah_agent.id, source_id=default_source.id, actor=default_user)
+    assert len(all_results_with_filters) == 10
 
 
-def test_passage_listing_text_search(server: SyncServer, hello_world_passage_fixture, create_test_passages, default_user, sarah_agent):
+def test_passage_listing_text_search(server: SyncServer, agent_passage_fixture, create_test_passages, default_user, sarah_agent, default_source):
     """Test searching passages by text content"""
     search_results = server.passage_manager.list_passages(
-        agent_id=sarah_agent.id, actor=default_user, query_text="Test passage", limit=10
+        actor=default_user, query_text="Agent passage"
     )
-    assert len(search_results) == 4
-    assert all("Test passage" in msg.text for msg in search_results)
+    assert len(search_results) == 6
+    assert all("Agent passage".lower() in msg.text.lower() for msg in search_results)
     
     # Test no results
     search_results = server.passage_manager.list_passages(
-        agent_id=sarah_agent.id, actor=default_user, query_text="Letta", limit=10
+        actor=default_user, query_text="Letta"
     )
     assert len(search_results) == 0
 
 
-def test_passage_listing_date_range_filtering(server: SyncServer, hello_world_passage_fixture, default_user, default_file, sarah_agent):
+def test_passage_listing_date_range_filtering(server: SyncServer, agent_passage_fixture, default_user, default_file, sarah_agent):
     """Test filtering passages by date range with various scenarios"""
     # Set up test data with known dates
     base_time = datetime.utcnow()
@@ -539,10 +674,10 @@ def test_passage_listing_date_range_filtering(server: SyncServer, hello_world_pa
         timestamp = base_time + offset
         passage = server.passage_manager.create_passage(
             PydanticPassage(
-                organization_id=default_user.organization_id,
+                text=f"Test passage {i}",
                 agent_id=sarah_agent.id,
                 file_id=default_file.id,
-                text=f"Test passage {i}",
+                organization_id=default_user.organization_id,
                 embedding=[0.1, 0.2, 0.3],
                 embedding_config=DEFAULT_EMBEDDING_CONFIG,
                 created_at=timestamp
@@ -598,7 +733,6 @@ def test_passage_listing_date_range_filtering(server: SyncServer, hello_world_pa
             actor=default_user,
             start_date=case["start_date"],
             end_date=case["end_date"],
-            limit=10
         )
         
         # Verify count
@@ -653,15 +787,24 @@ def test_passage_vector_search(server: SyncServer, default_user, default_file, s
         "blue shoes",
     ]
     
-    for text in test_passages:
+    for i, text in enumerate(test_passages):
         embedding = embed_model.get_text_embedding(text)
-        passage = PydanticPassage(
-            text=text,
-            organization_id=default_user.organization_id,
-            agent_id=sarah_agent.id,
-            embedding_config=DEFAULT_EMBEDDING_CONFIG,
-            embedding=embedding
-        )
+        if i % 2 == 0:
+            passage = PydanticPassage(
+                text=text,
+                organization_id=default_user.organization_id,
+                agent_id=sarah_agent.id,
+                embedding_config=DEFAULT_EMBEDDING_CONFIG,
+                embedding=embedding
+            )
+        else:
+            passage = PydanticPassage(
+                text=text,
+                organization_id=default_user.organization_id,
+                source_id=default_file.id,
+                embedding_config=DEFAULT_EMBEDDING_CONFIG,
+                embedding=embedding
+            )
         created_passage = passage_manager.create_passage(passage, default_user)
         passages.append(created_passage)
     assert passage_manager.size(actor=default_user) == len(passages)
@@ -672,9 +815,7 @@ def test_passage_vector_search(server: SyncServer, default_user, default_file, s
     # List passages with vector search
     results = passage_manager.list_passages(
         actor=default_user,
-        agent_id=sarah_agent.id,
         query_text=query_key,
-        limit=3,
         embedding_config=DEFAULT_EMBEDDING_CONFIG,
         embed_query=True,
     )
@@ -684,6 +825,33 @@ def test_passage_vector_search(server: SyncServer, default_user, default_file, s
     assert results[0].text == "I like red"
     assert results[1].text == "random text" # For some reason the embedding model doesn't like "blue shoes"
     assert results[2].text == "blue shoes"
+
+    # List passages with vector search
+    results = passage_manager.list_passages(
+        actor=default_user,
+        agent_id=sarah_agent.id,
+        query_text=query_key,
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+        embed_query=True,
+    )
+    
+    # Verify results are ordered by similarity
+    assert len(results) == 2
+    assert results[0].text == "I like red"
+    assert results[1].text == "blue shoes"
+
+    # List passages with vector search
+    results = passage_manager.list_passages(
+        actor=default_user,
+        source_id=default_file.id,
+        query_text=query_key,
+        embedding_config=DEFAULT_EMBEDDING_CONFIG,
+        embed_query=True,
+    )
+    
+    # Verify results are ordered by similarity
+    assert len(results) == 1
+    assert results[0].text == "random text"
 
 
 # ======================================================================================================================

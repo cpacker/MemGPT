@@ -51,7 +51,7 @@ class SourceMixin(Base):
 
     __abstract__ = True
 
-    source_id: Mapped[str] = mapped_column(String, ForeignKey("sources.id", ondelete="CASCADE"))
+    source_id: Mapped[str] = mapped_column(String, ForeignKey("sources.id", ondelete="CASCADE"), nullable=False)
 
 
 class SandboxConfigMixin(Base):

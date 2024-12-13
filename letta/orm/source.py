@@ -10,6 +10,8 @@ from letta.schemas.source import Source as PydanticSource
 
 if TYPE_CHECKING:
     from letta.orm.organization import Organization
+    from letta.orm.file import FileMetadata
+    from letta.orm.passage import SourcePassage
 
 
 class EmbeddingConfigColumn(TypeDecorator):
@@ -47,5 +49,6 @@ class Source(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="sources")
-    files: Mapped[List["Source"]] = relationship("FileMetadata", back_populates="source", cascade="all, delete-orphan")
+    files: Mapped[List["FileMetadata"]] = relationship("FileMetadata", back_populates="source", cascade="all, delete-orphan")
+    passages: Mapped[List["SourcePassage"]] = relationship("SourcePassage", back_populates="source", cascade="all, delete-orphan")
     # agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")
