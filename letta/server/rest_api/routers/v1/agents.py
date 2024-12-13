@@ -628,7 +628,6 @@ async def send_message_async(
         server=server,
         actor=actor,
         agent_id=agent_id,
-        user_id=actor.id,
         messages=request.messages,
         assistant_message_tool_name=request.assistant_message_tool_name,
         assistant_message_tool_kwarg=request.assistant_message_tool_kwarg,
