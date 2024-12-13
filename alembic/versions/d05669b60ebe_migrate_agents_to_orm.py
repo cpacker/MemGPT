@@ -42,7 +42,18 @@ def upgrade() -> None:
     op.add_column("agents", sa.Column("is_deleted", sa.Boolean(), server_default=sa.text("FALSE"), nullable=False))
     op.add_column("agents", sa.Column("_created_by_id", sa.String(), nullable=True))
     op.add_column("agents", sa.Column("_last_updated_by_id", sa.String(), nullable=True))
-    op.add_column("agents", sa.Column("organization_id", sa.String(), nullable=False))
+    op.add_column("agents", sa.Column("organization_id", sa.String(), nullable=True))
+    # Populate `organization_id` based on `user_id`
+    # Use a raw SQL query to update the organization_id
+    op.execute(
+        """
+        UPDATE agents
+        SET organization_id = users.organization_id
+        FROM users
+        WHERE agents.user_id = users.id
+    """
+    )
+    op.alter_column("agents", "organization_id", nullable=False)
     op.alter_column("agents", "name", existing_type=sa.VARCHAR(), nullable=True)
     op.drop_index("agents_idx_user", table_name="agents")
     op.create_unique_constraint("unique_org_agent_name", "agents", ["organization_id", "name"])
