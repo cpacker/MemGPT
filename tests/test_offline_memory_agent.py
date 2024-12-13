@@ -32,8 +32,10 @@ def clear_agents(client):
     for agent in client.list_agents():
         client.delete_agent(agent.id)
 
+
 def test_ripple_edit(client, mock_e2b_api_key_none):
     trigger_rethink_memory_tool = client.create_or_update_tool(trigger_rethink_memory)
+    send_message = client.server.tool_manager.get_tool_by_name(tool_name="send_message", actor=client.user)
 
     conversation_human_block = Block(name="human", label="human", value=get_human_text(DEFAULT_HUMAN), limit=2000)
     conversation_persona_block = Block(name="persona", label="persona", value=get_persona_text(DEFAULT_PERSONA), limit=2000)
@@ -64,7 +66,7 @@ def test_ripple_edit(client, mock_e2b_api_key_none):
         system=gpt_system.get_system_text("memgpt_convo_only"),
         llm_config=LLMConfig.default_config("gpt-4"),
         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-        tools=["send_message", trigger_rethink_memory_tool.name],
+        tool_ids=[send_message.id, trigger_rethink_memory_tool.id],
         memory=conversation_memory,
         include_base_tools=False,
     )
@@ -81,7 +83,7 @@ def test_ripple_edit(client, mock_e2b_api_key_none):
         memory=offline_memory,
         llm_config=LLMConfig.default_config("gpt-4"),
         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-        tools=[rethink_memory_tool.name, finish_rethinking_memory_tool.name],
+        tool_ids=[rethink_memory_tool.id, finish_rethinking_memory_tool.id],
         tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
         include_base_tools=False,
     )
@@ -111,13 +113,13 @@ def test_chat_only_agent(client, mock_e2b_api_key_none):
     )
     conversation_memory = BasicBlockMemory(blocks=[conversation_persona_block, conversation_human_block])
 
-    client = create_client()
+    send_message = client.server.tool_manager.get_tool_by_name(tool_name="send_message", actor=client.user)
     chat_only_agent = client.create_agent(
         name="conversation_agent",
         agent_type=AgentType.chat_only_agent,
         llm_config=LLMConfig.default_config("gpt-4"),
         embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-        tools=["send_message"],
+        tool_ids=[send_message.id],
         memory=conversation_memory,
         include_base_tools=False,
         metadata={"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]},
@@ -135,6 +137,7 @@ def test_chat_only_agent(client, mock_e2b_api_key_none):
     # Clean up agent
     client.delete_agent(chat_only_agent.id)
 
+
 def test_initial_message_sequence(client, mock_e2b_api_key_none):
     """
     Test that when we set the initial sequence to an empty list,
@@ -150,8 +153,6 @@ def test_initial_message_sequence(client, mock_e2b_api_key_none):
         initial_message_sequence=[],
     )
     assert offline_memory_agent is not None
-    assert len(offline_memory_agent.message_ids) == 1 # There should just the system message 
+    assert len(offline_memory_agent.message_ids) == 1  # There should just the system message
 
     client.delete_agent(offline_memory_agent.id)
-
-
