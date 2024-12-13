@@ -336,24 +336,14 @@ class PassageManager:
         **kwargs
     ) -> int:
         """Get the total count of passages with optional filters."""
-        with self.session_maker() as session:
-            total = 0
-            
-            # Count source passages if source_id is specified or no specific filter is given
-            if source_id or (not agent_id and not source_id):
-                source_filters = {**kwargs}
-                if source_id:
-                    source_filters["source_id"] = source_id
-                total += SourcePassage.size(db_session=session, actor=actor, **source_filters)
-            
-            # Count archival passages if agent_id is specified or no specific filter is given
-            if agent_id or (not agent_id and not source_id):
-                archival_filters = {**kwargs}
-                if agent_id:
-                    archival_filters["agent_id"] = agent_id
-                total += AgentPassage.size(db_session=session, actor=actor, **archival_filters)
-            
-            return total
+        # Use list_passages to get all passages with the same filters
+        passages = self.list_passages(
+            actor=actor,
+            agent_id=agent_id,
+            source_id=source_id,
+            **kwargs
+        )
+        return len(passages)
 
     @enforce_types
     def delete_passage_by_id(self, passage_id: str, actor: PydanticUser) -> bool:
