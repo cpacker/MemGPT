@@ -18,7 +18,7 @@ on:
     branches: [ main ]
 
 jobs:
-  integ-tests:
+  integ-run:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
