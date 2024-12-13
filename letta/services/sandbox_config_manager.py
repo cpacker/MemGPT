@@ -28,6 +28,21 @@ class SandboxConfigManager:
 
         self.session_maker = db_context
         self.e2b_template_id = settings.e2b_sandbox_template_id
+        self.local_sandbox_use_vnev = False  # default to false
+
+        # override the local sandbox dir
+        if settings.local_sandbox_dir:
+            self.local_sandbox_dir = settings.local_sandbox_dir
+            self.local_sandbox_use_vnev = True
+        else:
+            self.local_sandbox_dir = str(Path(__file__).parent / "tool_sandbox_env")
+
+        # override the local sandbox env name
+        if settings.local_sandbox_env_name:
+            self.local_sandbox_env_name = settings.local_sandbox_env_name
+            self.local_sandbox_use_vnev = True
+        else:
+            self.local_sandbox_env_name = "venv"
 
     @enforce_types
     def get_or_create_default_sandbox_config(self, sandbox_type: SandboxType, actor: PydanticUser) -> PydanticSandboxConfig:
@@ -39,8 +54,12 @@ class SandboxConfigManager:
             if sandbox_type == SandboxType.E2B:
                 default_config = E2BSandboxConfig(template=self.e2b_template_id).model_dump(exclude_none=True)
             else:
-                default_local_sandbox_path = str(Path(__file__).parent / "tool_sandbox_env")
-                default_config = LocalSandboxConfig(sandbox_dir=default_local_sandbox_path).model_dump(exclude_none=True)
+                # default_local_sandbox_path = str(Path(__file__).parent / "tool_sandbox_env")
+                # default_config = LocalSandboxConfig(sandbox_dir=default_local_sandbox_path).model_dump(exclude_none=True)
+
+                default_config = LocalSandboxConfig(
+                    sandbox_dir=self.local_sandbox_dir, use_venv=self.local_sandbox_use_vnev, env_name=self.local_sandbox_env_name
+                )
 
             sandbox_config = self.create_or_update_sandbox_config(SandboxConfigCreate(config=default_config), actor=actor)
         return sandbox_config
