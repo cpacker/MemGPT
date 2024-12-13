@@ -442,6 +442,7 @@ class Agent(BaseAgent):
                 )
                 function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
                 assert orig_memory_str == self.agent_state.memory.compile(), "Memory should not be modified in a sandbox tool"
+
                 self.update_memory_if_change(updated_agent_state.memory)
         except Exception as e:
             # Need to catch error here, or else trunction wont happen

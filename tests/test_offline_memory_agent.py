@@ -122,7 +122,7 @@ def test_chat_only_agent(client, mock_e2b_api_key_none):
         tool_ids=[send_message.id],
         memory=conversation_memory,
         include_base_tools=False,
-        metadata={"offline_memory_tools": [rethink_memory.name, finish_rethinking_memory.name]},
+        metadata={"offline_memory_tools": [rethink_memory.id, finish_rethinking_memory.id]},
     )
     assert chat_only_agent is not None
     assert set(chat_only_agent.memory.list_block_labels()) == {"chat_agent_persona", "chat_agent_human"}

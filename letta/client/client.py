@@ -15,6 +15,7 @@ from letta.constants import (
 )
 from letta.data_sources.connectors import DataConnector
 from letta.functions.functions import parse_source_code
+from letta.orm.errors import NoResultFound
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgent
 from letta.schemas.block import Block, BlockUpdate, CreateBlock, Human, Persona
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -2356,7 +2357,12 @@ class LocalClient(AbstractClient):
 
         self.interface.clear()
         assert agent_name, f"Agent name must be provided"
-        return self.server.get_agent_id(name=agent_name, user_id=self.user_id)
+
+        # TODO: Refactor this futher to not have downstream users expect Optionals - this should just error
+        try:
+            return self.server.agent_manager.get_agent_by_name(agent_name=agent_name, actor=self.user).id
+        except NoResultFound:
+            return None
 
     # memory
     def get_in_context_memory(self, agent_id: str) -> Memory:

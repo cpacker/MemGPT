@@ -60,18 +60,6 @@ class EmbeddingConfigColumn(TypeDecorator):
         return value
 
 
-# TODO: eventually store providers?
-# class Provider(Base):
-#    __tablename__ = "providers"
-#    __table_args__ = {"extend_existing": True}
-#
-#    id = Column(String, primary_key=True)
-#    name = Column(String, nullable=False)
-#    created_at = Column(DateTime(timezone=True))
-#    api_key = Column(String, nullable=False)
-#    base_url = Column(String, nullable=False)
-
-
 class APIKeyModel(Base):
     """Data model for authentication tokens. One-to-many relationship with UserModel (1 User - N tokens)."""
 
