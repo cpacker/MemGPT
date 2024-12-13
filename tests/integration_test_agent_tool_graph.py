@@ -99,7 +99,7 @@ def test_single_path_agent_tool_call_graph(mock_e2b_api_key_none):
     ]
 
     # Make agent state
-    agent_state = setup_agent(client, config_file, agent_uuid=agent_uuid, tools=[t.name for t in tools], tool_rules=tool_rules)
+    agent_state = setup_agent(client, config_file, agent_uuid=agent_uuid, tool_ids=[t.id for t in tools], tool_rules=tool_rules)
     response = client.user_message(agent_id=agent_state.id, message="What is the fourth secret word?")
 
     # Make checks

@@ -33,7 +33,7 @@ def create_test_agent():
     )
 
     global agent_obj
-    agent_obj = client.server.load_agent(agent_id=agent_state.id)
+    agent_obj = client.server.load_agent(agent_id=agent_state.id, actor=client.user)
 
 
 def test_summarize_messages_inplace(mock_e2b_api_key_none):
@@ -74,7 +74,7 @@ def test_summarize_messages_inplace(mock_e2b_api_key_none):
     print(f"test_summarize: response={response}")
 
     # reload agent object
-    agent_obj = client.server.load_agent(agent_id=agent_obj.agent_state.id)
+    agent_obj = client.server.load_agent(agent_id=agent_obj.agent_state.id, actor=client.user)
 
     agent_obj.summarize_messages_inplace()
     print(f"Summarization succeeded: messages[1] = \n{agent_obj.messages[1]}")
@@ -121,7 +121,7 @@ def test_auto_summarize(mock_e2b_api_key_none):
 
             # check if the summarize message is inside the messages
             assert isinstance(client, LocalClient), "Test only works with LocalClient"
-            agent_obj = client.server.load_agent(agent_id=agent_state.id)
+            agent_obj = client.server.load_agent(agent_id=agent_state.id, actor=client.user)
             print("SUMMARY", summarize_message_exists(agent_obj._messages))
             if summarize_message_exists(agent_obj._messages):
                 break

@@ -1,19 +1,18 @@
+import base64
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
-from sqlalchemy import Column, String, DateTime, JSON, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.types import TypeDecorator, BINARY
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-import base64
-
-from letta.orm.source import EmbeddingConfigColumn
-from letta.orm.sqlalchemy_base import SqlalchemyBase
-from letta.orm.mixins import FileMixin, OrganizationMixin
-from letta.schemas.passage import Passage as PydanticPassage
+from sqlalchemy import JSON, Column, DateTime, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.types import BINARY, TypeDecorator
 
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
+from letta.orm.mixins import FileMixin, OrganizationMixin
+from letta.orm.source import EmbeddingConfigColumn
+from letta.orm.sqlalchemy_base import SqlalchemyBase
+from letta.schemas.passage import Passage as PydanticPassage
 from letta.settings import settings
 
 config = LettaConfig()
@@ -21,8 +20,10 @@ config = LettaConfig()
 if TYPE_CHECKING:
     from letta.orm.organization import Organization
 
+
 class CommonVector(TypeDecorator):
     """Common type for representing vectors in SQLite"""
+
     impl = BINARY
     cache_ok = True
 
@@ -43,10 +44,12 @@ class CommonVector(TypeDecorator):
             value = base64.b64decode(value)
         return np.frombuffer(value, dtype=np.float32)
 
-# TODO: After migration to Passage, will need to manually delete passages where files 
+
+# TODO: After migration to Passage, will need to manually delete passages where files
 #       are deleted on web
 class Passage(SqlalchemyBase, OrganizationMixin, FileMixin):
     """Defines data model for storing Passages"""
+
     __tablename__ = "passages"
     __table_args__ = {"extend_existing": True}
     __pydantic_model__ = PydanticPassage
@@ -59,6 +62,7 @@ class Passage(SqlalchemyBase, OrganizationMixin, FileMixin):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     if settings.letta_pg_uri_no_default:
         from pgvector.sqlalchemy import Vector
+
         embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
     else:
         embedding = Column(CommonVector)

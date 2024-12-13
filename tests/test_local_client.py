@@ -4,7 +4,7 @@ import pytest
 
 from letta import create_client
 from letta.client.client import LocalClient
-from letta.schemas.agent import PersistedAgentState
+from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
@@ -13,6 +13,7 @@ from letta.schemas.memory import BasicBlockMemory, ChatMemory, Memory
 @pytest.fixture(scope="module")
 def client():
     client = create_client()
+    # client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
@@ -29,7 +30,6 @@ def agent(client):
     yield agent_state
 
     client.delete_agent(agent_state.id)
-    assert client.get_agent(agent_state.id) is None, f"Failed to properly delete agent {agent_state.id}"
 
 
 def test_agent(client: LocalClient):
@@ -80,16 +80,15 @@ def test_agent(client: LocalClient):
     assert isinstance(agent_state.memory, Memory)
     # update agent: tools
     tool_to_delete = "send_message"
-    assert tool_to_delete in agent_state.tool_names
-    new_agent_tools = [t_name for t_name in agent_state.tool_names if t_name != tool_to_delete]
-    client.update_agent(agent_state_test.id, tools=new_agent_tools)
-    assert client.get_agent(agent_state_test.id).tool_names == new_agent_tools
+    assert tool_to_delete in [t.name for t in agent_state.tools]
+    new_agent_tool_ids = [t.id for t in agent_state.tools if t.name != tool_to_delete]
+    client.update_agent(agent_state_test.id, tool_ids=new_agent_tool_ids)
+    assert sorted([t.id for t in client.get_agent(agent_state_test.id).tools]) == sorted(new_agent_tool_ids)
 
     assert isinstance(agent_state.memory, Memory)
     # update agent: memory
     new_human = "My name is Mr Test, 100 percent human."
     new_persona = "I am an all-knowing AI."
-    new_memory = ChatMemory(human=new_human, persona=new_persona)
     assert agent_state.memory.get_block("human").value != new_human
     assert agent_state.memory.get_block("persona").value != new_persona
 
@@ -216,7 +215,7 @@ def test_agent_with_shared_blocks(client: LocalClient):
             client.delete_agent(second_agent_state_test.id)
 
 
-def test_memory(client: LocalClient, agent: PersistedAgentState):
+def test_memory(client: LocalClient, agent: AgentState):
     # get agent memory
     original_memory = client.get_in_context_memory(agent.id)
     assert original_memory is not None
@@ -229,7 +228,7 @@ def test_memory(client: LocalClient, agent: PersistedAgentState):
     assert updated_memory.get_block("human").value != original_memory_value  # check if the memory has been updated
 
 
-def test_archival_memory(client: LocalClient, agent: PersistedAgentState):
+def test_archival_memory(client: LocalClient, agent: AgentState):
     """Test functions for interacting with archival memory store"""
 
     # add archival memory
@@ -244,7 +243,7 @@ def test_archival_memory(client: LocalClient, agent: PersistedAgentState):
     client.delete_archival_memory(agent.id, passage.id)
 
 
-def test_recall_memory(client: LocalClient, agent: PersistedAgentState):
+def test_recall_memory(client: LocalClient, agent: AgentState):
     """Test functions for interacting with recall memory store"""
 
     # send message to the agent

@@ -25,7 +25,7 @@ def delete_tool(
     """
     Delete a tool by name
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     server.tool_manager.delete_tool_by_id(tool_id=tool_id, actor=actor)
 
 
@@ -38,7 +38,7 @@ def get_tool(
     """
     Get a tool by ID
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     tool = server.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor)
     if tool is None:
         # return 404 error
@@ -55,7 +55,7 @@ def get_tool_id(
     """
     Get a tool ID by name
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     tool = server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
     if tool:
         return tool.id
@@ -74,7 +74,7 @@ def list_tools(
     Get a list of all tools available to agents belonging to the org of the user
     """
     try:
-        actor = server.get_user_or_default(user_id=user_id)
+        actor = server.user_manager.get_user_or_default(user_id=user_id)
         return server.tool_manager.list_tools(actor=actor, cursor=cursor, limit=limit)
     except Exception as e:
         # Log or print the full exception here for debugging
@@ -92,7 +92,7 @@ def create_tool(
     Create a new tool
     """
     try:
-        actor = server.get_user_or_default(user_id=user_id)
+        actor = server.user_manager.get_user_or_default(user_id=user_id)
         tool = Tool(**request.model_dump())
         return server.tool_manager.create_tool(pydantic_tool=tool, actor=actor)
     except UniqueConstraintViolationError as e:
@@ -124,7 +124,7 @@ def upsert_tool(
     Create or update a tool
     """
     try:
-        actor = server.get_user_or_default(user_id=user_id)
+        actor = server.user_manager.get_user_or_default(user_id=user_id)
         tool = server.tool_manager.create_or_update_tool(pydantic_tool=Tool(**request.model_dump()), actor=actor)
         return tool
     except UniqueConstraintViolationError as e:
@@ -147,7 +147,7 @@ def update_tool(
     """
     Update an existing tool
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     return server.tool_manager.update_tool_by_id(tool_id=tool_id, tool_update=request, actor=actor)
 
 
@@ -159,7 +159,7 @@ def add_base_tools(
     """
     Add base tools
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     return server.tool_manager.add_base_tools(actor=actor)
 
 
@@ -173,7 +173,7 @@ def add_base_tools(
 #     """
 #     Run an existing tool on provided arguments
 #     """
-#     actor = server.get_user_or_default(user_id=user_id)
+#     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
 #     return server.run_tool(tool_id=request.tool_id, tool_args=request.tool_args, user_id=actor.id)
 
@@ -187,7 +187,7 @@ def run_tool_from_source(
     """
     Attempt to build a tool from source, then run it on the provided arguments
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     try:
         return server.run_tool_from_source(
@@ -220,7 +220,7 @@ def list_composio_apps(server: SyncServer = Depends(get_letta_server), user_id: 
     """
     Get a list of all Composio apps
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     composio_api_key = get_composio_key(server, actor=actor)
     return server.get_composio_apps(api_key=composio_api_key)
 
@@ -234,7 +234,7 @@ def list_composio_actions_by_app(
     """
     Get a list of all Composio actions for a specific app
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     composio_api_key = get_composio_key(server, actor=actor)
     return server.get_composio_actions_from_app_name(composio_app_name=composio_app_name, api_key=composio_api_key)
 
@@ -248,7 +248,7 @@ def add_composio_tool(
     """
     Add a new Composio tool by action name (Composio refers to each tool as an `Action`)
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     composio_api_key = get_composio_key(server, actor=actor)
 
     try:

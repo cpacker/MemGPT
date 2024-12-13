@@ -85,6 +85,6 @@ class O1Agent(Agent):
             if step_response.messages[-1].name == "send_final_message":
                 break
             if ms:
-                save_agent(self, ms)
+                save_agent(self)
 
         return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)
