@@ -4,12 +4,8 @@ from datetime import datetime, timedelta
 
 from numpy import source
 import pytest
-<<<<<<< HEAD
-from sqlalchemy import all_, delete
-=======
 from sqlalchemy import delete
 from sqlalchemy.exc import IntegrityError
->>>>>>> main
 
 from letta.config import LettaConfig
 from letta.embeddings import embedding_model
@@ -196,7 +192,6 @@ def print_tool(server: SyncServer, default_user, default_organization):
 
 
 @pytest.fixture
-<<<<<<< HEAD
 def agent_passage_fixture(server: SyncServer, default_user, sarah_agent):
     """Fixture to create an agent passage."""
     passage = server.passage_manager.create_passage(
@@ -209,19 +204,6 @@ def agent_passage_fixture(server: SyncServer, default_user, sarah_agent):
             metadata_={"type": "test"}
         ),
         actor=default_user
-=======
-def hello_world_passage_fixture(server: SyncServer, default_user, default_file, sarah_agent):
-    """Fixture to create a tool with default settings and clean up after the test."""
-    # Set up passage
-    dummy_embedding = [0.0] * 2
-    message = PydanticPassage(
-        organization_id=default_user.organization_id,
-        agent_id=sarah_agent.id,
-        file_id=default_file.id,
-        text="Hello, world!",
-        embedding=dummy_embedding,
-        embedding_config=DEFAULT_EMBEDDING_CONFIG,
->>>>>>> main
     )
     yield passage
 
@@ -234,7 +216,6 @@ def source_passage_fixture(server: SyncServer, default_user, default_file, defau
             text="Hello, I am a source passage",
             source_id=default_source.id,
             file_id=default_file.id,
-<<<<<<< HEAD
             organization_id=default_user.organization_id,
             embedding=[0.1],
             embedding_config=DEFAULT_EMBEDDING_CONFIG,
@@ -284,15 +265,6 @@ def create_test_passages(server: SyncServer, default_file, default_user, sarah_a
         if USING_SQLITE:
             time.sleep(CREATE_DELAY_SQLITE)
 
-=======
-            text=f"Test passage {i}",
-            embedding=dummy_embedding,
-            embedding_config=DEFAULT_EMBEDDING_CONFIG,
-        )
-        for i in range(4)
-    ]
-    server.passage_manager.create_many_passages(passages, actor=default_user)
->>>>>>> main
     return passages
 
 
@@ -894,18 +866,10 @@ def test_list_organizations_pagination(server: SyncServer):
 # Passage Manager Tests
 # ======================================================================================================================
 
-<<<<<<< HEAD
 def test_passage_create_agentic(server: SyncServer, agent_passage_fixture, default_user):
     """Test creating a passage using agent_passage_fixture fixture"""
     assert agent_passage_fixture.id is not None
     assert agent_passage_fixture.text == "Hello, I am an agent passage"
-=======
-
-def test_passage_create(server: SyncServer, hello_world_passage_fixture, default_user):
-    """Test creating a passage using hello_world_passage_fixture fixture"""
-    assert hello_world_passage_fixture.id is not None
-    assert hello_world_passage_fixture.text == "Hello, world!"
->>>>>>> main
 
     # Verify we can retrieve it
     retrieved = server.passage_manager.get_passage_by_id(
@@ -1071,29 +1035,7 @@ def test_passage_listing_limit(server: SyncServer, create_test_passages, default
     assert len(results) == 3
 
 
-<<<<<<< HEAD
 def test_passage_listing_filtering(server: SyncServer, create_test_passages, default_user, sarah_agent, default_source):
-=======
-def test_passage_listing_cursor(server: SyncServer, hello_world_passage_fixture, create_test_passages, default_user):
-    """Test cursor-based pagination functionality"""
-
-    # Make sure there are 5 passages
-    assert server.passage_manager.size(actor=default_user) == 5
-
-    # Get first page
-    first_page = server.passage_manager.list_passages(actor=default_user, limit=3)
-    assert len(first_page) == 3
-
-    last_id_on_first_page = first_page[-1].id
-
-    # Get second page
-    second_page = server.passage_manager.list_passages(actor=default_user, cursor=last_id_on_first_page, limit=3)
-    assert len(second_page) == 2  # Should have 2 remaining passages
-    assert all(r1.id != r2.id for r1 in first_page for r2 in second_page)
-
-
-def test_passage_listing_filtering(server: SyncServer, hello_world_passage_fixture, create_test_passages, default_user, sarah_agent):
->>>>>>> main
     """Test filtering passages by agent ID"""
     agent_results = server.passage_manager.list_passages(agent_id=sarah_agent.id, actor=default_user)
     assert len(agent_results) == 5  # 5 agent passages
@@ -1112,7 +1054,6 @@ def test_passage_listing_filtering(server: SyncServer, hello_world_passage_fixtu
 
 def test_passage_listing_text_search(server: SyncServer, agent_passage_fixture, create_test_passages, default_user):
     """Test searching passages by text content"""
-<<<<<<< HEAD
     search_results = server.passage_manager.list_passages(
         actor=default_user, query_text="Agent passage"
     )
@@ -1123,14 +1064,6 @@ def test_passage_listing_text_search(server: SyncServer, agent_passage_fixture, 
     search_results = server.passage_manager.list_passages(
         actor=default_user, query_text="Letta"
     )
-=======
-    search_results = server.passage_manager.list_passages(agent_id=sarah_agent.id, actor=default_user, query_text="Test passage", limit=10)
-    assert len(search_results) == 4
-    assert all("Test passage" in msg.text for msg in search_results)
-
-    # Test no results
-    search_results = server.passage_manager.list_passages(agent_id=sarah_agent.id, actor=default_user, query_text="Letta", limit=10)
->>>>>>> main
     assert len(search_results) == 0
 
 
@@ -1209,14 +1142,10 @@ def test_passage_listing_date_range_filtering(server: SyncServer, agent_passage_
     # Run test cases
     for case in test_cases:
         results = server.passage_manager.list_passages(
-<<<<<<< HEAD
             agent_id=sarah_agent.id,
             actor=default_user,
             start_date=case["start_date"],
             end_date=case["end_date"],
-=======
-            agent_id=sarah_agent.id, actor=default_user, start_date=case["start_date"], end_date=case["end_date"], limit=10
->>>>>>> main
         )
 
         # Verify count
@@ -1263,7 +1192,6 @@ def test_passage_vector_search(server: SyncServer, default_user, default_source,
         "random text",
         "blue shoes",
     ]
-<<<<<<< HEAD
     
     for i, text in enumerate(test_passages):
         embedding = embed_model.get_text_embedding(text)
@@ -1283,18 +1211,6 @@ def test_passage_vector_search(server: SyncServer, default_user, default_source,
                 embedding_config=DEFAULT_EMBEDDING_CONFIG,
                 embedding=embedding
             )
-=======
-
-    for text in test_passages:
-        embedding = embed_model.get_text_embedding(text)
-        passage = PydanticPassage(
-            text=text,
-            organization_id=default_user.organization_id,
-            agent_id=sarah_agent.id,
-            embedding_config=DEFAULT_EMBEDDING_CONFIG,
-            embedding=embedding,
-        )
->>>>>>> main
         created_passage = passage_manager.create_passage(passage, default_user)
         passages.append(created_passage)
     assert passage_manager.size(actor=default_user) == len(passages)
