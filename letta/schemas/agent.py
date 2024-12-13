@@ -148,6 +148,9 @@ class UpdateAgent(BaseAgent):
     embedding_config: Optional[EmbeddingConfig] = Field(None, description="The embedding configuration used by the agent.")
     message_ids: Optional[List[str]] = Field(None, description="The ids of the messages in the agent's in-context memory.")
 
+    class Config:
+        extra = "ignore"  # Ignores extra fields
+
 
 class AgentStepResponse(BaseModel):
     messages: List[Message] = Field(..., description="The messages generated during the agent's step.")
