@@ -8,8 +8,10 @@ from typing import List, Union
 
 import pytest
 from dotenv import load_dotenv
+from sqlalchemy import delete
 
 from letta import LocalClient, RESTClient, create_client
+from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.agent import AgentState
 from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -72,6 +74,17 @@ def agent(client: Union[LocalClient, RESTClient]):
 
     # delete agent
     client.delete_agent(agent_state.id)
+
+
+@pytest.fixture(autouse=True)
+def clear_tables():
+    """Clear the sandbox tables before each test."""
+    from letta.server.server import db_context
+
+    with db_context() as session:
+        session.execute(delete(SandboxEnvironmentVariable))
+        session.execute(delete(SandboxConfig))
+        session.commit()
 
 
 def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]):
@@ -305,7 +318,7 @@ def test_function_return_limit(client: Union[LocalClient, RESTClient]):
 
     padding = len("[NOTE: function output was truncated since it exceeded the character limit (100000 > 1000)]") + 50
     tool = client.create_or_update_tool(func=big_return, return_char_limit=1000)
-    agent = client.create_agent(name="agent1", tool_ids=[tool.id])
+    agent = client.create_agent(tool_ids=[tool.id])
     # get function response
     response = client.send_message(agent_id=agent.id, message="call the big_return function", role="user")
     print(response.messages)
@@ -319,10 +332,16 @@ def test_function_return_limit(client: Union[LocalClient, RESTClient]):
     assert response_message, "FunctionReturn message not found in response"
     res = response_message.function_return
     assert "function output was truncated " in res
+    import ipdb
+
+    ipdb.set_trace()
+
     res_json = json.loads(res)
     assert (
         len(res_json["message"]) <= 1000 + padding
     ), f"Expected length to be less than or equal to 1000 + {padding}, but got {len(res_json['message'])}"
+
+    client.delete_agent(agent_id=agent.id)
 
 
 @pytest.mark.asyncio

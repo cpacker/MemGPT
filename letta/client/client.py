@@ -82,7 +82,7 @@ class AbstractClient(object):
         llm_config: Optional[LLMConfig] = None,
         memory=None,
         system: Optional[str] = None,
-        tools: Optional[List[str]] = None,
+        tool_ids: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         metadata: Optional[Dict] = {"human:": DEFAULT_HUMAN, "persona": DEFAULT_PERSONA},
@@ -456,6 +456,7 @@ class RESTClient(AbstractClient):
         params = {}
         if tags:
             params["tags"] = tags
+            params["match_all_tags"] = False
 
         response = requests.get(f"{self.base_url}/{self.api_prefix}/agents", headers=self.headers, params=params)
         return [AgentState(**agent) for agent in response.json()]
@@ -494,7 +495,7 @@ class RESTClient(AbstractClient):
         # system
         system: Optional[str] = None,
         # tools
-        tools: Optional[List[str]] = None,
+        tool_ids: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
         include_base_tools: Optional[bool] = True,
         # metadata
@@ -511,7 +512,7 @@ class RESTClient(AbstractClient):
             llm_config (LLMConfig): LLM configuration
             memory (Memory): Memory configuration
             system (str): System configuration
-            tools (List[str]): List of tools
+            tool_ids (List[str]): List of tool ids
             include_base_tools (bool): Include base tools
             metadata (Dict): Metadata
             description (str): Description
@@ -520,32 +521,53 @@ class RESTClient(AbstractClient):
         Returns:
             agent_state (AgentState): State of the created agent
         """
+        tool_ids = tool_ids or []
         tool_names = []
-        if tools:
-            tool_names += tools
         if include_base_tools:
             tool_names += BASE_TOOLS
             tool_names += BASE_MEMORY_TOOLS
-        tools = [self.get_tool_id(name) for name in tool_names]
+        tool_ids += [self.get_tool_id(tool_name=name) for name in tool_names]
 
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
         assert llm_config or self._default_llm_config, f"LLM config must be provided"
 
+        # TODO: This should not happen here, we need to have clear separation between create/add blocks
+        # TODO: This is insanely hacky and a result of allowing free-floating blocks
+        # TODO: When we create the block, it gets it's own block ID
+        blocks = []
+        for block in memory.get_blocks():
+            blocks.append(
+                self.create_block(
+                    label=block.label,
+                    value=block.value,
+                    limit=block.limit,
+                    template_name=block.template_name,
+                    is_template=block.is_template,
+                )
+            )
+        memory.blocks = blocks
+
         # create agent
-        request = CreateAgent(
-            name=name,
-            description=description,
-            metadata_=metadata,
-            memory_blocks=[],
-            tool_ids=[t.id for t in tools],
-            tool_rules=tool_rules,
-            system=system,
-            agent_type=agent_type,
-            llm_config=llm_config if llm_config else self._default_llm_config,
-            embedding_config=embedding_config if embedding_config else self._default_embedding_config,
-            initial_message_sequence=initial_message_sequence,
-            tags=tags,
-        )
+        create_params = {
+            "description": description,
+            "metadata_": metadata,
+            "memory_blocks": [],
+            "block_ids": [b.id for b in memory.get_blocks()],
+            "tool_ids": tool_ids,
+            "tool_rules": tool_rules,
+            "system": system,
+            "agent_type": agent_type,
+            "llm_config": llm_config if llm_config else self._default_llm_config,
+            "embedding_config": embedding_config if embedding_config else self._default_embedding_config,
+            "initial_message_sequence": initial_message_sequence,
+            "tags": tags,
+        }
+
+        # Only add name if it's not None
+        if name is not None:
+            create_params["name"] = name
+
+        request = CreateAgent(**create_params)
 
         # Use model_dump_json() instead of model_dump()
         # If we use model_dump(), the datetime objects will not be serialized correctly
@@ -561,14 +583,6 @@ class RESTClient(AbstractClient):
 
         # gather agent state
         agent_state = AgentState(**response.json())
-
-        # create and link blocks
-        for block in memory.get_blocks():
-            if not self.get_block(block.id):
-                # note: this does not update existing blocks
-                # WARNING: this resets the block ID - this method is a hack for backwards compat, should eventually use CreateBlock not Memory
-                block = self.create_block(label=block.label, value=block.value, limit=block.limit)
-            self.link_agent_memory_block(agent_id=agent_state.id, block_id=block.id)
 
         # refresh and return agent
         return self.get_agent(agent_state.id)
@@ -1607,23 +1621,6 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get tool: {response.text}")
         return Tool(**response.json())
 
-    def get_tool_id(self, name: str) -> Optional[str]:
-        """
-        Get a tool ID by its name.
-
-        Args:
-            id (str): ID of the tool
-
-        Returns:
-            tool (Tool): Tool
-        """
-        response = requests.get(f"{self.base_url}/{self.api_prefix}/tools/name/{name}", headers=self.headers)
-        if response.status_code == 404:
-            return None
-        elif response.status_code != 200:
-            raise ValueError(f"Failed to get tool: {response.text}")
-        return response.json()
-
     def set_default_llm_config(self, llm_config: LLMConfig):
         """
         Set the default LLM configuration
@@ -2133,14 +2130,12 @@ class LocalClient(AbstractClient):
             agent_state (AgentState): State of the created agent
         """
         # construct list of tools
+        tool_ids = tool_ids or []
         tool_names = []
         if include_base_tools:
             tool_names += BASE_TOOLS
             tool_names += BASE_MEMORY_TOOLS
-        tools = [self.server.tool_manager.get_tool_by_name(tool_name=name, actor=self.user) for name in tool_names]
-
-        if tool_ids:
-            tools += [self.server.tool_manager.get_tool_by_id(tool_id=tool_id, actor=self.user) for tool_id in tool_ids]
+        tool_ids += [self.server.tool_manager.get_tool_by_name(tool_name=name, actor=self.user).id for name in tool_names]
 
         # check if default configs are provided
         assert embedding_config or self._default_embedding_config, f"Embedding config must be provided"
@@ -2157,7 +2152,7 @@ class LocalClient(AbstractClient):
             "metadata_": metadata,
             "memory_blocks": [],
             "block_ids": [b.id for b in memory.get_blocks()],
-            "tool_ids": [t.id for t in tools],
+            "tool_ids": tool_ids,
             "tool_rules": tool_rules,
             "system": system,
             "agent_type": agent_type,

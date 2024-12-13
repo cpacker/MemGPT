@@ -88,8 +88,11 @@ class UserManager:
         return self.get_user_by_id(self.DEFAULT_USER_ID)
 
     @enforce_types
-    def get_user_or_default(self, user_id: str):
+    def get_user_or_default(self, user_id: Optional[str] = None):
         """Fetch the user or default user."""
+        if not user_id:
+            return self.get_default_user()
+
         try:
             return self.get_user_by_id(user_id=user_id)
         except NoResultFound:

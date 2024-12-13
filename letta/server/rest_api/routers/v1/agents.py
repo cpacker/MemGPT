@@ -62,17 +62,32 @@ def list_agents(
     tags: Optional[List[str]] = Query(None, description="List of tags to filter agents by"),
     match_all_tags: bool = Query(
         False,
-        description="If True, only returns agents that matches ALL given tags. Otherwise, return agents that have ANY of the passed in tags.",
+        description="If True, only returns agents that match ALL given tags. Otherwise, return agents that have ANY of the passed in tags.",
     ),
     server: "SyncServer" = Depends(get_letta_server),
-    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
+    user_id: Optional[str] = Header(None, alias="user_id"),
+    # Extract user_id from header, default to None if not present
 ):
     """
     List all agents associated with a given user.
     This endpoint retrieves a list of all agents and their configurations associated with the specified user ID.
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-    agents = server.agent_manager.list_agents(actor=actor, tags=tags, match_all_tags=match_all_tags, name=name)
+
+    # Use dictionary comprehension to build kwargs dynamically
+    kwargs = {
+        key: value
+        for key, value in {
+            "actor": actor,
+            "tags": tags,
+            "match_all_tags": match_all_tags,
+            "name": name,
+        }.items()
+        if value is not None
+    }
+
+    # Call list_agents with the dynamic kwargs
+    agents = server.agent_manager.list_agents(**kwargs)
     return agents
 
 
@@ -313,7 +328,7 @@ def remove_agent_memory_block(
 def update_agent_memory_block(
     agent_id: str,
     block_label: str,
-    update_block: BlockUpdate = Body(...),
+    block_update: BlockUpdate = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
@@ -322,11 +337,8 @@ def update_agent_memory_block(
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    # get the block_id from the label
-    block_id = server.blocks_agents_manager.get_block_id_for_label(agent_id=agent_id, block_label=block_label)
-
-    # update the block
-    return server.block_manager.update_block(block_id=block_id, block_update=update_block, actor=actor)
+    block = server.agent_manager.get_block_with_label(agent_id=agent_id, block_label=block_label, actor=actor)
+    return server.block_manager.update_block(block.id, block_update=block_update, actor=actor)
 
 
 @router.get("/{agent_id}/memory/recall", response_model=RecallMemorySummary, operation_id="get_agent_recall_memory_summary")

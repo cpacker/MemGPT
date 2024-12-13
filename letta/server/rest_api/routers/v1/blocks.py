@@ -40,12 +40,12 @@ def create_block(
 @router.patch("/{block_id}", response_model=Block, operation_id="update_memory_block")
 def update_block(
     block_id: str,
-    update_block: BlockUpdate = Body(...),
+    block_update: BlockUpdate = Body(...),
     server: SyncServer = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),
 ):
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-    return server.block_manager.update_block(block_id=block_id, block_update=update_block, actor=actor)
+    return server.block_manager.update_block(block_id=block_id, block_update=block_update, actor=actor)
 
 
 @router.delete("/{block_id}", response_model=Block, operation_id="delete_memory_block")
