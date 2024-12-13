@@ -1,21 +1,22 @@
 from typing import List, Optional
 
-from letta.constants import MAX_EMBEDDING_DIM
 from datetime import datetime
+from typing import List, Optional
+
 import numpy as np
 
 from sqlalchemy import select, union_all, literal
 
+from letta.constants import MAX_EMBEDDING_DIM
+from letta.embeddings import embedding_model, parse_and_chunk_text
 from letta.orm.errors import NoResultFound
 from letta.orm.passage import AgentPassage, SourcePassage
-from letta.utils import enforce_types
-
-from letta.embeddings import embedding_model, parse_and_chunk_text
-from letta.schemas.embedding_config import EmbeddingConfig
-
 from letta.schemas.agent import AgentState
+from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.passage import Passage as PydanticPassage
 from letta.schemas.user import User as PydanticUser
+from letta.utils import enforce_types
+
 
 
 class PassageManager:
@@ -23,6 +24,7 @@ class PassageManager:
 
     def __init__(self):
         from letta.server.server import db_context
+
         self.session_maker = db_context
 
     @enforce_types
@@ -83,19 +85,20 @@ class PassageManager:
         return [self.create_passage(p, actor) for p in passages]
 
     @enforce_types
-    def insert_passage(self, 
+    def insert_passage(
+        self,
         agent_state: AgentState,
         agent_id: str,
-        text: str, 
-        actor: PydanticUser, 
+        text: str,
+        actor: PydanticUser,
     ) -> List[PydanticPassage]:
-        """ Insert passage(s) into archival memory """
+        """Insert passage(s) into archival memory"""
 
         embedding_chunk_size = agent_state.embedding_config.embedding_chunk_size
         embed_model = embedding_model(agent_state.embedding_config)
 
         passages = []
-        
+
         try:
             # breakup string into passages
             for text in parse_and_chunk_text(text, embedding_chunk_size):
@@ -114,12 +117,12 @@ class PassageManager:
                         agent_id=agent_id,
                         text=text,
                         embedding=embedding,
-                        embedding_config=agent_state.embedding_config
+                        embedding_config=agent_state.embedding_config,
                     ),
-                    actor=actor
+                    actor=actor,
                 )
                 passages.append(passage)
-            
+
             return passages
 
         except Exception as e:
@@ -366,28 +369,32 @@ class PassageManager:
                 except NoResultFound:
                     raise NoResultFound(f"Passage with id {passage_id} not found.")
 
-    def delete_passages(self,
-                        actor: PydanticUser,
-                        agent_id: Optional[str] = None,
-                        file_id: Optional[str] = None,
-                        start_date: Optional[datetime] = None,
-                        end_date: Optional[datetime] = None,
-                        limit: Optional[int] = 50,
-                        cursor: Optional[str] = None,
-                        query_text: Optional[str] = None,
-                        source_id: Optional[str] = None
-                       ) -> bool:
-                    
+    def delete_passages(
+        self,
+        actor: PydanticUser,
+        agent_id: Optional[str] = None,
+        file_id: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: Optional[int] = 50,
+        cursor: Optional[str] = None,
+        query_text: Optional[str] = None,
+        source_id: Optional[str] = None,
+    ) -> bool:
+
         passages = self.list_passages(
-            actor=actor, 
-            agent_id=agent_id, 
-            file_id=file_id, 
-            cursor=cursor, 
+            actor=actor,
+            agent_id=agent_id,
+            file_id=file_id,
+            cursor=cursor,
             limit=limit,
-            start_date=start_date, 
-            end_date=end_date, 
-            query_text=query_text, 
-            source_id=source_id)
-        
+            start_date=start_date,
+            end_date=end_date,
+            query_text=query_text,
+            source_id=source_id,
+        )
+
+        # TODO: This is very inefficient
+        # TODO: We should have a base `delete_all_matching_filters`-esque function
         for passage in passages:
             self.delete_passage_by_id(passage_id=passage.id, actor=actor)

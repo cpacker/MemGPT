@@ -20,11 +20,6 @@ class WebSocketServer:
 
     def shutdown_server(self):
         try:
-            self.server.save_agents()
-            print(f"Saved agents")
-        except Exception as e:
-            print(f"Saving agents failed with: {e}")
-        try:
             self.interface.close()
             print(f"Closed the WS interface")
         except Exception as e:

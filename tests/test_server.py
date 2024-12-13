@@ -19,8 +19,6 @@ from letta.schemas.letta_message import (
 )
 from letta.schemas.user import User
 
-from .test_managers import DEFAULT_EMBEDDING_CONFIG
-
 utils.DEBUG = True
 from letta.config import LettaConfig
 from letta.schemas.agent import CreateAgent
@@ -266,6 +264,7 @@ Lise, young Bolkónski's wife, this very evening, and perhaps the
 thing can be arranged. It shall be on your family's behalf that I'll
 start my apprenticeship as old maid."""
 
+
 @pytest.fixture(scope="module")
 def server():
     config = LettaConfig.load()
@@ -302,42 +301,66 @@ def user_id(server, org_id):
 
 
 @pytest.fixture(scope="module")
-def agent_id(server, user_id):
+def base_tools(server, user_id):
+    actor = server.user_manager.get_user_or_default(user_id)
+    tools = []
+    for tool_name in BASE_TOOLS:
+        tools.append(server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor))
+
+    yield tools
+
+
+@pytest.fixture(scope="module")
+def base_memory_tools(server, user_id):
+    actor = server.user_manager.get_user_or_default(user_id)
+    tools = []
+    for tool_name in BASE_MEMORY_TOOLS:
+        tools.append(server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor))
+
+    yield tools
+
+
+@pytest.fixture(scope="module")
+def agent_id(server, user_id, base_tools):
     # create agent
+    actor = server.user_manager.get_user_or_default(user_id)
     agent_state = server.create_agent(
         request=CreateAgent(
             name="test_agent",
-            tools=BASE_TOOLS,
+            tool_ids=[t.id for t in base_tools],
             memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        actor=server.get_user_or_default(user_id),
+        actor=actor,
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
 
     # cleanup
-    server.delete_agent(user_id, agent_state.id)
+    server.agent_manager.delete_agent(agent_state.id, actor=actor)
+
 
 @pytest.fixture(scope="module")
-def other_agent_id(server, user_id):
+def other_agent_id(server, user_id, base_tools):
     # create agent
+    actor = server.user_manager.get_user_or_default(user_id)
     agent_state = server.create_agent(
         request=CreateAgent(
             name="test_agent_other",
-            tools=BASE_TOOLS,
+            tool_ids=[t.id for t in base_tools],
             memory_blocks=[],
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        actor=server.get_user_or_default(user_id),
+        actor=actor,
     )
     print(f"Created agent\n{agent_state}")
     yield agent_state.id
 
     # cleanup
-    server.delete_agent(user_id, agent_state.id)
+    server.agent_manager.delete_agent(agent_state.id, actor=actor)
+
 
 def test_error_on_nonexistent_agent(server, user_id, agent_id):
     try:
@@ -416,6 +439,7 @@ def test_user_message(server, user_id, agent_id):
 @pytest.mark.order(5)
 def test_get_recall_memory(server, org_id, user_id, agent_id):
     # test recall memory cursor pagination
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=2)
     cursor1 = messages_1[-1].id
     messages_2 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, after=cursor1, limit=1000)
@@ -427,7 +451,9 @@ def test_get_recall_memory(server, org_id, user_id, agent_id):
     assert len(messages_4) == 1
 
     # test in-context message ids
-    in_context_ids = server.get_in_context_message_ids(agent_id=agent_id)
+    # in_context_ids = server.get_in_context_message_ids(agent_id=agent_id)
+    in_context_ids = server.agent_manager.get_agent_by_id(agent_id=agent_id, actor=actor).message_ids
+
     message_ids = [m.id for m in messages_3]
     for message_id in in_context_ids:
         assert message_id in message_ids, f"{message_id} not in {message_ids}"
@@ -437,10 +463,13 @@ def test_get_recall_memory(server, org_id, user_id, agent_id):
 def test_get_archival_memory(server, user_id, agent_id):
     # test archival memory cursor pagination
     user = server.user_manager.get_user_by_id(user_id=user_id)
- 
+
     # List latest 2 passages
     passages_1 = server.passage_manager.list_passages(
-        actor=user, agent_id=agent_id, ascending=False, limit=2,
+        actor=user,
+        agent_id=agent_id,
+        ascending=False,
+        limit=2,
     )
     assert len(passages_1) == 2, f"Returned {[p.text for p in passages_1]}, not equal to 2"
 
@@ -483,12 +512,13 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     - "rewrite" replaces the text of the last assistant message
     - "retry" retries the last assistant message
     """
+    actor = server.user_manager.get_user_or_default(user_id)
 
     # Send an initial message
     server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
 
     # Grab the raw Agent object
-    letta_agent = server.load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id, actor=actor)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -496,10 +526,10 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     # Try "rethink"
     new_thought = "I am thinking about the meaning of life, the universe, and everything. Bananas?"
     assert last_agent_message.text is not None and last_agent_message.text != new_thought
-    server.rethink_agent_message(agent_id=agent_id, new_thought=new_thought)
+    server.rethink_agent_message(agent_id=agent_id, new_thought=new_thought, actor=actor)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server.load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id, actor=actor)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -513,10 +543,10 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     assert "message" in args_json and args_json["message"] is not None and args_json["message"] != ""
 
     new_text = "Why hello there my good friend! Is 42 what you're looking for? Bananas?"
-    server.rewrite_agent_message(agent_id=agent_id, new_text=new_text)
+    server.rewrite_agent_message(agent_id=agent_id, new_text=new_text, actor=actor)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server.load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id, actor=actor)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -524,10 +554,10 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     assert "message" in args_json and args_json["message"] is not None and args_json["message"] == new_text
 
     # Try retry
-    server.retry_agent_message(agent_id=agent_id)
+    server.retry_agent_message(agent_id=agent_id, actor=actor)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server.load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id, actor=actor)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -581,33 +611,6 @@ def test_get_context_window_overview(server: SyncServer, user_id: str, agent_id:
     )
 
 
-def test_load_agent_with_nonexistent_tool_names_does_not_error(server: SyncServer, user_id: str):
-    fake_tool_name = "blahblahblah"
-    tools = BASE_TOOLS + [fake_tool_name]
-    agent_state = server.create_agent(
-        request=CreateAgent(
-            name="nonexistent_tools_agent",
-            tools=tools,
-            memory_blocks=[],
-            llm_config=LLMConfig.default_config("gpt-4"),
-            embedding_config=EmbeddingConfig.default_config(provider="openai"),
-        ),
-        actor=server.get_user_or_default(user_id),
-    )
-
-    # Check that the tools in agent_state do NOT include the fake name
-    assert fake_tool_name not in agent_state.tool_names
-    assert set(BASE_TOOLS).issubset(set(agent_state.tool_names))
-
-    # Load the agent from the database and check that it doesn't error / tools are correct
-    saved_tools = server.get_tools_from_agent(agent_id=agent_state.id, user_id=user_id)
-    assert fake_tool_name not in agent_state.tool_names
-    assert set(BASE_TOOLS).issubset(set(agent_state.tool_names))
-
-    # cleanup
-    server.delete_agent(user_id, agent_state.id)
-
-
 def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
     agent_state = server.create_agent(
         request=CreateAgent(
@@ -616,14 +619,14 @@ def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        actor=server.get_user_or_default(user_id),
+        actor=server.user_manager.get_user_or_default(user_id),
     )
 
     # create another user in the same org
     another_user = server.user_manager.create_user(User(organization_id=org_id, name="another"))
 
     # test that another user in the same org can delete the agent
-    server.delete_agent(another_user.id, agent_state.id)
+    server.agent_manager.delete_agent(agent_state.id, actor=another_user)
 
 
 def _test_get_messages_letta_format(
@@ -887,14 +890,14 @@ def test_composio_client_simple(server):
     assert len(actions) > 0
 
 
-def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none):
+def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none, base_tools, base_memory_tools):
     """Test that the memory rebuild is generating the correct number of role=system messages"""
-
+    actor = server.user_manager.get_user_or_default(user_id)
     # create agent
     agent_state = server.create_agent(
         request=CreateAgent(
             name="memory_rebuild_test_agent",
-            tools=BASE_TOOLS + BASE_MEMORY_TOOLS,
+            tool_ids=[t.id for t in base_tools + base_memory_tools],
             memory_blocks=[
                 CreateBlock(label="human", value="The human's name is Bob."),
                 CreateBlock(label="persona", value="My name is Alice."),
@@ -902,7 +905,7 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none):
             llm_config=LLMConfig.default_config("gpt-4"),
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
         ),
-        actor=server.get_user_or_default(user_id),
+        actor=actor,
     )
     print(f"Created agent\n{agent_state}")
 
@@ -929,31 +932,28 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none):
     try:
         # At this stage, there should only be 1 system message inside of recall storage
         num_system_messages, all_messages = count_system_messages_in_recall()
-        # assert num_system_messages == 1, (num_system_messages, all_messages)
-        assert num_system_messages == 2, (num_system_messages, all_messages)
+        assert num_system_messages == 1, (num_system_messages, all_messages)
 
         # Assuming core memory append actually ran correctly, at this point there should be 2 messages
         server.user_message(user_id=user_id, agent_id=agent_state.id, message="Append 'banana' to your core memory")
 
-        # At this stage, there should only be 1 system message inside of recall storage
+        # At this stage, there should be 2 system message inside of recall storage
         num_system_messages, all_messages = count_system_messages_in_recall()
-        # assert num_system_messages == 2, (num_system_messages, all_messages)
-        assert num_system_messages == 3, (num_system_messages, all_messages)
+        assert num_system_messages == 2, (num_system_messages, all_messages)
 
         # Run server.load_agent, and make sure that the number of system messages is still 2
-        server.load_agent(agent_id=agent_state.id)
+        server.load_agent(agent_id=agent_state.id, actor=actor)
 
         num_system_messages, all_messages = count_system_messages_in_recall()
-        # assert num_system_messages == 2, (num_system_messages, all_messages)
-        assert num_system_messages == 3, (num_system_messages, all_messages)
+        assert num_system_messages == 2, (num_system_messages, all_messages)
 
     finally:
         # cleanup
-        server.delete_agent(user_id, agent_state.id)
+        server.agent_manager.delete_agent(agent_state.id, actor=actor)
 
 
 def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, other_agent_id: str, tmp_path):
-    user = server.get_user_or_default(user_id)
+    actor = server.user_manager.get_user_or_default(user_id)
 
     # Create a source
     source = server.source_manager.create_source(
@@ -962,7 +962,7 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
             embedding_config=EmbeddingConfig.default_config(provider="openai"),
             created_by_id=user_id,
         ),
-        actor=user
+        actor=actor,
     )
 
     # Create a test file with some content
@@ -971,11 +971,10 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
     test_file.write_text(test_content)
 
     # Attach source to agent first
-    agent = server.load_agent(agent_id=agent_id)
-    agent.attach_source(user=user, source_id=source.id, source_manager=server.source_manager, ms=server.ms)
+    server.agent_manager.attach_source(agent_id=agent_id, source_id=source.id, actor=actor)
 
     # Get initial passage count
-    initial_passage_count = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    initial_passage_count = server.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source.id)
     assert initial_passage_count == 0
 
     # Create a job for loading the first file
@@ -984,7 +983,7 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
             user_id=user_id,
             metadata_={"type": "embedding", "filename": test_file.name, "source_id": source.id},
         ),
-        actor=user
+        actor=actor,
     )
 
     # Load the first file to source
@@ -992,17 +991,17 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
         source_id=source.id,
         file_path=str(test_file),
         job_id=job.id,
-        actor=user,
+        actor=actor,
     )
 
     # Verify job completed successfully
-    job = server.job_manager.get_job_by_id(job_id=job.id, actor=user)
+    job = server.job_manager.get_job_by_id(job_id=job.id, actor=actor)
     assert job.status == "completed"
-    assert job.metadata_["num_passages"]  == 1
+    assert job.metadata_["num_passages"] == 1
     assert job.metadata_["num_documents"] == 1
 
     # Verify passages were added
-    first_file_passage_count = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    first_file_passage_count = server.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source.id)
     assert first_file_passage_count > initial_passage_count
 
     # Create a second test file with different content
@@ -1015,7 +1014,7 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
             user_id=user_id,
             metadata_={"type": "embedding", "filename": test_file2.name, "source_id": source.id},
         ),
-        actor=user
+        actor=actor,
     )
 
     # Load the second file to source
@@ -1023,22 +1022,22 @@ def test_load_file_to_source(server: SyncServer, user_id: str, agent_id: str, ot
         source_id=source.id,
         file_path=str(test_file2),
         job_id=job2.id,
-        actor=user,
+        actor=actor,
     )
 
     # Verify second job completed successfully
-    job2 = server.job_manager.get_job_by_id(job_id=job2.id, actor=user)
+    job2 = server.job_manager.get_job_by_id(job_id=job2.id, actor=actor)
     assert job2.status == "completed"
     assert job2.metadata_["num_passages"] >= 10
     assert job2.metadata_["num_documents"] == 1
 
     # Verify passages were appended (not replaced)
-    final_passage_count = server.passage_manager.size(actor=user, agent_id=agent_id, source_id=source.id)
+    final_passage_count = server.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source.id)
     assert final_passage_count > first_file_passage_count
 
     # Verify both old and new content is searchable
     passages = server.passage_manager.list_passages(
-        actor=user,
+        actor=actor,
         agent_id=agent_id,
         source_id=source.id,
         query_text="what does Timber like to eat",

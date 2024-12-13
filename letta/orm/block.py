@@ -1,16 +1,17 @@
 from typing import TYPE_CHECKING, Optional, Type
 
-from sqlalchemy import JSON, BigInteger, Integer, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON, BigInteger, Integer, UniqueConstraint, event
+from sqlalchemy.orm import Mapped, attributes, mapped_column, relationship
 
 from letta.constants import CORE_MEMORY_BLOCK_CHAR_LIMIT
+from letta.orm.blocks_agents import BlocksAgents
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import Human, Persona
 
 if TYPE_CHECKING:
-    from letta.orm import BlocksAgents, Organization
+    from letta.orm import Organization
 
 
 class Block(OrganizationMixin, SqlalchemyBase):
@@ -35,7 +36,6 @@ class Block(OrganizationMixin, SqlalchemyBase):
 
     # relationships
     organization: Mapped[Optional["Organization"]] = relationship("Organization")
-    blocks_agents: Mapped[list["BlocksAgents"]] = relationship("BlocksAgents", back_populates="block", cascade="all, delete")
 
     def to_pydantic(self) -> Type:
         match self.label:
@@ -46,3 +46,28 @@ class Block(OrganizationMixin, SqlalchemyBase):
             case _:
                 Schema = PydanticBlock
         return Schema.model_validate(self)
+
+
+@event.listens_for(Block, "after_update")  # Changed from 'before_update'
+def block_before_update(mapper, connection, target):
+    """Handle updating BlocksAgents when a block's label changes."""
+    label_history = attributes.get_history(target, "label")
+    if not label_history.has_changes():
+        return
+
+    blocks_agents = BlocksAgents.__table__
+    connection.execute(
+        blocks_agents.update()
+        .where(blocks_agents.c.block_id == target.id, blocks_agents.c.block_label == label_history.deleted[0])
+        .values(block_label=label_history.added[0])
+    )
+
+
+@event.listens_for(Block, "before_insert")
+@event.listens_for(Block, "before_update")
+def validate_value_length(mapper, connection, target):
+    """Ensure the value length does not exceed the limit."""
+    if target.value and len(target.value) > target.limit:
+        raise ValueError(
+            f"Value length ({len(target.value)}) exceeds the limit ({target.limit}) for block with label '{target.label}' and id '{target.id}'."
+        )

@@ -74,7 +74,7 @@ def main():
     """
 
     # Create an agent
-    agent = client.create_agent(name=agent_uuid, memory=ChatMemory(human="My name is Matt.", persona=persona), tools=[tool.name])
+    agent = client.create_agent(name=agent_uuid, memory=ChatMemory(human="My name is Matt.", persona=persona), tool_ids=[tool.id])
     print(f"Created agent: {agent.name} with ID {str(agent.id)}")
 
     # Send a message to the agent

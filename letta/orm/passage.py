@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Column, DateTime, JSON, Index
@@ -14,6 +15,10 @@ from letta.schemas.passage import Passage as PydanticPassage
 
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
+from letta.orm.mixins import FileMixin, OrganizationMixin
+from letta.orm.source import EmbeddingConfigColumn
+from letta.orm.sqlalchemy_base import SqlalchemyBase
+from letta.schemas.passage import Passage as PydanticPassage
 from letta.settings import settings
 
 config = LettaConfig()
@@ -21,8 +26,10 @@ config = LettaConfig()
 if TYPE_CHECKING:
     from letta.orm.organization import Organization
 
+
 class CommonVector(TypeDecorator):
     """Common type for representing vectors in SQLite"""
+
     impl = BINARY
     cache_ok = True
 
@@ -57,6 +64,7 @@ class BasePassage(SqlalchemyBase, OrganizationMixin):
     # Vector embedding field based on database type
     if settings.letta_pg_uri_no_default:
         from pgvector.sqlalchemy import Vector
+
         embedding = mapped_column(Vector(MAX_EMBEDDING_DIM))
     else:
         embedding = Column(CommonVector)

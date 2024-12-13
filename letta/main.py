@@ -130,11 +130,11 @@ def run_agent_loop(
                 # updated agent save functions
                 if user_input.lower() == "/exit":
                     # letta_agent.save()
-                    agent.save_agent(letta_agent, ms)
+                    agent.save_agent(letta_agent)
                     break
                 elif user_input.lower() == "/save" or user_input.lower() == "/savechat":
                     # letta_agent.save()
-                    agent.save_agent(letta_agent, ms)
+                    agent.save_agent(letta_agent)
                     continue
                 elif user_input.lower() == "/attach":
                     # TODO: check if agent already has it
@@ -394,7 +394,7 @@ def run_agent_loop(
             token_warning = step_response.in_context_memory_warning
             step_response.usage
 
-            agent.save_agent(letta_agent, ms)
+            agent.save_agent(letta_agent)
             skip_next_user_input = False
             if token_warning:
                 user_message = system.get_token_limit_warning()

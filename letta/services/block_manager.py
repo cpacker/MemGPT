@@ -7,7 +7,6 @@ from letta.schemas.block import Block
 from letta.schemas.block import Block as PydanticBlock
 from letta.schemas.block import BlockUpdate, Human, Persona
 from letta.schemas.user import User as PydanticUser
-from letta.services.blocks_agents_manager import BlocksAgentsManager
 from letta.utils import enforce_types, list_human_files, list_persona_files
 
 
@@ -37,33 +36,17 @@ class BlockManager:
     @enforce_types
     def update_block(self, block_id: str, block_update: BlockUpdate, actor: PydanticUser) -> PydanticBlock:
         """Update a block by its ID with the given BlockUpdate object."""
-        # TODO: REMOVE THIS ONCE AGENT IS ON ORM -> Update blocks_agents
-        blocks_agents_manager = BlocksAgentsManager()
-        agent_ids = []
-        if block_update.label:
-            agent_ids = blocks_agents_manager.list_agent_ids_with_block(block_id=block_id)
-            for agent_id in agent_ids:
-                blocks_agents_manager.remove_block_with_id_from_agent(agent_id=agent_id, block_id=block_id)
+        # Safety check for block
 
         with self.session_maker() as session:
-            # Update block
             block = BlockModel.read(db_session=session, identifier=block_id, actor=actor)
             update_data = block_update.model_dump(exclude_unset=True, exclude_none=True)
+
             for key, value in update_data.items():
                 setattr(block, key, value)
-            try:
-                block.to_pydantic()
-            except Exception as e:
-                # invalid pydantic model
-                raise ValueError(f"Failed to create pydantic model: {e}")
+
             block.update(db_session=session, actor=actor)
-
-        # TODO: REMOVE THIS ONCE AGENT IS ON ORM -> Update blocks_agents
-        if block_update.label:
-            for agent_id in agent_ids:
-                blocks_agents_manager.add_block_to_agent(agent_id=agent_id, block_id=block_id, block_label=block_update.label)
-
-        return block.to_pydantic()
+            return block.to_pydantic()
 
     @enforce_types
     def delete_block(self, block_id: str, actor: PydanticUser) -> PydanticBlock:
@@ -110,6 +93,15 @@ class BlockManager:
                 return block.to_pydantic()
             except NoResultFound:
                 return None
+
+    @enforce_types
+    def get_all_blocks_by_ids(self, block_ids: List[str], actor: Optional[PydanticUser] = None) -> List[PydanticBlock]:
+        # TODO: We can do this much more efficiently by listing, instead of executing individual queries per block_id
+        blocks = []
+        for block_id in block_ids:
+            block = self.get_block_by_id(block_id, actor=actor)
+            blocks.append(block)
+        return blocks
 
     @enforce_types
     def add_default_blocks(self, actor: PydanticUser):

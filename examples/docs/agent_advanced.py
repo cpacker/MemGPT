@@ -29,7 +29,7 @@ agent_state = client.create_agent(
     # whether to include base letta tools (default: True)
     include_base_tools=True,
     # list of additional tools (by name) to add to the agent
-    tools=[],
+    tool_ids=[],
 )
 print(f"Created agent with name {agent_state.name} and unique ID {agent_state.id}")
 
