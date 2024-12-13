@@ -81,6 +81,7 @@ class AbstractClient(object):
         embedding_config: Optional[EmbeddingConfig] = None,
         llm_config: Optional[LLMConfig] = None,
         memory=None,
+        block_ids: Optional[List[str]] = None,
         system: Optional[str] = None,
         tool_ids: Optional[List[str]] = None,
         tool_rules: Optional[List[BaseToolRule]] = None,
@@ -492,6 +493,8 @@ class RESTClient(AbstractClient):
         llm_config: LLMConfig = None,
         # memory
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        # Existing blocks
+        block_ids: Optional[List[str]] = None,
         # system
         system: Optional[str] = None,
         # tools
@@ -546,13 +549,14 @@ class RESTClient(AbstractClient):
                 )
             )
         memory.blocks = blocks
+        block_ids = block_ids or []
 
         # create agent
         create_params = {
             "description": description,
             "metadata_": metadata,
             "memory_blocks": [],
-            "block_ids": [b.id for b in memory.get_blocks()],
+            "block_ids": [b.id for b in memory.get_blocks()] + block_ids,
             "tool_ids": tool_ids,
             "tool_rules": tool_rules,
             "system": system,
@@ -1066,7 +1070,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to update block: {response.text}")
         return Block(**response.json())
 
-    def get_block(self, block_id: str) -> Block:
+    def get_block(self, block_id: str) -> Optional[Block]:
         response = requests.get(f"{self.base_url}/{self.api_prefix}/blocks/{block_id}", headers=self.headers)
         if response.status_code == 404:
             return None
@@ -2094,6 +2098,7 @@ class LocalClient(AbstractClient):
         llm_config: LLMConfig = None,
         # memory
         memory: Memory = ChatMemory(human=get_human_text(DEFAULT_HUMAN), persona=get_persona_text(DEFAULT_PERSONA)),
+        block_ids: Optional[List[str]] = None,
         # TODO: change to this when we are ready to migrate all the tests/examples (matches the REST API)
         # memory_blocks=[
         #    {"label": "human", "value": get_human_text(DEFAULT_HUMAN), "limit": 5000},
@@ -2145,13 +2150,16 @@ class LocalClient(AbstractClient):
         for block in memory.get_blocks():
             self.server.block_manager.create_or_update_block(block, actor=self.user)
 
+        # Also get any existing block_ids passed in
+        block_ids = block_ids or []
+
         # create agent
         # Create the base parameters
         create_params = {
             "description": description,
             "metadata_": metadata,
             "memory_blocks": [],
-            "block_ids": [b.id for b in memory.get_blocks()],
+            "block_ids": [b.id for b in memory.get_blocks()] + block_ids,
             "tool_ids": tool_ids,
             "tool_rules": tool_rules,
             "system": system,

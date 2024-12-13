@@ -42,7 +42,7 @@ def run_server():
 
 @pytest.fixture(
     params=[{"server": False}, {"server": True}],  # whether to use REST API server
-    # params=[{"server": False}],  # whether to use REST API server
+    # params=[{"server": True}],  # whether to use REST API server
     scope="module",
 )
 def client(request):
@@ -84,6 +84,47 @@ def clear_tables():
         session.execute(delete(SandboxEnvironmentVariable))
         session.execute(delete(SandboxConfig))
         session.commit()
+
+
+def test_shared_blocks(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient]):
+    # _reset_config()
+
+    # create a block
+    block = client.create_block(label="human", value="username: sarah")
+
+    # create agents with shared block
+    from letta.schemas.block import Block
+    from letta.schemas.memory import BasicBlockMemory
+
+    # persona1_block = client.create_block(label="persona", value="you are agent 1")
+    # persona2_block = client.create_block(label="persona", value="you are agent 2")
+    # create agents
+    agent_state1 = client.create_agent(
+        name="agent1", memory=BasicBlockMemory([Block(label="persona", value="you are agent 1")]), block_ids=[block.id]
+    )
+    agent_state2 = client.create_agent(
+        name="agent2", memory=BasicBlockMemory([Block(label="persona", value="you are agent 2")]), block_ids=[block.id]
+    )
+
+    ## attach shared block to both agents
+    # client.link_agent_memory_block(agent_state1.id, block.id)
+    # client.link_agent_memory_block(agent_state2.id, block.id)
+
+    # update memory
+    client.user_message(agent_id=agent_state1.id, message="my name is actually charles")
+
+    # check agent 2 memory
+    assert "charles" in client.get_block(block.id).value.lower(), f"Shared block update failed {client.get_block(block.id).value}"
+
+    client.user_message(agent_id=agent_state2.id, message="whats my name?")
+    assert (
+        "charles" in client.get_core_memory(agent_state2.id).get_block("human").value.lower()
+    ), f"Shared block update failed {client.get_core_memory(agent_state2.id).get_block('human').value}"
+    # assert "charles" in response.messages[1].text.lower(), f"Shared block update failed {response.messages[0].text}"
+
+    # cleanup
+    client.delete_agent(agent_state1.id)
+    client.delete_agent(agent_state2.id)
 
 
 def test_sandbox_config_and_env_var_basic(client: Union[LocalClient, RESTClient]):

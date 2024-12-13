@@ -583,43 +583,6 @@ def test_list_llm_models(client: RESTClient):
         assert has_model_endpoint_type(models, "anthropic")
 
 
-def test_shared_blocks(mock_e2b_api_key_none, client: Union[LocalClient, RESTClient], agent: AgentState):
-    # _reset_config()
-
-    # create a block
-    block = client.create_block(label="human", value="username: sarah")
-
-    # create agents with shared block
-    from letta.schemas.block import Block
-    from letta.schemas.memory import BasicBlockMemory
-
-    # persona1_block = client.create_block(label="persona", value="you are agent 1")
-    # persona2_block = client.create_block(label="persona", value="you are agent 2")
-    # create agnets
-    agent_state1 = client.create_agent(name="agent1", memory=BasicBlockMemory([Block(label="persona", value="you are agent 1"), block]))
-    agent_state2 = client.create_agent(name="agent2", memory=BasicBlockMemory([Block(label="persona", value="you are agent 2"), block]))
-
-    ## attach shared block to both agents
-    # client.link_agent_memory_block(agent_state1.id, block.id)
-    # client.link_agent_memory_block(agent_state2.id, block.id)
-
-    # update memory
-    response = client.user_message(agent_id=agent_state1.id, message="my name is actually charles")
-
-    # check agent 2 memory
-    assert "charles" in client.get_block(block.id).value.lower(), f"Shared block update failed {client.get_block(block.id).value}"
-
-    response = client.user_message(agent_id=agent_state2.id, message="whats my name?")
-    assert (
-        "charles" in client.get_core_memory(agent_state2.id).get_block("human").value.lower()
-    ), f"Shared block update failed {client.get_core_memory(agent_state2.id).get_block('human').value}"
-    # assert "charles" in response.messages[1].text.lower(), f"Shared block update failed {response.messages[0].text}"
-
-    # cleanup
-    client.delete_agent(agent_state1.id)
-    client.delete_agent(agent_state2.id)
-
-
 @pytest.fixture
 def cleanup_agents(client):
     created_agents = []
