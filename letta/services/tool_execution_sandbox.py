@@ -10,7 +10,7 @@ import tempfile
 import traceback
 import uuid
 import venv
-from typing import Any, Dict, Optional, TextIO
+from typing import Any, Dict, Optional
 
 from letta.log import get_logger
 from letta.schemas.agent import AgentState
@@ -20,6 +20,7 @@ from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
 from letta.settings import tool_settings
+from letta.utils import get_friendly_error_msg
 
 logger = get_logger(__name__)
 
@@ -79,11 +80,11 @@ class ToolExecutionSandbox:
             logger.debug(f"Using local sandbox to execute {self.tool_name}")
             result = self.run_local_dir_sandbox(agent_state=agent_state)
 
-        # Log out any stdout from the tool run
-        logger.debug(f"Executed tool '{self.tool_name}', logging stdout from tool run: \n")
-        for log_line in result.stdout:
+        # Log out any stdout/stderr from the tool run
+        logger.debug(f"Executed tool '{self.tool_name}', logging output from tool run: \n")
+        for log_line in (result.stdout or []) + (result.stderr or []):
             logger.debug(f"{log_line}")
-        logger.debug(f"Ending stdout log from tool run.")
+        logger.debug(f"Ending output log from tool run.")
 
         # Return result
         return result
@@ -126,30 +127,24 @@ class ToolExecutionSandbox:
             temp_file.flush()
             temp_file_path = temp_file.name
 
-        # Save the old stdout
-        old_stdout = sys.stdout
-        old_stderr = sys.stderr
         try:
             if local_configs.use_venv:
                 return self.run_local_dir_sandbox_venv(sbx_config, env, temp_file_path)
             else:
-                return self.run_local_dir_sandbox_runpy(sbx_config, env_vars, temp_file_path, old_stdout, old_stderr)
+                return self.run_local_dir_sandbox_runpy(sbx_config, env_vars, temp_file_path)
         except Exception as e:
             logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
             logger.error(f"Logging out tool {self.tool_name} auto-generated code for debugging: \n\n{code}")
             raise e
         finally:
-            # Clean up the temp file and restore stdout
-            sys.stdout = old_stdout
-            sys.stderr = old_stderr
+            # Clean up the temp file
             os.remove(temp_file_path)
 
     def run_local_dir_sandbox_venv(self, sbx_config: SandboxConfig, env: Dict[str, str], temp_file_path: str) -> SandboxRunResult:
         local_configs = sbx_config.get_local_config()
         venv_path = os.path.join(local_configs.sandbox_dir, local_configs.venv_name)
 
-        # Safety checks for the venv
-        # Verify that the venv path exists and is a directory
+        # Safety checks for the venv: verify that the venv path exists and is a directory
         if not os.path.isdir(venv_path):
             logger.warning(f"Virtual environment directory does not exist at: {venv_path}, creating one now...")
             self.create_venv_for_local_sandbox(sandbox_dir_path=local_configs.sandbox_dir, venv_path=venv_path, env=env)
@@ -180,30 +175,43 @@ class ToolExecutionSandbox:
             return SandboxRunResult(
                 func_return=func_return,
                 agent_state=agent_state,
-                stdout=[stdout],
-                stderr=[result.stderr],
+                stdout=[stdout] if stdout else [],
+                stderr=[result.stderr] if result.stderr else [],
+                status="success",
+                sandbox_config_fingerprint=sbx_config.fingerprint(),
+            )
+
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Executing tool {self.tool_name} has process error: {e}")
+            func_return = get_friendly_error_msg(
+                function_name=self.tool_name, exception_name=type(e).__name__, exception_message=str(e),
+            )
+            return SandboxRunResult(
+                func_return=func_return,
+                agent_state=None,
+                stdout=[e.stdout] if e.stdout else [],
+                stderr=[e.stderr] if e.stderr else [],
+                status="error",
                 sandbox_config_fingerprint=sbx_config.fingerprint(),
             )
 
         except subprocess.TimeoutExpired:
             raise TimeoutError(f"Executing tool {self.tool_name} has timed out.")
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Executing tool {self.tool_name} has process error: {e}")
-            raise e
+
         except Exception as e:
             logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
             raise e
-        
 
     def run_local_dir_sandbox_runpy(
-        self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str, old_stdout: TextIO, old_stderr: TextIO
+        self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str
     ) -> SandboxRunResult:
-        func_return, agent_state, error_msg = None, None, None
+        status = "success"
+        agent_state, stderr = None, None
 
-        # Redirect stdout and stderr to capture script output
-        captured_stdout, captured_stderr = io.StringIO(), io.StringIO()
+        # Redirect stdout to capture script output
+        old_stdout = sys.stdout
+        captured_stdout = io.StringIO()
         sys.stdout = captured_stdout
-        sys.stderr = captured_stderr
 
         try:
             # Execute the temp file
@@ -215,21 +223,22 @@ class ToolExecutionSandbox:
             func_return, agent_state = self.parse_best_effort(func_result)
 
         except Exception as e:
-            traceback.print_exc(file=sys.stderr)
-            error_msg = f"{type(e).__name__}: {str(e)}"
+            func_return = get_friendly_error_msg(
+                function_name=self.tool_name, exception_name=type(e).__name__, exception_message=str(e)
+            )
+            stderr = traceback.format_exc()
+            status = "error"
 
-        # Restore stdout and stderr and collect captured output
+        # Restore stdout and collect captured output
         sys.stdout = old_stdout
-        sys.stderr = old_stderr
-        stdout_output = [captured_stdout.getvalue()]
-        stderr_output = [captured_stderr.getvalue()]
-        stderr_output.append(error_msg if error_msg else '')
+        stdout_output = [captured_stdout.getvalue()] if captured_stdout.getvalue() else []
 
         return SandboxRunResult(
             func_return=func_return,
             agent_state=agent_state,
             stdout=stdout_output,
-            stderr=stderr_output,
+            stderr=[stderr] if stderr else [],
+            status=status,
             sandbox_config_fingerprint=sbx_config.fingerprint(),
         )
 
@@ -280,20 +289,23 @@ class ToolExecutionSandbox:
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         code = self.generate_execution_script(agent_state=agent_state)
         execution = sbx.run_code(code, envs=env_vars)
-        func_return, agent_state = None, None
-        if execution.error is not None:
-            logger.error(f"Executing tool {self.tool_name} failed with {execution.error}")
-            execution.logs.stderr.append(execution.error.traceback) 
-            execution.logs.stderr.append(f"{execution.error.name}: {execution.error.value}") 
-        elif len(execution.results) == 0:
-            raise ValueError(f"Tool {self.tool_name} returned execution with None")
-        else:
+        if execution.results:
             func_return, agent_state = self.parse_best_effort(execution.results[0].text)
+        elif execution.error:
+            logger.error(f"Executing tool {self.tool_name} failed with {execution.error}")
+            func_return = get_friendly_error_msg(
+                function_name=self.tool_name, exception_name=execution.error.name, exception_message=execution.error.value
+            )
+            execution.logs.stderr.append(execution.error.traceback)
+        else:
+            raise ValueError(f"Tool {self.tool_name} returned execution with None")
+        
         return SandboxRunResult(
             func_return=func_return,
             agent_state=agent_state,
             stdout=execution.logs.stdout,
             stderr=execution.logs.stderr,
+            status="error" if execution.error else "success",
             sandbox_config_fingerprint=sbx_config.fingerprint(),
         )
 
@@ -481,5 +493,3 @@ class ToolExecutionSandbox:
 
         func_call_str = self.tool.name + "(" + params + ")"
         return func_call_str
-
-    #

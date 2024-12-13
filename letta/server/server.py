@@ -75,7 +75,7 @@ from letta.services.source_manager import SourceManager
 from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
-from letta.utils import get_utc_time, json_dumps, json_loads
+from letta.utils import get_friendly_error_msg, get_utc_time, json_dumps, json_loads
 
 logger = get_logger(__name__)
 
@@ -1329,54 +1329,29 @@ class SyncServer(Server):
         # Next, attempt to run the tool with the sandbox
         try:
             sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id, tool_object=tool).run(agent_state=agent_state)
-            function_response = str(sandbox_run_result.func_return)
-            stdout = [s for s in sandbox_run_result.stdout if s.strip()]
-            stderr = [s for s in sandbox_run_result.stderr if s.strip()]
-
-            # expected error
-            if stderr:
-                error_msg = self.get_error_msg_for_func_return(tool.name, stderr[-1])
-                return FunctionReturn(
-                    id="null",
-                    function_call_id="null",
-                    date=get_utc_time(),
-                    status="error",
-                    function_return=error_msg,
-                    stdout=stdout,
-                    stderr=stderr,
-                )
-
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
                 date=get_utc_time(),
-                status="success",
-                function_return=function_response,
-                stdout=stdout,
-                stderr=stderr,
+                status=sandbox_run_result.status,
+                function_return=str(sandbox_run_result.func_return),
+                stdout=sandbox_run_result.stdout,
+                stderr=sandbox_run_result.stderr,
             )
 
-        # unexpected error TODO(@cthomas): consolidate error handling
         except Exception as e:
-            error_msg = self.get_error_msg_for_func_return(tool.name, e)
+            func_return = get_friendly_error_msg(
+                function_name=tool.name, exception_name=type(e).__name__, exception_message=str(e)
+            )   
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
                 date=get_utc_time(),
                 status="error",
-                function_return=error_msg,
-                stdout=[""],
+                function_return=func_return,
+                stdout=[],
                 stderr=[traceback.format_exc()],
             )
-
-    def get_error_msg_for_func_return(self, tool_name, exception_message):
-        # same as agent.py
-        from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
-
-        error_msg = f"Error executing tool {tool_name}: {exception_message}"
-        if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
-            error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
-        return error_msg
 
     # Composio wrappers
     def get_composio_client(self, api_key: Optional[str] = None):
