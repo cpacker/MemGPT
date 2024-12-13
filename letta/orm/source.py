@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import JSON, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from letta.orm import FileMetadata
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.embedding_config import EmbeddingConfig
