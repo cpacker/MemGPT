@@ -61,10 +61,17 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint('id')
     )
     op.drop_table('passages')
+
+    # Foreign key constraints
     op.drop_constraint('files_source_id_fkey', 'files', type_='foreignkey')
     op.create_foreign_key(None, 'files', 'sources', ['source_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint('messages_agent_id_fkey', 'messages', type_='foreignkey')
     op.create_foreign_key(None, 'messages', 'agents', ['agent_id'], ['id'], ondelete='CASCADE')
+    op.create_foreign_key(None, 'source_passages', 'sources', ['source_id'], ['id'], ondelete='CASCADE')
+    
+    # Add after your existing operations:
+    op.create_index('agent_passages_org_idx', 'agent_passages', ['organization_id'])
+    op.create_index('source_passages_org_idx', 'source_passages', ['organization_id'])
     # ### end Alembic commands ###
 
 
@@ -74,6 +81,9 @@ def downgrade() -> None:
     op.create_foreign_key('messages_agent_id_fkey', 'messages', 'agents', ['agent_id'], ['id'])
     op.drop_constraint(None, 'files', type_='foreignkey')
     op.create_foreign_key('files_source_id_fkey', 'files', 'sources', ['source_id'], ['id'])
+    op.drop_constraint(None, 'source_passages', type_='foreignkey')
+    op.drop_index('source_passages_org_idx', 'source_passages')
+    op.drop_index('agent_passages_org_idx', 'agent_passages')
     op.create_table(
         'passages',
         sa.Column('id', sa.VARCHAR(), autoincrement=False, nullable=False),
