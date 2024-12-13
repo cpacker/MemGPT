@@ -36,7 +36,7 @@ print(f"Created tool with name {tool.name}")
 # create a new agent
 agent_state = client.create_agent(
     # create the agent with an additional tool
-    tools=[tool.name],
+    tool_ids=[tool.id],
     # add tool rules that terminate execution after specific tools
     tool_rules=[
         # exit after roll_d20 is called
@@ -61,7 +61,8 @@ client.add_tool_to_agent(agent_id=agent_state.id, tool_id=tool.id)
 client.delete_agent(agent_id=agent_state.id)
 
 # create an agent with only a subset of default tools
-agent_state = client.create_agent(include_base_tools=False, tools=[tool.name, "send_message"])
+send_message_tool = client.get_tool_id("send_message")
+agent_state = client.create_agent(include_base_tools=False, tool_ids=[tool.id, send_message_tool])
 
 # message the agent to search archival memory (will be unable to do so)
 response = client.send_message(agent_id=agent_state.id, role="user", message="search your archival memory")

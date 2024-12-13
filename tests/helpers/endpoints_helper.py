@@ -176,7 +176,7 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
 
     My name is Letta.
 
-    I am a personal assistant who answers a user's questions about a website `example.com`. When a user asks me a question about `example.com`, I will use a tool called {tool_name} which will search `example.com` and answer the relevant question.
+    I am a personal assistant who answers a user's questions about a website `example.com`. When a user asks me a question about `example.com`, I will use a tool called {tool.name} which will search `example.com` and answer the relevant question.
 
     Don’t forget - inner monologue / inner thoughts should always be different than the contents of send_message! send_message is how you communicate with the user, whereas inner thoughts are your own personal inner thoughts.
     """
