@@ -771,7 +771,7 @@ def test_passage_listing_date_range_filtering(server: SyncServer, agent_passage_
     assert len(limited_results) <= 3, "Should respect the limit parameter"
 
 
-def test_passage_vector_search(server: SyncServer, default_user, default_file, sarah_agent):
+def test_passage_vector_search(server: SyncServer, default_user, default_source, sarah_agent):
     """Test vector search functionality for passages."""
     passage_manager = server.passage_manager
     embed_model = embedding_model(DEFAULT_EMBEDDING_CONFIG) 
@@ -800,7 +800,7 @@ def test_passage_vector_search(server: SyncServer, default_user, default_file, s
             passage = PydanticPassage(
                 text=text,
                 organization_id=default_user.organization_id,
-                source_id=default_file.id,
+                source_id=default_source.id,
                 embedding_config=DEFAULT_EMBEDDING_CONFIG,
                 embedding=embedding
             )
@@ -842,7 +842,7 @@ def test_passage_vector_search(server: SyncServer, default_user, default_file, s
     # List passages with vector search
     results = passage_manager.list_passages(
         actor=default_user,
-        source_id=default_file.id,
+        source_id=default_source.id,
         query_text=query_key,
         embedding_config=DEFAULT_EMBEDDING_CONFIG,
         embed_query=True,
