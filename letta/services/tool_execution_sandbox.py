@@ -208,10 +208,12 @@ class ToolExecutionSandbox:
         status = "success"
         agent_state, stderr = None, None
 
-        # Redirect stdout to capture script output
+        # Redirect stdout and stderr to capture script output
         old_stdout = sys.stdout
-        captured_stdout = io.StringIO()
+        old_stderr = sys.stderr
+        captured_stdout, captured_stderr = io.StringIO(), io.StringIO()
         sys.stdout = captured_stdout
+        sys.stderr = captured_stderr
 
         try:
             # Execute the temp file
@@ -226,18 +228,20 @@ class ToolExecutionSandbox:
             func_return = get_friendly_error_msg(
                 function_name=self.tool_name, exception_name=type(e).__name__, exception_message=str(e)
             )
-            stderr = traceback.format_exc()
+            traceback.print_exc(file=sys.stderr)
             status = "error"
 
-        # Restore stdout and collect captured output
+        # Restore stdout and stderr and collect captured output
         sys.stdout = old_stdout
+        sys.stderr = old_stderr
         stdout_output = [captured_stdout.getvalue()] if captured_stdout.getvalue() else []
+        stderr_output = [captured_stderr.getvalue()] if captured_stderr.getvalue() else []
 
         return SandboxRunResult(
             func_return=func_return,
             agent_state=agent_state,
             stdout=stdout_output,
-            stderr=[stderr] if stderr else [],
+            stderr=stderr_output,
             status=status,
             sandbox_config_fingerprint=sbx_config.fingerprint(),
         )
