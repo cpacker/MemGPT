@@ -1,7 +1,10 @@
 from typing import List, Optional
+
 from letta.constants import MAX_EMBEDDING_DIM
 from datetime import datetime
 import numpy as np
+
+from sqlalchemy import select, union_all, literal
 
 from letta.orm.errors import NoResultFound
 from letta.orm.passage import AgentPassage, SourcePassage
@@ -13,6 +16,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.agent import AgentState
 from letta.schemas.passage import Passage as PydanticPassage
 from letta.schemas.user import User as PydanticUser
+
 
 class PassageManager:
     """Manager class to handle business logic related to Passages."""
@@ -164,6 +168,7 @@ class PassageManager:
                       query_text      : Optional[str] = None,
                       start_date      : Optional[datetime] = None,
                       end_date        : Optional[datetime] = None,
+                      cursor          : Optional[str] = None,
                       source_id       : Optional[str] = None,
                       embed_query     : bool = False,
                       ascending       : bool = True,
@@ -173,7 +178,11 @@ class PassageManager:
         filters = {"organization_id": actor.organization_id}
         if file_id:
             filters["file_id"] = file_id
-        
+        if source_id:
+            filters["source_id"] = source_id
+        if agent_id:
+            filters["agent_id"] = agent_id
+
         embedded_text = None
         if embed_query:
             assert embedding_config is not None
@@ -184,71 +193,139 @@ class PassageManager:
         results = []
 
         with self.session_maker() as session:
-
-            # Query source passages if source_id is specified or no specific table filter is given
-            if source_id or (not agent_id and not source_id): # could be querying all passages in an organization
-                source_filters = {**filters}
-                if source_id:
-                    source_filters["source_id"] = source_id
-                
-                try:
-                    source_results = SourcePassage.list(
-                        db_session=session,
-                        start_date=start_date,
-                        end_date=end_date,
-                        limit=limit,
-                        query_text=query_text if not embedded_text else None,
-                        query_embedding=embedded_text,
-                        ascending=ascending,
-                        **source_filters
-                    )
-                    results.extend(source_results)
-                except NoResultFound:
-                    pass
-
-            # Query archival passages if agent_id is specified or no specific table filter is given
-            if agent_id or (not agent_id and not source_id): # could be querying all passages in an organization
-                archival_filters = {**filters}
-                if agent_id:
-                    archival_filters["agent_id"] = agent_id
-                
-                try:
-                    archival_results = AgentPassage.list(
-                        db_session=session,
-                        start_date=start_date,
-                        end_date=end_date,
-                        limit=limit,
-                        query_text=query_text if not embedded_text else None,
-                        query_embedding=embedded_text,
-                        ascending=ascending,
-                        **archival_filters
-                    )
-                    results.extend(archival_results)
-                except NoResultFound:
-                    pass
-
-        # Sort combined results by similarity or created_at and apply limit
-        if embed_query:
-            # Convert query embedding to numpy array for efficient computation
-            query_embedding = np.array(embedded_text)
-            
-            # NOTE: this might be slow but it's less messy than modifying Base.list() to handle the Passages edge case
-            # Calculate cosine similarity for each passage
-            def get_distance(passage):
-                passage_embedding = np.array(passage.embedding)
-                similarity = np.dot(query_embedding, passage_embedding) / (
-                    np.linalg.norm(query_embedding) * np.linalg.norm(passage_embedding)
+            # Build source query with all columns
+            source_query = (
+                select(
+                    SourcePassage,
+                    literal(None).label('agent_id')  # Add agent_id as NULL
+                ).where(
+                    SourcePassage.organization_id == actor.organization_id
                 )
-                return 1 - similarity
-            
-            results.sort(key=lambda x: (get_distance(x), x.created_at))
-        else:
-            results.sort(key=lambda x: x.created_at, reverse=not ascending)
+            )
 
-        if limit:
-            results = results[:limit]
+            # Build agent query with matching columns
+            agent_query = (
+                select(
+                    AgentPassage.id,
+                    AgentPassage.text,
+                    AgentPassage.embedding_config,
+                    AgentPassage.metadata_,
+                    AgentPassage.created_at,
+                    AgentPassage.embedding,
+                    AgentPassage.updated_at,
+                    AgentPassage.is_deleted,
+                    AgentPassage._created_by_id,
+                    AgentPassage._last_updated_by_id,
+                    AgentPassage.organization_id,
+                    literal(None).label('file_id'),    # Add NULL file_id
+                    literal(None).label('source_id'),  # Add NULL source_id
+                    AgentPassage.agent_id,
+                ).where(
+                    AgentPassage.organization_id == actor.organization_id
+                )
+            )
+
+            # Combine queries
+            combined_query = union_all(source_query, agent_query).cte('combined_passages')
+
+            # Build main query from combined CTE
+            main_query = select(combined_query)
+
+            # Apply filters
+            if start_date:
+                main_query = main_query.where(combined_query.c.created_at >= start_date)
+            if end_date:
+                main_query = main_query.where(combined_query.c.created_at <= end_date)
+            if file_id:
+                main_query = main_query.where(combined_query.c.file_id == file_id)
+            if source_id:
+                main_query = main_query.where(combined_query.c.source_id == source_id)
+            if agent_id:
+                main_query = main_query.where(combined_query.c.agent_id == agent_id)
+
+            # Vector search
+            if embedded_text:
+                assert query_text and embedding_config, "Vector search requires query text and embedding config"
+
+                from letta.settings import settings
+                if settings.letta_pg_uri_no_default:
+                    # PostgreSQL with pgvector
+                    main_query = main_query.order_by(
+                        combined_query.c.embedding.cosine_distance(embedded_text).asc()
+                    )
+                else:
+                    from sqlalchemy import func
+                    # SQLite with custom vector type
+                    from letta.orm.sqlite_functions import adapt_array
+
+                    query_embedding_binary = adapt_array(embedded_text)
+                    if ascending:
+                        main_query = main_query.order_by(
+                            func.cosine_distance(combined_query.c.embedding, query_embedding_binary).asc(),
+                            combined_query.c.created_at.asc(),
+                            combined_query.c.id.asc()
+                        )
+                    else:
+                        main_query = main_query.order_by(
+                            func.cosine_distance(combined_query.c.embedding, query_embedding_binary).asc(),
+                            combined_query.c.created_at.desc(),
+                            combined_query.c.id.asc()
+                        )
+            else:
+                if query_text:
+                    from sqlalchemy import func
+                    main_query = main_query.where(func.lower(combined_query.c.text).contains(func.lower(query_text)))
+
+            # Handle cursor-based pagination
+            if cursor:
+                cursor_query = select(combined_query.c.created_at).where(
+                    combined_query.c.id == cursor
+                ).scalar_subquery()
+                
+                if ascending:
+                    main_query = main_query.where(
+                        combined_query.c.created_at > cursor_query
+                    )
+                else:
+                    main_query = main_query.where(
+                        combined_query.c.created_at < cursor_query
+                    )
+
+            # Add ordering
+            if not embed_query:  # Skip if already ordered by similarity
+                if ascending:
+                    main_query = main_query.order_by(
+                        combined_query.c.created_at.asc(),
+                        combined_query.c.id.asc(),
+                    )
+                else:
+                    main_query = main_query.order_by(
+                        combined_query.c.created_at.desc(),
+                        combined_query.c.id.asc(),
+                    )
+
+            # Add limit
+            if limit:
+                main_query = main_query.limit(limit)
+
+            # Execute query
+            results = list(session.execute(main_query))
+
+        passages = []
+        for row in results:
+            data = dict(row._mapping)
+            if data['agent_id'] is not None:
+                # This is an AgentPassage - remove source fields
+                data.pop('source_id', None)
+                data.pop('file_id', None)
+                passage = AgentPassage(**data)
+            else:
+                # This is a SourcePassage - remove agent field
+                data.pop('agent_id', None)
+                passage = SourcePassage(**data)
+            passages.append(passage)
         
-        return [p.to_pydantic() for p in results]
+        return [p.to_pydantic() for p in passages]
 
     @enforce_types
     def size(

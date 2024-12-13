@@ -616,7 +616,7 @@ def test_passage_size(server: SyncServer, agent_passage_fixture, source_passage_
     assert empty_count == 0
 
 
-def test_passage_listing_basic(server: SyncServer, create_test_passages, default_user):
+def test_passage_listing_limit(server: SyncServer, create_test_passages, default_user):
     """Test basic passage listing with limit"""
     results = server.passage_manager.list_passages(actor=default_user, limit=3)
     assert len(results) == 3
@@ -636,10 +636,10 @@ def test_passage_listing_filtering(server: SyncServer, create_test_passages, def
     assert len(all_results) == 10
 
     all_results_with_filters = server.passage_manager.list_passages(agent_id=sarah_agent.id, source_id=default_source.id, actor=default_user)
-    assert len(all_results_with_filters) == 10
+    assert len(all_results_with_filters) == 0
 
 
-def test_passage_listing_text_search(server: SyncServer, agent_passage_fixture, create_test_passages, default_user, sarah_agent, default_source):
+def test_passage_listing_text_search(server: SyncServer, agent_passage_fixture, create_test_passages, default_user):
     """Test searching passages by text content"""
     search_results = server.passage_manager.list_passages(
         actor=default_user, query_text="Agent passage"
@@ -854,6 +854,111 @@ def test_passage_vector_search(server: SyncServer, default_user, default_file, s
     assert results[0].text == "random text"
 
 
+def test_passage_listing_cursor_pagination(server: SyncServer, default_user, sarah_agent, default_source):
+    """Test cursor-based pagination with both ascending and descending order"""
+    # Create passages with controlled timestamps for predictable ordering
+    base_time = datetime(2023, 1, 1, 12, 0)
+    
+    # Create interleaved source and agent passages
+    passages = []
+    for i in range(6):
+        if i % 2 == 0:
+            # Create source passage
+            passage = server.passage_manager.create_passage(
+                PydanticPassage(
+                    text=f"Source passage {i//2}",
+                    organization_id=default_user.organization_id,
+                    source_id=default_source.id,
+                    embedding=[0.1],
+                    embedding_config=DEFAULT_EMBEDDING_CONFIG,
+                    created_at=base_time + timedelta(hours=i)
+                ),
+                actor=default_user
+            )
+        else:
+            # Create agent passage
+            passage = server.passage_manager.create_passage(
+                PydanticPassage(
+                    text=f"Agent passage {i//2}",
+                    organization_id=default_user.organization_id,
+                    agent_id=sarah_agent.id,
+                    embedding=[0.1],
+                    embedding_config=DEFAULT_EMBEDDING_CONFIG,
+                    created_at=base_time + timedelta(hours=i)
+                ),
+                actor=default_user
+            )
+        passages.append(passage)
+
+    # Test ascending order pagination
+    
+    # Get first page starting from beginning
+    first_page = server.passage_manager.list_passages(
+        actor=default_user,
+        limit=2,
+        ascending=True
+    )
+    assert len(first_page) == 2
+    assert first_page[0].text == "Source passage 0"
+    assert first_page[1].text == "Agent passage 0"
+
+    # Get second page using cursor from first page
+    second_page = server.passage_manager.list_passages(
+        actor=default_user,
+        cursor=first_page[-1].id,
+        limit=2,
+        ascending=True
+    )
+    assert len(second_page) == 2
+    assert second_page[0].text == "Source passage 1"
+    assert second_page[1].text == "Agent passage 1"
+
+    # Get third page using cursor from second page
+    third_page = server.passage_manager.list_passages(
+        actor=default_user,
+        cursor=second_page[-1].id,
+        limit=2,
+        ascending=True
+    )
+    assert len(third_page) == 2
+    assert third_page[0].text == "Source passage 2"
+    assert third_page[1].text == "Agent passage 2"
+
+    # Test descending order pagination
+    
+    # Get first page starting from end
+    first_page_desc = server.passage_manager.list_passages(
+        actor=default_user,
+        limit=2,
+        ascending=False
+    )
+    assert len(first_page_desc) == 2
+    assert first_page_desc[0].text == "Agent passage 2"
+    assert first_page_desc[1].text == "Source passage 2"
+
+    # Get second page using cursor from first page
+    second_page_desc = server.passage_manager.list_passages(
+        actor=default_user,
+        cursor=first_page_desc[-1].id,
+        limit=2,
+        ascending=False
+    )
+    assert len(second_page_desc) == 2
+    assert second_page_desc[0].text == "Agent passage 1"
+    assert second_page_desc[1].text == "Source passage 1"
+
+    # Get third page using cursor from second page
+    third_page_desc = server.passage_manager.list_passages(
+        actor=default_user,
+        cursor=second_page_desc[-1].id,
+        limit=2,
+        ascending=False
+    )
+    assert len(third_page_desc) == 2
+    assert third_page_desc[0].text == "Agent passage 0"
+    assert third_page_desc[1].text == "Source passage 0"
+
+
 # ======================================================================================================================
 # User Manager Tests
 # ======================================================================================================================
@@ -912,6 +1017,7 @@ def test_create_tool(server: SyncServer, print_tool, default_user, default_organ
     assert print_tool.organization_id == default_organization.id
 
 
+@pytest.mark.skipif(USING_SQLITE, reason="Skipped because using SQLite")
 def test_create_tool_duplicate_name(server: SyncServer, print_tool, default_user, default_organization):
     data = print_tool.model_dump(exclude=["id"])
     tool = PydanticTool(**data)

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, List, Literal, Optional, Type
 import sqlite3
 
 from sqlalchemy import String, desc, func, or_, select
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from letta.log import get_logger
@@ -218,7 +218,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
                 session.commit()
                 session.refresh(self)
                 return self
-        except DBAPIError as e:
+        except (DBAPIError, IntegrityError) as e:
             self._handle_dbapi_error(e)
 
     def delete(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
