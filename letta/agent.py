@@ -919,7 +919,7 @@ class Agent(BaseAgent):
             # logger.debug("Saving agent state")
             # save updated state
             if ms:
-                save_agent(self, ms)
+                save_agent(self)
 
             # Chain stops
             if not chaining:
@@ -1616,7 +1616,7 @@ class Agent(BaseAgent):
         return context_window_breakdown.context_window_size_current
 
 
-def save_agent(agent: Agent, ms: MetadataStore):
+def save_agent(agent: Agent):
     """Save agent to metadata store"""
     agent.update_state()
     agent_state = agent.agent_state
@@ -1640,7 +1640,7 @@ def save_agent(agent: Agent, ms: MetadataStore):
         description=agent_state.description,
         metadata_=agent_state.metadata_,
     )
-    agent_manager.update_agent(agent_id=agent_state.id, agent_update=update_agent)
+    agent_manager.update_agent(agent_id=agent_state.id, agent_update=update_agent, actor=agent.user)
 
 
 def strip_name_field_from_user_message(user_message_text: str) -> Tuple[str, Optional[str]]:

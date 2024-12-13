@@ -78,7 +78,6 @@ def list_agents(
     kwargs = {
         key: value
         for key, value in {
-            "actor": actor,
             "tags": tags,
             "match_all_tags": match_all_tags,
             "name": name,
@@ -87,7 +86,7 @@ def list_agents(
     }
 
     # Call list_agents with the dynamic kwargs
-    agents = server.agent_manager.list_agents(**kwargs)
+    agents = server.agent_manager.list_agents(actor=actor, **kwargs)
     return agents
 
 
@@ -224,12 +223,13 @@ def get_agent_sources(
 def get_agent_in_context_messages(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Retrieve the messages in the context of a specific agent.
     """
-
-    return server.get_in_context_messages(agent_id=agent_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
+    return server.get_in_context_messages(agent_id=agent_id, actor=actor)
 
 
 # TODO: remove? can also get with agent blocks
@@ -237,13 +237,15 @@ def get_agent_in_context_messages(
 def get_agent_memory(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Retrieve the memory state of a specific agent.
     This endpoint fetches the current memory state of the agent identified by the user ID and agent ID.
     """
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    return server.get_agent_memory(agent_id=agent_id)
+    return server.get_agent_memory(agent_id=agent_id, actor=actor)
 
 
 @router.get("/{agent_id}/memory/block/{block_label}", response_model=Block, operation_id="get_agent_memory_block")
@@ -345,24 +347,27 @@ def update_agent_memory_block(
 def get_agent_recall_memory_summary(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Retrieve the summary of the recall memory of a specific agent.
     """
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    return server.get_recall_memory_summary(agent_id=agent_id)
+    return server.get_recall_memory_summary(agent_id=agent_id, actor=actor)
 
 
 @router.get("/{agent_id}/memory/archival", response_model=ArchivalMemorySummary, operation_id="get_agent_archival_memory_summary")
 def get_agent_archival_memory_summary(
     agent_id: str,
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Retrieve the summary of the archival memory of a specific agent.
     """
-
-    return server.get_archival_memory_summary(agent_id=agent_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
+    return server.get_archival_memory_summary(agent_id=agent_id, actor=actor)
 
 
 @router.get("/{agent_id}/archival", response_model=List[Passage], operation_id="list_agent_archival_memory")
@@ -466,11 +471,13 @@ def update_message(
     message_id: str,
     request: MessageUpdate = Body(...),
     server: "SyncServer" = Depends(get_letta_server),
+    user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
 ):
     """
     Update the details of a message associated with an agent.
     """
-    return server.update_agent_message(agent_id=agent_id, message_id=message_id, request=request)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
+    return server.update_agent_message(agent_id=agent_id, message_id=message_id, request=request, actor=actor)
 
 
 @router.post(
@@ -492,7 +499,7 @@ async def send_message(
     result = await send_message_to_agent(
         server=server,
         agent_id=agent_id,
-        user_id=actor.id,
+        actor=actor,
         messages=request.messages,
         stream_steps=False,
         stream_tokens=False,
@@ -532,7 +539,7 @@ async def send_message_streaming(
     result = await send_message_to_agent(
         server=server,
         agent_id=agent_id,
-        user_id=actor.id,
+        actor=actor,
         messages=request.messages,
         stream_steps=True,
         stream_tokens=request.stream_tokens,
@@ -548,7 +555,6 @@ async def process_message_background(
     server: SyncServer,
     actor: User,
     agent_id: str,
-    user_id: str,
     messages: list,
     assistant_message_tool_name: str,
     assistant_message_tool_kwarg: str,
@@ -559,7 +565,7 @@ async def process_message_background(
         result = await send_message_to_agent(
             server=server,
             agent_id=agent_id,
-            user_id=user_id,
+            actor=actor,
             messages=messages,
             stream_steps=False,  # NOTE(matt)
             stream_tokens=False,
@@ -635,7 +641,7 @@ async def send_message_async(
 async def send_message_to_agent(
     server: SyncServer,
     agent_id: str,
-    user_id: str,
+    actor: User,
     # role: MessageRole,
     messages: Union[List[Message], List[MessageCreate]],
     stream_steps: bool,
@@ -662,8 +668,7 @@ async def send_message_to_agent(
 
         # Get the generator object off of the agent's streaming interface
         # This will be attached to the POST SSE request used under-the-hood
-        # letta_agent = server.load_agent(agent_id=agent_id)
-        letta_agent = server.load_agent(agent_id=agent_id)
+        letta_agent = server.load_agent(agent_id=agent_id, actor=actor)
 
         # Disable token streaming if not OpenAI
         # TODO: cleanup this logic

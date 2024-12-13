@@ -377,10 +377,9 @@ class SyncServer(Server):
                 )
             )
 
-    def initialize_agent(self, agent_id, interface: Union[AgentInterface, None] = None, initial_message_sequence=None) -> Agent:
+    def initialize_agent(self, agent_id, actor, interface: Union[AgentInterface, None] = None, initial_message_sequence=None) -> Agent:
         """Initialize an agent from the database"""
-        agent_state = self.agent_manager.get_agent_by_id(agent_id=agent_id)
-        actor = self.user_manager.get_user_by_id(user_id=agent_state.created_by_id)
+        agent_state = self.agent_manager.get_agent_by_id(agent_id=agent_id, actor=actor)
 
         interface = interface or self.default_interface_factory()
         if agent_state.agent_type == AgentType.memgpt_agent:
@@ -394,14 +393,14 @@ class SyncServer(Server):
             agent = O1Agent(agent_state=agent_state, interface=interface, user=actor)
 
         # Persist to agent
-        save_agent(agent, self.ms)
+        save_agent(agent)
         return agent
 
-    def load_agent(self, agent_id: str, interface: Union[AgentInterface, None] = None) -> Agent:
+    def load_agent(self, agent_id: str, actor: User, interface: Union[AgentInterface, None] = None) -> Agent:
         """Updated method to load agents from persisted storage"""
         agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
         with agent_lock:
-            agent_state = self.agent_manager.get_agent_by_id(agent_id=agent_id)
+            agent_state = self.agent_manager.get_agent_by_id(agent_id=agent_id, actor=actor)
 
             if agent_state is None:
                 raise LettaAgentNotFoundError(f"Agent (agent_id={agent_id}) does not exist")
@@ -425,7 +424,7 @@ class SyncServer(Server):
             agent.rebuild_system_prompt()
 
             # Persist to agent
-            save_agent(agent, self.ms)
+            save_agent(agent)
             return agent
 
     def _step(
@@ -437,6 +436,8 @@ class SyncServer(Server):
         # timestamp: Optional[datetime],
     ) -> LettaUsageStatistics:
         """Send the input message through the agent"""
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
 
         # Input validation
         if isinstance(input_messages, Message):
@@ -447,10 +448,7 @@ class SyncServer(Server):
         logger.debug(f"Got input messages: {input_messages}")
         letta_agent = None
         try:
-
-            # Get the agent object (loaded in memory)
-            # letta_agent = self._get_or_load_agent(agent_id=agent_id)
-            letta_agent = self.load_agent(agent_id=agent_id, interface=interface)
+            letta_agent = self.load_agent(agent_id=agent_id, interface=interface, actor=actor)
             if letta_agent is None:
                 raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
 
@@ -468,7 +466,7 @@ class SyncServer(Server):
             )
 
             # save agent after step
-            save_agent(letta_agent, self.ms)
+            save_agent(letta_agent)
 
         except Exception as e:
             logger.error(f"Error in server._step: {e}")
@@ -483,11 +481,13 @@ class SyncServer(Server):
 
     def _command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:
         """Process a CLI command"""
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
 
         logger.debug(f"Got command: {command}")
 
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         usage = None
 
         if command.lower() == "exit":
@@ -495,7 +495,7 @@ class SyncServer(Server):
             raise ValueError(command)
 
         elif command.lower() == "save" or command.lower() == "savechat":
-            save_agent(letta_agent, self.ms)
+            save_agent(letta_agent)
 
         elif command.lower() == "attach":
             # Different from CLI, we extract the data source name from the command
@@ -818,9 +818,9 @@ class SyncServer(Server):
         # initialize the agent (generates initial message list with system prompt)
         if interface is None:
             interface = self.default_interface_factory()
-        self.initialize_agent(agent_id=agent_state.id, interface=interface, initial_message_sequence=init_messages)
+        self.initialize_agent(agent_id=agent_state.id, interface=interface, initial_message_sequence=init_messages, actor=actor)
 
-        in_memory_agent_state = self.agent_manager.get_agent_by_id(agent_state.id)
+        in_memory_agent_state = self.agent_manager.get_agent_by_id(agent_state.id, actor=actor)
         return in_memory_agent_state
 
     # TODO: This is not good!
@@ -834,7 +834,7 @@ class SyncServer(Server):
     ) -> AgentState:
         """Update the agents core memory block, return the new state"""
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # Update tags
         if request.tags is not None:  # Allow for empty list
@@ -872,7 +872,7 @@ class SyncServer(Server):
                 self.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
 
             # reload agent
-            letta_agent = self.load_agent(agent_id=agent_id)
+            letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # configs
         if request.llm_config:
@@ -887,15 +887,17 @@ class SyncServer(Server):
             letta_agent.agent_state.metadata_ = request.metadata_
 
         # save the agent
-        save_agent(letta_agent, self.ms)
+        save_agent(letta_agent)
         # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
 
     def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
         """Get tools from an existing agent"""
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
 
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         return letta_agent.agent_state.tools
 
     def add_tool_to_agent(
@@ -905,22 +907,20 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Add tools from an existing agent"""
-        try:
-            user = self.user_manager.get_user_by_id(user_id=user_id)
-        except NoResultFound:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
 
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # Get all the tool objects from the request
         tool_objs = []
-        tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=user)
+        tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor)
         assert tool_obj, f"Tool with id={tool_id} does not exist"
         tool_objs.append(tool_obj)
 
         for tool in letta_agent.agent_state.tools:
-            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=user)
+            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=actor)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
             # If it's not the already added tool
@@ -934,7 +934,7 @@ class SyncServer(Server):
         letta_agent.link_tools(tool_objs)
 
         # save the agent
-        save_agent(letta_agent, self.ms)
+        save_agent(letta_agent)
         return letta_agent.agent_state
 
     def remove_tool_from_agent(
@@ -944,18 +944,16 @@ class SyncServer(Server):
         user_id: str,
     ):
         """Remove tools from an existing agent"""
-        try:
-            user = self.user_manager.get_user_by_id(user_id=user_id)
-        except NoResultFound:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
 
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # Get all the tool_objs
         tool_objs = []
         for tool in letta_agent.agent_state.tools:
-            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=user)
+            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=actor)
             assert tool_obj, f"Tool with id={tool.id} does not exist"
 
             # If it's not the tool we want to remove
@@ -969,106 +967,41 @@ class SyncServer(Server):
         letta_agent.link_tools(tool_objs)
 
         # save the agent
-        save_agent(letta_agent, self.ms)
+        save_agent(letta_agent)
         return letta_agent.agent_state
 
     # convert name->id
 
-    def get_agent_id(self, name: str, user_id: str):
-        agent_state = self.agent_manager.get_agent_by_name(agent_name=name, user_id=user_id)
-        if not agent_state:
-            return None
-        return agent_state.id
-
-    def get_agent_memory(self, agent_id: str) -> Memory:
+    def get_agent_memory(self, agent_id: str, actor: User) -> Memory:
         """Return the memory of an agent (core memory)"""
-        agent = self.load_agent(agent_id=agent_id)
+        agent = self.load_agent(agent_id=agent_id, actor=actor)
         return agent.agent_state.memory
 
-    def get_archival_memory_summary(self, agent_id: str) -> ArchivalMemorySummary:
-        agent = self.load_agent(agent_id=agent_id)
+    def get_archival_memory_summary(self, agent_id: str, actor: User) -> ArchivalMemorySummary:
+        agent = self.load_agent(agent_id=agent_id, actor=actor)
         return ArchivalMemorySummary(size=agent.passage_manager.size(actor=self.default_user))
 
-    def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
-        agent = self.load_agent(agent_id=agent_id)
+    def get_recall_memory_summary(self, agent_id: str, actor: User) -> RecallMemorySummary:
+        agent = self.load_agent(agent_id=agent_id, actor=actor)
         return RecallMemorySummary(size=len(agent.message_manager))
 
-    def get_in_context_message_ids(self, agent_id: str) -> List[str]:
-        """Get the message ids of the in-context messages in the agent's memory"""
-        # Get the agent object (loaded in memory)
-        agent = self.load_agent(agent_id=agent_id)
-        return [m.id for m in agent._messages]
-
-    def get_in_context_messages(self, agent_id: str) -> List[Message]:
+    def get_in_context_messages(self, agent_id: str, actor: User) -> List[Message]:
         """Get the in-context messages in the agent's memory"""
         # Get the agent object (loaded in memory)
-        agent = self.load_agent(agent_id=agent_id)
+        agent = self.load_agent(agent_id=agent_id, actor=actor)
         return agent._messages
-
-    def get_agent_message(self, agent_id: str, message_id: str) -> Message:
-        """Get a single message from the agent's memory"""
-        # Get the agent object (loaded in memory)
-        agent = self.load_agent(agent_id=agent_id)
-        message = agent.message_manager.get_message_by_id(id=message_id, actor=self.default_user)
-        return message
-
-    def get_agent_messages(
-        self,
-        agent_id: str,
-        start: int,
-        count: int,
-    ) -> Union[List[Message], List[LettaMessage]]:
-        """Paginated query of all messages in agent message queue"""
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
-
-        if start < 0 or count < 0:
-            raise ValueError("Start and count values should be non-negative")
-
-        if start + count < len(letta_agent._messages):  # messages can be returned from whats in memory
-            # Reverse the list to make it in reverse chronological order
-            reversed_messages = letta_agent._messages[::-1]
-            # Check if start is within the range of the list
-            if start >= len(reversed_messages):
-                raise IndexError("Start index is out of range")
-
-            # Calculate the end index, ensuring it does not exceed the list length
-            end_index = min(start + count, len(reversed_messages))
-
-            # Slice the list for pagination
-            messages = reversed_messages[start:end_index]
-
-        else:
-            # need to access persistence manager for additional messages
-
-            # get messages using message manager
-            page = letta_agent.message_manager.list_user_messages_for_agent(
-                agent_id=agent_id,
-                actor=self.default_user,
-                cursor=start,
-                limit=count,
-            )
-
-            messages = page
-            assert all(isinstance(m, Message) for m in messages)
-
-            ## Convert to json
-            ## Add a tag indicating in-context or not
-            # json_messages = [record.to_json() for record in messages]
-            # in_context_message_ids = [str(m.id) for m in letta_agent._messages]
-            # for d in json_messages:
-            #    d["in_context"] = True if str(d["id"]) in in_context_message_ids else False
-
-        return messages
 
     def get_agent_archival(self, user_id: str, agent_id: str, cursor: Optional[str] = None, limit: int = 50) -> List[Passage]:
         """Paginated query of all messages in agent archival memory"""
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
+
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # iterate over records
         records = letta_agent.passage_manager.list_passages(
-            actor=self.default_user,
+            actor=actor,
             agent_id=agent_id,
             cursor=cursor,
             limit=limit,
@@ -1085,8 +1018,11 @@ class SyncServer(Server):
         order_by: Optional[str] = "created_at",
         reverse: Optional[bool] = False,
     ) -> List[Passage]:
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
+
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # iterate over records
         records = letta_agent.passage_manager.list_passages(
@@ -1099,20 +1035,20 @@ class SyncServer(Server):
 
     def insert_archival_memory(self, agent_id: str, memory_contents: str, actor: User) -> List[Passage]:
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # Insert into archival memory
         passages = self.passage_manager.insert_passage(
             agent_state=letta_agent.agent_state, agent_id=agent_id, text=memory_contents, actor=actor
         )
 
-        save_agent(letta_agent, self.ms)
+        save_agent(letta_agent)
 
         return passages
 
     def delete_archival_memory(self, agent_id: str, memory_id: str, actor: User):
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # Delete by ID
         # TODO check if it exists first, and throw error if not
@@ -1132,13 +1068,11 @@ class SyncServer(Server):
         assistant_message_tool_name: str = constants.DEFAULT_MESSAGE_TOOL,
         assistant_message_tool_kwarg: str = constants.DEFAULT_MESSAGE_TOOL_KWARG,
     ) -> Union[List[Message], List[LettaMessage]]:
-        try:
-            actor = self.user_manager.get_user_by_id(user_id=user_id)
-        except NoResultFound:
-            raise ValueError(f"User user_id={user_id} does not exist")
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
 
         # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # iterate over records
         start_date = self.message_manager.get_message_by_id(after, actor=actor).created_at if after else None
@@ -1203,7 +1137,7 @@ class SyncServer(Server):
         self.block_manager.update_block(block_id=block.id, block_update=BlockUpdate(value=value), actor=actor)
 
         # load agent
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         return letta_agent.agent_state.memory
 
     def api_key_to_user(self, api_key: str) -> str:
@@ -1268,7 +1202,7 @@ class SyncServer(Server):
         agent_states = self.source_manager.list_attached_agents(source_id=source_id, actor=actor)
         for agent_state in agent_states:
             agent_id = agent_state.id
-            agent = self.load_agent(agent_id=agent_id)
+            agent = self.load_agent(agent_id=agent_id, actor=actor)
             curr_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
             agent.attach_source(user=actor, source_id=source_id, source_manager=self.source_manager, agent_manager=self.agent_manager)
             new_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
@@ -1303,21 +1237,22 @@ class SyncServer(Server):
         source_name: Optional[str] = None,
     ) -> Source:
         # attach a data source to an agent
-        user = self.user_manager.get_user_by_id(user_id=user_id)
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
         if source_id:
-            data_source = self.source_manager.get_source_by_id(source_id=source_id, actor=user)
+            data_source = self.source_manager.get_source_by_id(source_id=source_id, actor=actor)
         elif source_name:
-            data_source = self.source_manager.get_source_by_name(source_name=source_name, actor=user)
+            data_source = self.source_manager.get_source_by_name(source_name=source_name, actor=actor)
         else:
             raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
 
         assert data_source, f"Data source with id={source_id} or name={source_name} does not exist"
 
         # load agent
-        agent = self.load_agent(agent_id=agent_id)
+        agent = self.load_agent(agent_id=agent_id, actor=actor)
 
         # attach source to agent
-        agent.attach_source(user=user, source_id=data_source.id, source_manager=self.source_manager, agent_manager=self.agent_manager)
+        agent.attach_source(user=actor, source_id=data_source.id, source_manager=self.source_manager, agent_manager=self.agent_manager)
 
         return data_source
 
@@ -1328,7 +1263,8 @@ class SyncServer(Server):
         source_id: Optional[str] = None,
         source_name: Optional[str] = None,
     ) -> Source:
-        actor = self.user_manager.get_user_by_id(user_id=user_id)
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
         if source_id:
             source = self.source_manager.get_source_by_id(source_id=source_id, actor=actor)
         elif source_name:
@@ -1339,7 +1275,7 @@ class SyncServer(Server):
 
         # TODO: This should be done with the ORM?
         # delete all Passage objects with source_id==source_id from agent's archival memory
-        agent = self.load_agent(agent_id=agent_id)
+        agent = self.load_agent(agent_id=agent_id, actor=actor)
         agent.passage_manager.delete_passages(actor=actor, limit=100, source_id=source_id)
 
         # delete agent-source mapping
@@ -1401,45 +1337,35 @@ class SyncServer(Server):
 
         return success
 
-    def get_agent_message(self, agent_id: str, message_id: str) -> Optional[Message]:
-        """Get a single message from the agent's memory"""
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id)
-        message = letta_agent.message_manager.get_message_by_id(id=message_id)
-        save_agent(letta_agent, self.ms)
-        return message
-
-    def update_agent_message(self, agent_id: str, message_id: str, request: MessageUpdate) -> Message:
+    def update_agent_message(self, agent_id: str, message_id: str, request: MessageUpdate, actor: User) -> Message:
         """Update the details of a message associated with an agent"""
 
         # Get the current message
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         response = letta_agent.update_message(message_id=message_id, request=request)
-        save_agent(letta_agent, self.ms)
+        save_agent(letta_agent)
         return response
 
-    def rewrite_agent_message(self, agent_id: str, new_text: str) -> Message:
+    def rewrite_agent_message(self, agent_id: str, new_text: str, actor: User) -> Message:
 
         # Get the current message
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         response = letta_agent.rewrite_message(new_text=new_text)
-        save_agent(letta_agent, self.ms)
+        save_agent(letta_agent)
         return response
 
-    def rethink_agent_message(self, agent_id: str, new_thought: str) -> Message:
-
+    def rethink_agent_message(self, agent_id: str, new_thought: str, actor: User) -> Message:
         # Get the current message
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         response = letta_agent.rethink_message(new_thought=new_thought)
-        save_agent(letta_agent, self.ms)
+        save_agent(letta_agent)
         return response
 
-    def retry_agent_message(self, agent_id: str) -> List[Message]:
-
+    def retry_agent_message(self, agent_id: str, actor: User) -> List[Message]:
         # Get the current message
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         response = letta_agent.retry_message()
-        save_agent(letta_agent, self.ms)
+        save_agent(letta_agent)
         return response
 
     def get_organization_or_default(self, org_id: Optional[str]) -> Organization:
@@ -1484,8 +1410,11 @@ class SyncServer(Server):
         user_id: str,
         agent_id: str,
     ) -> ContextWindowOverview:
+        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
+        actor = self.user_manager.get_user_or_default(user_id=user_id)
+
         # Get the current message
-        letta_agent = self.load_agent(agent_id=agent_id)
+        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         return letta_agent.get_context_window()
 
     def run_tool_from_source(

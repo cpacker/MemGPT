@@ -26,7 +26,6 @@ from letta.utils import enforce_types
 
 
 # Agent Manager Class
-# TODO: Make the actor REQUIRED! @matt
 class AgentManager:
     """Manager class to handle business logic related to Agents."""
 
@@ -45,7 +44,7 @@ class AgentManager:
     def create_agent(
         self,
         agent_create: CreateAgent,
-        actor: Optional[PydanticUser] = None,
+        actor: PydanticUser,
     ) -> PydanticAgentState:
         system = derive_system_message(agent_type=agent_create.agent_type, system=agent_create.system)
 
@@ -75,6 +74,7 @@ class AgentManager:
     @enforce_types
     def _create_agent(
         self,
+        actor: PydanticUser,
         name: str,
         system: str,
         agent_type: AgentType,
@@ -87,7 +87,6 @@ class AgentManager:
         description: Optional[str] = None,
         metadata_: Optional[Dict] = None,
         tool_rules: Optional[List[PydanticToolRule]] = None,
-        actor: Optional[PydanticUser] = None,
     ) -> PydanticAgentState:
         """Create a new agent."""
         with self.session_maker() as session:
@@ -116,7 +115,7 @@ class AgentManager:
             return new_agent.to_pydantic()
 
     @enforce_types
-    def update_agent(self, agent_id: str, agent_update: UpdateAgent, actor: Optional[PydanticUser] = None) -> PydanticAgentState:
+    def update_agent(self, agent_id: str, agent_update: UpdateAgent, actor: PydanticUser) -> PydanticAgentState:
         """
         Update an existing agent.
 
@@ -158,7 +157,7 @@ class AgentManager:
     @enforce_types
     def list_agents(
         self,
-        actor: Optional[PydanticUser] = None,
+        actor: PydanticUser,
         tags: Optional[List[str]] = None,
         match_all_tags: bool = False,
         cursor: Optional[str] = None,
@@ -182,14 +181,14 @@ class AgentManager:
             return [agent.to_pydantic() for agent in agents]
 
     @enforce_types
-    def get_agent_by_id(self, agent_id: str, actor: Optional[PydanticUser] = None) -> PydanticAgentState:
+    def get_agent_by_id(self, agent_id: str, actor: PydanticUser) -> PydanticAgentState:
         """Fetch an agent by its ID."""
         with self.session_maker() as session:
             agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
             return agent.to_pydantic()
 
     @enforce_types
-    def get_agent_by_name(self, agent_name: str, actor: Optional[PydanticUser] = None) -> PydanticAgentState:
+    def get_agent_by_name(self, agent_name: str, actor: PydanticUser) -> PydanticAgentState:
         """Fetch an agent by its ID."""
         with self.session_maker() as session:
             agent = AgentModel.read(db_session=session, name=agent_name, actor=actor)
@@ -226,7 +225,7 @@ class AgentManager:
     # Source Management
     # ======================================================================================================================
     @enforce_types
-    def attach_source(self, agent_id: str, source_id: str, actor: Optional[PydanticUser] = None) -> None:
+    def attach_source(self, agent_id: str, source_id: str, actor: PydanticUser) -> None:
         """
         Attaches a source to an agent.
 
@@ -258,7 +257,7 @@ class AgentManager:
             agent.update(session, actor=actor)
 
     @enforce_types
-    def list_attached_sources(self, agent_id: str, actor: Optional[PydanticUser] = None) -> List[PydanticSource]:
+    def list_attached_sources(self, agent_id: str, actor: PydanticUser) -> List[PydanticSource]:
         """
         Lists all sources attached to an agent.
 
@@ -277,7 +276,7 @@ class AgentManager:
             return [source.to_pydantic() for source in agent.sources]
 
     @enforce_types
-    def detach_source(self, agent_id: str, source_id: str, actor: Optional[PydanticUser] = None) -> None:
+    def detach_source(self, agent_id: str, source_id: str, actor: PydanticUser) -> None:
         """
         Detaches a source from an agent.
 

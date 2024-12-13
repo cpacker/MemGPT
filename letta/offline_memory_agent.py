@@ -130,7 +130,7 @@ class OfflineMemoryAgent(Agent):
         # extras
         first_message_verify_mono: bool = False,
         max_memory_rethinks: int = 10,
-        initial_message_sequence: Optional[List[Message]] = None,  
+        initial_message_sequence: Optional[List[Message]] = None,
     ):
         super().__init__(interface, agent_state, user, initial_message_sequence=initial_message_sequence)
         self.first_message_verify_mono = first_message_verify_mono
@@ -173,6 +173,6 @@ class OfflineMemoryAgent(Agent):
             self.interface.step_complete()
 
             if ms:
-                save_agent(self, ms)
+                save_agent(self)
 
         return LettaUsageStatistics(**total_usage.model_dump(), step_count=step_count)

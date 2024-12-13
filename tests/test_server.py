@@ -439,6 +439,7 @@ def test_user_message(server, user_id, agent_id):
 @pytest.mark.order(5)
 def test_get_recall_memory(server, org_id, user_id, agent_id):
     # test recall memory cursor pagination
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
     messages_1 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, limit=2)
     cursor1 = messages_1[-1].id
     messages_2 = server.get_agent_recall_cursor(user_id=user_id, agent_id=agent_id, after=cursor1, limit=1000)
@@ -450,7 +451,9 @@ def test_get_recall_memory(server, org_id, user_id, agent_id):
     assert len(messages_4) == 1
 
     # test in-context message ids
-    in_context_ids = server.get_in_context_message_ids(agent_id=agent_id)
+    # in_context_ids = server.get_in_context_message_ids(agent_id=agent_id)
+    in_context_ids = server.agent_manager.get_agent_by_id(agent_id=agent_id, actor=actor).message_ids
+
     message_ids = [m.id for m in messages_3]
     for message_id in in_context_ids:
         assert message_id in message_ids, f"{message_id} not in {message_ids}"
@@ -509,12 +512,13 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     - "rewrite" replaces the text of the last assistant message
     - "retry" retries the last assistant message
     """
+    actor = server.user_manager.get_user_or_default(user_id)
 
     # Send an initial message
     server.user_message(user_id=user_id, agent_id=agent_id, message="Hello?")
 
     # Grab the raw Agent object
-    letta_agent = server.load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id, actor=actor)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -522,10 +526,10 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     # Try "rethink"
     new_thought = "I am thinking about the meaning of life, the universe, and everything. Bananas?"
     assert last_agent_message.text is not None and last_agent_message.text != new_thought
-    server.rethink_agent_message(agent_id=agent_id, new_thought=new_thought)
+    server.rethink_agent_message(agent_id=agent_id, new_thought=new_thought, actor=actor)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server.load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id, actor=actor)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -539,10 +543,10 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     assert "message" in args_json and args_json["message"] is not None and args_json["message"] != ""
 
     new_text = "Why hello there my good friend! Is 42 what you're looking for? Bananas?"
-    server.rewrite_agent_message(agent_id=agent_id, new_text=new_text)
+    server.rewrite_agent_message(agent_id=agent_id, new_text=new_text, actor=actor)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server.load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id, actor=actor)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -550,10 +554,10 @@ def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
     assert "message" in args_json and args_json["message"] is not None and args_json["message"] == new_text
 
     # Try retry
-    server.retry_agent_message(agent_id=agent_id)
+    server.retry_agent_message(agent_id=agent_id, actor=actor)
 
     # Grab the agent object again (make sure it's live)
-    letta_agent = server.load_agent(agent_id=agent_id)
+    letta_agent = server.load_agent(agent_id=agent_id, actor=actor)
     assert letta_agent._messages[-1].role == MessageRole.tool
     assert letta_agent._messages[-2].role == MessageRole.assistant
     last_agent_message = letta_agent._messages[-2]
@@ -938,7 +942,7 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none, base_tools
         assert num_system_messages == 2, (num_system_messages, all_messages)
 
         # Run server.load_agent, and make sure that the number of system messages is still 2
-        server.load_agent(agent_id=agent_state.id)
+        server.load_agent(agent_id=agent_state.id, actor=actor)
 
         num_system_messages, all_messages = count_system_messages_in_recall()
         assert num_system_messages == 2, (num_system_messages, all_messages)

@@ -2203,6 +2203,7 @@ class LocalClient(AbstractClient):
                 tool_calls=tool_calls,
                 tool_call_id=tool_call_id,
             ),
+            actor=self.user,
         )
         return message
 
@@ -2375,7 +2376,7 @@ class LocalClient(AbstractClient):
         Returns:
             memory (Memory): In-context memory of the agent
         """
-        memory = self.server.get_agent_memory(agent_id=agent_id)
+        memory = self.server.get_agent_memory(agent_id=agent_id, actor=self.user)
         return memory
 
     def get_core_memory(self, agent_id: str) -> Memory:
@@ -2407,7 +2408,7 @@ class LocalClient(AbstractClient):
             summary (ArchivalMemorySummary): Summary of the archival memory
 
         """
-        return self.server.get_archival_memory_summary(agent_id=agent_id)
+        return self.server.get_archival_memory_summary(agent_id=agent_id, actor=self.user)
 
     def get_recall_memory_summary(self, agent_id: str) -> RecallMemorySummary:
         """
@@ -2419,7 +2420,7 @@ class LocalClient(AbstractClient):
         Returns:
             summary (RecallMemorySummary): Summary of the recall memory
         """
-        return self.server.get_recall_memory_summary(agent_id=agent_id)
+        return self.server.get_recall_memory_summary(agent_id=agent_id, actor=self.user)
 
     def get_in_context_messages(self, agent_id: str) -> List[Message]:
         """
@@ -2431,7 +2432,7 @@ class LocalClient(AbstractClient):
         Returns:
             messages (List[Message]): List of in-context messages
         """
-        return self.server.get_in_context_messages(agent_id=agent_id)
+        return self.server.get_in_context_messages(agent_id=agent_id, actor=self.user)
 
     # agent interactions
 

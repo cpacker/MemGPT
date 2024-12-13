@@ -140,7 +140,6 @@ def run(
     # read user id from config
     ms = MetadataStore(config)
     client = create_client()
-    client.server
 
     # determine agent to use, if not provided
     if not yes and not agent:
@@ -322,7 +321,7 @@ def run(
             first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             user=client.user,
         )
-        save_agent(agent=letta_agent, ms=ms)
+        save_agent(agent=letta_agent)
         typer.secho(f"🎉 Created new agent '{letta_agent.agent_state.name}' (id={letta_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # start event loop
