@@ -62,7 +62,7 @@ class ToolExecutionSandbox:
         self.sandbox_config_manager = SandboxConfigManager(tool_settings)
         self.force_recreate = force_recreate
 
-    def run(self, agent_state: Optional[AgentState] = None) -> Optional[SandboxRunResult]:
+    def run(self, agent_state: Optional[AgentState] = None) -> SandboxRunResult:
         """
         Run the tool in a sandbox environment.
 
@@ -101,7 +101,7 @@ class ToolExecutionSandbox:
             os.environ.clear()
             os.environ.update(original_env)  # Restore original environment variables
 
-    def run_local_dir_sandbox(self, agent_state: AgentState) -> Optional[SandboxRunResult]:
+    def run_local_dir_sandbox(self, agent_state: AgentState) -> SandboxRunResult:
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.LOCAL, actor=self.user)
         local_configs = sbx_config.get_local_config()
 
@@ -266,7 +266,7 @@ class ToolExecutionSandbox:
 
     # e2b sandbox specific functions
 
-    def run_e2b_sandbox(self, agent_state: AgentState) -> Optional[SandboxRunResult]:
+    def run_e2b_sandbox(self, agent_state: AgentState) -> SandboxRunResult:
         sbx_config = self.sandbox_config_manager.get_or_create_default_sandbox_config(sandbox_type=SandboxType.E2B, actor=self.user)
         sbx = self.get_running_e2b_sandbox_with_same_state(sbx_config)
         if not sbx or self.force_recreate:
@@ -286,7 +286,7 @@ class ToolExecutionSandbox:
             execution.logs.stderr.append(execution.error.traceback) 
             execution.logs.stderr.append(f"{execution.error.name}: {execution.error.value}") 
         elif len(execution.results) == 0:
-            return None
+            raise ValueError(f"Tool {self.tool_name} returned execution with None")
         else:
             func_return, agent_state = self.parse_best_effort(execution.results[0].text)
         return SandboxRunResult(
