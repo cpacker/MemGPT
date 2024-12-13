@@ -1446,8 +1446,6 @@ class SyncServer(Server):
         # Next, attempt to run the tool with the sandbox
         try:
             sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id, tool_object=tool).run(agent_state=agent_state)
-            if sandbox_run_result is None:
-                raise ValueError(f"Tool with id {tool.id} returned execution with None")
             function_response = str(sandbox_run_result.func_return)
             stdout = [s for s in sandbox_run_result.stdout if s.strip()]
             stderr = [s for s in sandbox_run_result.stderr if s.strip()]
