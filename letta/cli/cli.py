@@ -140,7 +140,7 @@ def run(
     # read user id from config
     ms = MetadataStore(config)
     client = create_client()
-    server = client.server
+    client.server
 
     # determine agent to use, if not provided
     if not yes and not agent:
@@ -222,8 +222,6 @@ def run(
         )
 
         # create agent
-        tools = [server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=client.user) for tool_name in agent_state.tool_names]
-        agent_state.tools = tools
         letta_agent = Agent(agent_state=agent_state, interface=interface(), user=client.user)
 
     else:  # create new agent
@@ -315,7 +313,7 @@ def run(
             metadata=metadata,
         )
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
-        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tool_names])}", fg=typer.colors.WHITE)
+        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t.name for t in agent_state.tools])}", fg=typer.colors.WHITE)
 
         letta_agent = Agent(
             interface=interface(),
