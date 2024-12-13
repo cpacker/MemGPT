@@ -92,7 +92,8 @@ class CreateAgent(BaseAgent):  #
         ...,
         description="The blocks to create in the agent's in-context memory.",
     )
-
+    # TODO: This is a legacy field and should be removed ASAP to force `tool_ids` usage
+    tools: Optional[List[str]] = Field(None, description="The tools used by the agent.")
     tool_ids: Optional[List[str]] = Field(None, description="The ids of the tools used by the agent.")
     source_ids: Optional[List[str]] = Field(None, description="The ids of the sources used by the agent.")
     block_ids: Optional[List[str]] = Field(None, description="The ids of the blocks used by the agent.")
@@ -107,6 +108,7 @@ class CreateAgent(BaseAgent):  #
     initial_message_sequence: Optional[List[MessageCreate]] = Field(
         None, description="The initial set of messages to put in the agent's in-context memory."
     )
+    include_base_tools: bool = Field(True, description="The LLM configuration used by the agent.")
 
     @field_validator("name")
     @classmethod

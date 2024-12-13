@@ -1,5 +1,6 @@
 from typing import Dict, List, Optional
 
+from letta.constants import BASE_MEMORY_TOOLS, BASE_TOOLS
 from letta.orm import Agent as AgentModel
 from letta.orm import Block as BlockModel
 from letta.orm import Source as SourceModel
@@ -48,12 +49,27 @@ class AgentManager:
     ) -> PydanticAgentState:
         system = derive_system_message(agent_type=agent_create.agent_type, system=agent_create.system)
 
-        # TODO:
         # create blocks (note: cannot be linked into the agent_id is created)
         block_ids = list(agent_create.block_ids or [])  # Create a local copy to avoid modifying the original
         for create_block in agent_create.memory_blocks:
             block = self.block_manager.create_or_update_block(PydanticBlock(**create_block.model_dump()), actor=actor)
             block_ids.append(block.id)
+
+        # TODO: Remove this block once we deprecate the legacy `tools` field
+        # create passed in `tools`
+        tool_names = []
+        if agent_create.include_base_tools:
+            tool_names.extend(BASE_TOOLS + BASE_MEMORY_TOOLS)
+        if agent_create.tools:
+            tool_names.extend(agent_create.tools)
+
+        tool_ids = agent_create.tool_ids or []
+        for tool_name in tool_names:
+            tool = self.tool_manager.get_tool_by_name(tool_name=tool_name, actor=actor)
+            if tool:
+                tool_ids.append(tool.id)
+        # Remove duplicates
+        tool_ids = list(set(tool_ids))
 
         return self._create_agent(
             name=agent_create.name,
@@ -62,7 +78,7 @@ class AgentManager:
             llm_config=agent_create.llm_config,
             embedding_config=agent_create.embedding_config,
             block_ids=block_ids,
-            tool_ids=agent_create.tool_ids or [],
+            tool_ids=tool_ids,
             source_ids=agent_create.source_ids or [],
             tags=agent_create.tags or [],
             description=agent_create.description,
