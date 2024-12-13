@@ -170,7 +170,6 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
     tool = client.load_composio_tool(action=Action.GITHUB_STAR_A_REPOSITORY_FOR_THE_AUTHENTICATED_USER)
-    tool_name = tool.name
 
     # Set up persona for tool usage
     persona = f"""
@@ -182,7 +181,7 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
     Don’t forget - inner monologue / inner thoughts should always be different than the contents of send_message! send_message is how you communicate with the user, whereas inner thoughts are your own personal inner thoughts.
     """
 
-    agent_state = setup_agent(client, filename, memory_persona_str=persona, tools=[tool_name])
+    agent_state = setup_agent(client, filename, memory_persona_str=persona, tool_ids=[tool.id])
 
     response = client.user_message(agent_id=agent_state.id, message="What's on the example.com website?")
 
@@ -190,7 +189,7 @@ def check_agent_uses_external_tool(filename: str) -> LettaResponse:
     assert_sanity_checks(response)
 
     # Make sure the tool was called
-    assert_invoked_function_call(response.messages, tool_name)
+    assert_invoked_function_call(response.messages, tool.name)
 
     # Make sure some inner monologue is present
     assert_inner_monologue_is_present_and_valid(response.messages)
