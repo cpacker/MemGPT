@@ -58,7 +58,6 @@ class UserMessage(LettaMessage):
 
     message_type: Literal["user_message"] = "user_message"
     message: str
-    # image: str
 
 
 class InternalMonologue(LettaMessage):

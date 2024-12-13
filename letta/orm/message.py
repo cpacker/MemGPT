@@ -53,7 +53,6 @@ class Message(SqlalchemyBase, OrganizationMixin, AgentMixin):
     id: Mapped[str] = mapped_column(primary_key=True, doc="Unique message identifier")
     role: Mapped[str] = mapped_column(doc="Message role (user/assistant/system/tool)")
     text: Mapped[Optional[str]] = mapped_column(nullable=True, doc="Message content")
-    image: Mapped[Optional[str]] = mapped_column(nullable=True, doc="Image URL or base64")
     model: Mapped[Optional[str]] = mapped_column(nullable=True, doc="LLM model used")
     name: Mapped[Optional[str]] = mapped_column(nullable=True, doc="Name for multi-agent scenarios")
     tool_calls: Mapped[ToolCall] = mapped_column(ToolCallColumn, doc="Tool call information")

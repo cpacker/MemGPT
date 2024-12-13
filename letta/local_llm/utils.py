@@ -240,10 +240,10 @@ def num_tokens_from_messages(messages: List[dict], model: str = "gpt-4") -> int:
                         # num_tokens += len(encoding.encode(value["arguments"]))
                     else:
                         # prompt with image
-                        for sub_message in value:
-                            if sub_message["type"] == "text":
-                                num_tokens += len(encoding.encode(sub_message["text"]))
-                            elif sub_message["type"] == "image_url":
+                        for part in value:
+                            if part["type"] == "text":
+                                num_tokens += len(encoding.encode(part["text"]))
+                            elif part["type"] == "image_url":
                                 pass  # TODO calculate cost: https://platform.openai.com/docs/guides/vision/calculating-costs#quickstart
                 else:
                     if value is None:

@@ -1,6 +1,6 @@
 import json
 import uuid
-from typing import Optional
+from typing import Optional, Union
 
 from .constants import (
     INITIAL_BOOT_MESSAGE,
@@ -8,6 +8,7 @@ from .constants import (
     INITIAL_BOOT_MESSAGE_SEND_MESSAGE_THOUGHT,
     MESSAGE_SUMMARY_WARNING_STR,
 )
+from letta.schemas.message import MultiMediaContentPart
 from .utils import get_local_time, json_dumps
 
 
@@ -116,7 +117,7 @@ def get_login_event(last_login="Never (first login)", include_location=False, lo
 
 
 def package_user_message(
-    user_message: str,
+    user_message: Union[str, list[MultiMediaContentPart]],
     time: Optional[str] = None,
     include_location: bool = False,
     location_name: Optional[str] = "San Francisco, CA, USA",
@@ -126,7 +127,6 @@ def package_user_message(
     formatted_time = time if time else get_local_time()
     packaged_message = {
         "type": "user_message",
-        "message": user_message,
         "time": formatted_time,
     }
 
@@ -135,6 +135,14 @@ def package_user_message(
 
     if name:
         packaged_message["name"] = name
+
+    if isinstance(user_message, str):
+        packaged_message["message"] = user_message
+    else:
+        text_parts = [part for part in user_message if part.type == "text"]
+        if len(text_parts) != 1:
+            raise Exception(f"Expected a single text-type message in content, but got {text_parts}")
+        packaged_message["message"] = text_parts[0].text
 
     return json_dumps(packaged_message)
 

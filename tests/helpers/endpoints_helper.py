@@ -361,8 +361,18 @@ def check_vision_input(filename, image_url: str, keyword: str):
     prompt_force_user_output = "If you are responding to the user question, you MUST use the 'send_message' function/tool"
 
     response = client.user_message(agent_id=agent_state.id,
-                                   message="You are a object detection model trained on high-level everyday things. List everything inside. " + prompt_force_user_output,
-                                   image=image_url)
+                                   message=[
+                                       {
+                                           "type": "text",
+                                           "text": "You are a object detection model trained on high-level everyday things. List everything inside. " + prompt_force_user_output
+                                       },
+                                       {
+                                           "type": "image_url",
+                                           "image_url": {
+                                               "url": image_url
+                                           }
+                                       }
+                                   ])
 
     # check that keyword exists in description
     assert_sanity_checks(response)
