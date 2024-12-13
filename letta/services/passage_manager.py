@@ -40,37 +40,36 @@ class PassageManager:
     @enforce_types
     def create_passage(self, pydantic_passage: PydanticPassage, actor: PydanticUser) -> PydanticPassage:
         """Create a new passage in the appropriate table based on whether it has agent_id or source_id."""
-        with self.session_maker() as session:
-            data = pydantic_passage.model_dump()
-            
-            # Common fields for both passage types
-            common_fields = {
-                "id": data.get("id"),
-                "text": data["text"],
-                "embedding": data["embedding"],
-                "embedding_config": data["embedding_config"],
-                "organization_id": data["organization_id"],
-                "metadata_": data.get("metadata_", {}),
-                "is_deleted": data.get("is_deleted", False),
-                "created_at": data.get("created_at", datetime.utcnow()),
-            }
+        # Common fields for both passage types
+        data = pydantic_passage.model_dump()
+        common_fields = {
+            "id": data.get("id"),
+            "text": data["text"],
+            "embedding": data["embedding"],
+            "embedding_config": data["embedding_config"],
+            "organization_id": data["organization_id"],
+            "metadata_": data.get("metadata_", {}),
+            "is_deleted": data.get("is_deleted", False),
+            "created_at": data.get("created_at", datetime.utcnow()),
+        }
 
-            if "agent_id" in data and data["agent_id"]:
-                assert not data.get("source_id"), "Passage cannot have both agent_id and source_id"
-                agent_fields = {
-                    "agent_id": data["agent_id"],
-                }
-                passage = AgentPassage(**common_fields, **agent_fields)
-            elif "source_id" in data and data["source_id"]:
-                assert not data.get("agent_id"), "Passage cannot have both agent_id and source_id"
-                source_fields = {
-                    "source_id": data["source_id"],
-                    "file_id": data.get("file_id"),
-                }
-                passage = SourcePassage(**common_fields, **source_fields)
-            else:
-                raise ValueError("Passage must have either agent_id or source_id")
-            
+        if "agent_id" in data and data["agent_id"]:
+            assert not data.get("source_id"), "Passage cannot have both agent_id and source_id"
+            agent_fields = {
+                "agent_id": data["agent_id"],
+            }
+            passage = AgentPassage(**common_fields, **agent_fields)
+        elif "source_id" in data and data["source_id"]:
+            assert not data.get("agent_id"), "Passage cannot have both agent_id and source_id"
+            source_fields = {
+                "source_id": data["source_id"],
+                "file_id": data.get("file_id"),
+            }
+            passage = SourcePassage(**common_fields, **source_fields)
+        else:
+            raise ValueError("Passage must have either agent_id or source_id")
+
+        with self.session_maker() as session:
             passage.create(session, actor=actor)
             return passage.to_pydantic()
 
@@ -171,19 +170,20 @@ class PassageManager:
                       embedding_config: Optional[EmbeddingConfig] = None
                      ) -> List[PydanticPassage]:
         """List passages with pagination from both source and archival passages."""        
-        with self.session_maker() as session:
-            filters = {"organization_id": actor.organization_id}
-            if file_id:
-                filters["file_id"] = file_id
-            
-            embedded_text = None
-            if embed_query:
-                assert embedding_config is not None
-                embedded_text = embedding_model(embedding_config).get_text_embedding(query_text)
-                embedded_text = np.array(embedded_text)
-                embedded_text = np.pad(embedded_text, (0, MAX_EMBEDDING_DIM - embedded_text.shape[0]), mode="constant").tolist()
+        filters = {"organization_id": actor.organization_id}
+        if file_id:
+            filters["file_id"] = file_id
+        
+        embedded_text = None
+        if embed_query:
+            assert embedding_config is not None
+            embedded_text = embedding_model(embedding_config).get_text_embedding(query_text)
+            embedded_text = np.array(embedded_text)
+            embedded_text = np.pad(embedded_text, (0, MAX_EMBEDDING_DIM - embedded_text.shape[0]), mode="constant").tolist()
 
-            results = []
+        results = []
+
+        with self.session_maker() as session:
 
             # Query source passages if source_id is specified or no specific table filter is given
             if source_id or (not agent_id and not source_id): # could be querying all passages in an organization
@@ -227,28 +227,28 @@ class PassageManager:
                 except NoResultFound:
                     pass
 
-            # Sort combined results by similarity or created_at and apply limit
-            if embed_query:
-                # Convert query embedding to numpy array for efficient computation
-                query_embedding = np.array(embedded_text)
-                
-                # NOTE: this might be slow but it's less messy than modifying Base.list() to handle the Passages edge case
-                # Calculate cosine similarity for each passage
-                def get_distance(passage):
-                    passage_embedding = np.array(passage.embedding)
-                    similarity = np.dot(query_embedding, passage_embedding) / (
-                        np.linalg.norm(query_embedding) * np.linalg.norm(passage_embedding)
-                    )
-                    return 1 - similarity
-                
-                results.sort(key=lambda x: (get_distance(x), x.created_at))
-            else:
-                results.sort(key=lambda x: x.created_at, reverse=not ascending)
-
-            if limit:
-                results = results[:limit]
+        # Sort combined results by similarity or created_at and apply limit
+        if embed_query:
+            # Convert query embedding to numpy array for efficient computation
+            query_embedding = np.array(embedded_text)
             
-            return [p.to_pydantic() for p in results]
+            # NOTE: this might be slow but it's less messy than modifying Base.list() to handle the Passages edge case
+            # Calculate cosine similarity for each passage
+            def get_distance(passage):
+                passage_embedding = np.array(passage.embedding)
+                similarity = np.dot(query_embedding, passage_embedding) / (
+                    np.linalg.norm(query_embedding) * np.linalg.norm(passage_embedding)
+                )
+                return 1 - similarity
+            
+            results.sort(key=lambda x: (get_distance(x), x.created_at))
+        else:
+            results.sort(key=lambda x: x.created_at, reverse=not ascending)
+
+        if limit:
+            results = results[:limit]
+        
+        return [p.to_pydantic() for p in results]
 
     @enforce_types
     def size(
