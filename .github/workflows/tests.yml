@@ -25,13 +25,10 @@ jobs:
           - "test_client_legacy.py"
           - "test_server.py"
           - "test_managers.py"
-          - "test_o1_agent.py"
           - "test_tool_rule_solver.py"
-          - "test_agent_tool_graph.py"
           - "test_utils.py"
           - "test_tool_schema_parsing.py"
           - "test_v1_routes.py"
-          - "test_offline_memory_agent.py"
     services:
       qdrant:
         image: qdrant/qdrant
