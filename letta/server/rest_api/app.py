@@ -232,7 +232,6 @@ def create_application() -> "FastAPI":
     @app.on_event("shutdown")
     def on_shutdown():
         global server
-        server.save_agents()
         # server = None
 
     return app

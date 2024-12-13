@@ -429,7 +429,7 @@ class SyncServer(Server):
 
     def _step(
         self,
-        user_id: str,
+        actor: User,
         agent_id: str,
         input_messages: Union[Message, List[Message]],
         interface: Union[AgentInterface, None] = None,  # needed to getting responses
@@ -437,8 +437,6 @@ class SyncServer(Server):
     ) -> LettaUsageStatistics:
         """Send the input message through the agent"""
         # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
-        actor = self.user_manager.get_user_or_default(user_id=user_id)
-
         # Input validation
         if isinstance(input_messages, Message):
             input_messages = [input_messages]
@@ -586,11 +584,11 @@ class SyncServer(Server):
 
         elif command.lower() == "heartbeat":
             input_message = system.get_heartbeat()
-            usage = self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+            usage = self._step(actor=actor, agent_id=agent_id, input_message=input_message)
 
         elif command.lower() == "memorywarning":
             input_message = system.get_token_limit_warning()
-            usage = self._step(user_id=user_id, agent_id=agent_id, input_message=input_message)
+            usage = self._step(actor=actor, agent_id=agent_id, input_message=input_message)
 
         if not usage:
             usage = LettaUsageStatistics()
@@ -646,7 +644,7 @@ class SyncServer(Server):
                 )
 
         # Run the agent state forward
-        usage = self._step(user_id=user_id, agent_id=agent_id, input_messages=message)
+        usage = self._step(actor=actor, agent_id=agent_id, input_messages=message)
         return usage
 
     def system_message(
@@ -711,11 +709,11 @@ class SyncServer(Server):
             message.created_at = timestamp
 
         # Run the agent state forward
-        return self._step(user_id=user_id, agent_id=agent_id, input_messages=message)
+        return self._step(actor=actor, agent_id=agent_id, input_messages=message)
 
     def send_messages(
         self,
-        user_id: str,
+        actor: User,
         agent_id: str,
         messages: Union[List[MessageCreate], List[Message]],
         # whether or not to wrap user and system message as MemGPT-style stringified JSON
@@ -768,7 +766,7 @@ class SyncServer(Server):
             raise ValueError(f"All messages must be of type Message or MessageCreate, got {[type(message) for message in messages]}")
 
         # Run the agent state forward
-        return self._step(user_id=user_id, agent_id=agent_id, input_messages=message_objects, interface=interface)
+        return self._step(actor=actor, agent_id=agent_id, input_messages=message_objects, interface=interface)
 
     # @LockingServer.agent_lock_decorator
     def run_command(self, user_id: str, agent_id: str, command: str) -> LettaUsageStatistics:

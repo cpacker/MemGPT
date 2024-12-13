@@ -66,10 +66,8 @@ def create_client(base_url: Optional[str] = None, token: Optional[str] = None):
 class AbstractClient(object):
     def __init__(
         self,
-        auto_save: bool = False,
         debug: bool = False,
     ):
-        self.auto_save = auto_save
         self.debug = debug
 
     def agent_exists(self, agent_id: Optional[str] = None, agent_name: Optional[str] = None) -> bool:
@@ -438,7 +436,6 @@ class RESTClient(AbstractClient):
         Initializes a new instance of Client class.
 
         Args:
-            auto_save (bool): Whether to automatically save changes.
             user_id (str): The user ID.
             debug (bool): Whether to print debug information.
             default_llm_config (Optional[LLMConfig]): The default LLM configuration.
@@ -2008,7 +2005,6 @@ class LocalClient(AbstractClient):
     A local client for Letta, which corresponds to a single user.
 
     Attributes:
-        auto_save (bool): Whether to automatically save changes.
         user_id (str): The user ID.
         debug (bool): Whether to print debug information.
         interface (QueuingInterface): The interface for the client.
@@ -2017,7 +2013,6 @@ class LocalClient(AbstractClient):
 
     def __init__(
         self,
-        auto_save: bool = False,
         user_id: Optional[str] = None,
         org_id: Optional[str] = None,
         debug: bool = False,
@@ -2028,11 +2023,9 @@ class LocalClient(AbstractClient):
         Initializes a new instance of Client class.
 
         Args:
-            auto_save (bool): Whether to automatically save changes.
             user_id (str): The user ID.
             debug (bool): Whether to print debug information.
         """
-        self.auto_save = auto_save
 
         # set logging levels
         letta.utils.DEBUG = debug
@@ -2452,11 +2445,7 @@ class LocalClient(AbstractClient):
             response (LettaResponse): Response from the agent
         """
         self.interface.clear()
-        usage = self.server.send_messages(user_id=self.user_id, agent_id=agent_id, messages=messages)
-
-        # auto-save
-        if self.auto_save:
-            self.save()
+        usage = self.server.send_messages(actor=self.user, agent_id=agent_id, messages=messages)
 
         # format messages
         return LettaResponse(messages=messages, usage=usage)
@@ -2496,14 +2485,10 @@ class LocalClient(AbstractClient):
         self.interface.clear()
 
         usage = self.server.send_messages(
-            user_id=self.user_id,
+            actor=self.user,
             agent_id=agent_id,
             messages=[MessageCreate(role=MessageRole(role), text=message, name=name)],
         )
-
-        # auto-save
-        if self.auto_save:
-            self.save()
 
         ## TODO: need to make sure date/timestamp is propely passed
         ## TODO: update self.interface.to_list() to return actual Message objects
@@ -2553,15 +2538,8 @@ class LocalClient(AbstractClient):
         self.interface.clear()
         usage = self.server.run_command(user_id=self.user_id, agent_id=agent_id, command=command)
 
-        # auto-save
-        if self.auto_save:
-            self.save()
-
         # NOTE: messages/usage may be empty, depending on the command
         return LettaResponse(messages=self.interface.to_list(), usage=usage)
-
-    def save(self):
-        self.server.save_agents()
 
     # archival memory
 

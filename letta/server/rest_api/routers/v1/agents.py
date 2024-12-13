@@ -707,7 +707,7 @@ async def send_message_to_agent(
         task = asyncio.create_task(
             asyncio.to_thread(
                 server.send_messages,
-                user_id=user_id,
+                actor=actor,
                 agent_id=agent_id,
                 messages=messages,
                 interface=streaming_interface,
