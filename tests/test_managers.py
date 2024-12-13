@@ -10,7 +10,6 @@ from letta.embeddings import embedding_model
 import letta.utils as utils
 from letta.functions.functions import derive_openai_json_schema, parse_source_code
 from letta.metadata import AgentModel
-from letta.orm.sqlite_functions import verify_embedding_dimension, convert_array
 from letta.orm import (
     Block,
     BlocksAgents,

@@ -433,42 +433,47 @@ def test_get_recall_memory(server, org_id, user_id, agent_id):
         assert message_id in message_ids, f"{message_id} not in {message_ids}"
 
 
-# TODO: Out-of-date test. pagination commands are off
-# @pytest.mark.order(6)
-# def test_get_archival_memory(server, user_id, agent_id):
-#     # test archival memory cursor pagination
-#     passages_1 = server.get_agent_archival_cursor(user_id=user_id, agent_id=agent_id, reverse=False, limit=2, order_by="text")
-#     assert len(passages_1) == 2, f"Returned {[p.text for p in passages_1]}, not equal to 2"
-#     cursor1 = passages_1[-1].id
-#     passages_2 = server.get_agent_archival_cursor(
-#         user_id=user_id,
-#         agent_id=agent_id,
-#         reverse=False,
-#         after=cursor1,
-#         order_by="text",
-#     )
-#     cursor2 = passages_2[-1].id
-#     passages_3 = server.get_agent_archival_cursor(
-#         user_id=user_id,
-#         agent_id=agent_id,
-#         reverse=False,
-#         before=cursor2,
-#         limit=1000,
-#         order_by="text",
-#     )
-#     passages_3[-1].id
-#     # assert passages_1[0].text == "Cinderella wore a blue dress"
-#     assert len(passages_2) in [3, 4]  # NOTE: exact size seems non-deterministic, so loosen test
-#     assert len(passages_3) in [4, 5]  # NOTE: exact size seems non-deterministic, so loosen test
+@pytest.mark.order(6)
+def test_get_archival_memory(server, user_id, agent_id):
+    # test archival memory cursor pagination
+    user = server.user_manager.get_user_by_id(user_id=user_id)
+ 
+    # List latest 2 passages
+    passages_1 = server.passage_manager.list_passages(
+        actor=user, agent_id=agent_id, ascending=False, limit=2,
+    )
+    assert len(passages_1) == 2, f"Returned {[p.text for p in passages_1]}, not equal to 2"
 
-#     # test archival memory
-#     passage_1 = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=0, count=1)
-#     assert len(passage_1) == 1
-#     passage_2 = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=1, count=1000)
-#     assert len(passage_2) in [4, 5]  # NOTE: exact size seems non-deterministic, so loosen test
-#     # test safe empty return
-#     passage_none = server.get_agent_archival(user_id=user_id, agent_id=agent_id, start=1000, count=1000)
-#     assert len(passage_none) == 0
+    # List next 3 passages (earliest 3)
+    cursor1 = passages_1[-1].id
+    passages_2 = server.passage_manager.list_passages(
+        actor=user,
+        agent_id=agent_id,
+        ascending=False,
+        cursor=cursor1,
+    )
+
+    # List all 5
+    cursor2 = passages_1[0].created_at
+    passages_3 = server.passage_manager.list_passages(
+        actor=user,
+        agent_id=agent_id,
+        ascending=False,
+        end_date=cursor2,
+        limit=1000,
+    )
+    # assert passages_1[0].text == "Cinderella wore a blue dress"
+    assert len(passages_2) in [3, 4]  # NOTE: exact size seems non-deterministic, so loosen test
+    assert len(passages_3) in [4, 5]  # NOTE: exact size seems non-deterministic, so loosen test
+
+    # test archival memory
+    passage_1 = server.get_agent_archival(user_id=user_id, agent_id=agent_id, limit=1)
+    assert len(passage_1) == 1
+    passage_2 = server.get_agent_archival(user_id=user_id, agent_id=agent_id, cursor=passage_1[-1].id, limit=1000)
+    assert len(passage_2) in [4, 5]  # NOTE: exact size seems non-deterministic, so loosen test
+    # test safe empty return
+    passage_none = server.get_agent_archival(user_id=user_id, agent_id=agent_id, cursor=passages_1[0].id, limit=1000)
+    assert len(passage_none) == 0
 
 
 def test_agent_rethink_rewrite_retry(server, user_id, agent_id):
@@ -793,8 +798,8 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == "Ingested message Hello, world!", result.function_return
-    assert result.stdout == ['']
-    assert result.stderr == ['']
+    assert not result.stdout
+    assert not result.stderr
 
     result = server.run_tool_from_source(
         user_id=user_id,
@@ -806,8 +811,8 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == "Ingested message Well well well", result.function_return
-    assert result.stdout == ['']
-    assert result.stderr == ['']
+    assert not result.stdout
+    assert not result.stderr
 
     result = server.run_tool_from_source(
         user_id=user_id,
@@ -820,8 +825,9 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     assert result.status == "error"
     assert "Error" in result.function_return, result.function_return
     assert "missing 1 required positional argument" in result.function_return, result.function_return
-    assert result.stdout == ['']
-    assert result.stderr != [''], "missing 1 required positional argument" in result.stderr[0]
+    assert not result.stdout
+    assert result.stderr
+    assert "missing 1 required positional argument" in result.stderr[0]
 
     # Test that we can still pull the tool out by default (pulls that last tool in the source)
     result = server.run_tool_from_source(
@@ -834,8 +840,9 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == "Ingested message Well well well", result.function_return
-    assert result.stdout != [''], "I'm a distractor" in result.stdout[0]
-    assert result.stderr == ['']
+    assert result.stdout
+    assert "I'm a distractor" in result.stdout[0]
+    assert not result.stderr
 
     # Test that we can pull the tool out by name
     result = server.run_tool_from_source(
@@ -848,8 +855,9 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == "Ingested message Well well well", result.function_return
-    assert result.stdout != [''], "I'm a distractor" in result.stdout[0]
-    assert result.stderr == ['']
+    assert result.stdout
+    assert "I'm a distractor" in result.stdout[0]
+    assert not result.stderr
 
     # Test that we can pull a different tool out by name
     result = server.run_tool_from_source(
@@ -862,8 +870,9 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     print(result)
     assert result.status == "success"
     assert result.function_return == str(None), result.function_return
-    assert result.stdout != [''], "I'm a distractor" in result.stdout[0]
-    assert result.stderr == ['']
+    assert result.stdout
+    assert "I'm a distractor" in result.stdout[0]
+    assert not result.stderr
 
 
 def test_composio_client_simple(server):

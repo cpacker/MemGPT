@@ -1345,16 +1345,9 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id)
 
         # Insert into archival memory
-        passage_ids = self.passage_manager.insert_passage(
-            agent_state=letta_agent.agent_state, agent_id=agent_id, text=memory_contents, actor=actor, return_ids=True
+        return self.passage_manager.insert_passage(
+            agent_state=letta_agent.agent_state, agent_id=agent_id, text=memory_contents, actor=actor
         )
-
-        # Update the agent
-        # TODO: should this update the system prompt?
-        save_agent(letta_agent, self.ms)
-
-        # TODO: this is gross, fix
-        return [self.passage_manager.get_passage_by_id(passage_id=passage_id, actor=actor) for passage_id in passage_ids]
 
     def delete_archival_memory(self, user_id: str, agent_id: str, memory_id: str):
         actor = self.user_manager.get_user_by_id(user_id=user_id)
@@ -1961,9 +1954,22 @@ class SyncServer(Server):
         # Next, attempt to run the tool with the sandbox
         try:
             sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id, tool_object=tool).run(agent_state=agent_state)
-            if sandbox_run_result is None:
-                raise ValueError(f"Tool with id {tool.id} returned execution with None")
             function_response = str(sandbox_run_result.func_return)
+            stdout = [s for s in sandbox_run_result.stdout if s.strip()]
+            stderr = [s for s in sandbox_run_result.stderr if s.strip()]
+
+            # expected error
+            if stderr:
+                error_msg = self.get_error_msg_for_func_return(tool.name, stderr[-1])
+                return FunctionReturn(
+                    id="null",
+                    function_call_id="null",
+                    date=get_utc_time(),
+                    status="error",
+                    function_return=error_msg,
+                    stdout=stdout,
+                    stderr=stderr,
+                )
 
             return FunctionReturn(
                 id="null",
@@ -1971,17 +1977,13 @@ class SyncServer(Server):
                 date=get_utc_time(),
                 status="success",
                 function_return=function_response,
-                stdout=sandbox_run_result.stdout,
-                stderr=sandbox_run_result.stderr,
+                stdout=stdout,
+                stderr=stderr,
             )
+
+        # unexpected error TODO(@cthomas): consolidate error handling
         except Exception as e:
-            # same as agent.py
-            from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
-
-            error_msg = f"Error executing tool {tool.name}: {e}"
-            if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
-                error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
-
+            error_msg = self.get_error_msg_for_func_return(tool.name, e)
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
@@ -1991,6 +1993,17 @@ class SyncServer(Server):
                 stdout=[""],
                 stderr=[traceback.format_exc()],
             )
+
+
+    def get_error_msg_for_func_return(self, tool_name, exception_message):
+        # same as agent.py
+        from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
+
+        error_msg = f"Error executing tool {tool_name}: {exception_message}"
+        if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
+            error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
+        return error_msg
+
 
     # Composio wrappers
     def get_composio_client(self, api_key: Optional[str] = None):
