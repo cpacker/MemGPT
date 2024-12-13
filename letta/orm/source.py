@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import JSON, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from letta.orm import FileMetadata
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -47,5 +48,5 @@ class Source(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="sources")
-    files: Mapped[List["Source"]] = relationship("FileMetadata", back_populates="source", cascade="all, delete-orphan")
+    files: Mapped[List["FileMetadata"]] = relationship("FileMetadata", back_populates="source", cascade="all, delete-orphan")
     agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")
