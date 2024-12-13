@@ -351,7 +351,16 @@ def check_agent_summarize_memory_simple(filename: str) -> LettaResponse:
     return response
 
 
-def check_vision_input(filename, image_url: str, keyword: str):
+def check_vision_input(filename, image_url: str|list[str], keyword: str):
+    if isinstance(image_url, str):
+        image_url = [image_url]
+    image_payloads = [{
+        "type": "image_url",
+        "image_url": {
+            "url": url
+        }
+    } for url in image_url]
+
     # Set up client
     client = create_client()
     cleanup(client=client, agent_uuid=agent_uuid)
@@ -364,14 +373,9 @@ def check_vision_input(filename, image_url: str, keyword: str):
                                    message=[
                                        {
                                            "type": "text",
-                                           "text": "You are a object detection model trained on high-level everyday things. List everything inside. " + prompt_force_user_output
+                                           "text": "You are a object detection model trained on high-level everyday things. List everything inside the images. " + prompt_force_user_output
                                        },
-                                       {
-                                           "type": "image_url",
-                                           "image_url": {
-                                               "url": image_url
-                                           }
-                                       }
+                                       *image_payloads
                                    ])
 
     # check that keyword exists in description
