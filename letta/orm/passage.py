@@ -1,14 +1,12 @@
-import base64
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-import numpy as np
 from sqlalchemy import JSON, Column, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.types import BINARY, TypeDecorator
 
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
+from letta.orm.custom_columns import CommonVector
 from letta.orm.mixins import FileMixin, OrganizationMixin
 from letta.orm.source import EmbeddingConfigColumn
 from letta.orm.sqlalchemy_base import SqlalchemyBase
@@ -19,30 +17,6 @@ config = LettaConfig()
 
 if TYPE_CHECKING:
     from letta.orm.organization import Organization
-
-
-class CommonVector(TypeDecorator):
-    """Common type for representing vectors in SQLite"""
-
-    impl = BINARY
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(BINARY())
-
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return value
-        if isinstance(value, list):
-            value = np.array(value, dtype=np.float32)
-        return base64.b64encode(value.tobytes())
-
-    def process_result_value(self, value, dialect):
-        if not value:
-            return value
-        if dialect.name == "sqlite":
-            value = base64.b64decode(value)
-        return np.frombuffer(value, dtype=np.float32)
 
 
 # TODO: After migration to Passage, will need to manually delete passages where files
