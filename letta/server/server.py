@@ -404,9 +404,6 @@ class SyncServer(Server):
 
             if agent_state is None:
                 raise LettaAgentNotFoundError(f"Agent (agent_id={agent_id}) does not exist")
-            elif agent_state.created_by_id is None:
-                raise ValueError(f"Agent (agent_id={agent_id}) does not have a user_id")
-            actor = self.user_manager.get_user_by_id(user_id=agent_state.created_by_id)
 
             interface = interface or self.default_interface_factory()
             if agent_state.agent_type == AgentType.memgpt_agent:
