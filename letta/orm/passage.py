@@ -1,6 +1,6 @@
 import base64
 from datetime import datetime
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from sqlalchemy import Column, DateTime, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr
 from sqlalchemy.types import TypeDecorator, BINARY
@@ -25,6 +25,7 @@ config = LettaConfig()
 
 if TYPE_CHECKING:
     from letta.orm.organization import Organization
+    from letta.orm.agent import Agent
 
 
 class CommonVector(TypeDecorator):
@@ -110,3 +111,8 @@ class AgentPassage(BasePassage, AgentMixin):
     @declared_attr
     def organization(cls) -> Mapped["Organization"]:
         return relationship("Organization", back_populates="agent_passages", lazy="selectin")
+
+    @declared_attr
+    def agent(cls) -> Mapped["Agent"]:
+        """Relationship to agent"""
+        return relationship("Agent", back_populates="agent_passages", lazy="selectin", passive_deletes=True)

@@ -1,8 +1,5 @@
 from typing import List, Optional
-
 from datetime import datetime
-from typing import List, Optional
-
 import numpy as np
 
 from sqlalchemy import select, union_all, literal
