@@ -1,10 +1,15 @@
 import uuid
-from typing import TYPE_CHECKING, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import JSON, String, TypeDecorator, UniqueConstraint
+from sqlalchemy import JSON, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.block import Block
+from letta.orm.custom_columns import (
+    EmbeddingConfigColumn,
+    LLMConfigColumn,
+    ToolRulesColumn,
+)
 from letta.orm.message import Message
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.organization import Organization
@@ -12,107 +17,15 @@ from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.agent import AgentState as PydanticAgentState
 from letta.schemas.agent import AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import ToolRuleType
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.memory import Memory
-from letta.schemas.tool_rule import (
-    ChildToolRule,
-    InitToolRule,
-    TerminalToolRule,
-    ToolRule,
-)
+from letta.schemas.tool_rule import ToolRule
 
 if TYPE_CHECKING:
     from letta.orm.agents_tags import AgentsTags
     from letta.orm.organization import Organization
     from letta.orm.source import Source
     from letta.orm.tool import Tool
-
-
-class LLMConfigColumn(TypeDecorator):
-    """Custom type for storing LLMConfig as JSON"""
-
-    impl = JSON
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
-
-    def process_bind_param(self, value, dialect):
-        if value:
-            # return vars(value)
-            if isinstance(value, LLMConfig):
-                return value.model_dump()
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value:
-            return LLMConfig(**value)
-        return value
-
-
-class EmbeddingConfigColumn(TypeDecorator):
-    """Custom type for storing EmbeddingConfig as JSON"""
-
-    impl = JSON
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
-
-    def process_bind_param(self, value, dialect):
-        if value:
-            # return vars(value)
-            if isinstance(value, EmbeddingConfig):
-                return value.model_dump()
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value:
-            return EmbeddingConfig(**value)
-        return value
-
-
-class ToolRulesColumn(TypeDecorator):
-    """Custom type for storing a list of ToolRules as JSON"""
-
-    impl = JSON
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
-
-    def process_bind_param(self, value, dialect):
-        """Convert a list of ToolRules to JSON-serializable format."""
-        if value:
-            data = [rule.model_dump() for rule in value]
-            for d in data:
-                d["type"] = d["type"].value
-
-            for d in data:
-                assert not (d["type"] == "ToolRule" and "children" not in d), "ToolRule does not have children field"
-            return data
-        return value
-
-    def process_result_value(self, value, dialect) -> List[Union[ChildToolRule, InitToolRule, TerminalToolRule]]:
-        """Convert JSON back to a list of ToolRules."""
-        if value:
-            return [self.deserialize_tool_rule(rule_data) for rule_data in value]
-        return value
-
-    @staticmethod
-    def deserialize_tool_rule(data: dict) -> Union[ChildToolRule, InitToolRule, TerminalToolRule]:
-        """Deserialize a dictionary to the appropriate ToolRule subclass based on the 'type'."""
-        rule_type = ToolRuleType(data.get("type"))  # Remove 'type' field if it exists since it is a class var
-        if rule_type == ToolRuleType.run_first:
-            return InitToolRule(**data)
-        elif rule_type == ToolRuleType.exit_loop:
-            return TerminalToolRule(**data)
-        elif rule_type == ToolRuleType.constrain_child_tools:
-            rule = ChildToolRule(**data)
-            return rule
-        else:
-            raise ValueError(f"Unknown tool rule type: {rule_type}")
 
 
 class Agent(SqlalchemyBase, OrganizationMixin):

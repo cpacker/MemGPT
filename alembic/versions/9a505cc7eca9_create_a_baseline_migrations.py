@@ -12,7 +12,7 @@ import pgvector
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-import letta.metadata
+import letta.orm
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -43,8 +43,8 @@ def upgrade() -> None:
         sa.Column("memory", sa.JSON(), nullable=True),
         sa.Column("system", sa.String(), nullable=True),
         sa.Column("agent_type", sa.String(), nullable=True),
-        sa.Column("llm_config", letta.metadata.LLMConfigColumn(), nullable=True),
-        sa.Column("embedding_config", letta.metadata.EmbeddingConfigColumn(), nullable=True),
+        sa.Column("llm_config", letta.orm.custom_columns.LLMConfigColumn(), nullable=True),
+        sa.Column("embedding_config", letta.orm.custom_columns.EmbeddingConfigColumn(), nullable=True),
         sa.Column("metadata_", sa.JSON(), nullable=True),
         sa.Column("tools", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
@@ -119,7 +119,7 @@ def upgrade() -> None:
         sa.Column("agent_id", sa.String(), nullable=True),
         sa.Column("source_id", sa.String(), nullable=True),
         sa.Column("embedding", pgvector.sqlalchemy.Vector(dim=4096), nullable=True),
-        sa.Column("embedding_config", letta.metadata.EmbeddingConfigColumn(), nullable=True),
+        sa.Column("embedding_config", letta.orm.custom_columns.EmbeddingConfigColumn(), nullable=True),
         sa.Column("metadata_", sa.JSON(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),
@@ -131,7 +131,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
-        sa.Column("embedding_config", letta.metadata.EmbeddingConfigColumn(), nullable=True),
+        sa.Column("embedding_config", letta.orm.custom_columns.EmbeddingConfigColumn(), nullable=True),
         sa.Column("description", sa.String(), nullable=True),
         sa.Column("metadata_", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
