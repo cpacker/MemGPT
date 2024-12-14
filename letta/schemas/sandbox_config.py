@@ -3,10 +3,11 @@ import json
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from letta.schemas.agent import AgentState
 from letta.schemas.letta_base import LettaBase, OrmMetadataBase
+from letta.settings import tool_settings
 
 
 # Sandbox Config
@@ -44,6 +45,16 @@ class E2BSandboxConfig(BaseModel):
     @property
     def type(self) -> "SandboxType":
         return SandboxType.E2B
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_default_template(cls, data: dict):
+        """
+        Assign a default template value if the template field is not provided.
+        """
+        if data.get("template") is None:
+            data["template"] = tool_settings.e2b_sandbox_template_id
+        return data
 
 
 class SandboxConfigBase(OrmMetadataBase):
