@@ -138,7 +138,6 @@ def run(
     config = LettaConfig.load()
 
     # read user id from config
-    ms = MetadataStore(config)
     client = create_client()
 
     # determine agent to use, if not provided
@@ -332,7 +331,6 @@ def run(
         letta_agent=letta_agent,
         config=config,
         first=first,
-        ms=ms,
         no_verify=no_verify,
         stream=stream,
     )  # TODO: add back no_verify

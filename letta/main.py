@@ -19,7 +19,6 @@ from letta.cli.cli_config import add, add_tool, configure, delete, list, list_to
 from letta.cli.cli_load import app as load_app
 from letta.config import LettaConfig
 from letta.constants import FUNC_FAILED_HEARTBEAT_MESSAGE, REQ_HEARTBEAT_MESSAGE
-from letta.metadata import MetadataStore
 
 # from letta.interface import CLIInterface as interface  # for printing to terminal
 from letta.streaming_interface import AgentRefreshStreamingInterface
@@ -62,7 +61,6 @@ def run_agent_loop(
     letta_agent: agent.Agent,
     config: LettaConfig,
     first: bool,
-    ms: MetadataStore,
     no_verify: bool = False,
     strip_ui: bool = False,
     stream: bool = False,
@@ -92,7 +90,6 @@ def run_agent_loop(
 
     # create client
     client = create_client()
-    ms = MetadataStore(config)  # TODO: remove
 
     # run loops
     while True:
@@ -378,7 +375,6 @@ def run_agent_loop(
                     first_message=False,
                     skip_verify=no_verify,
                     stream=stream,
-                    ms=ms,
                 )
             else:
                 step_response = letta_agent.step_user_message(
@@ -386,7 +382,6 @@ def run_agent_loop(
                     first_message=False,
                     skip_verify=no_verify,
                     stream=stream,
-                    ms=ms,
                 )
             new_messages = step_response.messages
             heartbeat_request = step_response.heartbeat_request

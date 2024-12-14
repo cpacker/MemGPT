@@ -2,20 +2,8 @@ from typing import TYPE_CHECKING, List, Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
-from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.user import User, UserCreate, UserUpdate
 from letta.server.rest_api.utils import get_letta_server
-
-# from letta.server.schemas.users import (
-#     CreateAPIKeyRequest,
-#     CreateAPIKeyResponse,
-#     CreateUserRequest,
-#     CreateUserResponse,
-#     DeleteAPIKeyResponse,
-#     DeleteUserResponse,
-#     GetAllUsersResponse,
-#     GetAPIKeysResponse,
-# )
 
 if TYPE_CHECKING:
     from letta.schemas.user import User
@@ -84,37 +72,3 @@ def delete_user(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{e}")
     return user
-
-
-@router.post("/keys", response_model=APIKey, operation_id="create_api_key")
-def create_new_api_key(
-    create_key: APIKeyCreate = Body(...),
-    server: "SyncServer" = Depends(get_letta_server),
-):
-    """
-    Create a new API key for a user
-    """
-    api_key = server.create_api_key(create_key)
-    return api_key
-
-
-@router.get("/keys", response_model=List[APIKey], operation_id="list_api_keys")
-def get_api_keys(
-    user_id: str = Query(..., description="The unique identifier of the user."),
-    server: "SyncServer" = Depends(get_letta_server),
-):
-    """
-    Get a list of all API keys for a user
-    """
-    if server.user_manager.get_user_by_id(user_id=user_id) is None:
-        raise HTTPException(status_code=404, detail=f"User does not exist")
-    api_keys = server.ms.get_all_api_keys_for_user(user_id=user_id)
-    return api_keys
-
-
-@router.delete("/keys", response_model=APIKey, operation_id="delete_api_key")
-def delete_api_key(
-    api_key: str = Query(..., description="The API key to be deleted."),
-    server: "SyncServer" = Depends(get_letta_server),
-):
-    return server.delete_api_key(api_key)
