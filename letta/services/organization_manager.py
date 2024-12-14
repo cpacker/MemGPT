@@ -13,7 +13,6 @@ class OrganizationManager:
     DEFAULT_ORG_NAME = "default_org"
 
     def __init__(self):
-        # This is probably horrible but we reuse this technique from metadata.py
         # TODO: Please refactor this out
         # I am currently working on a ORM refactor and would like to make a more minimal set of changes
         # - Matt

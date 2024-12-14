@@ -18,7 +18,6 @@ from letta.constants import (
 )
 from letta.local_llm.constants import ASSISTANT_MESSAGE_CLI_SYMBOL
 from letta.log import get_logger
-from letta.metadata import MetadataStore
 from letta.schemas.enums import OptionState
 from letta.schemas.memory import ChatMemory, Memory
 from letta.server.server import logger as server_logger
