@@ -18,7 +18,6 @@ from letta.constants import (
 )
 from letta.local_llm.constants import ASSISTANT_MESSAGE_CLI_SYMBOL
 from letta.log import get_logger
-from letta.metadata import MetadataStore
 from letta.schemas.enums import OptionState
 from letta.schemas.memory import ChatMemory, Memory
 from letta.server.server import logger as server_logger
@@ -138,9 +137,7 @@ def run(
     config = LettaConfig.load()
 
     # read user id from config
-    ms = MetadataStore(config)
     client = create_client()
-    server = client.server
 
     # determine agent to use, if not provided
     if not yes and not agent:
@@ -165,8 +162,6 @@ def run(
     persona = persona if persona else config.persona
     if agent and agent_state:  # use existing agent
         typer.secho(f"\n🔁 Using existing agent {agent}", fg=typer.colors.GREEN)
-        # agent_config = AgentConfig.load(agent)
-        # agent_state = ms.get_agent(agent_name=agent, user_id=user_id)
         printd("Loading agent state:", agent_state.id)
         printd("Agent state:", agent_state.name)
         # printd("State path:", agent_config.save_state_dir())
@@ -224,8 +219,6 @@ def run(
         )
 
         # create agent
-        tools = [server.tool_manager.get_tool_by_name(tool_name=tool_name, actor=client.user) for tool_name in agent_state.tool_names]
-        agent_state.tools = tools
         letta_agent = Agent(agent_state=agent_state, interface=interface(), user=client.user)
 
     else:  # create new agent
@@ -317,7 +310,7 @@ def run(
             metadata=metadata,
         )
         assert isinstance(agent_state.memory, Memory), f"Expected Memory, got {type(agent_state.memory)}"
-        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t for t in agent_state.tool_names])}", fg=typer.colors.WHITE)
+        typer.secho(f"->  🛠️  {len(agent_state.tools)} tools: {', '.join([t.name for t in agent_state.tools])}", fg=typer.colors.WHITE)
 
         letta_agent = Agent(
             interface=interface(),
@@ -326,7 +319,7 @@ def run(
             first_message_verify_mono=True if (model is not None and "gpt-4" in model) else False,
             user=client.user,
         )
-        save_agent(agent=letta_agent, ms=ms)
+        save_agent(agent=letta_agent)
         typer.secho(f"🎉 Created new agent '{letta_agent.agent_state.name}' (id={letta_agent.agent_state.id})", fg=typer.colors.GREEN)
 
     # start event loop
@@ -337,7 +330,6 @@ def run(
         letta_agent=letta_agent,
         config=config,
         first=first,
-        ms=ms,
         no_verify=no_verify,
         stream=stream,
     )  # TODO: add back no_verify

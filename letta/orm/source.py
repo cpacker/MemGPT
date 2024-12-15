@@ -1,8 +1,10 @@
 from typing import TYPE_CHECKING, List, Optional
 
-from sqlalchemy import JSON, TypeDecorator
+from sqlalchemy import JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from letta.orm import FileMetadata
+from letta.orm.custom_columns import EmbeddingConfigColumn
 from letta.orm.mixins import OrganizationMixin
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -10,28 +12,6 @@ from letta.schemas.source import Source as PydanticSource
 
 if TYPE_CHECKING:
     from letta.orm.organization import Organization
-
-
-class EmbeddingConfigColumn(TypeDecorator):
-    """Custom type for storing EmbeddingConfig as JSON"""
-
-    impl = JSON
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(JSON())
-
-    def process_bind_param(self, value, dialect):
-        if value:
-            # return vars(value)
-            if isinstance(value, EmbeddingConfig):
-                return value.model_dump()
-        return value
-
-    def process_result_value(self, value, dialect):
-        if value:
-            return EmbeddingConfig(**value)
-        return value
 
 
 class Source(SqlalchemyBase, OrganizationMixin):
@@ -47,5 +27,5 @@ class Source(SqlalchemyBase, OrganizationMixin):
 
     # relationships
     organization: Mapped["Organization"] = relationship("Organization", back_populates="sources")
-    files: Mapped[List["Source"]] = relationship("FileMetadata", back_populates="source", cascade="all, delete-orphan")
-    # agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")
+    files: Mapped[List["FileMetadata"]] = relationship("FileMetadata", back_populates="source", cascade="all, delete-orphan")
+    agents: Mapped[List["Agent"]] = relationship("Agent", secondary="sources_agents", back_populates="sources")

@@ -108,7 +108,7 @@ def main():
     ]
 
     # 4. Create the agent
-    agent_state = setup_agent(client, config_file, agent_uuid=agent_uuid, tools=[t.name for t in tools], tool_rules=tool_rules)
+    agent_state = setup_agent(client, config_file, agent_uuid=agent_uuid, tool_ids=[t.id for t in tools], tool_rules=tool_rules)
 
     # 5. Ask for the final secret word
     response = client.user_message(agent_id=agent_state.id, message="What is the fourth secret word?")

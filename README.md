@@ -1,8 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/Letta-logo-RGB_GreyonTransparent_cropped_small.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/Letta-logo-RGB_OffBlackonTransparent_cropped_small.png">
-    <img alt="Letta logo" src="assets/Letta-logo-RGB_GreyonOffBlack_cropped_small.png" width="500">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/Letta-logo-RGB_GreyonTransparent_cropped_small.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/Letta-logo-RGB_OffBlackonTransparent_cropped_small.png">
+    <img alt="Letta logo" src="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/Letta-logo-RGB_GreyonOffBlack_cropped_small.png" width="500">
   </picture>
 </p>
 
@@ -13,9 +13,9 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/example_ade_screenshot.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/example_ade_screenshot_light.png">
-    <img alt="Letta logo" src="assets/example_ade_screenshot.png" width="800">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_light.png">
+    <img alt="Letta logo" src="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot.png" width="800">
   </picture>
 </p>
 
@@ -51,7 +51,7 @@
 
 ## ⚡ Quickstart
 
-_The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see guide [below](#-quickstart-pip))._
+_The recommended way to use Letta is to run use Docker. To install Docker, see [Docker's installation guide](https://docs.docker.com/get-docker/). For issues with installing Docker, see [Docker's troubleshooting guide](https://docs.docker.com/desktop/troubleshoot-and-support/troubleshoot/). You can also install Letta using `pip` (see instructions [below](#-quickstart-pip))._
 
 ### 🌖 Run the Letta server
 
@@ -89,9 +89,9 @@ Once the Letta server is running, you can access it via port `8283` (e.g. sendin
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/example_ade_screenshot.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/example_ade_screenshot_light.png">
-    <img alt="Letta logo" src="assets/example_ade_screenshot.png" width="800">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_light.png">
+    <img alt="ADE screenshot" src="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot.png" width="800">
   </picture>
 </p>
 
@@ -104,9 +104,9 @@ To connect the ADE with your local Letta server, simply:
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/example_ade_screenshot_agents.png">
-    <source media="(prefers-color-scheme: light)" srcset="assets/example_ade_screenshot_agents_light.png">
-    <img alt="Letta logo" src="assets/example_ade_screenshot_agents.png" width="800">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_agents.png">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_agents_light.png">
+    <img alt="Letta logo" src="https://raw.githubusercontent.com/letta-ai/letta/refs/heads/main/assets/example_ade_screenshot_agents.png" width="800">
   </picture>
 </p>
 
@@ -134,6 +134,18 @@ If your Letta server isn't running on `localhost` (for example, you deployed it 
 > _"Do I need to install Docker to use Letta?"_
 
 No, you can install Letta using `pip` (via `pip install -U letta`), as well as from source (via `poetry install`). See instructions below.
+
+> _"What's the difference between installing with `pip` vs `Docker`?"_
+
+Letta gives your agents persistence (they live indefinitely) by storing all your agent data in a database. Letta is designed to be used with a [PostgreSQL](https://en.wikipedia.org/wiki/PostgreSQL) (the world's most popular database), however, it is not possible to install PostgreSQL via `pip`, so the `pip` install of Letta defaults to using [SQLite](https://www.sqlite.org/). If you have a PostgreSQL instance running on your own computer, you can still connect Letta (installed via `pip`) to PostgreSQL by setting the environment variable `LETTA_PG_URI`.
+
+**Database migrations are not officially supported for Letta when using SQLite**, so you would like to ensure that if you're able to upgrade to the latest Letta version and migrate your Letta agents data, make sure that you're using PostgreSQL as your Letta database backend. Full compatability table below:
+
+| Installation method | Start server command | Database backend | Data migrations supported? |
+|---|---|---|---|
+| `pip install letta` | `letta server` | SQLite | ❌ |
+| `pip install letta` | `export LETTA_PG_URI=...` + `letta server` | PostgreSQL | ✅ |
+| *[Install Docker](https://www.docker.com/get-started/)*  |`docker run ...` ([full command](#-run-the-letta-server)) | PostgreSQL | ✅ |
 
 > _"How do I use the ADE locally?"_
 

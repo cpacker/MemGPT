@@ -2,9 +2,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Union
 
 from letta.agent import Agent
-
 from letta.interface import AgentInterface
-from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentState, AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -37,11 +35,9 @@ class ChatOnlyAgent(Agent):
         messages: Union[Message, List[Message]],
         chaining: bool = True,
         max_chaining_steps: Optional[int] = None,
-        ms: Optional[MetadataStore] = None,
         **kwargs,
     ) -> LettaUsageStatistics:
-        # assert ms is not None, "MetadataStore is required"
-        letta_statistics = super().step(messages=messages, chaining=chaining, max_chaining_steps=max_chaining_steps, ms=ms, **kwargs)
+        letta_statistics = super().step(messages=messages, chaining=chaining, max_chaining_steps=max_chaining_steps, **kwargs)
 
         if self.always_rethink_memory:
 
@@ -68,8 +64,10 @@ class ChatOnlyAgent(Agent):
                     name="chat_agent_persona_new", label="chat_agent_persona_new", value=conversation_persona_block.value, limit=2000
                 )
 
-                recent_convo = "".join([str(message) for message in self.messages[3:]])[-self.recent_convo_limit:]
-                conversation_messages_block = Block(name="conversation_block", label="conversation_block", value=recent_convo, limit=self.recent_convo_limit)
+                recent_convo = "".join([str(message) for message in self.messages[3:]])[-self.recent_convo_limit :]
+                conversation_messages_block = Block(
+                    name="conversation_block", label="conversation_block", value=recent_convo, limit=self.recent_convo_limit
+                )
 
                 offline_memory = BasicBlockMemory(
                     blocks=[
@@ -89,7 +87,7 @@ class ChatOnlyAgent(Agent):
                     memory=offline_memory,
                     llm_config=LLMConfig.default_config("gpt-4"),
                     embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-                    tools=self.agent_state.metadata_.get("offline_memory_tools", []),
+                    tool_ids=self.agent_state.metadata_.get("offline_memory_tools", []),
                     include_base_tools=False,
                 )
                 self.offline_memory_agent.memory.update_block_value(label="conversation_block", value=recent_convo)

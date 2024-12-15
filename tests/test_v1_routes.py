@@ -169,7 +169,7 @@ def configure_mock_sync_server(mock_sync_server):
     mock_sync_server.sandbox_config_manager.list_sandbox_env_vars_by_key.return_value = [mock_api_key]
 
     # Mock user retrieval
-    mock_sync_server.get_user_or_default.return_value = Mock()  # Provide additional attributes if needed
+    mock_sync_server.user_manager.get_user_or_default.return_value = Mock()  # Provide additional attributes if needed
 
 
 # ======================================================================================================================
@@ -182,7 +182,7 @@ def test_delete_tool(client, mock_sync_server, add_integers_tool):
 
     assert response.status_code == 200
     mock_sync_server.tool_manager.delete_tool_by_id.assert_called_once_with(
-        tool_id=add_integers_tool.id, actor=mock_sync_server.get_user_or_default.return_value
+        tool_id=add_integers_tool.id, actor=mock_sync_server.user_manager.get_user_or_default.return_value
     )
 
 
@@ -195,7 +195,7 @@ def test_get_tool(client, mock_sync_server, add_integers_tool):
     assert response.json()["id"] == add_integers_tool.id
     assert response.json()["source_code"] == add_integers_tool.source_code
     mock_sync_server.tool_manager.get_tool_by_id.assert_called_once_with(
-        tool_id=add_integers_tool.id, actor=mock_sync_server.get_user_or_default.return_value
+        tool_id=add_integers_tool.id, actor=mock_sync_server.user_manager.get_user_or_default.return_value
     )
 
 
@@ -216,7 +216,7 @@ def test_get_tool_id(client, mock_sync_server, add_integers_tool):
     assert response.status_code == 200
     assert response.json() == add_integers_tool.id
     mock_sync_server.tool_manager.get_tool_by_name.assert_called_once_with(
-        tool_name=add_integers_tool.name, actor=mock_sync_server.get_user_or_default.return_value
+        tool_name=add_integers_tool.name, actor=mock_sync_server.user_manager.get_user_or_default.return_value
     )
 
 
@@ -268,7 +268,7 @@ def test_update_tool(client, mock_sync_server, update_integers_tool, add_integer
     assert response.status_code == 200
     assert response.json()["id"] == add_integers_tool.id
     mock_sync_server.tool_manager.update_tool_by_id.assert_called_once_with(
-        tool_id=add_integers_tool.id, tool_update=update_integers_tool, actor=mock_sync_server.get_user_or_default.return_value
+        tool_id=add_integers_tool.id, tool_update=update_integers_tool, actor=mock_sync_server.user_manager.get_user_or_default.return_value
     )
 
 
@@ -280,7 +280,9 @@ def test_add_base_tools(client, mock_sync_server, add_integers_tool):
     assert response.status_code == 200
     assert len(response.json()) == 1
     assert response.json()[0]["id"] == add_integers_tool.id
-    mock_sync_server.tool_manager.add_base_tools.assert_called_once_with(actor=mock_sync_server.get_user_or_default.return_value)
+    mock_sync_server.tool_manager.add_base_tools.assert_called_once_with(
+        actor=mock_sync_server.user_manager.get_user_or_default.return_value
+    )
 
 
 def test_list_composio_apps(client, mock_sync_server, composio_apps):

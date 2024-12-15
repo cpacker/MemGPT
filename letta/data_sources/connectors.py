@@ -1,8 +1,7 @@
-from typing import Dict, Iterator, List, Tuple, Optional
+from typing import Dict, Iterator, List, Tuple
 
 import typer
 
-from letta.agent_store.storage import StorageConnector
 from letta.data_sources.connectors_helper import (
     assert_all_files_exist_locally,
     extract_metadata_from_files,
@@ -12,9 +11,8 @@ from letta.embeddings import embedding_model
 from letta.schemas.file import FileMetadata
 from letta.schemas.passage import Passage
 from letta.schemas.source import Source
+from letta.services.passage_manager import PassageManager
 from letta.services.source_manager import SourceManager
-from letta.utils import create_uuid_from_string
-
 
 class DataConnector:
     """
@@ -42,7 +40,7 @@ class DataConnector:
         """
 
 
-def load_data(connector: DataConnector, source: Source, passage_store: StorageConnector, source_manager: SourceManager, actor: "User", agent_id: Optional[str] = None):
+def load_data(connector: DataConnector, source: Source, passage_manager: PassageManager, source_manager: SourceManager, actor: "User"):
     """Load data from a connector (generates file and passages) into a specified source_id, associated with a user_id."""
     embedding_config = source.embedding_config
 
@@ -79,10 +77,8 @@ def load_data(connector: DataConnector, source: Source, passage_store: StorageCo
                 continue
 
             passage = Passage(
-                id=create_uuid_from_string(f"{str(source.id)}_{passage_text}"),
                 text=passage_text,
                 file_id=file_metadata.id,
-                agent_id=agent_id,
                 source_id=source.id,
                 metadata_=passage_metadata,
                 organization_id=source.organization_id,
@@ -103,14 +99,14 @@ def load_data(connector: DataConnector, source: Source, passage_store: StorageCo
             embedding_to_document_name[hashable_embedding] = file_name
             if len(passages) >= 100:
                 # insert passages into passage store
-                passage_store.insert_many(passages)
+                passage_manager.create_many_passages(passages, actor)
 
                 passage_count += len(passages)
                 passages = []
 
     if len(passages) > 0:
         # insert passages into passage store
-        passage_store.insert_many(passages)
+        passage_manager.create_many_passages(passages, actor)
         passage_count += len(passages)
 
     return passage_count, file_count
@@ -170,74 +166,3 @@ class DirectoryConnector(DataConnector):
         nodes = parser.get_nodes_from_documents(documents)
         for node in nodes:
             yield node.text, None
-
-
-"""
-The below isn't used anywhere, it isn't tested, and pretty much should be deleted.
-- Matt
-"""
-# class WebConnector(DirectoryConnector):
-#     def __init__(self, urls: List[str] = None, html_to_text: bool = True):
-#         self.urls = urls
-#         self.html_to_text = html_to_text
-#
-#     def generate_files(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
-#         from llama_index.readers.web import SimpleWebPageReader
-#
-#         files = SimpleWebPageReader(html_to_text=self.html_to_text).load_data(self.urls)
-#         for document in files:
-#             yield document.text, {"url": document.id_}
-#
-#
-# class VectorDBConnector(DataConnector):
-#     # NOTE: this class has not been properly tested, so is unlikely to work
-#     # TODO: allow loading multiple tables (1:1 mapping between FileMetadata and Table)
-#
-#     def __init__(
-#         self,
-#         name: str,
-#         uri: str,
-#         table_name: str,
-#         text_column: str,
-#         embedding_column: str,
-#         embedding_dim: int,
-#     ):
-#         self.name = name
-#         self.uri = uri
-#         self.table_name = table_name
-#         self.text_column = text_column
-#         self.embedding_column = embedding_column
-#         self.embedding_dim = embedding_dim
-#
-#         # connect to db table
-#         from sqlalchemy import create_engine
-#
-#         self.engine = create_engine(uri)
-#
-#     def generate_files(self) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Document]:
-#         yield self.table_name, None
-#
-#     def generate_passages(self, file_text: str, file: FileMetadata, chunk_size: int = 1024) -> Iterator[Tuple[str, Dict]]:  # -> Iterator[Passage]:
-#         from pgvector.sqlalchemy import Vector
-#         from sqlalchemy import Inspector, MetaData, Table, select
-#
-#         metadata = MetaData()
-#         # Create an inspector to inspect the database
-#         inspector = Inspector.from_engine(self.engine)
-#         table_names = inspector.get_table_names()
-#         assert self.table_name in table_names, f"Table {self.table_name} not found in database: tables that exist {table_names}."
-#
-#         table = Table(self.table_name, metadata, autoload_with=self.engine)
-#
-#         # Prepare a select statement
-#         select_statement = select(table.c[self.text_column], table.c[self.embedding_column].cast(Vector(self.embedding_dim)))
-#
-#         # Execute the query and fetch the results
-#         # TODO: paginate results
-#         with self.engine.connect() as connection:
-#             result = connection.execute(select_statement).fetchall()
-#
-#         for text, embedding in result:
-#             # assume that embeddings are the same model as in config
-#             # TODO: don't re-compute embedding
-#             yield text, {"embedding": embedding}

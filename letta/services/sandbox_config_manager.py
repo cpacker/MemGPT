@@ -5,7 +5,7 @@ from letta.log import get_logger
 from letta.orm.errors import NoResultFound
 from letta.orm.sandbox_config import SandboxConfig as SandboxConfigModel
 from letta.orm.sandbox_config import SandboxEnvironmentVariable as SandboxEnvVarModel
-from letta.schemas.sandbox_config import E2BSandboxConfig, LocalSandboxConfig
+from letta.schemas.sandbox_config import LocalSandboxConfig
 from letta.schemas.sandbox_config import SandboxConfig as PydanticSandboxConfig
 from letta.schemas.sandbox_config import SandboxConfigCreate, SandboxConfigUpdate
 from letta.schemas.sandbox_config import SandboxEnvironmentVariable as PydanticEnvVar
@@ -27,7 +27,6 @@ class SandboxConfigManager:
         from letta.server.server import db_context
 
         self.session_maker = db_context
-        self.e2b_template_id = settings.e2b_sandbox_template_id
 
     @enforce_types
     def get_or_create_default_sandbox_config(self, sandbox_type: SandboxType, actor: PydanticUser) -> PydanticSandboxConfig:
@@ -37,8 +36,9 @@ class SandboxConfigManager:
 
             # TODO: Add more sandbox types later
             if sandbox_type == SandboxType.E2B:
-                default_config = E2BSandboxConfig(template=self.e2b_template_id).model_dump(exclude_none=True)
+                default_config = {}  # Empty
             else:
+                # TODO: May want to move this to environment variables v.s. persisting in database
                 default_local_sandbox_path = str(Path(__file__).parent / "tool_sandbox_env")
                 default_config = LocalSandboxConfig(sandbox_dir=default_local_sandbox_path).model_dump(exclude_none=True)
 

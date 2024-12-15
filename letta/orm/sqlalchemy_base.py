@@ -1,7 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, List, Literal, Optional, Type
-import sqlite3
+from typing import TYPE_CHECKING, List, Literal, Optional
 
 from sqlalchemy import String, desc, func, or_, select
 from sqlalchemy.exc import DBAPIError
@@ -9,12 +8,12 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from letta.log import get_logger
 from letta.orm.base import Base, CommonSqlalchemyMetaMixins
-from letta.orm.sqlite_functions import adapt_array, convert_array, cosine_distance
 from letta.orm.errors import (
     ForeignKeyConstraintViolationError,
     NoResultFound,
     UniqueConstraintViolationError,
 )
+from letta.orm.sqlite_functions import adapt_array
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -64,11 +63,26 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         query_text: Optional[str] = None,
         query_embedding: Optional[List[float]] = None,
         ascending: bool = True,
+        tags: Optional[List[str]] = None,
+        match_all_tags: bool = False,
         **kwargs,
-    ) -> List[Type["SqlalchemyBase"]]:
+    ) -> List["SqlalchemyBase"]:
         """
         List records with cursor-based pagination, ordering by created_at.
         Cursor is an ID, but pagination is based on the cursor object's created_at value.
+
+        Args:
+            db_session: SQLAlchemy session
+            cursor: ID of the last item seen (for pagination)
+            start_date: Filter items after this date
+            end_date: Filter items before this date
+            limit: Maximum number of items to return
+            query_text: Text to search for
+            query_embedding: Vector to search for similar embeddings
+            ascending: Sort direction
+            tags: List of tags to filter by
+            match_all_tags: If True, return items matching all tags. If False, match any tag.
+            **kwargs: Additional filters to apply
         """
         if start_date and end_date and start_date > end_date:
             raise ValueError("start_date must be earlier than or equal to end_date")
@@ -84,7 +98,25 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
 
             query = select(cls)
 
-            # Apply filtering logic
+            # Handle tag filtering if the model has tags
+            if tags and hasattr(cls, "tags"):
+                query = select(cls)
+
+                if match_all_tags:
+                    # Match ALL tags - use subqueries
+                    for tag in tags:
+                        subquery = select(cls.tags.property.mapper.class_.agent_id).where(cls.tags.property.mapper.class_.tag == tag)
+                        query = query.filter(cls.id.in_(subquery))
+                else:
+                    # Match ANY tag - use join and filter
+                    query = (
+                        query.join(cls.tags).filter(cls.tags.property.mapper.class_.tag.in_(tags)).group_by(cls.id)  # Deduplicate results
+                    )
+
+                # Group by primary key and all necessary columns to avoid JSON comparison
+                query = query.group_by(cls.id)
+
+            # Apply filtering logic from kwargs
             for key, value in kwargs.items():
                 column = getattr(cls, key)
                 if isinstance(value, (list, tuple, set)):
@@ -98,9 +130,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             if end_date:
                 query = query.filter(cls.created_at < end_date)
 
-            # Cursor-based pagination using created_at
-            # TODO: There is a really nasty race condition issue here with Sqlite
-            # TODO: If they have the same created_at timestamp, this query does NOT match for whatever reason
+            # Cursor-based pagination
             if cursor_obj:
                 if ascending:
                     query = query.where(cls.created_at >= cursor_obj.created_at).where(
@@ -111,40 +141,34 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
                         or_(cls.created_at < cursor_obj.created_at, cls.id < cursor_obj.id)
                     )
 
-            # Apply text search
+            # Text search
             if query_text:
-                from sqlalchemy import func
                 query = query.filter(func.lower(cls.text).contains(func.lower(query_text)))
 
-            # Apply embedding search (Passages)
+            # Embedding search (for Passages)
             is_ordered = False
             if query_embedding:
-                # check if embedding column exists. should only exist for passages
                 if not hasattr(cls, "embedding"):
                     raise ValueError(f"Class {cls.__name__} does not have an embedding column")
-                
+
                 from letta.settings import settings
+
                 if settings.letta_pg_uri_no_default:
                     # PostgreSQL with pgvector
-                    from pgvector.sqlalchemy import Vector
                     query = query.order_by(cls.embedding.cosine_distance(query_embedding).asc())
                 else:
                     # SQLite with custom vector type
-                    from sqlalchemy import func
-
                     query_embedding_binary = adapt_array(query_embedding)
                     query = query.order_by(
-                        func.cosine_distance(cls.embedding, query_embedding_binary).asc(),
-                        cls.created_at.asc(),
-                        cls.id.asc()
+                        func.cosine_distance(cls.embedding, query_embedding_binary).asc(), cls.created_at.asc(), cls.id.asc()
                     )
                     is_ordered = True
 
-            # Handle ordering and soft deletes
+            # Handle soft deletes
             if hasattr(cls, "is_deleted"):
                 query = query.where(cls.is_deleted == False)
-            
-            # Apply ordering by created_at
+
+            # Apply ordering
             if not is_ordered:
                 if ascending:
                     query = query.order_by(cls.created_at, cls.id)
@@ -164,7 +188,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         access: Optional[List[Literal["read", "write", "admin"]]] = ["read"],
         access_type: AccessType = AccessType.ORGANIZATION,
         **kwargs,
-    ) -> Type["SqlalchemyBase"]:
+    ) -> "SqlalchemyBase":
         """The primary accessor for an ORM record.
         Args:
             db_session: the database session to use when retrieving the record
@@ -207,7 +231,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         conditions_str = ", ".join(query_conditions) if query_conditions else "no specific conditions"
         raise NoResultFound(f"{cls.__name__} not found with {conditions_str}")
 
-    def create(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+    def create(self, db_session: "Session", actor: Optional["User"] = None) -> "SqlalchemyBase":
         logger.debug(f"Creating {self.__class__.__name__} with ID: {self.id} with actor={actor}")
 
         if actor:
@@ -221,7 +245,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         except DBAPIError as e:
             self._handle_dbapi_error(e)
 
-    def delete(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+    def delete(self, db_session: "Session", actor: Optional["User"] = None) -> "SqlalchemyBase":
         logger.debug(f"Soft deleting {self.__class__.__name__} with ID: {self.id} with actor={actor}")
 
         if actor:
@@ -245,7 +269,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
             else:
                 logger.debug(f"{self.__class__.__name__} with ID {self.id} successfully hard deleted")
 
-    def update(self, db_session: "Session", actor: Optional["User"] = None) -> Type["SqlalchemyBase"]:
+    def update(self, db_session: "Session", actor: Optional["User"] = None) -> "SqlalchemyBase":
         logger.debug(f"Updating {self.__class__.__name__} with ID: {self.id} with actor={actor}")
         if actor:
             self._set_created_and_updated_by_fields(actor.id)
@@ -388,14 +412,14 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         raise
 
     @property
-    def __pydantic_model__(self) -> Type["BaseModel"]:
+    def __pydantic_model__(self) -> "BaseModel":
         raise NotImplementedError("Sqlalchemy models must declare a __pydantic_model__ property to be convertable.")
 
-    def to_pydantic(self) -> Type["BaseModel"]:
+    def to_pydantic(self) -> "BaseModel":
         """converts to the basic pydantic model counterpart"""
         return self.__pydantic_model__.model_validate(self)
 
-    def to_record(self) -> Type["BaseModel"]:
+    def to_record(self) -> "BaseModel":
         """Deprecated accessor for to_pydantic"""
         logger.warning("to_record is deprecated, use to_pydantic instead.")
         return self.to_pydantic()

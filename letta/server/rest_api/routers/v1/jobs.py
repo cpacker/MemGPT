@@ -20,7 +20,7 @@ def list_jobs(
     """
     List all jobs.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     # TODO: add filtering by status
     jobs = server.job_manager.list_jobs(actor=actor)
@@ -40,7 +40,7 @@ def list_active_jobs(
     """
     List all active jobs.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     return server.job_manager.list_jobs(actor=actor, statuses=[JobStatus.created, JobStatus.running])
 
@@ -54,7 +54,7 @@ def get_job(
     """
     Get the status of a job.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     try:
         return server.job_manager.get_job_by_id(job_id=job_id, actor=actor)
@@ -71,7 +71,7 @@ def delete_job(
     """
     Delete a job by its job_id.
     """
-    actor = server.get_user_or_default(user_id=user_id)
+    actor = server.user_manager.get_user_or_default(user_id=user_id)
 
     try:
         job = server.job_manager.delete_job_by_id(job_id=job_id, actor=actor)

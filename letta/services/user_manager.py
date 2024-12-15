@@ -73,12 +73,6 @@ class UserManager:
             user = UserModel.read(db_session=session, identifier=user_id)
             user.hard_delete(session)
 
-            # TODO: Integrate this via the ORM models for the Agent, Source, and AgentSourceMapping
-            # Cascade delete for related models: Agent, Source, AgentSourceMapping
-            # session.query(AgentModel).filter(AgentModel.user_id == user_id).delete()
-            # session.query(SourceModel).filter(SourceModel.user_id == user_id).delete()
-            # session.query(AgentSourceMappingModel).filter(AgentSourceMappingModel.user_id == user_id).delete()
-
             session.commit()
 
     @enforce_types
@@ -92,6 +86,17 @@ class UserManager:
     def get_default_user(self) -> PydanticUser:
         """Fetch the default user."""
         return self.get_user_by_id(self.DEFAULT_USER_ID)
+
+    @enforce_types
+    def get_user_or_default(self, user_id: Optional[str] = None):
+        """Fetch the user or default user."""
+        if not user_id:
+            return self.get_default_user()
+
+        try:
+            return self.get_user_by_id(user_id=user_id)
+        except NoResultFound:
+            return self.get_default_user()
 
     @enforce_types
     def list_users(self, cursor: Optional[str] = None, limit: Optional[int] = 50) -> Tuple[Optional[str], List[PydanticUser]]:
