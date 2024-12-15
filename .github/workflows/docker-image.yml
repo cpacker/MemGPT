@@ -34,7 +34,8 @@ jobs:
         platforms: linux/amd64,linux/arm64
         push: true
         tags: |
-          letta/letta:latest
           letta/letta:${{ env.CURRENT_VERSION }}
-          memgpt/letta:latest
+          letta/letta:latest
           memgpt/letta:${{ env.CURRENT_VERSION }}
+          memgpt/letta:latest
+          
