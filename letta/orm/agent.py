@@ -179,7 +179,15 @@ class Agent(SqlalchemyBase, OrganizationMixin):
         viewonly=True,  # Ensures SQLAlchemy doesn't attempt to manage this relationship
         doc="All passages derived from sources associated with this agent.",
     )
-    agent_passages: Mapped[List["AgentPassage"]] = relationship("AgentPassage", back_populates="agent", lazy="selectin", order_by="AgentPassage.created_at.desc()",)
+    agent_passages: Mapped[List["AgentPassage"]] = relationship(
+        "AgentPassage",
+        back_populates="agent",
+        lazy="selectin",
+        order_by="AgentPassage.created_at.desc()",
+        cascade="all, delete-orphan",
+        viewonly=True,  # Ensures SQLAlchemy doesn't attempt to manage this relationship
+        doc="All passages derived created by this agent.",
+    )
 
     def to_pydantic(self) -> PydanticAgentState:
         """converts to the basic pydantic model counterpart"""

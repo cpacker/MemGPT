@@ -238,13 +238,6 @@ class AgentManager:
         with self.session_maker() as session:
             # Retrieve the agent
             agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
-
-            # TODO: @mindy delete this piece when we have a proper passages/sources implementation
-            # TODO: This is done very hacky on purpose
-            # TODO: 1000 limit is also wack
-            passage_manager = PassageManager()
-            passage_manager.delete_passages(actor=actor, agent_id=agent_id, limit=1000)
-
             agent_state = agent.to_pydantic()
             agent.hard_delete(session)
             return agent_state
@@ -465,8 +458,6 @@ class AgentManager:
             embedded_text = np.array(embedded_text)
             embedded_text = np.pad(embedded_text, (0, MAX_EMBEDDING_DIM - embedded_text.shape[0]), mode="constant").tolist()
 
-        results = []
-
         with self.session_maker() as session:
             # Start with base query for source passages
 
@@ -523,6 +514,10 @@ class AgentManager:
                 main_query = main_query.where(combined_query.c.created_at >= start_date)
             if end_date:
                 main_query = main_query.where(combined_query.c.created_at <= end_date)
+            if source_id:
+                main_query = main_query.where(combined_query.c.source_id == source_id)
+            if file_id:
+                main_query = main_query.where(combined_query.c.file_id == file_id)
 
             # Vector search
             if embedded_text:

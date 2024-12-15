@@ -994,18 +994,9 @@ class SyncServer(Server):
         # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
         actor = self.user_manager.get_user_or_default(user_id=user_id)
 
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
+        passages = self.agent_manager.list_passages(agent_id=agent_id, actor=actor)
 
-        # iterate over records
-        records = letta_agent.passage_manager.list_passages(
-            actor=actor,
-            agent_id=agent_id,
-            cursor=cursor,
-            limit=limit,
-        )
-
-        return records
+        return passages
 
     def get_agent_archival_cursor(
         self,
@@ -1019,15 +1010,13 @@ class SyncServer(Server):
         # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
         actor = self.user_manager.get_user_or_default(user_id=user_id)
 
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
-
         # iterate over records
-        records = letta_agent.passage_manager.list_passages(
-            actor=self.default_user,
+        records = self.agent_manager.list_passages(
+            actor=actor,
             agent_id=agent_id,
             cursor=cursor,
             limit=limit,
+            ascending=not reverse,
         )
         return records
 
@@ -1201,9 +1190,11 @@ class SyncServer(Server):
         for agent_state in agent_states:
             agent_id = agent_state.id
             agent = self.load_agent(agent_id=agent_id, actor=actor)
-            curr_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
+
+            # Attach source to agent
+            curr_passage_size = self.agent_manager.passage_size(actor=actor, agent_id=agent_id)
             agent.attach_source(user=actor, source_id=source_id, source_manager=self.source_manager, agent_manager=self.agent_manager)
-            new_passage_size = self.passage_manager.size(actor=actor, agent_id=agent_id, source_id=source_id)
+            new_passage_size = self.agent_manager.passage_size(actor=actor, agent_id=agent_id)
             assert new_passage_size >= curr_passage_size  # in case empty files are added
 
         return job
@@ -1267,14 +1258,9 @@ class SyncServer(Server):
             source = self.source_manager.get_source_by_id(source_id=source_id, actor=actor)
         elif source_name:
             source = self.source_manager.get_source_by_name(source_name=source_name, actor=actor)
+            source_id = source.id
         else:
             raise ValueError(f"Need to provide at least source_id or source_name to find the source.")
-        source_id = source.id
-
-        # TODO: This should be done with the ORM?
-        # delete all Passage objects with source_id==source_id from agent's archival memory
-        agent = self.load_agent(agent_id=agent_id, actor=actor)
-        agent.passage_manager.delete_passages(actor=actor, limit=100, source_id=source_id)
 
         # delete agent-source mapping
         self.agent_manager.detach_source(agent_id=agent_id, source_id=source_id, actor=actor)

@@ -482,7 +482,6 @@ def test_sources(client: Union[LocalClient, RESTClient], agent: AgentState):
 
     # check agent archival memory size
     archival_memories = client.get_archival_memory(agent_id=agent.id)
-    print(archival_memories)
     assert len(archival_memories) == 0
 
     # load a file into a source (non-blocking job)
