@@ -26,7 +26,6 @@ from letta.llm_api.helpers import is_context_overflow_error
 from letta.llm_api.llm_api_tools import create
 from letta.local_llm.utils import num_tokens_from_functions, num_tokens_from_messages
 from letta.memory import summarize_messages
-from letta.metadata import MetadataStore
 from letta.orm import User
 from letta.schemas.agent import AgentState, AgentStepResponse, UpdateAgent
 from letta.schemas.block import BlockUpdate
@@ -889,18 +888,14 @@ class Agent(BaseAgent):
         # additional args
         chaining: bool = True,
         max_chaining_steps: Optional[int] = None,
-        ms: Optional[MetadataStore] = None,
         **kwargs,
     ) -> LettaUsageStatistics:
         """Run Agent.step in a loop, handling chaining via heartbeat requests and function failures"""
-        # assert ms is not None, "MetadataStore is required"
-
         next_input_message = messages if isinstance(messages, list) else [messages]
         counter = 0
         total_usage = UsageStatistics()
         step_count = 0
         while True:
-            kwargs["ms"] = ms
             kwargs["first_message"] = False
             step_response = self.inner_step(
                 messages=next_input_message,
@@ -918,8 +913,7 @@ class Agent(BaseAgent):
 
             # logger.debug("Saving agent state")
             # save updated state
-            if ms:
-                save_agent(self)
+            save_agent(self)
 
             # Chain stops
             if not chaining:
@@ -978,7 +972,6 @@ class Agent(BaseAgent):
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
         stream: bool = False,  # TODO move to config?
-        ms: Optional[MetadataStore] = None,
     ) -> AgentStepResponse:
         """Runs a single step in the agent loop (generates at most one LLM call)"""
 
@@ -1098,7 +1091,6 @@ class Agent(BaseAgent):
                     first_message_retry_limit=first_message_retry_limit,
                     skip_verify=skip_verify,
                     stream=stream,
-                    ms=ms,
                 )
 
             else:

@@ -1,4 +1,3 @@
-import base64
 from datetime import datetime
 from typing import TYPE_CHECKING
 from sqlalchemy import Column, DateTime, JSON, Index
@@ -13,10 +12,13 @@ from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.orm.mixins import AgentMixin, FileMixin, OrganizationMixin, SourceMixin
 from letta.schemas.passage import Passage as PydanticPassage
 
+
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
+from letta.orm.custom_columns import CommonVector
 from letta.orm.mixins import FileMixin, OrganizationMixin
-from letta.orm.source import EmbeddingConfigColumn
+from letta.orm.source import 
+
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.schemas.passage import Passage as PydanticPassage
 from letta.settings import settings

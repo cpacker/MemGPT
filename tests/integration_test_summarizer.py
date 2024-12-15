@@ -65,7 +65,6 @@ def test_summarizer(config_filename):
             first_message=False,
             skip_verify=False,
             stream=False,
-            ms=client.server.ms,
         )
 
     # Invoke a summarize

@@ -25,7 +25,6 @@ from letta.errors import LettaAgentNotFoundError
 from letta.interface import AgentInterface  # abstract
 from letta.interface import CLIInterface  # for printing to terminal
 from letta.log import get_logger
-from letta.metadata import MetadataStore
 from letta.o1_agent import O1Agent
 from letta.offline_memory_agent import OfflineMemoryAgent
 from letta.orm import Base
@@ -44,7 +43,6 @@ from letta.providers import (
     VLLMCompletionsProvider,
 )
 from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgent
-from letta.schemas.api_key import APIKey, APIKeyCreate
 from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 
@@ -280,7 +278,6 @@ class SyncServer(Server):
             config.archival_storage_uri = settings.letta_pg_uri_no_default
         config.save()
         self.config = config
-        self.ms = MetadataStore(self.config)
 
         # Managers that interface with data models
         self.organization_manager = OrganizationManager()
@@ -404,9 +401,6 @@ class SyncServer(Server):
 
             if agent_state is None:
                 raise LettaAgentNotFoundError(f"Agent (agent_id={agent_id}) does not exist")
-            elif agent_state.created_by_id is None:
-                raise ValueError(f"Agent (agent_id={agent_id}) does not have a user_id")
-            actor = self.user_manager.get_user_by_id(user_id=agent_state.created_by_id)
 
             interface = interface or self.default_interface_factory()
             if agent_state.agent_type == AgentType.memgpt_agent:
@@ -448,7 +442,7 @@ class SyncServer(Server):
         try:
             letta_agent = self.load_agent(agent_id=agent_id, interface=interface, actor=actor)
             if letta_agent is None:
-                raise KeyError(f"Agent (user={user_id}, agent={agent_id}) is not loaded")
+                raise KeyError(f"Agent (user={actor.id}, agent={agent_id}) is not loaded")
 
             # Determine whether or not to token stream based on the capability of the interface
             token_streaming = letta_agent.interface.streaming_mode if hasattr(letta_agent.interface, "streaming_mode") else False
@@ -459,7 +453,6 @@ class SyncServer(Server):
                 chaining=self.chaining,
                 max_chaining_steps=self.max_chaining_steps,
                 stream=token_streaming,
-                ms=self.ms,
                 skip_verify=True,
             )
 
@@ -1126,33 +1119,6 @@ class SyncServer(Server):
         # load agent
         letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         return letta_agent.agent_state.memory
-
-    def api_key_to_user(self, api_key: str) -> str:
-        """Decode an API key to a user"""
-        token = self.ms.get_api_key(api_key=api_key)
-        user = self.user_manager.get_user_by_id(token.user_id)
-        if user is None:
-            raise HTTPException(status_code=403, detail="Invalid credentials")
-        else:
-            return user.id
-
-    def create_api_key(self, request: APIKeyCreate) -> APIKey:  # TODO: add other fields
-        """Create a new API key for a user"""
-        if request.name is None:
-            request.name = f"API Key {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        token = self.ms.create_api_key(user_id=request.user_id, name=request.name)
-        return token
-
-    def list_api_keys(self, user_id: str) -> List[APIKey]:
-        """List all API keys for a user"""
-        return self.ms.get_all_api_keys_for_user(user_id=user_id)
-
-    def delete_api_key(self, api_key: str) -> APIKey:
-        api_key_obj = self.ms.get_api_key(api_key=api_key)
-        if api_key_obj is None:
-            raise ValueError("API key does not exist")
-        self.ms.delete_api_key(api_key=api_key)
-        return api_key_obj
 
     def delete_source(self, source_id: str, actor: User):
         """Delete a data source"""

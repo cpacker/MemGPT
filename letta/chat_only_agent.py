@@ -3,7 +3,6 @@ from typing import List, Optional, Union
 
 from letta.agent import Agent
 from letta.interface import AgentInterface
-from letta.metadata import MetadataStore
 from letta.prompts import gpt_system
 from letta.schemas.agent import AgentState, AgentType
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -36,11 +35,9 @@ class ChatOnlyAgent(Agent):
         messages: Union[Message, List[Message]],
         chaining: bool = True,
         max_chaining_steps: Optional[int] = None,
-        ms: Optional[MetadataStore] = None,
         **kwargs,
     ) -> LettaUsageStatistics:
-        # assert ms is not None, "MetadataStore is required"
-        letta_statistics = super().step(messages=messages, chaining=chaining, max_chaining_steps=max_chaining_steps, ms=ms, **kwargs)
+        letta_statistics = super().step(messages=messages, chaining=chaining, max_chaining_steps=max_chaining_steps, **kwargs)
 
         if self.always_rethink_memory:
 
