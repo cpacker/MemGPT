@@ -1,27 +1,20 @@
-from datetime import datetime
 from typing import TYPE_CHECKING
-from sqlalchemy import Column, DateTime, JSON, Index
+from sqlalchemy import Column, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr
 from sqlalchemy.types import TypeDecorator, BINARY
 
 import numpy as np
 import base64
 
+from letta.orm.mixins import FileMixin, OrganizationMixin
 from letta.orm.source import EmbeddingConfigColumn
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.orm.mixins import AgentMixin, FileMixin, OrganizationMixin, SourceMixin
 from letta.schemas.passage import Passage as PydanticPassage
-
+from letta.settings import settings
 
 from letta.config import LettaConfig
 from letta.constants import MAX_EMBEDDING_DIM
-from letta.orm.custom_columns import CommonVector
-from letta.orm.mixins import FileMixin, OrganizationMixin
-from letta.orm.source import 
-
-from letta.orm.sqlalchemy_base import SqlalchemyBase
-from letta.schemas.passage import Passage as PydanticPassage
-from letta.settings import settings
 
 config = LettaConfig()
 
@@ -62,7 +55,6 @@ class BasePassage(SqlalchemyBase, OrganizationMixin):
     text: Mapped[str] = mapped_column(doc="Passage text content")
     embedding_config: Mapped[dict] = mapped_column(EmbeddingConfigColumn, doc="Embedding configuration")
     metadata_: Mapped[dict] = mapped_column(JSON, doc="Additional metadata")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     # Vector embedding field based on database type
     if settings.letta_pg_uri_no_default:

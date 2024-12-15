@@ -3,6 +3,7 @@ from typing import Optional
 
 from letta.agent import Agent
 from letta.constants import MAX_PAUSE_HEARTBEATS
+from letta.services.agent_manager import AgentManager
 
 # import math
 # from letta.utils import json_dumps

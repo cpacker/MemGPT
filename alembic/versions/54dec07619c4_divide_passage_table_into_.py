@@ -1,8 +1,8 @@
 """divide passage table into SourcePassages and AgentPassages
 
-Revision ID: 458325ef2daf
-Revises: c5d964280dff
-Create Date: 2024-12-13 14:11:20.880802
+Revision ID: 54dec07619c4
+Revises: 4e88e702f85e
+Create Date: 2024-12-14 17:23:08.772554
 
 """
 from typing import Sequence, Union
@@ -12,11 +12,11 @@ from pgvector.sqlalchemy import Vector
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from letta.orm.source import EmbeddingConfigColumn
+from letta.orm.custom_columns import EmbeddingConfigColumn
 
 # revision identifiers, used by Alembic.
-revision: str = '458325ef2daf'
-down_revision: Union[str, None] = 'c5d964280dff'
+revision: str = '54dec07619c4'
+down_revision: Union[str, None] = '4e88e702f85e'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -29,8 +29,8 @@ def upgrade() -> None:
         sa.Column('text', sa.String(), nullable=False),
         sa.Column('embedding_config', EmbeddingConfigColumn(), nullable=False),
         sa.Column('metadata_', sa.JSON(), nullable=False),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
         sa.Column('embedding', Vector(dim=4096), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.Column('is_deleted', sa.Boolean(), server_default=sa.text('FALSE'), nullable=False),
         sa.Column('_created_by_id', sa.String(), nullable=True),
@@ -41,37 +41,33 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('agent_passages_org_idx', 'agent_passages', ['organization_id'], unique=False)
     op.create_table(
         'source_passages',
-        sa.Column('source_id', sa.String(), nullable=False),
         sa.Column('id', sa.String(), nullable=False),
         sa.Column('text', sa.String(), nullable=False),
         sa.Column('embedding_config', EmbeddingConfigColumn(), nullable=False),
         sa.Column('metadata_', sa.JSON(), nullable=False),
-        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
         sa.Column('embedding', Vector(dim=4096), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.Column('is_deleted', sa.Boolean(), server_default=sa.text('FALSE'), nullable=False),
         sa.Column('_created_by_id', sa.String(), nullable=True),
         sa.Column('_last_updated_by_id', sa.String(), nullable=True),
         sa.Column('organization_id', sa.String(), nullable=False),
         sa.Column('file_id', sa.String(), nullable=True),
+        sa.Column('source_id', sa.String(), nullable=False),
         sa.ForeignKeyConstraint(['file_id'], ['files.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ),
+        sa.ForeignKeyConstraint(['source_id'], ['sources.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
+    op.create_index('source_passages_org_idx', 'source_passages', ['organization_id'], unique=False)
     op.drop_table('passages')
-
-    # Foreign key constraints
     op.drop_constraint('files_source_id_fkey', 'files', type_='foreignkey')
     op.create_foreign_key(None, 'files', 'sources', ['source_id'], ['id'], ondelete='CASCADE')
     op.drop_constraint('messages_agent_id_fkey', 'messages', type_='foreignkey')
     op.create_foreign_key(None, 'messages', 'agents', ['agent_id'], ['id'], ondelete='CASCADE')
-    op.create_foreign_key(None, 'source_passages', 'sources', ['source_id'], ['id'], ondelete='CASCADE')
-    
-    # Add after your existing operations:
-    op.create_index('agent_passages_org_idx', 'agent_passages', ['organization_id'])
-    op.create_index('source_passages_org_idx', 'source_passages', ['organization_id'])
     # ### end Alembic commands ###
 
 
@@ -81,9 +77,6 @@ def downgrade() -> None:
     op.create_foreign_key('messages_agent_id_fkey', 'messages', 'agents', ['agent_id'], ['id'])
     op.drop_constraint(None, 'files', type_='foreignkey')
     op.create_foreign_key('files_source_id_fkey', 'files', 'sources', ['source_id'], ['id'])
-    op.drop_constraint(None, 'source_passages', type_='foreignkey')
-    op.drop_index('source_passages_org_idx', 'source_passages')
-    op.drop_index('agent_passages_org_idx', 'agent_passages')
     op.create_table(
         'passages',
         sa.Column('id', sa.VARCHAR(), autoincrement=False, nullable=False),
@@ -105,6 +98,8 @@ def downgrade() -> None:
         sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], name='passages_organization_id_fkey'),
         sa.PrimaryKeyConstraint('id', name='passages_pkey')
     )
+    op.drop_index('source_passages_org_idx', table_name='source_passages')
     op.drop_table('source_passages')
+    op.drop_index('agent_passages_org_idx', table_name='agent_passages')
     op.drop_table('agent_passages')
     # ### end Alembic commands ###
