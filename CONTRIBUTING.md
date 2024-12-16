@@ -119,7 +119,7 @@ You're almost there! It's time to share your brilliance with the world. 🌍
 
 ## 6. 🔍 Review and Approval
 
-The maintainers, will take a look and might suggest some cool upgrades or ask for more details. Once they give the thumbs up, your creation becomes part of Letta!
+The maintainers will take a look and might suggest some cool upgrades or ask for more details. Once they give the thumbs up, your creation becomes part of Letta!
 
 ## 7. 📜 Code of Conduct
 
