@@ -8,7 +8,7 @@ Example:
 
 import argparse
 import jsonlines
-from regex import W
+import random
 from tqdm import tqdm
 from typing import Optional
 
@@ -25,6 +25,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.utils import get_persona_text
+from gsm8k_experiments.generate_prompt import PromptGenerator, load_yaml_config
 
 def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:  # type: ignore
     """
@@ -97,17 +98,7 @@ when given new context, you use your previous questions and answers to come up w
 Use the previous examples to come up with the types of inferences that you need to make. You come up with at least 5 potential questions that could be asked with the inferences that would be helpful for answering them.
 """
 
-FEW_SHOT_EXAMPLES =[
-    "Nurse Missy is attending to the needs of 12 patients in her hospital ward.  Most of her patients require standard care, but one-third of her patients have special dietary requirements, which increases the serving time by 20%.  At dinner time, she brings each patient their meal. It takes 5 minutes to serve each standard care patient.  How long does it take, in minutes, for Missy to serve dinner to all of her patients?",
-    "Carlos read 28 books in July and 30 books in August.  He needed to read 100 books during his summer vacation. If Carlos read some of the books in June, calculate the number of books that Carlos read in June to meet his goal?",
-    "George donated half his monthly income to charity and spent $20 from the other half on groceries. If he now has $100 left, how much was his monthly income?",
-    "Bill's take-home salary is $40,000. He pays $2,000 in property taxes, $3,000 in sales taxes, and 10% of his gross salary in income taxes. What is Bill's gross salary?",
-    "Archer caught eight fish from the lake to sell in the market. When he reached the market, he sold the fish faster than he had anticipated and decided to go back to the lake and catch more fish. He caught 12 more fish in the second round than he had caught earlier. The demand was even greater, and he had to close the day by catching 60% more fish than the number he had caught in the second round and sold all of them in the market. How many fish did he catch that day?",
-    "Juan bought T-shirts for his employees. He bought shirts for men and women. Women's t-shirts are $5 cheaper than men's t-shirts of the same color. His company has 2 sectors, one in white t-shirts and the other in black t-shirts. He paid $20 for white men's t-shirts and $18 for black men's t-shirts. The 2 sectors have the same number of men and women, with a total of 40 employees. How much did he spend total on buying t-shirts?",
-    "Amelia has $60 to spend on her dinner at a restaurant. The first course costs $15 and the second course $5 more. The cost of the dessert is 25% of the price of the second course. How much money will Amelia have left after buying all those meals?",
-    "Jack has a stack of books that is 12 inches thick. He knows from experience that 80 pages is one inch thick. If he has 6 books, how many pages is each one on average?",
-    "Five months ago, Mike earned 10 times more money than Fred. If his salary has increased by 40 percent now, and Fred's salary then was $1000, calculate Mike's salary now.",
-    "In a community of 50 families, 15 families own 2 dogs, 20 families own 1 dog, while the remaining families own 2 cats each. How many dogs and cats are there in all?"]
+
 
 ANTHROPIC_CONFIG = LLMConfig(
             model_endpoint_type="anthropic",
@@ -118,12 +109,20 @@ ANTHROPIC_CONFIG = LLMConfig(
 
 OPENAI_CONFIG = LLMConfig.default_config("gpt-4o-mini")
 
-def run_memory_edits(gsm8k_input_file: str, random_example: bool = False) -> None:
+def run_memory_edits(gsm8k_input_file: str, random_example: bool = False, few_shot: bool = True) -> None:
+
+    if few_shot:
+        with open("gsm8k_experiments/gsm8k-cot.yaml", "r") as f:
+            test_yaml = f.read()
+    
+        config = load_yaml_config(test_yaml)
+        generator = PromptGenerator(config)
+        few_shot_examples = generator.generate_few_shot_context()
+
 
     with jsonlines.open(gsm8k_input_file) as reader:
         examples = list(reader)
         if random_example:
-            import random
             gsm8k_example = random.choice(examples)
         else:
             gsm8k_example = examples[0]
@@ -194,17 +193,15 @@ def run_memory_edits(gsm8k_input_file: str, random_example: bool = False) -> Non
         initial_message_sequence=[],
     )
 
-    for requested_rewrite in FEW_SHOT_EXAMPLES[:2]:
-        print(requested_rewrite)
-        response = client.send_message(
+    for requested_rewrite in few_shot_examples:
+        client.send_message(
             message="[trigger_rethink_memory] Question answer pair" + requested_rewrite, role="user", agent_id=offline_memory_agent.id
         )
-
 
     context = ". ".join(gsm8k_example["question"].split(".")[:-1])
     question = gsm8k_example["question"].split(".")[-1]
 
-    response = client.send_message(
+    client.send_message(
         message="[trigger_rethink_memory] New situation:" + context, role="user", agent_id=conversation_agent.id
     )
 
@@ -218,6 +215,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gsm8k_input_file", type=str, default="./GSM8K_p2.jsonl", required=False)
     parser.add_argument("--random_example", action="store_true")  # by default, just run the first example
+    parser.add_argument("--few_shot", action="store_true") 
     args = parser.parse_args()
 
-    run_memory_edits(args.gsm8k_input_file, args.random_example)
+    run_memory_edits(args.gsm8k_input_file, args.random_example, args.few_shot)
