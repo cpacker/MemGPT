@@ -412,8 +412,8 @@ class AgentManager:
     @enforce_types
     def list_passages(
         self,
-        agent_id        : str,
         actor           : PydanticUser,
+        agent_id        : Optional[str] = None,
         file_id         : Optional[str] = None, 
         limit           : Optional[int] = 50,
         query_text      : Optional[str] = None,
@@ -430,8 +430,8 @@ class AgentManager:
         Lists all passages attached to an agent.
 
         Args:
-            agent_id: ID of the agent to list passages for
             actor: User performing the action
+            agent_id: ID of the agent to list passages for. If None, only return source passages
             file_id: Optional ID of file to filter passages by
             limit: Optional maximum number of passages to return
             query_text: Optional query text to search for
@@ -460,15 +460,26 @@ class AgentManager:
 
             source_passages = None
             if not agent_only: # Include source passages
-                source_passages = (
-                    select(
-                        SourcePassage,
-                        literal(None).label('agent_id')
+
+                if agent_id is not None:
+                    source_passages = (
+                        select(
+                            SourcePassage,
+                            literal(None).label('agent_id')
+                        )
+                        .join(SourcesAgents, SourcesAgents.source_id == SourcePassage.source_id)
+                        .where(SourcesAgents.agent_id == agent_id)
+                        .where(SourcePassage.organization_id == actor.organization_id)
                     )
-                    .join(SourcesAgents, SourcesAgents.source_id == SourcePassage.source_id)
-                    .where(SourcesAgents.agent_id == agent_id)
-                    .where(SourcePassage.organization_id == actor.organization_id)
-                )
+
+                else:
+                    source_passages = (
+                        select(
+                            SourcePassage,
+                            literal(None).label('agent_id')
+                        )
+                        .where(SourcePassage.organization_id == actor.organization_id)
+                    )
 
                 if source_id:
                     source_passages = source_passages.where(SourcePassage.source_id == source_id)
@@ -476,32 +487,38 @@ class AgentManager:
                     source_passages = source_passages.where(SourcePassage.file_id == file_id)
 
             # Add agent passages query
-            agent_passages = (
-                select(
-                    AgentPassage.id,
-                    AgentPassage.text,
-                    AgentPassage.embedding_config,
-                    AgentPassage.metadata_,
-                    AgentPassage.embedding,
-                    AgentPassage.created_at,
-                    AgentPassage.updated_at,
-                    AgentPassage.is_deleted,
-                    AgentPassage._created_by_id,
-                    AgentPassage._last_updated_by_id,
-                    AgentPassage.organization_id,
-                    literal(None).label('file_id'),
-                    literal(None).label('source_id'),
-                    AgentPassage.agent_id
+            agent_passages = None
+            if agent_id is not None:
+                agent_passages = (
+                    select(
+                        AgentPassage.id,
+                        AgentPassage.text,
+                        AgentPassage.embedding_config,
+                        AgentPassage.metadata_,
+                        AgentPassage.embedding,
+                        AgentPassage.created_at,
+                        AgentPassage.updated_at,
+                        AgentPassage.is_deleted,
+                        AgentPassage._created_by_id,
+                        AgentPassage._last_updated_by_id,
+                        AgentPassage.organization_id,
+                        literal(None).label('file_id'),
+                        literal(None).label('source_id'),
+                        AgentPassage.agent_id
+                    )
+                    .where(AgentPassage.agent_id == agent_id)
+                    .where(AgentPassage.organization_id == actor.organization_id)
                 )
-                .where(AgentPassage.agent_id == agent_id)
-                .where(AgentPassage.organization_id == actor.organization_id)
-            )
 
             # Combine queries
-            if source_passages is not None:
+            if source_passages is not None and agent_passages is not None:
                 combined_query = union_all(source_passages, agent_passages).cte('combined_passages')
-            else:
+            elif agent_passages is not None:
                 combined_query = agent_passages.cte('combined_passages')
+            elif source_passages is not None:
+                combined_query = source_passages.cte('combined_passages')
+            else:
+                raise ValueError("No passages found")
 
             # Build main query from combined CTE
             main_query = select(combined_query)
@@ -611,8 +628,8 @@ class AgentManager:
     @enforce_types
     def passage_size(
         self, 
-        agent_id        : str,
         actor           : PydanticUser,
+        agent_id        : Optional[str] = None,
         file_id         : Optional[str] = None, 
         limit           : Optional[int] = 50,
         query_text      : Optional[str] = None,

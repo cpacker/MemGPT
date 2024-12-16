@@ -10,7 +10,7 @@ from letta.utils import get_utc_time
 
 
 class PassageBase(OrmMetadataBase):
-    __id_prefix__ = "passage_legacy"
+    __id_prefix__ = "passage"
 
     is_deleted: bool = Field(False, description="Whether this passage is deleted or not.")
 

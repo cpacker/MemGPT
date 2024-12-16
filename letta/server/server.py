@@ -970,7 +970,7 @@ class SyncServer(Server):
 
     def get_archival_memory_summary(self, agent_id: str, actor: User) -> ArchivalMemorySummary:
         agent = self.load_agent(agent_id=agent_id, actor=actor)
-        return ArchivalMemorySummary(size=agent.passage_manager.size(actor=self.default_user))
+        return ArchivalMemorySummary(size=self.agent_manager.passage_size(actor=actor, agent_id=agent_id))
 
     def get_recall_memory_summary(self, agent_id: str, actor: User) -> RecallMemorySummary:
         agent = self.load_agent(agent_id=agent_id, actor=actor)
@@ -1248,7 +1248,7 @@ class SyncServer(Server):
         for source in sources:
 
             # count number of passages
-            num_passages = self.passage_manager.size(actor=actor, source_id=source.id)
+            num_passages = self.agent_manager.passage_size(actor=actor, source_id=source.id)
 
             # TODO: add when files table implemented
             ## count number of files

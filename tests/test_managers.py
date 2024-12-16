@@ -1037,6 +1037,21 @@ def test_agent_list_passages_vector_search(server, default_user, sarah_agent, de
     assert agent_only_results[1].text == "blue shoes"
 
 
+def test_list_source_passages_only(server: SyncServer, default_user, default_source, agent_passages_setup):
+    """Test listing passages from a source without specifying an agent."""
+    
+    # List passages by source_id without agent_id
+    source_passages = server.agent_manager.list_passages(
+        actor=default_user,
+        source_id=default_source.id,
+    )
+
+    # Verify we get only source passages (3 from agent_passages_setup)
+    assert len(source_passages) == 3
+    assert all(p.source_id == default_source.id for p in source_passages)
+    assert all(p.agent_id is None for p in source_passages)
+
+
 # ======================================================================================================================
 # Organization Manager Tests
 # ======================================================================================================================
