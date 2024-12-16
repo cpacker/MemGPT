@@ -439,6 +439,82 @@ def test_update_agent(server: SyncServer, comprehensive_test_agent_fixture, othe
 
 
 # ======================================================================================================================
+# AgentManager Tests - Tools Relationship
+# ======================================================================================================================
+
+
+def test_attach_tool(server: SyncServer, sarah_agent, print_tool, default_user):
+    """Test attaching a tool to an agent."""
+    # Attach the tool
+    server.agent_manager.attach_tool(agent_id=sarah_agent.id, tool_id=print_tool.id, actor=default_user)
+
+    # Verify attachment through get_agent_by_id
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert print_tool.id in [t.id for t in agent.tools]
+
+    # Verify that attaching the same tool again doesn't cause duplication
+    server.agent_manager.attach_tool(agent_id=sarah_agent.id, tool_id=print_tool.id, actor=default_user)
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert len([t for t in agent.tools if t.id == print_tool.id]) == 1
+
+
+def test_detach_tool(server: SyncServer, sarah_agent, print_tool, default_user):
+    """Test detaching a tool from an agent."""
+    # Attach the tool first
+    server.agent_manager.attach_tool(agent_id=sarah_agent.id, tool_id=print_tool.id, actor=default_user)
+
+    # Verify it's attached
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert print_tool.id in [t.id for t in agent.tools]
+
+    # Detach the tool
+    server.agent_manager.detach_tool(agent_id=sarah_agent.id, tool_id=print_tool.id, actor=default_user)
+
+    # Verify it's detached
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert print_tool.id not in [t.id for t in agent.tools]
+
+    # Verify that detaching an already detached tool doesn't cause issues
+    server.agent_manager.detach_tool(agent_id=sarah_agent.id, tool_id=print_tool.id, actor=default_user)
+
+
+def test_attach_tool_nonexistent_agent(server: SyncServer, print_tool, default_user):
+    """Test attaching a tool to a nonexistent agent."""
+    with pytest.raises(NoResultFound):
+        server.agent_manager.attach_tool(agent_id="nonexistent-agent-id", tool_id=print_tool.id, actor=default_user)
+
+
+def test_attach_tool_nonexistent_tool(server: SyncServer, sarah_agent, default_user):
+    """Test attaching a nonexistent tool to an agent."""
+    with pytest.raises(NoResultFound):
+        server.agent_manager.attach_tool(agent_id=sarah_agent.id, tool_id="nonexistent-tool-id", actor=default_user)
+
+
+def test_detach_tool_nonexistent_agent(server: SyncServer, print_tool, default_user):
+    """Test detaching a tool from a nonexistent agent."""
+    with pytest.raises(NoResultFound):
+        server.agent_manager.detach_tool(agent_id="nonexistent-agent-id", tool_id=print_tool.id, actor=default_user)
+
+
+def test_list_attached_tools(server: SyncServer, sarah_agent, print_tool, other_tool, default_user):
+    """Test listing tools attached to an agent."""
+    # Initially should have no tools
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    assert len(agent.tools) == 0
+
+    # Attach tools
+    server.agent_manager.attach_tool(agent_id=sarah_agent.id, tool_id=print_tool.id, actor=default_user)
+    server.agent_manager.attach_tool(agent_id=sarah_agent.id, tool_id=other_tool.id, actor=default_user)
+
+    # List tools and verify
+    agent = server.agent_manager.get_agent_by_id(sarah_agent.id, actor=default_user)
+    attached_tool_ids = [t.id for t in agent.tools]
+    assert len(attached_tool_ids) == 2
+    assert print_tool.id in attached_tool_ids
+    assert other_tool.id in attached_tool_ids
+
+
+# ======================================================================================================================
 # AgentManager Tests - Sources Relationship
 # ======================================================================================================================
 
@@ -693,6 +769,7 @@ def test_attach_block(server: SyncServer, sarah_agent, default_block, default_us
     assert agent.memory.blocks[0].label == default_block.label
 
 
+@pytest.mark.skipif(USING_SQLITE, reason="Test not applicable when using SQLite.")
 def test_attach_block_duplicate_label(server: SyncServer, sarah_agent, default_block, other_block, default_user):
     """Test attempting to attach a block with a duplicate label."""
     # Set up both blocks with same label
@@ -1143,6 +1220,7 @@ def test_create_tool(server: SyncServer, print_tool, default_user, default_organ
     assert print_tool.organization_id == default_organization.id
 
 
+@pytest.mark.skipif(USING_SQLITE, reason="Test not applicable when using SQLite.")
 def test_create_tool_duplicate_name(server: SyncServer, print_tool, default_user, default_organization):
     data = print_tool.model_dump(exclude=["id"])
     tool = PydanticTool(**data)

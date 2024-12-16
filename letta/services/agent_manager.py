@@ -1,6 +1,7 @@
 from typing import Dict, List, Optional
 
 from letta.constants import BASE_MEMORY_TOOLS, BASE_TOOLS
+from letta.log import get_logger
 from letta.orm import Agent as AgentModel
 from letta.orm import Block as BlockModel
 from letta.orm import Source as SourceModel
@@ -24,6 +25,8 @@ from letta.services.passage_manager import PassageManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
 from letta.utils import enforce_types
+
+logger = get_logger(__name__)
 
 
 # Agent Manager Class
@@ -401,5 +404,76 @@ class AgentManager:
             if len(agent.core_memory) == original_length:
                 raise NoResultFound(f"No block with label '{block_label}' found for agent '{agent_id}' with actor id: '{actor.id}'")
 
+            agent.update(session, actor=actor)
+            return agent.to_pydantic()
+
+    # ======================================================================================================================
+    # Tool Management
+    # ======================================================================================================================
+    @enforce_types
+    def attach_tool(self, agent_id: str, tool_id: str, actor: PydanticUser) -> PydanticAgentState:
+        """
+        Attaches a tool to an agent.
+
+        Args:
+            agent_id: ID of the agent to attach the tool to.
+            tool_id: ID of the tool to attach.
+            actor: User performing the action.
+
+        Raises:
+            NoResultFound: If the agent or tool is not found.
+
+        Returns:
+            PydanticAgentState: The updated agent state.
+        """
+        with self.session_maker() as session:
+            # Verify the agent exists and user has permission to access it
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+
+            # Use the _process_relationship helper to attach the tool
+            _process_relationship(
+                session=session,
+                agent=agent,
+                relationship_name="tools",
+                model_class=ToolModel,
+                item_ids=[tool_id],
+                allow_partial=False,  # Ensure the tool exists
+                replace=False,  # Extend the existing tools
+            )
+
+            # Commit and refresh the agent
+            agent.update(session, actor=actor)
+            return agent.to_pydantic()
+
+    @enforce_types
+    def detach_tool(self, agent_id: str, tool_id: str, actor: PydanticUser) -> PydanticAgentState:
+        """
+        Detaches a tool from an agent.
+
+        Args:
+            agent_id: ID of the agent to detach the tool from.
+            tool_id: ID of the tool to detach.
+            actor: User performing the action.
+
+        Raises:
+            NoResultFound: If the agent or tool is not found.
+
+        Returns:
+            PydanticAgentState: The updated agent state.
+        """
+        with self.session_maker() as session:
+            # Verify the agent exists and user has permission to access it
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+
+            # Filter out the tool to be detached
+            remaining_tools = [tool for tool in agent.tools if tool.id != tool_id]
+
+            if len(remaining_tools) == len(agent.tools):  # Tool ID was not in the relationship
+                logger.warning(f"Attempted to remove unattached tool id={tool_id} from agent id={agent_id} by actor={actor}")
+
+            # Update the tools relationship
+            agent.tools = remaining_tools
+
+            # Commit and refresh the agent
             agent.update(session, actor=actor)
             return agent.to_pydantic()
