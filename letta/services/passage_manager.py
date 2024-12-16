@@ -1,17 +1,19 @@
-from datetime import datetime
 from typing import List, Optional
-
+from datetime import datetime
 import numpy as np
+
+from sqlalchemy import select, union_all, literal
 
 from letta.constants import MAX_EMBEDDING_DIM
 from letta.embeddings import embedding_model, parse_and_chunk_text
 from letta.orm.errors import NoResultFound
-from letta.orm.passage import Passage as PassageModel
+from letta.orm.passage import AgentPassage, SourcePassage
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.passage import Passage as PydanticPassage
 from letta.schemas.user import User as PydanticUser
 from letta.utils import enforce_types
+
 
 
 class PassageManager:
@@ -26,14 +28,51 @@ class PassageManager:
     def get_passage_by_id(self, passage_id: str, actor: PydanticUser) -> Optional[PydanticPassage]:
         """Fetch a passage by ID."""
         with self.session_maker() as session:
-            passage = PassageModel.read(db_session=session, identifier=passage_id, actor=actor)
-            return passage.to_pydantic()
+            # Try source passages first
+            try:
+                passage = SourcePassage.read(db_session=session, identifier=passage_id, actor=actor)
+                return passage.to_pydantic()
+            except NoResultFound:
+                # Try archival passages
+                try:
+                    passage = AgentPassage.read(db_session=session, identifier=passage_id, actor=actor)
+                    return passage.to_pydantic()
+                except NoResultFound:
+                    raise NoResultFound(f"Passage with id {passage_id} not found in database.")
 
     @enforce_types
     def create_passage(self, pydantic_passage: PydanticPassage, actor: PydanticUser) -> PydanticPassage:
-        """Create a new passage."""
+        """Create a new passage in the appropriate table based on whether it has agent_id or source_id."""
+        # Common fields for both passage types
+        data = pydantic_passage.model_dump()
+        common_fields = {
+            "id": data.get("id"),
+            "text": data["text"],
+            "embedding": data["embedding"],
+            "embedding_config": data["embedding_config"],
+            "organization_id": data["organization_id"],
+            "metadata_": data.get("metadata_", {}),
+            "is_deleted": data.get("is_deleted", False),
+            "created_at": data.get("created_at", datetime.utcnow()),
+        }
+
+        if "agent_id" in data and data["agent_id"]:
+            assert not data.get("source_id"), "Passage cannot have both agent_id and source_id"
+            agent_fields = {
+                "agent_id": data["agent_id"],
+            }
+            passage = AgentPassage(**common_fields, **agent_fields)
+        elif "source_id" in data and data["source_id"]:
+            assert not data.get("agent_id"), "Passage cannot have both agent_id and source_id"
+            source_fields = {
+                "source_id": data["source_id"],
+                "file_id": data.get("file_id"),
+            }
+            passage = SourcePassage(**common_fields, **source_fields)
+        else:
+            raise ValueError("Passage must have either agent_id or source_id")
+
         with self.session_maker() as session:
-            passage = PassageModel(**pydantic_passage.model_dump())
             passage.create(session, actor=actor)
             return passage.to_pydantic()
 
@@ -93,14 +132,23 @@ class PassageManager:
             raise ValueError("Passage ID must be provided.")
 
         with self.session_maker() as session:
-            # Fetch existing message from database
-            curr_passage = PassageModel.read(
-                db_session=session,
-                identifier=passage_id,
-                actor=actor,
-            )
-            if not curr_passage:
-                raise ValueError(f"Passage with id {passage_id} does not exist.")
+            # Try source passages first
+            try:
+                curr_passage = SourcePassage.read(
+                    db_session=session,
+                    identifier=passage_id,
+                    actor=actor,
+                )
+            except NoResultFound:
+                # Try agent passages
+                try:
+                    curr_passage = AgentPassage.read(
+                        db_session=session,
+                        identifier=passage_id,
+                        actor=actor,
+                    )
+                except NoResultFound:
+                    raise ValueError(f"Passage with id {passage_id} does not exist.")
 
             # Update the database record with values from the provided record
             update_data = passage.model_dump(exclude_unset=True, exclude_none=True)
@@ -113,104 +161,32 @@ class PassageManager:
 
     @enforce_types
     def delete_passage_by_id(self, passage_id: str, actor: PydanticUser) -> bool:
-        """Delete a passage."""
+        """Delete a passage from either source or archival passages."""
         if not passage_id:
             raise ValueError("Passage ID must be provided.")
 
         with self.session_maker() as session:
+            # Try source passages first
             try:
-                passage = PassageModel.read(db_session=session, identifier=passage_id, actor=actor)
+                passage = SourcePassage.read(db_session=session, identifier=passage_id, actor=actor)
                 passage.hard_delete(session, actor=actor)
+                return True
             except NoResultFound:
-                raise ValueError(f"Passage with id {passage_id} not found.")
-
-    @enforce_types
-    def list_passages(
-        self,
-        actor: PydanticUser,
-        agent_id: Optional[str] = None,
-        file_id: Optional[str] = None,
-        cursor: Optional[str] = None,
-        limit: Optional[int] = 50,
-        query_text: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        ascending: bool = True,
-        source_id: Optional[str] = None,
-        embed_query: bool = False,
-        embedding_config: Optional[EmbeddingConfig] = None,
-    ) -> List[PydanticPassage]:
-        """List passages with pagination."""
-        with self.session_maker() as session:
-            filters = {"organization_id": actor.organization_id}
-            if agent_id:
-                filters["agent_id"] = agent_id
-            if file_id:
-                filters["file_id"] = file_id
-            if source_id:
-                filters["source_id"] = source_id
-
-            embedded_text = None
-            if embed_query:
-                assert embedding_config is not None
-
-                # Embed the text
-                embedded_text = embedding_model(embedding_config).get_text_embedding(query_text)
-
-                # Pad the embedding with zeros
-                embedded_text = np.array(embedded_text)
-                embedded_text = np.pad(embedded_text, (0, MAX_EMBEDDING_DIM - embedded_text.shape[0]), mode="constant").tolist()
-
-            results = PassageModel.list(
-                db_session=session,
-                cursor=cursor,
-                start_date=start_date,
-                end_date=end_date,
-                limit=limit,
-                ascending=ascending,
-                query_text=query_text if not embedded_text else None,
-                query_embedding=embedded_text,
-                **filters,
-            )
-            return [p.to_pydantic() for p in results]
-
-    @enforce_types
-    def size(self, actor: PydanticUser, agent_id: Optional[str] = None, **kwargs) -> int:
-        """Get the total count of messages with optional filters.
-
-        Args:
-            actor   : The user requesting the count
-            agent_id: The agent ID
-        """
-        with self.session_maker() as session:
-            return PassageModel.size(db_session=session, actor=actor, agent_id=agent_id, **kwargs)
+                # Try archival passages
+                try:
+                    passage = AgentPassage.read(db_session=session, identifier=passage_id, actor=actor)
+                    passage.hard_delete(session, actor=actor)
+                    return True
+                except NoResultFound:
+                    raise NoResultFound(f"Passage with id {passage_id} not found.")
 
     def delete_passages(
         self,
         actor: PydanticUser,
-        agent_id: Optional[str] = None,
-        file_id: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        limit: Optional[int] = 50,
-        cursor: Optional[str] = None,
-        query_text: Optional[str] = None,
-        source_id: Optional[str] = None,
+        passages: List[PydanticPassage],
     ) -> bool:
-
-        passages = self.list_passages(
-            actor=actor,
-            agent_id=agent_id,
-            file_id=file_id,
-            cursor=cursor,
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            query_text=query_text,
-            source_id=source_id,
-        )
-
         # TODO: This is very inefficient
         # TODO: We should have a base `delete_all_matching_filters`-esque function
         for passage in passages:
             self.delete_passage_by_id(passage_id=passage.id, actor=actor)
+        return True

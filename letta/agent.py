@@ -41,7 +41,6 @@ from letta.schemas.openai.chat_completion_response import (
     Message as ChatCompletionMessage,
 )
 from letta.schemas.openai.chat_completion_response import UsageStatistics
-from letta.schemas.passage import Passage
 from letta.schemas.tool import Tool
 from letta.schemas.tool_rule import TerminalToolRule
 from letta.schemas.usage import LettaUsageStatistics
@@ -82,7 +81,7 @@ def compile_memory_metadata_block(
     actor: PydanticUser,
     agent_id: str,
     memory_edit_timestamp: datetime.datetime,
-    passage_manager: Optional[PassageManager] = None,
+    agent_manager: Optional[AgentManager] = None,
     message_manager: Optional[MessageManager] = None,
 ) -> str:
     # Put the timestamp in the local timezone (mimicking get_local_time())
@@ -93,7 +92,7 @@ def compile_memory_metadata_block(
         [
             f"### Memory [last modified: {timestamp_str}]",
             f"{message_manager.size(actor=actor, agent_id=agent_id) if message_manager else 0} previous messages between you and the user are stored in recall memory (use functions to access them)",
-            f"{passage_manager.size(actor=actor, agent_id=agent_id) if passage_manager else 0} total memories you created are stored in archival memory (use functions to access them)",
+            f"{agent_manager.passage_size(actor=actor, agent_id=agent_id) if agent_manager else 0} total memories you created are stored in archival memory (use functions to access them)",
             "\nCore memory shown below (limited in size, additional information stored in archival / recall memory):",
         ]
     )
@@ -106,7 +105,7 @@ def compile_system_message(
     in_context_memory: Memory,
     in_context_memory_last_edit: datetime.datetime,  # TODO move this inside of BaseMemory?
     actor: PydanticUser,
-    passage_manager: Optional[PassageManager] = None,
+    agent_manager: Optional[AgentManager] = None,
     message_manager: Optional[MessageManager] = None,
     user_defined_variables: Optional[dict] = None,
     append_icm_if_missing: bool = True,
@@ -135,7 +134,7 @@ def compile_system_message(
             actor=actor,
             agent_id=agent_id,
             memory_edit_timestamp=in_context_memory_last_edit,
-            passage_manager=passage_manager,
+            agent_manager=agent_manager,
             message_manager=message_manager,
         )
         full_memory_string = memory_metadata_string + "\n" + in_context_memory.compile()
@@ -172,7 +171,7 @@ def initialize_message_sequence(
     agent_id: str,
     memory: Memory,
     actor: PydanticUser,
-    passage_manager: Optional[PassageManager] = None,
+    agent_manager: Optional[AgentManager] = None,
     message_manager: Optional[MessageManager] = None,
     memory_edit_timestamp: Optional[datetime.datetime] = None,
     include_initial_boot_message: bool = True,
@@ -181,7 +180,7 @@ def initialize_message_sequence(
         memory_edit_timestamp = get_local_time()
 
     # full_system_message = construct_system_with_memory(
-    # system, memory, memory_edit_timestamp, passage_manager=passage_manager, recall_memory=recall_memory
+    # system, memory, memory_edit_timestamp, agent_manager=agent_manager, recall_memory=recall_memory
     # )
     full_system_message = compile_system_message(
         agent_id=agent_id,
@@ -189,7 +188,7 @@ def initialize_message_sequence(
         in_context_memory=memory,
         in_context_memory_last_edit=memory_edit_timestamp,
         actor=actor,
-        passage_manager=passage_manager,
+        agent_manager=agent_manager,
         message_manager=message_manager,
         user_defined_variables=None,
         append_icm_if_missing=True,
@@ -291,8 +290,9 @@ class Agent(BaseAgent):
         self.interface = interface
 
         # Create the persistence manager object based on the AgentState info
-        self.passage_manager = PassageManager()
         self.message_manager = MessageManager()
+        self.passage_manager = PassageManager()
+        self.agent_manager = AgentManager()
 
         # State needed for heartbeat pausing
         self.pause_heartbeats_start = None
@@ -322,7 +322,7 @@ class Agent(BaseAgent):
                 agent_id=self.agent_state.id,
                 memory=self.agent_state.memory,
                 actor=self.user,
-                passage_manager=None,
+                agent_manager=None,
                 message_manager=None,
                 memory_edit_timestamp=get_utc_time(),
                 include_initial_boot_message=True,
@@ -347,7 +347,7 @@ class Agent(BaseAgent):
                     memory=self.agent_state.memory,
                     agent_id=self.agent_state.id,
                     actor=self.user,
-                    passage_manager=None,
+                    agent_manager=None,
                     message_manager=None,
                     memory_edit_timestamp=get_utc_time(),
                     include_initial_boot_message=True,
@@ -1297,7 +1297,7 @@ class Agent(BaseAgent):
             in_context_memory=self.agent_state.memory,
             in_context_memory_last_edit=memory_edit_timestamp,
             actor=self.user,
-            passage_manager=self.passage_manager,
+            agent_manager=self.agent_manager,
             message_manager=self.message_manager,
             user_defined_variables=None,
             append_icm_if_missing=True,
@@ -1368,33 +1368,24 @@ class Agent(BaseAgent):
         source_id: str,
         source_manager: SourceManager,
         agent_manager: AgentManager,
-        page_size: Optional[int] = None,
     ):
-        """Attach data with name `source_name` to the agent from source_connector."""
-        # TODO: eventually, adding a data source should just give access to the retriever the source table, rather than modifying archival memory
-        passages = self.passage_manager.list_passages(actor=user, source_id=source_id, limit=page_size)
-
-        for passage in passages:
-            assert isinstance(passage, Passage), f"Generate yielded bad non-Passage type: {type(passage)}"
-            passage.agent_id = self.agent_state.id
-            self.passage_manager.update_passage_by_id(passage_id=passage.id, passage=passage, actor=user)
-
-        agents_passages = self.passage_manager.list_passages(actor=user, agent_id=self.agent_state.id, source_id=source_id, limit=page_size)
-        passage_size = self.passage_manager.size(actor=user, agent_id=self.agent_state.id, source_id=source_id)
-        assert all([p.agent_id == self.agent_state.id for p in agents_passages])
-        assert len(agents_passages) == passage_size  # sanity check
-        assert passage_size == len(passages), f"Expected {len(passages)} passages, got {passage_size}"
-
-        # attach to agent
+        """Attach a source to the agent using the SourcesAgents ORM relationship.
+ 
+        Args:
+            user: User performing the action
+            source_id: ID of the source to attach
+            source_manager: SourceManager instance to verify source exists
+            agent_manager: AgentManager instance to manage agent-source relationship
+        """
+        # Verify source exists and user has permission to access it
         source = source_manager.get_source_by_id(source_id=source_id, actor=user)
-        assert source is not None, f"Source {source_id} not found in metadata store"
+        assert source is not None, f"Source {source_id} not found in user's organization ({user.organization_id})"
 
-        # NOTE: need this redundant line here because we haven't migrated agent to ORM yet
-        # TODO: delete @matt and remove
+        # Use the agent_manager to create the relationship
         agent_manager.attach_source(agent_id=self.agent_state.id, source_id=source_id, actor=user)
 
         printd(
-            f"Attached data source {source.name} to agent {self.agent_state.name}, consisting of {len(passages)}. Agent now has {passage_size} embeddings in archival memory.",
+            f"Attached data source {source.name} to agent {self.agent_state.name}.",
         )
 
     def update_message(self, message_id: str, request: MessageUpdate) -> Message:
@@ -1550,13 +1541,13 @@ class Agent(BaseAgent):
                 num_tokens_from_messages(messages=messages_openai_format[1:], model=self.model) if len(messages_openai_format) > 1 else 0
             )
 
-        passage_manager_size = self.passage_manager.size(actor=self.user, agent_id=self.agent_state.id)
+        agent_manager_passage_size = self.agent_manager.passage_size(actor=self.user, agent_id=self.agent_state.id)
         message_manager_size = self.message_manager.size(actor=self.user, agent_id=self.agent_state.id)
         external_memory_summary = compile_memory_metadata_block(
             actor=self.user,
             agent_id=self.agent_state.id,
             memory_edit_timestamp=get_utc_time(),  # dummy timestamp
-            passage_manager=self.passage_manager,
+            agent_manager=self.agent_manager,
             message_manager=self.message_manager,
         )
         num_tokens_external_memory_summary = count_tokens(external_memory_summary)
@@ -1582,7 +1573,7 @@ class Agent(BaseAgent):
         return ContextWindowOverview(
             # context window breakdown (in messages)
             num_messages=len(self._messages),
-            num_archival_memory=passage_manager_size,
+            num_archival_memory=agent_manager_passage_size,
             num_recall_memory=message_manager_size,
             num_tokens_external_memory_summary=num_tokens_external_memory_summary,
             # top-level information
