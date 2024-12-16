@@ -1290,7 +1290,7 @@ class Agent(BaseAgent):
             # NOTE: a bit of a hack - we pull the timestamp from the message created_by
             memory_edit_timestamp = self._messages[0].created_at
 
-        # update memory (TODO: potentially update recall/archival stats seperately)
+        # update memory (TODO: potentially update recall/archival stats separately)
         new_system_message_str = compile_system_message(
             agent_id=self.agent_state.id,
             system_prompt=self.agent_state.system,

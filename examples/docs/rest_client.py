@@ -31,7 +31,7 @@ def main():
     # Send a message to the agent
     print(f"Created agent: {agent_state.name} with ID {str(agent_state.id)}")
     response = client.user_message(agent_id=agent_state.id, message="Whats my name?")
-    print(f"Recieved response:", response.messages)
+    print(f"Received response:", response.messages)
 
     # Delete agent
     client.delete_agent(agent_id=agent_state.id)
