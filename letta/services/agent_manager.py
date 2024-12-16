@@ -634,7 +634,6 @@ class AgentManager:
         actor: PydanticUser,
         agent_id: Optional[str] = None,
         file_id: Optional[str] = None,
-        limit: Optional[int] = 50,
         query_text: Optional[str] = None,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
