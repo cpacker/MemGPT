@@ -14,6 +14,8 @@ from starlette.middleware.cors import CORSMiddleware
 from letta.__init__ import __version__
 from letta.constants import ADMIN_PREFIX, API_PREFIX, OPENAI_API_PREFIX
 from letta.errors import LettaAgentNotFoundError, LettaUserNotFoundError
+from letta.log import get_logger
+from letta.orm.errors import NoResultFound
 from letta.schemas.letta_response import LettaResponse
 from letta.server.constants import REST_DEFAULT_PORT
 
@@ -45,6 +47,7 @@ from letta.settings import settings
 # NOTE(charles): @ethan I had to add this to get the global as the bottom to work
 interface: StreamingServerInterface = StreamingServerInterface
 server = SyncServer(default_interface_factory=lambda: interface())
+logger = get_logger(__name__)
 
 # TODO: remove
 password = None
@@ -168,6 +171,16 @@ def create_application() -> "FastAPI":
                 # Only include error details in debug/development mode
                 # "debug_info": str(exc) if settings.debug else None
             },
+        )
+
+    @app.exception_handler(NoResultFound)
+    async def no_result_found_handler(request: Request, exc: NoResultFound):
+        logger.error(f"NoResultFound request: {request}")
+        logger.error(f"NoResultFound: {exc}")
+
+        return JSONResponse(
+            status_code=404,
+            content={"detail": str(exc)},
         )
 
     @app.exception_handler(ValueError)
