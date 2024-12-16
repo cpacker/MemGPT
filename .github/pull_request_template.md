@@ -8,7 +8,7 @@ How can we test your PR during review? What commands should we run? What outcome
 Have you tested the latest commit on the PR? If so please provide outputs from your tests.
 
 **Related issues or PRs**
-Please link any related GitHub [issues](https://github.com/cpacker/Letta/issues) or [PRs](https://github.com/cpacker/Letta/pulls).
+Please link any related GitHub [issues](https://github.com/letta-ai/letta/issues) or [PRs](https://github.com/letta-ai/letta/pulls).
 
 **Is your PR over 500 lines of code?**
 If so, please break up your PR into multiple smaller PRs so that we can review them quickly, or provide justification for its length.

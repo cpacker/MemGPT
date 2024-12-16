@@ -91,7 +91,7 @@ class Settings(BaseSettings):
             return f"postgresql+pg8000://letta:letta@localhost:5432/letta"
 
     # add this property to avoid being returned the default
-    # reference: https://github.com/cpacker/Letta/issues/1362
+    # reference: https://github.com/letta-ai/letta/issues/1362
     @property
     def letta_pg_uri_no_default(self) -> str:
         if self.pg_uri:
