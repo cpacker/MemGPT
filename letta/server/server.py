@@ -19,7 +19,6 @@ from letta.agent import Agent, save_agent
 from letta.chat_only_agent import ChatOnlyAgent
 from letta.credentials import LettaCredentials
 from letta.data_sources.connectors import DataConnector, load_data
-from letta.errors import LettaAgentNotFoundError
 
 # TODO use custom interface
 from letta.interface import AgentInterface  # abstract
@@ -398,9 +397,6 @@ class SyncServer(Server):
         agent_lock = self.per_agent_lock_manager.get_lock(agent_id)
         with agent_lock:
             agent_state = self.agent_manager.get_agent_by_id(agent_id=agent_id, actor=actor)
-
-            if agent_state is None:
-                raise LettaAgentNotFoundError(f"Agent (agent_id={agent_id}) does not exist")
 
             interface = interface or self.default_interface_factory()
             if agent_state.agent_type == AgentType.memgpt_agent:
@@ -901,32 +897,14 @@ class SyncServer(Server):
         # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
         actor = self.user_manager.get_user_or_default(user_id=user_id)
 
+        agent_state = self.agent_manager.attach_tool(agent_id=agent_id, tool_id=tool_id, actor=actor)
+
+        # TODO: This is very redundant, and should probably be simplified
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
+        letta_agent.link_tools(agent_state.tools)
 
-        # Get all the tool objects from the request
-        tool_objs = []
-        tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor)
-        assert tool_obj, f"Tool with id={tool_id} does not exist"
-        tool_objs.append(tool_obj)
-
-        for tool in letta_agent.agent_state.tools:
-            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=actor)
-            assert tool_obj, f"Tool with id={tool.id} does not exist"
-
-            # If it's not the already added tool
-            if tool_obj.id != tool_id:
-                tool_objs.append(tool_obj)
-
-        # replace the list of tool names ("ids") inside the agent state
-        letta_agent.agent_state.tools = tool_objs
-
-        # then attempt to link the tools modules
-        letta_agent.link_tools(tool_objs)
-
-        # save the agent
-        save_agent(letta_agent)
-        return letta_agent.agent_state
+        return agent_state
 
     def remove_tool_from_agent(
         self,
@@ -937,29 +915,13 @@ class SyncServer(Server):
         """Remove tools from an existing agent"""
         # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
         actor = self.user_manager.get_user_or_default(user_id=user_id)
+        agent_state = self.agent_manager.detach_tool(agent_id=agent_id, tool_id=tool_id, actor=actor)
 
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
+        letta_agent.link_tools(agent_state.tools)
 
-        # Get all the tool_objs
-        tool_objs = []
-        for tool in letta_agent.agent_state.tools:
-            tool_obj = self.tool_manager.get_tool_by_id(tool_id=tool.id, actor=actor)
-            assert tool_obj, f"Tool with id={tool.id} does not exist"
-
-            # If it's not the tool we want to remove
-            if tool_obj.id != tool_id:
-                tool_objs.append(tool_obj)
-
-        # replace the list of tool names ("ids") inside the agent state
-        letta_agent.agent_state.tools = tool_objs
-
-        # then attempt to link the tools modules
-        letta_agent.link_tools(tool_objs)
-
-        # save the agent
-        save_agent(letta_agent)
-        return letta_agent.agent_state
+        return agent_state
 
     # convert name->id
 
