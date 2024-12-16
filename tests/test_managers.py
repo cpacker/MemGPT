@@ -514,40 +514,6 @@ def test_list_attached_tools(server: SyncServer, sarah_agent, print_tool, other_
     assert other_tool.id in attached_tool_ids
 
 
-#
-# def test_list_attached_agents_with_tool(server: SyncServer, sarah_agent, charles_agent, print_tool, default_user):
-#     """Test listing agents that have a specific tool attached."""
-#     # Initially should have no attached agents
-#     attached_agents = server.tool_manager.list_attached_agents(tool_id=print_tool.id, actor=default_user)
-#     assert len(attached_agents) == 0
-#
-#     # Attach tool to first agent
-#     server.agent_manager.attach_tool(agent_id=sarah_agent.id, tool_id=print_tool.id, actor=default_user)
-#
-#     # Verify one agent is now attached
-#     attached_agents = server.tool_manager.list_attached_agents(tool_id=print_tool.id, actor=default_user)
-#     assert len(attached_agents) == 1
-#     assert sarah_agent.id in [a.id for a in attached_agents]
-#
-#     # Attach tool to second agent
-#     server.agent_manager.attach_tool(agent_id=charles_agent.id, tool_id=print_tool.id, actor=default_user)
-#
-#     # Verify both agents are now attached
-#     attached_agents = server.tool_manager.list_attached_agents(tool_id=print_tool.id, actor=default_user)
-#     assert len(attached_agents) == 2
-#     attached_agent_ids = [a.id for a in attached_agents]
-#     assert sarah_agent.id in attached_agent_ids
-#     assert charles_agent.id in attached_agent_ids
-#
-#     # Detach tool from first agent
-#     server.agent_manager.detach_tool(agent_id=sarah_agent.id, tool_id=print_tool.id, actor=default_user)
-#
-#     # Verify only the second agent remains attached
-#     attached_agents = server.tool_manager.list_attached_agents(tool_id=print_tool.id, actor=default_user)
-#     assert len(attached_agents) == 1
-#     assert charles_agent.id in [a.id for a in attached_agents]
-
-
 # ======================================================================================================================
 # AgentManager Tests - Sources Relationship
 # ======================================================================================================================
