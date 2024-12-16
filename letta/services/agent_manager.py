@@ -4,10 +4,8 @@ import numpy as np
 
 from sqlalchemy import select, union_all, literal, func
 
-
-from letta import agent
 from letta.constants import BASE_MEMORY_TOOLS, BASE_TOOLS, MAX_EMBEDDING_DIM
-from letta.embeddings import embedding_model, parse_and_chunk_text
+from letta.embeddings import embedding_model
 from letta.orm import Agent as AgentModel
 from letta.orm import Block as BlockModel
 from letta.orm import Source as SourceModel
@@ -31,7 +29,6 @@ from letta.services.helpers.agent_manager_helper import (
     _process_tags,
     derive_system_message,
 )
-from letta.services.passage_manager import PassageManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
 from letta.settings import settings
@@ -521,8 +518,6 @@ class AgentManager:
 
             # Vector search
             if embedded_text:
-                from letta.settings import settings
-
                 if settings.letta_pg_uri_no_default:
                     # PostgreSQL with pgvector
                     main_query = main_query.order_by(
