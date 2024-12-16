@@ -85,7 +85,7 @@ Once the Letta server is running, you can access it via port `8283` (e.g. sendin
 > [!NOTE]
 > The Letta ADE is a graphical user interface for creating, deploying, interacting and observing with your Letta agents.
 >
-> For example, if you're running a Letta server to power an end-user application (such as a customer support chatbot), you can use the ADE to test, debug, and observe the agents in your server. You can also use the ADE as a general chat interface to interacting with your Letta agents.
+> For example, if you're running a Letta server to power an end-user application (such as a customer support chatbot), you can use the ADE to test, debug, and observe the agents in your server. You can also use the ADE as a general chat interface to interact with your Letta agents.
 
 <p align="center">
   <picture>
@@ -139,7 +139,7 @@ No, you can install Letta using `pip` (via `pip install -U letta`), as well as f
 
 Letta gives your agents persistence (they live indefinitely) by storing all your agent data in a database. Letta is designed to be used with a [PostgreSQL](https://en.wikipedia.org/wiki/PostgreSQL) (the world's most popular database), however, it is not possible to install PostgreSQL via `pip`, so the `pip` install of Letta defaults to using [SQLite](https://www.sqlite.org/). If you have a PostgreSQL instance running on your own computer, you can still connect Letta (installed via `pip`) to PostgreSQL by setting the environment variable `LETTA_PG_URI`.
 
-**Database migrations are not officially supported for Letta when using SQLite**, so you would like to ensure that if you're able to upgrade to the latest Letta version and migrate your Letta agents data, make sure that you're using PostgreSQL as your Letta database backend. Full compatability table below:
+**Database migrations are not officially supported for Letta when using SQLite**, so if you would like to ensure that you're able to upgrade to the latest Letta version and migrate your Letta agents data, make sure that you're using PostgreSQL as your Letta database backend. Full compatability table below:
 
 | Installation method | Start server command | Database backend | Data migrations supported? |
 |---|---|---|---|
@@ -211,7 +211,7 @@ Hit enter to begin (will request first Letta message)
 ## ⚡ Quickstart (pip)
 
 > [!WARNING]
-> **Database migrations are not officially support with `SQLite`**
+> **Database migrations are not officially supported with `SQLite`**
 >
 > When you install Letta with `pip`, the default database backend is `SQLite` (you can still use an external `postgres` service with your `pip` install of Letta by setting `LETTA_PG_URI`).
 >
@@ -221,7 +221,7 @@ Hit enter to begin (will request first Letta message)
 
 <summary>View instructions for installing with pip</summary>
 
-You can also install Letta with `pip`, will default to using `SQLite` for the database backends (whereas Docker will default to using `postgres`).
+You can also install Letta with `pip`, which will default to using `SQLite` for the database backends (whereas Docker will default to using `postgres`).
 
 ### Step 1 - Install Letta using `pip`
 ```sh
@@ -295,7 +295,7 @@ Letta is an open source project built by over a hundred contributors. There are 
 
 * **Contribute to the project**: Interested in contributing? Start by reading our [Contribution Guidelines](https://github.com/cpacker/MemGPT/tree/main/CONTRIBUTING.md).
 * **Ask a question**: Join our community on [Discord](https://discord.gg/letta) and direct your questions to the `#support` channel.
-* **Report ssues or suggest features**: Have an issue or a feature request? Please submit them through our [GitHub Issues page](https://github.com/cpacker/MemGPT/issues).
+* **Report issues or suggest features**: Have an issue or a feature request? Please submit them through our [GitHub Issues page](https://github.com/cpacker/MemGPT/issues).
 * **Explore the roadmap**: Curious about future developments? View and comment on our [project roadmap](https://github.com/cpacker/MemGPT/issues/1533).
 * **Join community events**: Stay updated with the [event calendar](https://lu.ma/berkeley-llm-meetup) or follow our [Twitter account](https://twitter.com/Letta_AI).
 
