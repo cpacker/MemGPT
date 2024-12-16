@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 import numpy as np
 
-from sqlalchemy import select, union_all, literal, func
+from sqlalchemy import select, union_all, literal, func, Select
 
 from letta.constants import BASE_MEMORY_TOOLS, BASE_TOOLS, MAX_EMBEDDING_DIM
 from letta.embeddings import embedding_model
@@ -412,43 +412,24 @@ class AgentManager:
     # ======================================================================================================================
     # Passage Management
     # ======================================================================================================================
-    @enforce_types
-    def list_passages(
+    def _build_passage_query(
         self,
-        actor           : PydanticUser,
-        agent_id        : Optional[str] = None,
-        file_id         : Optional[str] = None, 
-        limit           : Optional[int] = 50,
-        query_text      : Optional[str] = None,
-        start_date      : Optional[datetime] = None,
-        end_date        : Optional[datetime] = None,
-        cursor          : Optional[str] = None,
-        source_id       : Optional[str] = None,
-        embed_query     : bool = False,
-        ascending       : bool = True,
+        actor: PydanticUser,
+        agent_id: Optional[str] = None,
+        file_id: Optional[str] = None,
+        query_text: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        cursor: Optional[str] = None,
+        source_id: Optional[str] = None,
+        embed_query: bool = False,
+        ascending: bool = True,
         embedding_config: Optional[EmbeddingConfig] = None,
-        agent_only      : bool = False
-    ) -> List[PydanticPassage]:
-        """
-        Lists all passages attached to an agent.
-
-        Args:
-            actor: User performing the action
-            agent_id: ID of the agent to list passages for. If None, only return source passages
-            file_id: Optional ID of file to filter passages by
-            limit: Optional maximum number of passages to return
-            query_text: Optional query text to search for
-            start_date: Optional start date to filter passages by
-            end_date: Optional end date to filter passages by
-            cursor: Optional passage ID to start from
-            source_id: Optional ID of source to filter passages by
-            ascending: If True, sort by created_at ascending, if False sort descending
-            embed_query: If True, embed the query text using the specified embedding config
-            embedding_config: Optional embedding config to use for embedding the query text
-            agent_only: If True, only return agent passages, if False return agent and source passages
-
-        Returns:
-            List[PydanticPassage]: List of passages attached to the agent
+        agent_only: bool = False,
+    ) -> Select:
+        """Helper function to build the base passage query with all filters applied.
+        
+        Returns the query before any limit or count operations are applied.
         """
         embedded_text = None
         if embed_query:
@@ -460,10 +441,8 @@ class AgentManager:
 
         with self.session_maker() as session:
             # Start with base query for source passages
-
             source_passages = None
-            if not agent_only: # Include source passages
-
+            if not agent_only:  # Include source passages
                 if agent_id is not None:
                     source_passages = (
                         select(
@@ -474,7 +453,6 @@ class AgentManager:
                         .where(SourcesAgents.agent_id == agent_id)
                         .where(SourcePassage.organization_id == actor.organization_id)
                     )
-
                 else:
                     source_passages = (
                         select(
@@ -577,8 +555,8 @@ class AgentManager:
                         combined_query.c.created_at < cursor_query
                     )
 
-            # Add ordering
-            if not embed_query:  # Skip if already ordered by similarity
+            # Add ordering if not already ordered by similarity
+            if not embed_query:
                 if ascending:
                     main_query = main_query.order_by(
                         combined_query.c.created_at.asc(),
@@ -589,6 +567,42 @@ class AgentManager:
                         combined_query.c.created_at.desc(),
                         combined_query.c.id.asc(),
                     )
+
+            return main_query
+
+    @enforce_types
+    def list_passages(
+        self,
+        actor: PydanticUser,
+        agent_id: Optional[str] = None,
+        file_id: Optional[str] = None,
+        limit: Optional[int] = 50,
+        query_text: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        cursor: Optional[str] = None,
+        source_id: Optional[str] = None,
+        embed_query: bool = False,
+        ascending: bool = True,
+        embedding_config: Optional[EmbeddingConfig] = None,
+        agent_only: bool = False
+    ) -> List[PydanticPassage]:
+        """Lists all passages attached to an agent."""
+        with self.session_maker() as session:
+            main_query = self._build_passage_query(
+                actor=actor,
+                agent_id=agent_id,
+                file_id=file_id,
+                query_text=query_text,
+                start_date=start_date,
+                end_date=end_date,
+                cursor=cursor,
+                source_id=source_id,
+                embed_query=embed_query,
+                ascending=ascending,
+                embedding_config=embedding_config,
+                agent_only=agent_only,
+            )
 
             # Add limit
             if limit:
@@ -614,55 +628,44 @@ class AgentManager:
             return [p.to_pydantic() for p in passages]
 
 
-            # # Verify agent exists and user has permission to access it
-            # agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
-
-            # # Use the lazy-loaded relationships to get passages
-            # # Sort by created_at
-            # all_passages = sorted(
-            #     [*agent.source_passages, *agent.agent_passages],
-            #     key=lambda x: x.created_at,
-            #     reverse=(not ascending)
-            # )
-
-
-            # return [passage.to_pydantic() for passage in all_passages]
-
     @enforce_types
     def passage_size(
-        self, 
-        actor           : PydanticUser,
-        agent_id        : Optional[str] = None,
-        file_id         : Optional[str] = None, 
-        limit           : Optional[int] = 50,
-        query_text      : Optional[str] = None,
-        start_date      : Optional[datetime] = None,
-        end_date        : Optional[datetime] = None,
-        cursor          : Optional[str] = None,
-        source_id       : Optional[str] = None,
-        embed_query     : bool = False,
-        ascending       : bool = True,
+        self,
+        actor: PydanticUser,
+        agent_id: Optional[str] = None,
+        file_id: Optional[str] = None,
+        limit: Optional[int] = 50,
+        query_text: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        cursor: Optional[str] = None,
+        source_id: Optional[str] = None,
+        embed_query: bool = False,
+        ascending: bool = True,
         embedding_config: Optional[EmbeddingConfig] = None,
-        agent_only      : bool = False
+        agent_only: bool = False
     ) -> int:
-        return len(
-            self.list_passages(
+        """Returns the count of passages matching the given criteria."""
+        with self.session_maker() as session:
+            main_query = self._build_passage_query(
+                actor=actor,
                 agent_id=agent_id,
-                actor=actor, 
-                file_id=file_id, 
-                limit=limit, 
-                query_text=query_text, 
-                start_date=start_date, 
-                end_date=end_date, 
-                cursor=cursor, 
-                source_id=source_id, 
-                embed_query=embed_query, 
-                ascending=ascending, 
-                embedding_config=embedding_config, 
-                agent_only=agent_only)
+                file_id=file_id,
+                query_text=query_text,
+                start_date=start_date,
+                end_date=end_date,
+                cursor=cursor,
+                source_id=source_id,
+                embed_query=embed_query,
+                ascending=ascending,
+                embedding_config=embedding_config,
+                agent_only=agent_only,
             )
-    
-    
+            
+            # Convert to count query
+            count_query = select(func.count()).select_from(main_query.subquery())
+            return session.scalar(count_query) or 0
+
     # ======================================================================================================================
     # Tool Management
     # ======================================================================================================================
