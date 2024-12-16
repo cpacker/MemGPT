@@ -312,7 +312,7 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
     for param in sig.parameters.values():
         # Exclude 'self' parameter
         # TODO: eventually remove this (only applies to BASE_TOOLS)
-        if param.name in ["self", "agent_state", "agent_manager"]:  # Add agent_manager to excluded
+        if param.name in ["self", "agent_state"]:  # Add agent_manager to excluded
             continue
 
         # Assert that the parameter has a type annotation

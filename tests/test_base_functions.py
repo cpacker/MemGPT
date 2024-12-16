@@ -44,15 +44,15 @@ def test_archival(agent_obj):
     base_functions.archival_memory_insert(agent_obj, "Python is a programming language")
 
     # Test exact text search
-    results, _ = base_functions.archival_memory_search(agent_obj, client.server.agent_manager,"cat")
+    results, _ = base_functions.archival_memory_search(agent_obj, "cat")
     assert query_in_search_results(results, "cat")
 
     # Test semantic search (should return animal-related content)
-    results, _ = base_functions.archival_memory_search(agent_obj, client.server.agent_manager, "animal pets")
+    results, _ = base_functions.archival_memory_search(agent_obj, "animal pets")
     assert query_in_search_results(results, "cat") or query_in_search_results(results, "dog")
 
     # Test unrelated search (should not return animal content)
-    results, _ = base_functions.archival_memory_search(agent_obj, client.server.agent_manager, "programming computers")
+    results, _ = base_functions.archival_memory_search(agent_obj, "programming computers")
     assert query_in_search_results(results, "python")
 
     # Test 2: Test pagination
@@ -61,9 +61,9 @@ def test_archival(agent_obj):
         base_functions.archival_memory_insert(agent_obj, f"Test passage number {i}")
 
     # Get first page
-    page0_results, next_page = base_functions.archival_memory_search(agent_obj, client.server.agent_manager,"Test passage", page=0)
+    page0_results, next_page = base_functions.archival_memory_search(agent_obj, "Test passage", page=0)
     # Get second page
-    page1_results, _ = base_functions.archival_memory_search(agent_obj, client.server.agent_manager, "Test passage", page=1, start=next_page)
+    page1_results, _ = base_functions.archival_memory_search(agent_obj, "Test passage", page=1, start=next_page)
 
     assert page0_results != page1_results
     assert query_in_search_results(page0_results, "Test passage")
@@ -75,14 +75,14 @@ def test_archival(agent_obj):
     base_functions.archival_memory_insert(agent_obj, "Project deadline is approaching")
 
     # Search for meeting-related content
-    results, _ = base_functions.archival_memory_search(agent_obj, client.server.agent_manager, "meeting schedule")
+    results, _ = base_functions.archival_memory_search(agent_obj, "meeting schedule")
     assert query_in_search_results(results, "meeting")
     assert query_in_search_results(results, "2024-01-15") or query_in_search_results(results, "next week")
 
     # Test 4: Test error handling
     # Test invalid page number
     try:
-        base_functions.archival_memory_search(agent_obj, client.server.agent_manager, "test", page="invalid")
+        base_functions.archival_memory_search(agent_obj, "test", page="invalid")
         assert False, "Should have raised ValueError"
     except ValueError:
         pass

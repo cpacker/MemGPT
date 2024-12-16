@@ -174,7 +174,7 @@ def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
     return None
 
 
-def archival_memory_search(self: "Agent", agent_manager: "AgentManager", query: str, page: Optional[int] = 0, start: Optional[int] = 0) -> Optional[str]:
+def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0, start: Optional[int] = 0) -> Optional[str]:
     """
     Search archival memory using semantic (embedding-based) search.
 
@@ -201,7 +201,7 @@ def archival_memory_search(self: "Agent", agent_manager: "AgentManager", query: 
     
     try:
         # Get results using passage manager
-        all_results = agent_manager.list_passages(
+        all_results = self.agent_manager.list_passages(
             actor=self.user,
             agent_id=self.agent_state.id,
             query_text=query,
