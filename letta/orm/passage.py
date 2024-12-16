@@ -1,13 +1,9 @@
 from typing import TYPE_CHECKING
 from sqlalchemy import Column, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship, declared_attr
-from sqlalchemy.types import TypeDecorator, BINARY
-
-import numpy as np
-import base64
 
 from letta.orm.mixins import FileMixin, OrganizationMixin
-from letta.orm.source import EmbeddingConfigColumn
+from letta.orm.custom_columns import CommonVector, EmbeddingConfigColumn
 from letta.orm.sqlalchemy_base import SqlalchemyBase
 from letta.orm.mixins import AgentMixin, FileMixin, OrganizationMixin, SourceMixin
 from letta.schemas.passage import Passage as PydanticPassage
@@ -22,29 +18,6 @@ if TYPE_CHECKING:
     from letta.orm.organization import Organization
     from letta.orm.agent import Agent
 
-
-class CommonVector(TypeDecorator):
-    """Common type for representing vectors in SQLite"""
-
-    impl = BINARY
-    cache_ok = True
-
-    def load_dialect_impl(self, dialect):
-        return dialect.type_descriptor(BINARY())
-
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return value
-        if isinstance(value, list):
-            value = np.array(value, dtype=np.float32)
-        return base64.b64encode(value.tobytes())
-
-    def process_result_value(self, value, dialect):
-        if not value:
-            return value
-        if dialect.name == "sqlite":
-            value = base64.b64decode(value)
-        return np.frombuffer(value, dtype=np.float32)
 
 class BasePassage(SqlalchemyBase, OrganizationMixin):
     """Base class for all passage types with common fields"""
