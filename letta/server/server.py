@@ -1087,7 +1087,8 @@ class SyncServer(Server):
         self.source_manager.delete_source(source_id=source_id, actor=actor)
 
         # delete data from passage store
-        self.passage_manager.delete_passages(actor=actor, limit=None, source_id=source_id)
+        passages_to_be_deleted = self.agent_manager.list_passages(actor=actor, source_id=source_id, limit=None)
+        self.passage_manager.delete_passages(actor=actor, passages=passages_to_be_deleted)
 
         # TODO: delete data from agent passage stores (?)
 

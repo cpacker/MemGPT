@@ -183,29 +183,10 @@ class PassageManager:
     def delete_passages(
         self,
         actor: PydanticUser,
-        agent_id: Optional[str] = None,
-        file_id: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        limit: Optional[int] = 50,
-        cursor: Optional[str] = None,
-        query_text: Optional[str] = None,
-        source_id: Optional[str] = None,
+        passages: List[PydanticPassage],
     ) -> bool:
-
-        passages = self.list_passages(
-            actor=actor,
-            agent_id=agent_id,
-            file_id=file_id,
-            cursor=cursor,
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date,
-            query_text=query_text,
-            source_id=source_id,
-        )
-
         # TODO: This is very inefficient
         # TODO: We should have a base `delete_all_matching_filters`-esque function
         for passage in passages:
             self.delete_passage_by_id(passage_id=passage.id, actor=actor)
+        return True
