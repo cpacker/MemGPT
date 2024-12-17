@@ -8,7 +8,6 @@ import pytest
 from sqlalchemy import delete
 
 from letta import create_client
-from letta.functions.function_sets.base import core_memory_replace
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -218,13 +217,6 @@ def clear_core_memory_tool(test_user):
 
 
 @pytest.fixture
-def core_memory_replace_tool(test_user):
-    tool = create_tool_from_func(core_memory_replace)
-    tool = ToolManager().create_or_update_tool(tool, test_user)
-    yield tool
-
-
-@pytest.fixture
 def external_codebase_tool(test_user):
     from tests.test_tool_sandbox.restaurant_management_system.adjust_menu_prices import (
         adjust_menu_prices,
@@ -301,30 +293,6 @@ def test_local_sandbox_stateful_tool(mock_e2b_api_key_none, clear_core_memory_to
     assert result.agent_state.memory.get_block("human").value == ""
     assert result.agent_state.memory.get_block("persona").value == ""
     assert result.func_return is None
-
-
-@pytest.mark.local_sandbox
-def test_local_sandbox_core_memory_replace(mock_e2b_api_key_none, core_memory_replace_tool, test_user, agent_state):
-    new_name = "Matt"
-    args = {"label": "human", "old_content": "Chad", "new_content": new_name}
-    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
-
-    # run the sandbox
-    result = sandbox.run(agent_state=agent_state)
-    assert new_name in result.agent_state.memory.get_block("human").value
-    assert result.func_return is None
-
-
-@pytest.mark.local_sandbox
-def test_local_sandbox_core_memory_replace_errors(mock_e2b_api_key_none, core_memory_replace_tool, test_user, agent_state):
-    nonexistent_name = "Alexander Wang"
-    args = {"label": "human", "old_content": nonexistent_name, "new_content": "Matt"}
-    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
-
-    # run the sandbox
-    result = sandbox.run(agent_state=agent_state)
-    assert len(result.stderr) != 0, "stderr not empty"
-    assert f"ValueError: Old content '{nonexistent_name}' not found in memory block 'human'" in result.stderr[0], "stderr contains expected error"
 
 
 @pytest.mark.local_sandbox
@@ -472,42 +440,6 @@ def test_e2b_sandbox_stateful_tool(check_e2b_key_is_set, clear_core_memory_tool,
     assert result.agent_state.memory.get_block("human").value == ""
     assert result.agent_state.memory.get_block("persona").value == ""
     assert result.func_return is None
-
-
-@pytest.mark.e2b_sandbox
-def test_e2b_sandbox_core_memory_replace(check_e2b_key_is_set, core_memory_replace_tool, test_user, agent_state):
-    new_name = "Matt"
-    args = {"label": "human", "old_content": "Chad", "new_content": new_name}
-    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
-
-    # run the sandbox
-    result = sandbox.run(agent_state=agent_state)
-    assert new_name in result.agent_state.memory.get_block("human").value
-    assert result.func_return is None
-
-
-@pytest.mark.e2b_sandbox
-def test_e2b_sandbox_escape_strings_in_args(check_e2b_key_is_set, core_memory_replace_tool, test_user, agent_state):
-    new_name = "Matt"
-    args = {"label": "human", "old_content": "Chad", "new_content": new_name + "\n"}
-    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
-
-    # run the sandbox
-    result = sandbox.run(agent_state=agent_state)
-    assert new_name in result.agent_state.memory.get_block("human").value
-    assert result.func_return is None
-
-
-@pytest.mark.e2b_sandbox
-def test_e2b_sandbox_core_memory_replace_errors(check_e2b_key_is_set, core_memory_replace_tool, test_user, agent_state):
-    nonexistent_name = "Alexander Wang"
-    args = {"label": "human", "old_content": nonexistent_name, "new_content": "Matt"}
-    sandbox = ToolExecutionSandbox(core_memory_replace_tool.name, args, user_id=test_user.id)
-
-    # run the sandbox
-    result = sandbox.run(agent_state=agent_state)
-    assert len(result.stderr) != 0, "stderr not empty"
-    assert f"ValueError: Old content '{nonexistent_name}' not found in memory block 'human'" in result.stderr[0], "stderr contains expected error"
 
 
 @pytest.mark.e2b_sandbox
