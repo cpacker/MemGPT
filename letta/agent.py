@@ -18,6 +18,7 @@ from letta.constants import (
     MESSAGE_SUMMARY_WARNING_FRAC,
     O1_BASE_TOOLS,
     REQ_HEARTBEAT_MESSAGE,
+    STRUCTURED_OUTPUT_MODELS
 )
 from letta.errors import LLMError
 from letta.helpers import ToolRulesSolver
@@ -276,6 +277,7 @@ class Agent(BaseAgent):
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
+        self.check_tool_rules()
 
         # state managers
         self.block_manager = BlockManager()
@@ -380,6 +382,13 @@ class Agent(BaseAgent):
 
         # Create the agent in the DB
         self.update_state()
+
+    def check_tool_rules(self):
+        if self.model not in STRUCTURED_OUTPUT_MODELS:
+            assert len(self.tool_rules_solver.init_tool_rules) <= 1, "Multiple initial tools not supported for non-structured models"
+            self.supports_structured_output = False
+        else:
+            self.supports_structured_output = True
 
     def update_memory_if_change(self, new_memory: Memory) -> bool:
         """
@@ -598,8 +607,7 @@ class Agent(BaseAgent):
 
         # For the first message, force the initial tool if one is specified
         force_tool_call = None
-        if first_message and self.tool_rules_solver.init_tool_rules:
-            assert len(self.tool_rules_solver.init_tool_rules) == 1, "Multiple initial tools not supported"
+        if first_message and not self.supports_structured_output and len(self.tool_rules_solver.init_tool_rules) > 0:
             force_tool_call = self.tool_rules_solver.init_tool_rules[0].tool_name
 
         for attempt in range(1, empty_response_retry_limit + 1):

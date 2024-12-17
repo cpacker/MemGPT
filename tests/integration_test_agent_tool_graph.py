@@ -1,3 +1,4 @@
+import time
 import uuid
 
 import pytest
@@ -154,20 +155,28 @@ def test_claude_initial_tool_rule_enforced(mock_e2b_api_key_none):
     # Make agent state
     anthropic_config_file = "tests/configs/llm_model_configs/claude-3-sonnet-20240229.json"
     agent_state = setup_agent(client, anthropic_config_file, agent_uuid=agent_uuid, tool_ids=[t.id for t in tools], tool_rules=tool_rules)
-    response = client.user_message(agent_id=agent_state.id, message="What is the second secret word?")
+    for i in range(3):
+        response = client.user_message(agent_id=agent_state.id, message="What is the second secret word?")
 
-    assert_sanity_checks(response)
-    messages = response.messages
+        assert_sanity_checks(response)
+        messages = response.messages
 
-    assert_invoked_function_call(messages, "first_secret_word")
-    assert_invoked_function_call(messages, "second_secret_word")
+        assert_invoked_function_call(messages, "first_secret_word")
+        assert_invoked_function_call(messages, "second_secret_word")
 
-    tool_names = [t.name for t in [t1, t2]]
-    tool_names += ["send_message"]
-    for m in messages:
-        if isinstance(m, FunctionCallMessage):
-            # Check that it's equal to the first one
-            assert m.function_call.name == tool_names[0]
+        tool_names = [t.name for t in [t1, t2]]
+        tool_names += ["send_message"]
+        for m in messages:
+            if isinstance(m, FunctionCallMessage):
+                # Check that it's equal to the first one
+                assert m.function_call.name == tool_names[0]
 
-            # Pop out first one
-            tool_names = tool_names[1:]
+                # Pop out first one
+                tool_names = tool_names[1:]
+
+        print(f"Passed iteration {i}")
+
+        # Implement exponential backoff with initial time of 10 seconds
+        if i < 2:
+            backoff_time = 10 * (2 ** i)
+            time.sleep(backoff_time)
