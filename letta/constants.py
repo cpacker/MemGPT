@@ -23,6 +23,7 @@ MIN_CONTEXT_WINDOW = 4096
 
 # embeddings
 MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or else DBs will need to be reset
+DEFAULT_EMBEDDING_CHUNK_SIZE = 300
 
 # tokenizers
 EMBEDDING_TO_TOKENIZER_MAP = {
