@@ -385,7 +385,8 @@ class Agent(BaseAgent):
 
     def check_tool_rules(self):
         if self.model not in STRUCTURED_OUTPUT_MODELS:
-            assert len(self.tool_rules_solver.init_tool_rules) <= 1, "Multiple initial tools not supported for non-structured models"
+            if len(self.tool_rules_solver.init_tool_rules) > 1:
+                raise ValueError("Multiple initial tools are not supported for non-structured models. Please use only one initial tool rule.")
             self.supports_structured_output = False
         else:
             self.supports_structured_output = True

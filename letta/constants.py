@@ -49,7 +49,7 @@ DEFAULT_MESSAGE_TOOL = "send_message"
 DEFAULT_MESSAGE_TOOL_KWARG = "message"
 
 # Structured output models
-STRUCTURED_OUTPUT_MODELS = {"gpt-4o-mini-2024-07-18", "gpt-4o-2024-08-06"}
+STRUCTURED_OUTPUT_MODELS = {"gpt-4o", "gpt-4o-mini"}
 
 # LOGGER_LOG_LEVEL is use to convert Text to Logging level value for logging mostly for Cli input to setting level
 LOGGER_LOG_LEVELS = {"CRITICAL": CRITICAL, "ERROR": ERROR, "WARN": WARN, "WARNING": WARNING, "INFO": INFO, "DEBUG": DEBUG, "NOTSET": NOTSET}
