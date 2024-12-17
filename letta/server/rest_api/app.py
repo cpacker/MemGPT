@@ -281,7 +281,7 @@ app = create_application()
 def start_server(
     port: Optional[int] = None,
     host: Optional[str] = None,
-    debug: bool = True,
+    debug: bool = False,
 ):
     """Convenience method to start the server from within Python"""
     if debug:
