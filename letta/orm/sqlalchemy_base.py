@@ -203,7 +203,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
         """
         logger.debug(f"Reading {cls.__name__} with ID: {identifier} with actor={actor}")
 
-        # Start the query
+        # Start the querys
         query = select(cls)
         # Collect query conditions for better error reporting
         query_conditions = []

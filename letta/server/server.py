@@ -4,7 +4,6 @@ import os
 import traceback
 import warnings
 from abc import abstractmethod
-from asyncio import Lock
 from datetime import datetime
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -264,9 +263,6 @@ class SyncServer(Server):
         self.default_interface_factory = default_interface_factory
 
         self.credentials = LettaCredentials.load()
-
-        # Locks
-        self.send_message_lock = Lock()
 
         # Initialize the metadata store
         config = LettaConfig.load()
@@ -821,7 +817,7 @@ class SyncServer(Server):
     ) -> AgentState:
         """Update the agents core memory block, return the new state"""
         # Update agent state in the db first
-        self.agent_manager.update_agent(agent_id=agent_id, agent_update=request, actor=actor)
+        agent_state = self.agent_manager.update_agent(agent_id=agent_id, agent_update=request, actor=actor)
 
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
@@ -844,7 +840,7 @@ class SyncServer(Server):
 
         letta_agent.update_state()
 
-        return letta_agent.agent_state
+        return agent_state
 
     def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
         """Get tools from an existing agent"""
