@@ -8,6 +8,7 @@ import pytest
 from sqlalchemy import delete
 
 from letta import create_client
+from letta.functions.function_sets.base import core_memory_append, core_memory_replace
 from letta.orm import SandboxConfig, SandboxEnvironmentVariable
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
@@ -54,13 +55,6 @@ def clear_tables():
 
     for sandbox in Sandbox.list():
         Sandbox.connect(sandbox.sandbox_id).kill()
-
-
-@pytest.fixture
-def check_e2b_key_is_set():
-    original_api_key = tool_settings.e2b_api_key
-    assert original_api_key is not None, "Missing e2b key! Cannot execute these tests."
-    yield
 
 
 @pytest.fixture
@@ -263,6 +257,21 @@ def custom_test_sandbox_config(test_user):
     manager.create_or_update_sandbox_config(sandbox_config_create=config_create, actor=test_user)
 
     return manager, local_sandbox_config
+
+
+# Tool-specific fixtures
+@pytest.fixture
+def core_memory_tools(test_user):
+    """Create all base tools for testing."""
+    tools = {}
+    for func in [
+        core_memory_replace,
+        core_memory_append,
+    ]:
+        tool = create_tool_from_func(func)
+        tool = ToolManager().create_or_update_tool(tool, test_user)
+        tools[func.__name__] = tool
+    yield tools
 
 
 # Local sandbox tests
@@ -517,3 +526,79 @@ def test_e2b_e2e_composio_star_github(check_e2b_key_is_set, check_composio_key_s
 
     result = ToolExecutionSandbox(composio_github_star_tool.name, {"owner": "letta-ai", "repo": "letta"}, user_id=test_user.id).run()
     assert result.func_return["details"] == "Action executed successfully"
+
+
+# Core memory integration tests
+class TestCoreMemoryTools:
+    """
+    Tests for core memory manipulation tools.
+    Tests run in both local sandbox and e2b environments.
+    """
+
+    # Local sandbox tests
+    @pytest.mark.local_sandbox
+    def test_core_memory_replace_local(self, mock_e2b_api_key_none, core_memory_tools, test_user, agent_state):
+        """Test successful replacement of content in core memory - local sandbox."""
+        new_name = "Charles"
+        args = {"label": "human", "old_content": "Chad", "new_content": new_name}
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user_id=test_user.id)
+
+        result = sandbox.run(agent_state=agent_state)
+        assert new_name in result.agent_state.memory.get_block("human").value
+        assert result.func_return is None
+
+    @pytest.mark.local_sandbox
+    def test_core_memory_append_local(self, mock_e2b_api_key_none, core_memory_tools, test_user, agent_state):
+        """Test successful appending of content to core memory - local sandbox."""
+        append_text = "\nLikes coffee"
+        args = {"label": "human", "content": append_text}
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_append"].name, args, user_id=test_user.id)
+
+        result = sandbox.run(agent_state=agent_state)
+        assert append_text in result.agent_state.memory.get_block("human").value
+        assert result.func_return is None
+
+    @pytest.mark.local_sandbox
+    def test_core_memory_replace_error_local(self, mock_e2b_api_key_none, core_memory_tools, test_user, agent_state):
+        """Test error handling when trying to replace non-existent content - local sandbox."""
+        nonexistent_name = "Alexander Wang"
+        args = {"label": "human", "old_content": nonexistent_name, "new_content": "Charles"}
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user_id=test_user.id)
+
+        result = sandbox.run(agent_state=agent_state)
+        assert len(result.stderr) != 0
+        assert f"ValueError: Old content '{nonexistent_name}' not found in memory block 'human'" in result.stderr[0]
+
+    # E2B sandbox tests
+    @pytest.mark.e2b_sandbox
+    def test_core_memory_replace_e2b(self, check_e2b_key_is_set, core_memory_tools, test_user, agent_state):
+        """Test successful replacement of content in core memory - e2b sandbox."""
+        new_name = "Charles"
+        args = {"label": "human", "old_content": "Chad", "new_content": new_name}
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user_id=test_user.id)
+
+        result = sandbox.run(agent_state=agent_state)
+        assert new_name in result.agent_state.memory.get_block("human").value
+        assert result.func_return is None
+
+    @pytest.mark.e2b_sandbox
+    def test_core_memory_append_e2b(self, check_e2b_key_is_set, core_memory_tools, test_user, agent_state):
+        """Test successful appending of content to core memory - e2b sandbox."""
+        append_text = "\nLikes coffee"
+        args = {"label": "human", "content": append_text}
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_append"].name, args, user_id=test_user.id)
+
+        result = sandbox.run(agent_state=agent_state)
+        assert append_text in result.agent_state.memory.get_block("human").value
+        assert result.func_return is None
+
+    @pytest.mark.e2b_sandbox
+    def test_core_memory_replace_error_e2b(self, check_e2b_key_is_set, core_memory_tools, test_user, agent_state):
+        """Test error handling when trying to replace non-existent content - e2b sandbox."""
+        nonexistent_name = "Alexander Wang"
+        args = {"label": "human", "old_content": nonexistent_name, "new_content": "Charles"}
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user_id=test_user.id)
+
+        result = sandbox.run(agent_state=agent_state)
+        assert len(result.stderr) != 0
+        assert f"ValueError: Old content '{nonexistent_name}' not found in memory block 'human'" in result.stderr[0]

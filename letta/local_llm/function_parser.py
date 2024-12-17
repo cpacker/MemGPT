@@ -3,7 +3,7 @@ import json
 
 from letta.utils import json_dumps, json_loads
 
-NO_HEARTBEAT_FUNCS = ["send_message", "pause_heartbeats"]
+NO_HEARTBEAT_FUNCS = ["send_message"]
 
 
 def insert_heartbeat(message):
