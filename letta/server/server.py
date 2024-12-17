@@ -820,13 +820,13 @@ class SyncServer(Server):
         actor: User,
     ) -> AgentState:
         """Update the agents core memory block, return the new state"""
+        # Update agent state in the db first
+        self.agent_manager.update_agent(agent_id=agent_id, agent_update=request, actor=actor)
+
         # Get the agent object (loaded in memory)
         letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
-        # Update tags
-        if request.tags is not None:  # Allow for empty list
-            letta_agent.agent_state.tags = request.tags
-
+        # TODO: Everything below needs to get removed, no updating anything in memory
         # update the system prompt
         if request.system:
             letta_agent.update_system_prompt(request.system)
@@ -840,42 +840,10 @@ class SyncServer(Server):
 
         # tools
         if request.tool_ids:
-            # Replace tools and also re-link
+            letta_agent.link_tools(letta_agent.agent_state.tools)
 
-            # (1) get tools + make sure they exist
-            # Current and target tools as sets of tool names
-            current_tools = letta_agent.agent_state.tools
-            current_tool_ids = set([t.id for t in current_tools])
-            target_tool_ids = set(request.tool_ids)
+        letta_agent.update_state()
 
-            # Calculate tools to add and remove
-            tool_ids_to_add = target_tool_ids - current_tool_ids
-            tools_ids_to_remove = current_tool_ids - target_tool_ids
-
-            # update agent tool list
-            for tool_id in tools_ids_to_remove:
-                self.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
-            for tool_id in tool_ids_to_add:
-                self.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
-
-            # reload agent
-            letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
-
-        # configs
-        if request.llm_config:
-            letta_agent.agent_state.llm_config = request.llm_config
-        if request.embedding_config:
-            letta_agent.agent_state.embedding_config = request.embedding_config
-
-        # other minor updates
-        if request.name:
-            letta_agent.agent_state.name = request.name
-        if request.metadata_:
-            letta_agent.agent_state.metadata_ = request.metadata_
-
-        # save the agent
-        save_agent(letta_agent)
-        # TODO: probably reload the agent somehow?
         return letta_agent.agent_state
 
     def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
