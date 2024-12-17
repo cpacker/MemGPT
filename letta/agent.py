@@ -64,6 +64,7 @@ from letta.system import (
 )
 from letta.utils import (
     count_tokens,
+    get_friendly_error_msg,
     get_local_time,
     get_tool_call_id,
     get_utc_time,
@@ -456,12 +457,9 @@ class Agent(BaseAgent):
         except Exception as e:
             # Need to catch error here, or else trunction wont happen
             # TODO: modify to function execution error
-            from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
-
-            error_msg = f"Error executing tool {function_name}: {e}"
-            if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
-                error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
-            raise ValueError(error_msg)
+            function_response = get_friendly_error_msg(
+                function_name=function_name, exception_name=type(e).__name__, exception_message=str(e)
+            )
 
         return function_response
 
