@@ -90,7 +90,7 @@ def test_recall(client, agent_obj):
     keyword = "banana"
 
     # Send message to agent
-    response = client.send_message(agent_id=agent_obj.agent_state.id, role="user", message=keyword)
+    client.send_message(agent_id=agent_obj.agent_state.id, role="user", message=keyword)
 
     # Conversation search
     result = base_functions.conversation_search(agent_obj, "banana")
