@@ -192,11 +192,11 @@ if settings.letta_pg_uri_no_default:
     # create engine
     engine = create_engine(
         settings.letta_pg_uri,
-        pool_size=20,  # Allow more concurrent connections
-        max_overflow=10,  # Allow additional overflow
-        pool_timeout=30,  # Seconds to wait for a connection
-        pool_recycle=1800,  # Recycle connections after 30 minutes
-        echo=False,  # Disable query logging for production
+        pool_size=settings.pg_pool_size,
+        max_overflow=settings.pg_max_overflow,
+        pool_timeout=settings.pg_pool_timeout,
+        pool_recycle=settings.pg_pool_recycle,
+        echo=settings.pg_echo,
     )
 else:
     # TODO: don't rely on config storage
