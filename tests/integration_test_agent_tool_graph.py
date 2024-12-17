@@ -234,3 +234,62 @@ def test_claude_initial_tool_rule_enforced(mock_e2b_api_key_none):
         if i < 2:
             backoff_time = 10 * (2 ** i)
             time.sleep(backoff_time)
+
+@pytest.mark.timeout(60)  # Sets a 60-second timeout for the test since this could loop infinitely
+def test_agent_no_structured_output_with_one_child_tool(mock_e2b_api_key_none):
+    client = create_client()
+    cleanup(client=client, agent_uuid=agent_uuid)
+
+    # Add tools
+    t1 = client.create_or_update_tool(first_secret_word)
+    t2 = client.create_or_update_tool(second_secret_word)
+    t3 = client.create_or_update_tool(third_secret_word)
+    t4 = client.create_or_update_tool(fourth_secret_word)
+    t_err = client.create_or_update_tool(auto_error)
+    tools = [t1, t2, t3, t4, t_err]
+
+    # Make tool rules
+    tool_rules = [
+        InitToolRule(tool_name="first_secret_word"),
+        ChildToolRule(tool_name="first_secret_word", children=["second_secret_word"]),
+        ChildToolRule(tool_name="second_secret_word", children=["third_secret_word"]),
+        ChildToolRule(tool_name="third_secret_word", children=["fourth_secret_word"]),
+        ChildToolRule(tool_name="fourth_secret_word", children=["send_message"]),
+        TerminalToolRule(tool_name="send_message"),
+    ]
+
+    config_files = [
+        "tests/configs/llm_model_configs/claude-3-sonnet-20240229.json",
+        "tests/configs/llm_model_configs/openai-gpt-3.5-turbo.json",
+        "tests/configs/llm_model_configs/openai-gpt-4o.json",
+    ]
+
+    for config in config_files:
+        agent_state = setup_agent(client, config, agent_uuid=agent_uuid, tool_ids=[t.id for t in tools], tool_rules=tool_rules)
+        response = client.user_message(agent_id=agent_state.id, message="What is the fourth secret word?")
+
+        # Make checks
+        assert_sanity_checks(response)
+
+        # Assert the tools were called
+        assert_invoked_function_call(response.messages, "first_secret_word")
+        assert_invoked_function_call(response.messages, "second_secret_word")
+        assert_invoked_function_call(response.messages, "third_secret_word")
+        assert_invoked_function_call(response.messages, "fourth_secret_word")
+
+        # Check ordering of tool calls
+        tool_names = [t.name for t in [t1, t2, t3, t4]]
+        tool_names += ["send_message"]
+        for m in response.messages:
+            if isinstance(m, FunctionCallMessage):
+                # Check that it's equal to the first one
+                assert m.function_call.name == tool_names[0]
+
+                # Pop out first one
+                tool_names = tool_names[1:]
+
+        # Check final send message contains "done"
+        assert_invoked_send_message_with_keyword(response.messages, "banana")
+
+        print(f"Got successful response from client: \n\n{response}")
+        cleanup(client=client, agent_uuid=agent_uuid)
