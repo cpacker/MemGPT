@@ -2,10 +2,8 @@ import time
 import uuid
 
 import pytest
-from sqlalchemy.engine import create
-from letta import agent, create_client
+from letta import create_client
 from letta.schemas.letta_message import FunctionCallMessage
-from letta.schemas.llm_config import LLMConfig
 from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
 from tests.helpers.endpoints_helper import (
     assert_invoked_function_call,
