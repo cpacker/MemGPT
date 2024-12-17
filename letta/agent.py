@@ -598,6 +598,7 @@ class Agent(BaseAgent):
         empty_response_retry_limit: int = 3,
         backoff_factor: float = 0.5,  # delay multiplier for exponential backoff
         max_delay: float = 10.0,  # max delay between retries
+        step_count: Optional[int] = None,
     ) -> ChatCompletionResponse:
         """Get response from LLM API with robust retry mechanism."""
 
@@ -608,7 +609,12 @@ class Agent(BaseAgent):
 
         # For the first message, force the initial tool if one is specified
         force_tool_call = None
-        if first_message and not self.supports_structured_output and len(self.tool_rules_solver.init_tool_rules) > 0:
+        if (
+            step_count is not None
+            and step_count == 0
+            and not self.supports_structured_output
+            and len(self.tool_rules_solver.init_tool_rules) > 0
+        ):
             force_tool_call = self.tool_rules_solver.init_tool_rules[0].tool_name
 
         for attempt in range(1, empty_response_retry_limit + 1):
@@ -912,10 +918,8 @@ class Agent(BaseAgent):
         total_usage = UsageStatistics()
         step_count = 0
         while True:
-            if step_count > 0:
-                kwargs["first_message"] = False
-            else:
-                kwargs["first_message"] = True
+            kwargs["first_message"] = False
+            kwargs["step_count"] = step_count
             step_response = self.inner_step(
                 messages=next_input_message,
                 **kwargs,
@@ -991,6 +995,7 @@ class Agent(BaseAgent):
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
         stream: bool = False,  # TODO move to config?
+        step_count: Optional[int] = None,
     ) -> AgentStepResponse:
         """Runs a single step in the agent loop (generates at most one LLM call)"""
 
@@ -1035,6 +1040,7 @@ class Agent(BaseAgent):
                     message_sequence=input_message_sequence,
                     first_message=first_message,
                     stream=stream,
+                    step_count=step_count,
                 )
 
             # Step 3: check if LLM wanted to call a function
