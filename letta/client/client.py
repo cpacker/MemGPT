@@ -2156,6 +2156,7 @@ class LocalClient(AbstractClient):
             "block_ids": [b.id for b in memory.get_blocks()] + block_ids,
             "tool_ids": tool_ids,
             "tool_rules": tool_rules,
+            "include_base_tools": include_base_tools,
             "system": system,
             "agent_type": agent_type,
             "llm_config": llm_config if llm_config else self._default_llm_config,
