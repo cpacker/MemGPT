@@ -16,9 +16,9 @@ from letta.log import get_logger
 from letta.schemas.agent import AgentState
 from letta.schemas.sandbox_config import SandboxConfig, SandboxRunResult, SandboxType
 from letta.schemas.tool import Tool
+from letta.schemas.user import User
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_manager import ToolManager
-from letta.services.user_manager import UserManager
 from letta.settings import tool_settings
 
 logger = get_logger(__name__)
@@ -37,14 +37,10 @@ class ToolExecutionSandbox:
     # We make this a long random string to avoid collisions with any variables in the user's code
     LOCAL_SANDBOX_RESULT_VAR_NAME = "result_ZQqiequkcFwRwwGQMqkt"
 
-    def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False, tool_object: Optional[Tool] = None):
+    def __init__(self, tool_name: str, args: dict, user: User, force_recreate=False, tool_object: Optional[Tool] = None):
         self.tool_name = tool_name
         self.args = args
-
-        # Get the user
-        # This user corresponds to the agent_state's user_id field
-        # agent_state is the state of the agent that invoked this run
-        self.user = UserManager().get_user_by_id(user_id=user_id)
+        self.user = user
 
         # If a tool object is provided, we use it directly, otherwise pull via name
         if tool_object is not None:
@@ -193,7 +189,6 @@ class ToolExecutionSandbox:
         except Exception as e:
             logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
             raise e
-        
 
     def run_local_dir_sandbox_runpy(
         self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str, old_stdout: TextIO, old_stderr: TextIO
@@ -223,7 +218,7 @@ class ToolExecutionSandbox:
         sys.stderr = old_stderr
         stdout_output = [captured_stdout.getvalue()]
         stderr_output = [captured_stderr.getvalue()]
-        stderr_output.append(error_msg if error_msg else '')
+        stderr_output.append(error_msg if error_msg else "")
 
         return SandboxRunResult(
             func_return=func_return,
@@ -235,7 +230,7 @@ class ToolExecutionSandbox:
 
     def parse_out_function_results_markers(self, text: str):
         if self.LOCAL_SANDBOX_RESULT_START_MARKER not in text:
-            return '', text
+            return "", text
         marker_len = len(self.LOCAL_SANDBOX_RESULT_START_MARKER)
         start_index = text.index(self.LOCAL_SANDBOX_RESULT_START_MARKER) + marker_len
         end_index = text.index(self.LOCAL_SANDBOX_RESULT_END_MARKER)
@@ -283,8 +278,8 @@ class ToolExecutionSandbox:
         func_return, agent_state = None, None
         if execution.error is not None:
             logger.error(f"Executing tool {self.tool_name} failed with {execution.error}")
-            execution.logs.stderr.append(execution.error.traceback) 
-            execution.logs.stderr.append(f"{execution.error.name}: {execution.error.value}") 
+            execution.logs.stderr.append(execution.error.traceback)
+            execution.logs.stderr.append(f"{execution.error.name}: {execution.error.value}")
         elif len(execution.results) == 0:
             raise ValueError(f"Tool {self.tool_name} returned execution with None")
         else:

@@ -195,7 +195,7 @@ def run_tool_from_source(
             tool_source_type=request.source_type,
             tool_args=request.args,
             tool_name=request.name,
-            user_id=actor.id,
+            actor=actor,
         )
     except LettaToolCreateError as e:
         # HTTP 400 == Bad Request
