@@ -4,7 +4,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, List, Literal, Optional
 
 from sqlalchemy import String, desc, func, or_, select
-from sqlalchemy.exc import DBAPIError, TimeoutError
+from sqlalchemy.exc import DBAPIError, IntegrityError, TimeoutError
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from letta.log import get_logger
@@ -245,7 +245,7 @@ class SqlalchemyBase(CommonSqlalchemyMetaMixins, Base):
                 session.commit()
                 session.refresh(self)
                 return self
-        except DBAPIError as e:
+        except (DBAPIError, IntegrityError) as e:
             self._handle_dbapi_error(e)
 
     @handle_db_timeout

@@ -3,6 +3,7 @@ from typing import Optional
 
 from letta.agent import Agent
 from letta.constants import MAX_PAUSE_HEARTBEATS
+from letta.services.agent_manager import AgentManager
 
 # import math
 # from letta.utils import json_dumps
@@ -200,8 +201,9 @@ def archival_memory_search(self: "Agent", query: str, page: Optional[int] = 0, s
     
     try:
         # Get results using passage manager
-        all_results = self.passage_manager.list_passages(
+        all_results = self.agent_manager.list_passages(
             actor=self.user,
+            agent_id=self.agent_state.id,
             query_text=query,
             limit=count + start,  # Request enough results to handle offset
             embedding_config=self.agent_state.embedding_config,

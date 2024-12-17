@@ -24,7 +24,7 @@ If applicable, add screenshots to help explain your problem.
 Add any other context about the problem here.
 
 **Letta Config**
-Please attach your `~/.letta/config` file or copy past it below.
+Please attach your `~/.letta/config` file or copy paste it below.
 
 ---
 

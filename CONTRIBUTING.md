@@ -112,14 +112,14 @@ poetry run black . -l 140
 
 You're almost there! It's time to share your brilliance with the world. 🌍
 
-1. Visit [Letta](https://github.com/cpacker/letta).
+1. Visit [Letta](https://github.com/letta-ai/letta).
 2. Click "New Pull Request" button.
 3. Choose the base branch (`main`) and the compare branch (your feature branch).
 4. Whip up a catchy title and describe your changes in the description. 🪄
 
 ## 6. 🔍 Review and Approval
 
-The maintainers, will take a look and might suggest some cool upgrades or ask for more details. Once they give the thumbs up, your creation becomes part of Letta!
+The maintainers will take a look and might suggest some cool upgrades or ask for more details. Once they give the thumbs up, your creation becomes part of Letta!
 
 ## 7. 📜 Code of Conduct
 
