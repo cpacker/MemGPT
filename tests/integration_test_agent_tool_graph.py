@@ -1,9 +1,9 @@
 import uuid
 
 import pytest
-
 from letta import create_client
 from letta.schemas.letta_message import FunctionCallMessage
+from letta.schemas.llm_config import LLMConfig
 from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
 from tests.helpers.endpoints_helper import (
     assert_invoked_function_call,
@@ -127,3 +127,47 @@ def test_single_path_agent_tool_call_graph(mock_e2b_api_key_none):
 
     print(f"Got successful response from client: \n\n{response}")
     cleanup(client=client, agent_uuid=agent_uuid)
+
+
+def test_claude_initial_tool_rule_enforced(mock_e2b_api_key_none):
+    """Test that the initial tool rule is enforced for the first message."""
+    client = create_client()
+    client.set_default_llm_config(
+        LLMConfig(
+            model="claude-3-opus-20240229",
+            model_endpoint_type="anthropic",
+            model_endpoint="https://api.anthropic.com/v1",
+            context_window=200000,  # NOTE: can be set to <= 200000
+        )
+    )
+    cleanup(client=client, agent_uuid=agent_uuid)
+
+    # Create tool rules that require tool_a to be called first
+    t1 = client.create_or_update_tool(first_secret_word)
+    t2 = client.create_or_update_tool(second_secret_word)
+    tool_rules = [
+        InitToolRule(tool_name="first_secret_word"),
+        ChildToolRule(tool_name="first_secret_word", children=["second_secret_word"]),
+    ]
+    tools = [t1, t2]
+
+    # Make agent state
+    anthropic_config_file = "tests/configs/llm_model_configs/claude-3-sonnet-20240229.json"
+    agent_state = setup_agent(client, anthropic_config_file, agent_uuid=agent_uuid, tool_ids=[t.id for t in tools], tool_rules=tool_rules)
+    response = client.user_message(agent_id=agent_state.id, message="What is the second secret word?")
+
+    assert_sanity_checks(response)
+    messages = response.messages
+
+    assert_invoked_function_call(messages, "first_secret_word")
+    assert_invoked_function_call(messages, "second_secret_word")
+
+    tool_names = [t.name for t in [t1, t2]]
+    tool_names += ["send_message"]
+    for m in messages:
+        if isinstance(m, FunctionCallMessage):
+            # Check that it's equal to the first one
+            assert m.function_call.name == tool_names[0]
+
+            # Pop out first one
+            tool_names = tool_names[1:]

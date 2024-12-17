@@ -596,6 +596,12 @@ class Agent(BaseAgent):
             self.functions if not allowed_tool_names else [func for func in self.functions if func["name"] in allowed_tool_names]
         )
 
+        # For the first message, force the initial tool if one is specified
+        force_tool_call = None
+        if first_message and self.tool_rules_solver.init_tool_rules:
+            assert len(self.tool_rules_solver.init_tool_rules) == 1, "Multiple initial tools not supported"
+            force_tool_call = self.tool_rules_solver.init_tool_rules[0].tool_name
+
         for attempt in range(1, empty_response_retry_limit + 1):
             try:
                 response = create(
@@ -606,6 +612,7 @@ class Agent(BaseAgent):
                     functions_python=self.functions_python,
                     function_call=function_call,
                     first_message=first_message,
+                    force_tool_call=force_tool_call,
                     stream=stream,
                     stream_interface=self.interface,
                 )
@@ -896,7 +903,10 @@ class Agent(BaseAgent):
         total_usage = UsageStatistics()
         step_count = 0
         while True:
-            kwargs["first_message"] = False
+            if step_count > 0:
+                kwargs["first_message"] = False
+            else:
+                kwargs["first_message"] = True
             step_response = self.inner_step(
                 messages=next_input_message,
                 **kwargs,
@@ -1014,6 +1024,7 @@ class Agent(BaseAgent):
             else:
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
+                    first_message=first_message,
                     stream=stream,
                 )
 
