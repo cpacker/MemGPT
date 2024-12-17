@@ -38,7 +38,8 @@ DEFAULT_HUMAN = "basic"
 DEFAULT_PRESET = "memgpt_chat"
 
 # Base tools that cannot be edited, as they access agent state directly
-BASE_TOOLS = ["send_message", "conversation_search", "conversation_search_date", "archival_memory_insert", "archival_memory_search"]
+# Note that we don't include "conversation_search_date" for now
+BASE_TOOLS = ["send_message", "conversation_search", "archival_memory_insert", "archival_memory_search"]
 O1_BASE_TOOLS = ["send_thinking_message", "send_final_message"]
 # Base memory tools CAN be edited, and are added by default by the server
 BASE_MEMORY_TOOLS = ["core_memory_append", "core_memory_replace"]

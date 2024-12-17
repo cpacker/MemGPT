@@ -40,13 +40,3 @@ for org in orgs:
             ),
             actor=fake_user,
         )
-
-        ToolManager().create_or_update_tool(
-            Tool(
-                name="pause_heartbeats",
-                source_code=source_code,
-                source_type=source_type,
-                description=description,
-            ),
-            actor=fake_user,
-        )

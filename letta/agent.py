@@ -298,8 +298,6 @@ class Agent(BaseAgent):
         self.agent_manager = AgentManager()
 
         # State needed for heartbeat pausing
-        self.pause_heartbeats_start = None
-        self.pause_heartbeats_minutes = 0
 
         self.first_message_verify_mono = first_message_verify_mono
 
@@ -1259,17 +1257,6 @@ class Agent(BaseAgent):
 
         printd(f"Ran summarizer, messages length {prior_len} -> {len(self.messages)}")
 
-    def heartbeat_is_paused(self):
-        """Check if there's a requested pause on timed heartbeats"""
-
-        # Check if the pause has been initiated
-        if self.pause_heartbeats_start is None:
-            return False
-
-        # Check if it's been more than pause_heartbeats_minutes since pause_heartbeats_start
-        elapsed_time = get_utc_time() - self.pause_heartbeats_start
-        return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
-
     def _swap_system_message_in_buffer(self, new_system_message: str):
         """Update the system message (NOT prompt) of the Agent (requires updating the internal buffer)"""
         assert isinstance(new_system_message, str)
@@ -1394,7 +1381,7 @@ class Agent(BaseAgent):
         agent_manager: AgentManager,
     ):
         """Attach a source to the agent using the SourcesAgents ORM relationship.
- 
+
         Args:
             user: User performing the action
             source_id: ID of the source to attach
