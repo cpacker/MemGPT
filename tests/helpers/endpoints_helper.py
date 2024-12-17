@@ -110,8 +110,7 @@ def check_first_response_is_valid_for_llm_endpoint(filename: str) -> ChatComplet
         llm_config=agent_state.llm_config,
         user_id=str(uuid.UUID(int=1)),  # dummy user_id
         messages=agent._messages,
-        functions=agent.functions,
-        functions_python=agent.functions_python,
+        functions=[t.json_schema for t in agent.agent_state.tools],
     )
 
     # Basic check
