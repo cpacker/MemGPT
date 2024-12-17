@@ -144,7 +144,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import context, sessionmaker
 
 from letta.config import LettaConfig
 
@@ -773,6 +773,16 @@ class SyncServer(Server):
         # interface
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
+        if request.llm_config is None:
+            if request.llm is None:
+                raise ValueError("Must specify either llm or llm_config in request")
+            request.llm_config = self.get_llm_config_from_handle(request.llm, request.context_window)
+
+        if request.embedding_config is None:
+            if request.embedding is None:
+                raise ValueError("Must specify either embedding or embedding_config in request")
+            request.embedding_config = self.get_embedding_config_from_handle(request.embedding)
+
         """Create a new agent using a config"""
         # Invoke manager
         agent_state = self.agent_manager.create_agent(
@@ -1279,6 +1289,38 @@ class SyncServer(Server):
             except Exception as e:
                 warnings.warn(f"An error occurred while listing embedding models for provider {provider}: {e}")
         return embedding_models
+
+    def get_llm_config_from_handle(self, handle: str, context_window: Optional[int] = None) -> LLMConfig:
+        provider_name, model_name = handle.split("/", 1)
+        model_name, _, context_window_override = model_name.partition(":")
+        providers = [provider for provider in self._enabled_providers if provider.name == provider_name]
+        if not providers:
+            raise ValueError(f"Provider {provider_name} is not supported")
+
+        llm_configs = [llm_config for llm_config in providers[0].list_llm_models() if llm_config.model == model_name]
+        if not llm_configs:
+            raise ValueError(f"LLM model {model_name} is not supported by {provider_name}")
+
+        llm_config = llm_configs[0]
+        context_window = int(context_window_override) if context_window_override else context_window
+        if context_window:
+            llm_config.context_window = context_window
+
+        return llm_config
+
+    def get_embedding_config_from_handle(self, handle: str) -> EmbeddingConfig:
+        provider_name, model_name = handle.split("/", 1)
+        providers = [provider for provider in self._enabled_providers if provider.name == provider_name]
+        if not providers:
+            raise ValueError(f"Provider {provider_name} is not supported")
+
+        embedding_configs = [
+            embedding_config for embedding_config in providers[0].list_embedding_models() if embedding_config.embedding_model == model_name
+        ]
+        if not embedding_configs:
+            raise ValueError(f"Embedding model {model_name} is not supported by {provider_name}")
+
+        return embedding_configs[0]
 
     def add_llm_model(self, request: LLMConfig) -> LLMConfig:
         """Add a new LLM model"""

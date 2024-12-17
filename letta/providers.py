@@ -13,6 +13,7 @@ from letta.schemas.llm_config import LLMConfig
 
 
 class Provider(BaseModel):
+    name: str = Field(..., description="The name of the provider")
 
     def list_llm_models(self) -> List[LLMConfig]:
         return []

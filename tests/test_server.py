@@ -24,7 +24,6 @@ from letta.config import LettaConfig
 from letta.schemas.agent import CreateAgent, UpdateAgent
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.job import Job as PydanticJob
-from letta.schemas.llm_config import LLMConfig
 from letta.schemas.message import Message
 from letta.schemas.source import Source as PydanticSource
 from letta.server.server import SyncServer
@@ -329,8 +328,8 @@ def agent_id(server, user_id, base_tools):
             name="test_agent",
             tool_ids=[t.id for t in base_tools],
             memory_blocks=[],
-            llm_config=LLMConfig.default_config("gpt-4"),
-            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+            llm="openai/gpt-4",
+            embedding="openai/text-embedding-ada-002",
         ),
         actor=actor,
     )
@@ -350,8 +349,8 @@ def other_agent_id(server, user_id, base_tools):
             name="test_agent_other",
             tool_ids=[t.id for t in base_tools],
             memory_blocks=[],
-            llm_config=LLMConfig.default_config("gpt-4"),
-            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+            llm="openai/gpt-4",
+            embedding="openai/text-embedding-ada-002",
         ),
         actor=actor,
     )
@@ -618,8 +617,8 @@ def test_delete_agent_same_org(server: SyncServer, org_id: str, user_id: str):
         request=CreateAgent(
             name="nonexistent_tools_agent",
             memory_blocks=[],
-            llm_config=LLMConfig.default_config("gpt-4"),
-            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+            llm="openai/gpt-4",
+            embedding="openai/text-embedding-ada-002",
         ),
         actor=server.user_manager.get_user_or_default(user_id),
     )
@@ -904,8 +903,8 @@ def test_memory_rebuild_count(server, user_id, mock_e2b_api_key_none, base_tools
                 CreateBlock(label="human", value="The human's name is Bob."),
                 CreateBlock(label="persona", value="My name is Alice."),
             ],
-            llm_config=LLMConfig.default_config("gpt-4"),
-            embedding_config=EmbeddingConfig.default_config(provider="openai"),
+            llm="openai/gpt-4",
+            embedding="openai/text-embedding-ada-002",
         ),
         actor=actor,
     )
