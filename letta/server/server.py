@@ -4,7 +4,6 @@ import os
 import traceback
 import warnings
 from abc import abstractmethod
-from asyncio import Lock
 from datetime import datetime
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -191,7 +190,14 @@ if settings.letta_pg_uri_no_default:
     config.archival_storage_uri = settings.letta_pg_uri_no_default
 
     # create engine
-    engine = create_engine(settings.letta_pg_uri)
+    engine = create_engine(
+        settings.letta_pg_uri,
+        pool_size=20,  # Allow more concurrent connections
+        max_overflow=10,  # Allow additional overflow
+        pool_timeout=30,  # Seconds to wait for a connection
+        pool_recycle=1800,  # Recycle connections after 30 minutes
+        echo=False,  # Disable query logging for production
+    )
 else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
@@ -264,9 +270,6 @@ class SyncServer(Server):
         self.default_interface_factory = default_interface_factory
 
         self.credentials = LettaCredentials.load()
-
-        # Locks
-        self.send_message_lock = Lock()
 
         # Initialize the metadata store
         config = LettaConfig.load()
