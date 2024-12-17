@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import warnings
 from enum import Enum
 from typing import AsyncGenerator, Optional, Union
@@ -64,13 +65,31 @@ async def sse_async_generator(
                 import traceback
 
                 traceback.print_exc()
-                warnings.warn(f"Error getting usage data: {e}")
-                yield sse_formatter({"error": "Failed to get usage data"})
+                warnings.warn(f"SSE stream generator failed: {e}")
+
+                # Log the error, since the exception handler upstack (in FastAPI) won't catch it, because this may be a 200 response
+                # Print the stack trace
+                if (os.getenv("SENTRY_DSN") is not None) and (os.getenv("SENTRY_DSN") != ""):
+                    import sentry_sdk
+
+                    sentry_sdk.capture_exception(e)
+
+                yield sse_formatter({"error": f"Stream failed (internal error occured)"})
 
     except Exception as e:
-        print("stream decoder hit error:", e)
-        print(traceback.print_stack())
-        yield sse_formatter({"error": "stream decoder encountered an error"})
+        import traceback
+
+        traceback.print_exc()
+        warnings.warn(f"SSE stream generator failed: {e}")
+
+        # Log the error, since the exception handler upstack (in FastAPI) won't catch it, because this may be a 200 response
+        # Print the stack trace
+        if (os.getenv("SENTRY_DSN") is not None) and (os.getenv("SENTRY_DSN") != ""):
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(e)
+
+        yield sse_formatter({"error": "Stream failed (decoder encountered an error)"})
 
     finally:
         if finish_message:
