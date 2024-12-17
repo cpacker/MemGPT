@@ -519,8 +519,9 @@ def openai_chat_completions_request(
     data = chat_completion_request.model_dump(exclude_none=True)
 
     # add check otherwise will cause error: "Invalid value for 'parallel_tool_calls': 'parallel_tool_calls' is only allowed when 'tools' are specified."
-    if chat_completion_request.tools is not None:
-        data["parallel_tool_calls"] = False
+    if "o1" not in chat_completion_request.model:  # cannot have this arg with o1
+        if chat_completion_request.tools is not None:
+            data["parallel_tool_calls"] = False
 
     printd("Request:\n", json.dumps(data, indent=2))
 

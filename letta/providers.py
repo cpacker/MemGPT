@@ -74,6 +74,10 @@ class OpenAIProvider(Provider):
         else:
             data = response
 
+        from pprint import pprint
+
+        pprint(data)
+
         configs = []
         for model in data:
             assert "id" in model, f"OpenAI model missing 'id' field: {model}"

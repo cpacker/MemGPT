@@ -101,12 +101,19 @@ LLM_MAX_TOKENS = {
     "gpt-4-0314": 8192,  # legacy
     "gpt-4-32k-0314": 32768,  # legacy
     # gpt-3.5
-    "gpt-3.5-turbo-1106": 16385,
-    "gpt-3.5-turbo": 4096,
-    "gpt-3.5-turbo-16k": 16385,
-    "gpt-3.5-turbo-0613": 4096,  # legacy
-    "gpt-3.5-turbo-16k-0613": 16385,  # legacy
-    "gpt-3.5-turbo-0301": 4096,  # legacy
+    # "gpt-3.5-turbo-1106": 16385,
+    # "gpt-3.5-turbo": 4096,
+    # "gpt-3.5-turbo-16k": 16385,
+    # "gpt-3.5-turbo-0613": 4096,  # legacy
+    # "gpt-3.5-turbo-16k-0613": 16385,  # legacy
+    # "gpt-3.5-turbo-0301": 4096,  # legacy
+    # o1
+    # "o1-2024-12-17": 200000,
+    # "o1-mini-2024-09-12": 128000,
+    # "o1-preview-2024-09-12": 128000,
+    "o1": 200000,
+    "o1-mini": 128000,
+    "o1-preview": 128000,
 }
 # The amount of tokens before a sytem warning about upcoming truncation is sent to Letta
 MESSAGE_SUMMARY_WARNING_FRAC = 0.75

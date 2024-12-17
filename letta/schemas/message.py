@@ -411,9 +411,14 @@ class Message(BaseMessage):
 
         if self.role == "system":
             assert all([v is not None for v in [self.role]]), vars(self)
+            role = self.role
+            # o1 models require a "developer" message
+            if "o1" in self.model:
+                if self.role == "system":
+                    role = "developer"
             openai_message = {
                 "content": self.text,
-                "role": self.role,
+                "role": role,
             }
             # Optional field, do not include if null
             if self.name is not None:

@@ -39,7 +39,12 @@ class ToolMessage(BaseModel):
     tool_call_id: str
 
 
-ChatMessage = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage]
+class DeveloperMessage(BaseModel):
+    content: str
+    role: str = "developer"
+
+
+ChatMessage = Union[SystemMessage, UserMessage, AssistantMessage, ToolMessage, DeveloperMessage]
 
 
 # TODO: this might not be necessary with the validator
@@ -54,6 +59,9 @@ def cast_message_to_subtype(m_dict: dict) -> ChatMessage:
         return AssistantMessage(**m_dict)
     elif role == "tool":
         return ToolMessage(**m_dict)
+    elif role == "developer":
+        # o1 models require a "developer" message
+        return DeveloperMessage(**m_dict)
     else:
         raise ValueError("Unknown message role")
 

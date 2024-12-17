@@ -1,6 +1,5 @@
 import datetime
 import inspect
-import time
 import traceback
 import warnings
 from abc import ABC, abstractmethod
@@ -597,44 +596,44 @@ class Agent(BaseAgent):
         )
 
         for attempt in range(1, empty_response_retry_limit + 1):
-            try:
-                response = create(
-                    llm_config=self.agent_state.llm_config,
-                    messages=message_sequence,
-                    user_id=self.agent_state.created_by_id,
-                    functions=allowed_functions,
-                    functions_python=self.functions_python,
-                    function_call=function_call,
-                    first_message=first_message,
-                    stream=stream,
-                    stream_interface=self.interface,
-                )
+            # try:
+            response = create(
+                llm_config=self.agent_state.llm_config,
+                messages=message_sequence,
+                user_id=self.agent_state.created_by_id,
+                functions=allowed_functions,
+                functions_python=self.functions_python,
+                function_call=function_call,
+                first_message=first_message,
+                stream=stream,
+                stream_interface=self.interface,
+            )
 
-                # These bottom two are retryable
-                if len(response.choices) == 0 or response.choices[0] is None:
-                    raise ValueError(f"API call returned an empty message: {response}")
+            # These bottom two are retryable
+            if len(response.choices) == 0 or response.choices[0] is None:
+                raise ValueError(f"API call returned an empty message: {response}")
 
-                if response.choices[0].finish_reason not in ["stop", "function_call", "tool_calls"]:
-                    if response.choices[0].finish_reason == "length":
-                        # This is not retryable, hence RuntimeError v.s. ValueError
-                        raise RuntimeError("Finish reason was length (maximum context length)")
-                    else:
-                        raise ValueError(f"Bad finish reason from API: {response.choices[0].finish_reason}")
-
-                return response
-
-            except ValueError as ve:
-                if attempt >= empty_response_retry_limit:
-                    warnings.warn(f"Retry limit reached. Final error: {ve}")
-                    break
+            if response.choices[0].finish_reason not in ["stop", "function_call", "tool_calls"]:
+                if response.choices[0].finish_reason == "length":
+                    # This is not retryable, hence RuntimeError v.s. ValueError
+                    raise RuntimeError("Finish reason was length (maximum context length)")
                 else:
-                    delay = min(backoff_factor * (2 ** (attempt - 1)), max_delay)
-                    warnings.warn(f"Attempt {attempt} failed: {ve}. Retrying in {delay} seconds...")
-                    time.sleep(delay)
+                    raise ValueError(f"Bad finish reason from API: {response.choices[0].finish_reason}")
 
-            except Exception as e:
-                # For non-retryable errors, exit immediately
-                raise e
+            return response
+
+            # except ValueError as ve:
+            #    if attempt >= empty_response_retry_limit:
+            #        warnings.warn(f"Retry limit reached. Final error: {ve}")
+            #        break
+            #    else:
+            #        delay = min(backoff_factor * (2 ** (attempt - 1)), max_delay)
+            #        warnings.warn(f"Attempt {attempt} failed: {ve}. Retrying in {delay} seconds...")
+            #        time.sleep(delay)
+
+            # except Exception as e:
+            #    # For non-retryable errors, exit immediately
+            #    raise e
 
         raise Exception("Retries exhausted and no valid response received.")
 
@@ -1370,7 +1369,7 @@ class Agent(BaseAgent):
         agent_manager: AgentManager,
     ):
         """Attach a source to the agent using the SourcesAgents ORM relationship.
- 
+
         Args:
             user: User performing the action
             source_id: ID of the source to attach
