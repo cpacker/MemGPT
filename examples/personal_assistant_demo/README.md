@@ -261,7 +261,7 @@ soon! 🙌",
 
 Then inside WhatsApp (or SMS if you used Twilio SMS):
 
-<img width="580" alt="image" src="https://github.com/cpacker/Letta/assets/5475622/02455f97-53b2-4c1e-9416-58e6c5a1448d">
+<img width="580" alt="image" src="https://github.com/letta-ai/letta/assets/5475622/02455f97-53b2-4c1e-9416-58e6c5a1448d">
 
 Then I sent a dummy email:
 ```
@@ -276,4 +276,4 @@ whatever time works best for you
 
 Follow-up inside WhatsApp:
 
-<img width="587" alt="image" src="https://github.com/cpacker/Letta/assets/5475622/d1060c94-9b84-49d6-944e-fd1965f83fbc">
+<img width="587" alt="image" src="https://github.com/letta-ai/letta/assets/5475622/d1060c94-9b84-49d6-944e-fd1965f83fbc">

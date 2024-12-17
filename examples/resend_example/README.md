@@ -51,15 +51,15 @@ def send_email(self, description: str):
 
 To create the tool in the dev portal, simply navigate to the tool creator tab, create a new tool called `send_email`, and copy-paste the above code into the code block area and press "Create Tool".
 
-<img width="500" alt="image" src="https://github.com/cpacker/Letta/assets/5475622/a21fce95-02a8-4aa8-89f5-3c520b6ff75e">
+<img width="500" alt="image" src="https://github.com/letta-ai/letta/assets/5475622/a21fce95-02a8-4aa8-89f5-3c520b6ff75e">
 
 Once you've created the tool, create a new agent and make sure to select `send_email` as an enabled tool.
 
-<img width="500" alt="image" src="https://github.com/cpacker/Letta/assets/5475622/124e2260-d435-465d-8971-e8ca5265d1bd">
+<img width="500" alt="image" src="https://github.com/letta-ai/letta/assets/5475622/124e2260-d435-465d-8971-e8ca5265d1bd">
 
 Now your agent should be able to call the `send_email` function when needed:
 
-<img width="500" alt="image" src="https://github.com/cpacker/Letta/assets/5475622/fdd2de45-13f7-4b8f-84a3-de92e5d2bd17">
+<img width="500" alt="image" src="https://github.com/letta-ai/letta/assets/5475622/fdd2de45-13f7-4b8f-84a3-de92e5d2bd17">
 
 ## Option 2 (CLI)
 
@@ -85,8 +85,8 @@ Create an agent with that preset (disable `--stream` if you're not using a strea
 letta run --preset resend_preset --persona sam_pov --human cs_phd --stream
 ```
 
-<img width="500" alt="image" src="https://github.com/cpacker/Letta/assets/5475622/61958527-20e7-461d-a6d2-a53f06493683">
+<img width="500" alt="image" src="https://github.com/letta-ai/letta/assets/5475622/61958527-20e7-461d-a6d2-a53f06493683">
 
 Waiting in our inbox:
 
-<img width="500" alt="image" src="https://github.com/cpacker/Letta/assets/5475622/95f9b24a-98c3-493a-a787-72a2a956641a">
+<img width="500" alt="image" src="https://github.com/letta-ai/letta/assets/5475622/95f9b24a-98c3-493a-a787-72a2a956641a">

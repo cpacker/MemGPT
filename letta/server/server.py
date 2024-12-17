@@ -1056,7 +1056,7 @@ class SyncServer(Server):
                     config_copy[k] = server_utils.shorten_key_middle(v, chars_each_side=5)
             return config_copy
 
-        # TODO: do we need a seperate server config?
+        # TODO: do we need a separate server config?
         base_config = vars(self.config)
         clean_base_config = clean_keys(base_config)
 

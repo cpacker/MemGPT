@@ -33,7 +33,7 @@ class WebSocketServer:
         self.initialize_server()
         # Can play with ping_interval and ping_timeout
         # See: https://websockets.readthedocs.io/en/stable/topics/timeouts.html
-        # and https://github.com/cpacker/Letta/issues/471
+        # and https://github.com/letta-ai/letta/issues/471
         async with websockets.serve(self.handle_client, self.host, self.port):
             await asyncio.Future()  # Run forever
 
