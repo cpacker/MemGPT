@@ -12,3 +12,11 @@ class UniqueConstraintViolationError(ValueError):
 
 class ForeignKeyConstraintViolationError(ValueError):
     """Custom exception for foreign key constraint violations."""
+
+
+class DatabaseTimeoutError(Exception):
+    """Custom exception for database timeout issues."""
+
+    def __init__(self, message="Database operation timed out", original_exception=None):
+        super().__init__(message)
+        self.original_exception = original_exception

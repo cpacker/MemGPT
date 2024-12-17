@@ -1118,3 +1118,11 @@ def sanitize_filename(filename: str) -> str:
 
     # Return the sanitized filename
     return sanitized_filename
+
+def get_friendly_error_msg(function_name: str, exception_name: str, exception_message: str):
+    from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
+
+    error_msg = f"Error executing function {function_name}: {exception_name}: {exception_message}"
+    if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
+        error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
+    return error_msg

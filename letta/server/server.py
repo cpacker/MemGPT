@@ -74,7 +74,7 @@ from letta.services.source_manager import SourceManager
 from letta.services.tool_execution_sandbox import ToolExecutionSandbox
 from letta.services.tool_manager import ToolManager
 from letta.services.user_manager import UserManager
-from letta.utils import get_utc_time, json_dumps, json_loads
+from letta.utils import get_friendly_error_msg, get_utc_time, json_dumps, json_loads
 
 logger = get_logger(__name__)
 
@@ -190,7 +190,14 @@ if settings.letta_pg_uri_no_default:
     config.archival_storage_uri = settings.letta_pg_uri_no_default
 
     # create engine
-    engine = create_engine(settings.letta_pg_uri)
+    engine = create_engine(
+        settings.letta_pg_uri,
+        pool_size=settings.pg_pool_size,
+        max_overflow=settings.pg_max_overflow,
+        pool_timeout=settings.pg_pool_timeout,
+        pool_recycle=settings.pg_pool_recycle,
+        echo=settings.pg_echo,
+    )
 else:
     # TODO: don't rely on config storage
     engine = create_engine("sqlite:///" + os.path.join(config.recall_storage_path, "sqlite.db"))
@@ -769,6 +776,18 @@ class SyncServer(Server):
         # interface
         interface: Union[AgentInterface, None] = None,
     ) -> AgentState:
+        if request.llm_config is None:
+            if request.llm is None:
+                raise ValueError("Must specify either llm or llm_config in request")
+            request.llm_config = self.get_llm_config_from_handle(handle=request.llm, context_window_limit=request.context_window_limit)
+
+        if request.embedding_config is None:
+            if request.embedding is None:
+                raise ValueError("Must specify either embedding or embedding_config in request")
+            request.embedding_config = self.get_embedding_config_from_handle(
+                handle=request.embedding, embedding_chunk_size=request.embedding_chunk_size or constants.DEFAULT_EMBEDDING_CHUNK_SIZE
+            )
+
         """Create a new agent using a config"""
         # Invoke manager
         agent_state = self.agent_manager.create_agent(
@@ -1263,6 +1282,55 @@ class SyncServer(Server):
                 warnings.warn(f"An error occurred while listing embedding models for provider {provider}: {e}")
         return embedding_models
 
+    def get_llm_config_from_handle(self, handle: str, context_window_limit: Optional[int] = None) -> LLMConfig:
+        provider_name, model_name = handle.split("/", 1)
+        provider = self.get_provider_from_name(provider_name)
+
+        llm_configs = [config for config in provider.list_llm_models() if config.model == model_name]
+        if not llm_configs:
+            raise ValueError(f"LLM model {model_name} is not supported by {provider_name}")
+        elif len(llm_configs) > 1:
+            raise ValueError(f"Multiple LLM models with name {model_name} supported by {provider_name}")
+        else:
+            llm_config = llm_configs[0]
+
+        if context_window_limit:
+            if context_window_limit > llm_config.context_window:
+                raise ValueError(f"Context window limit ({context_window_limit}) is greater than maximum of ({llm_config.context_window})")
+            llm_config.context_window = context_window_limit
+
+        return llm_config
+
+    def get_embedding_config_from_handle(
+        self, handle: str, embedding_chunk_size: int = constants.DEFAULT_EMBEDDING_CHUNK_SIZE
+    ) -> EmbeddingConfig:
+        provider_name, model_name = handle.split("/", 1)
+        provider = self.get_provider_from_name(provider_name)
+
+        embedding_configs = [config for config in provider.list_embedding_models() if config.embedding_model == model_name]
+        if not embedding_configs:
+            raise ValueError(f"Embedding model {model_name} is not supported by {provider_name}")
+        elif len(embedding_configs) > 1:
+            raise ValueError(f"Multiple embedding models with name {model_name} supported by {provider_name}")
+        else:
+            embedding_config = embedding_configs[0]
+
+        if embedding_chunk_size:
+            embedding_config.embedding_chunk_size = embedding_chunk_size
+
+        return embedding_config
+
+    def get_provider_from_name(self, provider_name: str) -> Provider:
+        providers = [provider for provider in self._enabled_providers if provider.name == provider_name]
+        if not providers:
+            raise ValueError(f"Provider {provider_name} is not supported")
+        elif len(providers) > 1:
+            raise ValueError(f"Multiple providers with name {provider_name} supported")
+        else:
+            provider = providers[0]
+
+        return provider
+
     def add_llm_model(self, request: LLMConfig) -> LLMConfig:
         """Add a new LLM model"""
 
@@ -1312,54 +1380,27 @@ class SyncServer(Server):
         # Next, attempt to run the tool with the sandbox
         try:
             sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, actor, tool_object=tool).run(agent_state=agent_state)
-            function_response = str(sandbox_run_result.func_return)
-            stdout = [s for s in sandbox_run_result.stdout if s.strip()]
-            stderr = [s for s in sandbox_run_result.stderr if s.strip()]
-
-            # expected error
-            if stderr:
-                error_msg = self.get_error_msg_for_func_return(tool.name, stderr[-1])
-                return FunctionReturn(
-                    id="null",
-                    function_call_id="null",
-                    date=get_utc_time(),
-                    status="error",
-                    function_return=error_msg,
-                    stdout=stdout,
-                    stderr=stderr,
-                )
-
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
                 date=get_utc_time(),
-                status="success",
-                function_return=function_response,
-                stdout=stdout,
-                stderr=stderr,
+                status=sandbox_run_result.status,
+                function_return=str(sandbox_run_result.func_return),
+                stdout=sandbox_run_result.stdout,
+                stderr=sandbox_run_result.stderr,
             )
 
-        # unexpected error TODO(@cthomas): consolidate error handling
         except Exception as e:
-            error_msg = self.get_error_msg_for_func_return(tool.name, e)
+            func_return = get_friendly_error_msg(function_name=tool.name, exception_name=type(e).__name__, exception_message=str(e))
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
                 date=get_utc_time(),
                 status="error",
-                function_return=error_msg,
-                stdout=[""],
+                function_return=func_return,
+                stdout=[],
                 stderr=[traceback.format_exc()],
             )
-
-    def get_error_msg_for_func_return(self, tool_name, exception_message):
-        # same as agent.py
-        from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
-
-        error_msg = f"Error executing tool {tool_name}: {exception_message}"
-        if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
-            error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
-        return error_msg
 
     # Composio wrappers
     def get_composio_client(self, api_key: Optional[str] = None):

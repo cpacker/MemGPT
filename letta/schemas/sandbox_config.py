@@ -1,7 +1,7 @@
 import hashlib
 import json
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -21,6 +21,7 @@ class SandboxRunResult(BaseModel):
     agent_state: Optional[AgentState] = Field(None, description="The agent state")
     stdout: Optional[List[str]] = Field(None, description="Captured stdout (e.g. prints, logs) from the function invocation")
     stderr: Optional[List[str]] = Field(None, description="Captured stderr from the function invocation")
+    status: Literal["success", "error"] = Field(..., description="The status of the tool execution and return object")
     sandbox_config_fingerprint: str = Field(None, description="The fingerprint of the config for the sandbox")
 
 

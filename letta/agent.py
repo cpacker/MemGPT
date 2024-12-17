@@ -18,6 +18,7 @@ from letta.constants import (
     MESSAGE_SUMMARY_WARNING_FRAC,
     O1_BASE_TOOLS,
     REQ_HEARTBEAT_MESSAGE,
+    STRUCTURED_OUTPUT_MODELS,
 )
 from letta.errors import LLMError
 from letta.helpers import ToolRulesSolver
@@ -63,6 +64,7 @@ from letta.system import (
 )
 from letta.utils import (
     count_tokens,
+    get_friendly_error_msg,
     get_local_time,
     get_tool_call_id,
     get_utc_time,
@@ -273,6 +275,7 @@ class Agent(BaseAgent):
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
+        self.check_tool_rules()
 
         # state managers
         self.block_manager = BlockManager()
@@ -292,8 +295,6 @@ class Agent(BaseAgent):
         self.agent_manager = AgentManager()
 
         # State needed for heartbeat pausing
-        self.pause_heartbeats_start = None
-        self.pause_heartbeats_minutes = 0
 
         self.first_message_verify_mono = first_message_verify_mono
 
@@ -378,6 +379,16 @@ class Agent(BaseAgent):
         # Create the agent in the DB
         self.update_state()
 
+    def check_tool_rules(self):
+        if self.model not in STRUCTURED_OUTPUT_MODELS:
+            if len(self.tool_rules_solver.init_tool_rules) > 1:
+                raise ValueError(
+                    "Multiple initial tools are not supported for non-structured models. Please use only one initial tool rule."
+                )
+            self.supports_structured_output = False
+        else:
+            self.supports_structured_output = True
+
     def update_memory_if_change(self, new_memory: Memory) -> bool:
         """
         Update internal memory object and system prompt if there have been modifications.
@@ -453,12 +464,9 @@ class Agent(BaseAgent):
         except Exception as e:
             # Need to catch error here, or else trunction wont happen
             # TODO: modify to function execution error
-            from letta.constants import MAX_ERROR_MESSAGE_CHAR_LIMIT
-
-            error_msg = f"Error executing tool {function_name}: {e}"
-            if len(error_msg) > MAX_ERROR_MESSAGE_CHAR_LIMIT:
-                error_msg = error_msg[:MAX_ERROR_MESSAGE_CHAR_LIMIT]
-            raise ValueError(error_msg)
+            function_response = get_friendly_error_msg(
+                function_name=function_name, exception_name=type(e).__name__, exception_message=str(e)
+            )
 
         return function_response
 
@@ -574,6 +582,7 @@ class Agent(BaseAgent):
         empty_response_retry_limit: int = 3,
         backoff_factor: float = 0.5,  # delay multiplier for exponential backoff
         max_delay: float = 10.0,  # max delay between retries
+        step_count: Optional[int] = None,
     ) -> ChatCompletionResponse:
         """Get response from LLM API with robust retry mechanism."""
 
@@ -586,6 +595,16 @@ class Agent(BaseAgent):
             else [func for func in agent_state_tool_jsons if func["name"] in allowed_tool_names]
         )
 
+        # For the first message, force the initial tool if one is specified
+        force_tool_call = None
+        if (
+            step_count is not None
+            and step_count == 0
+            and not self.supports_structured_output
+            and len(self.tool_rules_solver.init_tool_rules) > 0
+        ):
+            force_tool_call = self.tool_rules_solver.init_tool_rules[0].tool_name
+
         for attempt in range(1, empty_response_retry_limit + 1):
             try:
                 response = create(
@@ -596,6 +615,7 @@ class Agent(BaseAgent):
                     # functions_python=self.functions_python, do we need this?
                     function_call=function_call,
                     first_message=first_message,
+                    force_tool_call=force_tool_call,
                     stream=stream,
                     stream_interface=self.interface,
                 )
@@ -883,6 +903,7 @@ class Agent(BaseAgent):
         step_count = 0
         while True:
             kwargs["first_message"] = False
+            kwargs["step_count"] = step_count
             step_response = self.inner_step(
                 messages=next_input_message,
                 **kwargs,
@@ -958,6 +979,7 @@ class Agent(BaseAgent):
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
         stream: bool = False,  # TODO move to config?
+        step_count: Optional[int] = None,
     ) -> AgentStepResponse:
         """Runs a single step in the agent loop (generates at most one LLM call)"""
 
@@ -1000,7 +1022,9 @@ class Agent(BaseAgent):
             else:
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
+                    first_message=first_message,
                     stream=stream,
+                    step_count=step_count,
                 )
 
             # Step 3: check if LLM wanted to call a function
@@ -1220,17 +1244,6 @@ class Agent(BaseAgent):
         self.agent_alerted_about_memory_pressure = False
 
         printd(f"Ran summarizer, messages length {prior_len} -> {len(self.messages)}")
-
-    def heartbeat_is_paused(self):
-        """Check if there's a requested pause on timed heartbeats"""
-
-        # Check if the pause has been initiated
-        if self.pause_heartbeats_start is None:
-            return False
-
-        # Check if it's been more than pause_heartbeats_minutes since pause_heartbeats_start
-        elapsed_time = get_utc_time() - self.pause_heartbeats_start
-        return elapsed_time.total_seconds() < self.pause_heartbeats_minutes * 60
 
     def _swap_system_message_in_buffer(self, new_system_message: str):
         """Update the system message (NOT prompt) of the Agent (requires updating the internal buffer)"""

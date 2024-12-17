@@ -1,28 +1,25 @@
 import pytest
 
 import letta.functions.function_sets.base as base_functions
-from letta import create_client
+from letta import LocalClient, create_client
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.llm_config import LLMConfig
 
-from .utils import wipe_config
-
-# test_agent_id = "test_agent"
-client = None
-
 
 @pytest.fixture(scope="module")
-def agent_obj():
-    """Create a test agent that we can call functions on"""
-    wipe_config()
-    global client
+def client():
     client = create_client()
     client.set_default_llm_config(LLMConfig.default_config("gpt-4o-mini"))
     client.set_default_embedding_config(EmbeddingConfig.default_config(provider="openai"))
 
+    yield client
+
+
+@pytest.fixture(scope="module")
+def agent_obj(client: LocalClient):
+    """Create a test agent that we can call functions on"""
     agent_state = client.create_agent()
 
-    global agent_obj
     agent_obj = client.server.load_agent(agent_id=agent_state.id, actor=client.user)
     yield agent_obj
 
@@ -88,7 +85,15 @@ def test_archival(agent_obj):
         pass
 
 
-def test_recall(agent_obj):
-    base_functions.conversation_search(agent_obj, "banana")
-    base_functions.conversation_search(agent_obj, "banana", page=0)
-    base_functions.conversation_search_date(agent_obj, start_date="2022-01-01", end_date="2022-01-02")
+def test_recall(client, agent_obj):
+    # keyword
+    keyword = "banana"
+
+    # Send messages to agent
+    client.send_message(agent_id=agent_obj.agent_state.id, role="user", message="hello")
+    client.send_message(agent_id=agent_obj.agent_state.id, role="user", message=keyword)
+    client.send_message(agent_id=agent_obj.agent_state.id, role="user", message="tell me a fun fact")
+
+    # Conversation search
+    result = base_functions.conversation_search(agent_obj, "banana")
+    assert keyword in result

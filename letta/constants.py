@@ -23,6 +23,7 @@ MIN_CONTEXT_WINDOW = 4096
 
 # embeddings
 MAX_EMBEDDING_DIM = 4096  # maximum supported embeding size - do NOT change or else DBs will need to be reset
+DEFAULT_EMBEDDING_CHUNK_SIZE = 300
 
 # tokenizers
 EMBEDDING_TO_TOKENIZER_MAP = {
@@ -37,7 +38,8 @@ DEFAULT_HUMAN = "basic"
 DEFAULT_PRESET = "memgpt_chat"
 
 # Base tools that cannot be edited, as they access agent state directly
-BASE_TOOLS = ["send_message", "conversation_search", "conversation_search_date", "archival_memory_insert", "archival_memory_search"]
+# Note that we don't include "conversation_search_date" for now
+BASE_TOOLS = ["send_message", "conversation_search", "archival_memory_insert", "archival_memory_search"]
 O1_BASE_TOOLS = ["send_thinking_message", "send_final_message"]
 # Base memory tools CAN be edited, and are added by default by the server
 BASE_MEMORY_TOOLS = ["core_memory_append", "core_memory_replace"]
@@ -47,6 +49,9 @@ BASE_MEMORY_TOOLS = ["core_memory_append", "core_memory_replace"]
 # or in cases where the agent has no concept of messaging a user (e.g. a workflow agent)
 DEFAULT_MESSAGE_TOOL = "send_message"
 DEFAULT_MESSAGE_TOOL_KWARG = "message"
+
+# Structured output models
+STRUCTURED_OUTPUT_MODELS = {"gpt-4o", "gpt-4o-mini"}
 
 # LOGGER_LOG_LEVEL is use to convert Text to Logging level value for logging mostly for Cli input to setting level
 LOGGER_LOG_LEVELS = {"CRITICAL": CRITICAL, "ERROR": ERROR, "WARN": WARN, "WARNING": WARNING, "INFO": INFO, "DEBUG": DEBUG, "NOTSET": NOTSET}
