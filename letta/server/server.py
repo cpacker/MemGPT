@@ -144,7 +144,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from sqlalchemy import create_engine
-from sqlalchemy.orm import context, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from letta.config import LettaConfig
 
@@ -1294,11 +1294,9 @@ class SyncServer(Server):
 
     def get_llm_config_from_handle(self, handle: str, context_window_limit: Optional[int] = None) -> LLMConfig:
         provider_name, model_name = handle.split("/", 1)
-        providers = [provider for provider in self._enabled_providers if provider.name == provider_name]
-        if not providers:
-            raise ValueError(f"Provider {provider_name} is not supported")
+        provider = self.get_provider_from_name(provider_name)
 
-        llm_configs = [llm_config for llm_config in providers[0].list_llm_models() if llm_config.model == model_name]
+        llm_configs = [config for config in provider.list_llm_models() if config.model == model_name]
         if not llm_configs:
             raise ValueError(f"LLM model {model_name} is not supported by {provider_name}")
         elif len(llm_configs) > 1:
@@ -1308,20 +1306,20 @@ class SyncServer(Server):
 
         if context_window_limit:
             if context_window_limit > llm_config.context_window:
-                raise ValueError(f"Context window limit ({context_window_limit}) is greater than maxmodel context window ({llm_config.context_window})")
+                raise ValueError(
+                    f"Context window limit ({context_window_limit}) is greater than maximum of ({llm_config.context_window})"
+                )
             llm_config.context_window = context_window_limit
 
         return llm_config
 
-    def get_embedding_config_from_handle(self, handle: str, embedding_chunk_size: int = constants.DEFAULT_EMBEDDING_CHUNK_SIZE) -> EmbeddingConfig:
+    def get_embedding_config_from_handle(
+        self, handle: str, embedding_chunk_size: int = constants.DEFAULT_EMBEDDING_CHUNK_SIZE
+    ) -> EmbeddingConfig:
         provider_name, model_name = handle.split("/", 1)
-        providers = [provider for provider in self._enabled_providers if provider.name == provider_name]
-        if not providers:
-            raise ValueError(f"Provider {provider_name} is not supported")
+        provider = self.get_provider_from_name(provider_name)
 
-        embedding_configs = [
-            embedding_config for embedding_config in providers[0].list_embedding_models() if embedding_config.embedding_model == model_name
-        ]
+        embedding_configs = [config for config in provider.list_embedding_models() if config.embedding_model == model_name]
         if not embedding_configs:
             raise ValueError(f"Embedding model {model_name} is not supported by {provider_name}")
         elif len(embedding_configs) > 1:
@@ -1333,6 +1331,17 @@ class SyncServer(Server):
             embedding_config.embedding_chunk_size = embedding_chunk_size
 
         return embedding_config
+
+    def get_provider_from_name(self, provider_name: str) -> Provider:
+        providers = [provider for provider in self._enabled_providers if provider.name == provider_name]
+        if not providers:
+            raise ValueError(f"Provider {provider_name} is not supported")
+        elif len(providers) > 1:
+            raise ValueError(f"Multiple providers with name {provider_name} supported")
+        else:
+            provider = providers[0]
+
+        return provider
 
     def add_llm_model(self, request: LLMConfig) -> LLMConfig:
         """Add a new LLM model"""
