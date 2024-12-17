@@ -18,6 +18,7 @@ from letta.constants import (
     MESSAGE_SUMMARY_WARNING_FRAC,
     O1_BASE_TOOLS,
     REQ_HEARTBEAT_MESSAGE,
+    STRUCTURED_OUTPUT_MODELS
 )
 from letta.errors import LLMError
 from letta.helpers import ToolRulesSolver
@@ -276,6 +277,7 @@ class Agent(BaseAgent):
 
         # gpt-4, gpt-3.5-turbo, ...
         self.model = self.agent_state.llm_config.model
+        self.check_tool_rules()
 
         # state managers
         self.block_manager = BlockManager()
@@ -380,6 +382,14 @@ class Agent(BaseAgent):
 
         # Create the agent in the DB
         self.update_state()
+
+    def check_tool_rules(self):
+        if self.model not in STRUCTURED_OUTPUT_MODELS:
+            if len(self.tool_rules_solver.init_tool_rules) > 1:
+                raise ValueError("Multiple initial tools are not supported for non-structured models. Please use only one initial tool rule.")
+            self.supports_structured_output = False
+        else:
+            self.supports_structured_output = True
 
     def update_memory_if_change(self, new_memory: Memory) -> bool:
         """
@@ -588,6 +598,7 @@ class Agent(BaseAgent):
         empty_response_retry_limit: int = 3,
         backoff_factor: float = 0.5,  # delay multiplier for exponential backoff
         max_delay: float = 10.0,  # max delay between retries
+        step_count: Optional[int] = None,
     ) -> ChatCompletionResponse:
         """Get response from LLM API with robust retry mechanism."""
 
@@ -595,6 +606,16 @@ class Agent(BaseAgent):
         allowed_functions = (
             self.functions if not allowed_tool_names else [func for func in self.functions if func["name"] in allowed_tool_names]
         )
+
+        # For the first message, force the initial tool if one is specified
+        force_tool_call = None
+        if (
+            step_count is not None
+            and step_count == 0
+            and not self.supports_structured_output
+            and len(self.tool_rules_solver.init_tool_rules) > 0
+        ):
+            force_tool_call = self.tool_rules_solver.init_tool_rules[0].tool_name
 
         for attempt in range(1, empty_response_retry_limit + 1):
             try:
@@ -606,6 +627,7 @@ class Agent(BaseAgent):
                     functions_python=self.functions_python,
                     function_call=function_call,
                     first_message=first_message,
+                    force_tool_call=force_tool_call,
                     stream=stream,
                     stream_interface=self.interface,
                 )
@@ -897,6 +919,7 @@ class Agent(BaseAgent):
         step_count = 0
         while True:
             kwargs["first_message"] = False
+            kwargs["step_count"] = step_count
             step_response = self.inner_step(
                 messages=next_input_message,
                 **kwargs,
@@ -972,6 +995,7 @@ class Agent(BaseAgent):
         first_message_retry_limit: int = FIRST_MESSAGE_ATTEMPTS,
         skip_verify: bool = False,
         stream: bool = False,  # TODO move to config?
+        step_count: Optional[int] = None,
     ) -> AgentStepResponse:
         """Runs a single step in the agent loop (generates at most one LLM call)"""
 
@@ -1014,7 +1038,9 @@ class Agent(BaseAgent):
             else:
                 response = self._get_ai_reply(
                     message_sequence=input_message_sequence,
+                    first_message=first_message,
                     stream=stream,
+                    step_count=step_count,
                 )
 
             # Step 3: check if LLM wanted to call a function

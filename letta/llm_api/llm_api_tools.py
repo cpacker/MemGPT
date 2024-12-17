@@ -113,6 +113,7 @@ def create(
     function_call: str = "auto",
     # hint
     first_message: bool = False,
+    force_tool_call: Optional[str] = None,  # Force a specific tool to be called
     # use tool naming?
     # if false, will use deprecated 'functions' style
     use_tool_naming: bool = True,
@@ -252,6 +253,16 @@ def create(
         if not use_tool_naming:
             raise NotImplementedError("Only tool calling supported on Anthropic API requests")
 
+        tool_call = None
+        if force_tool_call is not None:
+            tool_call = {
+                "type": "function",
+                "function": {
+                    "name": force_tool_call
+                }
+            }
+            assert functions is not None
+
         return anthropic_chat_completions_request(
             url=llm_config.model_endpoint,
             api_key=model_settings.anthropic_api_key,
@@ -259,7 +270,7 @@ def create(
                 model=llm_config.model,
                 messages=[cast_message_to_subtype(m.to_openai_dict()) for m in messages],
                 tools=[{"type": "function", "function": f} for f in functions] if functions else None,
-                # tool_choice=function_call,
+                tool_choice=tool_call,
                 # user=str(user_id),
                 # NOTE: max_tokens is required for Anthropic API
                 max_tokens=1024,  # TODO make dynamic
