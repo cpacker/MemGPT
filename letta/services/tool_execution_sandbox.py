@@ -208,6 +208,7 @@ class ToolExecutionSandbox:
             # Execute the temp file
             with self.temporary_env_vars(env_vars):
                 result = runpy.run_path(temp_file_path, init_globals=env_vars)
+
             # Fetch the result
             func_result = result.get(self.LOCAL_SANDBOX_RESULT_VAR_NAME)
             func_return, agent_state = self.parse_best_effort(func_result)
