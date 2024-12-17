@@ -17,7 +17,7 @@ class ToolSettings(BaseSettings):
 
 class ModelSettings(BaseSettings):
 
-    model_config = SettingsConfigDict(env_file='.env', extra='ignore')
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # env_prefix='my_prefix_'
 
@@ -64,7 +64,7 @@ cors_origins = ["http://letta.localhost", "http://localhost:8283", "http://local
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="letta_", extra='ignore')
+    model_config = SettingsConfigDict(env_prefix="letta_", extra="ignore")
 
     letta_dir: Optional[Path] = Field(Path.home() / ".letta", env="LETTA_DIR")
     debug: Optional[bool] = False
@@ -76,7 +76,12 @@ class Settings(BaseSettings):
     pg_password: Optional[str] = None
     pg_host: Optional[str] = None
     pg_port: Optional[int] = None
-    pg_uri: Optional[str] = None  # option to specifiy full uri
+    pg_uri: Optional[str] = None  # option to specify full uri
+    pg_pool_size: int = 20  # Concurrent connections
+    pg_max_overflow: int = 10  # Overflow limit
+    pg_pool_timeout: int = 30  # Seconds to wait for a connection
+    pg_pool_recycle: int = 1800  # When to recycle connections
+    pg_echo: bool = False  # Logging
 
     # tools configuration
     load_default_external_tools: Optional[bool] = None
@@ -103,7 +108,7 @@ class Settings(BaseSettings):
 
 
 class TestSettings(Settings):
-    model_config = SettingsConfigDict(env_prefix="letta_test_", extra='ignore')
+    model_config = SettingsConfigDict(env_prefix="letta_test_", extra="ignore")
 
     letta_dir: Optional[Path] = Field(Path.home() / ".letta/test", env="LETTA_TEST_DIR")
 

@@ -1,7 +1,7 @@
+import time
 import uuid
 
 import pytest
-
 from letta import create_client
 from letta.schemas.letta_message import FunctionCallMessage
 from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
@@ -127,3 +127,110 @@ def test_single_path_agent_tool_call_graph(mock_e2b_api_key_none):
 
     print(f"Got successful response from client: \n\n{response}")
     cleanup(client=client, agent_uuid=agent_uuid)
+
+
+def test_check_tool_rules_with_different_models(mock_e2b_api_key_none):
+    """Test that tool rules are properly checked for different model configurations."""
+    client = create_client()
+
+    config_files = [
+        "tests/configs/llm_model_configs/claude-3-sonnet-20240229.json",
+        "tests/configs/llm_model_configs/openai-gpt-3.5-turbo.json",
+        "tests/configs/llm_model_configs/openai-gpt-4o.json",
+    ]
+ 
+    # Create two test tools
+    t1_name = "first_secret_word"
+    t2_name = "second_secret_word"
+    t1 = client.create_or_update_tool(first_secret_word, name=t1_name)
+    t2 = client.create_or_update_tool(second_secret_word, name=t2_name)
+    tool_rules = [
+        InitToolRule(tool_name=t1_name),
+        InitToolRule(tool_name=t2_name)
+    ]
+    tools = [t1, t2]
+
+    for config_file in config_files:
+        # Setup tools
+        agent_uuid = str(uuid.uuid4())
+
+        if "gpt-4o" in config_file:
+            # Structured output model (should work with multiple init tools)
+            agent_state = setup_agent(client, config_file, agent_uuid=agent_uuid,
+                                    tool_ids=[t.id for t in tools],
+                                    tool_rules=tool_rules)
+            assert agent_state is not None
+        else:
+            # Non-structured output model (should raise error with multiple init tools)
+            with pytest.raises(ValueError, match="Multiple initial tools are not supported for non-structured models"):
+                setup_agent(client, config_file, agent_uuid=agent_uuid,
+                            tool_ids=[t.id for t in tools],
+                            tool_rules=tool_rules)
+        
+        # Cleanup
+        cleanup(client=client, agent_uuid=agent_uuid)
+
+    # Create tool rule with single initial tool
+    t3_name = "third_secret_word"
+    t3 = client.create_or_update_tool(third_secret_word, name=t3_name)
+    tool_rules = [
+        InitToolRule(tool_name=t3_name)
+    ]
+    tools = [t3]
+    for config_file in config_files:
+        agent_uuid = str(uuid.uuid4())
+
+        # Structured output model (should work with single init tool)
+        agent_state = setup_agent(client, config_file, agent_uuid=agent_uuid,
+                                tool_ids=[t.id for t in tools],
+                                tool_rules=tool_rules)
+        assert agent_state is not None
+
+        cleanup(client=client, agent_uuid=agent_uuid)
+
+
+def test_claude_initial_tool_rule_enforced(mock_e2b_api_key_none):
+    """Test that the initial tool rule is enforced for the first message."""
+    client = create_client()
+
+    # Create tool rules that require tool_a to be called first
+    t1_name = "first_secret_word"
+    t2_name = "second_secret_word"
+    t1 = client.create_or_update_tool(first_secret_word, name=t1_name)
+    t2 = client.create_or_update_tool(second_secret_word, name=t2_name)
+    tool_rules = [
+        InitToolRule(tool_name=t1_name),
+        ChildToolRule(tool_name=t1_name, children=[t2_name]),
+    ]
+    tools = [t1, t2]
+
+    # Make agent state
+    anthropic_config_file = "tests/configs/llm_model_configs/claude-3-sonnet-20240229.json"
+    for i in range(3):
+        agent_uuid = str(uuid.uuid4())
+        agent_state = setup_agent(client, anthropic_config_file, agent_uuid=agent_uuid, tool_ids=[t.id for t in tools], tool_rules=tool_rules)
+        response = client.user_message(agent_id=agent_state.id, message="What is the second secret word?")
+
+        assert_sanity_checks(response)
+        messages = response.messages
+
+        assert_invoked_function_call(messages, "first_secret_word")
+        assert_invoked_function_call(messages, "second_secret_word")
+
+        tool_names = [t.name for t in [t1, t2]]
+        tool_names += ["send_message"]
+        for m in messages:
+            if isinstance(m, FunctionCallMessage):
+                # Check that it's equal to the first one
+                assert m.function_call.name == tool_names[0]
+
+                # Pop out first one
+                tool_names = tool_names[1:]
+
+        print(f"Passed iteration {i}")
+        cleanup(client=client, agent_uuid=agent_uuid)
+
+        # Implement exponential backoff with initial time of 10 seconds
+        if i < 2:
+            backoff_time = 10 * (2 ** i)
+            time.sleep(backoff_time)

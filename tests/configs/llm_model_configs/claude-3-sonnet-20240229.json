@@ -1,0 +1,9 @@
+{
+    "context_window": 200000,
+    "model": "claude-3-5-sonnet-20241022",
+    "model_endpoint_type": "anthropic",
+    "model_endpoint": "https://api.anthropic.com/v1",
+    "context_window": 200000,
+    "model_wrapper": null,
+    "put_inner_thoughts_in_kwargs": true
+}

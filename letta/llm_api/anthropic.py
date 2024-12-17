@@ -99,16 +99,20 @@ def convert_tools_to_anthropic_format(tools: List[Tool]) -> List[dict]:
         - 1 level less of nesting
         - "parameters" -> "input_schema"
     """
-    tools_dict_list = []
+    formatted_tools = []
     for tool in tools:
-        tools_dict_list.append(
-            {
-                "name": tool.function.name,
-                "description": tool.function.description,
-                "input_schema": tool.function.parameters,
+        formatted_tool = {
+            "name"         : tool.function.name,
+            "description"  : tool.function.description,
+            "input_schema"   : tool.function.parameters or {
+                "type": "object",
+                "properties": {},
+                "required": []
             }
-        )
-    return tools_dict_list
+        }
+        formatted_tools.append(formatted_tool)
+
+    return formatted_tools
 
 
 def merge_tool_results_into_user_messages(messages: List[dict]):

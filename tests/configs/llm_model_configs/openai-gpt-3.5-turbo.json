@@ -1,0 +1,7 @@
+{
+    "context_window": 16385,
+    "model": "gpt-3.5-turbo",
+    "model_endpoint_type": "openai",
+    "model_endpoint": "https://api.openai.com/v1",
+    "model_wrapper": null
+}
