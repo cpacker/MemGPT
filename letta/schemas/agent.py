@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from letta.constants import DEFAULT_EMBEDDING_CHUNK_SIZE
 from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import OrmMetadataBase
@@ -110,13 +111,13 @@ class CreateAgent(BaseModel, validate_assignment=True):  #
     llm: Optional[str] = Field(
         None,
         description="The LLM configuration handle used by the agent, specified in the format "
-        "provider/model-name, as an alternative to specifying llm_config. This field can also "
-        "be used to override the context window by optionally appending ':context_window'.",
+        "provider/model-name, as an alternative to specifying llm_config.",
     )
     embedding: Optional[str] = Field(
         None, description="The embedding configuration handle used by the agent, specified in the format provider/model-name."
     )
-    context_window: Optional[int] = Field(None, description="The context window specification used by the agent.")
+    context_window_limit: Optional[int] = Field(None, description="The context window limit used by the agent.")
+    embedding_chunk_size: Optional[int] = Field(DEFAULT_EMBEDDING_CHUNK_SIZE, description="The embedding chunk size used by the agent.")
 
     @field_validator("name")
     @classmethod
@@ -150,9 +151,8 @@ class CreateAgent(BaseModel, validate_assignment=True):  #
             return llm
 
         provider_name, model_name = llm.split("/", 1)
-        model_name, _, _ = model_name.partition(":")
         if not provider_name or not model_name:
-            raise ValueError("The llm config handle should be in the format provider/model-name[:context_window]")
+            raise ValueError("The llm config handle should be in the format provider/model-name")
 
         return llm
 
