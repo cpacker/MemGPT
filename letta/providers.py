@@ -13,6 +13,7 @@ from letta.schemas.llm_config import LLMConfig
 
 
 class Provider(BaseModel):
+    name: str = Field(..., description="The name of the provider")
 
     def list_llm_models(self) -> List[LLMConfig]:
         return []
@@ -465,6 +466,7 @@ class TogetherProvider(OpenAIProvider):
 
 class GoogleAIProvider(Provider):
     # gemini
+    name: str = "google_ai"
     api_key: str = Field(..., description="API key for the Google AI API.")
     base_url: str = "https://generativelanguage.googleapis.com"
 

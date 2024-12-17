@@ -61,6 +61,9 @@ class AgentManager:
     ) -> PydanticAgentState:
         system = derive_system_message(agent_type=agent_create.agent_type, system=agent_create.system)
 
+        if not agent_create.llm_config or not agent_create.embedding_config:
+            raise ValueError("llm_config and embedding_config are required")
+
         # create blocks (note: cannot be linked into the agent_id is created)
         block_ids = list(agent_create.block_ids or [])  # Create a local copy to avoid modifying the original
         for create_block in agent_create.memory_blocks:

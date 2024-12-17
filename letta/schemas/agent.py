@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from letta.constants import DEFAULT_EMBEDDING_CHUNK_SIZE
 from letta.schemas.block import CreateBlock
 from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.letta_base import OrmMetadataBase
@@ -107,6 +108,16 @@ class CreateAgent(BaseModel, validate_assignment=True):  #
     include_base_tools: bool = Field(True, description="The LLM configuration used by the agent.")
     description: Optional[str] = Field(None, description="The description of the agent.")
     metadata_: Optional[Dict] = Field(None, description="The metadata of the agent.", alias="metadata_")
+    llm: Optional[str] = Field(
+        None,
+        description="The LLM configuration handle used by the agent, specified in the format "
+        "provider/model-name, as an alternative to specifying llm_config.",
+    )
+    embedding: Optional[str] = Field(
+        None, description="The embedding configuration handle used by the agent, specified in the format provider/model-name."
+    )
+    context_window_limit: Optional[int] = Field(None, description="The context window limit used by the agent.")
+    embedding_chunk_size: Optional[int] = Field(DEFAULT_EMBEDDING_CHUNK_SIZE, description="The embedding chunk size used by the agent.")
 
     @field_validator("name")
     @classmethod
@@ -132,6 +143,30 @@ class CreateAgent(BaseModel, validate_assignment=True):  #
         # TODO
 
         return name
+
+    @field_validator("llm")
+    @classmethod
+    def validate_llm(cls, llm: Optional[str]) -> Optional[str]:
+        if not llm:
+            return llm
+
+        provider_name, model_name = llm.split("/", 1)
+        if not provider_name or not model_name:
+            raise ValueError("The llm config handle should be in the format provider/model-name")
+
+        return llm
+
+    @field_validator("embedding")
+    @classmethod
+    def validate_embedding(cls, embedding: Optional[str]) -> Optional[str]:
+        if not embedding:
+            return embedding
+
+        provider_name, model_name = embedding.split("/", 1)
+        if not provider_name or not model_name:
+            raise ValueError("The embedding config handle should be in the format provider/model-name")
+
+        return embedding
 
 
 class UpdateAgent(BaseModel):
