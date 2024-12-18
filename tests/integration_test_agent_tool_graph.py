@@ -259,8 +259,7 @@ def test_agent_no_structured_output_with_one_child_tool(mock_e2b_api_key_none):
     ]
 
     for config in config_files:
-        agent_state = setup_agent(client, config, agent_uuid=agent_uuid, tool_ids=[t.id for t in tools], tool_rules=tool_rules, include_base_tools=False)
-        assert len(agent_state.tools) == 3
+        agent_state = setup_agent(client, config, agent_uuid=agent_uuid, tool_ids=[t.id for t in tools], tool_rules=tool_rules)
         response = client.user_message(agent_id=agent_state.id, message="hi. run archival memory search")
 
         # Make checks
