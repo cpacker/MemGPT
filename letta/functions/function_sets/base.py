@@ -61,60 +61,6 @@ def conversation_search(self: "Agent", query: str, page: Optional[int] = 0) -> O
     return results_str
 
 
-def conversation_search_date(self: "Agent", start_date: str, end_date: str, page: Optional[int] = 0) -> Optional[str]:
-    """
-    Search prior conversation history using a date range.
-
-    Args:
-        start_date (str): The start of the date range to search, in the format 'YYYY-MM-DD'.
-        end_date (str): The end of the date range to search, in the format 'YYYY-MM-DD'.
-        page (int): Allows you to page through results. Only use on a follow-up query. Defaults to 0 (first page).
-
-    Returns:
-        str: Query result string
-    """
-    import math
-    from datetime import datetime
-
-    from letta.constants import RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    from letta.utils import json_dumps
-
-    if page is None or (isinstance(page, str) and page.lower().strip() == "none"):
-        page = 0
-    try:
-        page = int(page)
-        if page < 0:
-            raise ValueError
-    except:
-        raise ValueError(f"'page' argument must be an integer")
-
-    # Convert date strings to datetime objects
-    try:
-        start_datetime = datetime.strptime(start_date, "%Y-%m-%d").replace(hour=0, minute=0, second=0, microsecond=0)
-        end_datetime = datetime.strptime(end_date, "%Y-%m-%d").replace(hour=23, minute=59, second=59, microsecond=999999)
-    except ValueError:
-        raise ValueError("Dates must be in the format 'YYYY-MM-DD'")
-
-    count = RETRIEVAL_QUERY_DEFAULT_PAGE_SIZE
-    results = self.message_manager.list_user_messages_for_agent(
-        # TODO: add paging by page number. currently cursor only works with strings.
-        agent_id=self.agent_state.id,
-        actor=self.user,
-        start_date=start_datetime,
-        end_date=end_datetime,
-        limit=count,
-    )
-    total = len(results)
-    num_pages = math.ceil(total / count) - 1  # 0 index
-    if len(results) == 0:
-        results_str = f"No results found."
-    else:
-        results_pref = f"Showing {len(results)} of {total} results (page {page}/{num_pages}):"
-        results_formatted = [f"timestamp: {d['timestamp']}, {d['message']['role']} - {d['message']['content']}" for d in results]
-        results_str = f"{results_pref} {json_dumps(results_formatted)}"
-    return results_str
-
-
 def archival_memory_insert(self: "Agent", content: str) -> Optional[str]:
     """
     Add to archival memory. Make sure to phrase the memory contents such that it can be easily queried later.
