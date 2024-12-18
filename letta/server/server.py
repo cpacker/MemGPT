@@ -40,7 +40,7 @@ from letta.providers import (
     VLLMChatCompletionsProvider,
     VLLMCompletionsProvider,
 )
-from letta.schemas.agent import AgentState, AgentType, CreateAgent, UpdateAgent
+from letta.schemas.agent import AgentState, AgentType, CreateAgent
 from letta.schemas.block import BlockUpdate
 from letta.schemas.embedding_config import EmbeddingConfig
 
@@ -828,38 +828,38 @@ class SyncServer(Server):
     # TODO: This is not good!
     # TODO: Ideally, this should ALL be handled by the ORM
     # TODO: The main blocker here IS the _message updates
-    def update_agent(
-        self,
-        agent_id: str,
-        request: UpdateAgent,
-        actor: User,
-    ) -> AgentState:
-        """Update the agents core memory block, return the new state"""
-        # Update agent state in the db first
-        agent_state = self.agent_manager.update_agent(agent_id=agent_id, agent_update=request, actor=actor)
+    # def update_agent(
+    #    self,
+    #    agent_id: str,
+    #    request: UpdateAgent,
+    #    actor: User,
+    # ) -> AgentState:
+    #    """Update the agents core memory block, return the new state"""
+    #    # Update agent state in the db first
+    #    agent_state = self.agent_manager.update_agent(agent_id=agent_id, agent_update=request, actor=actor)
 
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
+    #    # Get the agent object (loaded in memory)
+    #    letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
-        # TODO: Everything below needs to get removed, no updating anything in memory
-        # update the system prompt
-        if request.system:
-            letta_agent.update_system_prompt(request.system)
+    #    # TODO: Everything below needs to get removed, no updating anything in memory
+    #    # update the system prompt
+    #    if request.system:
+    #        letta_agent.update_system_prompt(request.system)
 
-        # update in-context messages
-        if request.message_ids:
-            # This means the user is trying to change what messages are in the message buffer
-            # Internally this requires (1) pulling from recall,
-            # then (2) setting the attributes ._messages and .state.message_ids
-            letta_agent.set_message_buffer(message_ids=request.message_ids)
+    #    # update in-context messages
+    #    if request.message_ids:
+    #        # This means the user is trying to change what messages are in the message buffer
+    #        # Internally this requires (1) pulling from recall,
+    #        # then (2) setting the attributes ._messages and .state.message_ids
+    #        letta_agent.set_message_buffer(message_ids=request.message_ids)
 
-        # tools
-        if request.tool_ids:
-            letta_agent.link_tools(letta_agent.agent_state.tools)
+    #    # tools
+    #    if request.tool_ids:
+    #        letta_agent.link_tools(letta_agent.agent_state.tools)
 
-        letta_agent.update_state()
+    #    letta_agent.update_state()
 
-        return agent_state
+    #    return agent_state
 
     def get_tools_from_agent(self, agent_id: str, user_id: Optional[str]) -> List[Tool]:
         """Get tools from an existing agent"""
@@ -870,44 +870,7 @@ class SyncServer(Server):
         letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
         return letta_agent.agent_state.tools
 
-    def add_tool_to_agent(
-        self,
-        agent_id: str,
-        tool_id: str,
-        user_id: str,
-    ):
-        """Add tools from an existing agent"""
-        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
-        actor = self.user_manager.get_user_or_default(user_id=user_id)
-
-        agent_state = self.agent_manager.attach_tool(agent_id=agent_id, tool_id=tool_id, actor=actor)
-
-        # TODO: This is very redundant, and should probably be simplified
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
-        letta_agent.link_tools(agent_state.tools)
-
-        return agent_state
-
-    def remove_tool_from_agent(
-        self,
-        agent_id: str,
-        tool_id: str,
-        user_id: str,
-    ):
-        """Remove tools from an existing agent"""
-        # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
-        actor = self.user_manager.get_user_or_default(user_id=user_id)
-        agent_state = self.agent_manager.detach_tool(agent_id=agent_id, tool_id=tool_id, actor=actor)
-
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
-        letta_agent.link_tools(agent_state.tools)
-
-        return agent_state
-
     # convert name->id
-
     def get_agent_memory(self, agent_id: str, actor: User) -> Memory:
         """Return the memory of an agent (core memory)"""
         agent = self.load_agent(agent_id=agent_id, actor=actor)
@@ -1309,9 +1272,7 @@ class SyncServer(Server):
 
         if context_window_limit:
             if context_window_limit > llm_config.context_window:
-                raise ValueError(
-                    f"Context window limit ({context_window_limit}) is greater than maximum of ({llm_config.context_window})"
-                )
+                raise ValueError(f"Context window limit ({context_window_limit}) is greater than maximum of ({llm_config.context_window})")
             llm_config.context_window = context_window_limit
 
         return llm_config
@@ -1406,9 +1367,7 @@ class SyncServer(Server):
             )
 
         except Exception as e:
-            func_return = get_friendly_error_msg(
-                function_name=tool.name, exception_name=type(e).__name__, exception_message=str(e)
-            )   
+            func_return = get_friendly_error_msg(function_name=tool.name, exception_name=type(e).__name__, exception_message=str(e))
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
