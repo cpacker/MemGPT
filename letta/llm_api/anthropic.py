@@ -262,10 +262,24 @@ def convert_anthropic_response_to_chatcompletion(
                     ),
                 )
             ]
-        else:
-            # Just inner mono
-            content = strip_xml_tags(string=response_json["content"][0]["text"], tag=inner_thoughts_xml_tag)
-            tool_calls = None
+        elif len(response_json["content"]) == 1:
+            if response_json["content"][0]["type"] == "tool_use":
+                # function call only
+                content = None
+                tool_calls = [
+                    ToolCall(
+                        id=response_json["content"][0]["id"],
+                        type="function",
+                        function=FunctionCall(
+                            name=response_json["content"][0]["name"],
+                            arguments=json.dumps(response_json["content"][0]["input"], indent=2),
+                        ),
+                    )
+                ]
+            else:
+                # inner mono only
+                content = strip_xml_tags(string=response_json["content"][0]["text"], tag=inner_thoughts_xml_tag)
+                tool_calls = None
     else:
         raise RuntimeError("Unexpected type for content in response_json.")
 
@@ -327,6 +341,14 @@ def anthropic_chat_completions_request(
     if anthropic_tools is not None:
         data["tools"] = anthropic_tools
 
+        # TODO: Add support for other tool_choice options like "auto", "any"
+        if len(anthropic_tools) == 1:
+            data["tool_choice"] = {
+                "type": "tool",  # Changed from "function" to "tool"
+                "name": anthropic_tools[0]["name"],  # Directly specify name without nested "function" object
+                "disable_parallel_tool_use": True  # Force single tool use
+            }
+
     # Move 'system' to the top level
     # 'messages: Unexpected role "system". The Messages API accepts a top-level `system` parameter, not "system" as an input message role.'
     assert data["messages"][0]["role"] == "system", f"Expected 'system' role in messages[0]:\n{data['messages'][0]}"
@@ -362,7 +384,6 @@ def anthropic_chat_completions_request(
     data.pop("top_p", None)
     data.pop("presence_penalty", None)
     data.pop("user", None)
-    data.pop("tool_choice", None)
 
     response_json = make_post_request(url, headers, data)
     return convert_anthropic_response_to_chatcompletion(response_json=response_json, inner_thoughts_xml_tag=inner_thoughts_xml_tag)
