@@ -541,7 +541,7 @@ class TestCoreMemoryTools:
         """Test successful replacement of content in core memory - local sandbox."""
         new_name = "Charles"
         args = {"label": "human", "old_content": "Chad", "new_content": new_name}
-        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user_id=test_user.id)
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user=test_user)
 
         result = sandbox.run(agent_state=agent_state)
         assert new_name in result.agent_state.memory.get_block("human").value
@@ -552,7 +552,7 @@ class TestCoreMemoryTools:
         """Test successful appending of content to core memory - local sandbox."""
         append_text = "\nLikes coffee"
         args = {"label": "human", "content": append_text}
-        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_append"].name, args, user_id=test_user.id)
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_append"].name, args, user=test_user)
 
         result = sandbox.run(agent_state=agent_state)
         assert append_text in result.agent_state.memory.get_block("human").value
@@ -563,7 +563,7 @@ class TestCoreMemoryTools:
         """Test error handling when trying to replace non-existent content - local sandbox."""
         nonexistent_name = "Alexander Wang"
         args = {"label": "human", "old_content": nonexistent_name, "new_content": "Charles"}
-        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user_id=test_user.id)
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user=test_user)
 
         result = sandbox.run(agent_state=agent_state)
         assert len(result.stderr) != 0
@@ -575,7 +575,7 @@ class TestCoreMemoryTools:
         """Test successful replacement of content in core memory - e2b sandbox."""
         new_name = "Charles"
         args = {"label": "human", "old_content": "Chad", "new_content": new_name}
-        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user_id=test_user.id)
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user=test_user)
 
         result = sandbox.run(agent_state=agent_state)
         assert new_name in result.agent_state.memory.get_block("human").value
@@ -586,7 +586,7 @@ class TestCoreMemoryTools:
         """Test successful appending of content to core memory - e2b sandbox."""
         append_text = "\nLikes coffee"
         args = {"label": "human", "content": append_text}
-        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_append"].name, args, user_id=test_user.id)
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_append"].name, args, user=test_user)
 
         result = sandbox.run(agent_state=agent_state)
         assert append_text in result.agent_state.memory.get_block("human").value
@@ -597,7 +597,7 @@ class TestCoreMemoryTools:
         """Test error handling when trying to replace non-existent content - e2b sandbox."""
         nonexistent_name = "Alexander Wang"
         args = {"label": "human", "old_content": nonexistent_name, "new_content": "Charles"}
-        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user_id=test_user.id)
+        sandbox = ToolExecutionSandbox(core_memory_tools["core_memory_replace"].name, args, user=test_user)
 
         result = sandbox.run(agent_state=agent_state)
         assert len(result.stderr) != 0
