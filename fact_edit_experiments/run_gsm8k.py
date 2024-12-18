@@ -32,7 +32,7 @@ def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_labe
     Make inferences based on the conversation.
     When given question and answer pairs, note down the underlying reasoning that would be helpful for this kind of question.
     When given new situations, use the previous question and answers to brainstorm potential questions. Make inferences that would be helpful for directly answering these questions.
-    Come up with at least 5 potential questions that could be asked with the inferences that would be helpful for answering them.
+    Come up with at least 5 potential questions that could be asked and the inferences that would be helpful for answering them for each question.
 
     Args:
         new_memory (str): Memory of the past kinds of reasoning required and potential questions that could be asked with the inferences that would be helpful for answering them. New memory should have multiple reasoning inferences and potential questions and answer pairs given a situation.
@@ -64,7 +64,7 @@ You can directly take messages the users give you and repeat it to the memory ag
 
 When given a question, you answer using only the number of tokens necessary and none more. You check the `rethink_memory_block` for potential questions
 and answers and intermediate reasoning traces that can help answer the question. You use the information in the `rethink_memory_block` to answer the questions
-rather than thinking on the spot.  Do not recompute anything already exists in the `rethink_memory_block`.
+rather than thinking on the spot.  Do not recompute anything already exists in the `rethink_memory_block`. Do not use internal monologue unless you really need it to think.
 
 """
 
@@ -95,7 +95,7 @@ but come up with new inferences each call based on current facts."""
 OFFLINE_SYSTEM_PROMPT += """
 You anticipate what the user will ask. When given question and answer pairs, you note down the underlying reasoning that would be helpful for this kind of question.
 when given new context, you use your previous questions and answers to come up with potential relations between the quantifies that are presented to you. Given past problems, you write down the underlying reasoning that would be helpful for potential questions. 
-Use the previous examples to come up with the types of inferences that you need to make. You come up with at least 5 potential questions that could be asked with the inferences that would be helpful for answering them.
+Use the previous examples to come up with the types of inferences that you need to make. You come up with at least 5 potential questions that could be asked with the inferences that would be helpful for answering them based on the previous questions.
 """
 
 
@@ -109,113 +109,129 @@ ANTHROPIC_CONFIG = LLMConfig(
 
 OPENAI_CONFIG = LLMConfig.default_config("gpt-4o-mini")
 
-def run_memory_edits(gsm8k_input_file: str, random_example: bool = False, few_shot: bool = True) -> None:
-
+def run_memory_edits(gsm8k_input_file: str, output_file: str, random_example: bool = False, few_shot: bool = True, limit: int = None) -> None:
     if few_shot:
         with open("gsm8k_experiments/gsm8k-cot.yaml", "r") as f:
             test_yaml = f.read()
     
         config = load_yaml_config(test_yaml)
         generator = PromptGenerator(config)
-        few_shot_examples = generator.generate_few_shot_context()
-
+        few_shot_examples = generator.generate_few_shot_context()[:few_shot]
+    else:
+        few_shot_examples = []
 
     with jsonlines.open(gsm8k_input_file) as reader:
         examples = list(reader)
         if random_example:
-            gsm8k_example = random.choice(examples)
-        else:
-            gsm8k_example = examples[0]
+            examples = [random.choice(examples)]
+        elif limit:
+            examples = examples[:limit] 
 
     client = create_client()
     rethink_memory_tool = client.create_tool(rethink_memory)
     finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
     trigger_rethink_memory_tool = client.create_tool(trigger_rethink_memory)
 
-    conversation_human_block = Block(
-        name="human",
-        label="human",
-        value="I am a person who needs direct and concise answers.",
-        limit=2000,
-    )
-    conversation_persona_block = Block(
-        name="persona",
-        label="persona",
-        value=" You pass off information that needs to be thought about deeply. You are as concise as possible when responding to the user. You only use the tokens necessary for reasoning and none more. You always give short answers without reasoning out loud. When possible, you always use the information that is in the `rethink_memory_block` to answer the questions rather than thinking on the spot.",
-        limit=2000,
-    )
-    offline_human_block = Block(
-        name="human",
-        label="human",
-        value="I am a valuable source of information, I give problems that are worth thinking about deeply and carefully.",
-        limit=2000,
-    )
-    offline_persona_block = Block(
-        name="persona", label="persona", value="""I am an eager reasoner. When given a new context, I reason about what potential questions someone may ask about it. I use the previous questions I have been asked about to guide my search.
-        I use the rethink memory to store all my potential questions, answers, and inferences for answering those questions. I am verbose and brainstorm using the rethink block many different types of potential questions, at least 5.""", limit=2000
-    )
+
+    with jsonlines.open(output_file, "w") as writer:
+        for example in tqdm(examples):
+            try:  
+                conversation_human_block = Block(
+                    name="human",
+                    label="human",
+                    value="I am a person who needs direct and concise answers.",
+                    limit=2000,
+                )
+                conversation_persona_block = Block(
+                    name="persona",
+                    label="persona",
+                    value=" You pass off information that needs to be thought about deeply. You are as concise as possible when responding to the user. You only use the tokens necessary for reasoning and none more. You always give short answers without reasoning out loud. When possible, you always use the information that is in the `rethink_memory_block` to answer the questions rather than thinking on the spot.",
+                    limit=2000,
+                )
+                offline_human_block = Block(
+                    name="human",
+                    label="human",
+                    value="I am a valuable source of information, I give problems that are worth thinking about deeply and carefully.",
+                    limit=2000,
+                )
+                offline_persona_block = Block(
+                    name="persona", label="persona", value="""I am an eager reasoner. When given a new context, I reason about what potential questions someone may ask about it. I use the previous questions I have been asked about to guide my search.
+                    I use the rethink memory to store all my potential questions, answers, and inferences for answering those questions. I am verbose and brainstorm using the rethink block many different types of potential questions, at least 5.""", limit=2000
+                )
 
 
-    new_memory = Block(name="rethink_memory_block", label="rethink_memory_block", value="[empty]", limit=5000)
-    conversation_memory = BasicBlockMemory(
-        blocks=[conversation_persona_block, conversation_human_block, new_memory]
-    )
-    offline_memory = BasicBlockMemory(blocks=[offline_persona_block, offline_human_block, new_memory])
+                new_memory = Block(name="rethink_memory_block", label="rethink_memory_block", value="[empty]", limit=5000)
+                conversation_memory = BasicBlockMemory(
+                    blocks=[conversation_persona_block, conversation_human_block, new_memory]
+                )
+                offline_memory = BasicBlockMemory(blocks=[offline_persona_block, offline_human_block, new_memory])
 
-    conversation_agent = client.create_agent(
-        name="conversation_agent",
-        agent_type=AgentType.memgpt_agent,
-        system=CONVO_NO_INNER_MONOLOGUE_AGENT_SYSTEM_PROMPT,
-                llm_config=OPENAI_CONFIG,
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-        tools=["send_message", trigger_rethink_memory_tool.name],
-        memory=conversation_memory,
-        include_base_tools=False,
-    )
-    assert set(conversation_agent.memory.list_block_labels()) == set(
-        [
-            "persona",
-            "human",
-            "rethink_memory_block",
-        ]
-    )
+                conversation_agent = client.create_agent(
+                    name="conversation_agent",
+                    agent_type=AgentType.memgpt_agent,
+                    system=CONVO_NO_INNER_MONOLOGUE_AGENT_SYSTEM_PROMPT,
+                            llm_config=ANTHROPIC_CONFIG,
+                    embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+                    tools=["send_message", trigger_rethink_memory_tool.name],
+                    memory=conversation_memory,
+                    include_base_tools=False,
+                )
 
-    offline_memory_agent = client.create_agent(
-        name="offline_memory_agent",
-        agent_type=AgentType.offline_memory_agent,
-        system=OFFLINE_SYSTEM_PROMPT,
-        memory=offline_memory,
-                llm_config=OPENAI_CONFIG,
-        embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
-        tools=[rethink_memory_tool.name, finish_rethinking_memory_tool.name],
-        tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
-        include_base_tools=False,
-        initial_message_sequence=[],
-    )
+                offline_memory_agent = client.create_agent(
+                    name="offline_memory_agent",
+                    agent_type=AgentType.offline_memory_agent,
+                    system=OFFLINE_SYSTEM_PROMPT,
+                    memory=offline_memory,
+                            llm_config=ANTHROPIC_CONFIG,
+                    embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
+                    tools=[rethink_memory_tool.name, finish_rethinking_memory_tool.name],
+                    tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
+                    include_base_tools=False,
+                    initial_message_sequence=[],
+                )
 
-    for requested_rewrite in few_shot_examples:
-        client.send_message(
-            message="[trigger_rethink_memory] Question answer pair" + requested_rewrite, role="user", agent_id=offline_memory_agent.id
-        )
+                for requested_rewrite in few_shot_examples:
+                    client.send_message(
+                        message="[trigger_rethink_memory] Question answer pair" + requested_rewrite, role="user", agent_id=offline_memory_agent.id
+                    )
 
-    context = ". ".join(gsm8k_example["question"].split(".")[:-1])
-    question = gsm8k_example["question"].split(".")[-1]
+                context = ". ".join(example["question"].split(".")[:-1])
+                question = example["question"].split(".")[-1]
 
-    client.send_message(
-        message="[trigger_rethink_memory] New situation:" + context, role="user", agent_id=conversation_agent.id
-    )
+                client.send_message(
+                    message="[trigger_rethink_memory] New situation:" + context, role="user", agent_id=conversation_agent.id
+                )
 
-    client.send_message(message=question, role="user", agent_id=conversation_agent.id)
-    print(gsm8k_example["answer"])
-    offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
+                final_response = client.send_message(message=question, role="user", agent_id=conversation_agent.id)
+                offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
+
+                writer.write(
+                    {
+                        "question": example["question"],
+                        "response": final_response.model_dump(),
+                        "offline_memory": offline_memory_agent.memory.get_block("rethink_memory_block").value,
+                        "answer": example["answer"],
+                    }
+                )
+
+                # clean up
+                client.delete_agent(conversation_agent.id)
+                client.delete_agent(offline_memory_agent.id)
+            except Exception as e:
+                print(f"Error processing example: {example}")
+                print(e)
+
+
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--gsm8k_input_file", type=str, default="./GSM8K_p2.jsonl", required=False)
-    parser.add_argument("--random_example", action="store_true")  # by default, just run the first example
-    parser.add_argument("--few_shot", action="store_true") 
+    parser.add_argument("--output_file", default="./predictions-GSM8k_p2.jsonl", required=False)
+    parser.add_argument("--random_example", action="store_true")  # debug by using a random example 
+    parser.add_argument("--few_shot", default=8, required=False, type=int)
+    parser.add_argument("--limit", default=None, required=False, type=int)
     args = parser.parse_args()
 
-    run_memory_edits(args.gsm8k_input_file, args.random_example, args.few_shot)
+    run_memory_edits(args.gsm8k_input_file, args.output_file, args.random_example, args.few_shot, args.limit)
