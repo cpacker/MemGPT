@@ -14,7 +14,7 @@ for org in orgs:
     if org.name != "default":
         fake_user = User(id="user-00000000-0000-4000-8000-000000000000", name="fake", organization_id=org.id)
 
-        ToolManager().add_base_tools(actor=fake_user)
+        ToolManager().upsert_base_tools(actor=fake_user)
 
         source_code = parse_source_code(deprecated_tool)
         source_type = "python"

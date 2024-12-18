@@ -335,7 +335,7 @@ def test_list_tools_pagination(client: Union[LocalClient, RESTClient]):
 
 
 def test_list_tools(client: Union[LocalClient, RESTClient]):
-    tools = client.add_base_tools()
+    tools = client.upsert_base_tools()
     tool_names = [t.name for t in tools]
     expected = BASE_TOOLS + BASE_MEMORY_TOOLS
     assert sorted(tool_names) == sorted(expected)
