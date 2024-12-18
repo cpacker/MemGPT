@@ -604,6 +604,9 @@ class Agent(BaseAgent):
             and len(self.tool_rules_solver.init_tool_rules) > 0
         ):
             force_tool_call = self.tool_rules_solver.init_tool_rules[0].tool_name
+        # Force a tool call if exactly one tool is specified
+        elif step_count is not None and step_count > 0 and len(allowed_tool_names) == 1:
+            force_tool_call = allowed_tool_names[0]
 
         for attempt in range(1, empty_response_retry_limit + 1):
             try:
