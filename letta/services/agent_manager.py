@@ -30,6 +30,7 @@ from letta.services.helpers.agent_manager_helper import (
     _process_tags,
     derive_system_message,
 )
+from letta.services.message_manager import MessageManager
 from letta.services.source_manager import SourceManager
 from letta.services.tool_manager import ToolManager
 from letta.settings import settings
@@ -49,6 +50,7 @@ class AgentManager:
         self.block_manager = BlockManager()
         self.tool_manager = ToolManager()
         self.source_manager = SourceManager()
+        self.message_manager = MessageManager()
 
     # ======================================================================================================================
     # Basic CRUD operations
@@ -180,11 +182,11 @@ class AgentManager:
                 _process_tags(agent, agent_update.tags, replace=True)
             if agent_update.message_ids is not None:
                 # make sure ids are all valid
-                from letta.services.message_manager import MessageManager
 
-                message_manager = MessageManager()
                 for message_id in agent_update.message_ids:
-                    assert message_manager.get_message_by_id(message_id=message_id, actor=actor), f"Message with id {message_id} not found."
+                    assert self.message_manager.get_message_by_id(
+                        message_id=message_id, actor=actor
+                    ), f"Message with id {message_id} not found."
 
             # Commit and refresh the agent
             agent.update(session, actor=actor)
@@ -729,3 +731,14 @@ class AgentManager:
             # Commit and refresh the agent
             agent.update(session, actor=actor)
             return agent.to_pydantic()
+
+    @enforce_types
+    def list_tool_ids(self, agent_id: str, actor: PydanticUser) -> List[str]:
+        with self.session_maker() as session:
+            agent = AgentModel.read(db_session=session, identifier=agent_id, actor=actor)
+            return [tool.id for tool in agent.tools]
+
+    @enforce_types
+    def list_tools(self, agent_id: str, actor: PydanticUser) -> List[PydanticTool]:
+        tool_ids = self.list_tool_ids(agent_id=agent_id, actor=actor)
+        return [self.tool_manager.get_tool_by_id(tool_id=tool_id, actor=actor) for tool_id in tool_ids]
