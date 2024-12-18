@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Union
+from collections import deque
 
 from pydantic import BaseModel, Field
 
@@ -6,6 +7,7 @@ from letta.schemas.enums import ToolRuleType
 from letta.schemas.tool_rule import (
     BaseToolRule,
     ChildToolRule,
+    ConditionalToolRule,
     InitToolRule,
     TerminalToolRule,
 )
@@ -22,7 +24,7 @@ class ToolRulesSolver(BaseModel):
     init_tool_rules: List[InitToolRule] = Field(
         default_factory=list, description="Initial tool rules to be used at the start of tool execution."
     )
-    tool_rules: List[ChildToolRule] = Field(
+    tool_rules: List[Union[ChildToolRule, ConditionalToolRule]] = Field(
         default_factory=list, description="Standard tool rules for controlling execution sequence and allowed transitions."
     )
     terminal_tool_rules: List[TerminalToolRule] = Field(
@@ -35,15 +37,22 @@ class ToolRulesSolver(BaseModel):
         # Separate the provided tool rules into init, standard, and terminal categories
         for rule in tool_rules:
             if rule.type == ToolRuleType.run_first:
+                assert isinstance(rule, InitToolRule)
                 self.init_tool_rules.append(rule)
             elif rule.type == ToolRuleType.constrain_child_tools:
+                assert isinstance(rule, ChildToolRule)
+                self.tool_rules.append(rule)
+            elif rule.type == ToolRuleType.conditional:
+                assert isinstance(rule, ConditionalToolRule)
+                self.validate_conditional_tool(rule)
                 self.tool_rules.append(rule)
             elif rule.type == ToolRuleType.exit_loop:
+                assert isinstance(rule, TerminalToolRule)
                 self.terminal_tool_rules.append(rule)
 
         # Validate the tool rules to ensure they form a DAG
         if not self.validate_tool_rules():
-            raise ToolRuleValidationError("Tool rules contain cycles, which are not allowed in a valid configuration.")
+            raise ToolRuleValidationError("Tool rules does not have a path from Init to Terminal.")
 
     def update_tool_usage(self, tool_name: str):
         """Update the internal state to track the last tool called."""
@@ -78,38 +87,58 @@ class ToolRulesSolver(BaseModel):
         """Check if the tool has children tools"""
         return any(rule.tool_name == tool_name for rule in self.tool_rules)
 
+    def validate_conditional_tool(self, rule: ConditionalToolRule):
+        if rule.children is None or len(rule.children) == 0:
+            raise ToolRuleValidationError("Conditional tool rule must have at least one child tool.")
+        if len(rule.children) != len(rule.child_output_mapping):
+            raise ToolRuleValidationError("Conditional tool rule must have a child output mapping for each child tool.")
+        if set(rule.children) != set(rule.child_output_mapping.values()):
+            raise ToolRuleValidationError("Conditional tool rule must have a child output mapping for each child tool.")
+        return True
+
     def validate_tool_rules(self) -> bool:
         """
-        Validate that the tool rules define a directed acyclic graph (DAG).
-        Returns True if valid (no cycles), otherwise False.
+        Validate that there exists a path from every init tool to a terminal tool.
+        Returns True if valid (path exists), otherwise False.
         """
         # Build adjacency list for the tool graph
         adjacency_list: Dict[str, List[str]] = {rule.tool_name: rule.children for rule in self.tool_rules}
 
-        # Track visited nodes
-        visited: Set[str] = set()
-        path_stack: Set[str] = set()
+        init_tool_names = {rule.tool_name for rule in self.init_tool_rules}
+        terminal_tool_names = {rule.tool_name for rule in self.terminal_tool_rules}
 
-        # Define DFS helper function
-        def dfs(tool_name: str) -> bool:
-            if tool_name in path_stack:
-                return False  # Cycle detected
-            if tool_name in visited:
-                return True  # Already validated
+        # Initial checks
+        if len(init_tool_names) == 0:
+            if len(terminal_tool_names) + len(self.tool_rules) > 0:
+                return False  # No init tools defined
+            else:
+                return True   # No tool rules
+        if len(terminal_tool_names) == 0:
+            if len(adjacency_list) > 0:
+                return False  # No terminal tools defined
+            else:
+                return True   # Only init tools
 
-            # Mark the node as visited in the current path
-            path_stack.add(tool_name)
-            for child in adjacency_list.get(tool_name, []):
-                if not dfs(child):
-                    return False  # Cycle detected in DFS
-            path_stack.remove(tool_name)  # Remove from current path
-            visited.add(tool_name)
-            return True
+        # Define BFS helper function to find path to terminal tool
+        def has_path_to_terminal(start_tool: str) -> bool:
+            visited = set()
+            queue = deque([start_tool])
+            visited.add(start_tool)
 
-        # Run DFS from each tool in `tool_rules`
-        for rule in self.tool_rules:
-            if rule.tool_name not in visited:
-                if not dfs(rule.tool_name):
-                    return False  # Cycle found, invalid tool rules
+            while queue:
+                current_tool = queue.popleft()
+                if current_tool in terminal_tool_names:
+                    return True
 
-        return True  # No cycles, valid DAG
+                for child in adjacency_list.get(current_tool, []):
+                    if child not in visited:
+                        visited.add(child)
+                        queue.append(child)
+            return False
+
+        # Check if each init tool has a path to a terminal tool
+        for init_tool_name in init_tool_names:
+            if not has_path_to_terminal(init_tool_name):
+                return False
+
+        return True  # All init tools have paths to terminal tools

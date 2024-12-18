@@ -2,7 +2,12 @@ import pytest
 
 from letta.helpers import ToolRulesSolver
 from letta.helpers.tool_rule_solver import ToolRuleValidationError
-from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
+from letta.schemas.tool_rule import (
+    ChildToolRule,
+    ConditionalToolRule,
+    InitToolRule,
+    TerminalToolRule
+)
 
 # Constants for tool names used in the tests
 START_TOOL = "start_tool"
@@ -31,7 +36,9 @@ def test_get_allowed_tool_names_with_subsequent_rule():
     # Setup: Tool rule sequence
     init_rule = InitToolRule(tool_name=START_TOOL)
     rule_1 = ChildToolRule(tool_name=START_TOOL, children=[NEXT_TOOL, HELPER_TOOL])
-    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[rule_1], terminal_tool_rules=[])
+    rule_2 = ChildToolRule(tool_name=NEXT_TOOL, children=[END_TOOL])
+    terminal_rule = TerminalToolRule(tool_name=END_TOOL)
+    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[rule_1, rule_2], terminal_tool_rules=[terminal_rule])
 
     # Action: Update usage and get allowed tools
     solver.update_tool_usage(START_TOOL)
@@ -44,21 +51,22 @@ def test_get_allowed_tool_names_with_subsequent_rule():
 def test_is_terminal_tool():
     # Setup: Terminal tool rule configuration
     init_rule = InitToolRule(tool_name=START_TOOL)
+    rule_1 = ChildToolRule(tool_name=START_TOOL, children=[END_TOOL])
     terminal_rule = TerminalToolRule(tool_name=END_TOOL)
-    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[], terminal_tool_rules=[terminal_rule])
+    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[rule_1], terminal_tool_rules=[terminal_rule])
 
     # Action & Assert: Verify terminal and non-terminal tools
     assert solver.is_terminal_tool(END_TOOL) is True, "Should recognize 'end_tool' as a terminal tool"
     assert solver.is_terminal_tool(START_TOOL) is False, "Should not recognize 'start_tool' as a terminal tool"
 
 
-def test_get_allowed_tool_names_no_matching_rule_warning():
-    # Setup: Tool rules with no matching rule for the last tool
-    init_rule = InitToolRule(tool_name=START_TOOL)
-    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[], terminal_tool_rules=[])
+# def test_get_allowed_tool_names_no_matching_rule_warning():
+#     # Setup: Tool rules with no matching rule for the last tool
+#     init_rule = InitToolRule(tool_name=START_TOOL)
+#     solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[], terminal_tool_rules=[])
 
-    # Action: Set last tool to an unrecognized tool and check warnings
-    solver.update_tool_usage(UNRECOGNIZED_TOOL)
+#     # Action: Set last tool to an unrecognized tool and check warnings
+#     solver.update_tool_usage(UNRECOGNIZED_TOOL)
 
     # NOTE: removed for now since this warning is getting triggered on every LLM call
     # with warnings.catch_warnings(record=True) as w:
@@ -104,7 +112,65 @@ def test_update_tool_usage_and_get_allowed_tool_names_combined():
     assert solver.is_terminal_tool(FINAL_TOOL) is True, "Should recognize 'final_tool' as terminal"
 
 
-def test_tool_rules_with_cycle_detection():
+def test_conditional_tool_rule():
+    # Setup: Define a conditional tool rule
+    init_rule = InitToolRule(tool_name=START_TOOL)
+    terminal_rule = TerminalToolRule(tool_name=END_TOOL)
+    rule = ConditionalToolRule(
+        tool_name=START_TOOL,
+        children=[START_TOOL, END_TOOL],
+        default_child=END_TOOL,
+        child_output_mapping={True: END_TOOL, False: START_TOOL}
+    )
+    solver = ToolRulesSolver(tool_rules=[init_rule, rule, terminal_rule])
+
+    # Action & Assert: Verify the rule properties
+    # Step 1: Initially allowed tools
+    assert solver.get_allowed_tool_names() == [START_TOOL], "Initial allowed tool should be 'start_tool'"
+
+    # Step 2: After using 'start_tool'
+    solver.update_tool_usage(START_TOOL)
+    assert set(solver.get_allowed_tool_names()) == set({END_TOOL, START_TOOL}), "After 'start_tool', should allow 'start_tool' or 'end_tool'"
+
+    # Step 3: After using 'end_tool'
+    assert solver.is_terminal_tool(END_TOOL) is True, "Should recognize 'end_tool' as terminal"
+
+
+def test_invalid_conditional_tool_rule():
+    # Setup: Define an invalid conditional tool rule
+    init_rule = InitToolRule(tool_name=START_TOOL)
+    terminal_rule = TerminalToolRule(tool_name=END_TOOL)
+    invalid_rule_1 = ConditionalToolRule(
+        tool_name=START_TOOL,
+        children=[START_TOOL],
+        default_child=END_TOOL,
+        child_output_mapping={True: END_TOOL, False: START_TOOL}
+    )
+    invalid_rule_2 = ConditionalToolRule(
+        tool_name=START_TOOL,
+        children=[START_TOOL, END_TOOL],
+        default_child=END_TOOL,
+        child_output_mapping={True: END_TOOL}
+    )
+    invalid_rule_3 = ConditionalToolRule(
+        tool_name=START_TOOL,
+        children=[START_TOOL, FINAL_TOOL],
+        default_child=FINAL_TOOL,
+        child_output_mapping={True: END_TOOL, False: START_TOOL}
+    )
+
+    # Test 1: Missing child output mapping
+    with pytest.raises(ToolRuleValidationError, match="Conditional tool rule must have a child output mapping for each child tool."):
+        ToolRulesSolver(tool_rules=[init_rule, invalid_rule_1, terminal_rule])
+    with pytest.raises(ToolRuleValidationError, match="Conditional tool rule must have a child output mapping for each child tool."):
+        ToolRulesSolver(tool_rules=[init_rule, invalid_rule_2, terminal_rule])
+
+    # Test 2: Missing child
+    with pytest.raises(ToolRuleValidationError, match="Conditional tool rule must have a child output mapping for each child tool."):
+        ToolRulesSolver(tool_rules=[init_rule, invalid_rule_3, terminal_rule])
+
+
+def test_tool_rules_with_invalid_path():
     # Setup: Define tool rules with both connected, disconnected nodes and a cycle
     init_rule = InitToolRule(tool_name=START_TOOL)
     rule_1 = ChildToolRule(tool_name=START_TOOL, children=[NEXT_TOOL])
@@ -114,14 +180,14 @@ def test_tool_rules_with_cycle_detection():
     terminal_rule = TerminalToolRule(tool_name=END_TOOL)
 
     # Action & Assert: Attempt to create the ToolRulesSolver with a cycle should raise ValidationError
-    with pytest.raises(ToolRuleValidationError, match="Tool rules contain cycles"):
+    with pytest.raises(ToolRuleValidationError, match="Tool rules does not have a path from Init to Terminal."):
         ToolRulesSolver(tool_rules=[init_rule, rule_1, rule_2, rule_3, rule_4, terminal_rule])
 
-    # Extra setup: Define tool rules without a cycle but with hanging nodes
-    rule_5 = ChildToolRule(tool_name=PREP_TOOL, children=[FINAL_TOOL])  # Hanging node with no connection to start_tool
-
-    # Assert that a configuration without cycles does not raise an error
-    try:
-        ToolRulesSolver(tool_rules=[init_rule, rule_1, rule_2, rule_4, rule_5, terminal_rule])
-    except ToolRuleValidationError:
-        pytest.fail("ToolRulesSolver raised ValidationError unexpectedly on a valid DAG with hanging nodes")
+    # Now: add a path from the start tool to the final tool
+    rule_5 = ConditionalToolRule(
+        tool_name=HELPER_TOOL,
+        children=[START_TOOL, FINAL_TOOL],
+        default_child=FINAL_TOOL,
+        child_output_mapping={True: START_TOOL, False: FINAL_TOOL},
+    )
+    ToolRulesSolver(tool_rules=[init_rule, rule_1, rule_2, rule_3, rule_4, rule_5, terminal_rule])
