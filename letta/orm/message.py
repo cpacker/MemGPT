@@ -1,5 +1,6 @@
 from typing import Optional
 
+from sqlalchemy import Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from letta.orm.custom_columns import ToolCallColumn
@@ -13,7 +14,7 @@ class Message(SqlalchemyBase, OrganizationMixin, AgentMixin):
     """Defines data model for storing Message objects"""
 
     __tablename__ = "messages"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (Index("ix_messages_agent_created_at", "agent_id", "created_at"),)
     __pydantic_model__ = PydanticMessage
 
     id: Mapped[str] = mapped_column(primary_key=True, doc="Unique message identifier")
