@@ -1467,7 +1467,7 @@ class RESTClient(AbstractClient):
         return response.json()
 
     def add_base_tools(self) -> List[Tool]:
-        response = requests.post(f"{self.base_url}/{self.api_prefix}/tools/add-base-tools/", headers=self.headers)
+        response = requests.post(f"{self.base_url}/{self.api_prefix}/tools/upsert-base-tools/", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to add base tools: {response.text}")
 
