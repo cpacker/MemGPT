@@ -74,6 +74,20 @@ class LocalLLMConnectionError(LettaError):
         super().__init__(self.message)
 
 
+class SummarizationError(LettaError):
+    """Error raised when the summarization process fails."""
+
+    def __init__(self, message: str, num_candidate_messages: int, num_total_messages: int, preserve_N: int):
+        self.message = message
+        self.num_candidate_messages = num_candidate_messages
+        self.num_total_messages = num_total_messages
+        self.preserve_N = preserve_N
+        super().__init__(self.message)
+
+    def __str__(self):
+        return f"{self.message} (num_candidate_messages={self.num_candidate_messages}, num_total_messages={self.num_total_messages}, preserve_N={self.preserve_N})"
+
+
 class LettaMessageError(LettaError):
     """Base error class for handling message-related errors."""
 
