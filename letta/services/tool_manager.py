@@ -133,7 +133,7 @@ class ToolManager:
                 raise ValueError(f"Tool with id {tool_id} not found.")
 
     @enforce_types
-    def add_base_tools(self, actor: PydanticUser) -> List[PydanticTool]:
+    def upsert_base_tools(self, actor: PydanticUser) -> List[PydanticTool]:
         """Add default tools in base.py"""
         module_name = "base"
         full_module_name = f"letta.functions.function_sets.{module_name}"
