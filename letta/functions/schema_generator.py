@@ -397,19 +397,38 @@ def generate_schema(function, name: Optional[str] = None, description: Optional[
 
 
 def generate_schema_from_args_schema_v1(
-    args_schema: Type[V1BaseModel], name: Optional[str] = None, description: Optional[str] = None, append_heartbeat: bool = True
+    args_schema: Type[V1BaseModel], 
+    name: Optional[str] = None, 
+    description: Optional[str] = None, 
+    append_heartbeat: bool = True
 ) -> Dict[str, Any]:
+    """
+    Generate a JSON schema from a Pydantic V1 model.
+
+    Args:
+        args_schema (Type[V1BaseModel]): The Pydantic model to generate the schema from.
+        name (Optional[str]): The name of the schema.
+        description (Optional[str]): The description of the schema.
+        append_heartbeat (bool): Whether to append a heartbeat parameter.
+
+    Returns:
+        Dict[str, Any]: The generated JSON schema.
+    """
+    # Mapping of Python types to JSON schema types
+    type_map = {
+        str: "string",
+        int: "integer",
+        bool: "boolean",
+        # Add more mappings as needed
+    }
+
     properties = {}
     required = []
+
     for field_name, field in args_schema.__fields__.items():
-        if field.type_ == str:
-            field_type = "string"
-        elif field.type_ == int:
-            field_type = "integer"
-        elif field.type_ == bool:
-            field_type = "boolean"
-        else:
-            field_type = field.type_.__name__
+        field_type = type_map.get(field.type_, field.type_.__name__)
+        if field_type is None:
+            raise TypeError(f"Unsupported field type: {field.type_}")
 
         properties[field_name] = {
             "type": field_type,
@@ -435,20 +454,37 @@ def generate_schema_from_args_schema_v1(
 
 
 def generate_schema_from_args_schema_v2(
-    args_schema: Type[BaseModel], name: Optional[str] = None, description: Optional[str] = None, append_heartbeat: bool = True
+    args_schema: Type[BaseModel], 
+    name: Optional[str] = None, 
+    description: Optional[str] = None, 
+    append_heartbeat: bool = True
 ) -> Dict[str, Any]:
+    """
+    Generate a JSON schema from a Pydantic V2 model.
+
+    Args:
+        args_schema (Type[BaseModel]): The Pydantic model to generate the schema from.
+        name (Optional[str]): The name of the schema.
+        description (Optional[str]): The description of the schema.
+        append_heartbeat (bool): Whether to append a heartbeat parameter.
+
+    Returns:
+        Dict[str, Any]: The generated JSON schema.
+    """
+    type_map = {
+        str: "string",
+        int: "integer",
+        bool: "boolean",
+        # Add more mappings as needed
+    }
+
     properties = {}
     required = []
+
     for field_name, field in args_schema.model_fields.items():
-        field_type_annotation = field.annotation
-        if field_type_annotation == str:
-            field_type = "string"
-        elif field_type_annotation == int:
-            field_type = "integer"
-        elif field_type_annotation == bool:
-            field_type = "boolean"
-        else:
-            field_type = field_type_annotation.__name__
+        field_type = type_map.get(field.annotation, field.annotation.__name__)
+        if field_type is None:
+            raise TypeError(f"Unsupported field type: {field.annotation}")
 
         properties[field_name] = {
             "type": field_type,
