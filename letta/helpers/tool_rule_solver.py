@@ -1,3 +1,4 @@
+import json
 from typing import Dict, List, Optional, Union
 from collections import deque
 
@@ -58,7 +59,7 @@ class ToolRulesSolver(BaseModel):
         """Update the internal state to track the last tool called."""
         self.last_tool_name = tool_name
 
-    def get_allowed_tool_names(self, error_on_empty: bool = False) -> List[str]:
+    def get_allowed_tool_names(self, error_on_empty: bool = False, last_function_response: Optional[str] = None) -> List[str]:
         """Get a list of tool names allowed based on the last tool called."""
         if self.last_tool_name is None:
             # Use initial tool rules if no tool has been called yet
@@ -67,17 +68,19 @@ class ToolRulesSolver(BaseModel):
             # Find a matching ToolRule for the last tool used
             current_rule = next((rule for rule in self.tool_rules if rule.tool_name == self.last_tool_name), None)
 
-            # Return children which must exist on ToolRule
-            if current_rule:
-                return current_rule.children
-
-            # Default to empty if no rule matches
-            message = "User provided tool rules and execution state resolved to no more possible tool calls."
-            if error_on_empty:
-                raise RuntimeError(message)
-            else:
-                # warnings.warn(message)
+            if current_rule is None:
+                if error_on_empty:
+                    raise ValueError(f"No tool rule found for {self.last_tool_name}")
                 return []
+
+            # If the current rule is a conditional tool rule, use the LLM response to
+            # determine which child tool to use
+            if isinstance(current_rule, ConditionalToolRule):
+                if not last_function_response:
+                    raise ValueError("Conditional tool rule requires an LLM response to determine which child tool to use")
+                return [self.evaluate_conditional_tool(current_rule, last_function_response)]
+
+            return current_rule.children if current_rule.children else []
 
     def is_terminal_tool(self, tool_name: str) -> bool:
         """Check if the tool is defined as a terminal tool in the terminal tool rules."""
@@ -88,6 +91,15 @@ class ToolRulesSolver(BaseModel):
         return any(rule.tool_name == tool_name for rule in self.tool_rules)
 
     def validate_conditional_tool(self, rule: ConditionalToolRule):
+        '''
+        Validate a conditional tool rule
+
+        Args:
+            rule (ConditionalToolRule): The conditional tool rule to validate
+
+        Raises:
+            ToolRuleValidationError: If the rule is invalid
+        '''
         if rule.children is None or len(rule.children) == 0:
             raise ToolRuleValidationError("Conditional tool rule must have at least one child tool.")
         if len(rule.children) != len(rule.child_output_mapping):
@@ -142,3 +154,40 @@ class ToolRulesSolver(BaseModel):
                 return False
 
         return True  # All init tools have paths to terminal tools
+
+    def evaluate_conditional_tool(self, tool: ConditionalToolRule, last_function_response: str) -> str:
+        '''
+        Parse function response to determine which child tool to use based on the mapping
+
+        Args:
+            tool (ConditionalToolRule): The conditional tool rule
+            last_function_response (str): The function response in JSON format
+
+        Returns:
+            str: The name of the child tool to use next
+        '''
+        json_response = json.loads(last_function_response)
+        function_output = json_response["message"]
+
+        # Try to match the function output with a mapping key
+        for key in tool.child_output_mapping:
+
+            # Convert function output to match key type for comparison
+            if key == "true" or key == "false":
+                try:
+                    typed_output = function_output.lower()
+                except AttributeError:
+                    continue
+            elif isinstance(key, int):
+                try:
+                    typed_output = int(function_output)
+                except (ValueError, TypeError):
+                    continue
+            else:  # string
+                typed_output = str(function_output)
+
+            if typed_output == key:
+                return tool.child_output_mapping[key]
+
+        # If no match found, use default
+        return tool.default_child
