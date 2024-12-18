@@ -34,6 +34,14 @@ class MessageManager:
         with self.session_maker() as session:
             # Set the organization id of the Pydantic message
             pydantic_msg.organization_id = actor.organization_id
+
+            # TODO: remove hack. Need to migrate DB message's text to content type
+            if isinstance(pydantic_msg.text, list):
+                text_parts = [part for part in pydantic_msg.text if part.type == "text"]
+                if len(text_parts) != 1:
+                    raise Exception(f"Expected a single text-type message in content, but got {text_parts}")
+                pydantic_msg.text = text_parts[0].text
+
             msg_data = pydantic_msg.model_dump()
             msg = MessageModel(**msg_data)
             msg.create(session, actor=actor)  # Persist to database

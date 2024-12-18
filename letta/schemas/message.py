@@ -2,7 +2,7 @@ import copy
 import json
 import warnings
 from datetime import datetime, timezone
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -49,6 +49,10 @@ def add_inner_thoughts_to_tool_call(
         warnings.warn(f"Failed to put inner thoughts in kwargs: {e}")
         raise e
 
+class MultiMediaContentPart(BaseModel):
+    type: str
+    text: Optional[str] = None
+    image_url: Optional[dict] = None
 
 class BaseMessage(OrmMetadataBase):
     __id_prefix__ = "message"
@@ -62,7 +66,7 @@ class MessageCreate(BaseModel):
         MessageRole.user,
         MessageRole.system,
     ] = Field(..., description="The role of the participant.")
-    text: str = Field(..., description="The text of the message.")
+    text: Union[str, list[MultiMediaContentPart]] = Field(..., description="The text of the message, and optionally any images")
     name: Optional[str] = Field(None, description="The name of the participant.")
 
 
@@ -70,7 +74,7 @@ class MessageUpdate(BaseModel):
     """Request to update a message"""
 
     role: Optional[MessageRole] = Field(None, description="The role of the participant.")
-    text: Optional[str] = Field(None, description="The text of the message.")
+    text: Union[str, list[MultiMediaContentPart]] = Field(..., description="The text of the message, and optionally any images")
     # NOTE: probably doesn't make sense to allow remapping user_id or agent_id (vs creating a new message)
     # user_id: Optional[str] = Field(None, description="The unique identifier of the user.")
     # agent_id: Optional[str] = Field(None, description="The unique identifier of the agent.")
@@ -90,8 +94,8 @@ class Message(BaseMessage):
     Attributes:
         id (str): The unique identifier of the message.
         role (MessageRole): The role of the participant.
-        text (str): The text of the message.
-        user_id (str): The unique identifier of the user.
+        text (str|List[MultiMediaContentPart]): The text of the message, and optionally any images
+        organization_id (str): The unique identifier of the organization.
         agent_id (str): The unique identifier of the agent.
         model (str): The model used to make the function call.
         name (str): The name of the participant.
@@ -103,7 +107,8 @@ class Message(BaseMessage):
 
     id: str = BaseMessage.generate_id_field()
     role: MessageRole = Field(..., description="The role of the participant.")
-    text: Optional[str] = Field(None, description="The text of the message.")
+    # TODO: needs to be renamed to content
+    text: Union[str, list[MultiMediaContentPart]] = Field(..., description="The text of the message, and optionally any images")
     organization_id: Optional[str] = Field(None, description="The unique identifier of the organization.")
     agent_id: Optional[str] = Field(None, description="The unique identifier of the agent.")
     model: Optional[str] = Field(None, description="The model used to make the function call.")
@@ -422,7 +427,8 @@ class Message(BaseMessage):
         elif self.role == "user":
             assert all([v is not None for v in [self.text, self.role]]), vars(self)
             openai_message = {
-                "content": self.text,
+                "content": self.text if isinstance(self.text, str)
+                    else [part.model_dump(exclude_none=True) for part in self.text],
                 "role": self.role,
             }
             # Optional field, do not include if null

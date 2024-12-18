@@ -726,9 +726,17 @@ class SyncServer(Server):
             for message in messages:
                 assert isinstance(message, MessageCreate)
 
-                # If wrapping is eanbled, wrap with metadata before placing content inside the Message object
+                # If wrapping is enabled, wrap with metadata before placing content inside the Message object
                 if message.role == MessageRole.user and wrap_user_message:
-                    message.text = system.package_user_message(user_message=message.text)
+                    packaged_text = system.package_user_message(user_message=message.text)
+                    if isinstance(message.text, str):
+                        message.text = packaged_text
+                    else:
+                        # find the text part and update it
+                        text_parts = [part for part in message.text if part.type == "text"]
+                        if len(text_parts) != 1:
+                            raise Exception(f"Expected a single text-type message in content, but got {text_parts}")
+                        text_parts[0].text = packaged_text
                 elif message.role == MessageRole.system and wrap_system_message:
                     message.text = system.package_system_message(system_message=message.text)
                 else:

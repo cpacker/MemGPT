@@ -34,7 +34,7 @@ from letta.schemas.memory import (
     Memory,
     RecallMemorySummary,
 )
-from letta.schemas.message import Message, MessageCreate, MessageUpdate
+from letta.schemas.message import Message, MessageCreate, MessageUpdate, MultiMediaContentPart
 from letta.schemas.openai.chat_completions import ToolCall
 from letta.schemas.organization import Organization
 from letta.schemas.passage import Passage
@@ -145,7 +145,7 @@ class AbstractClient(object):
 
     def send_message(
         self,
-        message: str,
+        message: Union[str, list[MultiMediaContentPart]],
         role: str,
         agent_id: Optional[str] = None,
         name: Optional[str] = None,
@@ -155,7 +155,7 @@ class AbstractClient(object):
     ) -> LettaResponse:
         raise NotImplementedError
 
-    def user_message(self, agent_id: str, message: str) -> LettaResponse:
+    def user_message(self, agent_id: str, message: Union[str, list[MultiMediaContentPart]]) -> LettaResponse:
         raise NotImplementedError
 
     def create_human(self, name: str, text: str) -> Human:
@@ -848,7 +848,7 @@ class RESTClient(AbstractClient):
 
     # agent interactions
 
-    def user_message(self, agent_id: str, message: str) -> LettaResponse:
+    def user_message(self, agent_id: str, message: Union[str, list[MultiMediaContentPart]]) -> LettaResponse:
         """
         Send a message to an agent as a user
 
@@ -946,7 +946,7 @@ class RESTClient(AbstractClient):
 
     def send_message(
         self,
-        message: str,
+        message: Union[str, list[MultiMediaContentPart]],
         role: str,
         agent_id: Optional[str] = None,
         name: Optional[str] = None,
@@ -2453,7 +2453,7 @@ class LocalClient(AbstractClient):
 
     def send_message(
         self,
-        message: str,
+        message: Union[str, list[MultiMediaContentPart]],
         role: str,
         name: Optional[str] = None,
         agent_id: Optional[str] = None,
@@ -2465,7 +2465,7 @@ class LocalClient(AbstractClient):
         Send a message to an agent
 
         Args:
-            message (str): Message to send
+            message (str|list[MultiMediaContentPart): Message to send
             role (str): Role of the message
             agent_id (str): ID of the agent
             name(str): Name of the sender
@@ -2510,7 +2510,7 @@ class LocalClient(AbstractClient):
 
         return LettaResponse(messages=letta_messages, usage=usage)
 
-    def user_message(self, agent_id: str, message: str) -> LettaResponse:
+    def user_message(self, agent_id: str, message: Union[str, list[MultiMediaContentPart]]) -> LettaResponse:
         """
         Send a message to an agent as a user
 
