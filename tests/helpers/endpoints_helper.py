@@ -64,6 +64,7 @@ def setup_agent(
     tool_ids: Optional[List[str]] = None,
     tool_rules: Optional[List[BaseToolRule]] = None,
     agent_uuid: str = agent_uuid,
+    include_base_tools: bool = True,
 ) -> AgentState:
     config_data = json.load(open(filename, "r"))
     llm_config = LLMConfig(**config_data)
@@ -77,7 +78,7 @@ def setup_agent(
 
     memory = ChatMemory(human=memory_human_str, persona=memory_persona_str)
     agent_state = client.create_agent(
-        name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config, memory=memory, tool_ids=tool_ids, tool_rules=tool_rules
+        name=agent_uuid, llm_config=llm_config, embedding_config=embedding_config, memory=memory, tool_ids=tool_ids, tool_rules=tool_rules, include_base_tools=include_base_tools,
     )
 
     return agent_state
