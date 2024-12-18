@@ -151,7 +151,7 @@ def update_tool(
     return server.tool_manager.update_tool_by_id(tool_id=tool_id, tool_update=request, actor=actor)
 
 
-@router.post("/upsert-base-tools", response_model=List[Tool], operation_id="upsert_base_tools")
+@router.post("/add-base-tools", response_model=List[Tool], operation_id="add_base_tools")
 def upsert_base_tools(
     server: SyncServer = Depends(get_letta_server),
     user_id: Optional[str] = Header(None, alias="user_id"),  # Extract user_id from header, default to None if not present
