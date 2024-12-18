@@ -5,7 +5,7 @@ from typing import List, Optional, Union
 import requests
 
 from letta.constants import CLI_WARNING_PREFIX
-from letta.errors import LettaConfigurationError
+from letta.errors import LettaConfigurationError, RateLimitExceededError
 from letta.llm_api.anthropic import anthropic_chat_completions_request
 from letta.llm_api.azure_openai import azure_openai_chat_completions_request
 from letta.llm_api.google_ai import (
@@ -80,7 +80,7 @@ def retry_with_exponential_backoff(
 
                     # Check if max retries has been reached
                     if num_retries > max_retries:
-                        raise Exception(f"Maximum number of retries ({max_retries}) exceeded.")
+                        raise RateLimitExceededError("Maximum number of retries exceeded", max_retries=max_retries)
 
                     # Increment the delay
                     delay *= exponential_base * (1 + jitter * random.random())

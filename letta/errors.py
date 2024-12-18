@@ -97,6 +97,18 @@ class ContextWindowExceededError(LettaError):
         )
 
 
+class RateLimitExceededError(LettaError):
+    """Error raised when the llm rate limiter throttles api requests."""
+
+    def __init__(self, message: str, max_retries: int):
+        error_message = f"{message} ({max_retries})"
+        super().__init__(
+            message=error_message,
+            code=ErrorCode.RATE_LIMIT_EXCEEDED,
+            details={"max_retries": max_retries},
+        )
+
+
 class LettaMessageError(LettaError):
     """Base error class for handling message-related errors."""
 

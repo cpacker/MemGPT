@@ -8,7 +8,7 @@ from typing import AsyncGenerator, Optional, Union
 from fastapi import Header
 from pydantic import BaseModel
 
-from letta.errors import ContextWindowExceededError
+from letta.errors import ContextWindowExceededError, RateLimitExceededError
 from letta.schemas.usage import LettaUsageStatistics
 from letta.server.rest_api.interface import StreamingServerInterface
 from letta.server.server import SyncServer
@@ -64,6 +64,10 @@ async def sse_async_generator(
                 yield sse_formatter({"usage": usage.model_dump()})
 
             except ContextWindowExceededError as e:
+                log_error_to_sentry(e)
+                yield sse_formatter({"error": f"Stream failed: {e}", "code": str(e.code.value) if e.code else None})
+
+            except RateLimitExceededError as e:
                 log_error_to_sentry(e)
                 yield sse_formatter({"error": f"Stream failed: {e}", "code": str(e.code.value) if e.code else None})
 
