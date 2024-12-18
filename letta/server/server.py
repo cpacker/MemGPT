@@ -825,39 +825,35 @@ class SyncServer(Server):
         in_memory_agent_state = self.agent_manager.get_agent_by_id(agent_state.id, actor=actor)
         return in_memory_agent_state
 
-    # TODO: This is not good!
-    # TODO: Ideally, this should ALL be handled by the ORM
-    # TODO: The main blocker here IS the _message updates
-    # def update_agent(
-    #    self,
-    #    agent_id: str,
-    #    request: UpdateAgent,
-    #    actor: User,
-    # ) -> AgentState:
-    #    """Update the agents core memory block, return the new state"""
-    #    # Update agent state in the db first
-    #    agent_state = self.agent_manager.update_agent(agent_id=agent_id, agent_update=request, actor=actor)
+        # TODO: This is not good!
+        # TODO: Ideally, this should ALL be handled by the ORM
+        # TODO: The main blocker here IS the _message updates
+        # def update_agent(
+        #    self,
+        #    agent_id: str,
+        #    request: UpdateAgent,
+        #    actor: User,
+        # ) -> AgentState:
+        #    """Update the agents core memory block, return the new state"""
+        #    # Update agent state in the db first
+        #    agent_state = self.agent_manager.update_agent(agent_id=agent_id, agent_update=request, actor=actor)
 
-    #    # Get the agent object (loaded in memory)
-    #    letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
+        #    # Get the agent object (loaded in memory)
+        #    letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
 
-    #    # TODO: Everything below needs to get removed, no updating anything in memory
-    #    # update the system prompt
-    #    if request.system:
-    #        letta_agent.update_system_prompt(request.system)
+        #    # TODO: Everything below needs to get removed, no updating anything in memory
+        #    # update the system prompt
+        #    if request.system:
+        #        letta_agent.update_system_prompt(request.system)
 
-    #    # update in-context messages
-    #    if request.message_ids:
-    #        # This means the user is trying to change what messages are in the message buffer
-    #        # Internally this requires (1) pulling from recall,
-    #        # then (2) setting the attributes ._messages and .state.message_ids
-    #        letta_agent.set_message_buffer(message_ids=request.message_ids)
+        #    # update in-context messages
+        #    if request.message_ids:
+        #        # This means the user is trying to change what messages are in the message buffer
+        #        # Internally this requires (1) pulling from recall,
+        #        # then (2) setting the attributes ._messages and .state.message_ids
+        #        letta_agent.set_message_buffer(message_ids=request.message_ids)
 
-    #    # tools
-    #    if request.tool_ids:
-    #        letta_agent.link_tools(letta_agent.agent_state.tools)
-
-    #    letta_agent.update_state()
+        letta_agent.update_state()
 
     #    return agent_state
 
@@ -1327,7 +1323,7 @@ class SyncServer(Server):
 
     def run_tool_from_source(
         self,
-        user_id: str,
+        actor: User,
         tool_args: str,
         tool_source: str,
         tool_source_type: Optional[str] = None,
@@ -1355,7 +1351,7 @@ class SyncServer(Server):
 
         # Next, attempt to run the tool with the sandbox
         try:
-            sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id, tool_object=tool).run(agent_state=agent_state)
+            sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, actor, tool_object=tool).run(agent_state=agent_state)
             return FunctionReturn(
                 id="null",
                 function_call_id="null",

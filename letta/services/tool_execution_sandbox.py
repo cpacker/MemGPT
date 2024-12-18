@@ -16,9 +16,9 @@ from letta.log import get_logger
 from letta.schemas.agent import AgentState
 from letta.schemas.sandbox_config import SandboxConfig, SandboxRunResult, SandboxType
 from letta.schemas.tool import Tool
+from letta.schemas.user import User
 from letta.services.sandbox_config_manager import SandboxConfigManager
 from letta.services.tool_manager import ToolManager
-from letta.services.user_manager import UserManager
 from letta.settings import tool_settings
 from letta.utils import get_friendly_error_msg
 
@@ -38,14 +38,10 @@ class ToolExecutionSandbox:
     # We make this a long random string to avoid collisions with any variables in the user's code
     LOCAL_SANDBOX_RESULT_VAR_NAME = "result_ZQqiequkcFwRwwGQMqkt"
 
-    def __init__(self, tool_name: str, args: dict, user_id: str, force_recreate=False, tool_object: Optional[Tool] = None):
+    def __init__(self, tool_name: str, args: dict, user: User, force_recreate=False, tool_object: Optional[Tool] = None):
         self.tool_name = tool_name
         self.args = args
-
-        # Get the user
-        # This user corresponds to the agent_state's user_id field
-        # agent_state is the state of the agent that invoked this run
-        self.user = UserManager().get_user_by_id(user_id=user_id)
+        self.user = user
 
         # If a tool object is provided, we use it directly, otherwise pull via name
         if tool_object is not None:
@@ -184,7 +180,9 @@ class ToolExecutionSandbox:
         except subprocess.CalledProcessError as e:
             logger.error(f"Executing tool {self.tool_name} has process error: {e}")
             func_return = get_friendly_error_msg(
-                function_name=self.tool_name, exception_name=type(e).__name__, exception_message=str(e),
+                function_name=self.tool_name,
+                exception_name=type(e).__name__,
+                exception_message=str(e),
             )
             return SandboxRunResult(
                 func_return=func_return,
@@ -202,9 +200,7 @@ class ToolExecutionSandbox:
             logger.error(f"Executing tool {self.tool_name} has an unexpected error: {e}")
             raise e
 
-    def run_local_dir_sandbox_runpy(
-        self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str
-    ) -> SandboxRunResult:
+    def run_local_dir_sandbox_runpy(self, sbx_config: SandboxConfig, env_vars: Dict[str, str], temp_file_path: str) -> SandboxRunResult:
         status = "success"
         agent_state, stderr = None, None
 
@@ -225,9 +221,7 @@ class ToolExecutionSandbox:
             func_return, agent_state = self.parse_best_effort(func_result)
 
         except Exception as e:
-            func_return = get_friendly_error_msg(
-                function_name=self.tool_name, exception_name=type(e).__name__, exception_message=str(e)
-            )
+            func_return = get_friendly_error_msg(function_name=self.tool_name, exception_name=type(e).__name__, exception_message=str(e))
             traceback.print_exc(file=sys.stderr)
             status = "error"
 
@@ -248,7 +242,7 @@ class ToolExecutionSandbox:
 
     def parse_out_function_results_markers(self, text: str):
         if self.LOCAL_SANDBOX_RESULT_START_MARKER not in text:
-            return '', text
+            return "", text
         marker_len = len(self.LOCAL_SANDBOX_RESULT_START_MARKER)
         start_index = text.index(self.LOCAL_SANDBOX_RESULT_START_MARKER) + marker_len
         end_index = text.index(self.LOCAL_SANDBOX_RESULT_END_MARKER)
@@ -293,6 +287,7 @@ class ToolExecutionSandbox:
         env_vars = self.sandbox_config_manager.get_sandbox_env_vars_as_dict(sandbox_config_id=sbx_config.id, actor=self.user, limit=100)
         code = self.generate_execution_script(agent_state=agent_state)
         execution = sbx.run_code(code, envs=env_vars)
+
         if execution.results:
             func_return, agent_state = self.parse_best_effort(execution.results[0].text)
         elif execution.error:
@@ -303,7 +298,7 @@ class ToolExecutionSandbox:
             execution.logs.stderr.append(execution.error.traceback)
         else:
             raise ValueError(f"Tool {self.tool_name} returned execution with None")
-        
+
         return SandboxRunResult(
             func_return=func_return,
             agent_state=agent_state,
