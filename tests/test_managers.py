@@ -1461,7 +1461,7 @@ def test_delete_tool_by_id(server: SyncServer, print_tool, default_user):
     assert len(tools) == 0
 
 
-def test_add_base_tools(server: SyncServer, default_user):
+def test_upsert_base_tools(server: SyncServer, default_user):
     tools = server.tool_manager.upsert_base_tools(actor=default_user)
     expected_tool_names = sorted(BASE_TOOLS + BASE_MEMORY_TOOLS)
     assert sorted([t.name for t in tools]) == expected_tool_names
