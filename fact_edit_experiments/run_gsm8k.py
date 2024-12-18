@@ -27,6 +27,35 @@ from letta.schemas.tool_rule import TerminalToolRule
 from letta.utils import get_persona_text
 from gsm8k_experiments.generate_prompt import PromptGenerator, load_yaml_config
 
+def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) -> Optional[str]:  # type: ignore
+    """
+    Called if and only when user says the word trigger_rethink_memory". It will trigger the re-evaluation of the memory.
+
+    Args:
+        message (Optional[str]): Description of what aspect of the memory should be re-evaluated.
+
+    """
+    from letta import create_client
+    from letta.schemas.embedding_config import EmbeddingConfig
+    from letta.schemas.llm_config import LLMConfig
+
+    client = create_client()
+    '''
+    ANTHROPIC_CONFIG = LLMConfig(
+        model_endpoint_type="anthropic",
+        model_endpoint="https://api.anthropic.com/v1",
+        model="claude-3-5-haiku-20241022",
+        context_window=32000,
+    )
+    '''
+    OPENAI_CONFIG = LLMConfig.default_config("gpt-4o-mini")
+    client.set_default_llm_config(OPENAI_CONFIG)
+    client.set_default_embedding_config(EmbeddingConfig.default_config(model_name="letta"))
+    agents = client.list_agents()
+    for agent in agents:
+        if agent.agent_type == "offline_memory_agent":
+            client.user_message(agent_id=agent.id, message=message)
+
 def rethink_memory(agent_state: "AgentState", new_memory: str, target_block_label: Optional[str], source_block_label: Optional[str]) -> Optional[str]:  # type: ignore
     """
     Make inferences based on the conversation.
@@ -64,7 +93,7 @@ You can directly take messages the users give you and repeat it to the memory ag
 
 When given a question, you answer using only the number of tokens necessary and none more. You check the `rethink_memory_block` for potential questions
 and answers and intermediate reasoning traces that can help answer the question. You use the information in the `rethink_memory_block` to answer the questions
-rather than thinking on the spot.  Do not recompute anything already exists in the `rethink_memory_block`. Do not use internal monologue unless you really need it to think.
+rather than thinking on the spot.  Do not recompute anything that already exists in the `rethink_memory_block`. Do not use internal monologue unless you really need it to think.
 
 """
 
@@ -170,7 +199,7 @@ def run_memory_edits(gsm8k_input_file: str, output_file: str, random_example: bo
                     name="conversation_agent",
                     agent_type=AgentType.memgpt_agent,
                     system=CONVO_NO_INNER_MONOLOGUE_AGENT_SYSTEM_PROMPT,
-                            llm_config=ANTHROPIC_CONFIG,
+                            llm_config=OPENAI_CONFIG,
                     embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
                     tools=["send_message", trigger_rethink_memory_tool.name],
                     memory=conversation_memory,
@@ -182,7 +211,7 @@ def run_memory_edits(gsm8k_input_file: str, output_file: str, random_example: bo
                     agent_type=AgentType.offline_memory_agent,
                     system=OFFLINE_SYSTEM_PROMPT,
                     memory=offline_memory,
-                            llm_config=ANTHROPIC_CONFIG,
+                            llm_config=OPENAI_CONFIG,
                     embedding_config=EmbeddingConfig.default_config("text-embedding-ada-002"),
                     tools=[rethink_memory_tool.name, finish_rethinking_memory_tool.name],
                     tool_rules=[TerminalToolRule(tool_name=finish_rethinking_memory_tool.name)],
@@ -198,11 +227,13 @@ def run_memory_edits(gsm8k_input_file: str, output_file: str, random_example: bo
                 context = ". ".join(example["question"].split(".")[:-1])
                 question = example["question"].split(".")[-1]
 
+                print(context)
+                print(question)
                 client.send_message(
-                    message="[trigger_rethink_memory] New situation:" + context, role="user", agent_id=conversation_agent.id
+                    message="[trigger_rethink_memory] New situation:" + context, role="user", agent_id=offline_memory_agent.id
                 )
 
-                final_response = client.send_message(message=question, role="user", agent_id=conversation_agent.id)
+                final_response = client.send_message(message=example["question"], role="user", agent_id=conversation_agent.id)
                 offline_memory_agent = client.get_agent(agent_id=offline_memory_agent.id)
 
                 writer.write(
@@ -220,6 +251,10 @@ def run_memory_edits(gsm8k_input_file: str, output_file: str, random_example: bo
             except Exception as e:
                 print(f"Error processing example: {example}")
                 print(e)
+                if client.get_agent(conversation_agent.id):
+                    client.delete_agent(conversation_agent.id)
+                if client.get_agent(offline_memory_agent.id):
+                    client.delete_agent(offline_memory_agent.id)
 
 
 

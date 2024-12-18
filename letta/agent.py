@@ -614,6 +614,7 @@ class Agent(BaseAgent):
 
                 # These bottom two are retryable
                 if len(response.choices) == 0 or response.choices[0] is None:
+                    import pdb; pdb.set_trace()
                     raise ValueError(f"API call returned an empty message: {response}")
 
                 if response.choices[0].finish_reason not in ["stop", "function_call", "tool_calls"]:

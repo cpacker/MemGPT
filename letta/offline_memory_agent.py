@@ -22,12 +22,14 @@ def trigger_rethink_memory(agent_state: "AgentState", message: Optional[str]) ->
     from letta.schemas.llm_config import LLMConfig
 
     client = create_client()
+    '''
     ANTHROPIC_CONFIG = LLMConfig(
         model_endpoint_type="anthropic",
         model_endpoint="https://api.anthropic.com/v1",
         model="claude-3-5-haiku-20241022",
         context_window=32000,
     )
+    '''
     client.set_default_llm_config(ANTHROPIC_CONFIG)
     client.set_default_embedding_config(EmbeddingConfig.default_config(model_name="letta"))
     agents = client.list_agents()
