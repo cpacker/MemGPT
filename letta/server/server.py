@@ -853,10 +853,6 @@ class SyncServer(Server):
             # then (2) setting the attributes ._messages and .state.message_ids
             letta_agent.set_message_buffer(message_ids=request.message_ids)
 
-        # tools
-        if request.tool_ids:
-            letta_agent.link_tools(letta_agent.agent_state.tools)
-
         letta_agent.update_state()
 
         return agent_state
@@ -882,11 +878,6 @@ class SyncServer(Server):
 
         agent_state = self.agent_manager.attach_tool(agent_id=agent_id, tool_id=tool_id, actor=actor)
 
-        # TODO: This is very redundant, and should probably be simplified
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
-        letta_agent.link_tools(agent_state.tools)
-
         return agent_state
 
     def remove_tool_from_agent(
@@ -899,10 +890,6 @@ class SyncServer(Server):
         # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
         actor = self.user_manager.get_user_or_default(user_id=user_id)
         agent_state = self.agent_manager.detach_tool(agent_id=agent_id, tool_id=tool_id, actor=actor)
-
-        # Get the agent object (loaded in memory)
-        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
-        letta_agent.link_tools(agent_state.tools)
 
         return agent_state
 
@@ -1309,9 +1296,7 @@ class SyncServer(Server):
 
         if context_window_limit:
             if context_window_limit > llm_config.context_window:
-                raise ValueError(
-                    f"Context window limit ({context_window_limit}) is greater than maximum of ({llm_config.context_window})"
-                )
+                raise ValueError(f"Context window limit ({context_window_limit}) is greater than maximum of ({llm_config.context_window})")
             llm_config.context_window = context_window_limit
 
         return llm_config
@@ -1366,7 +1351,7 @@ class SyncServer(Server):
 
     def run_tool_from_source(
         self,
-        user_id: str,
+        actor: User,
         tool_args: str,
         tool_source: str,
         tool_source_type: Optional[str] = None,
@@ -1394,7 +1379,7 @@ class SyncServer(Server):
 
         # Next, attempt to run the tool with the sandbox
         try:
-            sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, user_id, tool_object=tool).run(agent_state=agent_state)
+            sandbox_run_result = ToolExecutionSandbox(tool.name, tool_args_dict, actor, tool_object=tool).run(agent_state=agent_state)
             return FunctionReturn(
                 id="null",
                 function_call_id="null",
@@ -1406,9 +1391,7 @@ class SyncServer(Server):
             )
 
         except Exception as e:
-            func_return = get_friendly_error_msg(
-                function_name=tool.name, exception_name=type(e).__name__, exception_message=str(e)
-            )   
+            func_return = get_friendly_error_msg(function_name=tool.name, exception_name=type(e).__name__, exception_message=str(e))
             return FunctionReturn(
                 id="null",
                 function_call_id="null",

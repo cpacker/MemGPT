@@ -288,15 +288,16 @@ def org_id(server):
 
 
 @pytest.fixture(scope="module")
-def user_id(server, org_id):
-    # create user
+def user(server, org_id):
     user = server.user_manager.create_default_user()
-    print(f"Created user\n{user.id}")
-
-    yield user.id
-
-    # cleanup
+    yield user
     server.user_manager.delete_user_by_id(user.id)
+
+
+@pytest.fixture(scope="module")
+def user_id(server, user):
+    # create user
+    yield user.id
 
 
 @pytest.fixture(scope="module")
@@ -789,11 +790,11 @@ def ingest(message: str):
 '''
 
 
-def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
+def test_tool_run(server, mock_e2b_api_key_none, user, agent_id):
     """Test that the server can run tools"""
 
     result = server.run_tool_from_source(
-        user_id=user_id,
+        actor=user,
         tool_source=EXAMPLE_TOOL_SOURCE,
         tool_source_type="python",
         tool_args=json.dumps({"message": "Hello, world!"}),
@@ -806,7 +807,7 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     assert not result.stderr
 
     result = server.run_tool_from_source(
-        user_id=user_id,
+        actor=user,
         tool_source=EXAMPLE_TOOL_SOURCE,
         tool_source_type="python",
         tool_args=json.dumps({"message": "Well well well"}),
@@ -819,7 +820,7 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
     assert not result.stderr
 
     result = server.run_tool_from_source(
-        user_id=user_id,
+        actor=user,
         tool_source=EXAMPLE_TOOL_SOURCE,
         tool_source_type="python",
         tool_args=json.dumps({"bad_arg": "oh no"}),
@@ -835,7 +836,7 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
 
     # Test that we can still pull the tool out by default (pulls that last tool in the source)
     result = server.run_tool_from_source(
-        user_id=user_id,
+        actor=user,
         tool_source=EXAMPLE_TOOL_SOURCE_WITH_DISTRACTOR,
         tool_source_type="python",
         tool_args=json.dumps({"message": "Well well well"}),
@@ -850,7 +851,7 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
 
     # Test that we can pull the tool out by name
     result = server.run_tool_from_source(
-        user_id=user_id,
+        actor=user,
         tool_source=EXAMPLE_TOOL_SOURCE_WITH_DISTRACTOR,
         tool_source_type="python",
         tool_args=json.dumps({"message": "Well well well"}),
@@ -865,7 +866,7 @@ def test_tool_run(server, mock_e2b_api_key_none, user_id, agent_id):
 
     # Test that we can pull a different tool out by name
     result = server.run_tool_from_source(
-        user_id=user_id,
+        actor=user,
         tool_source=EXAMPLE_TOOL_SOURCE_WITH_DISTRACTOR,
         tool_source_type="python",
         tool_args=json.dumps({}),

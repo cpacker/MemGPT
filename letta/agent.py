@@ -18,7 +18,7 @@ from letta.constants import (
     MESSAGE_SUMMARY_WARNING_FRAC,
     O1_BASE_TOOLS,
     REQ_HEARTBEAT_MESSAGE,
-    STRUCTURED_OUTPUT_MODELS
+    STRUCTURED_OUTPUT_MODELS,
 )
 from letta.errors import LLMError
 from letta.helpers import ToolRulesSolver
@@ -260,9 +260,6 @@ class Agent(BaseAgent):
 
         self.user = user
 
-        # link tools
-        self.link_tools(agent_state.tools)
-
         # initialize a tool rules solver
         if agent_state.tool_rules:
             # if there are tool rules, print out a warning
@@ -385,7 +382,9 @@ class Agent(BaseAgent):
     def check_tool_rules(self):
         if self.model not in STRUCTURED_OUTPUT_MODELS:
             if len(self.tool_rules_solver.init_tool_rules) > 1:
-                raise ValueError("Multiple initial tools are not supported for non-structured models. Please use only one initial tool rule.")
+                raise ValueError(
+                    "Multiple initial tools are not supported for non-structured models. Please use only one initial tool rule."
+                )
             self.supports_structured_output = False
         else:
             self.supports_structured_output = True
@@ -424,11 +423,21 @@ class Agent(BaseAgent):
             return True
         return False
 
-    def execute_tool_and_persist_state(self, function_name, function_to_call, function_args):
+    def execute_tool_and_persist_state(self, function_name: str, function_args: dict, target_letta_tool: Tool):
         """
         Execute tool modifications and persist the state of the agent.
         Note: only some agent state modifications will be persisted, such as data in the AgentState ORM and block data
         """
+        # TODO: Get rid of this. This whole piece is pretty shady, that we exec the function to just get the type hints for args.
+        env = {}
+        env.update(globals())
+        exec(target_letta_tool.source_code, env)
+        callable_func = env[target_letta_tool.json_schema["name"]]
+        spec = inspect.getfullargspec(callable_func).annotations
+        for name, arg in function_args.items():
+            if isinstance(function_args[name], dict):
+                function_args[name] = spec[name](**function_args[name])
+
         # TODO: add agent manager here
         orig_memory_str = self.agent_state.memory.compile()
 
@@ -441,11 +450,11 @@ class Agent(BaseAgent):
             if function_name in BASE_TOOLS or function_name in O1_BASE_TOOLS:
                 # base tools are allowed to access the `Agent` object and run on the database
                 function_args["self"] = self  # need to attach self to arg since it's dynamically linked
-                function_response = function_to_call(**function_args)
+                function_response = callable_func(**function_args)
             else:
                 # execute tool in a sandbox
                 # TODO: allow agent_state to specify which sandbox to execute tools in
-                sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.agent_state.created_by_id).run(
+                sandbox_run_result = ToolExecutionSandbox(function_name, function_args, self.user).run(
                     agent_state=self.agent_state.__deepcopy__()
                 )
                 function_response, updated_agent_state = sandbox_run_result.func_return, sandbox_run_result.agent_state
@@ -469,27 +478,6 @@ class Agent(BaseAgent):
     @messages.setter
     def messages(self, value):
         raise Exception("Modifying message list directly not allowed")
-
-    def link_tools(self, tools: List[Tool]):
-        """Bind a tool object (schema + python function) to the agent object"""
-
-        # Store the functions schemas (this is passed as an argument to ChatCompletion)
-        self.functions = []
-        self.functions_python = {}
-        env = {}
-        env.update(globals())
-        for tool in tools:
-            try:
-                # WARNING: name may not be consistent?
-                # if tool.module:  # execute the whole module
-                #    exec(tool.module, env)
-                # else:
-                exec(tool.source_code, env)
-                self.functions_python[tool.json_schema["name"]] = env[tool.json_schema["name"]]
-                self.functions.append(tool.json_schema)
-            except Exception:
-                warnings.warn(f"WARNING: tool {tool.name} failed to link")
-        assert all([callable(f) for k, f in self.functions_python.items()]), self.functions_python
 
     def _load_messages_from_recall(self, message_ids: List[str]) -> List[Message]:
         """Load a list of messages from recall storage"""
@@ -599,8 +587,12 @@ class Agent(BaseAgent):
         """Get response from LLM API with robust retry mechanism."""
 
         allowed_tool_names = self.tool_rules_solver.get_allowed_tool_names()
+        agent_state_tool_jsons = [t.json_schema for t in self.agent_state.tools]
+
         allowed_functions = (
-            self.functions if not allowed_tool_names else [func for func in self.functions if func["name"] in allowed_tool_names]
+            agent_state_tool_jsons
+            if not allowed_tool_names
+            else [func for func in agent_state_tool_jsons if func["name"] in allowed_tool_names]
         )
 
         # For the first message, force the initial tool if one is specified
@@ -620,7 +612,7 @@ class Agent(BaseAgent):
                     messages=message_sequence,
                     user_id=self.agent_state.created_by_id,
                     functions=allowed_functions,
-                    functions_python=self.functions_python,
+                    # functions_python=self.functions_python, do we need this?
                     function_call=function_call,
                     first_message=first_message,
                     force_tool_call=force_tool_call,
@@ -729,10 +721,13 @@ class Agent(BaseAgent):
             function_name = function_call.name
             printd(f"Request to call function {function_name} with tool_call_id: {tool_call_id}")
 
-            # Failure case 1: function name is wrong
-            try:
-                function_to_call = self.functions_python[function_name]
-            except KeyError:
+            # Failure case 1: function name is wrong (not in agent_state.tools)
+            target_letta_tool = None
+            for t in self.agent_state.tools:
+                if t.name == function_name:
+                    target_letta_tool = t
+
+            if not target_letta_tool:
                 error_msg = f"No function named {function_name}"
                 function_response = package_function_response(False, error_msg)
                 messages.append(
@@ -800,14 +795,8 @@ class Agent(BaseAgent):
             #       this is because the function/tool role message is only created once the function/tool has executed/returned
             self.interface.function_message(f"Running {function_name}({function_args})", msg_obj=messages[-1])
             try:
-                spec = inspect.getfullargspec(function_to_call).annotations
-
-                for name, arg in function_args.items():
-                    if isinstance(function_args[name], dict):
-                        function_args[name] = spec[name](**function_args[name])
-
                 # handle tool execution (sandbox) and state updates
-                function_response = self.execute_tool_and_persist_state(function_name, function_to_call, function_args)
+                function_response = self.execute_tool_and_persist_state(function_name, function_args, target_letta_tool)
 
                 # handle trunction
                 if function_name in ["conversation_search", "conversation_search_date", "archival_memory_search"]:
@@ -819,8 +808,7 @@ class Agent(BaseAgent):
                     truncate = True
 
                 # get the function response limit
-                tool_obj = [tool for tool in self.agent_state.tools if tool.name == function_name][0]
-                return_char_limit = tool_obj.return_char_limit
+                return_char_limit = target_letta_tool.return_char_limit
                 function_response_string = validate_function_response(
                     function_response, return_char_limit=return_char_limit, truncate=truncate
                 )
@@ -1564,9 +1552,10 @@ class Agent(BaseAgent):
         num_tokens_external_memory_summary = count_tokens(external_memory_summary)
 
         # tokens taken up by function definitions
-        if self.functions:
-            available_functions_definitions = [ChatCompletionRequestTool(type="function", function=f) for f in self.functions]
-            num_tokens_available_functions_definitions = num_tokens_from_functions(functions=self.functions, model=self.model)
+        agent_state_tool_jsons = [t.json_schema for t in self.agent_state.tools]
+        if agent_state_tool_jsons:
+            available_functions_definitions = [ChatCompletionRequestTool(type="function", function=f) for f in agent_state_tool_jsons]
+            num_tokens_available_functions_definitions = num_tokens_from_functions(functions=agent_state_tool_jsons, model=self.model)
         else:
             available_functions_definitions = []
             num_tokens_available_functions_definitions = 0
