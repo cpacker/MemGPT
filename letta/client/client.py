@@ -233,7 +233,7 @@ class AbstractClient(object):
     def get_tool_id(self, name: str) -> Optional[str]:
         raise NotImplementedError
 
-    def add_base_tools(self) -> List[Tool]:
+    def upsert_base_tools(self) -> List[Tool]:
         raise NotImplementedError
 
     def load_data(self, connector: DataConnector, source_name: str):
@@ -1466,7 +1466,7 @@ class RESTClient(AbstractClient):
             raise ValueError(f"Failed to get tool: {response.text}")
         return response.json()
 
-    def add_base_tools(self) -> List[Tool]:
+    def upsert_base_tools(self) -> List[Tool]:
         response = requests.post(f"{self.base_url}/{self.api_prefix}/tools/add-base-tools/", headers=self.headers)
         if response.status_code != 200:
             raise ValueError(f"Failed to add base tools: {response.text}")

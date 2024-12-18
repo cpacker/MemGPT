@@ -3,6 +3,7 @@ import inspect
 import warnings
 from typing import List, Optional
 
+from letta.constants import BASE_MEMORY_TOOLS, BASE_TOOLS
 from letta.functions.functions import derive_openai_json_schema, load_function_set
 
 # TODO: Remove this once we translate all of these to the ORM
@@ -20,7 +21,6 @@ class ToolManager:
     BASE_TOOL_NAMES = [
         "send_message",
         "conversation_search",
-        "conversation_search_date",
         "archival_memory_insert",
         "archival_memory_search",
     ]
@@ -133,7 +133,7 @@ class ToolManager:
                 raise ValueError(f"Tool with id {tool_id} not found.")
 
     @enforce_types
-    def add_base_tools(self, actor: PydanticUser) -> List[PydanticTool]:
+    def upsert_base_tools(self, actor: PydanticUser) -> List[PydanticTool]:
         """Add default tools in base.py"""
         module_name = "base"
         full_module_name = f"letta.functions.function_sets.{module_name}"
@@ -154,7 +154,7 @@ class ToolManager:
         # create tool in db
         tools = []
         for name, schema in functions_to_schema.items():
-            if name in self.BASE_TOOL_NAMES + self.BASE_MEMORY_TOOL_NAMES:
+            if name in BASE_TOOLS + BASE_MEMORY_TOOLS:
                 # print([str(inspect.getsource(line)) for line in schema["imports"]])
                 source_code = inspect.getsource(schema["python_function"])
                 tags = [module_name]
