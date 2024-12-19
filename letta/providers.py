@@ -482,7 +482,8 @@ class GoogleAIProvider(Provider):
         model_options = [mo[len("models/") :] if mo.startswith("models/") else mo for mo in model_options]
 
         # TODO remove manual filtering for gemini-pro
-        model_options = [mo for mo in model_options if str(mo).startswith("gemini") and "-pro" in str(mo)]
+        # Add support for all gemini models
+        model_options = [mo for mo in model_options if str(mo).startswith("gemini-")]
 
         configs = []
         for model in model_options:
