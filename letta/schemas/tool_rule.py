@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import Field
 
@@ -21,6 +21,16 @@ class ChildToolRule(BaseToolRule):
     children: List[str] = Field(..., description="The children tools that can be invoked.")
 
 
+class ConditionalToolRule(BaseToolRule):
+    """
+    A ToolRule that conditionally maps to different child tools based on the output.
+    """
+    type: ToolRuleType = ToolRuleType.conditional
+    default_child: Optional[str] = Field(None, description="The default child tool to be called. If None, any tool can be called.")
+    child_output_mapping: Dict[Any, str] = Field(..., description="The output case to check for mapping")
+    require_output_mapping: bool = Field(default=False, description="Whether to throw an error when output doesn't match any case")
+
+
 class InitToolRule(BaseToolRule):
     """
     Represents the initial tool rule configuration.
@@ -37,4 +47,4 @@ class TerminalToolRule(BaseToolRule):
     type: ToolRuleType = ToolRuleType.exit_loop
 
 
-ToolRule = Union[ChildToolRule, InitToolRule, TerminalToolRule]
+ToolRule = Union[ChildToolRule, InitToolRule, TerminalToolRule, ConditionalToolRule]

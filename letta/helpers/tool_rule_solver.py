@@ -1,4 +1,5 @@
-from typing import Dict, List, Optional, Set
+import json
+from typing import List, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -6,6 +7,7 @@ from letta.schemas.enums import ToolRuleType
 from letta.schemas.tool_rule import (
     BaseToolRule,
     ChildToolRule,
+    ConditionalToolRule,
     InitToolRule,
     TerminalToolRule,
 )
@@ -22,7 +24,7 @@ class ToolRulesSolver(BaseModel):
     init_tool_rules: List[InitToolRule] = Field(
         default_factory=list, description="Initial tool rules to be used at the start of tool execution."
     )
-    tool_rules: List[ChildToolRule] = Field(
+    tool_rules: List[Union[ChildToolRule, ConditionalToolRule]] = Field(
         default_factory=list, description="Standard tool rules for controlling execution sequence and allowed transitions."
     )
     terminal_tool_rules: List[TerminalToolRule] = Field(
@@ -35,21 +37,25 @@ class ToolRulesSolver(BaseModel):
         # Separate the provided tool rules into init, standard, and terminal categories
         for rule in tool_rules:
             if rule.type == ToolRuleType.run_first:
+                assert isinstance(rule, InitToolRule)
                 self.init_tool_rules.append(rule)
             elif rule.type == ToolRuleType.constrain_child_tools:
+                assert isinstance(rule, ChildToolRule)
+                self.tool_rules.append(rule)
+            elif rule.type == ToolRuleType.conditional:
+                assert isinstance(rule, ConditionalToolRule)
+                self.validate_conditional_tool(rule)
                 self.tool_rules.append(rule)
             elif rule.type == ToolRuleType.exit_loop:
+                assert isinstance(rule, TerminalToolRule)
                 self.terminal_tool_rules.append(rule)
 
-        # Validate the tool rules to ensure they form a DAG
-        if not self.validate_tool_rules():
-            raise ToolRuleValidationError("Tool rules contain cycles, which are not allowed in a valid configuration.")
 
     def update_tool_usage(self, tool_name: str):
         """Update the internal state to track the last tool called."""
         self.last_tool_name = tool_name
 
-    def get_allowed_tool_names(self, error_on_empty: bool = False) -> List[str]:
+    def get_allowed_tool_names(self, error_on_empty: bool = False, last_function_response: Optional[str] = None) -> List[str]:
         """Get a list of tool names allowed based on the last tool called."""
         if self.last_tool_name is None:
             # Use initial tool rules if no tool has been called yet
@@ -58,17 +64,20 @@ class ToolRulesSolver(BaseModel):
             # Find a matching ToolRule for the last tool used
             current_rule = next((rule for rule in self.tool_rules if rule.tool_name == self.last_tool_name), None)
 
-            # Return children which must exist on ToolRule
-            if current_rule:
-                return current_rule.children
-
-            # Default to empty if no rule matches
-            message = "User provided tool rules and execution state resolved to no more possible tool calls."
-            if error_on_empty:
-                raise RuntimeError(message)
-            else:
-                # warnings.warn(message)
+            if current_rule is None:
+                if error_on_empty:
+                    raise ValueError(f"No tool rule found for {self.last_tool_name}")
                 return []
+
+            # If the current rule is a conditional tool rule, use the LLM response to
+            # determine which child tool to use
+            if isinstance(current_rule, ConditionalToolRule):
+                if not last_function_response:
+                    raise ValueError("Conditional tool rule requires an LLM response to determine which child tool to use")
+                next_tool = self.evaluate_conditional_tool(current_rule, last_function_response)
+                return [next_tool] if next_tool else []
+
+            return current_rule.children if current_rule.children else []
 
     def is_terminal_tool(self, tool_name: str) -> bool:
         """Check if the tool is defined as a terminal tool in the terminal tool rules."""
@@ -78,38 +87,60 @@ class ToolRulesSolver(BaseModel):
         """Check if the tool has children tools"""
         return any(rule.tool_name == tool_name for rule in self.tool_rules)
 
-    def validate_tool_rules(self) -> bool:
-        """
-        Validate that the tool rules define a directed acyclic graph (DAG).
-        Returns True if valid (no cycles), otherwise False.
-        """
-        # Build adjacency list for the tool graph
-        adjacency_list: Dict[str, List[str]] = {rule.tool_name: rule.children for rule in self.tool_rules}
+    def validate_conditional_tool(self, rule: ConditionalToolRule):
+        '''
+        Validate a conditional tool rule
 
-        # Track visited nodes
-        visited: Set[str] = set()
-        path_stack: Set[str] = set()
+        Args:
+            rule (ConditionalToolRule): The conditional tool rule to validate
 
-        # Define DFS helper function
-        def dfs(tool_name: str) -> bool:
-            if tool_name in path_stack:
-                return False  # Cycle detected
-            if tool_name in visited:
-                return True  # Already validated
+        Raises:
+            ToolRuleValidationError: If the rule is invalid
+        '''
+        if len(rule.child_output_mapping) == 0:
+            raise ToolRuleValidationError("Conditional tool rule must have at least one child tool.")
+        return True
 
-            # Mark the node as visited in the current path
-            path_stack.add(tool_name)
-            for child in adjacency_list.get(tool_name, []):
-                if not dfs(child):
-                    return False  # Cycle detected in DFS
-            path_stack.remove(tool_name)  # Remove from current path
-            visited.add(tool_name)
-            return True
+    def evaluate_conditional_tool(self, tool: ConditionalToolRule, last_function_response: str) -> str:
+        '''
+        Parse function response to determine which child tool to use based on the mapping
 
-        # Run DFS from each tool in `tool_rules`
-        for rule in self.tool_rules:
-            if rule.tool_name not in visited:
-                if not dfs(rule.tool_name):
-                    return False  # Cycle found, invalid tool rules
+        Args:
+            tool (ConditionalToolRule): The conditional tool rule
+            last_function_response (str): The function response in JSON format
 
-        return True  # No cycles, valid DAG
+        Returns:
+            str: The name of the child tool to use next
+        '''
+        json_response = json.loads(last_function_response)
+        function_output = json_response["message"]
+
+        # Try to match the function output with a mapping key
+        for key in tool.child_output_mapping:
+
+            # Convert function output to match key type for comparison
+            if isinstance(key, bool):
+                typed_output = function_output.lower() == "true"
+            elif isinstance(key, int):
+                try:
+                    typed_output = int(function_output)
+                except (ValueError, TypeError):
+                    continue
+            elif isinstance(key, float):
+                try:
+                    typed_output = float(function_output)
+                except (ValueError, TypeError):
+                    continue
+            else:  # string
+                if function_output == "True" or function_output == "False":
+                    typed_output = function_output.lower()
+                elif function_output == "None":
+                    typed_output = None
+                else:
+                    typed_output = function_output
+
+            if typed_output == key:
+                return tool.child_output_mapping[key]
+
+        # If no match found, use default
+        return tool.default_child

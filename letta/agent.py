@@ -298,6 +298,10 @@ class Agent(BaseAgent):
 
         self.first_message_verify_mono = first_message_verify_mono
 
+        # State needed for conditional tool chaining
+        # TODO: when agent reloads, load this from past messages
+        self.last_function_response = None
+
         # Controls if the convo memory pressure warning is triggered
         # When an alert is sent in the message queue, set this to True (to avoid repeat alerts)
         # When the summarizer is run, set this back to False (to reset)
@@ -586,7 +590,7 @@ class Agent(BaseAgent):
     ) -> ChatCompletionResponse:
         """Get response from LLM API with robust retry mechanism."""
 
-        allowed_tool_names = self.tool_rules_solver.get_allowed_tool_names()
+        allowed_tool_names = self.tool_rules_solver.get_allowed_tool_names(last_function_response=self.last_function_response)
         agent_state_tool_jsons = [t.json_schema for t in self.agent_state.tools]
 
         allowed_functions = (
@@ -826,6 +830,7 @@ class Agent(BaseAgent):
                 error_msg_user = f"{error_msg}\n{traceback.format_exc()}"
                 printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
+                self.last_function_response = function_response
                 # TODO: truncate error message somehow
                 messages.append(
                     Message.dict_to_message(
@@ -861,6 +866,7 @@ class Agent(BaseAgent):
             )  # extend conversation with function response
             self.interface.function_message(f"Ran {function_name}({function_args})", msg_obj=messages[-1])
             self.interface.function_message(f"Success: {function_response_string}", msg_obj=messages[-1])
+            self.last_function_response = function_response
 
         else:
             # Standard non-function reply
