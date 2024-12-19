@@ -74,8 +74,8 @@ def test_ripple_edit(client, mock_e2b_api_key_none):
 
     assert set(conversation_agent.memory.list_block_labels()) == {"persona", "human", "fact_block", "rethink_memory_block"}
 
-    rethink_memory_tool = client.create_tool(rethink_memory)
-    finish_rethinking_memory_tool = client.create_tool(finish_rethinking_memory)
+    rethink_memory_tool = client.create_or_update_tool(rethink_memory)
+    finish_rethinking_memory_tool = client.create_or_update_tool(finish_rethinking_memory)
     offline_memory_agent = client.create_agent(
         name="offline_memory_agent",
         agent_type=AgentType.offline_memory_agent,

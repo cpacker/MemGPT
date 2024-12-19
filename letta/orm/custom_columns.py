@@ -9,7 +9,7 @@ from letta.schemas.embedding_config import EmbeddingConfig
 from letta.schemas.enums import ToolRuleType
 from letta.schemas.llm_config import LLMConfig
 from letta.schemas.openai.chat_completions import ToolCall, ToolCallFunction
-from letta.schemas.tool_rule import ChildToolRule, InitToolRule, TerminalToolRule
+from letta.schemas.tool_rule import ChildToolRule, ConditionalToolRule, InitToolRule, TerminalToolRule
 
 
 class EmbeddingConfigColumn(TypeDecorator):
@@ -80,7 +80,7 @@ class ToolRulesColumn(TypeDecorator):
         return value
 
     @staticmethod
-    def deserialize_tool_rule(data: dict) -> Union[ChildToolRule, InitToolRule, TerminalToolRule]:
+    def deserialize_tool_rule(data: dict) -> Union[ChildToolRule, InitToolRule, TerminalToolRule, ConditionalToolRule]:
         """Deserialize a dictionary to the appropriate ToolRule subclass based on the 'type'."""
         rule_type = ToolRuleType(data.get("type"))  # Remove 'type' field if it exists since it is a class var
         if rule_type == ToolRuleType.run_first:
@@ -89,6 +89,9 @@ class ToolRulesColumn(TypeDecorator):
             return TerminalToolRule(**data)
         elif rule_type == ToolRuleType.constrain_child_tools:
             rule = ChildToolRule(**data)
+            return rule
+        elif rule_type == ToolRuleType.conditional:
+            rule = ConditionalToolRule(**data)
             return rule
         else:
             raise ValueError(f"Unknown tool rule type: {rule_type}")
