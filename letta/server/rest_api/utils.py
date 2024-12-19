@@ -8,6 +8,7 @@ from typing import AsyncGenerator, Optional, Union
 from fastapi import Header
 from pydantic import BaseModel
 
+from letta.errors import ContextWindowExceededError, RateLimitExceededError
 from letta.schemas.usage import LettaUsageStatistics
 from letta.server.rest_api.interface import StreamingServerInterface
 from letta.server.server import SyncServer
@@ -61,34 +62,21 @@ async def sse_async_generator(
                 if not isinstance(usage, LettaUsageStatistics):
                     raise ValueError(f"Expected LettaUsageStatistics, got {type(usage)}")
                 yield sse_formatter({"usage": usage.model_dump()})
+
+            except ContextWindowExceededError as e:
+                log_error_to_sentry(e)
+                yield sse_formatter({"error": f"Stream failed: {e}", "code": str(e.code.value) if e.code else None})
+
+            except RateLimitExceededError as e:
+                log_error_to_sentry(e)
+                yield sse_formatter({"error": f"Stream failed: {e}", "code": str(e.code.value) if e.code else None})
+
             except Exception as e:
-                import traceback
-
-                traceback.print_exc()
-                warnings.warn(f"SSE stream generator failed: {e}")
-
-                # Log the error, since the exception handler upstack (in FastAPI) won't catch it, because this may be a 200 response
-                # Print the stack trace
-                if (os.getenv("SENTRY_DSN") is not None) and (os.getenv("SENTRY_DSN") != ""):
-                    import sentry_sdk
-
-                    sentry_sdk.capture_exception(e)
-
+                log_error_to_sentry(e)
                 yield sse_formatter({"error": f"Stream failed (internal error occured)"})
 
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        warnings.warn(f"SSE stream generator failed: {e}")
-
-        # Log the error, since the exception handler upstack (in FastAPI) won't catch it, because this may be a 200 response
-        # Print the stack trace
-        if (os.getenv("SENTRY_DSN") is not None) and (os.getenv("SENTRY_DSN") != ""):
-            import sentry_sdk
-
-            sentry_sdk.capture_exception(e)
-
+        log_error_to_sentry(e)
         yield sse_formatter({"error": "Stream failed (decoder encountered an error)"})
 
     finally:
@@ -113,3 +101,16 @@ def get_user_id(user_id: Optional[str] = Header(None, alias="user_id")) -> Optio
 
 def get_current_interface() -> StreamingServerInterface:
     return StreamingServerInterface
+
+def log_error_to_sentry(e):
+    import traceback
+
+    traceback.print_exc()
+    warnings.warn(f"SSE stream generator failed: {e}")
+
+    # Log the error, since the exception handler upstack (in FastAPI) won't catch it, because this may be a 200 response
+    # Print the stack trace
+    if (os.getenv("SENTRY_DSN") is not None) and (os.getenv("SENTRY_DSN") != ""):
+        import sentry_sdk
+
+        sentry_sdk.capture_exception(e)

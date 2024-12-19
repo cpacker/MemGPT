@@ -20,7 +20,7 @@ from letta.constants import (
     REQ_HEARTBEAT_MESSAGE,
     STRUCTURED_OUTPUT_MODELS,
 )
-from letta.errors import LLMError
+from letta.errors import ContextWindowExceededError
 from letta.helpers import ToolRulesSolver
 from letta.interface import AgentInterface
 from letta.llm_api.helpers import is_context_overflow_error
@@ -1094,6 +1094,7 @@ class Agent(BaseAgent):
 
             # If we got a context alert, try trimming the messages length, then try again
             if is_context_overflow_error(e):
+                printd(f"context window exceeded with limit {self.agent_state.llm_config.context_window}, running summarizer to trim messages")
                 # A separate API call to run a summarizer
                 self.summarize_messages_inplace()
 
@@ -1169,8 +1170,13 @@ class Agent(BaseAgent):
 
         # If at this point there's nothing to summarize, throw an error
         if len(candidate_messages_to_summarize) == 0:
-            raise LLMError(
-                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(self.messages)}, preserve_N={MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST}]"
+            raise ContextWindowExceededError(
+                "Not enough messages to compress for summarization",
+                details={
+                    "num_candidate_messages": len(candidate_messages_to_summarize),
+                    "num_total_messages": len(self.messages),
+                    "preserve_N": MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
+                },
             )
 
         # Walk down the message buffer (front-to-back) until we hit the target token count
@@ -1204,8 +1210,13 @@ class Agent(BaseAgent):
         message_sequence_to_summarize = self._messages[1:cutoff]  # do NOT get rid of the system message
         if len(message_sequence_to_summarize) <= 1:
             # This prevents a potential infinite loop of summarizing the same message over and over
-            raise LLMError(
-                f"Summarize error: tried to run summarize, but couldn't find enough messages to compress [len={len(message_sequence_to_summarize)} <= 1]"
+            raise ContextWindowExceededError(
+                "Not enough messages to compress for summarization after determining cutoff",
+                details={
+                    "num_candidate_messages": len(message_sequence_to_summarize),
+                    "num_total_messages": len(self.messages),
+                    "preserve_N": MESSAGE_SUMMARY_TRUNC_KEEP_N_LAST,
+                },
             )
         else:
             printd(f"Attempting to summarize {len(message_sequence_to_summarize)} messages [1:{cutoff}] of {len(self._messages)}")
@@ -1218,6 +1229,7 @@ class Agent(BaseAgent):
             self.agent_state.llm_config.context_window = (
                 LLM_MAX_TOKENS[self.model] if (self.model is not None and self.model in LLM_MAX_TOKENS) else LLM_MAX_TOKENS["DEFAULT"]
             )
+
         summary = summarize_messages(agent_state=self.agent_state, message_sequence_to_summarize=message_sequence_to_summarize)
         printd(f"Got summary: {summary}")
 
