@@ -822,7 +822,7 @@ class Agent(BaseAgent):
                 function_args.pop("self", None)
                 # error_msg = f"Error calling function {function_name} with args {function_args}: {str(e)}"
                 # Less detailed - don't provide full args, idea is that it should be in recent context so no need (just adds noise)
-                error_msg = f"Error calling function {function_name}: {str(e)}"
+                error_msg = get_friendly_error_msg(function_name=function_name, exception_name=type(e).__name__, exception_message=str(e))
                 error_msg_user = f"{error_msg}\n{traceback.format_exc()}"
                 printd(error_msg_user)
                 function_response = package_function_response(False, error_msg)
@@ -844,8 +844,29 @@ class Agent(BaseAgent):
                 self.interface.function_message(f"Error: {error_msg}", msg_obj=messages[-1])
                 return messages, False, True  # force a heartbeat to allow agent to handle error
 
+            # Step 4: check if function response is an error
+            if function_response_string.startswith("Error"):
+                function_response = package_function_response(False, function_response_string)
+                # TODO: truncate error message somehow
+                messages.append(
+                    Message.dict_to_message(
+                        agent_id=self.agent_state.id,
+                        user_id=self.agent_state.created_by_id,
+                        model=self.model,
+                        openai_message_dict={
+                            "role": "tool",
+                            "name": function_name,
+                            "content": function_response,
+                            "tool_call_id": tool_call_id,
+                        },
+                    )
+                )  # extend conversation with function response
+                self.interface.function_message(f"Ran {function_name}({function_args})", msg_obj=messages[-1])
+                self.interface.function_message(f"Error: {function_response_string}", msg_obj=messages[-1])
+                return messages, False, True  # force a heartbeat to allow agent to handle error
+
             # If no failures happened along the way: ...
-            # Step 4: send the info on the function call and function response to GPT
+            # Step 5: send the info on the function call and function response to GPT
             messages.append(
                 Message.dict_to_message(
                     agent_id=self.agent_state.id,
