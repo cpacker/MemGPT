@@ -986,9 +986,6 @@ class SyncServer(Server):
 
         start_time = datetime.datetime.utcnow()
 
-        if temp_rand_uuid:
-            logger.info(f"[{temp_rand_uuid}] {start_time} - RECEIVED GET /messages for agent_id={agent_id} before={before} limit={limit}")
-
         logger.info(
             f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Fetching actor for user_id={user_id} (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
         )
