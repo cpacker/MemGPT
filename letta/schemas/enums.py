@@ -29,12 +29,6 @@ class JobStatus(str, Enum):
     pending = "pending"
 
 
-class MessageStreamStatus(str, Enum):
-    done_generation = "[DONE_GEN]"
-    done_step = "[DONE_STEP]"
-    done = "[DONE]"
-
-
 class ToolRuleType(str, Enum):
     """
     Type of tool rule.

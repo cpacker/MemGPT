@@ -12,10 +12,11 @@ from sqlalchemy import delete
 from letta import create_client
 from letta.client.client import LocalClient, RESTClient
 from letta.constants import BASE_MEMORY_TOOLS, BASE_TOOLS, DEFAULT_PRESET
+from letta.llm_api.openai import OPENAI_SSE_DONE
 from letta.orm import FileMetadata, Source
 from letta.schemas.agent import AgentState
 from letta.schemas.embedding_config import EmbeddingConfig
-from letta.schemas.enums import MessageRole, MessageStreamStatus
+from letta.schemas.enums import MessageRole
 from letta.schemas.letta_message import (
     AssistantMessage,
     FunctionCallMessage,
@@ -245,45 +246,35 @@ def test_streaming_send_message(mock_e2b_api_key_none, client: RESTClient, agent
     inner_thoughts_count = 0
     # 2. Check that the agent runs `send_message`
     send_message_ran = False
-    # 3. Check that we get all the start/stop/end tokens we want
-    #    This includes all of the MessageStreamStatus enums
-    done_gen = False
-    done_step = False
+    # 3. Check that we get the end token we want (StreamDoneStatus)
     done = False
 
-    # print(response)
+    print(response)
     assert response, "Sending message failed"
     for chunk in response:
-        assert isinstance(chunk, LettaStreamingResponse)
-        if isinstance(chunk, InternalMonologue) and chunk.internal_monologue and chunk.internal_monologue != "":
-            inner_thoughts_exist = True
-            inner_thoughts_count += 1
-        if isinstance(chunk, FunctionCallMessage) and chunk.function_call and chunk.function_call.name == "send_message":
-            send_message_ran = True
-        if isinstance(chunk, MessageStreamStatus):
-            if chunk == MessageStreamStatus.done:
-                assert not done, "Message stream already done"
-                done = True
-            elif chunk == MessageStreamStatus.done_step:
-                assert not done_step, "Message stream already done step"
-                done_step = True
-            elif chunk == MessageStreamStatus.done_generation:
-                assert not done_gen, "Message stream already done generation"
-                done_gen = True
-        if isinstance(chunk, LettaUsageStatistics):
+        if isinstance(chunk, LettaMessage):
+            if isinstance(chunk, InternalMonologue) and chunk.internal_monologue and chunk.internal_monologue != "":
+                inner_thoughts_exist = True
+                inner_thoughts_count += 1
+            if isinstance(chunk, FunctionCallMessage) and chunk.function_call and chunk.function_call.name == "send_message":
+                send_message_ran = True
+        elif chunk == OPENAI_SSE_DONE:
+            assert not done, "Message stream already done"
+            done = True
+        elif isinstance(chunk, LettaUsageStatistics):
             # Some rough metrics for a reasonable usage pattern
             assert chunk.step_count == 1
             assert chunk.completion_tokens > 10
             assert chunk.prompt_tokens > 1000
             assert chunk.total_tokens > 1000
+        else:
+            assert isinstance(chunk, LettaStreamingResponse)
 
     # If stream tokens, we expect at least one inner thought
     assert inner_thoughts_count >= 1, "Expected more than one inner thought"
     assert inner_thoughts_exist, "No inner thoughts found"
     assert send_message_ran, "send_message function call not found"
     assert done, "Message stream not done"
-    assert done_step, "Message stream not done step"
-    assert done_gen, "Message stream not done generation"
 
 
 def test_humans_personas(client: Union[LocalClient, RESTClient], agent: AgentState):
