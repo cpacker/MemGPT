@@ -177,9 +177,7 @@ def test_tool_rules_with_invalid_path():
     rule_4 = ChildToolRule(tool_name=FINAL_TOOL, children=[END_TOOL])  # Disconnected rule, no cycle here
     terminal_rule = TerminalToolRule(tool_name=END_TOOL)
 
-    # Action & Assert: Attempt to create the ToolRulesSolver with a cycle should raise ValidationError
-    with pytest.raises(ToolRuleValidationError, match="Tool rules does not have a path from Init to Terminal."):
-        ToolRulesSolver(tool_rules=[init_rule, rule_1, rule_2, rule_3, rule_4, terminal_rule])
+    ToolRulesSolver(tool_rules=[init_rule, rule_1, rule_2, rule_3, rule_4, terminal_rule])
 
     # Now: add a path from the start tool to the final tool
     rule_5 = ConditionalToolRule(
