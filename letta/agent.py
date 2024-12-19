@@ -68,7 +68,6 @@ from letta.utils import (
     get_local_time,
     get_tool_call_id,
     get_utc_time,
-    is_utc_datetime,
     json_dumps,
     json_loads,
     parse_json,
@@ -498,39 +497,39 @@ class Agent(BaseAgent):
 
         return message_objs
 
-    def _validate_message_buffer_is_utc(self):
-        """Iterate over the message buffer and force all messages to be UTC stamped"""
+    # def _validate_message_buffer_is_utc(self):
+    #    """Iterate over the message buffer and force all messages to be UTC stamped"""
 
-        for m in self._messages:
-            # assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
-            # TODO eventually do casting via an edit_message function
-            if m.created_at:
-                if not is_utc_datetime(m.created_at):
-                    printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
-                    m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
+    #    for m in self._messages:
+    #        # assert is_utc_datetime(m.created_at), f"created_at on message for agent {self.agent_state.name} isn't UTC:\n{vars(m)}"
+    #        # TODO eventually do casting via an edit_message function
+    #        if m.created_at:
+    #            if not is_utc_datetime(m.created_at):
+    #                printd(f"Warning - created_at on message for agent {self.agent_state.name} isn't UTC (text='{m.text}')")
+    #                m.created_at = m.created_at.replace(tzinfo=datetime.timezone.utc)
 
-    def set_message_buffer(self, message_ids: List[str], force_utc: bool = True):
-        """Set the messages in the buffer to the message IDs list"""
+    # def set_message_buffer(self, message_ids: List[str], force_utc: bool = True):
+    #    """Set the messages in the buffer to the message IDs list"""
 
-        message_objs = self._load_messages_from_recall(message_ids=message_ids)
+    #    message_objs = self._load_messages_from_recall(message_ids=message_ids)
 
-        # set the objects in the buffer
-        self._messages = message_objs
+    #    # set the objects in the buffer
+    #    self._messages = message_objs
 
-        # bugfix for old agents that may not have had UTC specified in their timestamps
-        if force_utc:
-            self._validate_message_buffer_is_utc()
+    #    # bugfix for old agents that may not have had UTC specified in their timestamps
+    #    if force_utc:
+    #        self._validate_message_buffer_is_utc()
 
-        # also sync the message IDs attribute
-        self.agent_state.message_ids = message_ids
+    #    # also sync the message IDs attribute
+    #    self.agent_state.message_ids = message_ids
 
-    def refresh_message_buffer(self):
-        """Refresh the message buffer from the database"""
+    # def refresh_message_buffer(self):
+    #    """Refresh the message buffer from the database"""
 
-        messages_to_sync = self.agent_state.message_ids
-        assert messages_to_sync and all([isinstance(msg_id, str) for msg_id in messages_to_sync])
+    #    messages_to_sync = self.agent_state.message_ids
+    #    assert messages_to_sync and all([isinstance(msg_id, str) for msg_id in messages_to_sync])
 
-        self.set_message_buffer(message_ids=messages_to_sync)
+    #    self.set_message_buffer(message_ids=messages_to_sync)
 
     def _trim_messages(self, num):
         """Trim messages from the front, not including the system message"""

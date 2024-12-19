@@ -138,7 +138,7 @@ def update_agent(
 ):
     """Update an exsiting agent"""
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-    return server.update_agent(agent_id, update_agent, actor=actor)
+    return server.agent_manager.update_agent(agent_id, update_agent, actor=actor)
 
 
 @router.get("/{agent_id}/tools", response_model=List[Tool], operation_id="get_tools_from_agent")
@@ -149,7 +149,7 @@ def get_tools_from_agent(
 ):
     """Get tools from an existing agent"""
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-    return server.get_tools_from_agent(agent_id=agent_id, user_id=actor.id)
+    return server.agent_manager.list_tools(agent_id=agent_id, actor=actor)
 
 
 @router.patch("/{agent_id}/add-tool/{tool_id}", response_model=AgentState, operation_id="add_tool_to_agent")
@@ -161,7 +161,7 @@ def add_tool_to_agent(
 ):
     """Add tools to an existing agent"""
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-    return server.add_tool_to_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
+    return server.agent_manager.attach_tool(agent_id=agent_id, tool_id=tool_id, actor=actor)
 
 
 @router.patch("/{agent_id}/remove-tool/{tool_id}", response_model=AgentState, operation_id="remove_tool_from_agent")
@@ -173,7 +173,7 @@ def remove_tool_from_agent(
 ):
     """Add tools to an existing agent"""
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-    return server.remove_tool_from_agent(agent_id=agent_id, tool_id=tool_id, user_id=actor.id)
+    return server.agent_manager.detach_tool(agent_id=agent_id, tool_id=tool_id, actor=actor)
 
 
 @router.get("/{agent_id}", response_model=AgentState, operation_id="get_agent")
@@ -232,7 +232,8 @@ def get_agent_in_context_messages(
     Retrieve the messages in the context of a specific agent.
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
-    return server.get_in_context_messages(agent_id=agent_id, actor=actor)
+    agent = server.agent_manager.get_agent_by_id(agent_id=agent_id, actor=actor)
+    return agent.message_ids
 
 
 # TODO: remove? can also get with agent blocks
