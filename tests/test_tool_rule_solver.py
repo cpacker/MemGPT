@@ -36,9 +36,7 @@ def test_get_allowed_tool_names_with_subsequent_rule():
     # Setup: Tool rule sequence
     init_rule = InitToolRule(tool_name=START_TOOL)
     rule_1 = ChildToolRule(tool_name=START_TOOL, children=[NEXT_TOOL, HELPER_TOOL])
-    rule_2 = ChildToolRule(tool_name=NEXT_TOOL, children=[END_TOOL])
-    terminal_rule = TerminalToolRule(tool_name=END_TOOL)
-    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[rule_1, rule_2], terminal_tool_rules=[terminal_rule])
+    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[rule_1], terminal_tool_rules=[])
 
     # Action: Update usage and get allowed tools
     solver.update_tool_usage(START_TOOL)
@@ -51,9 +49,8 @@ def test_get_allowed_tool_names_with_subsequent_rule():
 def test_is_terminal_tool():
     # Setup: Terminal tool rule configuration
     init_rule = InitToolRule(tool_name=START_TOOL)
-    rule_1 = ChildToolRule(tool_name=START_TOOL, children=[END_TOOL])
     terminal_rule = TerminalToolRule(tool_name=END_TOOL)
-    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[rule_1], terminal_tool_rules=[terminal_rule])
+    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[], terminal_tool_rules=[terminal_rule])
 
     # Action & Assert: Verify terminal and non-terminal tools
     assert solver.is_terminal_tool(END_TOOL) is True, "Should recognize 'end_tool' as a terminal tool"
@@ -83,9 +80,9 @@ def test_get_allowed_tool_names_no_matching_rule_error():
     init_rule = InitToolRule(tool_name=START_TOOL)
     solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[], terminal_tool_rules=[])
 
-    # Action & Assert: Set last tool to an unrecognized tool and expect RuntimeError when error_on_empty=True
+    # Action & Assert: Set last tool to an unrecognized tool and expect ValueError
     solver.update_tool_usage(UNRECOGNIZED_TOOL)
-    with pytest.raises(RuntimeError, match="resolved to no more possible tool calls"):
+    with pytest.raises(ValueError, match=f"No tool rule found for {UNRECOGNIZED_TOOL}"):
         solver.get_allowed_tool_names(error_on_empty=True)
 
 
@@ -119,7 +116,7 @@ def test_conditional_tool_rule():
     rule = ConditionalToolRule(
         tool_name=START_TOOL,
         children=[START_TOOL, END_TOOL],
-        default_child=END_TOOL,
+        default_child=START_TOOL,
         child_output_mapping={True: END_TOOL, False: START_TOOL}
     )
     solver = ToolRulesSolver(tool_rules=[init_rule, rule, terminal_rule])
@@ -130,7 +127,8 @@ def test_conditional_tool_rule():
 
     # Step 2: After using 'start_tool'
     solver.update_tool_usage(START_TOOL)
-    assert set(solver.get_allowed_tool_names()) == set({END_TOOL, START_TOOL}), "After 'start_tool', should allow 'start_tool' or 'end_tool'"
+    assert solver.get_allowed_tool_names(last_function_response='{"message": "true"}') == [END_TOOL], "After 'start_tool' returns true, should allow 'end_tool'"
+    assert solver.get_allowed_tool_names(last_function_response='{"message": "false"}') == [START_TOOL], "After 'start_tool' returns false, should allow 'start_tool'"
 
     # Step 3: After using 'end_tool'
     assert solver.is_terminal_tool(END_TOOL) is True, "Should recognize 'end_tool' as terminal"

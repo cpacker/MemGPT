@@ -250,6 +250,7 @@ def test_claude_initial_tool_rule_enforced(mock_e2b_api_key_none):
     tool_rules = [
         InitToolRule(tool_name=t1_name),
         ChildToolRule(tool_name=t1_name, children=[t2_name]),
+        TerminalToolRule(tool_name=t2_name)
     ]
     tools = [t1, t2]
 

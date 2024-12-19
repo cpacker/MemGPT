@@ -51,9 +51,6 @@ class ToolRulesSolver(BaseModel):
                 assert isinstance(rule, TerminalToolRule)
                 self.terminal_tool_rules.append(rule)
 
-        # Validate the tool rules to ensure they form a DAG
-        if not self.validate_tool_rules():
-            raise ToolRuleValidationError("Tool rules does not have a path from Init to Terminal.")
 
     def update_tool_usage(self, tool_name: str):
         """Update the internal state to track the last tool called."""
@@ -108,53 +105,6 @@ class ToolRulesSolver(BaseModel):
             raise ToolRuleValidationError("Conditional tool rule must have a child output mapping for each child tool.")
         return True
 
-    def validate_tool_rules(self) -> bool:
-        """
-        Validate that there exists a path from every init tool to a terminal tool.
-        Returns True if valid (path exists), otherwise False.
-        """
-        # Build adjacency list for the tool graph
-        adjacency_list: Dict[str, List[str]] = {rule.tool_name: rule.children for rule in self.tool_rules}
-
-        init_tool_names = {rule.tool_name for rule in self.init_tool_rules}
-        terminal_tool_names = {rule.tool_name for rule in self.terminal_tool_rules}
-
-        # Initial checks
-        if len(init_tool_names) == 0:
-            if len(terminal_tool_names) + len(self.tool_rules) > 0:
-                return False  # No init tools defined
-            else:
-                return True   # No tool rules
-        if len(terminal_tool_names) == 0:
-            if len(adjacency_list) > 0:
-                return False  # No terminal tools defined
-            else:
-                return True   # Only init tools
-
-        # Define BFS helper function to find path to terminal tool
-        def has_path_to_terminal(start_tool: str) -> bool:
-            visited = set()
-            queue = deque([start_tool])
-            visited.add(start_tool)
-
-            while queue:
-                current_tool = queue.popleft()
-                if current_tool in terminal_tool_names:
-                    return True
-
-                for child in adjacency_list.get(current_tool, []):
-                    if child not in visited:
-                        visited.add(child)
-                        queue.append(child)
-            return False
-
-        # Check if each init tool has a path to a terminal tool
-        for init_tool_name in init_tool_names:
-            if not has_path_to_terminal(init_tool_name):
-                return False
-
-        return True  # All init tools have paths to terminal tools
-
     def evaluate_conditional_tool(self, tool: ConditionalToolRule, last_function_response: str) -> str:
         '''
         Parse function response to determine which child tool to use based on the mapping
@@ -173,18 +123,18 @@ class ToolRulesSolver(BaseModel):
         for key in tool.child_output_mapping:
 
             # Convert function output to match key type for comparison
-            if key == "true" or key == "false":
-                try:
-                    typed_output = function_output.lower()
-                except AttributeError:
-                    continue
+            if isinstance(key, bool):
+                typed_output = function_output.lower() == "true"
             elif isinstance(key, int):
                 try:
                     typed_output = int(function_output)
                 except (ValueError, TypeError):
                     continue
             else:  # string
-                typed_output = str(function_output)
+                if function_output == "True" or function_output == "False":
+                    typed_output = function_output.lower()
+                else:
+                    typed_output = function_output
 
             if typed_output == key:
                 return tool.child_output_mapping[key]
