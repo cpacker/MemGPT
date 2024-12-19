@@ -1,17 +1,17 @@
 import html
 import json
 import re
-from typing import List, Union
+from typing import List, Literal, Union
 
 from pydantic import BaseModel, Field
 
-from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.letta_message import LettaMessage, LettaMessageUnion
 from letta.schemas.usage import LettaUsageStatistics
 from letta.utils import json_dumps
 
 # TODO: consider moving into own file
 
+StreamDoneStatus = Literal["[DONE]"]
 
 class LettaResponse(BaseModel):
     """
@@ -144,5 +144,5 @@ class LettaResponse(BaseModel):
         return html_output
 
 
-# The streaming response is either [DONE], [DONE_STEP], [DONE], an error, or a LettaMessage
-LettaStreamingResponse = Union[LettaMessage, MessageStreamStatus, LettaUsageStatistics]
+# The streaming response is either [DONE], an error, or a LettaMessage
+LettaStreamingResponse = Union[LettaMessage, StreamDoneStatus, LettaUsageStatistics]

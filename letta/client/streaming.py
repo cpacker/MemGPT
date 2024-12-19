@@ -6,7 +6,7 @@ from httpx_sse import SSEError, connect_sse
 
 from letta.constants import OPENAI_CONTEXT_WINDOW_ERROR_SUBSTRING
 from letta.errors import LLMError
-from letta.schemas.enums import MessageStreamStatus
+from letta.llm_api.openai import OPENAI_SSE_DONE
 from letta.schemas.letta_message import (
     FunctionCallMessage,
     FunctionReturn,
@@ -47,10 +47,10 @@ def _sse_post(url: str, data: dict, headers: dict) -> Generator[LettaStreamingRe
                     # if sse.data == OPENAI_SSE_DONE:
                     # print("finished")
                     # break
-                    if sse.data in [status.value for status in MessageStreamStatus]:
+                    if sse.data == OPENAI_SSE_DONE:
                         # break
                         # print("sse.data::", sse.data)
-                        yield MessageStreamStatus(sse.data)
+                        yield sse.data
                     else:
                         chunk_data = json.loads(sse.data)
                         if "internal_monologue" in chunk_data:

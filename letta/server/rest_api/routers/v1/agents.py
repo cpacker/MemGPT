@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import Field
 
 from letta.constants import DEFAULT_MESSAGE_TOOL, DEFAULT_MESSAGE_TOOL_KWARG
+from letta.llm_api.openai import OPENAI_SSE_DONE
 from letta.orm.errors import NoResultFound
 from letta.schemas.agent import AgentState, CreateAgent, UpdateAgent
 from letta.schemas.block import (  # , BlockLabelUpdate, BlockLimitUpdate
@@ -24,7 +25,6 @@ from letta.schemas.block import (  # , BlockLabelUpdate, BlockLimitUpdate
     BlockUpdate,
     CreateBlock,
 )
-from letta.schemas.enums import MessageStreamStatus
 from letta.schemas.job import Job, JobStatus, JobUpdate
 from letta.schemas.letta_message import (
     LegacyLettaMessage,
@@ -729,14 +729,14 @@ async def send_message_to_agent(
             generated_stream = []
             async for message in streaming_interface.get_generator():
                 assert (
-                    isinstance(message, LettaMessage) or isinstance(message, LegacyLettaMessage) or isinstance(message, MessageStreamStatus)
+                    isinstance(message, LettaMessage) or isinstance(message, LegacyLettaMessage) or message == OPENAI_SSE_DONE
                 ), type(message)
                 generated_stream.append(message)
-                if message == MessageStreamStatus.done:
+                if message == OPENAI_SSE_DONE:
                     break
 
             # Get rid of the stream status messages
-            filtered_stream = [d for d in generated_stream if not isinstance(d, MessageStreamStatus)]
+            filtered_stream = [d for d in generated_stream if d != OPENAI_SSE_DONE]
             usage = await task
 
             # By default the stream will be messages of type LettaMessage or LettaLegacyMessage
