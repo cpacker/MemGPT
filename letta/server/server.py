@@ -992,11 +992,6 @@ class SyncServer(Server):
         actor = self.user_manager.get_user_or_default(user_id=user_id)
 
         logger.info(
-            f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Loading agent object for agent_id={agent_id} (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
-        )
-        letta_agent = self.load_agent(agent_id=agent_id, actor=actor)
-
-        logger.info(
             f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Resolving start_date and end_date for filtering messages (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
         )
         start_date = self.message_manager.get_message_by_id(after, actor=actor).created_at if after else None
@@ -1005,7 +1000,7 @@ class SyncServer(Server):
         logger.info(
             f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Fetching messages for agent_id={agent_id}, start_date={start_date}, end_date={end_date}, limit={limit}, reverse={reverse} (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
         )
-        records = letta_agent.message_manager.list_messages_for_agent(
+        records = self.message_manager.list_messages_for_agent(
             agent_id=agent_id,
             actor=actor,
             start_date=start_date,
@@ -1013,11 +1008,6 @@ class SyncServer(Server):
             limit=limit,
             ascending=not reverse,
         )
-
-        logger.info(
-            f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Validating message types (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
-        )
-        assert all(isinstance(m, Message) for m in records)
 
         if not return_message_object:
             logger.info(

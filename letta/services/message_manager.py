@@ -147,6 +147,7 @@ class MessageManager:
             limit=limit,
             filters=message_filters,
             query_text=query_text,
+            ascending=ascending,
         )
 
     @enforce_types
