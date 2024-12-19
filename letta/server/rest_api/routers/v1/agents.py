@@ -456,13 +456,6 @@ def get_agent_messages(
     """
     actor = server.user_manager.get_user_or_default(user_id=user_id)
 
-    # TODO: Temporary debugging logs for debugging very slow endpoint
-    import uuid
-
-    temp_rand_uuid = uuid.uuid4()
-
-    logger.info(f"[{temp_rand_uuid}] RECEIVED GET /messages for agent_id={agent_id} before={before} limit={limit}")
-
     return server.get_agent_recall_cursor(
         user_id=actor.id,
         agent_id=agent_id,
@@ -472,7 +465,6 @@ def get_agent_messages(
         return_message_object=msg_object,
         assistant_message_tool_name=assistant_message_tool_name,
         assistant_message_tool_kwarg=assistant_message_tool_kwarg,
-        temp_rand_uuid=temp_rand_uuid,
     )
 
 

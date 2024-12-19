@@ -979,27 +979,13 @@ class SyncServer(Server):
         return_message_object: bool = True,
         assistant_message_tool_name: str = constants.DEFAULT_MESSAGE_TOOL,
         assistant_message_tool_kwarg: str = constants.DEFAULT_MESSAGE_TOOL_KWARG,
-        temp_rand_uuid: Optional[str] = None,
     ) -> Union[List[Message], List[LettaMessage]]:
         # TODO: Thread actor directly through this function, since the top level caller most likely already retrieved the user
-        import datetime
 
-        start_time = datetime.datetime.utcnow()
-
-        logger.info(
-            f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Fetching actor for user_id={user_id} (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
-        )
         actor = self.user_manager.get_user_or_default(user_id=user_id)
-
-        logger.info(
-            f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Resolving start_date and end_date for filtering messages (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
-        )
         start_date = self.message_manager.get_message_by_id(after, actor=actor).created_at if after else None
         end_date = self.message_manager.get_message_by_id(before, actor=actor).created_at if before else None
 
-        logger.info(
-            f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Fetching messages for agent_id={agent_id}, start_date={start_date}, end_date={end_date}, limit={limit}, reverse={reverse} (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
-        )
         records = self.message_manager.list_messages_for_agent(
             agent_id=agent_id,
             actor=actor,
@@ -1010,9 +996,6 @@ class SyncServer(Server):
         )
 
         if not return_message_object:
-            logger.info(
-                f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Converting messages to LettaMessage objects (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
-            )
             records = [
                 msg
                 for m in records
@@ -1023,14 +1006,8 @@ class SyncServer(Server):
             ]
 
         if reverse:
-            logger.info(
-                f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Reversing message order (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
-            )
             records = records[::-1]
 
-        logger.info(
-            f"[{temp_rand_uuid}] {datetime.datetime.utcnow()} - Returning {len(records)} messages (Elapsed: {(datetime.datetime.utcnow() - start_time).total_seconds()}s)"
-        )
         return records
 
     def get_server_config(self, include_defaults: bool = False) -> dict:
