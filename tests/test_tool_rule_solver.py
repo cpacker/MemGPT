@@ -57,15 +57,15 @@ def test_is_terminal_tool():
     assert solver.is_terminal_tool(START_TOOL) is False, "Should not recognize 'start_tool' as a terminal tool"
 
 
-# def test_get_allowed_tool_names_no_matching_rule_warning():
-#     # Setup: Tool rules with no matching rule for the last tool
-#     init_rule = InitToolRule(tool_name=START_TOOL)
-#     solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[], terminal_tool_rules=[])
+def test_get_allowed_tool_names_no_matching_rule_warning():
+    # Setup: Tool rules with no matching rule for the last tool
+    init_rule = InitToolRule(tool_name=START_TOOL)
+    solver = ToolRulesSolver(init_tool_rules=[init_rule], tool_rules=[], terminal_tool_rules=[])
 
-#     # Action: Set last tool to an unrecognized tool and check warnings
-#     solver.update_tool_usage(UNRECOGNIZED_TOOL)
+    # Action: Set last tool to an unrecognized tool and check warnings
+    solver.update_tool_usage(UNRECOGNIZED_TOOL)
 
-    # NOTE: removed for now since this warning is getting triggered on every LLM call
+    # # NOTE: removed for now since this warning is getting triggered on every LLM call
     # with warnings.catch_warnings(record=True) as w:
     #    allowed_tools = solver.get_allowed_tool_names()
 
