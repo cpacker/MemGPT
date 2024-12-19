@@ -115,8 +115,7 @@ def test_conditional_tool_rule():
     terminal_rule = TerminalToolRule(tool_name=END_TOOL)
     rule = ConditionalToolRule(
         tool_name=START_TOOL,
-        children=[START_TOOL, END_TOOL],
-        default_child=START_TOOL,
+        default_child=None,
         child_output_mapping={True: END_TOOL, False: START_TOOL}
     )
     solver = ToolRulesSolver(tool_rules=[init_rule, rule, terminal_rule])
@@ -140,32 +139,13 @@ def test_invalid_conditional_tool_rule():
     terminal_rule = TerminalToolRule(tool_name=END_TOOL)
     invalid_rule_1 = ConditionalToolRule(
         tool_name=START_TOOL,
-        children=[START_TOOL],
         default_child=END_TOOL,
-        child_output_mapping={True: END_TOOL, False: START_TOOL}
-    )
-    invalid_rule_2 = ConditionalToolRule(
-        tool_name=START_TOOL,
-        children=[START_TOOL, END_TOOL],
-        default_child=END_TOOL,
-        child_output_mapping={True: END_TOOL}
-    )
-    invalid_rule_3 = ConditionalToolRule(
-        tool_name=START_TOOL,
-        children=[START_TOOL, FINAL_TOOL],
-        default_child=FINAL_TOOL,
-        child_output_mapping={True: END_TOOL, False: START_TOOL}
+        child_output_mapping={}
     )
 
     # Test 1: Missing child output mapping
-    with pytest.raises(ToolRuleValidationError, match="Conditional tool rule must have a child output mapping for each child tool."):
+    with pytest.raises(ToolRuleValidationError, match="Conditional tool rule must have at least one child tool."):
         ToolRulesSolver(tool_rules=[init_rule, invalid_rule_1, terminal_rule])
-    with pytest.raises(ToolRuleValidationError, match="Conditional tool rule must have a child output mapping for each child tool."):
-        ToolRulesSolver(tool_rules=[init_rule, invalid_rule_2, terminal_rule])
-
-    # Test 2: Missing child
-    with pytest.raises(ToolRuleValidationError, match="Conditional tool rule must have a child output mapping for each child tool."):
-        ToolRulesSolver(tool_rules=[init_rule, invalid_rule_3, terminal_rule])
 
 
 def test_tool_rules_with_invalid_path():
@@ -182,7 +162,6 @@ def test_tool_rules_with_invalid_path():
     # Now: add a path from the start tool to the final tool
     rule_5 = ConditionalToolRule(
         tool_name=HELPER_TOOL,
-        children=[START_TOOL, FINAL_TOOL],
         default_child=FINAL_TOOL,
         child_output_mapping={True: START_TOOL, False: FINAL_TOOL},
     )

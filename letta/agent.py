@@ -299,6 +299,7 @@ class Agent(BaseAgent):
         self.first_message_verify_mono = first_message_verify_mono
 
         # State needed for conditional tool chaining
+        # TODO: when agent reloads, load this from past messages
         self.last_function_response = None
 
         # Controls if the convo memory pressure warning is triggered

@@ -74,7 +74,8 @@ class ToolRulesSolver(BaseModel):
             if isinstance(current_rule, ConditionalToolRule):
                 if not last_function_response:
                     raise ValueError("Conditional tool rule requires an LLM response to determine which child tool to use")
-                return [self.evaluate_conditional_tool(current_rule, last_function_response)]
+                next_tool = self.evaluate_conditional_tool(current_rule, last_function_response)
+                return [next_tool] if next_tool else []
 
             return current_rule.children if current_rule.children else []
 
@@ -96,12 +97,8 @@ class ToolRulesSolver(BaseModel):
         Raises:
             ToolRuleValidationError: If the rule is invalid
         '''
-        if rule.children is None or len(rule.children) == 0:
+        if len(rule.child_output_mapping) == 0:
             raise ToolRuleValidationError("Conditional tool rule must have at least one child tool.")
-        if len(rule.children) != len(rule.child_output_mapping):
-            raise ToolRuleValidationError("Conditional tool rule must have a child output mapping for each child tool.")
-        if set(rule.children) != set(rule.child_output_mapping.values()):
-            raise ToolRuleValidationError("Conditional tool rule must have a child output mapping for each child tool.")
         return True
 
     def evaluate_conditional_tool(self, tool: ConditionalToolRule, last_function_response: str) -> str:
@@ -129,9 +126,16 @@ class ToolRulesSolver(BaseModel):
                     typed_output = int(function_output)
                 except (ValueError, TypeError):
                     continue
+            elif isinstance(key, float):
+                try:
+                    typed_output = float(function_output)
+                except (ValueError, TypeError):
+                    continue
             else:  # string
                 if function_output == "True" or function_output == "False":
                     typed_output = function_output.lower()
+                elif function_output == "None":
+                    typed_output = None
                 else:
                     typed_output = function_output
 

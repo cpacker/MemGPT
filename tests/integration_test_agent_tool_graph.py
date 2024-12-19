@@ -117,6 +117,13 @@ def can_play_game():
     return random.random() < 0.5
 
 
+def return_none():
+    """
+    Really simple function
+    """
+    return None
+
+
 def auto_error():
     """
     If you call this function, it will throw an error automatically.
@@ -364,7 +371,6 @@ def test_agent_conditional_tool_easy(mock_e2b_api_key_none):
         ConditionalToolRule(
             tool_name=coin_flip_name,
             default_child=coin_flip_name,
-            children=[secret_word_tool],
             child_output_mapping={
                 "hj2hwibbqm": secret_word_tool,
             }
@@ -436,7 +442,6 @@ def test_agent_conditional_tool_hard(mock_e2b_api_key_none):
         ConditionalToolRule(
             tool_name=play_game,
             default_child=play_game,  # Keep trying if we can't play
-            children=[coin_flip_name],
             child_output_mapping={
                 True: coin_flip_name  # Only allow access when can_play_game returns True
             }
@@ -444,7 +449,6 @@ def test_agent_conditional_tool_hard(mock_e2b_api_key_none):
         ConditionalToolRule(
             tool_name=coin_flip_name,
             default_child=coin_flip_name,
-            children=[play_game, final_tool],
             child_output_mapping={
                 "hj2hwibbqm": final_tool, "START_OVER": play_game
             }
@@ -489,6 +493,78 @@ def test_agent_conditional_tool_hard(mock_e2b_api_key_none):
 
     # Ensure we found all secret words in order
     assert found_words == [final_tool]
+
+    print(f"Got successful response from client: \n\n{response}")
+    cleanup(client=client, agent_uuid=agent_uuid)
+
+
+@pytest.mark.timeout(60)
+def test_agent_conditional_tool_without_default_child(mock_e2b_api_key_none):
+    """
+    Test the agent with a conditional tool that allows any child tool to be called if a function returns None.
+
+                Tool Flow:
+       
+                return_none
+                     |
+                     v
+                any tool...  <-- When output doesn't match mapping, agent can call any tool
+    """
+    client = create_client()
+    cleanup(client=client, agent_uuid=agent_uuid)
+
+    # Create tools - we'll make several available to the agent
+    tool_name = "return_none"
+
+    tool = client.create_or_update_tool(return_none, name=tool_name)
+    secret_word = client.create_or_update_tool(first_secret_word, name="first_secret_word")
+
+    # Make tool rules - only map one output, let others be free choice
+    tool_rules = [
+        InitToolRule(tool_name=tool_name),
+        ConditionalToolRule(
+            tool_name=tool_name,
+            default_child=None,  # Allow any tool to be called if output doesn't match
+            child_output_mapping={
+                "anything but none": "first_secret_word"
+            }
+        )
+    ]
+    tools = [tool, secret_word]
+
+    # Setup agent with all tools
+    agent_state = setup_agent(
+        client,
+        config_file,
+        agent_uuid=agent_uuid,
+        tool_ids=[t.id for t in tools],
+        tool_rules=tool_rules
+    )
+
+    # Ask agent to try different tools based on the game output
+    response = client.user_message(
+        agent_id=agent_state.id,
+        message="call a function, any function. then call send_message"
+    )
+
+    # Make checks
+    assert_sanity_checks(response)
+
+    # Assert return_none was called
+    assert_invoked_function_call(response.messages, tool_name)
+
+    # Assert any base function called afterward
+    found_any_tool = False
+    found_return_none = False
+    for m in response.messages:
+        if isinstance(m, FunctionCallMessage):
+            if m.function_call.name == tool_name:
+                found_return_none = True
+            elif found_return_none and m.function_call.name:
+                found_any_tool = True
+                break
+
+    assert found_any_tool, "Should have called any tool after return_none"
 
     print(f"Got successful response from client: \n\n{response}")
     cleanup(client=client, agent_uuid=agent_uuid)
