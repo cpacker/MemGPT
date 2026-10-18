@@ -26,7 +26,6 @@ letta server
 
 You can also use Letta through:
 
-- the [desktop app](https://docs.letta.com/letta-code/desktop-app) for macOS, Windows, and Linux
 - [chat.letta.com](https://chat.letta.com) in your browser, including on mobile
 - [Slack, Telegram, Discord, and custom channels](https://docs.letta.com/letta-code/channels)
 - the [Letta Agent SDK](https://docs.letta.com/letta-agent-sdk/overview) for building agents into TypeScript applications
